@@ -35,8 +35,9 @@ use crate::utilities::*;
 use super::ast::{
     BlockItem, Comment, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr,
     ImportTarget, Module, Param, PositionalStructDecl, RoutineDecl, Span,
-    StageLType, SymbolTarget, TestBlock, TestCase, TestExpected, TopDecl,
-    TopValueDecl, TypedIntLit, UseImport, UseImportItem, format_dc_shorthand,
+    StageLType, StructTypeRef, SymbolTarget, TestBlock, TestCase, TestExpected,
+    TopDecl, TopValueDecl, TypedIntLit, UseImport, UseImportItem,
+    format_dc_shorthand,
 };
 use super::parser::parse_module;
 use crate::dc::{
@@ -383,8 +384,11 @@ fn push_stagel_type(out: &mut Vec<DcChar>, ty: &StageLType) -> Result<()> {
         StageLType::Struct(target) => {
             out.push(DC_TYPE_STRUCT);
             match target {
-                SymbolTarget::Ident(n) => push_identifier(out, n)?,
-                SymbolTarget::Dc(dc) => push_atom_dc(out, *dc),
+                StructTypeRef::Ident(n)
+                | StructTypeRef::Canonical { name: n, .. } => {
+                    push_identifier(out, n)?;
+                }
+                StructTypeRef::Dc(dc) => push_atom_dc(out, *dc),
             }
         }
     }
@@ -607,14 +611,14 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
         Expr::Field { base, index, .. } => {
             out.push(DC_GET_POSITIONAL_FIELD_OP);
             push_expr(out, base)?;
-            push_typed_int(out, TypedIntLit::U32(*index))?;
+            out.extend(u128_to_dc_number_chars(u128::from(*index)));
         }
         Expr::With {
             base, index, value, ..
         } => {
             out.push(DC_WITH_POSITIONAL_FIELD_OP);
             push_expr(out, base)?;
-            push_typed_int(out, TypedIntLit::U32(*index))?;
+            out.extend(u128_to_dc_number_chars(u128::from(*index)));
             push_expr(out, value)?;
         }
         Expr::BufNew {
@@ -1386,9 +1390,9 @@ impl<'a> Decoder<'a> {
                 self.resolver
                     .token_fills_role(p.to_u128(), DcRole::BeginIdentifier)
             }) {
-                SymbolTarget::Ident(self.read_identifier()?)
+                StructTypeRef::Ident(self.read_identifier()?)
             } else {
-                SymbolTarget::Dc(self.read_atom_dc()?)
+                StructTypeRef::Dc(self.read_atom_dc()?)
             };
             return Ok(StageLType::Struct(target));
         }
@@ -2848,5 +2852,48 @@ v/void/voidRoutine u32/inputVal
                 parse_dc_shorthand("l9000002").unwrap(),
             ]
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_tuples_and_positional_structs_token_dc_roundtrip() {
+        let src = r#"ns demo/shapes.
+
+: @dc l9000111
+pub struct point :: i32 i32.
+
+: @dc l9000112
+pub struct treeNode ::
+    point
+    l/treeNode
+.
+
+pub tup: ::/UNIT tupNew: ::.
+pub point/ORIGIN structNew point: i32:0 i32:0 ::.
+
+pub v/tup: i32 b l/u8 ::/step point/p
+    let tup: i32 ::/single tupNew: field /p u32:0 ::.
+    const point/moved with /p u32:1 add field /single u32:0 i32:5.
+    const treeNode/root structNew treeNode: /moved l/treeNode: :: ::.
+    tupNew: field field /root u32:0 u32:1 eq /moved /ORIGIN b"ok" ::.
+"#;
+        let tokens1 = sl3_to_dc_tokens(src).expect("encode tuples/structs");
+        assert_token_dc_framing_balanced(&tokens1);
+        assert!(tokens1.contains(&DC_BEGIN_POSITIONAL_STRUCT_DECL));
+        assert!(tokens1.contains(&DC_END_POSITIONAL_STRUCT_DECL));
+        assert!(tokens1.contains(&DC_TYPE_TUPLE));
+        assert!(tokens1.contains(&DC_TYPE_STRUCT));
+        assert!(tokens1.contains(&DC_BEGIN_TUPLE));
+        assert!(tokens1.contains(&DC_END_TUPLE));
+        assert!(tokens1.contains(&DC_BEGIN_POSITIONAL_STRUCT_VALUE));
+        assert!(tokens1.contains(&DC_END_POSITIONAL_STRUCT_VALUE));
+        assert!(tokens1.contains(&DC_GET_POSITIONAL_FIELD_OP));
+        assert!(tokens1.contains(&DC_WITH_POSITIONAL_FIELD_OP));
+
+        let formatted1 = dc_tokens_to_sl3(&tokens1).expect("decode to sl3");
+        let tokens2 = sl3_to_dc_tokens(&formatted1).expect("re-encode");
+        assert_token_dc_framing_balanced(&tokens2);
+        let formatted2 = dc_tokens_to_sl3(&tokens2).expect("re-decode");
+        assert_eq!(formatted1, formatted2);
+        assert_eq!(strip_comment_frames(&tokens1), strip_comment_frames(&tokens2));
     }
 }

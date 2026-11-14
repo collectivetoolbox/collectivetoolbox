@@ -45,8 +45,24 @@ impl fmt::Display for Span {
     }
 }
 
+/// Reference to a declared positional `struct` type in StageL 3 (`Dc 2673`).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum StructTypeRef {
+    /// Syntactic identifier or local `use ... as` alias (`point`).
+    Ident(String),
+    /// Direct graph Dc shorthand (`dc/l50`).
+    Dc(DcChar),
+    /// Canonicalized `(declaring_namespace, original_name)` identity produced by validation.
+    Canonical {
+        /// Declaring module's namespace path (`None` if declared in an anonymous module).
+        namespace: Option<String>,
+        /// Original struct name in its declaring module.
+        name: String,
+    },
+}
+
 /// Static value or control type in StageL 3.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum StageLType {
     /// Boolean truth value (`b`, `f1424`).
     B,
@@ -71,7 +87,7 @@ pub enum StageLType {
     /// Anonymous fixed-slot `n`-ary tuple (`tup: T1 T2 ... ::`, `Dc 2672`).
     Tuple(Vec<StageLType>),
     /// Declared positional `struct` type (`name` or `dc/<shorthand>`, `Dc 2673`).
-    Struct(SymbolTarget),
+    Struct(StructTypeRef),
 }
 
 impl StageLType {
@@ -98,10 +114,11 @@ impl StageLType {
                     format!("tup: {} ::", inner.join(" "))
                 }
             }
-            Self::Struct(SymbolTarget::Ident(name)) => name.clone(),
-            Self::Struct(SymbolTarget::Dc(dc)) => {
+            Self::Struct(StructTypeRef::Ident(name)) => name.clone(),
+            Self::Struct(StructTypeRef::Dc(dc)) => {
                 format!("dc/{}", format_dc_shorthand(*dc))
             }
+            Self::Struct(StructTypeRef::Canonical { name, .. }) => name.clone(),
         }
     }
 

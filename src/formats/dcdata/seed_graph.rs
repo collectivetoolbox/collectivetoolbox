@@ -43,8 +43,8 @@ use ctb_utilities::format_id::DC_COLLECTIVE_TOOLBOX;
 
 use crate::dc::{
     DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP, DC_BEGIN_LIST,
-    DC_BEGIN_LITERAL, DC_BEGIN_MODULE, DC_BEGIN_ROUTINE_DECL,
-    DC_BEGIN_TYPE_DEF, DC_BEGIN_WASM_PROGRAM,
+    DC_BEGIN_LITERAL, DC_BEGIN_MODULE,
+    DC_BEGIN_ROUTINE_DECL, DC_BEGIN_TYPE_DEF, DC_BEGIN_WASM_PROGRAM,
     DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE, DC_CANONICAL_DECOMPOSITION,
     DC_CANONICAL_NAME, DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
     DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE,
@@ -2428,15 +2428,69 @@ impl SeedGraphIndex {
             chars.push(DcChar::from_u128(gid));
         }
         let stripped = crate::stagel3::dc_tokens::strip_comment_frames(&chars);
-        matches!(
-            stripped.first().copied(),
-            Some(
-                DC_BEGIN_MODULE
-                    | DC_BEGIN_ROUTINE_DECL
-                    | DC_DECLARE_PUB
-                    | DC_DECLARE_CONST
+        let Some(first) = stripped.first().copied() else {
+            return false;
+        };
+        let u = first.to_u128();
+        self.token_fills_canonical_or_equiv_role(u, crate::syntax::DcRole::BeginModule)
+            || self.token_fills_canonical_or_equiv_role(
+                u,
+                crate::syntax::DcRole::BeginRoutineDecl,
             )
-        )
+            || self.token_fills_canonical_or_equiv_role(
+                u,
+                crate::syntax::DcRole::BeginPositionalStructDecl,
+            )
+            || self.token_fills_canonical_or_equiv_role(u, crate::syntax::DcRole::DeclarePub)
+            || self.token_fills_canonical_or_equiv_role(u, crate::syntax::DcRole::DeclareConst)
+    }
+
+    fn token_fills_canonical_or_equiv_role(
+        &self,
+        token: u128,
+        role: crate::syntax::DcRole,
+    ) -> bool {
+        if role.matches_canonical(token) {
+            return true;
+        }
+        let eq_verb = sh(crate::dc::DC_IS_EQUAL_TO);
+        let start = DcShorthand::from_global_id(token);
+        let mut visited = HashSet::new();
+        visited.insert(start);
+        let mut stack = vec![start];
+        while let Some(cur) = stack.pop() {
+            if let Some(objs) =
+                self.direct_objects_by_verb_subj.get(&(eq_verb, cur))
+            {
+                for &partner in objs {
+                    if visited.insert(partner) {
+                        if partner
+                            .to_global_id()
+                            .is_ok_and(|gid| role.matches_canonical(gid))
+                        {
+                            return true;
+                        }
+                        stack.push(partner);
+                    }
+                }
+            }
+            if let Some(subjs) =
+                self.direct_subjects_by_verb_obj.get(&(eq_verb, cur))
+            {
+                for &partner in subjs {
+                    if visited.insert(partner) {
+                        if partner
+                            .to_global_id()
+                            .is_ok_and(|gid| role.matches_canonical(gid))
+                        {
+                            return true;
+                        }
+                        stack.push(partner);
+                    }
+                }
+            }
+        }
+        false
     }
 
     /// Resolves `subj` (`DcShorthand::Long`, `Short`, or `Format`) to its active StageL 3

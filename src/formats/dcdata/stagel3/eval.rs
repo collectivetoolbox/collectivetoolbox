@@ -34,7 +34,8 @@ use crate::utilities::*;
 
 use super::ast::{
     BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, RoutineDecl,
-    Span, StageLType, SymbolTarget, TestExpected, TopDecl, TypedIntLit,
+    Span, StageLType, StructTypeRef, SymbolTarget, TestExpected, TopDecl,
+    TypedIntLit,
 };
 use super::parser::parse_module;
 use super::validator::{
@@ -94,6 +95,15 @@ pub enum Value {
     List(Rc<Vec<Value>>),
     /// Mutable local builder buffer handle (`buf/T`).
     Buf(Rc<RefCell<BufStorage>>),
+    /// Immutable structural `n`-ary tuple (`tup: T0 ... ::`).
+    Tuple(Rc<Vec<Value>>),
+    /// Immutable nominal positional `struct` instance (`struct <name> :: T0 ... .`).
+    Struct {
+        /// Canonical `(namespace, original_name)` identity of the positional `struct`.
+        type_key: (Option<String>, String),
+        /// Positional field values.
+        fields: Rc<Vec<Value>>,
+    },
 }
 
 impl Value {
@@ -133,6 +143,20 @@ impl Value {
                 .elems
                 .first()
                 .is_none_or(|first| first.matches_stagel_type(elem_ty)),
+            (Self::Tuple(elems), StageLType::Tuple(slot_tys)) => {
+                elems.len() == slot_tys.len()
+                    && elems
+                        .iter()
+                        .zip(slot_tys)
+                        .all(|(v, t)| v.matches_stagel_type(t))
+            }
+            (
+                Self::Struct { type_key, .. },
+                StageLType::Struct(StructTypeRef::Canonical {
+                    namespace,
+                    name,
+                }),
+            ) => &type_key.0 == namespace && &type_key.1 == name,
             _ => false,
         }
     }
@@ -295,6 +319,9 @@ struct ModuleRuntime {
     dc_routines: HashMap<DcChar, RoutineKey>,
     resolved_values: HashMap<(usize, usize), (usize, ValueKey)>,
     resolved_calls: HashMap<(usize, usize), (usize, RoutineKey)>,
+    resolved_structs: HashMap<(usize, usize), (Option<String>, String)>,
+    dc_structs: HashMap<DcChar, (Option<String>, String)>,
+    local_structs: HashMap<String, (Option<String>, String)>,
     imports_by_dc: HashMap<DcChar, ResolvedDcImportTarget>,
 }
 
@@ -354,6 +381,15 @@ impl StageLWorkspaceVm {
                 resolved_calls.insert(span_key, (target_mod_idx, rc.routine_key()));
             }
 
+            let mut resolved_structs =
+                HashMap::with_capacity(vm.resolved_structs.len());
+            for (&span_key, sdef) in &vm.resolved_structs {
+                resolved_structs.insert(
+                    span_key,
+                    (sdef.namespace.clone(), sdef.original_name.clone()),
+                );
+            }
+
             let mut imports_by_dc = HashMap::new();
             for (dc, sym) in &vm.dc_imports {
                 let target = match sym {
@@ -392,6 +428,7 @@ impl StageLWorkspaceVm {
                             },
                         }
                     }
+                    ImportedSymbol::Struct { .. } => continue,
                 };
                 imports_by_dc.insert(*dc, target);
             }
@@ -403,19 +440,16 @@ impl StageLWorkspaceVm {
 
             for decl in &vm.module.items {
                 match decl {
-                    TopDecl::Comment(_) => {}
+                    TopDecl::Comment(_) | TopDecl::Struct(_) => {}
                     TopDecl::Value(v) => {
-                        let vkey = ValueKey {
-                            name: v.name.clone(),
-                            ty: v.ty.clone(),
-                        };
+                        let vkey = vm.value_key(v);
                         if let Some(dc) = v.dc_id {
-                            dc_constants.insert(dc, vkey);
+                            dc_constants.insert(dc, vkey.clone());
                         }
-                        pending_consts.push(v.clone());
+                        pending_consts.push((vkey, v.clone()));
                     }
                     TopDecl::Routine(r) => {
-                        let rkey = RoutineKey::from_decl(r);
+                        let rkey = vm.routine_key(r);
                         if let Some(dc) = r.dc_id {
                             dc_routines.insert(dc, rkey.clone());
                         }
@@ -432,6 +466,9 @@ impl StageLWorkspaceVm {
                 dc_routines,
                 resolved_values,
                 resolved_calls,
+                resolved_structs,
+                dc_structs: vm.dc_structs.clone(),
+                local_structs: vm.local_structs.clone(),
                 imports_by_dc,
             });
 
@@ -504,12 +541,14 @@ impl StageLWorkspaceVm {
                 let TopDecl::Routine(r) = decl else {
                     continue;
                 };
+                let rkey = vm.routine_key(r);
                 for tb in &r.tests {
                     for (case_idx, tc) in tb.cases.iter().enumerate() {
                         let case_report = self.run_single_test_case(
                             mod_idx,
                             vm.namespace_key.clone(),
                             r,
+                            rkey.clone(),
                             tb.label.clone(),
                             case_idx,
                             tc,
@@ -529,11 +568,16 @@ impl StageLWorkspaceVm {
         Ok(report)
     }
 
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Passes pre-canonicalized RoutineKey alongside diagnostic test context"
+    )]
     fn run_single_test_case(
         &self,
         mod_idx: usize,
         namespace: Option<String>,
         routine: &RoutineDecl,
+        routine_key: RoutineKey,
         block_label: Option<String>,
         case_index: usize,
         tc: &super::ast::TestCase,
@@ -567,7 +611,7 @@ impl StageLWorkspaceVm {
 
         let outcome = self.call_routine_by_key(
             mod_idx,
-            RoutineKey::from_decl(routine),
+            routine_key,
             args,
         )?;
         match (&tc.expected, outcome) {
@@ -1214,6 +1258,134 @@ impl StageLWorkspaceVm {
                 };
                 eval_bitcast(v, target_ty)
             }
+            Expr::TupleNew { elements, .. } => {
+                let mut vals = Vec::with_capacity(elements.len());
+                for el in elements {
+                    match self.eval_expr(mod_idx, el, frame, false, depth, quota)? {
+                        EvalSignal::Value(v) => vals.push(v),
+                        sig => return Ok(sig),
+                    }
+                }
+                Ok(EvalSignal::Value(Value::Tuple(Rc::new(vals))))
+            }
+            Expr::StructNew {
+                target,
+                fields,
+                span,
+            } => {
+                let mod_rt =
+                    self.modules.get(mod_idx).context("Invalid module idx")?;
+                let type_key = if let Some(k) =
+                    mod_rt.resolved_structs.get(&(span.line, span.col))
+                {
+                    k.clone()
+                } else {
+                    match target {
+                        SymbolTarget::Ident(name) => mod_rt
+                            .local_structs
+                            .get(name)
+                            .cloned()
+                            .with_context(|| {
+                                format!(
+                                    "Struct '{name}' not found at runtime at {span}"
+                                )
+                            })?,
+                        SymbolTarget::Dc(dc) => mod_rt
+                            .dc_structs
+                            .get(dc)
+                            .cloned()
+                            .with_context(|| {
+                                format!(
+                                    "Struct Dc '{dc}' not found at runtime at {span}"
+                                )
+                            })?,
+                    }
+                };
+                let mut vals = Vec::with_capacity(fields.len());
+                for f in fields {
+                    match self.eval_expr(mod_idx, f, frame, false, depth, quota)? {
+                        EvalSignal::Value(v) => vals.push(v),
+                        sig => return Ok(sig),
+                    }
+                }
+                Ok(EvalSignal::Value(Value::Struct {
+                    type_key,
+                    fields: Rc::new(vals),
+                }))
+            }
+            Expr::Field { index, base, span } => {
+                let idx_usize = usize::try_from(*index)
+                    .context("Field index exceeds usize")?;
+                let base_val =
+                    match self.eval_expr(mod_idx, base, frame, false, depth, quota)? {
+                        EvalSignal::Value(v) => v,
+                        sig => return Ok(sig),
+                    };
+                match base_val {
+                    Value::Tuple(slots)
+                    | Value::Struct { fields: slots, .. } => {
+                        let v =
+                            slots.get(idx_usize).cloned().with_context(|| {
+                                format!(
+                                    "Field index {index} out of bounds at runtime ({span})"
+                                )
+                            })?;
+                        Ok(EvalSignal::Value(v))
+                    }
+                    other => {
+                        bail!("Invalid operand {other:?} for 'field' at {span}")
+                    }
+                }
+            }
+            Expr::With {
+                index,
+                base,
+                value,
+                span,
+            } => {
+                let idx_usize = usize::try_from(*index)
+                    .context("Field index exceeds usize")?;
+                let base_val =
+                    match self.eval_expr(mod_idx, base, frame, false, depth, quota)? {
+                        EvalSignal::Value(v) => v,
+                        sig => return Ok(sig),
+                    };
+                let repl_val =
+                    match self.eval_expr(mod_idx, value, frame, false, depth, quota)? {
+                        EvalSignal::Value(v) => v,
+                        sig => return Ok(sig),
+                    };
+                match base_val {
+                    Value::Tuple(slots) => {
+                        let mut next_slots = (*slots).clone();
+                        let slot =
+                            next_slots.get_mut(idx_usize).with_context(|| {
+                                format!(
+                                    "Field index {index} out of bounds in 'with' ({span})"
+                                )
+                            })?;
+                        *slot = repl_val;
+                        Ok(EvalSignal::Value(Value::Tuple(Rc::new(next_slots))))
+                    }
+                    Value::Struct { type_key, fields } => {
+                        let mut next_fields = (*fields).clone();
+                        let slot =
+                            next_fields.get_mut(idx_usize).with_context(|| {
+                                format!(
+                                    "Field index {index} out of bounds in 'with' ({span})"
+                                )
+                            })?;
+                        *slot = repl_val;
+                        Ok(EvalSignal::Value(Value::Struct {
+                            type_key,
+                            fields: Rc::new(next_fields),
+                        }))
+                    }
+                    other => {
+                        bail!("Invalid operand {other:?} for 'with' at {span}")
+                    }
+                }
+            }
         }
     }
 
@@ -1335,32 +1507,27 @@ impl StageLWorkspaceVm {
 fn eval_pending_constants(
     vm: &mut StageLWorkspaceVm,
     mod_idx: usize,
-    pending: &[super::ast::TopValueDecl],
+    pending: &[(ValueKey, super::ast::TopValueDecl)],
 ) -> Result<()> {
-    let mut remaining: Vec<super::ast::TopValueDecl> = pending.to_vec();
+    let mut remaining: Vec<(ValueKey, super::ast::TopValueDecl)> =
+        pending.to_vec();
     let empty_frame = LexFrame::new(None);
     while !remaining.is_empty() {
         let before = remaining.len();
         let mut next_remaining = Vec::new();
-        for v in remaining {
+        for (vkey, v) in remaining {
             let mut quota = vm.config.compute_quota;
             match vm.eval_expr(mod_idx, &v.value, &empty_frame, false, 0, &mut quota) {
                 Ok(EvalSignal::Value(val)) => {
                     if let Some(m) = vm.modules.get_mut(mod_idx) {
-                        m.constants.insert(
-                            ValueKey {
-                                name: v.name,
-                                ty: v.ty,
-                            },
-                            val,
-                        );
+                        m.constants.insert(vkey, val);
                     }
                 }
                 Ok(EvalSignal::Fault(msg)) => {
                     bail!("Constant '{}' trapped during initialization: {msg}", v.name);
                 }
                 Ok(_) => bail!("Invalid signal evaluating constant '{}'", v.name),
-                Err(_) => next_remaining.push(v),
+                Err(_) => next_remaining.push((vkey, v)),
             }
         }
         if next_remaining.len() == before {
@@ -2054,5 +2221,63 @@ v/u32/testQuota
         )
         .unwrap();
         assert_eq!(qreport.ensure_all_passed().unwrap(), 1);
+    }
+
+    #[crate::ctb_test]
+    fn test_tuples_and_recursive_structs_eval() {
+        let inputs = [
+            ModuleInput {
+                source_path: Some("geo/types.sl3"),
+                source: r#"ns geo/types.
+
+pub struct point :: i32 i32.
+pub struct tree :: point l/tree.
+
+pub point/ORIGIN structNew point: i32:0 i32:0 ::.
+
+pub v/i32/sumTree tree/node
+    test leaf
+        in structNew tree: structNew point: i32:3 i32:4 :: l/tree: :: ::
+        out i32:7.
+    let i32/acc add field field /node u32:0 u32:0 field field /node u32:0 u32:1.
+    foreach tree/child field /node u32:1 do
+        set /acc add /acc sumTree /child.
+    ::.
+    /acc.
+"#,
+            },
+            ModuleInput {
+                source_path: Some("geo/runner.sl3"),
+                source: r#"ns geo/runner.
+use geo/types: point as pt tree ORIGIN sumTree ::.
+
+pub v/b/verifyAll
+    test fullCheck
+        in.
+        out true.
+    const tup: ::/u1 tupNew: ::.
+    const tup: ::/u2 tupNew: ::.
+    const tup: i32 ::/one tupNew: i32:42 ::.
+    const tup: i32 b l/u8 ::/tri tupNew: i32:10 false b"ab" ::.
+    const tup: i32 b l/u8 ::/triUpdated with /tri u32:1 true.
+    : Original 'tri' must remain unchanged (value semantics)
+    if field /tri u32:1 do return false. :: nop.
+    if not field /triUpdated u32:1 do return false. :: nop.
+
+    const pt/p1 with /ORIGIN u32:0 i32:5.
+    const pt/p2 with /p1 u32:1 i32:8.
+    if ne field /ORIGIN u32:0 i32:0 do return false. :: nop.
+
+    const tree/leafA structNew tree: /p1 l/tree: :: ::.
+    const tree/leafB structNew tree: /p2 l/tree: :: ::.
+    const tree/root1 structNew tree: /ORIGIN l/tree: /leafA /leafB :: ::.
+    const tree/root2 structNew tree: structNew pt: i32:0 i32:0 :: l/tree: structNew tree: structNew pt: i32:5 i32:0 :: l/tree: :: :: structNew tree: structNew pt: i32:5 i32:8 :: l/tree: :: :: :: ::.
+    and eq /u1 /u2 and eq field /one u32:0 i32:42 and eq /root1 /root2 eq sumTree /root1 i32:18.
+"#,
+            },
+        ];
+
+        let report = run_workspace_inline_tests(&inputs).expect("eval workspace");
+        assert_eq!(report.ensure_all_passed().unwrap(), 2);
     }
 }

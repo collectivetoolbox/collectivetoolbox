@@ -39,8 +39,9 @@ use crate::seed_graph::SeedGraphIndex;
 use crate::{DcChar, DcShorthand};
 
 use super::ast::{
-    BlockItem, Expr, ImportTarget, Module, RoutineDecl, StageLType,
-    SymbolTarget, TestExpected, TopDecl, TopValueDecl,
+    BlockItem, Expr, ImportTarget, Module, PositionalStructDecl, RoutineDecl,
+    Span, StageLType, StructTypeRef, SymbolTarget, TestExpected, TopDecl,
+    TopValueDecl,
 };
 use super::dc_tokens::{
     decode_module_from_dc_tokens, decode_top_decl_from_dc_tokens_at_line,
@@ -53,8 +54,8 @@ use super::parser::{
     parse_module_with_imports, scan_direct_dc_words, scan_module_header_paths,
 };
 use super::validator::{
-    ImportedSymbol, ModuleInput, NamespaceExports, RoutineSig, ValidatedModule,
-    ValidatedWorkspace, collect_use_verb_arities_from_source,
+    ImportedSymbol, ModuleInput, NamespaceExports, RoutineSig, StructDef,
+    ValidatedModule, ValidatedWorkspace, collect_use_verb_arities_from_source,
     is_stage2_or_sr3_path,
     validate_module_with_registry_and_dc_imports_and_options, verify_psr4_path,
 };
@@ -63,6 +64,7 @@ use super::validator::{
 enum GraphOwnerKind {
     Value { ty: StageLType },
     Routine { sig: RoutineSig },
+    Struct { fields: Vec<StageLType> },
 }
 
 #[derive(Debug, Clone)]
@@ -86,6 +88,29 @@ impl GraphDcOwner {
                 original_name: self.original_name.clone(),
                 sig: sig.clone(),
             },
+            GraphOwnerKind::Struct { fields } => ImportedSymbol::Struct {
+                namespace: self.namespace_key.clone(),
+                original_name: self.original_name.clone(),
+                fields: fields.clone(),
+                dc_id: Some(dc),
+            },
+        }
+    }
+}
+
+fn collect_dc_refs_in_owner_kind(kind: &GraphOwnerKind, out: &mut Vec<DcChar>) {
+    match kind {
+        GraphOwnerKind::Value { ty } => collect_dc_refs_in_type(ty, out),
+        GraphOwnerKind::Routine { sig } => {
+            collect_dc_refs_in_type(&sig.return_type, out);
+            for p in &sig.params {
+                collect_dc_refs_in_type(p, out);
+            }
+        }
+        GraphOwnerKind::Struct { fields } => {
+            for f in fields {
+                collect_dc_refs_in_type(f, out);
+            }
         }
     }
 }
@@ -127,6 +152,17 @@ fn prepare_graph_top_decl(
             let orig_name = v.name.clone();
             let ty = v.ty.clone();
             Ok((decl, orig_name, GraphOwnerKind::Value { ty }))
+        }
+        TopDecl::Struct(s) => {
+            if let Some(name) = override_name {
+                s.name = name.to_owned();
+            }
+            s.is_pub = true;
+            s.pub_dc_syntax = false;
+            s.dc_id = Some(target_dc);
+            let orig_name = s.name.clone();
+            let fields = s.fields.clone();
+            Ok((decl, orig_name, GraphOwnerKind::Struct { fields }))
         }
         TopDecl::Comment(_) => {
             bail!("Decoded StageL graph item for {target_dc} cannot be a bare comment")
@@ -205,6 +241,16 @@ fn extract_decl_from_module(
                     non_comment_items.push(item);
                 }
             }
+            TopDecl::Struct(s) => {
+                if s.dc_id == Some(target_dc) {
+                    return Ok(item);
+                }
+                if expected_name.is_some_and(|n| s.name == n) {
+                    name_matches.push(item);
+                } else {
+                    non_comment_items.push(item);
+                }
+            }
             TopDecl::Comment(_) => {}
         }
     }
@@ -224,6 +270,23 @@ fn extract_decl_from_module(
     )
 }
 
+fn collect_dc_refs_in_type(ty: &StageLType, out: &mut Vec<DcChar>) {
+    match ty {
+        StageLType::List(inner) | StageLType::Buf(inner) => {
+            collect_dc_refs_in_type(inner, out);
+        }
+        StageLType::Tuple(elems) => {
+            for el in elems {
+                collect_dc_refs_in_type(el, out);
+            }
+        }
+        StageLType::Struct(StructTypeRef::Dc(dc)) => {
+            out.push(*dc);
+        }
+        _ => {}
+    }
+}
+
 fn collect_dc_refs_in_module(module: &Module, out: &mut Vec<DcChar>) {
     for u in &module.uses {
         for item in &u.items {
@@ -235,10 +298,20 @@ fn collect_dc_refs_in_module(module: &Module, out: &mut Vec<DcChar>) {
     for decl in &module.items {
         match decl {
             TopDecl::Comment(_) => {}
-            TopDecl::Value(TopValueDecl { value, .. }) => {
+            TopDecl::Struct(PositionalStructDecl { fields, .. }) => {
+                for f in fields {
+                    collect_dc_refs_in_type(f, out);
+                }
+            }
+            TopDecl::Value(TopValueDecl { ty, value, .. }) => {
+                collect_dc_refs_in_type(ty, out);
                 collect_dc_refs_in_expr(value, out);
             }
             TopDecl::Routine(r) => {
+                collect_dc_refs_in_type(&r.return_type, out);
+                for p in &r.params {
+                    collect_dc_refs_in_type(&p.ty, out);
+                }
                 for tb in &r.tests {
                     for tc in &tb.cases {
                         for arg in &tc.inputs {
@@ -264,17 +337,26 @@ fn collect_dc_refs_in_expr(expr: &Expr, out: &mut Vec<DcChar>) {
         | Expr::Nop { .. }
         | Expr::Break { .. }
         | Expr::Continue { .. } => {}
-        Expr::ValueRef { target, .. } => {
+        Expr::ValueRef { ty, target, .. } => {
+            if let Some(t) = ty {
+                collect_dc_refs_in_type(t, out);
+            }
             if let SymbolTarget::Dc(dc) = target {
                 out.push(*dc);
             }
         }
-        Expr::List { elements, .. } => {
+        Expr::List {
+            elem_ty, elements, ..
+        } => {
+            collect_dc_refs_in_type(elem_ty, out);
             for elem in elements {
                 collect_dc_refs_in_expr(elem, out);
             }
         }
-        Expr::BufNew { capacity, .. } => {
+        Expr::BufNew {
+            elem_ty, capacity, ..
+        } => {
+            collect_dc_refs_in_type(elem_ty, out);
             collect_dc_refs_in_expr(capacity, out);
         }
         Expr::Block { stmts, .. } => {
@@ -284,15 +366,27 @@ fn collect_dc_refs_in_expr(expr: &Expr, out: &mut Vec<DcChar>) {
                 }
             }
         }
-        Expr::Let { init, .. } => {
+        Expr::Let { ty, init, .. } => {
+            collect_dc_refs_in_type(ty, out);
             if let Some(init_expr) = init {
                 collect_dc_refs_in_expr(init_expr, out);
             }
         }
-        Expr::Const { value, .. } | Expr::Set { value, .. } => {
+        Expr::Const { ty, value, .. } => {
+            collect_dc_refs_in_type(ty, out);
+            collect_dc_refs_in_expr(value, out);
+        }
+        Expr::Set { ty, value, .. } => {
+            if let Some(t) = ty {
+                collect_dc_refs_in_type(t, out);
+            }
             collect_dc_refs_in_expr(value, out);
         }
         Expr::RoutineDecl(r) => {
+            collect_dc_refs_in_type(&r.return_type, out);
+            for p in &r.params {
+                collect_dc_refs_in_type(&p.ty, out);
+            }
             collect_dc_refs_in_expr(&r.body, out);
         }
         Expr::If {
@@ -309,7 +403,13 @@ fn collect_dc_refs_in_expr(expr: &Expr, out: &mut Vec<DcChar>) {
             collect_dc_refs_in_expr(cond, out);
             collect_dc_refs_in_expr(body, out);
         }
-        Expr::ForEach { list, body, .. } => {
+        Expr::ForEach {
+            elem_ty,
+            list,
+            body,
+            ..
+        } => {
+            collect_dc_refs_in_type(elem_ty, out);
             collect_dc_refs_in_expr(list, out);
             collect_dc_refs_in_expr(body, out);
         }
@@ -321,7 +421,17 @@ fn collect_dc_refs_in_expr(expr: &Expr, out: &mut Vec<DcChar>) {
         Expr::Unary { operand, .. } => {
             collect_dc_refs_in_expr(operand, out);
         }
-        Expr::Conv { expr: inner, .. } | Expr::Bitcast { expr: inner, .. } => {
+        Expr::Conv {
+            expr: inner,
+            target_ty,
+            ..
+        }
+        | Expr::Bitcast {
+            expr: inner,
+            target_ty,
+            ..
+        } => {
+            collect_dc_refs_in_type(target_ty, out);
             collect_dc_refs_in_expr(inner, out);
         }
         Expr::Binary { left, right, .. } => {
@@ -346,6 +456,26 @@ fn collect_dc_refs_in_expr(expr: &Expr, out: &mut Vec<DcChar>) {
                 collect_dc_refs_in_expr(arg, out);
             }
         }
+        Expr::TupleNew { elements, .. } => {
+            for el in elements {
+                collect_dc_refs_in_expr(el, out);
+            }
+        }
+        Expr::StructNew { target, fields, .. } => {
+            if let SymbolTarget::Dc(dc) = target {
+                out.push(*dc);
+            }
+            for f in fields {
+                collect_dc_refs_in_expr(f, out);
+            }
+        }
+        Expr::Field { base, .. } => {
+            collect_dc_refs_in_expr(base, out);
+        }
+        Expr::With { base, value, .. } => {
+            collect_dc_refs_in_expr(base, out);
+            collect_dc_refs_in_expr(value, out);
+        }
     }
 }
 
@@ -359,6 +489,11 @@ fn collect_locally_defined_dcs(module: &Module, out: &mut HashSet<DcChar>) {
             }
             TopDecl::Value(v) => {
                 if let Some(dc) = v.dc_id {
+                    out.insert(dc);
+                }
+            }
+            TopDecl::Struct(s) => {
+                if let Some(dc) = s.dc_id {
                     out.insert(dc);
                 }
             }
@@ -428,6 +563,23 @@ fn reconstruct_external_namespace_module(
                         .entry(orig_name.clone())
                         .or_default()
                         .push(sig.clone());
+                }
+                GraphOwnerKind::Struct { fields } => {
+                    ensure!(
+                        !prelim_exports.structs.contains_key(&orig_name),
+                        "Duplicate exported struct '{orig_name}' in namespace '{ns_key}'"
+                    );
+                    prelim_exports.structs.insert(
+                        orig_name.clone(),
+                        StructDef {
+                            namespace: Some(ns_key.clone()),
+                            original_name: orig_name.clone(),
+                            fields: fields.clone(),
+                            is_pub: true,
+                            dc_id: Some(target_dc),
+                            span: Span { line: 1, col: 1 },
+                        },
+                    );
                 }
             }
             prelim_exports
@@ -672,6 +824,23 @@ fn link_parsed_modules_with_seed_graph_and_flags(
                                 matched = true;
                             }
                         }
+                        TopDecl::Struct(s) => {
+                            if s.dc_id == Some(dc) {
+                                s.is_pub = true;
+                                s.pub_dc_syntax = false;
+                                dc_owners.insert(
+                                    dc,
+                                    GraphDcOwner {
+                                        namespace_key: ns_key.clone(),
+                                        original_name: s.name.clone(),
+                                        kind: GraphOwnerKind::Struct {
+                                            fields: s.fields.clone(),
+                                        },
+                                    },
+                                );
+                                matched = true;
+                            }
+                        }
                         TopDecl::Comment(_) => {}
                     }
                 }
@@ -712,13 +881,30 @@ fn link_parsed_modules_with_seed_graph_and_flags(
                                 matched = true;
                                 break;
                             }
+                            TopDecl::Struct(s) => {
+                                s.is_pub = true;
+                                s.pub_dc_syntax = false;
+                                s.dc_id = Some(dc);
+                                dc_owners.insert(
+                                    dc,
+                                    GraphDcOwner {
+                                        namespace_key: ns_key.clone(),
+                                        original_name: s.name.clone(),
+                                        kind: GraphOwnerKind::Struct {
+                                            fields: s.fields.clone(),
+                                        },
+                                    },
+                                );
+                                matched = true;
+                                break;
+                            }
                             TopDecl::Comment(_) => {}
                         }
                     }
                 }
                 ensure!(
                     matched,
-                    "StageL Token-Dc module on {sh} contains no routine or constant declaration"
+                    "StageL Token-Dc module on {sh} contains no routine, struct, or constant declaration"
                 );
                 // If this graph module itself has external `use` declarations, resolve them too.
                 for u in &m.uses {
@@ -820,12 +1006,19 @@ fn link_parsed_modules_with_seed_graph_and_flags(
 
         let mut refs = Vec::new();
         collect_dc_refs_in_module(m, &mut refs);
+        let mut ref_queue: VecDeque<DcChar> = refs.into_iter().collect();
+        let mut visited_extra = HashSet::new();
         let mut extra_dc_map = HashMap::new();
-        for dc in refs {
-            if mod_local_dcs.contains(&dc) {
+        while let Some(dc) = ref_queue.pop_front() {
+            if mod_local_dcs.contains(&dc) || !visited_extra.insert(dc) {
                 continue;
             }
             if let Some(owner) = dc_owners.get(&dc) {
+                let mut sig_refs = Vec::new();
+                collect_dc_refs_in_owner_kind(&owner.kind, &mut sig_refs);
+                for s_dc in sig_refs {
+                    ref_queue.push_back(s_dc);
+                }
                 if self_ns.as_deref() == Some(owner.namespace_key.as_str()) {
                     continue;
                 }
@@ -1019,6 +1212,30 @@ pub fn parse_and_validate_workspace_with_seed_graph(
                                     namespace: ns_key.clone(),
                                     original_name: v.name.clone(),
                                     ty: v.ty.clone(),
+                                    dc_id: Some(dc),
+                                },
+                            );
+                        }
+                    }
+                    TopDecl::Struct(s) if s.is_pub => {
+                        exp.structs.insert(
+                            s.name.clone(),
+                            StructDef {
+                                namespace: Some(ns_key.clone()),
+                                original_name: s.name.clone(),
+                                fields: s.fields.clone(),
+                                is_pub: true,
+                                dc_id: s.dc_id,
+                                span: s.span,
+                            },
+                        );
+                        if let Some(dc) = s.dc_id {
+                            exp.by_dc.insert(
+                                dc,
+                                ImportedSymbol::Struct {
+                                    namespace: ns_key.clone(),
+                                    original_name: s.name.clone(),
+                                    fields: s.fields.clone(),
                                     dc_id: Some(dc),
                                 },
                             );

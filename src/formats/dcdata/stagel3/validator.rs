@@ -35,8 +35,8 @@ use crate::utilities::*;
 
 use super::ast::{
     BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, ImportTarget,
-    Module, RoutineDecl, Span, StageLType, SymbolTarget, TestExpected, TopDecl,
-    TopValueDecl, format_dc_shorthand,
+    Module, PositionalStructDecl, RoutineDecl, Span, StageLType, StructTypeRef,
+    SymbolTarget, TestExpected, TopDecl, TopValueDecl, format_dc_shorthand,
 };
 use super::parser::{parse_module_with_imports, scan_module_header_paths};
 use crate::{DcChar, DcShorthand};
@@ -150,6 +150,23 @@ impl ResolvedValueTarget {
     }
 }
 
+/// Validated positional `struct` definition (`Dc 2217`..`Dc 2218`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StructDef {
+    /// Defining namespace path (`None` if declared in an anonymous module).
+    pub namespace: Option<String>,
+    /// Original struct identifier in its declaring module.
+    pub original_name: String,
+    /// Canonicalized ordered slot types (`>= 1` slot).
+    pub fields: Vec<StageLType>,
+    /// Export visibility.
+    pub is_pub: bool,
+    /// Optional assigned graph Dc identity.
+    pub dc_id: Option<DcChar>,
+    /// Source declaration span.
+    pub span: Span,
+}
+
 /// Exported items from one compiled namespace module.
 #[derive(Debug, Clone, Default)]
 pub struct NamespaceExports {
@@ -157,6 +174,10 @@ pub struct NamespaceExports {
     pub values: HashMap<String, (StageLType, Option<DcChar>)>,
     /// Exported `pub` routines by name (same arity, pairwise-distinct parameter type tuples).
     pub routines: HashMap<String, Vec<RoutineSig>>,
+    /// Exported `pub` positional structs by exported name.
+    pub structs: HashMap<String, StructDef>,
+    /// Transitive closure of canonical [`StructDef`]s reachable via this namespace's exports.
+    pub all_structs: BTreeMap<(Option<String>, String), StructDef>,
     /// Assigned Dc shorthand mappings (`dc -> ImportedSymbol`).
     pub by_dc: HashMap<DcChar, ImportedSymbol>,
 }
@@ -184,6 +205,17 @@ pub enum ImportedSymbol {
         /// Routine signature.
         sig: RoutineSig,
     },
+    /// Imported `pub` positional `struct` type.
+    Struct {
+        /// Defining namespace path key.
+        namespace: String,
+        /// Original exported struct name.
+        original_name: String,
+        /// Canonicalized ordered slot types.
+        fields: Vec<StageLType>,
+        /// Optional Dc identity.
+        dc_id: Option<DcChar>,
+    },
 }
 
 /// Metadata collected for a validated single module.
@@ -195,18 +227,98 @@ pub struct ValidatedModule {
     pub namespace_key: Option<String>,
     /// Resolved `use` bindings visible inside the module (`local_name -> candidates`).
     pub imports: HashMap<String, Vec<ImportedSymbol>>,
-    /// Direct Dc call/value targets resolved from `use dc/<sh>` or System-graph linking.
+    /// Direct Dc call/value/struct targets resolved from `use dc/<sh>` or System-graph linking.
     pub dc_imports: HashMap<DcChar, ImportedSymbol>,
+    /// Local or imported struct names mapped to canonical `(namespace, original_name)`.
+    pub local_structs: HashMap<String, (Option<String>, String)>,
+    /// Local or imported struct Dcs mapped to canonical `(namespace, original_name)`.
+    pub dc_structs: HashMap<DcChar, (Option<String>, String)>,
+    /// All canonical [`StructDef`]s declared or transitively reachable in this module.
+    pub struct_defs: BTreeMap<(Option<String>, String), StructDef>,
     /// Tail-position annotations indexed by `Span` (`line`, `col`) of `Call`.
     pub tail_calls: HashSet<(usize, usize)>,
     /// Statically resolved top-level/imported routine call targets indexed by `Span` (`line`, `col`).
     pub resolved_calls: HashMap<(usize, usize), ResolvedCallTarget>,
     /// Statically resolved top-level/imported constant targets indexed by `Span` (`line`, `col`).
     pub resolved_values: HashMap<(usize, usize), ResolvedValueTarget>,
+    /// Statically resolved positional `struct` targets for [`Expr::StructNew`] indexed by `Span` (`line`, `col`).
+    pub resolved_structs: HashMap<(usize, usize), StructDef>,
     /// Statically resolved [`StageLType`] for every [`Expr::ValueRef`] site indexed by `Span` (`line`, `col`).
     pub value_ref_types: HashMap<(usize, usize), StageLType>,
+    /// Canonicalized static [`StageLType`] for every validated [`Expr`] indexed by `Span` (`line`, `col`).
+    pub expr_types: HashMap<(usize, usize), StageLType>,
     /// Module-level exported items.
     pub exports: NamespaceExports,
+}
+
+impl ValidatedModule {
+    /// Resolves any syntactic struct type references inside `ty` to canonical
+    /// [`StructTypeRef::Canonical`] identities using this module's symbol tables.
+    #[must_use]
+    pub fn canonicalize_type(&self, ty: &StageLType) -> StageLType {
+        match ty {
+            StageLType::B
+            | StageLType::U8
+            | StageLType::I32
+            | StageLType::U32
+            | StageLType::I64
+            | StageLType::U64
+            | StageLType::Void
+            | StageLType::Never => ty.clone(),
+            StageLType::List(inner) => {
+                StageLType::List(Box::new(self.canonicalize_type(inner)))
+            }
+            StageLType::Buf(inner) => {
+                StageLType::Buf(Box::new(self.canonicalize_type(inner)))
+            }
+            StageLType::Tuple(elems) => StageLType::Tuple(
+                elems.iter().map(|e| self.canonicalize_type(e)).collect(),
+            ),
+            StageLType::Struct(StructTypeRef::Ident(name)) => {
+                if let Some((ns, orig)) = self.local_structs.get(name) {
+                    StageLType::Struct(StructTypeRef::Canonical {
+                        namespace: ns.clone(),
+                        name: orig.clone(),
+                    })
+                } else {
+                    ty.clone()
+                }
+            }
+            StageLType::Struct(StructTypeRef::Dc(dc)) => {
+                if let Some((ns, orig)) = self.dc_structs.get(dc) {
+                    StageLType::Struct(StructTypeRef::Canonical {
+                        namespace: ns.clone(),
+                        name: orig.clone(),
+                    })
+                } else {
+                    ty.clone()
+                }
+            }
+            StageLType::Struct(StructTypeRef::Canonical { .. }) => ty.clone(),
+        }
+    }
+
+    /// Builds a canonicalized [`RoutineKey`] for `r` declared in this module.
+    #[must_use]
+    pub fn routine_key(&self, r: &RoutineDecl) -> RoutineKey {
+        RoutineKey {
+            name: r.name.clone(),
+            params: r
+                .params
+                .iter()
+                .map(|p| self.canonicalize_type(&p.ty))
+                .collect(),
+        }
+    }
+
+    /// Builds a canonicalized [`ValueKey`] for `v` declared in this module.
+    #[must_use]
+    pub fn value_key(&self, v: &TopValueDecl) -> ValueKey {
+        ValueKey {
+            name: v.name.clone(),
+            ty: self.canonicalize_type(&v.ty),
+        }
+    }
 }
 
 /// Validated multi-module workspace ordered topologically (`leaves` first).
@@ -490,11 +602,13 @@ pub(crate) fn collect_use_verb_arities_from_source(
                         }
                         continue;
                     }
-                    exports.values.get(item_w).with_context(|| {
-                        format!(
+                    if !exports.values.contains_key(item_w)
+                        && !exports.structs.contains_key(item_w)
+                    {
+                        bail!(
                             "Namespace '{path}' has no exported item '{item_w}'"
-                        )
-                    })?;
+                        );
+                    }
                     if words.get(wi) == Some(&"as") {
                         wi = wi.saturating_add(2);
                     }
@@ -591,6 +705,12 @@ struct Validator<'a> {
     /// combining imported and top-level routines with identical arity and
     /// pairwise-distinct parameter type tuples.
     routine_candidates: HashMap<String, Vec<ResolvedCallTarget>>,
+    /// Local or imported struct names mapped to canonical `(namespace, original_name)`.
+    local_structs: HashMap<String, (Option<String>, String)>,
+    /// Local or imported struct Dcs mapped to canonical `(namespace, original_name)`.
+    dc_structs: HashMap<DcChar, (Option<String>, String)>,
+    /// All canonical [`StructDef`]s declared or transitively reachable in this module.
+    struct_defs: BTreeMap<(Option<String>, String), StructDef>,
     /// Top-level constant types keyed directly by assigned `DcChar`.
     top_dc_values: HashMap<DcChar, StageLType>,
     /// Top-level routine signatures keyed directly by assigned `DcChar`.
@@ -617,16 +737,168 @@ struct Validator<'a> {
     resolved_calls: HashMap<(usize, usize), ResolvedCallTarget>,
     /// Statically resolved top-level/imported constant targets indexed by `(line, col)`.
     resolved_values: HashMap<(usize, usize), ResolvedValueTarget>,
+    /// Statically resolved positional `struct` targets for [`Expr::StructNew`] indexed by `(line, col)`.
+    resolved_structs: HashMap<(usize, usize), StructDef>,
     /// Statically resolved [`StageLType`] for every [`Expr::ValueRef`] site indexed by `(line, col)`.
     value_ref_types: HashMap<(usize, usize), StageLType>,
+    /// Canonicalized static [`StageLType`] for every validated [`Expr`] indexed by `(line, col)`.
+    expr_types: HashMap<(usize, usize), StageLType>,
     /// Phantom marker tying lifetime `'a` when needed by helper methods.
     _marker: std::marker::PhantomData<&'a ()>,
 }
 
-/// Evaluates whether a type is valid everywhere in a StageL 3 routine or
-/// expression, rejecting invalid element types like `l/void` or `l/buf/u8`.
+fn canonicalize_type_with_maps(
+    ty: &StageLType,
+    local_structs: &HashMap<String, (Option<String>, String)>,
+    dc_structs: &HashMap<DcChar, (Option<String>, String)>,
+    struct_defs: &BTreeMap<(Option<String>, String), StructDef>,
+    forbid_stagel_internal: bool,
+    top_dc_names: &HashMap<DcChar, String>,
+    span: Span,
+) -> Result<StageLType> {
+    match ty {
+        StageLType::B
+        | StageLType::U8
+        | StageLType::I32
+        | StageLType::U32
+        | StageLType::I64
+        | StageLType::U64
+        | StageLType::Void
+        | StageLType::Never => Ok(ty.clone()),
+        StageLType::List(inner) => Ok(StageLType::List(Box::new(
+            canonicalize_type_with_maps(
+                inner,
+                local_structs,
+                dc_structs,
+                struct_defs,
+                forbid_stagel_internal,
+                top_dc_names,
+                span,
+            )?,
+        ))),
+        StageLType::Buf(inner) => Ok(StageLType::Buf(Box::new(
+            canonicalize_type_with_maps(
+                inner,
+                local_structs,
+                dc_structs,
+                struct_defs,
+                forbid_stagel_internal,
+                top_dc_names,
+                span,
+            )?,
+        ))),
+        StageLType::Tuple(elems) => {
+            let mut out = Vec::with_capacity(elems.len());
+            for el in elems {
+                out.push(canonicalize_type_with_maps(
+                    el,
+                    local_structs,
+                    dc_structs,
+                    struct_defs,
+                    forbid_stagel_internal,
+                    top_dc_names,
+                    span,
+                )?);
+            }
+            Ok(StageLType::Tuple(out))
+        }
+        StageLType::Struct(StructTypeRef::Ident(name)) => {
+            if forbid_stagel_internal && is_stagel_internal_name(name) {
+                bail!(
+                    "StageL-internal struct '{name}' cannot be referenced in Stage 2/StageR module at {span}"
+                );
+            }
+            let Some((ns, orig)) = local_structs.get(name) else {
+                bail!("Unknown StageL struct type '{name}' at {span}");
+            };
+            if forbid_stagel_internal && is_stagel_internal_name(orig) {
+                bail!(
+                    "StageL-internal struct '{orig}' cannot be referenced in Stage 2/StageR module at {span}"
+                );
+            }
+            Ok(StageLType::Struct(StructTypeRef::Canonical {
+                namespace: ns.clone(),
+                name: orig.clone(),
+            }))
+        }
+        StageLType::Struct(StructTypeRef::Dc(dc)) => {
+            let sh = format_dc_shorthand(*dc);
+            if forbid_stagel_internal
+                && let Some(orig) = top_dc_names.get(dc)
+                && is_stagel_internal_name(orig)
+            {
+                bail!(
+                    "StageL-internal struct '{orig}' ('dc/{sh}') cannot be referenced in Stage 2/StageR module at {span}"
+                );
+            }
+            let Some((ns, orig)) = dc_structs.get(dc) else {
+                bail!("Unknown StageL struct Dc reference 'dc/{sh}' at {span}");
+            };
+            if forbid_stagel_internal && is_stagel_internal_name(orig) {
+                bail!(
+                    "StageL-internal struct '{orig}' ('dc/{sh}') cannot be referenced in Stage 2/StageR module at {span}"
+                );
+            }
+            Ok(StageLType::Struct(StructTypeRef::Canonical {
+                namespace: ns.clone(),
+                name: orig.clone(),
+            }))
+        }
+        StageLType::Struct(StructTypeRef::Canonical { namespace, name }) => {
+            let key = (namespace.clone(), name.clone());
+            ensure!(
+                struct_defs.contains_key(&key),
+                "Unresolved canonical struct '{name}' at {span}"
+            );
+            Ok(ty.clone())
+        }
+    }
+}
+
+fn type_contains_buf_with_defs(
+    ty: &StageLType,
+    struct_defs: &BTreeMap<(Option<String>, String), StructDef>,
+) -> bool {
+    fn visit(
+        ty: &StageLType,
+        struct_defs: &BTreeMap<(Option<String>, String), StructDef>,
+        visited: &mut HashSet<(Option<String>, String)>,
+    ) -> bool {
+        match ty {
+            StageLType::Buf(_) => true,
+            StageLType::List(inner) => visit(inner, struct_defs, visited),
+            StageLType::Tuple(elems) => {
+                elems.iter().any(|e| visit(e, struct_defs, visited))
+            }
+            StageLType::Struct(StructTypeRef::Canonical { namespace, name }) => {
+                let key = (namespace.clone(), name.clone());
+                if !visited.insert(key.clone()) {
+                    return false;
+                }
+                struct_defs.get(&key).is_some_and(|sdef| {
+                    sdef.fields.iter().any(|f| visit(f, struct_defs, visited))
+                })
+            }
+            _ => false,
+        }
+    }
+    let mut visited = HashSet::new();
+    visit(ty, struct_defs, &mut visited)
+}
+
+fn type_can_be_element_with_defs(
+    ty: &StageLType,
+    struct_defs: &BTreeMap<(Option<String>, String), StructDef>,
+) -> bool {
+    ty.can_be_element() && !type_contains_buf_with_defs(ty, struct_defs)
+}
+
+/// Evaluates whether a canonicalized type is valid in a StageL 3 routine or
+/// expression, rejecting invalid element types like `l/void`, `l/buf/u8`, or
+/// `tup: void ::`.
 fn check_type_well_formed(
     ty: &StageLType,
+    struct_defs: &BTreeMap<(Option<String>, String), StructDef>,
     is_pub_api: bool,
     span: Span,
 ) -> Result<()> {
@@ -641,12 +913,12 @@ fn check_type_well_formed(
         | StageLType::Never => Ok(()),
         StageLType::List(inner) => {
             ensure!(
-                inner.can_be_element(),
+                type_can_be_element_with_defs(inner, struct_defs),
                 "Invalid list element type '{}' in 'l/{}' at {span}",
                 inner.display_name(),
                 inner.display_name()
             );
-            check_type_well_formed(inner, is_pub_api, span)
+            check_type_well_formed(inner, struct_defs, is_pub_api, span)
         }
         StageLType::Buf(inner) => {
             ensure!(
@@ -655,14 +927,117 @@ fn check_type_well_formed(
                 inner.display_name()
             );
             ensure!(
-                inner.can_be_element(),
+                type_can_be_element_with_defs(inner, struct_defs),
                 "Invalid buffer element type '{}' in 'buf/{}' at {span}",
                 inner.display_name(),
                 inner.display_name()
             );
-            check_type_well_formed(inner, is_pub_api, span)
+            check_type_well_formed(inner, struct_defs, is_pub_api, span)
+        }
+        StageLType::Tuple(elems) => {
+            for el in elems {
+                ensure!(
+                    *el != StageLType::Void && *el != StageLType::Never,
+                    "Invalid tuple slot type '{}' in '{}' at {span}",
+                    el.display_name(),
+                    ty.display_name()
+                );
+                check_type_well_formed(el, struct_defs, is_pub_api, span)?;
+            }
+            Ok(())
+        }
+        StageLType::Struct(StructTypeRef::Canonical { namespace, name }) => {
+            let key = (namespace.clone(), name.clone());
+            ensure!(
+                struct_defs.contains_key(&key),
+                "Unknown struct type '{name}' at {span}"
+            );
+            if is_pub_api {
+                ensure!(
+                    !type_contains_buf_with_defs(ty, struct_defs),
+                    "Struct '{name}' containing local buffer 'buf/T' is disallowed in public constants/signatures at {span}"
+                );
+            }
+            Ok(())
+        }
+        StageLType::Struct(_) => {
+            bail!("Uncanonicalized struct type '{}' at {span}", ty.display_name())
         }
     }
+}
+
+fn check_unguarded_struct_cycles(
+    struct_defs: &BTreeMap<(Option<String>, String), StructDef>,
+) -> Result<()> {
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum Mark {
+        Visiting,
+        Visited,
+    }
+
+    fn collect_direct_struct_edges(
+        ty: &StageLType,
+        out: &mut Vec<(Option<String>, String)>,
+    ) {
+        match ty {
+            StageLType::Struct(StructTypeRef::Canonical { namespace, name }) => {
+                out.push((namespace.clone(), name.clone()));
+            }
+            StageLType::Tuple(elems) => {
+                for el in elems {
+                    collect_direct_struct_edges(el, out);
+                }
+            }
+            // `List(T)` and `Buf(T)` are heap-indirected sequence headers and break value-size cycles.
+            _ => {}
+        }
+    }
+
+    fn dfs(
+        key: &(Option<String>, String),
+        struct_defs: &BTreeMap<(Option<String>, String), StructDef>,
+        marks: &mut HashMap<(Option<String>, String), Mark>,
+        stack: &mut Vec<String>,
+    ) -> Result<()> {
+        if let Some(&m) = marks.get(key) {
+            match m {
+                Mark::Visited => return Ok(()),
+                Mark::Visiting => {
+                    stack.push(key.1.clone());
+                    let sdef = struct_defs.get(key);
+                    // Reason for fallback: Default 1:1 span only if missing from map.
+                    let sp = sdef.map_or(Span { line: 1, col: 1 }, |d| d.span);
+                    bail!(
+                        "Infinite-size unguarded recursive struct cycle '{}' at {sp} (wrap recursive struct references in 'l/...')",
+                        stack.join(" -> ")
+                    );
+                }
+            }
+        }
+        marks.insert(key.clone(), Mark::Visiting);
+        stack.push(key.1.clone());
+        if let Some(sdef) = struct_defs.get(key) {
+            let mut edges = Vec::new();
+            for f in &sdef.fields {
+                collect_direct_struct_edges(f, &mut edges);
+            }
+            for target in edges {
+                dfs(&target, struct_defs, marks, stack)?;
+            }
+        }
+        let _ = stack.pop();
+        marks.insert(key.clone(), Mark::Visited);
+        Ok(())
+    }
+
+    let mut marks = HashMap::new();
+    let mut stack = Vec::new();
+    for key in struct_defs.keys() {
+        if !marks.contains_key(key) {
+            dfs(key, struct_defs, &mut marks, &mut stack)?;
+        }
+    }
+    Ok(())
 }
 
 fn check_pub_dc_shorthand(dc: DcChar, span: Span) -> Result<()> {
@@ -723,6 +1098,117 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
         HashMap::new();
     let mut routine_candidates: HashMap<String, Vec<ResolvedCallTarget>> =
         HashMap::new();
+    let mut local_structs: HashMap<String, (Option<String>, String)> =
+        HashMap::new();
+    let mut dc_structs: HashMap<DcChar, (Option<String>, String)> =
+        HashMap::new();
+    let mut struct_defs: BTreeMap<(Option<String>, String), StructDef> =
+        BTreeMap::new();
+
+    // Seed transitive struct definitions from all dependency namespaces and direct `dc_imports`.
+    for dep_exp in ns_exports.values() {
+        for (k, sdef) in &dep_exp.all_structs {
+            struct_defs.insert(k.clone(), sdef.clone());
+        }
+    }
+    let mut dc_import_struct_keys = Vec::new();
+    for (&dc, sym) in &dc_imports {
+        if let ImportedSymbol::Struct {
+            namespace,
+            original_name,
+            fields,
+            dc_id,
+        } = sym
+        {
+            let key = (Some(namespace.clone()), original_name.clone());
+            dc_structs.insert(dc, key.clone());
+            struct_defs.entry(key.clone()).or_insert_with(|| StructDef {
+                namespace: Some(namespace.clone()),
+                original_name: original_name.clone(),
+                fields: fields.clone(),
+                is_pub: true,
+                dc_id: *dc_id,
+                span: Span { line: 1, col: 1 },
+            });
+            dc_import_struct_keys.push(key);
+        }
+    }
+    let empty_local_structs = HashMap::new();
+    let empty_top_dc_names = HashMap::new();
+    let synth_span = Span { line: 1, col: 1 };
+    for key in dc_import_struct_keys {
+        if let Some(existing) = struct_defs.get(&key).cloned() {
+            let mut canon_fields = Vec::with_capacity(existing.fields.len());
+            for f in &existing.fields {
+                canon_fields.push(canonicalize_type_with_maps(
+                    f,
+                    &empty_local_structs,
+                    &dc_structs,
+                    &struct_defs,
+                    false,
+                    &empty_top_dc_names,
+                    synth_span,
+                )?);
+            }
+            if let Some(slot) = struct_defs.get_mut(&key) {
+                slot.fields = canon_fields;
+            }
+        }
+    }
+    for sym in dc_imports.values_mut() {
+        match sym {
+            ImportedSymbol::Value { ty, .. } => {
+                *ty = canonicalize_type_with_maps(
+                    ty,
+                    &empty_local_structs,
+                    &dc_structs,
+                    &struct_defs,
+                    false,
+                    &empty_top_dc_names,
+                    synth_span,
+                )?;
+            }
+            ImportedSymbol::Routine { sig, .. } => {
+                sig.return_type = canonicalize_type_with_maps(
+                    &sig.return_type,
+                    &empty_local_structs,
+                    &dc_structs,
+                    &struct_defs,
+                    false,
+                    &empty_top_dc_names,
+                    synth_span,
+                )?;
+                let mut canon_params = Vec::with_capacity(sig.params.len());
+                for p in &sig.params {
+                    canon_params.push(canonicalize_type_with_maps(
+                        p,
+                        &empty_local_structs,
+                        &dc_structs,
+                        &struct_defs,
+                        false,
+                        &empty_top_dc_names,
+                        synth_span,
+                    )?);
+                }
+                sig.params = canon_params;
+            }
+            ImportedSymbol::Struct { fields, .. } => {
+                let mut canon_fields = Vec::with_capacity(fields.len());
+                for f in fields.iter() {
+                    canon_fields.push(canonicalize_type_with_maps(
+                        f,
+                        &empty_local_structs,
+                        &dc_structs,
+                        &struct_defs,
+                        false,
+                        &empty_top_dc_names,
+                        synth_span,
+                    )?);
+                }
+                *fields = canon_fields;
+            }
+        }
+    }
 
     // 1. Resolve `use` imports.
     for u in &module.uses {
@@ -749,6 +1235,13 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                                 sig: sig.clone(),
                             })
                             .collect()
+                    } else if let Some(sdef) = dep_exp.structs.get(name) {
+                        vec![ImportedSymbol::Struct {
+                            namespace: target_ns.clone(),
+                            original_name: name.clone(),
+                            fields: sdef.fields.clone(),
+                            dc_id: sdef.dc_id,
+                        }]
                     } else {
                         bail!(
                             "Namespace '{target_ns}' has no exported 'pub' symbol named '{name}' (at {})",
@@ -770,6 +1263,17 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                         })?;
                     if item.alias.is_none() {
                         dc_imports.insert(*dc, single.clone());
+                        if let ImportedSymbol::Struct {
+                            ref namespace,
+                            ref original_name,
+                            ..
+                        } = single
+                        {
+                            dc_structs.insert(
+                                *dc,
+                                (Some(namespace.clone()), original_name.clone()),
+                            );
+                        }
                     }
                     vec![single]
                 }
@@ -783,7 +1287,8 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                 (None, ImportTarget::Name(n)) => n.clone(),
                 (None, ImportTarget::Dc(_)) => match first_sym {
                     ImportedSymbol::Value { original_name, .. }
-                    | ImportedSymbol::Routine { original_name, .. } => {
+                    | ImportedSymbol::Routine { original_name, .. }
+                    | ImportedSymbol::Struct { original_name, .. } => {
                         original_name.clone()
                     }
                 },
@@ -813,8 +1318,9 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                             );
                         }
                         ensure!(
-                            !routine_candidates.contains_key(&local_name),
-                            "Conflicting imported name '{local_name}' at {}: cannot be both a constant and a routine",
+                            !routine_candidates.contains_key(&local_name)
+                                && !local_structs.contains_key(&local_name),
+                            "Conflicting imported name '{local_name}' at {}: cannot share a name with a routine or struct",
                             item.span
                         );
                         ensure!(
@@ -846,8 +1352,9 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                             );
                         }
                         ensure!(
-                            !value_candidates.contains_key(&local_name),
-                            "Conflicting imported name '{local_name}' at {}: cannot be both a routine and a constant",
+                            !value_candidates.contains_key(&local_name)
+                                && !local_structs.contains_key(&local_name),
+                            "Conflicting imported name '{local_name}' at {}: cannot share a name with a constant or struct",
                             item.span
                         );
                         let list = routine_candidates
@@ -875,6 +1382,39 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                             sig: sig.clone(),
                         });
                     }
+                    ImportedSymbol::Struct {
+                        namespace,
+                        original_name,
+                        fields,
+                        dc_id,
+                    } => {
+                        if forbid_stagel_internal
+                            && is_stagel_internal_name(original_name)
+                        {
+                            bail!(
+                                "StageL-internal struct '{original_name}' cannot be imported into Stage 2/StageR module at {}",
+                                item.span
+                            );
+                        }
+                        ensure!(
+                            !value_candidates.contains_key(&local_name)
+                                && !routine_candidates.contains_key(&local_name)
+                                && !local_structs.contains_key(&local_name),
+                            "Duplicate or conflicting imported struct '{local_name}' at {}",
+                            item.span
+                        );
+                        let key =
+                            (Some(namespace.clone()), original_name.clone());
+                        local_structs.insert(local_name.clone(), key.clone());
+                        struct_defs.entry(key).or_insert_with(|| StructDef {
+                            namespace: Some(namespace.clone()),
+                            original_name: original_name.clone(),
+                            fields: fields.clone(),
+                            is_pub: true,
+                            dc_id: *dc_id,
+                            span: item.span,
+                        });
+                    }
                 }
                 imports
                     .entry(local_name.clone())
@@ -884,17 +1424,131 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
         }
     }
 
-    // 2. Pass-1 top-level signature and constant header collection.
+    // 2a. Pass-1a: collect top-level positional `struct` identities first so forward
+    // references from earlier structs, constants, and routines resolve cleanly.
     let mut top_dc_values = HashMap::new();
     let mut top_dc_routines = HashMap::new();
     let mut top_dc_names = HashMap::new();
     let mut used_dcs = HashMap::new();
+    let mut local_struct_decls: Vec<&PositionalStructDecl> = Vec::new();
     let mut top_value_order = Vec::new();
     let mut top_routine_order = Vec::new();
 
     for decl in &module.items {
+        if let TopDecl::Struct(s) = decl {
+            if forbid_stagel_internal && is_stagel_internal_name(&s.name) {
+                bail!(
+                    "StageL-internal struct '{}' cannot be declared in Stage 2/StageR module at {}",
+                    s.name,
+                    s.span
+                );
+            }
+            ensure!(
+                !s.fields.is_empty(),
+                "Positional struct '{}' at {} must declare at least 1 slot",
+                s.name,
+                s.span
+            );
+            ensure!(
+                !local_structs.contains_key(&s.name)
+                    && !value_candidates.contains_key(&s.name)
+                    && !routine_candidates.contains_key(&s.name),
+                "Struct '{}' at {} duplicates/shadows an existing declaration or import",
+                s.name,
+                s.span
+            );
+            if s.pub_dc_syntax
+                && let Some(dc) = s.dc_id
+            {
+                check_pub_dc_shorthand(dc, s.span)?;
+            }
+            let canon_key = (namespace_key.clone(), s.name.clone());
+            if let Some(dc) = s.dc_id {
+                ensure!(
+                    !used_dcs.contains_key(&dc),
+                    "Duplicate Dc binding '{}' on '{}' at {}",
+                    format_dc_shorthand(dc),
+                    s.name,
+                    s.span
+                );
+                used_dcs.insert(dc, s.name.clone());
+                top_dc_names.insert(dc, s.name.clone());
+                dc_structs.insert(dc, canon_key.clone());
+            }
+            local_structs.insert(s.name.clone(), canon_key);
+            local_struct_decls.push(s);
+        }
+    }
+
+    // 2b. Pass-1b: canonicalize struct slot types, reject unguarded size cycles, and
+    // verify well-formedness (including transitive `buf/T` prohibitions).
+    for &s in &local_struct_decls {
+        let mut canon_fields = Vec::with_capacity(s.fields.len());
+        for f in &s.fields {
+            ensure!(
+                *f != StageLType::Void && *f != StageLType::Never,
+                "Field of struct '{}' at {} cannot have type '{}'",
+                s.name,
+                s.span,
+                f
+            );
+            let cf = canonicalize_type_with_maps(
+                f,
+                &local_structs,
+                &dc_structs,
+                &struct_defs,
+                forbid_stagel_internal,
+                &top_dc_names,
+                s.span,
+            )?;
+            canon_fields.push(cf);
+        }
+        let canon_key = (namespace_key.clone(), s.name.clone());
+        struct_defs.insert(
+            canon_key,
+            StructDef {
+                namespace: namespace_key.clone(),
+                original_name: s.name.clone(),
+                fields: canon_fields,
+                is_pub: s.is_pub,
+                dc_id: s.dc_id,
+                span: s.span,
+            },
+        );
+    }
+
+    check_unguarded_struct_cycles(&struct_defs)?;
+
+    for &s in &local_struct_decls {
+        let canon_key = (namespace_key.clone(), s.name.clone());
+        let sdef = struct_defs
+            .get(&canon_key)
+            .cloned()
+            .context("Missing registered struct definition")?;
+        for cf in &sdef.fields {
+            check_type_well_formed(cf, &struct_defs, s.is_pub, s.span)?;
+        }
+        if s.is_pub {
+            exports.structs.insert(s.name.clone(), sdef.clone());
+            if let Some(dc) = s.dc_id {
+                exports.by_dc.insert(
+                    dc,
+                    ImportedSymbol::Struct {
+                        // Reason for fallback: Anonymous modules without an 'ns' header use an empty namespace string.
+                        namespace: namespace_key.clone().unwrap_or_default(),
+                        original_name: s.name.clone(),
+                        fields: sdef.fields,
+                        dc_id: Some(dc),
+                    },
+                );
+            }
+        }
+    }
+
+    // 2c. Pass-1c: top-level constant and routine signature collection.
+    for decl in &module.items {
         match decl {
-            TopDecl::Comment(_) => {}
+            TopDecl::Comment(_) | TopDecl::Struct(_) => {}
             TopDecl::Value(v) => {
                 if forbid_stagel_internal && is_stagel_internal_name(&v.name) {
                     bail!(
@@ -904,8 +1558,9 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                     );
                 }
                 ensure!(
-                    !routine_candidates.contains_key(&v.name),
-                    "Top-level constant '{}' at {} duplicates/shadows an existing routine or import",
+                    !routine_candidates.contains_key(&v.name)
+                        && !local_structs.contains_key(&v.name),
+                    "Top-level constant '{}' at {} duplicates/shadows an existing routine, struct, or import",
                     v.name,
                     v.span
                 );
@@ -916,9 +1571,18 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                     v.span,
                     v.ty
                 );
-                check_type_well_formed(&v.ty, true, v.span)?;
+                let canon_ty = canonicalize_type_with_maps(
+                    &v.ty,
+                    &local_structs,
+                    &dc_structs,
+                    &struct_defs,
+                    forbid_stagel_internal,
+                    &top_dc_names,
+                    v.span,
+                )?;
+                check_type_well_formed(&canon_ty, &struct_defs, true, v.span)?;
                 ensure!(
-                    !v.ty.is_or_contains_buf(),
+                    !type_contains_buf_with_defs(&canon_ty, &struct_defs),
                     "Module-level constant '{}' at {} cannot hold local buffer 'buf/T'",
                     v.name,
                     v.span
@@ -943,7 +1607,7 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                         v.span
                     );
                     used_dcs.insert(dc, v.name.clone());
-                    top_dc_values.insert(dc, v.ty.clone());
+                    top_dc_values.insert(dc, canon_ty.clone());
                     top_dc_names.insert(dc, v.name.clone());
                 }
                 value_candidates.insert(
@@ -951,14 +1615,14 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                     ResolvedValueTarget {
                         namespace: None,
                         original_name: v.name.clone(),
-                        ty: v.ty.clone(),
+                        ty: canon_ty.clone(),
                         dc_id: v.dc_id,
                     },
                 );
                 if v.is_pub {
                     exports
                         .values
-                        .insert(v.name.clone(), (v.ty.clone(), v.dc_id));
+                        .insert(v.name.clone(), (canon_ty.clone(), v.dc_id));
                     if let Some(dc) = v.dc_id {
                         exports.by_dc.insert(
                             dc,
@@ -968,7 +1632,7 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                                     .clone()
                                     .unwrap_or_default(),
                                 original_name: v.name.clone(),
-                                ty: v.ty.clone(),
+                                ty: canon_ty,
                                 dc_id: Some(dc),
                             },
                         );
@@ -985,12 +1649,27 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                     );
                 }
                 ensure!(
-                    !value_candidates.contains_key(&r.name),
-                    "Routine '{}' at {} duplicates/shadows an existing constant or import",
+                    !value_candidates.contains_key(&r.name)
+                        && !local_structs.contains_key(&r.name),
+                    "Routine '{}' at {} duplicates/shadows an existing constant, struct, or import",
                     r.name,
                     r.span
                 );
-                check_type_well_formed(&r.return_type, r.is_pub, r.span)?;
+                let canon_ret = canonicalize_type_with_maps(
+                    &r.return_type,
+                    &local_structs,
+                    &dc_structs,
+                    &struct_defs,
+                    forbid_stagel_internal,
+                    &top_dc_names,
+                    r.span,
+                )?;
+                check_type_well_formed(
+                    &canon_ret,
+                    &struct_defs,
+                    r.is_pub,
+                    r.span,
+                )?;
                 let mut seen_params = HashSet::new();
                 let mut param_tys = Vec::with_capacity(r.params.len());
                 for p in &r.params {
@@ -1002,7 +1681,21 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                         p.span,
                         p.ty
                     );
-                    check_type_well_formed(&p.ty, r.is_pub, p.span)?;
+                    let canon_pty = canonicalize_type_with_maps(
+                        &p.ty,
+                        &local_structs,
+                        &dc_structs,
+                        &struct_defs,
+                        forbid_stagel_internal,
+                        &top_dc_names,
+                        p.span,
+                    )?;
+                    check_type_well_formed(
+                        &canon_pty,
+                        &struct_defs,
+                        r.is_pub,
+                        p.span,
+                    )?;
                     ensure!(
                         seen_params.insert(p.name.clone()),
                         "Duplicate parameter '{}' in routine '{}' at {}",
@@ -1010,7 +1703,7 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                         r.name,
                         p.span
                     );
-                    param_tys.push(p.ty.clone());
+                    param_tys.push(canon_pty);
                 }
                 let rlist =
                     routine_candidates.entry(r.name.clone()).or_default();
@@ -1037,7 +1730,7 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                     }
                 }
                 let sig = RoutineSig {
-                    return_type: r.return_type.clone(),
+                    return_type: canon_ret,
                     params: param_tys,
                     is_pub: r.is_pub,
                     dc_id: r.dc_id,
@@ -1084,9 +1777,14 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
         }
     }
 
+    exports.all_structs = struct_defs.clone();
+
     let mut validator = Validator {
         value_candidates,
         routine_candidates,
+        local_structs: local_structs.clone(),
+        dc_structs: dc_structs.clone(),
+        struct_defs: struct_defs.clone(),
         top_dc_values,
         top_dc_routines,
         top_dc_names,
@@ -1100,7 +1798,9 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
         tail_calls: HashSet::new(),
         resolved_calls: HashMap::new(),
         resolved_values: HashMap::new(),
+        resolved_structs: HashMap::new(),
         value_ref_types: HashMap::new(),
+        expr_types: HashMap::new(),
         _marker: std::marker::PhantomData,
     };
 
@@ -1117,10 +1817,15 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
         namespace_key,
         imports,
         dc_imports,
+        local_structs,
+        dc_structs,
+        struct_defs,
         tail_calls: validator.tail_calls,
         resolved_calls: validator.resolved_calls,
         resolved_values: validator.resolved_values,
+        resolved_structs: validator.resolved_structs,
         value_ref_types: validator.value_ref_types,
+        expr_types: validator.expr_types,
         exports,
     })
 }
@@ -1199,6 +1904,7 @@ impl<'a> Validator<'a> {
         }
         if self.value_candidates.contains_key(name)
             || self.routine_candidates.contains_key(name)
+            || self.local_structs.contains_key(name)
         {
             return true;
         }
@@ -1208,6 +1914,66 @@ impl<'a> Validator<'a> {
             }
         }
         false
+    }
+
+    fn canonicalize_type(&self, ty: &StageLType, span: Span) -> Result<StageLType> {
+        canonicalize_type_with_maps(
+            ty,
+            &self.local_structs,
+            &self.dc_structs,
+            &self.struct_defs,
+            self.forbid_stagel_internal,
+            &self.top_dc_names,
+            span,
+        )
+    }
+
+    fn check_and_canonicalize_type(
+        &self,
+        ty: &StageLType,
+        is_pub_api: bool,
+        span: Span,
+    ) -> Result<StageLType> {
+        let canon = self.canonicalize_type(ty, span)?;
+        check_type_well_formed(&canon, &self.struct_defs, is_pub_api, span)?;
+        Ok(canon)
+    }
+
+    fn type_supports_eq(&self, ty: &StageLType) -> bool {
+        fn visit(
+            ty: &StageLType,
+            struct_defs: &BTreeMap<(Option<String>, String), StructDef>,
+            visited: &mut HashSet<(Option<String>, String)>,
+        ) -> bool {
+            match ty {
+                StageLType::B
+                | StageLType::U8
+                | StageLType::I32
+                | StageLType::U32
+                | StageLType::I64
+                | StageLType::U64 => true,
+                StageLType::Void | StageLType::Never | StageLType::Buf(_) => false,
+                StageLType::List(inner) => visit(inner, struct_defs, visited),
+                StageLType::Tuple(elems) => {
+                    elems.iter().all(|e| visit(e, struct_defs, visited))
+                }
+                StageLType::Struct(StructTypeRef::Canonical {
+                    namespace,
+                    name,
+                }) => {
+                    let key = (namespace.clone(), name.clone());
+                    if !visited.insert(key.clone()) {
+                        return true;
+                    }
+                    struct_defs.get(&key).is_some_and(|sdef| {
+                        sdef.fields.iter().all(|f| visit(f, struct_defs, visited))
+                    })
+                }
+                StageLType::Struct(_) => false,
+            }
+        }
+        let mut visited = HashSet::new();
+        visit(ty, &self.struct_defs, &mut visited)
     }
 
     fn lookup_nested_routine(&self, name: &str) -> Option<usize> {
@@ -1281,9 +2047,10 @@ impl<'a> Validator<'a> {
             }
 
             let _ = stack.pop();
+            let expected_ty = validator.canonicalize_type(&v.ty, v.span)?;
             let mut state = AssignState::new();
             let mut ctx = CheckCtx {
-                return_type: v.ty.clone(),
+                return_type: expected_ty.clone(),
                 loop_depth: 0,
                 in_tail: false,
                 allow_buf: false,
@@ -1295,10 +2062,10 @@ impl<'a> Validator<'a> {
             let actual =
                 validator.check_expr(&v.value, &mut state, &mut ctx)?;
             ensure!(
-                types_compatible(&actual, &v.ty),
+                types_compatible(&actual, &expected_ty),
                 "Constant '{}' declared type '{}' does not match initializer type '{}' at {}",
                 v.name,
-                v.ty,
+                expected_ty,
                 actual,
                 v.span
             );
@@ -1327,11 +2094,20 @@ impl<'a> Validator<'a> {
             | Expr::ValueRef { .. }
             | Expr::Fault { .. }
             | Expr::Nop { .. } => Ok(()),
-            Expr::List { elements, .. } => {
+            Expr::List { elements, .. }
+            | Expr::TupleNew { elements, .. }
+            | Expr::StructNew {
+                fields: elements, ..
+            } => {
                 for e in elements {
                     self.check_const_purity(e)?;
                 }
                 Ok(())
+            }
+            Expr::Field { base, .. } => self.check_const_purity(base),
+            Expr::With { base, value, .. } => {
+                self.check_const_purity(base)?;
+                self.check_const_purity(value)
             }
             Expr::Unary { op, operand, span } => {
                 ensure!(
@@ -1395,6 +2171,12 @@ impl<'a> Validator<'a> {
     }
 
     fn validate_top_routine(&mut self, r: &'a RoutineDecl) -> Result<()> {
+        let canon_ret = self.canonicalize_type(&r.return_type, r.span)?;
+        let mut canon_params = Vec::with_capacity(r.params.len());
+        for p in &r.params {
+            canon_params.push(self.canonicalize_type(&p.ty, p.span)?);
+        }
+
         // Validate inline tests in an isolated top-level value scope (no locals).
         for tb in &r.tests {
             for tc in &tb.cases {
@@ -1406,10 +2188,12 @@ impl<'a> Validator<'a> {
                     tc.inputs.len(),
                     r.params.len()
                 );
-                for (inp_expr, param) in tc.inputs.iter().zip(&r.params) {
+                for ((inp_expr, param), pty) in
+                    tc.inputs.iter().zip(&r.params).zip(&canon_params)
+                {
                     let mut st = AssignState::new();
                     let mut ctx = CheckCtx {
-                        return_type: param.ty.clone(),
+                        return_type: pty.clone(),
                         loop_depth: 0,
                         in_tail: false,
                         allow_buf: true,
@@ -1419,11 +2203,11 @@ impl<'a> Validator<'a> {
                     };
                     let ty = self.check_expr(inp_expr, &mut st, &mut ctx)?;
                     ensure!(
-                        types_compatible(&ty, &param.ty),
+                        types_compatible(&ty, pty),
                         "Test input type mismatch at {} for parameter '{}' (expected '{}', got '{}')",
                         inp_expr.span(),
                         param.name,
-                        param.ty,
+                        pty,
                         ty
                     );
                 }
@@ -1431,7 +2215,7 @@ impl<'a> Validator<'a> {
                     TestExpected::Expr(exp_expr) => {
                         let mut st = AssignState::new();
                         let mut ctx = CheckCtx {
-                            return_type: r.return_type.clone(),
+                            return_type: canon_ret.clone(),
                             loop_depth: 0,
                             in_tail: false,
                             allow_buf: true,
@@ -1442,22 +2226,22 @@ impl<'a> Validator<'a> {
                         let ty =
                             self.check_expr(exp_expr, &mut st, &mut ctx)?;
                         ensure!(
-                            types_compatible(&ty, &r.return_type),
+                            types_compatible(&ty, &canon_ret),
                             "Test expected output type mismatch for '{}' at {} (expected '{}', got '{}')",
                             r.name,
                             exp_expr.span(),
-                            r.return_type,
+                            canon_ret,
                             ty
                         );
                     }
                     TestExpected::Fault(_) => {}
                     TestExpected::Void(sp) => {
                         ensure!(
-                            r.return_type == StageLType::Void
-                                || r.return_type == StageLType::Never,
+                            canon_ret == StageLType::Void
+                                || canon_ret == StageLType::Never,
                             "Omitted/void test output at {sp} is only valid for 'void' routines ('{}' returns '{}')",
                             r.name,
-                            r.return_type
+                            canon_ret
                         );
                     }
                 }
@@ -1473,6 +2257,7 @@ impl<'a> Validator<'a> {
         r: &RoutineDecl,
         is_nested: bool,
     ) -> Result<()> {
+        let canon_ret = self.canonicalize_type(&r.return_type, r.span)?;
         let mut outer_ids = HashSet::new();
         if is_nested {
             for scope in &self.local_scopes {
@@ -1504,13 +2289,14 @@ impl<'a> Validator<'a> {
                 r.name,
                 p.span
             );
+            let pty = self.canonicalize_type(&p.ty, p.span)?;
             let id = self.alloc_binding_id();
             state.set_state(id, true);
             param_scope.insert(
                 p.name.clone(),
                 BindingEntry {
                     id,
-                    ty: p.ty.clone(),
+                    ty: pty,
                     kind: BindingKind::Param,
                     span: p.span,
                 },
@@ -1519,7 +2305,7 @@ impl<'a> Validator<'a> {
 
         self.local_scopes.push(param_scope);
         let mut ctx = CheckCtx {
-            return_type: r.return_type.clone(),
+            return_type: canon_ret.clone(),
             loop_depth: 0,
             in_tail: true,
             allow_buf: true,
@@ -1531,11 +2317,11 @@ impl<'a> Validator<'a> {
         let _ = self.local_scopes.pop();
 
         ensure!(
-            types_compatible(&actual_ty, &r.return_type),
+            types_compatible(&actual_ty, &canon_ret),
             "Routine '{}' body returns '{}' which is incompatible with declared return type '{}' at {}",
             r.name,
             actual_ty,
-            r.return_type,
+            canon_ret,
             r.span
         );
         Ok(())
@@ -1547,6 +2333,7 @@ impl<'a> Validator<'a> {
         r: &RoutineDecl,
         enclosing_state: &AssignState,
     ) -> Result<()> {
+        let canon_ret = self.canonicalize_type(&r.return_type, r.span)?;
         let mut outer_ids = HashSet::new();
         for sc in &self.local_scopes {
             for ent in sc.values() {
@@ -1567,13 +2354,14 @@ impl<'a> Validator<'a> {
                 r.name,
                 p.span
             );
+            let pty = self.canonicalize_type(&p.ty, p.span)?;
             let pid = self.alloc_binding_id();
             nested_state.set_state(pid, true);
             param_scope.insert(
                 p.name.clone(),
                 BindingEntry {
                     id: pid,
-                    ty: p.ty.clone(),
+                    ty: pty,
                     kind: BindingKind::Param,
                     span: p.span,
                 },
@@ -1581,7 +2369,7 @@ impl<'a> Validator<'a> {
         }
         self.local_scopes.push(param_scope);
         let mut ctx = CheckCtx {
-            return_type: r.return_type.clone(),
+            return_type: canon_ret.clone(),
             loop_depth: 0,
             in_tail: true,
             allow_buf: true,
@@ -1592,16 +2380,16 @@ impl<'a> Validator<'a> {
         let body_ty = self.check_expr(&r.body, &mut nested_state, &mut ctx)?;
         let _ = self.local_scopes.pop();
         ensure!(
-            types_compatible(&body_ty, &r.return_type),
+            types_compatible(&body_ty, &canon_ret),
             "Nested routine '{}' body returns '{}' (expected '{}') at {}",
             r.name,
             body_ty,
-            r.return_type,
+            canon_ret,
             r.span
         );
         if let Some(sum) = self.nested_summaries.get_mut(&nid) {
             sum.captured_reads = ctx.captured_reads;
-            if r.return_type != StageLType::Never {
+            if canon_ret != StageLType::Never {
                 sum.always_written = ctx.always_written;
             }
             sum.captures_resolved = true;
@@ -1610,6 +2398,18 @@ impl<'a> Validator<'a> {
     }
 
     fn check_expr(
+        &mut self,
+        expr: &Expr,
+        state: &mut AssignState,
+        ctx: &mut CheckCtx,
+    ) -> Result<StageLType> {
+        let ty = self.check_expr_inner(expr, state, ctx)?;
+        let sp = expr.span();
+        self.expr_types.insert((sp.line, sp.col), ty.clone());
+        Ok(ty)
+    }
+
+    fn check_expr_inner(
         &mut self,
         expr: &Expr,
         state: &mut AssignState,
@@ -1624,11 +2424,9 @@ impl<'a> Validator<'a> {
                 elements,
                 span,
             } => {
-                check_type_well_formed(
-                    &StageLType::List(Box::new(elem_ty.clone())),
-                    false,
-                    *span,
-                )?;
+                let canon_elem = self.canonicalize_type(elem_ty, *span)?;
+                let list_ty = StageLType::List(Box::new(canon_elem.clone()));
+                check_type_well_formed(&list_ty, &self.struct_defs, false, *span)?;
                 let mut child_ctx = CheckCtx {
                     return_type: ctx.return_type.clone(),
                     loop_depth: ctx.loop_depth,
@@ -1641,15 +2439,15 @@ impl<'a> Validator<'a> {
                 for el in elements {
                     let ety = self.check_expr(el, state, &mut child_ctx)?;
                     ensure!(
-                        types_compatible(&ety, elem_ty),
+                        types_compatible(&ety, &canon_elem),
                         "List element at {} has type '{}', expected '{}'",
                         el.span(),
                         ety,
-                        elem_ty
+                        canon_elem
                     );
                 }
                 ctx.captured_reads.extend(child_ctx.captured_reads);
-                Ok(StageLType::List(Box::new(elem_ty.clone())))
+                Ok(list_ty)
             }
             Expr::BufNew {
                 elem_ty,
@@ -1660,11 +2458,9 @@ impl<'a> Validator<'a> {
                     ctx.allow_buf,
                     "'bufNew' is disallowed in constant context at {span}"
                 );
-                check_type_well_formed(
-                    &StageLType::Buf(Box::new(elem_ty.clone())),
-                    false,
-                    *span,
-                )?;
+                let canon_elem = self.canonicalize_type(elem_ty, *span)?;
+                let buf_ty = StageLType::Buf(Box::new(canon_elem));
+                check_type_well_formed(&buf_ty, &self.struct_defs, false, *span)?;
                 let cap_ty = self.check_subexpr(capacity, state, ctx)?;
                 ensure!(
                     types_compatible(&cap_ty, &StageLType::U64),
@@ -1672,16 +2468,19 @@ impl<'a> Validator<'a> {
                     capacity.span(),
                     cap_ty
                 );
-                Ok(StageLType::Buf(Box::new(elem_ty.clone())))
+                Ok(buf_ty)
             }
             Expr::ValueRef { ty, target, span } => {
-                if let Some(expected_ty) = ty {
-                    check_type_well_formed(expected_ty, false, *span)?;
-                }
+                let canon_expected = match ty {
+                    Some(t) => {
+                        Some(self.check_and_canonicalize_type(t, false, *span)?)
+                    }
+                    None => None,
+                };
                 match target {
                     SymbolTarget::Ident(name) => {
                         if let Some(entry) = self.lookup_local(name).cloned() {
-                            if let Some(expected_ty) = ty {
+                            if let Some(ref expected_ty) = canon_expected {
                                 ensure!(
                                     &entry.ty == expected_ty,
                                     "Type annotation mismatch on '{name}' at {span}: declared '{}', referenced as '{expected_ty}'",
@@ -1705,7 +2504,7 @@ impl<'a> Validator<'a> {
                         if let Some(cand) =
                             self.value_candidates.get(name).cloned()
                         {
-                            if let Some(expected_ty) = ty {
+                            if let Some(ref expected_ty) = canon_expected {
                                 ensure!(
                                     &cand.ty == expected_ty,
                                     "Type annotation mismatch on constant '{name}' at {span}: declared '{}', referenced as '{expected_ty}'",
@@ -1732,7 +2531,7 @@ impl<'a> Validator<'a> {
                             );
                         }
                         if let Some(v_ty) = self.top_dc_values.get(dc) {
-                            if let Some(expected_ty) = ty {
+                            if let Some(ref expected_ty) = canon_expected {
                                 ensure!(
                                     v_ty == expected_ty,
                                     "Type mismatch on Dc reference '{sh}' at {span}"
@@ -1755,15 +2554,17 @@ impl<'a> Validator<'a> {
                                     "StageL-internal symbol '{original_name}' ('dc/{sh}') cannot be referenced in Stage 2/StageR module at {span}"
                                 );
                             }
-                            if let Some(expected_ty) = ty {
+                            let canon_imp =
+                                self.canonicalize_type(imp_ty, *span)?;
+                            if let Some(ref expected_ty) = canon_expected {
                                 ensure!(
-                                    imp_ty == expected_ty,
+                                    &canon_imp == expected_ty,
                                     "Type mismatch on imported Dc reference '{sh}' at {span}"
                                 );
                             }
                             self.value_ref_types
-                                .insert((span.line, span.col), imp_ty.clone());
-                            return Ok(imp_ty.clone());
+                                .insert((span.line, span.col), canon_imp.clone());
+                            return Ok(canon_imp);
                         }
                         bail!("Unresolved value Dc reference '{sh}' at {span}");
                     }
@@ -1785,7 +2586,7 @@ impl<'a> Validator<'a> {
                     *ty != StageLType::Void && *ty != StageLType::Never,
                     "'let' variable '{name}' at {span} cannot have type '{ty}'"
                 );
-                check_type_well_formed(ty, false, *span)?;
+                let canon_ty = self.check_and_canonicalize_type(ty, false, *span)?;
                 ensure!(
                     !self.name_exists_in_local_or_top(name),
                     "Cannot re-declare or shadow '{name}' with 'let' at {span} (use 'set' to mutate)"
@@ -1793,8 +2594,8 @@ impl<'a> Validator<'a> {
                 let is_init = if let Some(init_expr) = init {
                     let rhs_ty = self.check_subexpr(init_expr, state, ctx)?;
                     ensure!(
-                        types_compatible(&rhs_ty, ty),
-                        "Initializer type mismatch for 'let {ty}/{name}' at {span}: expected '{ty}', found '{rhs_ty}'"
+                        types_compatible(&rhs_ty, &canon_ty),
+                        "Initializer type mismatch for 'let {canon_ty}/{name}' at {span}: expected '{canon_ty}', found '{rhs_ty}'"
                     );
                     true
                 } else {
@@ -1809,7 +2610,7 @@ impl<'a> Validator<'a> {
                     name.clone(),
                     BindingEntry {
                         id,
-                        ty: ty.clone(),
+                        ty: canon_ty,
                         kind: BindingKind::MutableLet,
                         span: *span,
                     },
@@ -1833,15 +2634,15 @@ impl<'a> Validator<'a> {
                     *ty != StageLType::Void && *ty != StageLType::Never,
                     "'const' binding '{name}' at {span} cannot have type '{ty}'"
                 );
-                check_type_well_formed(ty, false, *span)?;
+                let canon_ty = self.check_and_canonicalize_type(ty, false, *span)?;
                 ensure!(
                     !self.name_exists_in_local_or_top(name),
                     "Cannot re-declare or shadow '{name}' with 'const' at {span}"
                 );
                 let rhs_ty = self.check_subexpr(value, state, ctx)?;
                 ensure!(
-                    types_compatible(&rhs_ty, ty),
-                    "Initializer type mismatch for 'const {ty}/{name}' at {span}: expected '{ty}', found '{rhs_ty}'"
+                    types_compatible(&rhs_ty, &canon_ty),
+                    "Initializer type mismatch for 'const {canon_ty}/{name}' at {span}: expected '{canon_ty}', found '{rhs_ty}'"
                 );
                 let id = self.alloc_binding_id();
                 state.set_state(id, true);
@@ -1852,7 +2653,7 @@ impl<'a> Validator<'a> {
                     name.clone(),
                     BindingEntry {
                         id,
-                        ty: ty.clone(),
+                        ty: canon_ty,
                         kind: BindingKind::Const,
                         span: *span,
                     },
@@ -1865,9 +2666,12 @@ impl<'a> Validator<'a> {
                 value,
                 span,
             } => {
-                if let Some(expected_ty) = ty {
-                    check_type_well_formed(expected_ty, false, *span)?;
-                }
+                let canon_expected = match ty {
+                    Some(t) => {
+                        Some(self.check_and_canonicalize_type(t, false, *span)?)
+                    }
+                    None => None,
+                };
                 let entry = self
                     .lookup_local(name)
                     .cloned()
@@ -1881,7 +2685,7 @@ impl<'a> Validator<'a> {
                     "Cannot 'set' immutable binding '{name}' ({:?}) at {span}",
                     entry.kind
                 );
-                if let Some(expected_ty) = ty {
+                if let Some(ref expected_ty) = canon_expected {
                     ensure!(
                         &entry.ty == expected_ty,
                         "Type mismatch in 'set {expected_ty}/{name}' at {span}: declared type is '{}' ('set' cannot change an existing variable's type)",
@@ -2127,7 +2931,8 @@ impl<'a> Validator<'a> {
                             r.name,
                             r.span
                         );
-                        check_type_well_formed(&r.return_type, false, r.span)?;
+                        let canon_ret =
+                            self.check_and_canonicalize_type(&r.return_type, false, r.span)?;
                         let mut seen_p = HashSet::new();
                         let mut ptys = Vec::with_capacity(r.params.len());
                         for p in &r.params {
@@ -2140,7 +2945,8 @@ impl<'a> Validator<'a> {
                                 p.span,
                                 p.ty
                             );
-                            check_type_well_formed(&p.ty, false, p.span)?;
+                            let canon_pty =
+                                self.check_and_canonicalize_type(&p.ty, false, p.span)?;
                             ensure!(
                                 seen_p.insert(p.name.clone()),
                                 "Duplicate parameter '{}' in nested routine '{}' at {}",
@@ -2148,11 +2954,11 @@ impl<'a> Validator<'a> {
                                 r.name,
                                 p.span
                             );
-                            ptys.push(p.ty.clone());
+                            ptys.push(canon_pty);
                         }
                         let nid = self.alloc_binding_id();
                         let sig = RoutineSig {
-                            return_type: r.return_type.clone(),
+                            return_type: canon_ret,
                             params: ptys,
                             is_pub: false,
                             dc_id: None,
@@ -2370,18 +3176,20 @@ impl<'a> Validator<'a> {
                 body,
                 span,
             } => {
-                check_type_well_formed(elem_ty, false, *span)?;
+                let canon_elem =
+                    self.check_and_canonicalize_type(elem_ty, false, *span)?;
                 ensure!(
-                    elem_ty.can_be_element(),
+                    type_can_be_element_with_defs(&canon_elem, &self.struct_defs),
                     "'foreach' element type '{}' at {span} is invalid",
-                    elem_ty
+                    canon_elem
                 );
                 ensure!(
                     !self.name_exists_in_local_or_top(elem_name),
                     "'foreach' element binding '{elem_name}' at {span} shadows an existing declaration"
                 );
                 let lty = self.check_subexpr(list, state, ctx)?;
-                let expected_list = StageLType::List(Box::new(elem_ty.clone()));
+                let expected_list =
+                    StageLType::List(Box::new(canon_elem.clone()));
                 ensure!(
                     types_compatible(&lty, &expected_list),
                     "'foreach' iterable at {} must have type '{}', found '{lty}'",
@@ -2396,7 +3204,7 @@ impl<'a> Validator<'a> {
                     elem_name.clone(),
                     BindingEntry {
                         id: elem_id,
-                        ty: elem_ty.clone(),
+                        ty: canon_elem,
                         kind: BindingKind::ForEachElem,
                         span: *span,
                     },
@@ -2547,27 +3355,29 @@ impl<'a> Validator<'a> {
                 target_ty,
                 span,
             } => {
-                check_type_well_formed(target_ty, false, *span)?;
+                let canon_target =
+                    self.check_and_canonicalize_type(target_ty, false, *span)?;
                 ensure!(
-                    target_ty.is_integer(),
-                    "'conv' target type must be integer, found '{target_ty}' at {span}"
+                    canon_target.is_integer(),
+                    "'conv' target type must be integer, found '{canon_target}' at {span}"
                 );
                 let src_ty = self.check_subexpr(expr, state, ctx)?;
                 ensure!(
                     src_ty == StageLType::Never || src_ty.is_integer(),
                     "'conv' source operand must be integer, found '{src_ty}' at {span}"
                 );
-                Ok(target_ty.clone())
+                Ok(canon_target)
             }
             Expr::Bitcast {
                 expr,
                 target_ty,
                 span,
             } => {
-                check_type_well_formed(target_ty, false, *span)?;
-                let dst_width = target_ty.bit_width().with_context(|| {
+                let canon_target =
+                    self.check_and_canonicalize_type(target_ty, false, *span)?;
+                let dst_width = canon_target.bit_width().with_context(|| {
                     format!(
-                        "'bitcast' target type must be integer, found '{target_ty}' at {span}"
+                        "'bitcast' target type must be integer, found '{canon_target}' at {span}"
                     )
                 })?;
                 let src_ty = self.check_subexpr(expr, state, ctx)?;
@@ -2579,10 +3389,235 @@ impl<'a> Validator<'a> {
                     })?;
                     ensure!(
                         src_width == dst_width,
-                        "'bitcast' requires matching bit widths ('{src_ty}' is {src_width}-bit, '{target_ty}' is {dst_width}-bit) at {span}"
+                        "'bitcast' requires matching bit widths ('{src_ty}' is {src_width}-bit, '{canon_target}' is {dst_width}-bit) at {span}"
                     );
                 }
-                Ok(target_ty.clone())
+                Ok(canon_target)
+            }
+            Expr::TupleNew { elements, .. } => {
+                let mut slot_tys = Vec::with_capacity(elements.len());
+                let mut any_never = false;
+                for el in elements {
+                    let ety = self.check_subexpr(el, state, ctx)?;
+                    ensure!(
+                        ety != StageLType::Void,
+                        "Tuple element at {} cannot have type 'void'",
+                        el.span()
+                    );
+                    if ety == StageLType::Never {
+                        any_never = true;
+                    }
+                    slot_tys.push(ety);
+                }
+                if any_never {
+                    Ok(StageLType::Never)
+                } else {
+                    Ok(StageLType::Tuple(slot_tys))
+                }
+            }
+            Expr::StructNew {
+                target,
+                fields,
+                span,
+            } => {
+                let canon_key = match target {
+                    SymbolTarget::Ident(name) => {
+                        if self.forbid_stagel_internal
+                            && is_stagel_internal_name(name)
+                        {
+                            bail!(
+                                "StageL-internal struct '{name}' cannot be constructed in Stage 2/StageR module at {span}"
+                            );
+                        }
+                        let Some(k) = self.local_structs.get(name).cloned()
+                        else {
+                            bail!(
+                                "Unknown positional struct '{name}' in 'new' at {span}"
+                            );
+                        };
+                        if self.forbid_stagel_internal
+                            && is_stagel_internal_name(&k.1)
+                        {
+                            bail!(
+                                "StageL-internal struct '{}' cannot be constructed in Stage 2/StageR module at {span}",
+                                k.1
+                            );
+                        }
+                        k
+                    }
+                    SymbolTarget::Dc(dc) => {
+                        let sh = format_dc_shorthand(*dc);
+                        if self.forbid_stagel_internal
+                            && let Some(orig) = self.top_dc_names.get(dc)
+                            && is_stagel_internal_name(orig)
+                        {
+                            bail!(
+                                "StageL-internal struct '{orig}' ('dc/{sh}') cannot be constructed in Stage 2/StageR module at {span}"
+                            );
+                        }
+                        let Some(k) = self.dc_structs.get(dc).cloned() else {
+                            bail!(
+                                "Unknown positional struct Dc reference 'dc/{sh}' in 'new' at {span}"
+                            );
+                        };
+                        if self.forbid_stagel_internal
+                            && is_stagel_internal_name(&k.1)
+                        {
+                            bail!(
+                                "StageL-internal struct '{}' ('dc/{sh}') cannot be constructed in Stage 2/StageR module at {span}",
+                                k.1
+                            );
+                        }
+                        k
+                    }
+                };
+                let sdef = self
+                    .struct_defs
+                    .get(&canon_key)
+                    .cloned()
+                    .with_context(|| {
+                        format!(
+                            "Unresolved struct definition '{}' at {span}",
+                            canon_key.1
+                        )
+                    })?;
+                let struct_ty = StageLType::Struct(StructTypeRef::Canonical {
+                    namespace: sdef.namespace.clone(),
+                    name: sdef.original_name.clone(),
+                });
+                if !ctx.allow_buf
+                    && type_contains_buf_with_defs(&struct_ty, &self.struct_defs)
+                {
+                    bail!(
+                        "Struct '{}' containing 'buf/T' cannot be constructed in constant context at {span}",
+                        sdef.original_name
+                    );
+                }
+                ensure!(
+                    fields.len() == sdef.fields.len(),
+                    "Wrong field count in 'new {}' at {span}: expected {}, got {}",
+                    sdef.original_name,
+                    sdef.fields.len(),
+                    fields.len()
+                );
+                for (f_expr, expected_ty) in fields.iter().zip(&sdef.fields) {
+                    let fty = self.check_subexpr(f_expr, state, ctx)?;
+                    ensure!(
+                        types_compatible(&fty, expected_ty),
+                        "Struct field type mismatch in 'new {}' at {}: expected '{expected_ty}', found '{fty}'",
+                        sdef.original_name,
+                        f_expr.span()
+                    );
+                }
+                self.resolved_structs.insert((span.line, span.col), sdef);
+                Ok(struct_ty)
+            }
+            Expr::Field { index, base, span } => {
+                let idx_usize = usize::try_from(*index)
+                    .context("Field index exceeds usize")?;
+                let bty = self.check_subexpr(base, state, ctx)?;
+                match bty {
+                    StageLType::Never => Ok(StageLType::Never),
+                    StageLType::Tuple(ref slots) => {
+                        let slot_ty =
+                            slots.get(idx_usize).cloned().with_context(|| {
+                                format!(
+                                    "Tuple field index {index} out of bounds for '{bty}' ({} slot(s)) at {span}",
+                                    slots.len()
+                                )
+                            })?;
+                        Ok(slot_ty)
+                    }
+                    StageLType::Struct(StructTypeRef::Canonical {
+                        ref namespace,
+                        ref name,
+                    }) => {
+                        let key = (namespace.clone(), name.clone());
+                        let sdef =
+                            self.struct_defs.get(&key).with_context(|| {
+                                format!(
+                                    "Unresolved struct '{name}' in 'field' at {span}"
+                                )
+                            })?;
+                        let slot_ty = sdef
+                            .fields
+                            .get(idx_usize)
+                            .cloned()
+                            .with_context(|| {
+                                format!(
+                                    "Struct field index {index} out of bounds for '{name}' ({} slot(s)) at {span}",
+                                    sdef.fields.len()
+                                )
+                            })?;
+                        Ok(slot_ty)
+                    }
+                    other => bail!(
+                        "'field' requires tuple or positional struct operand, found '{other}' at {span}"
+                    ),
+                }
+            }
+            Expr::With {
+                index,
+                base,
+                value,
+                span,
+            } => {
+                let idx_usize = usize::try_from(*index)
+                    .context("Field index exceeds usize")?;
+                let bty = self.check_subexpr(base, state, ctx)?;
+                let vty = self.check_subexpr(value, state, ctx)?;
+                match &bty {
+                    StageLType::Never => {
+                        ensure!(
+                            vty != StageLType::Void,
+                            "'with' replacement value at {} cannot have type 'void'",
+                            value.span()
+                        );
+                        Ok(StageLType::Never)
+                    }
+                    StageLType::Tuple(slots) => {
+                        let slot_ty = slots.get(idx_usize).with_context(|| {
+                            format!(
+                                "Tuple field index {index} out of bounds in 'with' for '{bty}' ({} slot(s)) at {span}",
+                                slots.len()
+                            )
+                        })?;
+                        ensure!(
+                            types_compatible(&vty, slot_ty),
+                            "'with' field {index} type mismatch at {}: expected '{slot_ty}', found '{vty}'",
+                            value.span()
+                        );
+                        Ok(bty)
+                    }
+                    StageLType::Struct(StructTypeRef::Canonical {
+                        namespace,
+                        name,
+                    }) => {
+                        let key = (namespace.clone(), name.clone());
+                        let sdef =
+                            self.struct_defs.get(&key).with_context(|| {
+                                format!(
+                                    "Unresolved struct '{name}' in 'with' at {span}"
+                                )
+                            })?;
+                        let slot_ty =
+                            sdef.fields.get(idx_usize).with_context(|| {
+                                format!(
+                                    "Struct field index {index} out of bounds in 'with' for '{name}' ({} slot(s)) at {span}",
+                                    sdef.fields.len()
+                                )
+                            })?;
+                        ensure!(
+                            types_compatible(&vty, slot_ty),
+                            "'with' field {index} type mismatch on '{name}' at {}: expected '{slot_ty}', found '{vty}'",
+                            value.span()
+                        );
+                        Ok(bty)
+                    }
+                    other => bail!(
+                        "'with' requires tuple or positional struct operand, found '{other}' at {span}"
+                    ),
+                }
             }
         }
     }
@@ -2690,12 +3725,12 @@ impl<'a> Validator<'a> {
                 match (lty == StageLType::Never, rty == StageLType::Never) {
                     (true, true) => {}
                     (true, false) => ensure!(
-                        rty.supports_eq(),
+                        self.type_supports_eq(&rty),
                         "'{}' does not support type '{rty}' at {span}",
                         op.keyword()
                     ),
                     (false, true) => ensure!(
-                        lty.supports_eq(),
+                        self.type_supports_eq(&lty),
                         "'{}' does not support type '{lty}' at {span}",
                         op.keyword()
                     ),
@@ -2706,7 +3741,7 @@ impl<'a> Validator<'a> {
                             op.keyword()
                         );
                         ensure!(
-                            lty.supports_eq(),
+                            self.type_supports_eq(&lty),
                             "'{}' does not support type '{lty}' at {span}",
                             op.keyword()
                         );
@@ -2808,7 +3843,7 @@ impl<'a> Validator<'a> {
                     return Ok(StageLType::Never);
                 }
                 ensure!(
-                    vty.can_be_element(),
+                    type_can_be_element_with_defs(&vty, &self.struct_defs),
                     "'bufFill' element type '{vty}' is invalid at {span}"
                 );
                 Ok(StageLType::Buf(Box::new(vty)))
@@ -2961,10 +3996,21 @@ fn collect_value_deps(
                 out.push(n.clone());
             }
         }
-        Expr::List { elements, .. } => {
+        Expr::List { elements, .. }
+        | Expr::TupleNew { elements, .. }
+        | Expr::StructNew {
+            fields: elements, ..
+        } => {
             for e in elements {
                 collect_value_deps(e, dc_to_name, out);
             }
+        }
+        Expr::Field { base, .. } => {
+            collect_value_deps(base, dc_to_name, out);
+        }
+        Expr::With { base, value, .. } => {
+            collect_value_deps(base, dc_to_name, out);
+            collect_value_deps(value, dc_to_name, out);
         }
         Expr::Unary { operand, .. } => {
             collect_value_deps(operand, dc_to_name, out);
@@ -3548,5 +4594,86 @@ v/i32/outer i32/x
                 || err.to_string().contains("re-declare"),
             "Unexpected error: {err}"
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_tuples_and_positional_structs_validation() {
+        // 1. Valid: 0/1/3-ary tuples, recursive `l/node`, coinductive `eq`/`ne`, cross-module alias + overloading.
+        let lib_src = r#"ns geo/core.
+pub struct point :: i32 i32.
+pub struct tree :: point l/tree.
+pub point/ORIGIN structNew point: i32:0 i32:0 ::.
+pub v/i32/norm point/p :: add field /p u32:0 field /p u32:1.
+pub v/i32/norm i32/x :: /x.
+"#;
+        let app_src = r#"ns geo/app.
+use geo/core: point as pt tree ORIGIN norm ::.
+
+pub v/b/check pt/a
+    const tup: ::/u tupNew: ::.
+    const tup: pt b ::/pair tupNew: with /a u32:0 i32:9 true ::.
+    const tree/t1 structNew tree: field /pair u32:0 l/tree: :: ::.
+    const tree/t2 structNew tree: structNew pt: i32:9 field /a u32:1 :: l/tree: :: ::.
+    and eq /u tupNew: :: and eq /t1 /t2 eq norm /ORIGIN norm i32:0.
+"#;
+        let ws = parse_and_validate_workspace(&[
+            ModuleInput {
+                source_path: Some("geo/core.sl3"),
+                source: lib_src,
+            },
+            ModuleInput {
+                source_path: Some("geo/app.sl3"),
+                source: app_src,
+            },
+        ])
+        .expect("valid tuple + recursive struct workspace should validate");
+        assert_eq!(ws.modules.len(), 2);
+
+        // 2. Unguarded direct and tuple-mediated cycles must fail.
+        for bad_cycle in [
+            "struct bad :: bad.",
+            "struct a :: tup: i32 bStruct ::.\nstruct bStruct :: a.",
+        ] {
+            let err = validate_module(&parse_module(bad_cycle).unwrap())
+                .expect_err("unguarded struct cycle must fail");
+            assert!(
+                err.to_string().contains("cycle"),
+                "Unexpected error: {err}"
+            );
+        }
+
+        // 3. Nominal distinction: two structs with identical slots are distinct types.
+        let nominal_mismatch = r#"
+struct p1 :: i32 i32.
+struct p2 :: i32 i32.
+v/b/cmp :: eq structNew p1: i32:1 i32:2 :: structNew p2: i32:1 i32:2 ::.
+"#;
+        assert!(
+            validate_module(&parse_module(nominal_mismatch).unwrap()).is_err()
+        );
+
+        // 4. Transitive `buf/T` prohibitions (`pub struct`, `l/holder`, `eq`, `const`).
+        for bad_buf in [
+            "pub struct holder :: buf/u8.",
+            "struct holder :: buf/u8.\nv/u64/f :: len l/holder: ::.",
+            "struct holder :: buf/u8.\nv/b/f :: eq structNew holder: bufNew u8 u64:0 :: structNew holder: bufNew u8 u64:0 ::.",
+            "struct holder :: buf/u8.\nconst holder/H structNew holder: bufNew u8 u64:0 ::.",
+        ] {
+            assert!(
+                validate_module(&parse_module(bad_buf).unwrap()).is_err(),
+                "Expected error for: {bad_buf}"
+            );
+        }
+
+        // 5. Out-of-bounds field index and `with` type mismatch must fail.
+        for bad_field in [
+            "v/i32/f :: field tupNew: i32:1 i32:2 :: u32:2.",
+            "struct pt :: i32 i32.\nv/pt/f :: with structNew pt: i32:1 i32:2 :: u32:1 true.",
+        ] {
+            assert!(
+                validate_module(&parse_module(bad_field).unwrap()).is_err(),
+                "Expected error for: {bad_field}"
+            );
+        }
     }
 }

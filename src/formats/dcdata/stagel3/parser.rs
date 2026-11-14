@@ -34,8 +34,9 @@ use crate::utilities::*;
 use super::ast::{
     BlockItem, Comment, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr,
     ImportTarget, Module, Param, PositionalStructDecl, RoutineDecl, Span,
-    StageLType, SymbolTarget, TestBlock, TestCase, TestExpected, TopDecl,
-    TopValueDecl, TypedIntLit, UseImport, UseImportItem, parse_dc_shorthand,
+    StageLType, StructTypeRef, SymbolTarget, TestBlock, TestCase, TestExpected,
+    TopDecl, TopValueDecl, TypedIntLit, UseImport, UseImportItem,
+    parse_dc_shorthand,
 };
 use crate::DcChar;
 use std::collections::HashMap;
@@ -457,7 +458,7 @@ fn parse_type_segments(segs: &[&str], span: Span) -> Result<StageLType> {
             "void" => Ok(StageLType::Void),
             "never" => Ok(StageLType::Never),
             other if is_valid_ident(other) && !is_reserved_keyword(other) => {
-                Ok(StageLType::Struct(SymbolTarget::Ident(other.to_owned())))
+                Ok(StageLType::Struct(StructTypeRef::Ident(other.to_owned())))
             }
             other => bail!("Unknown StageL type '{other}' at {span}"),
         };
@@ -467,7 +468,7 @@ fn parse_type_segments(segs: &[&str], span: Span) -> Result<StageLType> {
             .first()
             .with_context(|| format!("Missing Dc shorthand in type at {span}"))?;
         let dc = parse_dc_shorthand(sh)?;
-        return Ok(StageLType::Struct(SymbolTarget::Dc(dc)));
+        return Ok(StageLType::Struct(StructTypeRef::Dc(dc)));
     }
     match head {
         "l" => Ok(StageLType::List(Box::new(parse_type_segments(tail, span)?))),

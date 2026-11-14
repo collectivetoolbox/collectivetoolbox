@@ -37,9 +37,9 @@ use ctb_storage_minimal::shorthand::DcShorthand;
 
 use crate::dc::{
     DC_BEGIN_WASM_PROGRAM, DC_CANONICAL_DECOMPOSITION,
-    DC_DATA_FORMAT_DESCRIPTION, DC_DECOMPOSITION, DC_IN_CONTEXT_OF,
-    DC_PROGRAMMATIC_IDENTIFIER, DC_SEMANTIC_DECOMPOSITION, DC_TYPE_ROUTINE,
-    DcChar,
+    DC_DATA_FORMAT_DESCRIPTION, DC_DECOMPOSITION,
+    DC_IN_CONTEXT_OF, DC_PROGRAMMATIC_IDENTIFIER, DC_SEMANTIC_DECOMPOSITION,
+    DC_TYPE_ROUTINE, DC_TYPE_STRUCT, DcChar,
 };
 use crate::format_spec::FormatExpr;
 use crate::graph_ledger::{
@@ -51,8 +51,9 @@ use crate::graph_ledger::{
 use crate::report::ValidationReport;
 use crate::seed_graph::SeedGraphIndex;
 use crate::stagel3::ast::{
-    BlockItem, Expr, RoutineDecl, StageLType, SymbolTarget, TestBlock,
-    TestCase, TestExpected, TopDecl, TopValueDecl, format_dc_shorthand,
+    BlockItem, Expr, Param, PositionalStructDecl, RoutineDecl, StageLType,
+    StructTypeRef, SymbolTarget, TestBlock, TestCase, TestExpected, TopDecl,
+    TopValueDecl, format_dc_shorthand,
 };
 use crate::stagel3::dc_tokens::{
     decode_module_from_dc_tokens, decode_top_decl_from_dc_tokens,
@@ -288,9 +289,71 @@ fn parse_validate_and_test_stagel_files(
     Ok((workspace, ns_to_file_idx))
 }
 
+fn build_workspace_struct_dcs(
+    workspace: &ValidatedWorkspace,
+) -> HashMap<(Option<String>, String), DcChar> {
+    let mut out = HashMap::new();
+    for vm in &workspace.modules {
+        for item in &vm.module.items {
+            if let TopDecl::Struct(s) = item
+                && let Some(dc) = s.dc_id
+            {
+                out.insert((vm.namespace_key.clone(), s.name.clone()), dc);
+            }
+        }
+    }
+    out
+}
+
+fn rewrite_type_to_struct_dcs(
+    ty: &StageLType,
+    vm: &ValidatedModule,
+    struct_dcs: &HashMap<(Option<String>, String), DcChar>,
+) -> StageLType {
+    fn map_canon(
+        ty: &StageLType,
+        struct_dcs: &HashMap<(Option<String>, String), DcChar>,
+    ) -> StageLType {
+        match ty {
+            StageLType::B
+            | StageLType::U8
+            | StageLType::I32
+            | StageLType::U32
+            | StageLType::I64
+            | StageLType::U64
+            | StageLType::Void
+            | StageLType::Never => ty.clone(),
+            StageLType::List(inner) => {
+                StageLType::List(Box::new(map_canon(inner, struct_dcs)))
+            }
+            StageLType::Buf(inner) => {
+                StageLType::Buf(Box::new(map_canon(inner, struct_dcs)))
+            }
+            StageLType::Tuple(elems) => StageLType::Tuple(
+                elems.iter().map(|e| map_canon(e, struct_dcs)).collect(),
+            ),
+            StageLType::Struct(StructTypeRef::Canonical {
+                namespace,
+                name,
+            }) => {
+                let key = (namespace.clone(), name.clone());
+                if let Some(&dc) = struct_dcs.get(&key) {
+                    StageLType::Struct(StructTypeRef::Dc(dc))
+                } else {
+                    StageLType::Struct(StructTypeRef::Ident(name.clone()))
+                }
+            }
+            StageLType::Struct(other) => StageLType::Struct(other.clone()),
+        }
+    }
+    let canon = vm.canonicalize_type(ty);
+    map_canon(&canon, struct_dcs)
+}
+
 pub(crate) fn class_value_spec_for_top_decl(decl: &TopDecl) -> Result<ValueSpec> {
     match decl {
         TopDecl::Routine(_) => Ok(ValueSpec::Direct(sh(DC_TYPE_ROUTINE))),
+        TopDecl::Struct(_) => Ok(ValueSpec::Direct(sh(DC_TYPE_STRUCT))),
         TopDecl::Value(val) => {
             let type_chars = encode_stagel_type_dc_tokens(&val.ty)?;
             let shorthands: Vec<DcShorthand> = type_chars
@@ -326,6 +389,7 @@ fn collect_unassigned_and_validate_assigned_dcs(
     workspace: &ValidatedWorkspace,
     files: &[DiscoveredStagelFile],
     ns_to_file_idx: &HashMap<String, usize>,
+    only_structs: bool,
 ) -> Result<Vec<UnassignedDeclSite>> {
     // Process files in deterministic `files` order so allocated IDs follow
     // lexicographical file order and top-to-bottom declaration order.
@@ -338,6 +402,7 @@ fn collect_unassigned_and_validate_assigned_dcs(
         }
     }
 
+    let struct_dcs = build_workspace_struct_dcs(workspace);
     let mut seen_dc_ids: HashMap<DcChar, String> = HashMap::new();
     let mut unassigned = Vec::new();
 
@@ -353,6 +418,9 @@ fn collect_unassigned_and_validate_assigned_dcs(
                 }
                 TopDecl::Value(v) => {
                     (v.name.as_str(), v.span, v.dc_id, v.pub_dc_syntax)
+                }
+                TopDecl::Struct(s) => {
+                    (s.name.as_str(), s.span, s.dc_id, s.pub_dc_syntax)
                 }
                 TopDecl::Comment(_) => continue,
             };
@@ -390,7 +458,23 @@ fn collect_unassigned_and_validate_assigned_dcs(
                     !pub_dc_syntax,
                     "Missing target Dc on 'pub dc/...' declaration in {loc_desc}"
                 );
-                let class_spec = class_value_spec_for_top_decl(item)?;
+                if only_structs && !matches!(item, TopDecl::Struct(_)) {
+                    continue;
+                }
+                let class_spec = match item {
+                    TopDecl::Value(v) => {
+                        let rewritten_val = TopDecl::Value(TopValueDecl {
+                            ty: rewrite_type_to_struct_dcs(
+                                &v.ty,
+                                vm,
+                                &struct_dcs,
+                            ),
+                            ..v.clone()
+                        });
+                        class_value_spec_for_top_decl(&rewritten_val)?
+                    }
+                    other => class_value_spec_for_top_decl(other)?,
+                };
                 unassigned.push(UnassignedDeclSite {
                     file_idx: fidx,
                     one_based_line: span.line,
@@ -654,6 +738,7 @@ pub fn check_stagel_files_need_no_dc_updates(repo_root: &Path) -> Result<()> {
         &workspace,
         &files,
         &ns_to_file_idx,
+        false,
     )?;
     if let Some(first) = unassigned.first() {
         let fmeta = files.get(first.file_idx).context("Invalid file index")?;
@@ -679,168 +764,210 @@ pub fn assign_and_update_stagel_dc_ids(
     if files.is_empty() {
         return Ok(conv_stats);
     }
-    let (workspace, ns_to_file_idx) =
-        parse_validate_and_test_stagel_files(&files)?;
-    let unassigned = collect_unassigned_and_validate_assigned_dcs(
-        &workspace,
-        &files,
-        &ns_to_file_idx,
-    )?;
-    if unassigned.is_empty() {
-        return Ok(conv_stats);
-    }
 
-    // Dry-run inserting placeholder System-region `: @dc l<id>` directives and
-    // re-validating every `.sl3` file in memory BEFORE committing permanent entity
-    // nodes into `.ctbnodes` so syntax/directive errors never leave unreferenced nodes.
-    {
-        let mut dry_insertions: BTreeMap<usize, BTreeMap<usize, u128>> =
+    let mut total_entities_allocated = 0usize;
+    let mut touched_file_indices = BTreeSet::new();
+
+    // Allocate positional `struct` entities first so any unassigned `TopDecl::Value`
+    // whose type references a new struct encodes `[303 l<struct_id>]` in its entity class.
+    for only_structs in [true, false] {
+        let (workspace, ns_to_file_idx) =
+            parse_validate_and_test_stagel_files(&files)?;
+        let unassigned = collect_unassigned_and_validate_assigned_dcs(
+            &workspace,
+            &files,
+            &ns_to_file_idx,
+            only_structs,
+        )?;
+        if unassigned.is_empty() {
+            continue;
+        }
+
+        // Dry-run inserting placeholder System-region `: @dc l<id>` directives and
+        // re-validating every `.sl3` file in memory BEFORE committing permanent entity
+        // nodes into `.ctbnodes` so syntax/directive errors never leave unreferenced nodes.
+        {
+            let mut dry_insertions: BTreeMap<usize, BTreeMap<usize, u128>> =
+                BTreeMap::new();
+            for (idx, site) in unassigned.iter().enumerate() {
+                let placeholder_id =
+                    SYSTEM_REGION_END.saturating_sub(u128::try_from(idx)?);
+                dry_insertions
+                    .entry(site.file_idx)
+                    .or_default()
+                    .insert(site.one_based_line, placeholder_id);
+            }
+            let mut dry_files = files.clone();
+            for (&fidx, line_map) in &dry_insertions {
+                let fmeta =
+                    dry_files.get_mut(fidx).context("Invalid file index")?;
+                let preview =
+                    insert_dc_directives_into_source(&fmeta.source, line_map)?;
+                fmeta.source = preview;
+                fmeta.raw_bytes = fmeta.source.as_bytes().to_vec();
+            }
+            let (dry_ws, dry_map) =
+                parse_validate_and_test_stagel_files(&dry_files)?;
+            let dry_rem = collect_unassigned_and_validate_assigned_dcs(
+                &dry_ws,
+                &dry_files,
+                &dry_map,
+                only_structs,
+            )?;
+            ensure!(
+                dry_rem.is_empty(),
+                "Internal error: {} StageL items remained unassigned in dry-run ': @dc' insertion",
+                dry_rem.len()
+            );
+        }
+
+        let specs: Vec<(ValueSpec, String)> = unassigned
+            .iter()
+            .map(|u| (u.class_spec.clone(), u.label.clone()))
+            .collect();
+        let allocated_ids = allocate_stagel_entities_in_repo(repo_root, &specs)?;
+        ensure!(
+            allocated_ids.len() == unassigned.len(),
+            "Allocated entity count {} did not match unassigned StageL item count {}",
+            allocated_ids.len(),
+            unassigned.len()
+        );
+
+        let mut per_file_insertions: BTreeMap<usize, BTreeMap<usize, u128>> =
             BTreeMap::new();
-        for (idx, site) in unassigned.iter().enumerate() {
-            let placeholder_id = SYSTEM_REGION_END.saturating_sub(u128::try_from(idx)?);
-            dry_insertions
+        for (site, &entity_id) in unassigned.iter().zip(allocated_ids.iter()) {
+            per_file_insertions
                 .entry(site.file_idx)
                 .or_default()
-                .insert(site.one_based_line, placeholder_id);
+                .insert(site.one_based_line, entity_id);
         }
-        let mut dry_files = files.clone();
-        for (&fidx, line_map) in &dry_insertions {
-            let fmeta = dry_files.get_mut(fidx).context("Invalid file index")?;
-            let preview = insert_dc_directives_into_source(&fmeta.source, line_map)?;
-            fmeta.source = preview;
-            fmeta.raw_bytes = fmeta.source.as_bytes().to_vec();
+
+        let mut updated_sources: BTreeMap<usize, String> = BTreeMap::new();
+        for (&fidx, line_map) in &per_file_insertions {
+            let fmeta = files.get(fidx).context("Invalid file index")?;
+            let new_src =
+                insert_dc_directives_into_source(&fmeta.source, line_map)?;
+            updated_sources.insert(fidx, new_src);
         }
-        let (dry_ws, dry_map) = parse_validate_and_test_stagel_files(&dry_files)?;
-        let dry_rem = collect_unassigned_and_validate_assigned_dcs(
-            &dry_ws,
-            &dry_files,
-            &dry_map,
+
+        // Re-parse and re-validate all updated `.sl3` sources in memory BEFORE writing to disk.
+        for (&fidx, new_src) in &updated_sources {
+            if let Some(fmeta) = files.get_mut(fidx) {
+                fmeta.source.clone_from(new_src);
+                fmeta.raw_bytes = new_src.as_bytes().to_vec();
+            }
+            touched_file_indices.insert(fidx);
+        }
+        let (revalidated_ws, revalidated_map) =
+            parse_validate_and_test_stagel_files(&files)?;
+        let remaining = collect_unassigned_and_validate_assigned_dcs(
+            &revalidated_ws,
+            &files,
+            &revalidated_map,
+            only_structs,
         )?;
         ensure!(
-            dry_rem.is_empty(),
-            "Internal error: {} StageL items remained unassigned in dry-run ': @dc' insertion",
-            dry_rem.len()
+            remaining.is_empty(),
+            "Internal error: {} StageL items remained unassigned after ': @dc' insertion",
+            remaining.len()
         );
-    }
 
-    let specs: Vec<(ValueSpec, String)> = unassigned
-        .iter()
-        .map(|u| (u.class_spec.clone(), u.label.clone()))
-        .collect();
-    let allocated_ids = allocate_stagel_entities_in_repo(repo_root, &specs)?;
-    ensure!(
-        allocated_ids.len() == unassigned.len(),
-        "Allocated entity count {} did not match unassigned StageL item count {}",
-        allocated_ids.len(),
-        unassigned.len()
-    );
-
-    let mut per_file_insertions: BTreeMap<usize, BTreeMap<usize, u128>> =
-        BTreeMap::new();
-    for (site, &entity_id) in unassigned.iter().zip(allocated_ids.iter()) {
-        per_file_insertions
-            .entry(site.file_idx)
-            .or_default()
-            .insert(site.one_based_line, entity_id);
-    }
-
-    let mut updated_sources: BTreeMap<usize, String> = BTreeMap::new();
-    for (&fidx, line_map) in &per_file_insertions {
-        let fmeta = files.get(fidx).context("Invalid file index")?;
-        let new_src = insert_dc_directives_into_source(&fmeta.source, line_map)?;
-        updated_sources.insert(fidx, new_src);
-    }
-
-    // Re-parse and re-validate all updated `.sl3` sources in memory BEFORE writing to disk.
-    for (&fidx, new_src) in &updated_sources {
-        if let Some(fmeta) = files.get_mut(fidx) {
-            fmeta.source.clone_from(new_src);
-            fmeta.raw_bytes = new_src.as_bytes().to_vec();
+        for &fidx in updated_sources.keys() {
+            let fmeta = files.get(fidx).context("Invalid file index")?;
+            std::fs::write(&fmeta.disk_path, &fmeta.raw_bytes).with_context(
+                || {
+                    format!(
+                        "Failed to write updated StageL file {}",
+                        fmeta.repo_rel_path
+                    )
+                },
+            )?;
         }
-    }
-    let (revalidated_ws, revalidated_map) =
-        parse_validate_and_test_stagel_files(&files)?;
-    let remaining = collect_unassigned_and_validate_assigned_dcs(
-        &revalidated_ws,
-        &files,
-        &revalidated_map,
-    )?;
-    ensure!(
-        remaining.is_empty(),
-        "Internal error: {} StageL items remained unassigned after ': @dc' insertion",
-        remaining.len()
-    );
-
-    for &fidx in updated_sources.keys() {
-        let fmeta = files.get(fidx).context("Invalid file index")?;
-        std::fs::write(&fmeta.disk_path, &fmeta.raw_bytes).with_context(|| {
-            format!("Failed to write updated StageL file {}", fmeta.repo_rel_path)
-        })?;
+        total_entities_allocated =
+            total_entities_allocated.saturating_add(allocated_ids.len());
     }
 
     Ok(StagelAllocStats {
         entities_allocated: conv_stats
             .entities_allocated
-            .saturating_add(allocated_ids.len()),
+            .saturating_add(total_entities_allocated),
         files_updated: conv_stats
             .files_updated
-            .saturating_add(updated_sources.len()),
+            .saturating_add(touched_file_indices.len()),
     })
 }
 
 /// In-memory equivalent of [`assign_and_update_stagel_dc_ids`] for unit tests.
 pub fn assign_stagel_dc_ids_in_memory(
-    existing_nodes: Vec<LedgerNode>,
+    mut existing_nodes: Vec<LedgerNode>,
     files: &mut [DiscoveredStagelFile],
 ) -> Result<(Vec<LedgerNode>, StagelAllocStats)> {
-    let (workspace, ns_to_file_idx) =
-        parse_validate_and_test_stagel_files(files)?;
-    let unassigned = collect_unassigned_and_validate_assigned_dcs(
-        &workspace,
-        files,
-        &ns_to_file_idx,
-    )?;
-    if unassigned.is_empty() {
-        return Ok((existing_nodes, StagelAllocStats::default()));
-    }
+    let mut total_entities_allocated = 0usize;
+    let mut touched_file_indices = BTreeSet::new();
 
-    let specs: Vec<(ValueSpec, String)> = unassigned
-        .iter()
-        .map(|u| (u.class_spec.clone(), u.label.clone()))
-        .collect();
-    let (updated_nodes, allocated_ids) =
-        allocate_stagel_entities_in_memory(existing_nodes, &specs)?;
+    for only_structs in [true, false] {
+        let (workspace, ns_to_file_idx) =
+            parse_validate_and_test_stagel_files(files)?;
+        let unassigned = collect_unassigned_and_validate_assigned_dcs(
+            &workspace,
+            files,
+            &ns_to_file_idx,
+            only_structs,
+        )?;
+        if unassigned.is_empty() {
+            continue;
+        }
 
-    let mut per_file_insertions: BTreeMap<usize, BTreeMap<usize, u128>> =
-        BTreeMap::new();
-    for (site, &entity_id) in unassigned.iter().zip(allocated_ids.iter()) {
-        per_file_insertions
-            .entry(site.file_idx)
-            .or_default()
-            .insert(site.one_based_line, entity_id);
-    }
+        let specs: Vec<(ValueSpec, String)> = unassigned
+            .iter()
+            .map(|u| (u.class_spec.clone(), u.label.clone()))
+            .collect();
+        let (updated_nodes, allocated_ids) =
+            allocate_stagel_entities_in_memory(existing_nodes, &specs)?;
+        existing_nodes = updated_nodes;
 
-    let mut files_updated = 0usize;
-    for (fidx, line_map) in per_file_insertions {
-        let fmeta = files.get_mut(fidx).context("Invalid file index")?;
-        let new_src = insert_dc_directives_into_source(&fmeta.source, &line_map)?;
-        fmeta.source = new_src;
-        fmeta.raw_bytes = fmeta.source.as_bytes().to_vec();
-        files_updated = files_updated.saturating_add(1);
+        let mut per_file_insertions: BTreeMap<usize, BTreeMap<usize, u128>> =
+            BTreeMap::new();
+        for (site, &entity_id) in unassigned.iter().zip(allocated_ids.iter()) {
+            per_file_insertions
+                .entry(site.file_idx)
+                .or_default()
+                .insert(site.one_based_line, entity_id);
+        }
+
+        for (fidx, line_map) in per_file_insertions {
+            let fmeta = files.get_mut(fidx).context("Invalid file index")?;
+            let new_src =
+                insert_dc_directives_into_source(&fmeta.source, &line_map)?;
+            fmeta.source = new_src;
+            fmeta.raw_bytes = fmeta.source.as_bytes().to_vec();
+            touched_file_indices.insert(fidx);
+        }
+        total_entities_allocated =
+            total_entities_allocated.saturating_add(allocated_ids.len());
     }
 
     Ok((
-        updated_nodes,
+        existing_nodes,
         StagelAllocStats {
-            entities_allocated: allocated_ids.len(),
-            files_updated,
+            entities_allocated: total_entities_allocated,
+            files_updated: touched_file_indices.len(),
         },
     ))
 }
 
-struct DeclRewriteMaps {
+struct DeclRewriteMaps<'a> {
+    vm: &'a ValidatedModule,
+    all_struct_dcs: &'a HashMap<(Option<String>, String), DcChar>,
     value_dcs_by_span: HashMap<(usize, usize), DcChar>,
     routine_dcs_by_span: HashMap<(usize, usize), DcChar>,
+    struct_dcs_by_span: HashMap<(usize, usize), DcChar>,
+}
+
+impl DeclRewriteMaps<'_> {
+    fn rewrite_type(&self, ty: &StageLType) -> StageLType {
+        rewrite_type_to_struct_dcs(ty, self.vm, self.all_struct_dcs)
+    }
 }
 
 #[derive(Default)]
@@ -869,7 +996,7 @@ impl LexicalShadows {
 
 fn rewrite_top_decl_refs_to_dc(
     decl: &TopDecl,
-    maps: &DeclRewriteMaps,
+    maps: &DeclRewriteMaps<'_>,
 ) -> TopDecl {
     match decl {
         TopDecl::Value(v) => {
@@ -878,7 +1005,7 @@ fn rewrite_top_decl_refs_to_dc(
                 is_pub: v.is_pub,
                 pub_dc_syntax: v.pub_dc_syntax,
                 dc_id: v.dc_id,
-                ty: v.ty.clone(),
+                ty: maps.rewrite_type(&v.ty),
                 name: v.name.clone(),
                 value: rewrite_expr_refs(&v.value, maps, &mut shadows),
                 comments_before: v.comments_before.clone(),
@@ -889,13 +1016,23 @@ fn rewrite_top_decl_refs_to_dc(
             let mut shadows = LexicalShadows::new();
             TopDecl::Routine(rewrite_routine_refs(r, maps, &mut shadows))
         }
+        TopDecl::Struct(s) => TopDecl::Struct(PositionalStructDecl {
+            is_pub: s.is_pub,
+            pub_dc_syntax: s.pub_dc_syntax,
+            dc_id: s.dc_id,
+            name: s.name.clone(),
+            fields: s.fields.iter().map(|f| maps.rewrite_type(f)).collect(),
+            inline_body: s.inline_body,
+            comments_before: s.comments_before.clone(),
+            span: s.span,
+        }),
         TopDecl::Comment(c) => TopDecl::Comment(c.clone()),
     }
 }
 
 fn rewrite_routine_refs(
     r: &RoutineDecl,
-    maps: &DeclRewriteMaps,
+    maps: &DeclRewriteMaps<'_>,
     shadows: &mut LexicalShadows,
 ) -> RoutineDecl {
     let mut param_layer = LexicalShadowScope::default();
@@ -939,9 +1076,17 @@ fn rewrite_routine_refs(
         is_pub: r.is_pub,
         pub_dc_syntax: r.pub_dc_syntax,
         dc_id: r.dc_id,
-        return_type: r.return_type.clone(),
+        return_type: maps.rewrite_type(&r.return_type),
         name: r.name.clone(),
-        params: r.params.clone(),
+        params: r
+            .params
+            .iter()
+            .map(|p| Param {
+                ty: maps.rewrite_type(&p.ty),
+                name: p.name.clone(),
+                span: p.span,
+            })
+            .collect(),
         tests: rewritten_tests,
         body: rewritten_body,
         inline_body: r.inline_body,
@@ -952,7 +1097,7 @@ fn rewrite_routine_refs(
 
 fn rewrite_expr_refs(
     expr: &Expr,
-    maps: &DeclRewriteMaps,
+    maps: &DeclRewriteMaps<'_>,
     shadows: &mut LexicalShadows,
 ) -> Expr {
     match expr {
@@ -962,7 +1107,7 @@ fn rewrite_expr_refs(
             elements,
             span,
         } => Expr::List {
-            elem_ty: elem_ty.clone(),
+            elem_ty: maps.rewrite_type(elem_ty),
             elements: elements
                 .iter()
                 .map(|e| rewrite_expr_refs(e, maps, shadows))
@@ -974,7 +1119,7 @@ fn rewrite_expr_refs(
             capacity,
             span,
         } => Expr::BufNew {
-            elem_ty: elem_ty.clone(),
+            elem_ty: maps.rewrite_type(elem_ty),
             capacity: Box::new(rewrite_expr_refs(capacity, maps, shadows)),
             span: *span,
         },
@@ -992,7 +1137,7 @@ fn rewrite_expr_refs(
                 other => other.clone(),
             };
             Expr::ValueRef {
-                ty: ty.clone(),
+                ty: ty.as_ref().map(|t| maps.rewrite_type(t)),
                 target: new_target,
                 span: *span,
             }
@@ -1010,7 +1155,7 @@ fn rewrite_expr_refs(
                 top.values.insert(name.clone());
             }
             Expr::Let {
-                ty: ty.clone(),
+                ty: maps.rewrite_type(ty),
                 name: name.clone(),
                 init: new_init,
                 span: *span,
@@ -1028,7 +1173,7 @@ fn rewrite_expr_refs(
                 top.values.insert(name.clone());
             }
             Expr::Const {
-                ty: ty.clone(),
+                ty: maps.rewrite_type(ty),
                 name: name.clone(),
                 dc_id: *dc_id,
                 value: new_val,
@@ -1041,7 +1186,7 @@ fn rewrite_expr_refs(
             value,
             span,
         } => Expr::Set {
-            ty: ty.clone(),
+            ty: ty.as_ref().map(|t| maps.rewrite_type(t)),
             name: name.clone(),
             value: Box::new(rewrite_expr_refs(value, maps, shadows)),
             span: *span,
@@ -1129,7 +1274,7 @@ fn rewrite_expr_refs(
             let new_body = Box::new(rewrite_expr_refs(body, maps, shadows));
             let _ = shadows.layers.pop();
             Expr::ForEach {
-                elem_ty: elem_ty.clone(),
+                elem_ty: maps.rewrite_type(elem_ty),
                 elem_name: elem_name.clone(),
                 list: new_list,
                 body: new_body,
@@ -1181,7 +1326,7 @@ fn rewrite_expr_refs(
             span,
         } => Expr::Conv {
             expr: Box::new(rewrite_expr_refs(inner, maps, shadows)),
-            target_ty: target_ty.clone(),
+            target_ty: maps.rewrite_type(target_ty),
             span: *span,
         },
         Expr::Bitcast {
@@ -1190,7 +1335,56 @@ fn rewrite_expr_refs(
             span,
         } => Expr::Bitcast {
             expr: Box::new(rewrite_expr_refs(inner, maps, shadows)),
-            target_ty: target_ty.clone(),
+            target_ty: maps.rewrite_type(target_ty),
+            span: *span,
+        },
+        Expr::TupleNew { elements, span } => Expr::TupleNew {
+            elements: elements
+                .iter()
+                .map(|e| rewrite_expr_refs(e, maps, shadows))
+                .collect(),
+            span: *span,
+        },
+        Expr::StructNew {
+            target,
+            fields,
+            span,
+        } => {
+            let new_target = match target {
+                SymbolTarget::Ident(_) => {
+                    if let Some(&dc) =
+                        maps.struct_dcs_by_span.get(&(span.line, span.col))
+                    {
+                        SymbolTarget::Dc(dc)
+                    } else {
+                        target.clone()
+                    }
+                }
+                other => other.clone(),
+            };
+            Expr::StructNew {
+                target: new_target,
+                fields: fields
+                    .iter()
+                    .map(|f| rewrite_expr_refs(f, maps, shadows))
+                    .collect(),
+                span: *span,
+            }
+        }
+        Expr::Field { index, base, span } => Expr::Field {
+            index: *index,
+            base: Box::new(rewrite_expr_refs(base, maps, shadows)),
+            span: *span,
+        },
+        Expr::With {
+            index,
+            base,
+            value,
+            span,
+        } => Expr::With {
+            index: *index,
+            base: Box::new(rewrite_expr_refs(base, maps, shadows)),
+            value: Box::new(rewrite_expr_refs(value, maps, shadows)),
             span: *span,
         },
     }
@@ -1211,6 +1405,7 @@ pub(crate) fn compile_stagel_files_into_desired_state(
         &workspace,
         files,
         &ns_to_file_idx,
+        false,
     )?;
     if let Some(first) = unassigned.first() {
         let fmeta = files.get(first.file_idx).context("Invalid file index")?;
@@ -1221,6 +1416,8 @@ pub(crate) fn compile_stagel_files_into_desired_state(
             first.one_based_line
         );
     }
+
+    let all_struct_dcs = build_workspace_struct_dcs(&workspace);
 
     for vm in &workspace.modules {
         let ns_segs = vm
@@ -1247,19 +1444,18 @@ pub(crate) fn compile_stagel_files_into_desired_state(
                     let dc = v.dc_id.with_context(|| {
                         format!("Missing Dc on '{}::{}'", ns_key, v.name)
                     })?;
-                    local_value_dcs.insert(
-                        ValueKey {
-                            name: v.name.clone(),
-                            ty: v.ty.clone(),
-                        },
-                        dc,
-                    );
+                    local_value_dcs.insert(vm.value_key(v), dc);
                 }
                 TopDecl::Routine(r) => {
                     let dc = r.dc_id.with_context(|| {
                         format!("Missing Dc on '{}::{}'", ns_key, r.name)
                     })?;
-                    local_routine_dcs.insert(RoutineKey::from_decl(r), dc);
+                    local_routine_dcs.insert(vm.routine_key(r), dc);
+                }
+                TopDecl::Struct(s) => {
+                    let _ = s.dc_id.with_context(|| {
+                        format!("Missing Dc on '{}::{}'", ns_key, s.name)
+                    })?;
                 }
                 TopDecl::Comment(_) => {}
             }
@@ -1314,9 +1510,28 @@ pub(crate) fn compile_stagel_files_into_desired_state(
             routine_dcs_by_span.insert(span_key, target_dc);
         }
 
+        let mut struct_dcs_by_span: HashMap<(usize, usize), DcChar> =
+            HashMap::with_capacity(vm.resolved_structs.len());
+        for (&span_key, sdef) in &vm.resolved_structs {
+            let skey = (sdef.namespace.clone(), sdef.original_name.clone());
+            let target_dc = sdef
+                .dc_id
+                .or_else(|| all_struct_dcs.get(&skey).copied())
+                .with_context(|| {
+                    format!(
+                        "Struct '{}' in '{ns_key}' has no assigned Dc",
+                        sdef.original_name
+                    )
+                })?;
+            struct_dcs_by_span.insert(span_key, target_dc);
+        }
+
         let maps = DeclRewriteMaps {
+            vm,
+            all_struct_dcs: &all_struct_dcs,
             value_dcs_by_span,
             routine_dcs_by_span,
+            struct_dcs_by_span,
         };
 
         for item in &vm.module.items {
@@ -1333,17 +1548,24 @@ pub(crate) fn compile_stagel_files_into_desired_state(
                     r.pub_dc_syntax,
                     r.dc_id.context("Missing Dc on validated StageL routine")?,
                 ),
+                TopDecl::Struct(s) => (
+                    s.name.as_str(),
+                    s.is_pub,
+                    s.pub_dc_syntax,
+                    s.dc_id.context("Missing Dc on validated StageL struct")?,
+                ),
                 TopDecl::Comment(_) => continue,
             };
 
             let subj_sh = DcShorthand::from_global_id(item_dc.to_u128());
             let label = format!("{ns_key}::{item_name}");
+            let rewritten = rewrite_top_decl_refs_to_dc(item, &maps);
 
             if !pub_dc_syntax {
                 let DcShorthand::Long(entity_id) = subj_sh else {
                     bail!("Expected Long entity ID for {label}, found {subj_sh}");
                 };
-                let class_spec = class_value_spec_for_top_decl(item)?;
+                let class_spec = class_value_spec_for_top_decl(&rewritten)?;
                 desired
                     .allocated_entities
                     .insert(entity_id, (class_spec, label.clone()));
@@ -1365,7 +1587,6 @@ pub(crate) fn compile_stagel_files_into_desired_state(
                 }
             }
 
-            let rewritten = rewrite_top_decl_refs_to_dc(item, &maps);
             let dc_chars = encode_top_decl_to_dc_tokens(&rewritten)?;
             // Gate 4 lossless Token-Dc roundtrip verification before ledger emission:
             let decoded = decode_top_decl_from_dc_tokens(&dc_chars)?;
@@ -1673,6 +1894,7 @@ pub fn validate_stagel_and_system_graph_in_repo(
         &workspace,
         &files,
         &ns_to_file_idx,
+        false,
     ) {
         Ok(unassigned) => {
             for site in unassigned {
@@ -1709,6 +1931,7 @@ pub fn validate_stagel_and_system_graph_in_repo(
             let (pub_dc_syntax, dc_opt, span) = match item {
                 TopDecl::Routine(r) => (r.pub_dc_syntax, r.dc_id, r.span),
                 TopDecl::Value(v) => (v.pub_dc_syntax, v.dc_id, v.span),
+                TopDecl::Struct(s) => (s.pub_dc_syntax, s.dc_id, s.span),
                 TopDecl::Comment(_) => continue,
             };
             if pub_dc_syntax && let Some(dc) = dc_opt {
@@ -1765,6 +1988,9 @@ pub fn validate_stagel_and_system_graph_in_repo(
                 }
                 TopDecl::Value(v) => {
                     (v.name.as_str(), v.pub_dc_syntax, v.dc_id, v.span)
+                }
+                TopDecl::Struct(s) => {
+                    (s.name.as_str(), s.pub_dc_syntax, s.dc_id, s.span)
                 }
                 TopDecl::Comment(_) => continue,
             };
@@ -2080,5 +2306,90 @@ mod tests {
         );
         assert!(report.has_errors());
         assert!(report.format_report().contains("WASM boundary"));
+    }
+
+    #[crate::ctb_test]
+    fn test_stagel_dc_alloc_and_seed_linker_with_structs_and_tuples() -> Result<()> {
+        let scripts = BTreeSet::new();
+        let mut files = vec![
+            make_mem_file(
+                ImplStage::Stage1,
+                "std/geo/types.sl3",
+                concat!(
+                    "ns std/geo/types.\n\n",
+                    "pub struct point :: i32 i32.\n",
+                    "pub struct tree :: point l/tree.\n",
+                    "pub point/ORIGIN structNew point: i32:0 i32:0 ::.\n",
+                ),
+            ),
+            make_mem_file(
+                ImplStage::Stage1,
+                "std/geo/ops.sl3",
+                concat!(
+                    "ns std/geo/ops.\n",
+                    "use std/geo/types: point as pt tree ORIGIN ::.\n\n",
+                    "pub v/i32/sumTree tree/node\n",
+                    "    test baseCase\n",
+                    "        in structNew tree: /ORIGIN l/tree: :: ::\n",
+                    "        out i32:0.\n",
+                    "    let i32/acc add field field /node u32:0 u32:0 field field /node u32:0 u32:1.\n",
+                    "    foreach tree/ch field /node u32:1 do\n",
+                    "        set /acc add /acc sumTree /ch.\n",
+                    "    ::.\n",
+                    "    /acc.\n\n",
+                    "pub v/pt/translate pt/p tup: i32 i32 ::/delta\n",
+                    "    with with /p u32:0 add field /p u32:0 field /delta u32:0 u32:1 add field /p u32:1 field /delta u32:1.\n",
+                ),
+            ),
+        ];
+
+        // 1. Allocate permanent Dcs (two-pass struct-first) and reconcile ledger
+        let (nodes1, alloc1, _) = reconcile_stagel_and_csv_in_memory(
+            Vec::new(),
+            &mut files,
+            &[],
+            &[],
+            &scripts,
+            None,
+        )?;
+        assert_eq!(alloc1.entities_allocated, 5);
+        assert_eq!(alloc1.files_updated, 2);
+
+        // 2. Second reconciliation is 100% idempotent (entity classes match `[303 l<point_id>]`!)
+        let (nodes2, alloc2, stats2) = reconcile_stagel_and_csv_in_memory(
+            nodes1.clone(),
+            &mut files,
+            &[],
+            &[],
+            &scripts,
+            None,
+        )?;
+        assert_eq!(alloc2.entities_allocated, 0);
+        assert_eq!(stats2.nodes_appended, 0);
+        assert_eq!(stats2.nodes_superseded, 0);
+        assert_eq!(nodes1, nodes2);
+
+        // 3. Link & evaluate an external caller module against `SeedGraphIndex`!
+        let single_props = single_valued_property_set();
+        let idx = SeedGraphIndex::from_nodes_with_single_props(nodes2, &single_props);
+        let caller_src = r#"ns app/check.
+use std/geo/types: point as vec2 tree ORIGIN ::.
+use std/geo/ops: sumTree translate ::.
+
+pub v/b/runCheck
+    test linkedGraphStructs
+        in.
+        out true.
+    const vec2/p1 translate /ORIGIN tupNew: i32:4 i32:6 ::.
+    const tree/child structNew tree: /p1 l/tree: :: ::.
+    const tree/root structNew tree: structNew vec2: i32:1 i32:2 :: l/tree: /child :: ::.
+    eq sumTree /root i32:13.
+"#;
+        let report =
+            crate::stagel3::seed_linker::eval_sl3_inline_tests_with_seed_graph(
+                caller_src, &idx,
+            )?;
+        assert_eq!(report.ensure_all_passed()?, 1);
+        Ok(())
     }
 }
