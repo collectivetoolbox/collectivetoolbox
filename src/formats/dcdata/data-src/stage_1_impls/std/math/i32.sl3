@@ -1,0 +1,130 @@
+: SPDX-License-Identifier: AGPL-3.0-or-later
+: Stage 1 signed 32-bit Euclidean modulus and non-trapping overflow/division predicates.
+ns std/math/i32.
+
+: Minimum signed 32-bit integer (-2^31).
+: @dc l8589978241
+pub i32/MIN i32:-2147483648.
+
+: Maximum signed 32-bit integer (2^31 - 1).
+: @dc l8589978242
+pub i32/MAX i32:2147483647.
+
+: Euclidean modulus satisfying `0 <= (mod lhs rhs) < |rhs|` for all `rhs != 0`
+: (including `mod MIN -1 == 0` and `mod -1 MIN == MAX`); faults when `rhs == 0`.
+: @dc l8589978243
+pub v/i32/mod i32/lhs i32/rhs
+    test
+        in i32:7 i32:3
+        out i32:1.
+        in i32:-7 i32:3
+        out i32:2.
+        in i32:7 i32:-3
+        out i32:1.
+        in i32:-7 i32:-3
+        out i32:2.
+        in i32:0 i32:5
+        out i32:0.
+        in i32:-2147483648 i32:-1
+        out i32:0.
+        in i32:-2147483648 i32:1
+        out i32:0.
+        in i32:-2147483648 i32:-2147483648
+        out i32:0.
+        in i32:5 i32:-2147483648
+        out i32:5.
+        in i32:-1 i32:-2147483648
+        out i32:2147483647.
+        in i32:1 i32:0
+        out fault.
+        in i32:-2147483648 i32:0
+        out fault.
+    if eq i32/rhs i32:0
+        fault
+        if and eq i32/lhs i32/MIN eq i32/rhs i32:-1
+            i32:0
+            do
+                const i32/remVal rem i32/lhs i32/rhs.
+                if ge i32/remVal i32:0
+                    i32/remVal
+                    if gt i32/rhs i32:0
+                        add i32/remVal i32/rhs
+                        sub i32/remVal i32/rhs.
+            ::.
+
+: Returns true iff checked `add lhs rhs` will not overflow signed 32-bit bounds.
+: @dc l8589978244
+pub v/b/canAdd i32/lhs i32/rhs
+    test
+        in i32:10 i32:20
+        out true.
+        in i32:2147483647 i32:0
+        out true.
+        in i32:2147483647 i32:1
+        out false.
+        in i32:-2147483648 i32:0
+        out true.
+        in i32:-2147483648 i32:-1
+        out false.
+        in i32:-2147483648 i32:2147483647
+        out true.
+    const i32/sumVal wrapAdd i32/lhs i32/rhs.
+    ge bitAnd bitXor i32/sumVal i32/lhs bitXor i32/sumVal i32/rhs i32:0.
+
+: Returns true iff checked `sub lhs rhs` will not overflow signed 32-bit bounds.
+: @dc l8589978245
+pub v/b/canSub i32/lhs i32/rhs
+    test
+        in i32:10 i32:20
+        out true.
+        in i32:-2147483648 i32:1
+        out false.
+        in i32:0 i32:-2147483648
+        out false.
+        in i32:-1 i32:-2147483648
+        out true.
+        in i32:2147483647 i32:-1
+        out false.
+        in i32:2147483647 i32:2147483647
+        out true.
+    const i32/diffVal wrapSub i32/lhs i32/rhs.
+    ge bitAnd bitXor i32/lhs i32/rhs bitXor i32/diffVal i32/lhs i32:0.
+
+: Returns true iff checked `mul lhs rhs` will not overflow signed 32-bit bounds.
+: @dc l8589978246
+pub v/b/canMul i32/lhs i32/rhs
+    test
+        in i32:46340 i32:46340
+        out true.
+        in i32:46341 i32:46341
+        out false.
+        in i32:-2147483648 i32:0
+        out true.
+        in i32:-2147483648 i32:1
+        out true.
+        in i32:-2147483648 i32:-1
+        out false.
+        in i32:-1 i32:-2147483648
+        out false.
+        in i32:1073741824 i32:-2
+        out true.
+        in i32:1073741824 i32:2
+        out false.
+    const i64/prod mul conv i32/lhs i64 conv i32/rhs i64.
+    and ge i64/prod conv i32/MIN i64 le i64/prod conv i32/MAX i64.
+
+: Returns true iff checked `div lhs rhs` and `rem lhs rhs` will not fault (`rhs != 0` and `!(lhs == MIN && rhs == -1)`).
+: @dc l8589978247
+pub v/b/canDiv i32/lhs i32/rhs
+    test
+        in i32:10 i32:2
+        out true.
+        in i32:10 i32:0
+        out false.
+        in i32:-2147483648 i32:-1
+        out false.
+        in i32:-2147483648 i32:1
+        out true.
+        in i32:-2147483647 i32:-1
+        out true.
+    and ne i32/rhs i32:0 not and eq i32/lhs i32/MIN eq i32/rhs i32:-1.

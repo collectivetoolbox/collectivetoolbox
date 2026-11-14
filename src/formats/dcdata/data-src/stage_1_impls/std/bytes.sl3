@@ -1,0 +1,95 @@
+: SPDX-License-Identifier: AGPL-3.0-or-later
+: Stage 1 byte-sequence splitting (`explode`) and joining (`implode`) primitives.
+ns std/bytes.
+use std/assert: assert ::.
+
+: Private helper checking whether `sep` matches `input` starting at `pos`.
+: @dc l8589978238
+v/b/matchesAt l/u8/input u64/pos l/u8/sep
+    const u64/sepLen len l/u8/sep.
+    let u64/k u64:0.
+    while lt u64/k u64/sepLen do
+        if ne get l/u8/input add u64/pos u64/k get l/u8/sep u64/k
+            return false
+            do ::.
+        set u64/k add u64/k u64:1.
+    ::.
+    true.
+
+: Splits `input` at each non-overlapping left-to-right occurrence of non-empty `sep`,
+: preserving leading, trailing, and adjacent empty slices so `implode sep (explode sep x) == x`.
+: Faults when `sep` is empty.
+: @dc l8589978239
+pub v/l/l/u8/explode l/u8/sep l/u8/input
+    test
+        in b"," b"a,b,c"
+        out l/l/u8: b"a" b"b" b"c" ::.
+        in b"," b",a,,b,"
+        out l/l/u8: b"" b"a" b"" b"b" b"" ::.
+        in b"," b""
+        out l/l/u8: b"" ::.
+        in b"--" b"a---b"
+        out l/l/u8: b"a" b"-b" ::.
+        in b"xyz" b"ab"
+        out l/l/u8: b"ab" ::.
+        in b"" b"abc"
+        out fault.
+    const u64/sepLen len l/u8/sep.
+    assert ne u64/sepLen u64:0.
+    const u64/inLen len l/u8/input.
+    const buf/l/u8/outBuf bufNew l/u8 u64:4.
+    let u64/segStart u64:0.
+    let u64/pos u64:0.
+    if le u64/sepLen u64/inLen
+        do
+            const u64/limit sub u64/inLen u64/sepLen.
+            while le u64/pos u64/limit do
+                if matchesAt l/u8/input u64/pos l/u8/sep
+                    do
+                        bufPush buf/l/u8/outBuf slice l/u8/input u64/segStart u64/pos.
+                        set u64/pos add u64/pos u64/sepLen.
+                        set u64/segStart u64/pos.
+                    ::
+                    set u64/pos add u64/pos u64:1.
+            ::.
+        ::
+        do ::.
+    bufPush buf/l/u8/outBuf slice l/u8/input u64/segStart u64/inLen.
+    bufFreeze buf/l/u8/outBuf.
+
+: Concatenates `parts` in linear `O(N)` time inserting `sep` between adjacent slices.
+: @dc l8589978240
+pub v/l/u8/implode l/u8/sep l/l/u8/parts
+    test
+        in b"," l/l/u8: b"a" b"b" b"c" ::
+        out b"a,b,c".
+        in b"," l/l/u8: b"" b"a" b"" b"b" b"" ::
+        out b",a,,b,".
+        in b"," l/l/u8: b"" ::
+        out b"".
+        in b"," l/l/u8: ::
+        out b"".
+        in b"" l/l/u8: b"ab" b"cd" ::
+        out b"abcd".
+        in b"--" l/l/u8: b"a" b"-b" ::
+        out b"a---b".
+    const u64/count len l/l/u8/parts.
+    if eq u64/count u64:0
+        return b""
+        do ::.
+    let u64/total mul sub u64/count u64:1 len l/u8/sep.
+    let u64/i u64:0.
+    while lt u64/i u64/count do
+        set u64/total add u64/total len get l/l/u8/parts u64/i.
+        set u64/i add u64/i u64:1.
+    ::.
+    const buf/u8/outBuf bufNew u8 u64/total.
+    set u64/i u64:0.
+    while lt u64/i u64/count do
+        if gt u64/i u64:0
+            bufExtend buf/u8/outBuf l/u8/sep
+            do ::.
+        bufExtend buf/u8/outBuf get l/l/u8/parts u64/i.
+        set u64/i add u64/i u64:1.
+    ::.
+    bufFreeze buf/u8/outBuf.

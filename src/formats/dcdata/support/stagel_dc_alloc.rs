@@ -488,6 +488,39 @@ pub fn assign_and_update_stagel_dc_ids(
         return Ok(StagelAllocStats::default());
     }
 
+    // Dry-run inserting placeholder System-region `: @dc l<id>` directives and
+    // re-validating every `.sl3` file in memory BEFORE committing permanent entity
+    // nodes into `.ctbnodes` so syntax/directive errors never leave unreferenced nodes.
+    {
+        let mut dry_insertions: BTreeMap<usize, BTreeMap<usize, u128>> =
+            BTreeMap::new();
+        for (idx, site) in unassigned.iter().enumerate() {
+            let placeholder_id = SYSTEM_REGION_END.saturating_sub(u128::try_from(idx)?);
+            dry_insertions
+                .entry(site.file_idx)
+                .or_default()
+                .insert(site.one_based_line, placeholder_id);
+        }
+        let mut dry_files = files.clone();
+        for (&fidx, line_map) in &dry_insertions {
+            let fmeta = dry_files.get_mut(fidx).context("Invalid file index")?;
+            let preview = insert_dc_directives_into_source(&fmeta.source, line_map)?;
+            fmeta.source = preview;
+            fmeta.raw_bytes = fmeta.source.as_bytes().to_vec();
+        }
+        let (dry_ws, dry_map) = parse_validate_and_test_stagel_files(&dry_files)?;
+        let dry_rem = collect_unassigned_and_validate_assigned_dcs(
+            &dry_ws,
+            &dry_files,
+            &dry_map,
+        )?;
+        ensure!(
+            dry_rem.is_empty(),
+            "Internal error: {} StageL items remained unassigned in dry-run ': @dc' insertion",
+            dry_rem.len()
+        );
+    }
+
     let specs: Vec<(ValueSpec, String)> = unassigned
         .iter()
         .map(|u| (u.class_spec.clone(), u.label.clone()))

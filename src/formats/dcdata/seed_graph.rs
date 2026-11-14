@@ -1852,6 +1852,9 @@ impl SeedGraphIndex {
         if tokens.first() == Some(&sh(DC_BEGIN_LITERAL)) {
             return false;
         }
+        if self.tokens_are_stagel_item_or_module(tokens) {
+            return false;
+        }
         if tokens
             .iter()
             .any(|&tok| matches!(tok, DcShorthand::Short(647..=1928)))

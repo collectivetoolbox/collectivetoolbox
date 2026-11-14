@@ -770,9 +770,20 @@ impl Parser {
     }
 
     fn consume_comments(&mut self, allow_dc: bool) -> Result<PendingComments> {
+        self.consume_comments_indented_past(0, allow_dc)
+    }
+
+    fn consume_comments_indented_past(
+        &mut self,
+        min_exclusive_col: usize,
+        allow_dc: bool,
+    ) -> Result<PendingComments> {
         let mut comments = Vec::new();
         let mut dc_directive = None;
         while let Some(tok) = self.tokens.get(self.pos) {
+            if tok.span.col <= min_exclusive_col {
+                break;
+            }
             let LexKind::Comment {
                 inline,
                 text,
@@ -1327,13 +1338,6 @@ impl Parser {
             let mut body_items = Vec::new();
             let body_col = loop {
                 if let Some(tok) = self.peek() {
-                    if matches!(tok.kind, LexKind::Comment { .. }) {
-                        let mut pc = self.consume_comments(false)?;
-                        for c in pc.comments.drain(..) {
-                            body_items.push(BlockItem::Comment(c));
-                        }
-                        continue;
-                    }
                     if tok.span.col <= decl_col {
                         bail!(
                             "Routine '{}' at {} has an empty body (or body not indented past column {})",
@@ -1341,6 +1345,14 @@ impl Parser {
                             sig_tok.span,
                             decl_col
                         );
+                    }
+                    if matches!(tok.kind, LexKind::Comment { .. }) {
+                        let mut pc =
+                            self.consume_comments_indented_past(decl_col, false)?;
+                        for c in pc.comments.drain(..) {
+                            body_items.push(BlockItem::Comment(c));
+                        }
+                        continue;
                     }
                     let expected_body_col = decl_col.saturating_add(4);
                     ensure!(
@@ -1359,7 +1371,8 @@ impl Parser {
 
             // Parse any `test` blocks before body statements.
             loop {
-                let mut pc = self.consume_comments(false)?;
+                let mut pc =
+                    self.consume_comments_indented_past(decl_col, false)?;
                 for c in pc.comments.drain(..) {
                     body_items.push(BlockItem::Comment(c));
                 }
@@ -1394,7 +1407,8 @@ impl Parser {
 
             let mut stmt_count = 0usize;
             loop {
-                let mut pc = self.consume_comments(false)?;
+                let mut pc =
+                    self.consume_comments_indented_past(decl_col, false)?;
                 for c in pc.comments.drain(..) {
                     body_items.push(BlockItem::Comment(c));
                 }
@@ -1479,7 +1493,7 @@ impl Parser {
 
         let mut cases = Vec::new();
         loop {
-            let _ = self.consume_comments(false)?;
+            let _ = self.consume_comments_indented_past(test_col, false)?;
             let Some(tok) = self.peek().cloned() else {
                 break;
             };

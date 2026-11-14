@@ -1,0 +1,137 @@
+: SPDX-License-Identifier: AGPL-3.0-or-later
+: Stage 1 signed 64-bit Euclidean modulus and non-trapping overflow/division predicates.
+ns std/math/i64.
+
+: Minimum signed 64-bit integer (-2^63).
+: @dc l8589978248
+pub i64/MIN i64:-9223372036854775808.
+
+: Maximum signed 64-bit integer (2^63 - 1).
+: @dc l8589978249
+pub i64/MAX i64:9223372036854775807.
+
+: Euclidean modulus satisfying `0 <= (mod lhs rhs) < |rhs|` for all `rhs != 0`
+: (including `mod MIN -1 == 0` and `mod -1 MIN == MAX`); faults when `rhs == 0`.
+: @dc l8589978250
+pub v/i64/mod i64/lhs i64/rhs
+    test
+        in i64:7 i64:3
+        out i64:1.
+        in i64:-7 i64:3
+        out i64:2.
+        in i64:7 i64:-3
+        out i64:1.
+        in i64:-7 i64:-3
+        out i64:2.
+        in i64:0 i64:5
+        out i64:0.
+        in i64:-9223372036854775808 i64:-1
+        out i64:0.
+        in i64:-9223372036854775808 i64:1
+        out i64:0.
+        in i64:-9223372036854775808 i64:-9223372036854775808
+        out i64:0.
+        in i64:5 i64:-9223372036854775808
+        out i64:5.
+        in i64:-1 i64:-9223372036854775808
+        out i64:9223372036854775807.
+        in i64:1 i64:0
+        out fault.
+        in i64:-9223372036854775808 i64:0
+        out fault.
+    if eq i64/rhs i64:0
+        fault
+        if and eq i64/lhs i64/MIN eq i64/rhs i64:-1
+            i64:0
+            do
+                const i64/remVal rem i64/lhs i64/rhs.
+                if ge i64/remVal i64:0
+                    i64/remVal
+                    if gt i64/rhs i64:0
+                        add i64/remVal i64/rhs
+                        sub i64/remVal i64/rhs.
+            ::.
+
+: Returns true iff checked `add lhs rhs` will not overflow signed 64-bit bounds.
+: @dc l8589978251
+pub v/b/canAdd i64/lhs i64/rhs
+    test
+        in i64:10 i64:20
+        out true.
+        in i64:9223372036854775807 i64:0
+        out true.
+        in i64:9223372036854775807 i64:1
+        out false.
+        in i64:-9223372036854775808 i64:0
+        out true.
+        in i64:-9223372036854775808 i64:-1
+        out false.
+        in i64:-9223372036854775808 i64:9223372036854775807
+        out true.
+    const i64/sumVal wrapAdd i64/lhs i64/rhs.
+    ge bitAnd bitXor i64/sumVal i64/lhs bitXor i64/sumVal i64/rhs i64:0.
+
+: Returns true iff checked `sub lhs rhs` will not overflow signed 64-bit bounds.
+: @dc l8589978252
+pub v/b/canSub i64/lhs i64/rhs
+    test
+        in i64:10 i64:20
+        out true.
+        in i64:-9223372036854775808 i64:1
+        out false.
+        in i64:0 i64:-9223372036854775808
+        out false.
+        in i64:-1 i64:-9223372036854775808
+        out true.
+        in i64:9223372036854775807 i64:-1
+        out false.
+        in i64:9223372036854775807 i64:9223372036854775807
+        out true.
+    const i64/diffVal wrapSub i64/lhs i64/rhs.
+    ge bitAnd bitXor i64/lhs i64/rhs bitXor i64/diffVal i64/lhs i64:0.
+
+: Returns true iff checked `mul lhs rhs` will not overflow signed 64-bit bounds.
+: @dc l8589978253
+pub v/b/canMul i64/lhs i64/rhs
+    test
+        in i64:3037000499 i64:3037000499
+        out true.
+        in i64:3037000500 i64:3037000500
+        out false.
+        in i64:-9223372036854775808 i64:0
+        out true.
+        in i64:0 i64:-9223372036854775808
+        out true.
+        in i64:-9223372036854775808 i64:1
+        out true.
+        in i64:1 i64:-9223372036854775808
+        out true.
+        in i64:-9223372036854775808 i64:-1
+        out false.
+        in i64:-1 i64:-9223372036854775808
+        out false.
+        in i64:4611686018427387904 i64:-2
+        out true.
+        in i64:4611686018427387904 i64:2
+        out false.
+    if eq i64/rhs i64:0
+        true
+        if eq i64/rhs i64:-1
+            ne i64/lhs i64/MIN
+            eq div wrapMul i64/lhs i64/rhs i64/rhs i64/lhs.
+
+: Returns true iff checked `div lhs rhs` and `rem lhs rhs` will not fault (`rhs != 0` and `!(lhs == MIN && rhs == -1)`).
+: @dc l8589978254
+pub v/b/canDiv i64/lhs i64/rhs
+    test
+        in i64:10 i64:2
+        out true.
+        in i64:10 i64:0
+        out false.
+        in i64:-9223372036854775808 i64:-1
+        out false.
+        in i64:-9223372036854775808 i64:1
+        out true.
+        in i64:-9223372036854775807 i64:-1
+        out true.
+    and ne i64/rhs i64:0 not and eq i64/lhs i64/MIN eq i64/rhs i64:-1.

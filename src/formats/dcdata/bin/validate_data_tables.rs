@@ -238,10 +238,10 @@ fn main() -> ExitCode {
 
         match assign_and_update_stagel_dc_ids(&repo_root) {
             Ok(stats) => {
-                if stats.new_ids_assigned > 0 || stats.files_updated > 0 {
+                if stats.entities_allocated > 0 || stats.files_updated > 0 {
                     println!(
                         "StageL 3 Files: assigned {} new @dc IDs across {} file(s).",
-                        stats.new_ids_assigned, stats.files_updated
+                        stats.entities_allocated, stats.files_updated
                     );
                 }
             }

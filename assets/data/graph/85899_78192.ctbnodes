@@ -43,3 +43,58 @@ l8589978233: 610 l8589977696 l8589978232 # Has value (Has a (Remainder operation
 l8589978234: 591 l8589978233 l8589977697 # Supersedes (Has value (Has a (Remainder operation, Semantic decomposition), <semantic@f210> 1927 260 262 280 f210 310 275 270 f210 u61 271 312 270 f210 u62 271 311 263 679 6 f199 127 7 713 6 f199 11 135 127 127 127 127 127 127 127 127 127 127 7 728 679 6 f199 128 7 713 6 f199 11 128 7 728 760 651 316 647 658 679 6 f199 127 7 679 6 f199 128 7 776 261 1928), Has value (Has a (Remainder operation, Semantic decomposition), <semantic@f210> 1927 260 262 280 f210 310 275 270 f210 u61 271 312 270 f210 u62 271 311 263 679 6 f199 127 7 713 6 f199 11 135 127 127 127 127 127 127 127 127 127 127 7 728 679 6 f199 128 7 713 6 f199 11 128 7 728 778 651 316 647 658 679 6 f199 127 7 679 6 f199 128 7 776 261 1928))
 l8589978235: 638 584 639 635 310 640 l8589978232 312 l8589978233 312 l8589978234 311 # Distribute statement over each element (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): <semantic@f210> 1927 260 262 280 f210 310 275 270 f210 u61 271 312 270 f210 u62 271 311 263 679 6 f199 127 7 713 6 f199 11 135 127 127 127 127 127 127 127 127 127 127 7 728 679 6 f199 128 7 713 6 f199 11 128 7 728 760 651 316 647 658 679 6 f199 127 7 679 6 f199 128 7 776 261 1928, Has value (Has a (Remainder operation, Semantic decomposition), <semantic@f210> 1927 260 262 280 f210 310 275 270 f210 u61 271 312 270 f210 u62 271 311 263 679 6 f199 127 7 713 6 f199 11 135 127 127 127 127 127 127 127 127 127 127 7 728 679 6 f199 128 7 713 6 f199 11 128 7 728 760 651 316 647 658 679 6 f199 127 7 679 6 f199 128 7 776 261 1928), Supersedes (Has value (Has a (Remainder operation, Semantic decomposition), <semantic@f210> 1927 260 262 280 f210 310 275 270 f210 u61 271 312 270 f210 u62 271 311 263 679 6 f199 127 7 713 6 f199 11 135 127 127 127 127 127 127 127 127 127 127 7 728 679 6 f199 128 7 713 6 f199 11 128 7 728 760 651 316 647 658 679 6 f199 127 7 679 6 f199 128 7 776 261 1928), Has value (Has a (Remainder operation, Semantic decomposition), <semantic@f210> 1927 260 262 280 f210 310 275 270 f210 u61 271 312 270 f210 u62 271 311 263 679 6 f199 127 7 713 6 f199 11 135 127 127 127 127 127 127 127 127 127 127 7 728 679 6 f199 128 7 713 6 f199 11 128 7 728 778 651 316 647 658 679 6 f199 127 7 679 6 f199 128 7 776 261 1928))])
 l8589978236: 610 l8589978235 636 # Has value (Distribute statement over each element (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): <semantic@f210> 1927 260 262 280 f210 310 275 270 f210 u61 271 312 270 f210 u62 271 311 263 679 6 f199 127 7 713 6 f199 11 135 127 127 127 127 127 127 127 127 127 127 7 728 679 6 f199 128 7 713 6 f199 11 128 7 728 760 651 316 647 658 679 6 f199 127 7 679 6 f199 128 7 776 261 1928, Has value (Has a (Remainder operation, Semantic decomposition), <semantic@f210> 1927 260 262 280 f210 310 275 270 f210 u61 271 312 270 f210 u62 271 311 263 679 6 f199 127 7 713 6 f199 11 135 127 127 127 127 127 127 127 127 127 127 7 728 679 6 f199 128 7 713 6 f199 11 128 7 728 760 651 316 647 658 679 6 f199 127 7 679 6 f199 128 7 776 261 1928), Supersedes (Has value (Has a (Remainder operation, Semantic decomposition), <semantic@f210> 1927 260 262 280 f210 310 275 270 f210 u61 271 312 270 f210 u62 271 311 263 679 6 f199 127 7 713 6 f199 11 135 127 127 127 127 127 127 127 127 127 127 7 728 679 6 f199 128 7 713 6 f199 11 128 7 728 760 651 316 647 658 679 6 f199 127 7 679 6 f199 128 7 776 261 1928), Has value (Has a (Remainder operation, Semantic decomposition), <semantic@f210> 1927 260 262 280 f210 310 275 270 f210 u61 271 312 270 f210 u62 271 311 263 679 6 f199 127 7 713 6 f199 11 135 127 127 127 127 127 127 127 127 127 127 7 728 679 6 f199 128 7 713 6 f199 11 128 7 728 778 651 316 647 658 679 6 f199 127 7 679 6 f199 128 7 776 261 1928))]), Collective Toolbox Dc CSV seed database)
+l8589978237: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978238: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978239: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978240: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978241: 586 615 f208 # Is an instance of (Enclosing document, f208)
+l8589978242: 586 615 f208 # Is an instance of (Enclosing document, f208)
+l8589978243: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978244: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978245: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978246: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978247: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978248: 586 615 f210 # Is an instance of (Enclosing document, f210)
+l8589978249: 586 615 f210 # Is an instance of (Enclosing document, f210)
+l8589978250: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978251: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978252: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978253: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978254: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978255: 586 615 f207 # Is an instance of (Enclosing document, f207)
+l8589978256: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978257: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978258: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978259: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978260: 586 615 f209 # Is an instance of (Enclosing document, f209)
+l8589978261: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978262: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978263: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978264: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978265: 586 615 f203 # Is an instance of (Enclosing document, f203)
+l8589978266: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978267: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978268: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978269: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589978270: 638 584 639 635 310 640 l8589978237 312 l8589978238 312 l8589978239 312 l8589978240 312 l8589978241 312 l8589978242 312 l8589978243 312 l8589978244 312 l8589978245 312 l8589978246 312 l8589978247 312 l8589978248 312 l8589978249 312 l8589978250 312 l8589978251 312 l8589978252 312 l8589978253 312 l8589978254 312 l8589978255 312 l8589978256 312 l8589978257 312 l8589978258 312 l8589978259 312 l8589978260 312 l8589978261 312 l8589978262 312 l8589978263 312 l8589978264 312 l8589978265 312 l8589978266 312 l8589978267 312 l8589978268 312 l8589978269 311 # Distribute statement over each element (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589978237..l8589978269 (33 elements)])
+l8589978271: 610 l8589978270 636 # Has value (Distribute statement over each element (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589978237..l8589978269 (33 elements)]), Collective Toolbox Dc CSV seed database)
+l8589978272: u61 u73 u73 u65 u72 u74 # "assert"
+l8589978273: u65 u78 u70 u6c u6f u64 u65 # "explode"
+l8589978274: u69 u6d u70 u6c u6f u64 u65 # "implode"
+l8589978275: u4d u49 u4e # "MIN"
+l8589978276: u4d u41 u58 # "MAX"
+l8589978277: u6d u6f u64 # "mod"
+l8589978278: u63 u61 u6e u41 u64 u64 # "canAdd"
+l8589978279: u63 u61 u6e u53 u75 u62 # "canSub"
+l8589978280: u63 u61 u6e u4d u75 u6c # "canMul"
+l8589978281: u63 u61 u6e u44 u69 u76 # "canDiv"
+l8589978282: 584 l8589978237 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589978283: 610 l8589978282 l8589978272 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "assert")
+l8589978284: 584 l8589978239 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589978285: 610 l8589978284 l8589978273 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "explode")
+l8589978286: 584 l8589978240 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589978287: 610 l8589978286 l8589978274 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "implode")
+l8589978288: 584 l8589978241 574 # Has a (Is an instance of (Enclosing document, f208), Programmatic identifier)
+l8589978289: 610 l8589978288 l8589978275 # Has value (Has a (Is an instance of (Enclosing document, f208), Programmatic identifier), "MIN")
+l8589978290: 584 l8589978242 574 # Has a (Is an instance of (Enclosing document, f208), Programmatic identifier)
+l8589978291: 610 l8589978290 l8589978276 # Has value (Has a (Is an instance of (Enclosing document, f208), Programmatic identifier), "MAX")
