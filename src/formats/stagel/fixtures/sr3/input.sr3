@@ -12,7 +12,7 @@ v/b/zl s/in
 
 v/result/i64/addChecked i64/a i64/b :: add /a /b.
 v/result/i64/addThree i64/a i64/b i64/c :: add add? /a /b /c.
-v/option/s/firstPart l/s/parts :: get? /parts u64:0.
+v/option/s/firstPart l/s/parts :: option/s:some get? /parts u64:0.
 
 v/s/default s/a s/b :: if zl /a /b /a.
 

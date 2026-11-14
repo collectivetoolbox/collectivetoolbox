@@ -39,7 +39,11 @@ use super::ast::{
     TestExpected, TopDecl, TopValueDecl, TypedIntLit, UseImport, UseImportItem,
     format_dc_shorthand,
 };
-use super::parser::parse_module;
+use super::parser::{parse_module, parse_sr3_module};
+use super::stager_tokens::{
+    push_stager_expr, push_stager_top_decl, write_stager_expr,
+    write_stager_top_decl,
+};
 use crate::dc::{
     DC_ADD_OP, DC_ASSIGN_SET, DC_BASE64_PADDING, DC_BEGIN_CODE_BLOCK,
     DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_IDENTIFIER, DC_BEGIN_LIST,
@@ -47,33 +51,36 @@ use crate::dc::{
     DC_BEGIN_POSITIONAL_STRUCT_DECL, DC_BEGIN_POSITIONAL_STRUCT_VALUE,
     DC_BEGIN_ROUTINE_CALL, DC_BEGIN_ROUTINE_DECL, DC_BEGIN_SINGLE_LINE_COMMENT,
     DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE, DC_BEGIN_STAGEL_LIST,
-    DC_BEGIN_TEST_BLOCK, DC_BEGIN_TEST_CASE, DC_BEGIN_TUPLE, DC_BEGIN_TYPE_DEF,
-    DC_BEGIN_USE_IMPORT, DC_BIT_AND_OP, DC_BIT_NOT_OP, DC_BIT_OR_OP,
-    DC_BIT_XOR_OP, DC_BITCAST_OP, DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE,
-    DC_BREAK_LOOP, DC_CLZ_OP, DC_CONTINUE_LOOP, DC_CONVERT_OP, DC_CTZ_OP,
-    DC_DECLARE_CONST, DC_DECLARE_LET, DC_DECLARE_PUB, DC_DIV_OP,
-    DC_END_CODE_BLOCK, DC_END_ENCAPSULATION_BINARY,
-    DC_END_FORMAT_REPRESENTATION, DC_END_IDENTIFIER, DC_END_LIST,
-    DC_END_LITERAL, DC_END_MODULE, DC_END_NUMBER,
-    DC_END_POSITIONAL_STRUCT_DECL, DC_END_POSITIONAL_STRUCT_VALUE,
-    DC_END_ROUTINE_CALL, DC_END_ROUTINE_DECL, DC_END_SINGLE_LINE_COMMENT,
-    DC_END_STAGEL_LIST, DC_END_TEST_BLOCK, DC_END_TEST_CASE, DC_END_TUPLE,
-    DC_END_TYPE_DEF, DC_END_USE_IMPORT, DC_EQ_OP, DC_ESCAPE,
-    DC_EVALUATE_VALUE_AS_ATOM, DC_FAULT_TRAP, DC_FILE_PATH_DELIMITER,
-    DC_FOR_EACH, DC_GE_OP, DC_GET_POSITIONAL_FIELD_OP, DC_GT_OP,
-    DC_IF_CONDITIONAL, DC_LE_OP, DC_LIST_ELEMENT_SEPARATOR, DC_LOGICAL_AND_OP,
-    DC_LOGICAL_NOT_OP, DC_LOGICAL_OR_OP, DC_LT_OP, DC_MUL_OP,
-    DC_NAMESPACE_DECL, DC_NE_OP, DC_NEG_OP, DC_NEGATIVE, DC_NO_OP,
-    DC_OPTIONAL_ABSENT, DC_POPCNT_OP, DC_REM_OP, DC_RETURN_ROUTINE, DC_ROTL_OP,
-    DC_ROTR_OP, DC_ROUTINE_PARAM, DC_SEQ_CONCAT_OP, DC_SEQ_GET_OP,
-    DC_SEQ_LEN_OP, DC_SEQ_SLICE_OP, DC_SHL_OP, DC_SHR_OP,
-    DC_STAGEL_BUF_EXTEND, DC_STAGEL_BUF_FILL, DC_STAGEL_BUF_FREEZE,
-    DC_STAGEL_BUF_NEW, DC_STAGEL_BUF_PUSH, DC_STAGEL_BUF_SET,
-    DC_STAGEL_BUF_TYPE, DC_STAGEL_LIST_TYPE, DC_START_ENCAPSULATION_BINARY,
-    DC_SUB_OP, DC_TEST_EXPECTED_OUT, DC_TYPE_ANY, DC_TYPE_INTERSECTION,
-    DC_TYPE_STRING, DC_TYPE_STRUCT, DC_TYPE_TUPLE, DC_TYPED_VALUE_REF,
-    DC_USE_IMPORT_ITEM, DC_WHILE_LOOP, DC_WITH_POSITIONAL_FIELD_OP,
-    DC_WRAP_ADD_OP, DC_WRAP_MUL_OP, DC_WRAP_SUB_OP,
+    DC_BEGIN_STAGER_MODULE, DC_BEGIN_TEST_BLOCK, DC_BEGIN_TEST_CASE,
+    DC_BEGIN_TUPLE, DC_BEGIN_TYPE_DEF, DC_BEGIN_USE_IMPORT, DC_BIT_AND_OP,
+    DC_BIT_NOT_OP, DC_BIT_OR_OP, DC_BIT_XOR_OP, DC_BITCAST_OP,
+    DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE, DC_BREAK_LOOP, DC_CLZ_OP,
+    DC_CONTINUE_LOOP, DC_CONVERT_OP, DC_CTZ_OP, DC_DECLARE_CONST,
+    DC_DECLARE_LET, DC_DECLARE_PUB, DC_DIV_OP, DC_END_CODE_BLOCK,
+    DC_END_ENCAPSULATION_BINARY, DC_END_FORMAT_REPRESENTATION,
+    DC_END_IDENTIFIER, DC_END_LIST, DC_END_LITERAL, DC_END_MODULE,
+    DC_END_NUMBER, DC_END_POSITIONAL_STRUCT_DECL,
+    DC_END_POSITIONAL_STRUCT_VALUE, DC_END_ROUTINE_CALL, DC_END_ROUTINE_DECL,
+    DC_END_SINGLE_LINE_COMMENT, DC_END_STAGEL_LIST, DC_END_STAGER_MODULE,
+    DC_END_TEST_BLOCK, DC_END_TEST_CASE, DC_END_TUPLE, DC_END_TYPE_DEF,
+    DC_END_USE_IMPORT, DC_EQ_OP, DC_ESCAPE, DC_EVALUATE_VALUE_AS_ATOM,
+    DC_FAULT_TRAP, DC_FILE_PATH_DELIMITER, DC_FOR_EACH, DC_GE_OP,
+    DC_GET_POSITIONAL_FIELD_OP, DC_GT_OP, DC_IF_CONDITIONAL, DC_LE_OP,
+    DC_LIST_ELEMENT_SEPARATOR, DC_LOGICAL_AND_OP, DC_LOGICAL_NOT_OP,
+    DC_LOGICAL_OR_OP, DC_LT_OP, DC_MUL_OP, DC_NAMESPACE_DECL, DC_NE_OP,
+    DC_NEG_OP, DC_NEGATIVE, DC_NO_OP, DC_OPTIONAL_ABSENT, DC_POPCNT_OP,
+    DC_REM_OP, DC_RETURN_ROUTINE, DC_ROTL_OP, DC_ROTR_OP, DC_ROUTINE_PARAM,
+    DC_SEQ_CONCAT_OP, DC_SEQ_GET_OP, DC_SEQ_LEN_OP, DC_SEQ_SLICE_OP,
+    DC_SHL_OP, DC_SHR_OP, DC_STAGEL_BUF_EXTEND, DC_STAGEL_BUF_FILL,
+    DC_STAGEL_BUF_FREEZE, DC_STAGEL_BUF_NEW, DC_STAGEL_BUF_PUSH,
+    DC_STAGEL_BUF_SET, DC_STAGEL_BUF_TYPE, DC_STAGEL_LIST_TYPE,
+    DC_START_ENCAPSULATION_BINARY, DC_SUB_OP, DC_TEST_EXPECTED_OUT,
+    DC_TYPE_ANY, DC_TYPE_ATOM_DC, DC_TYPE_CURSOR, DC_TYPE_ERROR,
+    DC_TYPE_INTERSECTION, DC_TYPE_NOMINAL, DC_TYPE_OPTION, DC_TYPE_RESULT,
+    DC_TYPE_STRING, DC_TYPE_STRUCT, DC_TYPE_TUPLE, DC_TYPE_VIEW,
+    DC_TYPED_VALUE_REF, DC_USE_IMPORT_ITEM, DC_WHILE_LOOP,
+    DC_WITH_POSITIONAL_FIELD_OP, DC_WRAP_ADD_OP, DC_WRAP_MUL_OP,
+    DC_WRAP_SUB_OP,
 };
 use crate::dc_number_minimal::{
     dc_base64_char_to_digit_with_resolver, dc_base64_digit_to_char,
@@ -94,6 +101,18 @@ pub fn sl3_to_dc_tokens(source: &str) -> Result<Vec<DcChar>> {
 pub fn dc_tokens_to_sl3(tokens: &[DcChar]) -> Result<String> {
     let module = decode_module_from_dc_tokens(tokens)?;
     format_module_to_sl3(&module)
+}
+
+/// Converts StageR 3 `.sr3` source (standalone module) into StageL Token Dcs.
+pub fn sr3_to_dc_tokens(source: &str) -> Result<Vec<DcChar>> {
+    let module = parse_sr3_module(source)?;
+    encode_module_to_dc_tokens(&module)
+}
+
+/// Converts a StageL Token Dc stream back into reconstructed `.sr3` source.
+pub fn dc_tokens_to_sr3(tokens: &[DcChar]) -> Result<String> {
+    let module = decode_module_from_dc_tokens(tokens)?;
+    format_module_to_sr3(&module)
 }
 
 /// Strips `Dc 246` / `Dc 247`..`Dc 248` single-line source comment frames from
@@ -128,12 +147,12 @@ pub fn strip_comment_frames(tokens: &[DcChar]) -> Vec<DcChar> {
 /// Encodes a parsed StageL 3 `Module` AST into a canonical StageL Token Dc
 /// stream matching the `el.csv` and `README-named-types.csv` syntax rules.
 pub fn encode_module_to_dc_tokens(module: &Module) -> Result<Vec<DcChar>> {
-    ensure!(
-        module.dialect == StageDialect::StageL3,
-        "StageR 3 module Token Dc encoding is not yet wired"
-    );
+    let (open_dc, close_dc) = match module.dialect {
+        StageDialect::StageL3 => (DC_BEGIN_MODULE, DC_END_MODULE),
+        StageDialect::StageR3 => (DC_BEGIN_STAGER_MODULE, DC_END_STAGER_MODULE),
+    };
     let mut out = Vec::new();
-    out.push(DC_BEGIN_MODULE);
+    out.push(open_dc);
 
     for comment in &module.leading_comments {
         push_comment(&mut out, comment);
@@ -171,7 +190,7 @@ pub fn encode_module_to_dc_tokens(module: &Module) -> Result<Vec<DcChar>> {
         push_top_decl(&mut out, item)?;
     }
 
-    out.push(DC_END_MODULE);
+    out.push(close_dc);
     Ok(out)
 }
 
@@ -248,9 +267,7 @@ fn push_top_decl(out: &mut Vec<DcChar>, item: &TopDecl) -> Result<()> {
         }
         TopDecl::BrandType(_)
         | TopDecl::NamedStruct(_)
-        | TopDecl::Enum(_) => {
-            bail!("StageR 3 declaration Token Dc encoding is not yet wired");
-        }
+        | TopDecl::Enum(_) => push_stager_top_decl(out, item)?,
     }
     Ok(())
 }
@@ -260,7 +277,7 @@ fn format_dc_char_opt(fmt: FormatId) -> Result<DcChar> {
         .with_context(|| format!("Missing DcChar mapping for {fmt:?}"))
 }
 
-fn push_comment(out: &mut Vec<DcChar>, comment: &Comment) {
+pub(super) fn push_comment(out: &mut Vec<DcChar>, comment: &Comment) {
     out.push(if comment.inline {
         DC_BEGIN_SINGLE_LINE_COMMENT
     } else {
@@ -281,7 +298,7 @@ fn push_comment(out: &mut Vec<DcChar>, comment: &Comment) {
     out.push(DC_END_SINGLE_LINE_COMMENT);
 }
 
-fn push_atom_dc(out: &mut Vec<DcChar>, dc: DcChar) {
+pub(super) fn push_atom_dc(out: &mut Vec<DcChar>, dc: DcChar) {
     if dc == DC_START_ENCAPSULATION_BINARY
         || dc == DC_ESCAPE
         || dc == DC_EVALUATE_VALUE_AS_ATOM
@@ -291,14 +308,14 @@ fn push_atom_dc(out: &mut Vec<DcChar>, dc: DcChar) {
     out.push(dc);
 }
 
-fn push_optional_atom_dc(out: &mut Vec<DcChar>, opt: Option<DcChar>) {
+pub(super) fn push_optional_atom_dc(out: &mut Vec<DcChar>, opt: Option<DcChar>) {
     match opt {
         Some(dc) => push_atom_dc(out, dc),
         None => out.push(DC_OPTIONAL_ABSENT),
     }
 }
 
-fn push_identifier(out: &mut Vec<DcChar>, name: &str) -> Result<()> {
+pub(super) fn push_identifier(out: &mut Vec<DcChar>, name: &str) -> Result<()> {
     ensure!(!name.is_empty(), "StageL identifier must not be empty");
     out.push(DC_BEGIN_IDENTIFIER);
     for (idx, ch) in name.chars().enumerate() {
@@ -358,7 +375,24 @@ fn push_filepath(out: &mut Vec<DcChar>, segments: &[String]) -> Result<()> {
     Ok(())
 }
 
-fn push_stagel_type(out: &mut Vec<DcChar>, ty: &StageLType) -> Result<()> {
+fn push_struct_or_nominal_ref(
+    out: &mut Vec<DcChar>,
+    tag_dc: DcChar,
+    target: &StructTypeRef,
+) -> Result<()> {
+    out.push(tag_dc);
+    match target {
+        StructTypeRef::Ident(n)
+        | StructTypeRef::Canonical { name: n, .. } => push_identifier(out, n)?,
+        StructTypeRef::Dc(dc) => push_atom_dc(out, *dc),
+    }
+    Ok(())
+}
+
+pub(super) fn push_stagel_type(
+    out: &mut Vec<DcChar>,
+    ty: &StageLType,
+) -> Result<()> {
     match ty {
         StageLType::B => out.push(format_dc_char_opt(FormatId::Boolean)?),
         StageLType::U8 => out.push(format_dc_char_opt(FormatId::U8)?),
@@ -366,8 +400,26 @@ fn push_stagel_type(out: &mut Vec<DcChar>, ty: &StageLType) -> Result<()> {
         StageLType::U32 => out.push(format_dc_char_opt(FormatId::U32)?),
         StageLType::I64 => out.push(format_dc_char_opt(FormatId::I64)?),
         StageLType::U64 => out.push(format_dc_char_opt(FormatId::U64)?),
+        StageLType::I128 => out.push(format_dc_char_opt(FormatId::I128)?),
+        StageLType::U128 => out.push(format_dc_char_opt(FormatId::U128)?),
+        StageLType::Int => out.push(format_dc_char_opt(FormatId::Integer)?),
+        StageLType::Rat => out.push(format_dc_char_opt(FormatId::Rational)?),
+        StageLType::Dc => out.push(DC_TYPE_ATOM_DC),
+        StageLType::Dcs => out.push(DC_TYPE_STRING),
+        StageLType::S => out.push(format_dc_char_opt(FormatId::DcMixed)?),
+        StageLType::Error => out.push(DC_TYPE_ERROR),
+        StageLType::View => out.push(DC_TYPE_VIEW),
+        StageLType::Cursor => out.push(DC_TYPE_CURSOR),
         StageLType::Void => out.push(format_dc_char_opt(FormatId::Void)?),
         StageLType::Never => out.push(format_dc_char_opt(FormatId::Never)?),
+        StageLType::Option(inner) => {
+            out.push(DC_TYPE_OPTION);
+            push_stagel_type(out, inner)?;
+        }
+        StageLType::Result(inner) => {
+            out.push(DC_TYPE_RESULT);
+            push_stagel_type(out, inner)?;
+        }
         StageLType::List(inner) => {
             out.push(DC_STAGEL_LIST_TYPE);
             push_stagel_type(out, inner)?;
@@ -391,29 +443,10 @@ fn push_stagel_type(out: &mut Vec<DcChar>, ty: &StageLType) -> Result<()> {
             out.push(DC_END_LIST);
         }
         StageLType::Struct(target) => {
-            out.push(DC_TYPE_STRUCT);
-            match target {
-                StructTypeRef::Ident(n)
-                | StructTypeRef::Canonical { name: n, .. } => {
-                    push_identifier(out, n)?;
-                }
-                StructTypeRef::Dc(dc) => push_atom_dc(out, *dc),
-            }
+            push_struct_or_nominal_ref(out, DC_TYPE_STRUCT, target)?;
         }
-        StageLType::I128
-        | StageLType::U128
-        | StageLType::Int
-        | StageLType::Rat
-        | StageLType::Dc
-        | StageLType::Dcs
-        | StageLType::S
-        | StageLType::Error
-        | StageLType::View
-        | StageLType::Cursor
-        | StageLType::Option(_)
-        | StageLType::Result(_)
-        | StageLType::Nominal(_) => {
-            bail!("StageR 3 type '{ty}' Token Dc encoding is not yet wired");
+        StageLType::Nominal(target) => {
+            push_struct_or_nominal_ref(out, DC_TYPE_NOMINAL, target)?;
         }
     }
     Ok(())
@@ -592,7 +625,7 @@ fn ternary_op_dc(op: CoreTernaryOp) -> DcChar {
     }
 }
 
-fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
+pub(super) fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
     match expr {
         Expr::Bool { value, .. } => {
             out.push(if *value {
@@ -820,9 +853,7 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
         | Expr::StageRUnary { .. }
         | Expr::StageRBinary { .. }
         | Expr::StageRTernary { .. }
-        | Expr::TotalConv { .. } => {
-            bail!("StageR 3 expression Token Dc encoding is not yet wired");
-        }
+        | Expr::TotalConv { .. } => push_stager_expr(out, expr)?,
     }
     Ok(())
 }
@@ -831,11 +862,21 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
 // Token Dc -> AST Decoder
 // ---------------------------------------------------------------------------
 
-struct Decoder<'a> {
-    tokens: &'a [DcChar],
-    pos: usize,
-    line: usize,
-    resolver: &'a dyn SyntaxRuleResolver,
+pub(super) struct Decoder<'a> {
+    pub(super) tokens: &'a [DcChar],
+    pub(super) pos: usize,
+    pub(super) line: usize,
+    pub(super) resolver: &'a dyn SyntaxRuleResolver,
+}
+
+pub(super) fn is_pub_dc_syntax(is_pub: bool, dc_id: Option<DcChar>) -> bool {
+    is_pub
+        && dc_id.is_some_and(|d| {
+            matches!(
+                DcShorthand::from_global_id(d.to_u128()),
+                DcShorthand::Short(_) | DcShorthand::Format(_)
+            )
+        })
 }
 
 /// Decodes a StageL Token Dc stream back into a `Module` AST.
@@ -850,7 +891,7 @@ pub fn decode_module_from_dc_tokens(tokens: &[DcChar]) -> Result<Module> {
     let module = dec.read_module()?;
     ensure!(
         dec.pos == tokens.len(),
-        "Unexpected trailing Token Dcs after Dc 2193 EndModule (at index {})",
+        "Unexpected trailing Token Dcs after module closing Dc (at index {})",
         dec.pos
     );
     Ok(module)
@@ -923,11 +964,11 @@ pub fn decode_stagel_type_dc_tokens(tokens: &[DcChar]) -> Result<StageLType> {
 }
 
 impl<'a> Decoder<'a> {
-    fn peek(&self) -> Option<DcChar> {
+    pub(super) fn peek(&self) -> Option<DcChar> {
         self.tokens.get(self.pos).copied()
     }
 
-    fn next(&mut self, ctx_msg: &str) -> Result<DcChar> {
+    pub(super) fn next(&mut self, ctx_msg: &str) -> Result<DcChar> {
         let ch = self.peek().with_context(|| {
             format!("Unexpected end of Token Dc stream: {ctx_msg}")
         })?;
@@ -935,14 +976,14 @@ impl<'a> Decoder<'a> {
         Ok(ch)
     }
 
-    fn span(&self) -> Span {
+    pub(super) fn span(&self) -> Span {
         Span {
             line: self.line,
             col: self.pos.saturating_add(1),
         }
     }
 
-    fn collect_comments(&mut self) -> Result<Vec<Comment>> {
+    pub(super) fn collect_comments(&mut self) -> Result<Vec<Comment>> {
         let mut out = Vec::new();
         while let Some(tok) = self.peek() {
             if tok != DC_BEGIN_SINGLE_LINE_COMMENT
@@ -988,11 +1029,24 @@ impl<'a> Decoder<'a> {
     }
 
     fn read_module(&mut self) -> Result<Module> {
-        let open = self.next("Expected Dc 2192 BeginModule")?;
-        ensure!(
-            open == DC_BEGIN_MODULE,
-            "Expected Dc 2192 BeginModule, found {open}"
-        );
+        let open = self
+            .next("Expected Dc 2192 BeginModule or Dc 2232 BeginStagerModule")?;
+        let open_u = open.to_u128();
+        let (dialect, close_role) = if self
+            .resolver
+            .token_fills_role(open_u, DcRole::BeginModule)
+        {
+            (StageDialect::StageL3, DcRole::EndModule)
+        } else if self
+            .resolver
+            .token_fills_role(open_u, DcRole::BeginStagerModule)
+        {
+            (StageDialect::StageR3, DcRole::EndStagerModule)
+        } else {
+            bail!(
+                "Expected Dc 2192 BeginModule or Dc 2232 BeginStagerModule, found {open}"
+            );
+        };
         let leading_comments = self.collect_comments()?;
 
         let first = self.peek().context("Expected namespace or Dc 316 absent")?;
@@ -1060,8 +1114,10 @@ impl<'a> Decoder<'a> {
         loop {
             let mut cs = self.collect_comments()?;
             carried_comments.append(&mut cs);
-            let tok = self.peek().context("Unclosed module (missing Dc 2193 EndModule)")?;
-            if tok == DC_END_MODULE {
+            let tok = self
+                .peek()
+                .context("Unclosed module (missing EndModule / EndStagerModule)")?;
+            if self.resolver.token_fills_role(tok.to_u128(), close_role) {
                 self.pos = self.pos.saturating_add(1);
                 for c in carried_comments {
                     items.push(TopDecl::Comment(c));
@@ -1073,7 +1129,7 @@ impl<'a> Decoder<'a> {
         }
 
         Ok(Module {
-            dialect: StageDialect::StageL3,
+            dialect,
             namespace,
             uses,
             leading_comments,
@@ -1090,13 +1146,7 @@ impl<'a> Decoder<'a> {
             let is_pub = tok == DC_DECLARE_PUB;
             self.pos = self.pos.saturating_add(1);
             let dc_id = self.read_optional_atom_dc()?;
-            let pub_dc_syntax = is_pub
-                && dc_id.is_some_and(|d| {
-                    matches!(
-                        DcShorthand::from_global_id(d.to_u128()),
-                        DcShorthand::Short(_) | DcShorthand::Format(_)
-                    )
-                });
+            let pub_dc_syntax = is_pub_dc_syntax(is_pub, dc_id);
             let ty = self.read_stagel_type()?;
             let name = self.read_identifier()?;
             let value = self.read_expr()?;
@@ -1131,13 +1181,7 @@ impl<'a> Decoder<'a> {
                 bail!("Expected boolean visibility in Dc 2217, found {vis_tok}");
             };
             let dc_id = self.read_optional_atom_dc()?;
-            let pub_dc_syntax = is_pub
-                && dc_id.is_some_and(|d| {
-                    matches!(
-                        DcShorthand::from_global_id(d.to_u128()),
-                        DcShorthand::Short(_) | DcShorthand::Format(_)
-                    )
-                });
+            let pub_dc_syntax = is_pub_dc_syntax(is_pub, dc_id);
             let name = self.read_identifier()?;
             let mut fields = Vec::new();
             loop {
@@ -1170,12 +1214,16 @@ impl<'a> Decoder<'a> {
         } else if tok == DC_BEGIN_ROUTINE_DECL {
             let r = self.read_routine(comments_before)?;
             Ok(TopDecl::Routine(r))
+        } else if let Some(decl) =
+            self.read_stager_top_decl(tok, sp, comments_before)?
+        {
+            Ok(decl)
         } else {
-            bail!("Unexpected top-level StageL Token Dc {tok}")
+            bail!("Unexpected top-level StageL/StageR Token Dc {tok}")
         }
     }
 
-    fn read_atom_dc(&mut self) -> Result<DcChar> {
+    pub(super) fn read_atom_dc(&mut self) -> Result<DcChar> {
         let tok = self.next("Expected atom Dc")?;
         if tok == DC_ESCAPE {
             self.next("Expected escaped atom Dc")
@@ -1184,7 +1232,7 @@ impl<'a> Decoder<'a> {
         }
     }
 
-    fn read_optional_atom_dc(&mut self) -> Result<Option<DcChar>> {
+    pub(super) fn read_optional_atom_dc(&mut self) -> Result<Option<DcChar>> {
         if self.peek() == Some(DC_OPTIONAL_ABSENT) {
             self.pos = self.pos.saturating_add(1);
             Ok(None)
@@ -1193,7 +1241,7 @@ impl<'a> Decoder<'a> {
         }
     }
 
-    fn read_identifier(&mut self) -> Result<String> {
+    pub(super) fn read_identifier(&mut self) -> Result<String> {
         let open = self.next("Expected Dc 270 BeginIdentifier")?;
         ensure!(
             open == DC_BEGIN_IDENTIFIER,
@@ -1316,7 +1364,7 @@ impl<'a> Decoder<'a> {
         Ok(seg)
     }
 
-    fn read_optional_stagel_type(&mut self) -> Result<Option<StageLType>> {
+    pub(super) fn read_optional_stagel_type(&mut self) -> Result<Option<StageLType>> {
         if self.peek() == Some(DC_OPTIONAL_ABSENT) {
             self.pos = self.pos.saturating_add(1);
             Ok(None)
@@ -1331,11 +1379,20 @@ impl<'a> Decoder<'a> {
         };
         let u = tok.to_u128();
         tok.is_format()
+            || self.resolver.is_equivalent_to(u, DC_INTEGER.to_u128())
             || self.resolver.token_fills_role(u, DcRole::BeginTypeDef)
             || self.resolver.token_fills_role(u, DcRole::StagelListType)
             || self.resolver.token_fills_role(u, DcRole::StagelBufType)
             || self.resolver.token_fills_role(u, DcRole::TypeTuple)
             || self.resolver.token_fills_role(u, DcRole::TypeStruct)
+            || self.resolver.token_fills_role(u, DcRole::TypeAtomDc)
+            || self.resolver.token_fills_role(u, DcRole::TypeString)
+            || self.resolver.token_fills_role(u, DcRole::TypeOption)
+            || self.resolver.token_fills_role(u, DcRole::TypeResult)
+            || self.resolver.token_fills_role(u, DcRole::TypeError)
+            || self.resolver.token_fills_role(u, DcRole::TypeView)
+            || self.resolver.token_fills_role(u, DcRole::TypeCursor)
+            || self.resolver.token_fills_role(u, DcRole::TypeNominal)
     }
 
     fn skip_one_type_or_stagel_type(&mut self) -> Result<()> {
@@ -1372,8 +1429,8 @@ impl<'a> Decoder<'a> {
         Ok(())
     }
 
-    fn read_stagel_type(&mut self) -> Result<StageLType> {
-        let tok = self.next("Expected StageL type token")?;
+    pub(super) fn read_stagel_type(&mut self) -> Result<StageLType> {
+        let tok = self.next("Expected StageL/StageR type token")?;
         let u = tok.to_u128();
         if self.resolver.token_fills_role(u, DcRole::BeginTypeDef) {
             let inner = self.read_stagel_type()?;
@@ -1384,6 +1441,12 @@ impl<'a> Decoder<'a> {
                 "Expected Dc 263 EndTypeDef, found {close}"
             );
             return Ok(inner);
+        }
+        if self.resolver.token_fills_role(u, DcRole::TypeOption) {
+            return Ok(StageLType::Option(Box::new(self.read_stagel_type()?)));
+        }
+        if self.resolver.token_fills_role(u, DcRole::TypeResult) {
+            return Ok(StageLType::Result(Box::new(self.read_stagel_type()?)));
         }
         if self.resolver.token_fills_role(u, DcRole::StagelListType) {
             return Ok(StageLType::List(Box::new(self.read_stagel_type()?)));
@@ -1441,15 +1504,25 @@ impl<'a> Decoder<'a> {
             return Ok(StageLType::Tuple(elems));
         }
         if self.resolver.token_fills_role(u, DcRole::TypeStruct) {
-            let target = if self.peek().is_some_and(|p| {
-                self.resolver
-                    .token_fills_role(p.to_u128(), DcRole::BeginIdentifier)
-            }) {
-                StructTypeRef::Ident(self.read_identifier()?)
-            } else {
-                StructTypeRef::Dc(self.read_atom_dc()?)
-            };
-            return Ok(StageLType::Struct(target));
+            return Ok(StageLType::Struct(self.read_struct_type_ref()?));
+        }
+        if self.resolver.token_fills_role(u, DcRole::TypeNominal) {
+            return Ok(StageLType::Nominal(self.read_struct_type_ref()?));
+        }
+        if self.resolver.token_fills_role(u, DcRole::TypeAtomDc) {
+            return Ok(StageLType::Dc);
+        }
+        if self.resolver.token_fills_role(u, DcRole::TypeString) {
+            return Ok(StageLType::Dcs);
+        }
+        if self.resolver.token_fills_role(u, DcRole::TypeError) {
+            return Ok(StageLType::Error);
+        }
+        if self.resolver.token_fills_role(u, DcRole::TypeView) {
+            return Ok(StageLType::View);
+        }
+        if self.resolver.token_fills_role(u, DcRole::TypeCursor) {
+            return Ok(StageLType::Cursor);
         }
         if tok == format_dc_char_opt(FormatId::Boolean)? {
             return Ok(StageLType::B);
@@ -1469,13 +1542,30 @@ impl<'a> Decoder<'a> {
         if tok == format_dc_char_opt(FormatId::U64)? {
             return Ok(StageLType::U64);
         }
+        if tok == format_dc_char_opt(FormatId::I128)? {
+            return Ok(StageLType::I128);
+        }
+        if tok == format_dc_char_opt(FormatId::U128)? {
+            return Ok(StageLType::U128);
+        }
+        if tok == format_dc_char_opt(FormatId::Integer)?
+            || self.resolver.is_equivalent_to(u, DC_INTEGER.to_u128())
+        {
+            return Ok(StageLType::Int);
+        }
+        if tok == format_dc_char_opt(FormatId::Rational)? {
+            return Ok(StageLType::Rat);
+        }
+        if tok == format_dc_char_opt(FormatId::DcMixed)? {
+            return Ok(StageLType::S);
+        }
         if tok == format_dc_char_opt(FormatId::Void)? {
             return Ok(StageLType::Void);
         }
         if tok == format_dc_char_opt(FormatId::Never)? {
             return Ok(StageLType::Never);
         }
-        bail!("Unrecognized StageL type Token Dc {tok}")
+        bail!("Unrecognized StageL/StageR type Token Dc {tok}")
     }
 
     fn read_u128_number(&mut self) -> Result<u128> {
@@ -1494,12 +1584,28 @@ impl<'a> Decoder<'a> {
     }
 
     fn read_typed_int(&mut self) -> Result<TypedIntLit> {
+        let start_pos = self.pos;
         let open = self.next("Expected Dc 6 BeginNumber")?;
         ensure!(
             open == DC_BEGIN_NUMBER,
             "Expected Dc 6 BeginNumber, found {open}"
         );
         let fmt_tok = self.next("Expected integer format token after Dc 6")?;
+        if fmt_tok == format_dc_char_opt(FormatId::Integer)?
+            || self
+                .resolver
+                .is_equivalent_to(fmt_tok.to_u128(), DC_INTEGER.to_u128())
+        {
+            self.pos = start_pos;
+            let slice = self
+                .tokens
+                .get(start_pos..)
+                .context("Missing integer literal tokens")?;
+            let (_, val, consumed) =
+                crate::read_typed_dc_integer_with_resolver(slice, self.resolver)?;
+            self.pos = start_pos.saturating_add(consumed);
+            return Ok(TypedIntLit::Int(val));
+        }
         let mut is_negative = false;
         if self.peek() == Some(DC_NEGATIVE) {
             is_negative = true;
@@ -1536,6 +1642,10 @@ impl<'a> Decoder<'a> {
             ensure!(!is_negative, "u64 literal cannot be negative");
             return Ok(TypedIntLit::U64(u64::try_from(val).context("u64 overflow")?));
         }
+        if fmt_tok == format_dc_char_opt(FormatId::U128)? {
+            ensure!(!is_negative, "u128 literal cannot be negative");
+            return Ok(TypedIntLit::U128(val));
+        }
         if fmt_tok == format_dc_char_opt(FormatId::I32)? {
             let signed = if is_negative {
                 if val == 0x8000_0000 {
@@ -1561,6 +1671,19 @@ impl<'a> Decoder<'a> {
                 i64::try_from(val).context("i64 positive overflow")?
             };
             return Ok(TypedIntLit::I64(signed));
+        }
+        if fmt_tok == format_dc_char_opt(FormatId::I128)? {
+            let signed = if is_negative {
+                if val == 0x8000_0000_0000_0000_0000_0000_0000_0000 {
+                    i128::MIN
+                } else {
+                    let pos = i128::try_from(val).context("i128 negative overflow")?;
+                    pos.checked_neg().context("i128 negation overflow")?
+                }
+            } else {
+                i128::try_from(val).context("i128 positive overflow")?
+            };
+            return Ok(TypedIntLit::I128(signed));
         }
         bail!("Unsupported integer format {fmt_tok} inside StageL number literal")
     }
@@ -1648,13 +1771,7 @@ impl<'a> Decoder<'a> {
             bail!("Expected Dc 517/518 boolean visibility, found {vis_tok}");
         };
         let dc_id = self.read_optional_atom_dc()?;
-        let pub_dc_syntax = is_pub
-            && dc_id.is_some_and(|d| {
-                matches!(
-                    DcShorthand::from_global_id(d.to_u128()),
-                    DcShorthand::Short(_) | DcShorthand::Format(_)
-                )
-            });
+        let pub_dc_syntax = is_pub_dc_syntax(is_pub, dc_id);
         let return_type = self.read_stagel_type()?;
         let name = self.read_identifier()?;
 
@@ -1742,7 +1859,7 @@ impl<'a> Decoder<'a> {
         })
     }
 
-    fn read_expr(&mut self) -> Result<Expr> {
+    pub(super) fn read_expr(&mut self) -> Result<Expr> {
         let sp = self.span();
         let tok = self.peek().context("Expected expression Token Dc")?;
 
@@ -2112,6 +2229,10 @@ impl<'a> Decoder<'a> {
             });
         }
 
+        if let Some(stager_expr) = self.read_stager_expr(tok, sp)? {
+            return Ok(stager_expr);
+        }
+
         bail!("Unexpected Token Dc {tok} at expression position {}", self.pos)
     }
 }
@@ -2180,6 +2301,23 @@ fn dc_to_ternary_op(tok: DcChar) -> Option<CoreTernaryOp> {
 /// reconstructing comments, `: @dc <shorthand>` / `pub dc/<shorthand>`,
 /// camelCase identifiers, and `test` blocks.
 pub fn format_module_to_sl3(module: &Module) -> Result<String> {
+    ensure!(
+        module.dialect == StageDialect::StageL3,
+        "Expected StageL 3 module for format_module_to_sl3"
+    );
+    format_module_inner(module)
+}
+
+/// Renders a StageR 3 `Module` AST into canonical `.sr3` source text.
+pub fn format_module_to_sr3(module: &Module) -> Result<String> {
+    ensure!(
+        module.dialect == StageDialect::StageR3,
+        "Expected StageR 3 module for format_module_to_sr3"
+    );
+    format_module_inner(module)
+}
+
+fn format_module_inner(module: &Module) -> Result<String> {
     let mut out = String::new();
     for c in &module.leading_comments {
         write_comment_line(&mut out, 0, c)?;
@@ -2228,6 +2366,12 @@ pub fn format_top_decl_to_sl3(decl: &TopDecl) -> Result<String> {
     let mut out = String::new();
     write_top_decl(&mut out, decl)?;
     Ok(out)
+}
+
+/// Formats a single top-level StageR 3 declaration (`TopDecl`) back into
+/// canonical `.sr3` source text.
+pub fn format_top_decl_to_sr3(decl: &TopDecl) -> Result<String> {
+    format_top_decl_to_sl3(decl)
 }
 
 fn write_top_decl(out: &mut String, item: &TopDecl) -> Result<()> {
@@ -2286,20 +2430,18 @@ fn write_top_decl(out: &mut String, item: &TopDecl) -> Result<()> {
         }
         TopDecl::BrandType(_)
         | TopDecl::NamedStruct(_)
-        | TopDecl::Enum(_) => {
-            bail!("StageR 3 declaration formatting is not yet wired");
-        }
+        | TopDecl::Enum(_) => write_stager_top_decl(out, item)?,
     }
     Ok(())
 }
 
-fn write_indent(out: &mut String, indent: usize) {
+pub(super) fn write_indent(out: &mut String, indent: usize) {
     for _ in 0..indent {
         out.push(' ');
     }
 }
 
-fn write_comment_line(
+pub(super) fn write_comment_line(
     out: &mut String,
     indent: usize,
     comment: &Comment,
@@ -2313,7 +2455,7 @@ fn write_comment_line(
     Ok(())
 }
 
-fn write_dc_directive_if_needed(
+pub(super) fn write_dc_directive_if_needed(
     out: &mut String,
     indent: usize,
     dc_id: Option<DcChar>,
@@ -2445,7 +2587,11 @@ fn write_byte_literal(out: &mut String, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
+pub(super) fn write_expr(
+    out: &mut String,
+    expr: &Expr,
+    indent: usize,
+) -> Result<()> {
     match expr {
         Expr::Bool { value, .. } => {
             out.push_str(if *value { "true" } else { "false" });
@@ -2682,9 +2828,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
         | Expr::StageRUnary { .. }
         | Expr::StageRBinary { .. }
         | Expr::StageRTernary { .. }
-        | Expr::TotalConv { .. } => {
-            bail!("StageR 3 expression formatting is not yet wired");
-        }
+        | Expr::TotalConv { .. } => write_stager_expr(out, expr, indent)?,
     }
     Ok(())
 }
