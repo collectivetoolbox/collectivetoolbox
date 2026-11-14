@@ -2498,17 +2498,33 @@ impl SeedGraphIndex {
         self.token_fills_canonical_or_equiv_role(u, crate::syntax::DcRole::BeginModule)
             || self.token_fills_canonical_or_equiv_role(
                 u,
+                crate::syntax::DcRole::BeginStagerModule,
+            )
+            || self.token_fills_canonical_or_equiv_role(
+                u,
                 crate::syntax::DcRole::BeginRoutineDecl,
             )
             || self.token_fills_canonical_or_equiv_role(
                 u,
                 crate::syntax::DcRole::BeginPositionalStructDecl,
             )
+            || self.token_fills_canonical_or_equiv_role(
+                u,
+                crate::syntax::DcRole::DeclareBrandType,
+            )
+            || self.token_fills_canonical_or_equiv_role(
+                u,
+                crate::syntax::DcRole::BeginNamedStructDecl,
+            )
+            || self.token_fills_canonical_or_equiv_role(
+                u,
+                crate::syntax::DcRole::BeginEnumDecl,
+            )
             || self.token_fills_canonical_or_equiv_role(u, crate::syntax::DcRole::DeclarePub)
             || self.token_fills_canonical_or_equiv_role(u, crate::syntax::DcRole::DeclareConst)
     }
 
-    fn token_fills_canonical_or_equiv_role(
+    pub(crate) fn token_fills_canonical_or_equiv_role(
         &self,
         token: u128,
         role: crate::syntax::DcRole,

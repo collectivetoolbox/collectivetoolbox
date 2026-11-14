@@ -39,7 +39,7 @@ use crate::dc::{
     DC_BEGIN_WASM_PROGRAM, DC_CANONICAL_DECOMPOSITION,
     DC_DATA_FORMAT_DESCRIPTION, DC_DECOMPOSITION,
     DC_IN_CONTEXT_OF, DC_PROGRAMMATIC_IDENTIFIER, DC_SEMANTIC_DECOMPOSITION,
-    DC_TYPE_ROUTINE, DC_TYPE_STRUCT, DcChar,
+    DC_TYPE_NOMINAL, DC_TYPE_ROUTINE, DC_TYPE_STRUCT, DcChar,
 };
 use crate::format_spec::FormatExpr;
 use crate::graph_ledger::{
@@ -51,19 +51,22 @@ use crate::graph_ledger::{
 use crate::report::ValidationReport;
 use crate::seed_graph::SeedGraphIndex;
 use crate::stagel3::ast::{
-    BlockItem, Expr, Param, PositionalStructDecl, RoutineDecl, StageLType,
-    StructTypeRef, SymbolTarget, TestBlock, TestCase, TestExpected, TopDecl,
-    TopValueDecl, format_dc_shorthand,
+    BlockItem, BrandTypeDecl, EnumDecl, EnumVariantDecl, Expr, MatchArm,
+    NamedFieldDecl, NamedStructDecl, Param, PositionalStructDecl,
+    RoutineDecl, StageDialect, StageLType, StructTypeRef, SymbolTarget,
+    TestBlock, TestCase, TestExpected, TopDecl, TopValueDecl,
+    format_dc_shorthand,
 };
 use crate::stagel3::dc_tokens::{
     decode_module_from_dc_tokens, decode_top_decl_from_dc_tokens,
     encode_filepath_dc_tokens, encode_stagel_type_dc_tokens,
-    encode_top_decl_to_dc_tokens, format_module_to_sl3, format_top_decl_to_sl3,
+    encode_top_decl_to_dc_tokens, format_module_to_sl3, format_module_to_sr3,
+    format_top_decl_to_sl3, format_top_decl_to_sr3,
 };
 use crate::stagel3::eval::run_validated_workspace_inline_tests;
 use crate::stagel3::validator::{
     ModuleInput, RoutineKey, ValidatedModule, ValidatedWorkspace, ValueKey,
-    parse_and_validate_workspace,
+    parse_and_validate_workspace, top_decl_uses_stager,
 };
 pub use crate::wat::ImplStage;
 
@@ -147,8 +150,8 @@ fn collect_subdir_files_recursive(
             }
             ImplStage::Stage2 => {
                 ensure!(
-                    ext == "sl3",
-                    "Unsupported file extension '.{ext}' in {}: only .sl3 namespace modules are currently supported until StageR 3 lands",
+                    ext == "sl3" || ext == "sr3",
+                    "Unsupported file extension '.{ext}' in {}: expected .sl3 or .sr3 namespace modules in impls/",
                     path.display()
                 );
             }
@@ -250,8 +253,12 @@ fn parse_validate_and_test_stagel_files(
         let expected_ns = f
             .psr4_rel_path
             .strip_suffix(".sl3")
+            .or_else(|| f.psr4_rel_path.strip_suffix(".sr3"))
             .with_context(|| {
-                format!("Expected .sl3 suffix on '{}'", f.repo_rel_path)
+                format!(
+                    "Expected .sl3 or .sr3 suffix on '{}'",
+                    f.repo_rel_path
+                )
             })?;
         ns_to_file_idx.insert(expected_ns.to_owned(), file_idx);
     }
@@ -289,30 +296,58 @@ fn parse_validate_and_test_stagel_files(
     Ok((workspace, ns_to_file_idx))
 }
 
-fn build_workspace_struct_dcs(
+fn build_workspace_type_dcs(
     workspace: &ValidatedWorkspace,
-) -> HashMap<(Option<String>, String), DcChar> {
-    let mut out = HashMap::new();
+) -> (
+    HashMap<(Option<String>, String), DcChar>,
+    HashMap<(Option<String>, String), DcChar>,
+) {
+    let mut struct_dcs = HashMap::new();
+    let mut nominal_dcs = HashMap::new();
     for vm in &workspace.modules {
         for item in &vm.module.items {
-            if let TopDecl::Struct(s) = item
-                && let Some(dc) = s.dc_id
-            {
-                out.insert((vm.namespace_key.clone(), s.name.clone()), dc);
+            match item {
+                TopDecl::Struct(s) => {
+                    if let Some(dc) = s.dc_id {
+                        struct_dcs
+                            .insert((vm.namespace_key.clone(), s.name.clone()), dc);
+                    }
+                }
+                TopDecl::NamedStruct(s) => {
+                    if let Some(dc) = s.dc_id {
+                        struct_dcs
+                            .insert((vm.namespace_key.clone(), s.name.clone()), dc);
+                    }
+                }
+                TopDecl::BrandType(b) => {
+                    if let Some(dc) = b.dc_id {
+                        nominal_dcs
+                            .insert((vm.namespace_key.clone(), b.name.clone()), dc);
+                    }
+                }
+                TopDecl::Enum(e) => {
+                    if let Some(dc) = e.dc_id {
+                        nominal_dcs
+                            .insert((vm.namespace_key.clone(), e.name.clone()), dc);
+                    }
+                }
+                TopDecl::Value(_) | TopDecl::Routine(_) | TopDecl::Comment(_) => {}
             }
         }
     }
-    out
+    (struct_dcs, nominal_dcs)
 }
 
 fn rewrite_type_to_struct_dcs(
     ty: &StageLType,
     vm: &ValidatedModule,
     struct_dcs: &HashMap<(Option<String>, String), DcChar>,
+    nominal_dcs: &HashMap<(Option<String>, String), DcChar>,
 ) -> StageLType {
     fn map_canon(
         ty: &StageLType,
         struct_dcs: &HashMap<(Option<String>, String), DcChar>,
+        nominal_dcs: &HashMap<(Option<String>, String), DcChar>,
     ) -> StageLType {
         match ty {
             StageLType::B
@@ -322,15 +357,32 @@ fn rewrite_type_to_struct_dcs(
             | StageLType::I64
             | StageLType::U64
             | StageLType::Void
-            | StageLType::Never => ty.clone(),
-            StageLType::List(inner) => {
-                StageLType::List(Box::new(map_canon(inner, struct_dcs)))
-            }
-            StageLType::Buf(inner) => {
-                StageLType::Buf(Box::new(map_canon(inner, struct_dcs)))
-            }
+            | StageLType::Never
+            | StageLType::I128
+            | StageLType::U128
+            | StageLType::Int
+            | StageLType::Rat
+            | StageLType::Dc
+            | StageLType::Dcs
+            | StageLType::S
+            | StageLType::Error
+            | StageLType::View
+            | StageLType::Cursor => ty.clone(),
+            StageLType::List(inner) => StageLType::List(Box::new(map_canon(
+                inner,
+                struct_dcs,
+                nominal_dcs,
+            ))),
+            StageLType::Buf(inner) => StageLType::Buf(Box::new(map_canon(
+                inner,
+                struct_dcs,
+                nominal_dcs,
+            ))),
             StageLType::Tuple(elems) => StageLType::Tuple(
-                elems.iter().map(|e| map_canon(e, struct_dcs)).collect(),
+                elems
+                    .iter()
+                    .map(|e| map_canon(e, struct_dcs, nominal_dcs))
+                    .collect(),
             ),
             StageLType::Struct(StructTypeRef::Canonical {
                 namespace,
@@ -344,33 +396,43 @@ fn rewrite_type_to_struct_dcs(
                 }
             }
             StageLType::Struct(other) => StageLType::Struct(other.clone()),
-            StageLType::Option(inner) => {
-                StageLType::Option(Box::new(map_canon(inner, struct_dcs)))
+            StageLType::Option(inner) => StageLType::Option(Box::new(map_canon(
+                inner,
+                struct_dcs,
+                nominal_dcs,
+            ))),
+            StageLType::Result(inner) => StageLType::Result(Box::new(map_canon(
+                inner,
+                struct_dcs,
+                nominal_dcs,
+            ))),
+            StageLType::Nominal(StructTypeRef::Canonical {
+                namespace,
+                name,
+            }) => {
+                let key = (namespace.clone(), name.clone());
+                if let Some(&dc) = nominal_dcs.get(&key) {
+                    StageLType::Nominal(StructTypeRef::Dc(dc))
+                } else {
+                    StageLType::Nominal(StructTypeRef::Ident(name.clone()))
+                }
             }
-            StageLType::Result(inner) => {
-                StageLType::Result(Box::new(map_canon(inner, struct_dcs)))
-            }
-            StageLType::I128
-            | StageLType::U128
-            | StageLType::Int
-            | StageLType::Rat
-            | StageLType::Dc
-            | StageLType::Dcs
-            | StageLType::S
-            | StageLType::Error
-            | StageLType::View
-            | StageLType::Cursor
-            | StageLType::Nominal(_) => ty.clone(),
+            StageLType::Nominal(other) => StageLType::Nominal(other.clone()),
         }
     }
     let canon = vm.canonicalize_type(ty);
-    map_canon(&canon, struct_dcs)
+    map_canon(&canon, struct_dcs, nominal_dcs)
 }
 
 pub(crate) fn class_value_spec_for_top_decl(decl: &TopDecl) -> Result<ValueSpec> {
     match decl {
         TopDecl::Routine(_) => Ok(ValueSpec::Direct(sh(DC_TYPE_ROUTINE))),
-        TopDecl::Struct(_) => Ok(ValueSpec::Direct(sh(DC_TYPE_STRUCT))),
+        TopDecl::Struct(_) | TopDecl::NamedStruct(_) => {
+            Ok(ValueSpec::Direct(sh(DC_TYPE_STRUCT)))
+        }
+        TopDecl::BrandType(_) | TopDecl::Enum(_) => {
+            Ok(ValueSpec::Direct(sh(DC_TYPE_NOMINAL)))
+        }
         TopDecl::Value(val) => {
             let type_chars = encode_stagel_type_dc_tokens(&val.ty)?;
             let shorthands: Vec<DcShorthand> = type_chars
@@ -390,11 +452,6 @@ pub(crate) fn class_value_spec_for_top_decl(decl: &TopDecl) -> Result<ValueSpec>
         }
         TopDecl::Comment(_) => {
             bail!("Standalone comment does not have a graph entity class")
-        }
-        TopDecl::BrandType(_)
-        | TopDecl::NamedStruct(_)
-        | TopDecl::Enum(_) => {
-            bail!("StageR 3 declaration graph entity class is not yet wired")
         }
     }
 }
@@ -424,7 +481,7 @@ fn collect_unassigned_and_validate_assigned_dcs(
         }
     }
 
-    let struct_dcs = build_workspace_struct_dcs(workspace);
+    let (struct_dcs, nominal_dcs) = build_workspace_type_dcs(workspace);
     let mut seen_dc_ids: HashMap<DcChar, String> = HashMap::new();
     let mut unassigned = Vec::new();
 
@@ -444,12 +501,16 @@ fn collect_unassigned_and_validate_assigned_dcs(
                 TopDecl::Struct(s) => {
                     (s.name.as_str(), s.span, s.dc_id, s.pub_dc_syntax)
                 }
-                TopDecl::Comment(_) => continue,
-                TopDecl::BrandType(_)
-                | TopDecl::NamedStruct(_)
-                | TopDecl::Enum(_) => {
-                    bail!("StageR 3 `: @dc` allocation is not yet wired")
+                TopDecl::BrandType(b) => {
+                    (b.name.as_str(), b.span, b.dc_id, b.pub_dc_syntax)
                 }
+                TopDecl::NamedStruct(s) => {
+                    (s.name.as_str(), s.span, s.dc_id, s.pub_dc_syntax)
+                }
+                TopDecl::Enum(e) => {
+                    (e.name.as_str(), e.span, e.dc_id, e.pub_dc_syntax)
+                }
+                TopDecl::Comment(_) => continue,
             };
             let loc_desc = format!("{} ({ns_key}::{name})", fmeta.repo_rel_path);
 
@@ -485,7 +546,15 @@ fn collect_unassigned_and_validate_assigned_dcs(
                     !pub_dc_syntax,
                     "Missing target Dc on 'pub dc/...' declaration in {loc_desc}"
                 );
-                if only_structs && !matches!(item, TopDecl::Struct(_)) {
+                if only_structs
+                    && !matches!(
+                        item,
+                        TopDecl::Struct(_)
+                            | TopDecl::NamedStruct(_)
+                            | TopDecl::BrandType(_)
+                            | TopDecl::Enum(_)
+                    )
+                {
                     continue;
                 }
                 let class_spec = match item {
@@ -495,6 +564,7 @@ fn collect_unassigned_and_validate_assigned_dcs(
                                 &v.ty,
                                 vm,
                                 &struct_dcs,
+                                &nominal_dcs,
                             ),
                             ..v.clone()
                         });
@@ -986,14 +1056,22 @@ pub fn assign_stagel_dc_ids_in_memory(
 struct DeclRewriteMaps<'a> {
     vm: &'a ValidatedModule,
     all_struct_dcs: &'a HashMap<(Option<String>, String), DcChar>,
+    all_nominal_dcs: &'a HashMap<(Option<String>, String), DcChar>,
     value_dcs_by_span: HashMap<(usize, usize), DcChar>,
     routine_dcs_by_span: HashMap<(usize, usize), DcChar>,
     struct_dcs_by_span: HashMap<(usize, usize), DcChar>,
+    named_struct_dcs_by_span: HashMap<(usize, usize), DcChar>,
+    enum_dcs_by_span: HashMap<(usize, usize), DcChar>,
 }
 
 impl DeclRewriteMaps<'_> {
     fn rewrite_type(&self, ty: &StageLType) -> StageLType {
-        rewrite_type_to_struct_dcs(ty, self.vm, self.all_struct_dcs)
+        rewrite_type_to_struct_dcs(
+            ty,
+            self.vm,
+            self.all_struct_dcs,
+            self.all_nominal_dcs,
+        )
     }
 }
 
@@ -1053,10 +1131,55 @@ fn rewrite_top_decl_refs_to_dc(
             comments_before: s.comments_before.clone(),
             span: s.span,
         }),
+        TopDecl::BrandType(b) => TopDecl::BrandType(BrandTypeDecl {
+            is_pub: b.is_pub,
+            pub_dc_syntax: b.pub_dc_syntax,
+            is_opaque: b.is_opaque,
+            dc_id: b.dc_id,
+            inner_ty: maps.rewrite_type(&b.inner_ty),
+            name: b.name.clone(),
+            comments_before: b.comments_before.clone(),
+            span: b.span,
+        }),
+        TopDecl::NamedStruct(s) => TopDecl::NamedStruct(NamedStructDecl {
+            is_pub: s.is_pub,
+            pub_dc_syntax: s.pub_dc_syntax,
+            dc_id: s.dc_id,
+            name: s.name.clone(),
+            fields: s
+                .fields
+                .iter()
+                .map(|f| NamedFieldDecl {
+                    ty: maps.rewrite_type(&f.ty),
+                    name: f.name.clone(),
+                    comments_before: f.comments_before.clone(),
+                    span: f.span,
+                })
+                .collect(),
+            inline_body: s.inline_body,
+            comments_before: s.comments_before.clone(),
+            span: s.span,
+        }),
+        TopDecl::Enum(e) => TopDecl::Enum(EnumDecl {
+            is_pub: e.is_pub,
+            pub_dc_syntax: e.pub_dc_syntax,
+            dc_id: e.dc_id,
+            name: e.name.clone(),
+            variants: e
+                .variants
+                .iter()
+                .map(|v| EnumVariantDecl {
+                    name: v.name.clone(),
+                    payload: v.payload.as_ref().map(|p| maps.rewrite_type(p)),
+                    comments_before: v.comments_before.clone(),
+                    span: v.span,
+                })
+                .collect(),
+            inline_body: e.inline_body,
+            comments_before: e.comments_before.clone(),
+            span: e.span,
+        }),
         TopDecl::Comment(c) => TopDecl::Comment(c.clone()),
-        TopDecl::BrandType(_) | TopDecl::NamedStruct(_) | TopDecl::Enum(_) => {
-            decl.clone()
-        }
     }
 }
 
@@ -1419,23 +1542,209 @@ fn rewrite_expr_refs(
         },
         Expr::DctsString { .. }
         | Expr::DcLit { .. }
-        | Expr::NamedStructNew { .. }
-        | Expr::EnumVariant { .. }
-        | Expr::OptionNone { .. }
-        | Expr::OptionSome { .. }
-        | Expr::ResultOk { .. }
-        | Expr::ResultErr { .. }
-        | Expr::ErrorTag { .. }
-        | Expr::NamedField { .. }
-        | Expr::NamedWith { .. }
-        | Expr::WrapNominal { .. }
-        | Expr::UnwrapNominal { .. }
-        | Expr::Match { .. }
-        | Expr::Propagate { .. }
-        | Expr::StageRUnary { .. }
-        | Expr::StageRBinary { .. }
-        | Expr::StageRTernary { .. }
-        | Expr::TotalConv { .. } => expr.clone(),
+        | Expr::ErrorTag { .. } => expr.clone(),
+        Expr::NamedStructNew {
+            target,
+            fields,
+            span,
+        } => {
+            let new_target = match target {
+                SymbolTarget::Ident(_) => {
+                    if let Some(&dc) =
+                        maps.named_struct_dcs_by_span.get(&(span.line, span.col))
+                    {
+                        SymbolTarget::Dc(dc)
+                    } else {
+                        target.clone()
+                    }
+                }
+                other @ SymbolTarget::Dc(_) => other.clone(),
+            };
+            Expr::NamedStructNew {
+                target: new_target,
+                fields: fields
+                    .iter()
+                    .map(|(fname, fexpr, fspan)| {
+                        (
+                            fname.clone(),
+                            rewrite_expr_refs(fexpr, maps, shadows),
+                            *fspan,
+                        )
+                    })
+                    .collect(),
+                span: *span,
+            }
+        }
+        Expr::EnumVariant {
+            enum_ty,
+            variant,
+            payload,
+            span,
+        } => {
+            let new_enum_ty = match enum_ty {
+                StructTypeRef::Ident(_) => {
+                    if let Some(&dc) =
+                        maps.enum_dcs_by_span.get(&(span.line, span.col))
+                    {
+                        StructTypeRef::Dc(dc)
+                    } else {
+                        enum_ty.clone()
+                    }
+                }
+                StructTypeRef::Canonical { namespace, name } => {
+                    if let Some(&dc) = maps
+                        .all_nominal_dcs
+                        .get(&(namespace.clone(), name.clone()))
+                    {
+                        StructTypeRef::Dc(dc)
+                    } else {
+                        enum_ty.clone()
+                    }
+                }
+                other @ StructTypeRef::Dc(_) => other.clone(),
+            };
+            Expr::EnumVariant {
+                enum_ty: new_enum_ty,
+                variant: variant.clone(),
+                payload: payload
+                    .as_ref()
+                    .map(|p| Box::new(rewrite_expr_refs(p, maps, shadows))),
+                span: *span,
+            }
+        }
+        Expr::OptionNone { inner_ty, span } => Expr::OptionNone {
+            inner_ty: maps.rewrite_type(inner_ty),
+            span: *span,
+        },
+        Expr::OptionSome {
+            inner_ty,
+            value,
+            span,
+        } => Expr::OptionSome {
+            inner_ty: maps.rewrite_type(inner_ty),
+            value: Box::new(rewrite_expr_refs(value, maps, shadows)),
+            span: *span,
+        },
+        Expr::ResultOk { ok_ty, value, span } => Expr::ResultOk {
+            ok_ty: maps.rewrite_type(ok_ty),
+            value: Box::new(rewrite_expr_refs(value, maps, shadows)),
+            span: *span,
+        },
+        Expr::ResultErr { ok_ty, error, span } => Expr::ResultErr {
+            ok_ty: maps.rewrite_type(ok_ty),
+            error: Box::new(rewrite_expr_refs(error, maps, shadows)),
+            span: *span,
+        },
+        Expr::NamedField { base, field, span } => Expr::NamedField {
+            base: Box::new(rewrite_expr_refs(base, maps, shadows)),
+            field: field.clone(),
+            span: *span,
+        },
+        Expr::NamedWith {
+            base,
+            field,
+            value,
+            span,
+        } => Expr::NamedWith {
+            base: Box::new(rewrite_expr_refs(base, maps, shadows)),
+            field: field.clone(),
+            value: Box::new(rewrite_expr_refs(value, maps, shadows)),
+            span: *span,
+        },
+        Expr::WrapNominal {
+            expr: inner,
+            target_ty,
+            span,
+        } => Expr::WrapNominal {
+            expr: Box::new(rewrite_expr_refs(inner, maps, shadows)),
+            target_ty: maps.rewrite_type(target_ty),
+            span: *span,
+        },
+        Expr::UnwrapNominal { expr: inner, span } => Expr::UnwrapNominal {
+            expr: Box::new(rewrite_expr_refs(inner, maps, shadows)),
+            span: *span,
+        },
+        Expr::Match {
+            scrutinee,
+            arms,
+            fallback,
+            span,
+        } => {
+            let new_scrutinee =
+                Box::new(rewrite_expr_refs(scrutinee, maps, shadows));
+            let mut new_arms = Vec::with_capacity(arms.len());
+            for arm in arms {
+                let (new_binding, new_body) =
+                    if let Some((bty, bname, bsp)) = &arm.binding {
+                        let mut arm_layer = LexicalShadowScope::default();
+                        arm_layer.values.insert(bname.clone());
+                        shadows.layers.push(arm_layer);
+                        let body = rewrite_expr_refs(&arm.body, maps, shadows);
+                        let _ = shadows.layers.pop();
+                        (Some((maps.rewrite_type(bty), bname.clone(), *bsp)), body)
+                    } else {
+                        (None, rewrite_expr_refs(&arm.body, maps, shadows))
+                    };
+                new_arms.push(MatchArm {
+                    variant: arm.variant.clone(),
+                    binding: new_binding,
+                    body: new_body,
+                    comments_before: arm.comments_before.clone(),
+                    span: arm.span,
+                });
+            }
+            let new_fallback = fallback
+                .as_ref()
+                .map(|fb| Box::new(rewrite_expr_refs(fb, maps, shadows)));
+            Expr::Match {
+                scrutinee: new_scrutinee,
+                arms: new_arms,
+                fallback: new_fallback,
+                span: *span,
+            }
+        }
+        Expr::Propagate { expr: inner, span } => Expr::Propagate {
+            expr: Box::new(rewrite_expr_refs(inner, maps, shadows)),
+            span: *span,
+        },
+        Expr::StageRUnary { op, operand, span } => Expr::StageRUnary {
+            op: *op,
+            operand: Box::new(rewrite_expr_refs(operand, maps, shadows)),
+            span: *span,
+        },
+        Expr::StageRBinary {
+            op,
+            left,
+            right,
+            span,
+        } => Expr::StageRBinary {
+            op: *op,
+            left: Box::new(rewrite_expr_refs(left, maps, shadows)),
+            right: Box::new(rewrite_expr_refs(right, maps, shadows)),
+            span: *span,
+        },
+        Expr::StageRTernary {
+            op,
+            first,
+            second,
+            third,
+            span,
+        } => Expr::StageRTernary {
+            op: *op,
+            first: Box::new(rewrite_expr_refs(first, maps, shadows)),
+            second: Box::new(rewrite_expr_refs(second, maps, shadows)),
+            third: Box::new(rewrite_expr_refs(third, maps, shadows)),
+            span: *span,
+        },
+        Expr::TotalConv {
+            expr: inner,
+            target_ty,
+            span,
+        } => Expr::TotalConv {
+            expr: Box::new(rewrite_expr_refs(inner, maps, shadows)),
+            target_ty: maps.rewrite_type(target_ty),
+            span: *span,
+        },
     }
 }
 
@@ -1466,7 +1775,7 @@ pub(crate) fn compile_stagel_files_into_desired_state(
         );
     }
 
-    let all_struct_dcs = build_workspace_struct_dcs(&workspace);
+    let (all_struct_dcs, all_nominal_dcs) = build_workspace_type_dcs(&workspace);
 
     for vm in &workspace.modules {
         let ns_segs = vm
@@ -1506,12 +1815,22 @@ pub(crate) fn compile_stagel_files_into_desired_state(
                         format!("Missing Dc on '{}::{}'", ns_key, s.name)
                     })?;
                 }
-                TopDecl::Comment(_) => {}
-                TopDecl::BrandType(_)
-                | TopDecl::NamedStruct(_)
-                | TopDecl::Enum(_) => {
-                    bail!("StageR 3 desired state compilation is not yet wired");
+                TopDecl::BrandType(b) => {
+                    let _ = b.dc_id.with_context(|| {
+                        format!("Missing Dc on '{}::{}'", ns_key, b.name)
+                    })?;
                 }
+                TopDecl::NamedStruct(s) => {
+                    let _ = s.dc_id.with_context(|| {
+                        format!("Missing Dc on '{}::{}'", ns_key, s.name)
+                    })?;
+                }
+                TopDecl::Enum(e) => {
+                    let _ = e.dc_id.with_context(|| {
+                        format!("Missing Dc on '{}::{}'", ns_key, e.name)
+                    })?;
+                }
+                TopDecl::Comment(_) => {}
             }
         }
 
@@ -1580,12 +1899,48 @@ pub(crate) fn compile_stagel_files_into_desired_state(
             struct_dcs_by_span.insert(span_key, target_dc);
         }
 
+        let mut named_struct_dcs_by_span: HashMap<(usize, usize), DcChar> =
+            HashMap::with_capacity(vm.resolved_named_structs.len());
+        for (&span_key, nsdef) in &vm.resolved_named_structs {
+            let skey = (nsdef.namespace.clone(), nsdef.original_name.clone());
+            let target_dc = nsdef
+                .dc_id
+                .or_else(|| all_struct_dcs.get(&skey).copied())
+                .with_context(|| {
+                    format!(
+                        "Named struct '{}' in '{ns_key}' has no assigned Dc",
+                        nsdef.original_name
+                    )
+                })?;
+            named_struct_dcs_by_span.insert(span_key, target_dc);
+        }
+
+        let mut enum_dcs_by_span: HashMap<(usize, usize), DcChar> =
+            HashMap::with_capacity(vm.resolved_enum_variants.len());
+        for (&span_key, ((enum_ns, enum_name), _)) in
+            &vm.resolved_enum_variants
+        {
+            let ekey = (enum_ns.clone(), enum_name.clone());
+            let target_dc = all_nominal_dcs
+                .get(&ekey)
+                .copied()
+                .with_context(|| {
+                    format!(
+                        "Enum '{enum_name}' in '{ns_key}' has no assigned Dc"
+                    )
+                })?;
+            enum_dcs_by_span.insert(span_key, target_dc);
+        }
+
         let maps = DeclRewriteMaps {
             vm,
             all_struct_dcs: &all_struct_dcs,
+            all_nominal_dcs: &all_nominal_dcs,
             value_dcs_by_span,
             routine_dcs_by_span,
             struct_dcs_by_span,
+            named_struct_dcs_by_span,
+            enum_dcs_by_span,
         };
 
         for item in &vm.module.items {
@@ -1608,12 +1963,27 @@ pub(crate) fn compile_stagel_files_into_desired_state(
                     s.pub_dc_syntax,
                     s.dc_id.context("Missing Dc on validated StageL struct")?,
                 ),
+                TopDecl::BrandType(b) => (
+                    b.name.as_str(),
+                    b.is_pub,
+                    b.pub_dc_syntax,
+                    b.dc_id
+                        .context("Missing Dc on validated StageR brand/type")?,
+                ),
+                TopDecl::NamedStruct(s) => (
+                    s.name.as_str(),
+                    s.is_pub,
+                    s.pub_dc_syntax,
+                    s.dc_id
+                        .context("Missing Dc on validated StageR named struct")?,
+                ),
+                TopDecl::Enum(e) => (
+                    e.name.as_str(),
+                    e.is_pub,
+                    e.pub_dc_syntax,
+                    e.dc_id.context("Missing Dc on validated StageR enum")?,
+                ),
                 TopDecl::Comment(_) => continue,
-                TopDecl::BrandType(_)
-                | TopDecl::NamedStruct(_)
-                | TopDecl::Enum(_) => {
-                    bail!("StageR 3 desired state compilation is not yet wired");
-                }
             };
 
             let subj_sh = DcShorthand::from_global_id(item_dc.to_u128());
@@ -1649,7 +2019,13 @@ pub(crate) fn compile_stagel_files_into_desired_state(
             let dc_chars = encode_top_decl_to_dc_tokens(&rewritten)?;
             // Gate 4 lossless Token-Dc roundtrip verification before ledger emission:
             let decoded = decode_top_decl_from_dc_tokens(&dc_chars)?;
-            let _formatted = format_top_decl_to_sl3(&decoded)?;
+            if vm.module.dialect == StageDialect::StageR3
+                || top_decl_uses_stager(&decoded)
+            {
+                let _formatted = format_top_decl_to_sr3(&decoded)?;
+            } else {
+                let _formatted = format_top_decl_to_sl3(&decoded)?;
+            }
 
             let token_shorthands: Vec<DcShorthand> = dc_chars
                 .iter()
@@ -1882,16 +2258,33 @@ pub fn validate_system_graph_wasm_and_stagel_boundaries(
                             crate::stagel3::dc_tokens::strip_comment_frames(
                                 &chars,
                             );
-                        if stripped.first().copied()
-                            == Some(crate::dc::DC_BEGIN_MODULE)
-                        {
-                            let m = decode_module_from_dc_tokens(&chars)?;
-                            let _ = format_module_to_sl3(&m)?;
-                            Ok(())
+                        if let Some(first) = stripped.first().copied() {
+                            let u = first.to_u128();
+                            if index.token_fills_canonical_or_equiv_role(
+                                u,
+                                crate::syntax::DcRole::BeginModule,
+                            ) {
+                                let m = decode_module_from_dc_tokens(&chars)?;
+                                let _ = format_module_to_sl3(&m)?;
+                                Ok(())
+                            } else if index.token_fills_canonical_or_equiv_role(
+                                u,
+                                crate::syntax::DcRole::BeginStagerModule,
+                            ) {
+                                let m = decode_module_from_dc_tokens(&chars)?;
+                                let _ = format_module_to_sr3(&m)?;
+                                Ok(())
+                            } else {
+                                let d = decode_top_decl_from_dc_tokens(&chars)?;
+                                if top_decl_uses_stager(&d) {
+                                    let _ = format_top_decl_to_sr3(&d)?;
+                                } else {
+                                    let _ = format_top_decl_to_sl3(&d)?;
+                                }
+                                Ok(())
+                            }
                         } else {
-                            let d = decode_top_decl_from_dc_tokens(&chars)?;
-                            let _ = format_top_decl_to_sl3(&d)?;
-                            Ok(())
+                            bail!("Empty StageL/StageR Token-Dc decomposition node");
                         }
                     })();
                     if let Err(err) = roundtrip_res {
@@ -1900,9 +2293,9 @@ pub fn validate_system_graph_wasm_and_stagel_boundaries(
                             None,
                             Some("StageL Token-Dc"),
                             format!(
-                                "StageL Token-Dc decomposition l{val_node_id} on {subj} failed lossless .sl3 roundtrip: {err:#}"
+                                "StageL/StageR Token-Dc decomposition l{val_node_id} on {subj} failed lossless .sl3/.sr3 roundtrip: {err:#}"
                             ),
-                            Some("Re-run validate-data-tables --write to regenerate valid StageL Token Dcs"),
+                            Some("Re-run validate-data-tables --write to regenerate valid StageL/StageR Token Dcs"),
                         );
                     }
                 }
@@ -1991,10 +2384,10 @@ pub fn validate_stagel_and_system_graph_in_repo(
                 TopDecl::Routine(r) => (r.pub_dc_syntax, r.dc_id, r.span),
                 TopDecl::Value(v) => (v.pub_dc_syntax, v.dc_id, v.span),
                 TopDecl::Struct(s) => (s.pub_dc_syntax, s.dc_id, s.span),
-                TopDecl::Comment(_)
-                | TopDecl::BrandType(_)
-                | TopDecl::NamedStruct(_)
-                | TopDecl::Enum(_) => continue,
+                TopDecl::BrandType(b) => (b.pub_dc_syntax, b.dc_id, b.span),
+                TopDecl::NamedStruct(s) => (s.pub_dc_syntax, s.dc_id, s.span),
+                TopDecl::Enum(e) => (e.pub_dc_syntax, e.dc_id, e.span),
+                TopDecl::Comment(_) => continue,
             };
             if pub_dc_syntax && let Some(dc) = dc_opt {
                 match DcShorthand::from_global_id(dc.to_u128()) {
@@ -2054,10 +2447,16 @@ pub fn validate_stagel_and_system_graph_in_repo(
                 TopDecl::Struct(s) => {
                     (s.name.as_str(), s.pub_dc_syntax, s.dc_id, s.span)
                 }
-                TopDecl::Comment(_)
-                | TopDecl::BrandType(_)
-                | TopDecl::NamedStruct(_)
-                | TopDecl::Enum(_) => continue,
+                TopDecl::BrandType(b) => {
+                    (b.name.as_str(), b.pub_dc_syntax, b.dc_id, b.span)
+                }
+                TopDecl::NamedStruct(s) => {
+                    (s.name.as_str(), s.pub_dc_syntax, s.dc_id, s.span)
+                }
+                TopDecl::Enum(e) => {
+                    (e.name.as_str(), e.pub_dc_syntax, e.dc_id, e.span)
+                }
+                TopDecl::Comment(_) => continue,
             };
             if !pub_dc_syntax
                 && let Some(dc) = dc_opt

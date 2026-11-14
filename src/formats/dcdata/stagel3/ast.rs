@@ -697,6 +697,8 @@ pub enum StageRErrorTag {
     InvalidDc,
     /// Textual parse failure (`parseFailure`).
     ParseFailure,
+    /// Propagating `option/T:none` inside a `result/R` routine (`unexpectedNone`).
+    UnexpectedNone,
 }
 
 impl StageRErrorTag {
@@ -711,6 +713,7 @@ impl StageRErrorTag {
             Self::InvalidEncoding => "invalidEncoding",
             Self::InvalidDc => "invalidDc",
             Self::ParseFailure => "parseFailure",
+            Self::UnexpectedNone => "unexpectedNone",
         }
     }
 
@@ -725,6 +728,7 @@ impl StageRErrorTag {
             "invalidEncoding" => Some(Self::InvalidEncoding),
             "invalidDc" => Some(Self::InvalidDc),
             "parseFailure" => Some(Self::ParseFailure),
+            "unexpectedNone" => Some(Self::UnexpectedNone),
             _ => None,
         }
     }
@@ -740,6 +744,7 @@ impl StageRErrorTag {
             "invalidEncoding",
             "invalidDc",
             "parseFailure",
+            "unexpectedNone",
         ]
     }
 }

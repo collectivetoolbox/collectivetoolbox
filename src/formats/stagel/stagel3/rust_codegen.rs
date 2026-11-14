@@ -5410,6 +5410,7 @@ v/u32/divergingExprSmoke u32/which
             EvalConfig {
                 compute_quota: 50_000_000,
                 max_call_depth: 64,
+                ..EvalConfig::default()
             },
         )
         .expect("init VM");
@@ -5484,6 +5485,7 @@ pub v/u32/runCrossModuleTail u32/cnt
             EvalConfig {
                 compute_quota: 20_000_000,
                 max_call_depth: 32,
+                ..EvalConfig::default()
             },
         )
         .expect("init workspace VM");
@@ -5726,6 +5728,7 @@ pub v/b/verifyTuplesAndStructs
             EvalConfig {
                 compute_quota: 25_000_000,
                 max_call_depth: 32,
+                ..EvalConfig::default()
             },
         )
         .expect("init VM");

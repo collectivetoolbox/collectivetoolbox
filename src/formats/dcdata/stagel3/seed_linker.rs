@@ -34,14 +34,14 @@ use crate::utilities::*;
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
-use crate::dc::DC_BEGIN_MODULE;
 use crate::seed_graph::SeedGraphIndex;
 use crate::{DcChar, DcShorthand};
 
 use super::ast::{
-    BlockItem, Expr, ImportTarget, Module, PositionalStructDecl, RoutineDecl,
-    Span, StageDialect, StageLType, StructTypeRef, SymbolTarget, TestExpected,
-    TopDecl, TopValueDecl,
+    BlockItem, BrandTypeDecl, EnumDecl, EnumVariantDecl, Expr, ImportTarget,
+    Module, NamedFieldDecl, NamedStructDecl, PositionalStructDecl,
+    RoutineDecl, Span, StageDialect, StageLType, StructTypeRef, SymbolTarget,
+    TestExpected, TopDecl, TopValueDecl,
 };
 use super::dc_tokens::{
     decode_module_from_dc_tokens, decode_top_decl_from_dc_tokens_at_line,
@@ -51,12 +51,14 @@ use super::eval::{
     TestSuiteReport, run_validated_workspace_inline_tests,
 };
 use super::parser::{
-    parse_module_with_imports, scan_direct_dc_words, scan_module_header_paths,
+    parse_module_with_imports, parse_sr3_module_with_imports,
+    scan_direct_dc_words_with_dialect, scan_module_header_paths_with_dialect,
 };
 use super::validator::{
-    ImportedSymbol, ModuleInput, NamespaceExports, RoutineSig, StructDef,
-    ValidatedModule, ValidatedWorkspace, collect_use_verb_arities_from_source,
-    is_stage2_or_sr3_path,
+    BrandTypeDef, EnumDef, EnumVariantDef, ImportedSymbol, ModuleInput,
+    NamedStructDef, NamespaceExports, RoutineSig, StructDef, ValidatedModule,
+    ValidatedWorkspace, build_stager_import_context, dialect_for_source_path,
+    is_stage2_or_sr3_path, top_decl_uses_stager,
     validate_module_with_registry_and_dc_imports_and_options, verify_psr4_path,
 };
 
@@ -65,6 +67,9 @@ enum GraphOwnerKind {
     Value { ty: StageLType },
     Routine { sig: RoutineSig },
     Struct { fields: Vec<StageLType> },
+    BrandType { is_opaque: bool, inner_ty: StageLType },
+    NamedStruct { fields: Vec<(String, StageLType)> },
+    Enum { variants: Vec<EnumVariantDef> },
 }
 
 #[derive(Debug, Clone)]
@@ -94,13 +99,40 @@ impl GraphDcOwner {
                 fields: fields.clone(),
                 dc_id: Some(dc),
             },
+            GraphOwnerKind::BrandType {
+                is_opaque,
+                inner_ty,
+            } => ImportedSymbol::BrandType {
+                namespace: self.namespace_key.clone(),
+                original_name: self.original_name.clone(),
+                is_opaque: *is_opaque,
+                inner_ty: inner_ty.clone(),
+                dc_id: Some(dc),
+            },
+            GraphOwnerKind::NamedStruct { fields } => {
+                ImportedSymbol::NamedStruct {
+                    namespace: self.namespace_key.clone(),
+                    original_name: self.original_name.clone(),
+                    fields: fields.clone(),
+                    dc_id: Some(dc),
+                }
+            }
+            GraphOwnerKind::Enum { variants } => ImportedSymbol::Enum {
+                namespace: self.namespace_key.clone(),
+                original_name: self.original_name.clone(),
+                variants: variants.clone(),
+                dc_id: Some(dc),
+            },
         }
     }
 }
 
 fn collect_dc_refs_in_owner_kind(kind: &GraphOwnerKind, out: &mut Vec<DcChar>) {
     match kind {
-        GraphOwnerKind::Value { ty } => collect_dc_refs_in_type(ty, out),
+        GraphOwnerKind::Value { ty }
+        | GraphOwnerKind::BrandType { inner_ty: ty, .. } => {
+            collect_dc_refs_in_type(ty, out);
+        }
         GraphOwnerKind::Routine { sig } => {
             collect_dc_refs_in_type(&sig.return_type, out);
             for p in &sig.params {
@@ -110,6 +142,18 @@ fn collect_dc_refs_in_owner_kind(kind: &GraphOwnerKind, out: &mut Vec<DcChar>) {
         GraphOwnerKind::Struct { fields } => {
             for f in fields {
                 collect_dc_refs_in_type(f, out);
+            }
+        }
+        GraphOwnerKind::NamedStruct { fields } => {
+            for (_, fty) in fields {
+                collect_dc_refs_in_type(fty, out);
+            }
+        }
+        GraphOwnerKind::Enum { variants } => {
+            for v in variants {
+                if let Some(p) = &v.payload {
+                    collect_dc_refs_in_type(p, out);
+                }
             }
         }
     }
@@ -164,11 +208,56 @@ fn prepare_graph_top_decl(
             let fields = s.fields.clone();
             Ok((decl, orig_name, GraphOwnerKind::Struct { fields }))
         }
-        TopDecl::Comment(_)
-        | TopDecl::BrandType(_)
-        | TopDecl::NamedStruct(_)
-        | TopDecl::Enum(_) => {
-            bail!("Decoded StageL/StageR graph item for {target_dc} is not supported here")
+        TopDecl::BrandType(b) => {
+            if let Some(name) = override_name {
+                b.name = name.to_owned();
+            }
+            b.is_pub = true;
+            b.pub_dc_syntax = false;
+            b.dc_id = Some(target_dc);
+            let orig_name = b.name.clone();
+            let kind = GraphOwnerKind::BrandType {
+                is_opaque: b.is_opaque,
+                inner_ty: b.inner_ty.clone(),
+            };
+            Ok((decl, orig_name, kind))
+        }
+        TopDecl::NamedStruct(s) => {
+            if let Some(name) = override_name {
+                s.name = name.to_owned();
+            }
+            s.is_pub = true;
+            s.pub_dc_syntax = false;
+            s.dc_id = Some(target_dc);
+            let orig_name = s.name.clone();
+            let fields = s
+                .fields
+                .iter()
+                .map(|f| (f.name.clone(), f.ty.clone()))
+                .collect();
+            Ok((decl, orig_name, GraphOwnerKind::NamedStruct { fields }))
+        }
+        TopDecl::Enum(e) => {
+            if let Some(name) = override_name {
+                e.name = name.to_owned();
+            }
+            e.is_pub = true;
+            e.pub_dc_syntax = false;
+            e.dc_id = Some(target_dc);
+            let orig_name = e.name.clone();
+            let variants = e
+                .variants
+                .iter()
+                .map(|v| EnumVariantDef {
+                    name: v.name.clone(),
+                    payload: v.payload.clone(),
+                    span: v.span,
+                })
+                .collect();
+            Ok((decl, orig_name, GraphOwnerKind::Enum { variants }))
+        }
+        TopDecl::Comment(_) => {
+            bail!("Decoded StageL/StageR graph comment for {target_dc} cannot be a named declaration")
         }
     }
 }
@@ -193,7 +282,17 @@ fn decode_graph_stagel_entry_at_line(
         return Ok(None);
     };
     let stripped = strip_comment_frames(&chars);
-    if stripped.first().copied() == Some(DC_BEGIN_MODULE) {
+    let is_module = stripped.first().copied().is_some_and(|first| {
+        let u = first.to_u128();
+        seed_graph.token_fills_canonical_or_equiv_role(
+            u,
+            crate::syntax::DcRole::BeginModule,
+        ) || seed_graph.token_fills_canonical_or_equiv_role(
+            u,
+            crate::syntax::DcRole::BeginStagerModule,
+        )
+    });
+    if is_module {
         let module = decode_module_from_dc_tokens(&chars).with_context(|| {
             format!("Failed to decode StageL Token-Dc module on {target_sh}")
         })?;
@@ -223,41 +322,22 @@ fn extract_decl_from_module(
     let mut name_matches: Vec<TopDecl> = Vec::new();
     let mut non_comment_items: Vec<TopDecl> = Vec::new();
     for item in module.items {
-        match &item {
-            TopDecl::Routine(r) => {
-                if r.dc_id == Some(target_dc) {
-                    return Ok(item);
-                }
-                if expected_name.is_some_and(|n| r.name == n) {
-                    name_matches.push(item);
-                } else {
-                    non_comment_items.push(item);
-                }
-            }
-            TopDecl::Value(v) => {
-                if v.dc_id == Some(target_dc) {
-                    return Ok(item);
-                }
-                if expected_name.is_some_and(|n| v.name == n) {
-                    name_matches.push(item);
-                } else {
-                    non_comment_items.push(item);
-                }
-            }
-            TopDecl::Struct(s) => {
-                if s.dc_id == Some(target_dc) {
-                    return Ok(item);
-                }
-                if expected_name.is_some_and(|n| s.name == n) {
-                    name_matches.push(item);
-                } else {
-                    non_comment_items.push(item);
-                }
-            }
-            TopDecl::Comment(_)
-            | TopDecl::BrandType(_)
-            | TopDecl::NamedStruct(_)
-            | TopDecl::Enum(_) => {}
+        let (dc_opt, item_name) = match &item {
+            TopDecl::Routine(r) => (r.dc_id, r.name.as_str()),
+            TopDecl::Value(v) => (v.dc_id, v.name.as_str()),
+            TopDecl::Struct(s) => (s.dc_id, s.name.as_str()),
+            TopDecl::BrandType(b) => (b.dc_id, b.name.as_str()),
+            TopDecl::NamedStruct(s) => (s.dc_id, s.name.as_str()),
+            TopDecl::Enum(e) => (e.dc_id, e.name.as_str()),
+            TopDecl::Comment(_) => continue,
+        };
+        if dc_opt == Some(target_dc) {
+            return Ok(item);
+        }
+        if expected_name.is_some_and(|n| item_name == n) {
+            name_matches.push(item);
+        } else {
+            non_comment_items.push(item);
         }
     }
     if name_matches.len() == 1
@@ -307,10 +387,22 @@ fn collect_dc_refs_in_module(module: &Module, out: &mut Vec<DcChar>) {
     }
     for decl in &module.items {
         match decl {
-            TopDecl::Comment(_)
-            | TopDecl::BrandType(_)
-            | TopDecl::NamedStruct(_)
-            | TopDecl::Enum(_) => {}
+            TopDecl::Comment(_) => {}
+            TopDecl::BrandType(b) => {
+                collect_dc_refs_in_type(&b.inner_ty, out);
+            }
+            TopDecl::NamedStruct(NamedStructDecl { fields, .. }) => {
+                for f in fields {
+                    collect_dc_refs_in_type(&f.ty, out);
+                }
+            }
+            TopDecl::Enum(EnumDecl { variants, .. }) => {
+                for v in variants {
+                    if let Some(p) = &v.payload {
+                        collect_dc_refs_in_type(p, out);
+                    }
+                }
+            }
             TopDecl::Struct(PositionalStructDecl { fields, .. }) => {
                 for f in fields {
                     collect_dc_refs_in_type(f, out);
@@ -489,25 +581,100 @@ fn collect_dc_refs_in_expr(expr: &Expr, out: &mut Vec<DcChar>) {
             collect_dc_refs_in_expr(base, out);
             collect_dc_refs_in_expr(value, out);
         }
-        Expr::DctsString { .. }
-        | Expr::DcLit { .. }
-        | Expr::NamedStructNew { .. }
-        | Expr::EnumVariant { .. }
-        | Expr::OptionNone { .. }
-        | Expr::OptionSome { .. }
-        | Expr::ResultOk { .. }
-        | Expr::ResultErr { .. }
-        | Expr::ErrorTag { .. }
-        | Expr::NamedField { .. }
-        | Expr::NamedWith { .. }
-        | Expr::WrapNominal { .. }
-        | Expr::UnwrapNominal { .. }
-        | Expr::Match { .. }
-        | Expr::Propagate { .. }
-        | Expr::StageRUnary { .. }
-        | Expr::StageRBinary { .. }
-        | Expr::StageRTernary { .. }
-        | Expr::TotalConv { .. } => {}
+        Expr::DctsString { .. } | Expr::DcLit { .. } | Expr::ErrorTag { .. } => {
+        }
+        Expr::NamedStructNew { target, fields, .. } => {
+            if let SymbolTarget::Dc(dc) = target {
+                out.push(*dc);
+            }
+            for (_, value, _) in fields {
+                collect_dc_refs_in_expr(value, out);
+            }
+        }
+        Expr::EnumVariant {
+            enum_ty, payload, ..
+        } => {
+            if let StructTypeRef::Dc(dc) = enum_ty {
+                out.push(*dc);
+            }
+            if let Some(p) = payload {
+                collect_dc_refs_in_expr(p, out);
+            }
+        }
+        Expr::OptionNone { inner_ty, .. } => {
+            collect_dc_refs_in_type(inner_ty, out);
+        }
+        Expr::OptionSome {
+            inner_ty, value, ..
+        }
+        | Expr::ResultOk {
+            ok_ty: inner_ty,
+            value,
+            ..
+        }
+        | Expr::ResultErr {
+            ok_ty: inner_ty,
+            error: value,
+            ..
+        } => {
+            collect_dc_refs_in_type(inner_ty, out);
+            collect_dc_refs_in_expr(value, out);
+        }
+        Expr::NamedField { base, .. }
+        | Expr::UnwrapNominal { expr: base, .. }
+        | Expr::Propagate { expr: base, .. }
+        | Expr::StageRUnary { operand: base, .. } => {
+            collect_dc_refs_in_expr(base, out);
+        }
+        Expr::NamedWith { base, value, .. }
+        | Expr::StageRBinary {
+            left: base,
+            right: value,
+            ..
+        } => {
+            collect_dc_refs_in_expr(base, out);
+            collect_dc_refs_in_expr(value, out);
+        }
+        Expr::StageRTernary {
+            first,
+            second,
+            third,
+            ..
+        } => {
+            collect_dc_refs_in_expr(first, out);
+            collect_dc_refs_in_expr(second, out);
+            collect_dc_refs_in_expr(third, out);
+        }
+        Expr::WrapNominal {
+            expr: inner,
+            target_ty,
+            ..
+        }
+        | Expr::TotalConv {
+            expr: inner,
+            target_ty,
+            ..
+        } => {
+            collect_dc_refs_in_type(target_ty, out);
+            collect_dc_refs_in_expr(inner, out);
+        }
+        Expr::Match {
+            scrutinee,
+            arms,
+            fallback,
+            ..
+        } => {
+            collect_dc_refs_in_expr(scrutinee, out);
+            for arm in arms {
+                if let Some((ty, _, _)) = &arm.binding {
+                    collect_dc_refs_in_type(ty, out);
+                }
+                collect_dc_refs_in_expr(&arm.body, out);
+            }
+            if let Some(fb) = fallback {
+                collect_dc_refs_in_expr(fb, out);
+            }
+        }
     }
 }
 
@@ -529,10 +696,22 @@ fn collect_locally_defined_dcs(module: &Module, out: &mut HashSet<DcChar>) {
                     out.insert(dc);
                 }
             }
-            TopDecl::Comment(_)
-            | TopDecl::BrandType(_)
-            | TopDecl::NamedStruct(_)
-            | TopDecl::Enum(_) => {}
+            TopDecl::BrandType(b) => {
+                if let Some(dc) = b.dc_id {
+                    out.insert(dc);
+                }
+            }
+            TopDecl::NamedStruct(s) => {
+                if let Some(dc) = s.dc_id {
+                    out.insert(dc);
+                }
+            }
+            TopDecl::Enum(e) => {
+                if let Some(dc) = e.dc_id {
+                    out.insert(dc);
+                }
+            }
+            TopDecl::Comment(_) => {}
         }
     }
 }
@@ -616,6 +795,61 @@ fn reconstruct_external_namespace_module(
                         },
                     );
                 }
+                GraphOwnerKind::BrandType {
+                    is_opaque,
+                    inner_ty,
+                } => {
+                    ensure!(
+                        !prelim_exports.brand_types.contains_key(&orig_name),
+                        "Duplicate exported type '{orig_name}' in namespace '{ns_key}'"
+                    );
+                    prelim_exports.brand_types.insert(
+                        orig_name.clone(),
+                        BrandTypeDef {
+                            namespace: Some(ns_key.clone()),
+                            original_name: orig_name.clone(),
+                            is_opaque: *is_opaque,
+                            inner_ty: inner_ty.clone(),
+                            is_pub: true,
+                            dc_id: Some(target_dc),
+                            span: Span { line: 1, col: 1 },
+                        },
+                    );
+                }
+                GraphOwnerKind::NamedStruct { fields } => {
+                    ensure!(
+                        !prelim_exports.named_structs.contains_key(&orig_name),
+                        "Duplicate exported named struct '{orig_name}' in namespace '{ns_key}'"
+                    );
+                    prelim_exports.named_structs.insert(
+                        orig_name.clone(),
+                        NamedStructDef {
+                            namespace: Some(ns_key.clone()),
+                            original_name: orig_name.clone(),
+                            fields: fields.clone(),
+                            is_pub: true,
+                            dc_id: Some(target_dc),
+                            span: Span { line: 1, col: 1 },
+                        },
+                    );
+                }
+                GraphOwnerKind::Enum { variants } => {
+                    ensure!(
+                        !prelim_exports.enums.contains_key(&orig_name),
+                        "Duplicate exported enum '{orig_name}' in namespace '{ns_key}'"
+                    );
+                    prelim_exports.enums.insert(
+                        orig_name.clone(),
+                        EnumDef {
+                            namespace: Some(ns_key.clone()),
+                            original_name: orig_name.clone(),
+                            variants: variants.clone(),
+                            is_pub: true,
+                            dc_id: Some(target_dc),
+                            span: Span { line: 1, col: 1 },
+                        },
+                    );
+                }
             }
             prelim_exports
                 .by_dc
@@ -625,8 +859,13 @@ fn reconstruct_external_namespace_module(
         }
     }
 
+    let dialect = if items.iter().any(top_decl_uses_stager) {
+        StageDialect::StageR3
+    } else {
+        StageDialect::StageL3
+    };
     let module = Module {
-        dialect: StageDialect::StageL3,
+        dialect,
         leading_comments: Vec::new(),
         namespace: Some(ns_segs.to_vec()),
         uses: Vec::new(),
@@ -701,15 +940,106 @@ fn topo_sort_all_modules(
     Ok(order)
 }
 
-/// Links pre-parsed StageL `Module`s against external namespaces and transitive
-/// `dc/<shorthand>` Token-Dc helpers in `seed_graph`, returning a topologically
-/// ordered [`ValidatedWorkspace`].
+/// Links pre-parsed StageL/StageR `Module`s against external namespaces and
+/// transitive `dc/<shorthand>` Token-Dc helpers in `seed_graph`, returning a
+/// topologically ordered [`ValidatedWorkspace`].
 pub fn link_parsed_modules_with_seed_graph(
     caller_modules: Vec<Module>,
     seed_graph: &SeedGraphIndex,
 ) -> Result<ValidatedWorkspace> {
-    let tagged = caller_modules.into_iter().map(|m| (m, false)).collect();
+    let tagged = caller_modules
+        .into_iter()
+        .map(|m| {
+            let forbid = m.dialect == StageDialect::StageR3;
+            (m, forbid)
+        })
+        .collect();
     link_parsed_modules_with_seed_graph_and_flags(tagged, seed_graph)
+}
+
+fn claim_graph_item_owner(
+    item: &mut TopDecl,
+    target_dc: DcChar,
+    ns_key: &str,
+    force_claim: bool,
+) -> Option<GraphDcOwner> {
+    let matches_dc = |dc_id: Option<DcChar>| force_claim || dc_id == Some(target_dc);
+    let (original_name, kind) = match item {
+        TopDecl::Routine(r) if matches_dc(r.dc_id) => {
+            r.is_pub = true;
+            r.pub_dc_syntax = false;
+            r.dc_id = Some(target_dc);
+            let sig = sig_for_routine_decl(r);
+            (r.name.clone(), GraphOwnerKind::Routine { sig })
+        }
+        TopDecl::Value(v) if matches_dc(v.dc_id) => {
+            v.is_pub = true;
+            v.pub_dc_syntax = false;
+            v.dc_id = Some(target_dc);
+            (v.name.clone(), GraphOwnerKind::Value { ty: v.ty.clone() })
+        }
+        TopDecl::Struct(s) if matches_dc(s.dc_id) => {
+            s.is_pub = true;
+            s.pub_dc_syntax = false;
+            s.dc_id = Some(target_dc);
+            (
+                s.name.clone(),
+                GraphOwnerKind::Struct {
+                    fields: s.fields.clone(),
+                },
+            )
+        }
+        TopDecl::BrandType(b) if matches_dc(b.dc_id) => {
+            b.is_pub = true;
+            b.pub_dc_syntax = false;
+            b.dc_id = Some(target_dc);
+            (
+                b.name.clone(),
+                GraphOwnerKind::BrandType {
+                    is_opaque: b.is_opaque,
+                    inner_ty: b.inner_ty.clone(),
+                },
+            )
+        }
+        TopDecl::NamedStruct(s) if matches_dc(s.dc_id) => {
+            s.is_pub = true;
+            s.pub_dc_syntax = false;
+            s.dc_id = Some(target_dc);
+            let fields = s
+                .fields
+                .iter()
+                .map(|f| (f.name.clone(), f.ty.clone()))
+                .collect();
+            (s.name.clone(), GraphOwnerKind::NamedStruct { fields })
+        }
+        TopDecl::Enum(e) if matches_dc(e.dc_id) => {
+            e.is_pub = true;
+            e.pub_dc_syntax = false;
+            e.dc_id = Some(target_dc);
+            let variants = e
+                .variants
+                .iter()
+                .map(|v| EnumVariantDef {
+                    name: v.name.clone(),
+                    payload: v.payload.clone(),
+                    span: v.span,
+                })
+                .collect();
+            (e.name.clone(), GraphOwnerKind::Enum { variants })
+        }
+        TopDecl::Routine(_)
+        | TopDecl::Value(_)
+        | TopDecl::Struct(_)
+        | TopDecl::BrandType(_)
+        | TopDecl::NamedStruct(_)
+        | TopDecl::Enum(_)
+        | TopDecl::Comment(_) => return None,
+    };
+    Some(GraphDcOwner {
+        namespace_key: ns_key.to_owned(),
+        original_name,
+        kind,
+    })
 }
 
 struct AssembledGraphModules {
@@ -807,9 +1137,14 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                         kind,
                     },
                 );
+                let dialect = if top_decl_uses_stager(&prepared_decl) {
+                    StageDialect::StageR3
+                } else {
+                    StageDialect::StageL3
+                };
                 (
                     Module {
-                        dialect: StageDialect::StageL3,
+                        dialect,
                         leading_comments: Vec::new(),
                         namespace: Some(vec![synth_ns_seg.clone()]),
                         uses: Vec::new(),
@@ -836,128 +1171,31 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                 };
                 let mut matched = false;
                 for item in &mut m.items {
-                    match item {
-                        TopDecl::Routine(r) => {
-                            r.tests.clear();
-                            if r.dc_id == Some(dc) {
-                                r.is_pub = true;
-                                r.pub_dc_syntax = false;
-                                let sig = sig_for_routine_decl(r);
-                                dc_owners.insert(
-                                    dc,
-                                    GraphDcOwner {
-                                        namespace_key: ns_key.clone(),
-                                        original_name: r.name.clone(),
-                                        kind: GraphOwnerKind::Routine { sig },
-                                    },
-                                );
-                                matched = true;
-                            }
-                        }
-                        TopDecl::Value(v) => {
-                            if v.dc_id == Some(dc) {
-                                v.is_pub = true;
-                                v.pub_dc_syntax = false;
-                                dc_owners.insert(
-                                    dc,
-                                    GraphDcOwner {
-                                        namespace_key: ns_key.clone(),
-                                        original_name: v.name.clone(),
-                                        kind: GraphOwnerKind::Value {
-                                            ty: v.ty.clone(),
-                                        },
-                                    },
-                                );
-                                matched = true;
-                            }
-                        }
-                        TopDecl::Struct(s) => {
-                            if s.dc_id == Some(dc) {
-                                s.is_pub = true;
-                                s.pub_dc_syntax = false;
-                                dc_owners.insert(
-                                    dc,
-                                    GraphDcOwner {
-                                        namespace_key: ns_key.clone(),
-                                        original_name: s.name.clone(),
-                                        kind: GraphOwnerKind::Struct {
-                                            fields: s.fields.clone(),
-                                        },
-                                    },
-                                );
-                                matched = true;
-                            }
-                        }
-                        TopDecl::Comment(_)
-            | TopDecl::BrandType(_)
-            | TopDecl::NamedStruct(_)
-            | TopDecl::Enum(_) => {}
+                    if let TopDecl::Routine(r) = item {
+                        r.tests.clear();
+                    }
+                    if let Some(owner) =
+                        claim_graph_item_owner(item, dc, &ns_key, false)
+                    {
+                        dc_owners.insert(dc, owner);
+                        matched = true;
                     }
                 }
                 if !matched {
                     // Single-item module fallback when `dc_id` was carried on the enclosing entity.
                     for item in &mut m.items {
-                        match item {
-                            TopDecl::Routine(r) => {
-                                r.is_pub = true;
-                                r.pub_dc_syntax = false;
-                                r.dc_id = Some(dc);
-                                let sig = sig_for_routine_decl(r);
-                                dc_owners.insert(
-                                    dc,
-                                    GraphDcOwner {
-                                        namespace_key: ns_key.clone(),
-                                        original_name: r.name.clone(),
-                                        kind: GraphOwnerKind::Routine { sig },
-                                    },
-                                );
-                                matched = true;
-                                break;
-                            }
-                            TopDecl::Value(v) => {
-                                v.is_pub = true;
-                                v.pub_dc_syntax = false;
-                                v.dc_id = Some(dc);
-                                dc_owners.insert(
-                                    dc,
-                                    GraphDcOwner {
-                                        namespace_key: ns_key.clone(),
-                                        original_name: v.name.clone(),
-                                        kind: GraphOwnerKind::Value {
-                                            ty: v.ty.clone(),
-                                        },
-                                    },
-                                );
-                                matched = true;
-                                break;
-                            }
-                            TopDecl::Struct(s) => {
-                                s.is_pub = true;
-                                s.pub_dc_syntax = false;
-                                s.dc_id = Some(dc);
-                                dc_owners.insert(
-                                    dc,
-                                    GraphDcOwner {
-                                        namespace_key: ns_key.clone(),
-                                        original_name: s.name.clone(),
-                                        kind: GraphOwnerKind::Struct {
-                                            fields: s.fields.clone(),
-                                        },
-                                    },
-                                );
-                                matched = true;
-                                break;
-                            }
-                            TopDecl::Comment(_)
-            | TopDecl::BrandType(_)
-            | TopDecl::NamedStruct(_)
-            | TopDecl::Enum(_) => {}
+                        if let Some(owner) =
+                            claim_graph_item_owner(item, dc, &ns_key, true)
+                        {
+                            dc_owners.insert(dc, owner);
+                            matched = true;
+                            break;
                         }
                     }
                 }
                 ensure!(
                     matched,
-                    "StageL Token-Dc module on {sh} contains no routine, struct, or constant declaration"
+                    "StageL/StageR Token-Dc module on {sh} contains no declaration"
                 );
                 // If this graph module itself has external `use` declarations, resolve them too.
                 for u in &m.uses {
@@ -1134,18 +1372,233 @@ fn link_parsed_modules_with_seed_graph_and_flags(
     })
 }
 
-/// Parses and validates a multi-module `.sl3` workspace, resolving any external
-/// `use` namespaces and transitive `dc/<shorthand>` Token-Dc helpers from
-/// `seed_graph`.
-pub fn parse_and_validate_workspace_with_seed_graph(
+fn parse_source_with_seed_graph_context(
+    source: &str,
+    dialect: StageDialect,
+    pre_ns_exports: &HashMap<String, NamespaceExports>,
+    seed_graph: &SeedGraphIndex,
+) -> Result<Module> {
+    let mut dc_import_map: HashMap<DcChar, ImportedSymbol> = HashMap::new();
+    for (_dc_word, dc) in scan_direct_dc_words_with_dialect(source, dialect)? {
+        if dc_import_map.contains_key(&dc) {
+            continue;
+        }
+        if let Some(sym) =
+            pre_ns_exports.values().find_map(|exp| exp.by_dc.get(&dc))
+        {
+            dc_import_map.insert(dc, sym.clone());
+            continue;
+        }
+        let sh = DcShorthand::from_global_id(dc.to_u128());
+        if let Some((_, entry)) = decode_graph_stagel_entry(seed_graph, sh)? {
+            let decl_res = match entry {
+                EitherDeclOrModule::Decl(d) => Ok(d),
+                EitherDeclOrModule::Module(m) => {
+                    extract_decl_from_module(m, dc, None, sh)
+                }
+            };
+            if let Ok(raw_decl) = decl_res
+                && let Ok((_, orig_name, kind)) =
+                    prepare_graph_top_decl(raw_decl, None, dc)
+            {
+                let owner = GraphDcOwner {
+                    namespace_key: format!("$graph_dc_{sh}"),
+                    original_name: orig_name,
+                    kind,
+                };
+                dc_import_map.insert(dc, owner.to_imported_symbol(dc));
+            }
+        }
+    }
+    let import_ctx =
+        build_stager_import_context(source, pre_ns_exports, &dc_import_map)?;
+    match dialect {
+        StageDialect::StageL3 => {
+            parse_module_with_imports(source, &import_ctx.verb_arities)
+        }
+        StageDialect::StageR3 => {
+            parse_sr3_module_with_imports(source, &import_ctx)
+        }
+    }
+}
+
+fn record_caller_prelim_exports(
+    parsed: &Module,
+    pre_ns_exports: &mut HashMap<String, NamespaceExports>,
+) {
+    let Some(segs) = &parsed.namespace else {
+        return;
+    };
+    let mut exp = NamespaceExports::default();
+    let ns_key = segs.join("/");
+    for item in &parsed.items {
+        match item {
+            TopDecl::Routine(r) if r.is_pub => {
+                let sig = RoutineSig {
+                    return_type: r.return_type.clone(),
+                    params: r.params.iter().map(|p| p.ty.clone()).collect(),
+                    is_pub: true,
+                    dc_id: r.dc_id,
+                };
+                exp.routines
+                    .entry(r.name.clone())
+                    .or_default()
+                    .push(sig.clone());
+                if let Some(dc) = r.dc_id {
+                    exp.by_dc.insert(
+                        dc,
+                        ImportedSymbol::Routine {
+                            namespace: ns_key.clone(),
+                            original_name: r.name.clone(),
+                            sig,
+                        },
+                    );
+                }
+            }
+            TopDecl::Value(v) if v.is_pub => {
+                exp.values.insert(v.name.clone(), (v.ty.clone(), v.dc_id));
+                if let Some(dc) = v.dc_id {
+                    exp.by_dc.insert(
+                        dc,
+                        ImportedSymbol::Value {
+                            namespace: ns_key.clone(),
+                            original_name: v.name.clone(),
+                            ty: v.ty.clone(),
+                            dc_id: Some(dc),
+                        },
+                    );
+                }
+            }
+            TopDecl::Struct(s) if s.is_pub => {
+                exp.structs.insert(
+                    s.name.clone(),
+                    StructDef {
+                        namespace: Some(ns_key.clone()),
+                        original_name: s.name.clone(),
+                        fields: s.fields.clone(),
+                        is_pub: true,
+                        dc_id: s.dc_id,
+                        span: s.span,
+                    },
+                );
+                if let Some(dc) = s.dc_id {
+                    exp.by_dc.insert(
+                        dc,
+                        ImportedSymbol::Struct {
+                            namespace: ns_key.clone(),
+                            original_name: s.name.clone(),
+                            fields: s.fields.clone(),
+                            dc_id: Some(dc),
+                        },
+                    );
+                }
+            }
+            TopDecl::BrandType(b) if b.is_pub => {
+                exp.brand_types.insert(
+                    b.name.clone(),
+                    BrandTypeDef {
+                        namespace: Some(ns_key.clone()),
+                        original_name: b.name.clone(),
+                        is_opaque: b.is_opaque,
+                        inner_ty: b.inner_ty.clone(),
+                        is_pub: true,
+                        dc_id: b.dc_id,
+                        span: b.span,
+                    },
+                );
+                if let Some(dc) = b.dc_id {
+                    exp.by_dc.insert(
+                        dc,
+                        ImportedSymbol::BrandType {
+                            namespace: ns_key.clone(),
+                            original_name: b.name.clone(),
+                            is_opaque: b.is_opaque,
+                            inner_ty: b.inner_ty.clone(),
+                            dc_id: Some(dc),
+                        },
+                    );
+                }
+            }
+            TopDecl::NamedStruct(s) if s.is_pub => {
+                let fields: Vec<(String, StageLType)> = s
+                    .fields
+                    .iter()
+                    .map(|f| (f.name.clone(), f.ty.clone()))
+                    .collect();
+                exp.named_structs.insert(
+                    s.name.clone(),
+                    NamedStructDef {
+                        namespace: Some(ns_key.clone()),
+                        original_name: s.name.clone(),
+                        fields: fields.clone(),
+                        is_pub: true,
+                        dc_id: s.dc_id,
+                        span: s.span,
+                    },
+                );
+                if let Some(dc) = s.dc_id {
+                    exp.by_dc.insert(
+                        dc,
+                        ImportedSymbol::NamedStruct {
+                            namespace: ns_key.clone(),
+                            original_name: s.name.clone(),
+                            fields,
+                            dc_id: Some(dc),
+                        },
+                    );
+                }
+            }
+            TopDecl::Enum(e) if e.is_pub => {
+                let variants: Vec<EnumVariantDef> = e
+                    .variants
+                    .iter()
+                    .map(|v| EnumVariantDef {
+                        name: v.name.clone(),
+                        payload: v.payload.clone(),
+                        span: v.span,
+                    })
+                    .collect();
+                exp.enums.insert(
+                    e.name.clone(),
+                    EnumDef {
+                        namespace: Some(ns_key.clone()),
+                        original_name: e.name.clone(),
+                        variants: variants.clone(),
+                        is_pub: true,
+                        dc_id: e.dc_id,
+                        span: e.span,
+                    },
+                );
+                if let Some(dc) = e.dc_id {
+                    exp.by_dc.insert(
+                        dc,
+                        ImportedSymbol::Enum {
+                            namespace: ns_key.clone(),
+                            original_name: e.name.clone(),
+                            variants,
+                            dc_id: Some(dc),
+                        },
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+    pre_ns_exports.insert(ns_key, exp);
+}
+
+fn parse_and_validate_workspace_with_seed_graph_and_dialect(
     inputs: &[ModuleInput<'_>],
     seed_graph: &SeedGraphIndex,
+    default_dialect: StageDialect,
 ) -> Result<ValidatedWorkspace> {
     let mut headers = Vec::with_capacity(inputs.len());
     let mut caller_ns_to_idx: HashMap<String, usize> = HashMap::new();
 
     for (idx, inp) in inputs.iter().enumerate() {
-        let (ns_opt, uses) = scan_module_header_paths(inp.source)?;
+        let dialect = dialect_for_source_path(inp.source_path, default_dialect);
+        let (ns_opt, uses) =
+            scan_module_header_paths_with_dialect(inp.source, dialect)?;
         let ns_key = ns_opt.as_ref().map(|segs| segs.join("/"));
         if let (Some(src_path), Some(key)) = (inp.source_path, &ns_key) {
             verify_psr4_path(src_path, key)?;
@@ -1157,14 +1610,14 @@ pub fn parse_and_validate_workspace_with_seed_graph(
             );
             caller_ns_to_idx.insert(key.clone(), idx);
         }
-        headers.push((ns_key, uses));
+        headers.push((dialect, ns_key, uses));
     }
 
     // Pre-populate `ns_exports` for external `seed_graph` namespaces so caller
-    // `use <ns>: verb ::.` headers have exact verb arities before parsing!
+    // `use <ns>: ... ::.` headers have exact verb arities and nominal/struct kinds before parsing.
     let mut pre_ns_exports: HashMap<String, NamespaceExports> = HashMap::new();
     let mut dummy_owners: HashMap<DcChar, GraphDcOwner> = HashMap::new();
-    for (ns_key, uses) in &headers {
+    for (_dialect, ns_key, uses) in &headers {
         // Reason for fallback: Anonymous caller modules format as '<anonymous>' in diagnostics.
         let caller_label = ns_key.as_deref().unwrap_or("<anonymous>");
         for u in uses {
@@ -1185,10 +1638,10 @@ pub fn parse_and_validate_workspace_with_seed_graph(
     }
 
     // Topologically order the caller modules among themselves so intra-caller
-    // `use` verb arities are known when parsing dependent caller modules.
+    // imports are known when parsing dependent caller modules.
     let mut caller_deps: Vec<Vec<usize>> = Vec::with_capacity(inputs.len());
     let mut caller_labels: Vec<String> = Vec::with_capacity(inputs.len());
-    for (idx, (ns_key, uses)) in headers.iter().enumerate() {
+    for (idx, (_dialect, ns_key, uses)) in headers.iter().enumerate() {
         // Reason for fallback: anonymous caller modules without a `namespace` declaration are labeled by index for diagnostics.
         let label = ns_key
             .clone()
@@ -1215,104 +1668,17 @@ pub fn parse_and_validate_workspace_with_seed_graph(
         vec![None; inputs.len()];
     for idx in caller_order {
         let inp = inputs.get(idx).context("Invalid caller module index")?;
-        let mut arities =
-            collect_use_verb_arities_from_source(inp.source, &pre_ns_exports)?;
-        for (dc_word, dc) in scan_direct_dc_words(inp.source)? {
-            if arities.contains_key(&dc_word) {
-                continue;
-            }
-            let sh = DcShorthand::from_global_id(dc.to_u128());
-            if let Some((_, entry)) = decode_graph_stagel_entry(seed_graph, sh)?
-            {
-                let decl_opt = match entry {
-                    EitherDeclOrModule::Decl(d) => Some(d),
-                    EitherDeclOrModule::Module(m) => {
-                        extract_decl_from_module(m, dc, None, sh).ok()
-                    }
-                };
-                if let Some(TopDecl::Routine(r)) = decl_opt {
-                    arities.insert(dc_word, r.params.len());
-                }
-            }
-        }
-
-        let parsed = parse_module_with_imports(inp.source, &arities)?;
-        // Record caller exports in `pre_ns_exports` so downstream caller modules can parse `use` calls.
-        if let Some(segs) = &parsed.namespace {
-            let mut exp = NamespaceExports::default();
-            let ns_key = segs.join("/");
-            for item in &parsed.items {
-                match item {
-                    TopDecl::Routine(r) if r.is_pub => {
-                        let sig = RoutineSig {
-                            return_type: r.return_type.clone(),
-                            params: r
-                                .params
-                                .iter()
-                                .map(|p| p.ty.clone())
-                                .collect(),
-                            is_pub: true,
-                            dc_id: r.dc_id,
-                        };
-                        exp.routines
-                            .entry(r.name.clone())
-                            .or_default()
-                            .push(sig.clone());
-                        if let Some(dc) = r.dc_id {
-                            exp.by_dc.insert(
-                                dc,
-                                ImportedSymbol::Routine {
-                                    namespace: ns_key.clone(),
-                                    original_name: r.name.clone(),
-                                    sig,
-                                },
-                            );
-                        }
-                    }
-                    TopDecl::Value(v) if v.is_pub => {
-                        exp.values
-                            .insert(v.name.clone(), (v.ty.clone(), v.dc_id));
-                        if let Some(dc) = v.dc_id {
-                            exp.by_dc.insert(
-                                dc,
-                                ImportedSymbol::Value {
-                                    namespace: ns_key.clone(),
-                                    original_name: v.name.clone(),
-                                    ty: v.ty.clone(),
-                                    dc_id: Some(dc),
-                                },
-                            );
-                        }
-                    }
-                    TopDecl::Struct(s) if s.is_pub => {
-                        exp.structs.insert(
-                            s.name.clone(),
-                            StructDef {
-                                namespace: Some(ns_key.clone()),
-                                original_name: s.name.clone(),
-                                fields: s.fields.clone(),
-                                is_pub: true,
-                                dc_id: s.dc_id,
-                                span: s.span,
-                            },
-                        );
-                        if let Some(dc) = s.dc_id {
-                            exp.by_dc.insert(
-                                dc,
-                                ImportedSymbol::Struct {
-                                    namespace: ns_key.clone(),
-                                    original_name: s.name.clone(),
-                                    fields: s.fields.clone(),
-                                    dc_id: Some(dc),
-                                },
-                            );
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            pre_ns_exports.insert(ns_key, exp);
-        }
+        let dialect = headers
+            .get(idx)
+            .map(|(d, _, _)| *d)
+            .context("Invalid caller header index")?;
+        let parsed = parse_source_with_seed_graph_context(
+            inp.source,
+            dialect,
+            &pre_ns_exports,
+            seed_graph,
+        )?;
+        record_caller_prelim_exports(&parsed, &mut pre_ns_exports);
         if let Some(slot) = parsed_caller_modules.get_mut(idx) {
             *slot = Some(parsed);
         }
@@ -1321,23 +1687,51 @@ pub fn parse_and_validate_workspace_with_seed_graph(
     let mut ordered_callers = Vec::with_capacity(inputs.len());
     for (idx, opt) in parsed_caller_modules.into_iter().enumerate() {
         let parsed = opt.context("Missing parsed caller module")?;
-        let forbid = inputs
-            .get(idx)
-            .and_then(|inp| inp.source_path)
-            .is_some_and(is_stage2_or_sr3_path);
+        let forbid = parsed.dialect == StageDialect::StageR3
+            || inputs
+                .get(idx)
+                .and_then(|inp| inp.source_path)
+                .is_some_and(is_stage2_or_sr3_path);
         ordered_callers.push((parsed, forbid));
     }
 
     link_parsed_modules_with_seed_graph_and_flags(ordered_callers, seed_graph)
 }
 
-/// Parses a single `.sl3` source file using imported routine arities resolved
-/// from `seed_graph` (both `use` namespaces and direct `dc/<shorthand>` calls).
-pub fn parse_module_with_seed_graph(
+/// Parses and validates a multi-module `.sl3` workspace (and any `.sr3` /
+/// `.sri3` files identified by extension), resolving any external `use`
+/// namespaces and transitive `dc/<shorthand>` Token-Dc helpers from
+/// `seed_graph`.
+pub fn parse_and_validate_workspace_with_seed_graph(
+    inputs: &[ModuleInput<'_>],
+    seed_graph: &SeedGraphIndex,
+) -> Result<ValidatedWorkspace> {
+    parse_and_validate_workspace_with_seed_graph_and_dialect(
+        inputs,
+        seed_graph,
+        StageDialect::StageL3,
+    )
+}
+
+/// Parses and validates a multi-module StageR 3 `.sr3` / mixed `.sl3`+`.sr3`
+/// workspace against `seed_graph`.
+pub fn parse_and_validate_stager_workspace_with_seed_graph(
+    inputs: &[ModuleInput<'_>],
+    seed_graph: &SeedGraphIndex,
+) -> Result<ValidatedWorkspace> {
+    parse_and_validate_workspace_with_seed_graph_and_dialect(
+        inputs,
+        seed_graph,
+        StageDialect::StageR3,
+    )
+}
+
+fn parse_module_with_seed_graph_and_dialect(
     source: &str,
     seed_graph: &SeedGraphIndex,
+    dialect: StageDialect,
 ) -> Result<Module> {
-    let (ns_opt, uses) = scan_module_header_paths(source)?;
+    let (ns_opt, uses) = scan_module_header_paths_with_dialect(source, dialect)?;
     let ns_key = ns_opt.as_ref().map(|segs| segs.join("/"));
     // Reason for fallback: Anonymous caller modules format as '<anonymous>' in diagnostics.
     let caller_label = ns_key.as_deref().unwrap_or("<anonymous>");
@@ -1356,26 +1750,38 @@ pub fn parse_module_with_seed_graph(
         )?;
         pre_ns_exports.insert(target_key, ext_exports);
     }
-    let mut arities =
-        collect_use_verb_arities_from_source(source, &pre_ns_exports)?;
-    for (dc_word, dc) in scan_direct_dc_words(source)? {
-        if arities.contains_key(&dc_word) {
-            continue;
-        }
-        let sh = DcShorthand::from_global_id(dc.to_u128());
-        if let Some((_, entry)) = decode_graph_stagel_entry(seed_graph, sh)? {
-            let decl_opt = match entry {
-                EitherDeclOrModule::Decl(d) => Some(d),
-                EitherDeclOrModule::Module(m) => {
-                    extract_decl_from_module(m, dc, None, sh).ok()
-                }
-            };
-            if let Some(TopDecl::Routine(r)) = decl_opt {
-                arities.insert(dc_word, r.params.len());
-            }
-        }
-    }
-    parse_module_with_imports(source, &arities)
+    parse_source_with_seed_graph_context(
+        source,
+        dialect,
+        &pre_ns_exports,
+        seed_graph,
+    )
+}
+
+/// Parses a single `.sl3` source file using imported routine arities resolved
+/// from `seed_graph` (both `use` namespaces and direct `dc/<shorthand>` calls).
+pub fn parse_module_with_seed_graph(
+    source: &str,
+    seed_graph: &SeedGraphIndex,
+) -> Result<Module> {
+    parse_module_with_seed_graph_and_dialect(
+        source,
+        seed_graph,
+        StageDialect::StageL3,
+    )
+}
+
+/// Parses a single StageR 3 `.sr3` source file using imported verb arities and
+/// nominal/struct kinds resolved from `seed_graph`.
+pub fn parse_sr3_module_with_seed_graph(
+    source: &str,
+    seed_graph: &SeedGraphIndex,
+) -> Result<Module> {
+    parse_module_with_seed_graph_and_dialect(
+        source,
+        seed_graph,
+        StageDialect::StageR3,
+    )
 }
 
 /// Converts StageL 3 `.sl3` source (resolving external `use` and `dc/<shorthand>`
@@ -1385,6 +1791,16 @@ pub fn sl3_to_dc_tokens_with_seed_graph(
     seed_graph: &SeedGraphIndex,
 ) -> Result<Vec<DcChar>> {
     let module = parse_module_with_seed_graph(source, seed_graph)?;
+    encode_module_to_dc_tokens(&module)
+}
+
+/// Converts StageR 3 `.sr3` source (resolving external `use` and `dc/<shorthand>`
+/// imports against `seed_graph`) into canonical StageR Token Dcs.
+pub fn sr3_to_dc_tokens_with_seed_graph(
+    source: &str,
+    seed_graph: &SeedGraphIndex,
+) -> Result<Vec<DcChar>> {
+    let module = parse_sr3_module_with_seed_graph(source, seed_graph)?;
     encode_module_to_dc_tokens(&module)
 }
 
@@ -1402,7 +1818,22 @@ pub fn parse_and_validate_module_with_seed_graph(
     )
 }
 
-/// Validates a pre-parsed StageL `Module` against `seed_graph`.
+/// Parses and validates a single StageR 3 `.sr3` source file against
+/// `seed_graph`.
+pub fn parse_and_validate_sr3_module_with_seed_graph(
+    source: &str,
+    seed_graph: &SeedGraphIndex,
+) -> Result<ValidatedWorkspace> {
+    parse_and_validate_stager_workspace_with_seed_graph(
+        &[ModuleInput {
+            source_path: None,
+            source,
+        }],
+        seed_graph,
+    )
+}
+
+/// Validates a pre-parsed StageL/StageR `Module` against `seed_graph`.
 pub fn validate_parsed_module_with_seed_graph(
     module: &Module,
     seed_graph: &SeedGraphIndex,
@@ -1410,8 +1841,8 @@ pub fn validate_parsed_module_with_seed_graph(
     link_parsed_modules_with_seed_graph(vec![module.clone()], seed_graph)
 }
 
-/// Decodes a StageL 3 Token-Dc stream (`Dc 2192`..`Dc 2193`) and links/validates
-/// it against `seed_graph`.
+/// Decodes a StageL/StageR Token-Dc stream (`Dc 2192`..`Dc 2193` or
+/// `Dc 2218`..`Dc 2193`) and links/validates it against `seed_graph`.
 pub fn validate_dc_tokens_with_seed_graph(
     tokens: &[DcChar],
     seed_graph: &SeedGraphIndex,
@@ -1421,7 +1852,7 @@ pub fn validate_dc_tokens_with_seed_graph(
 }
 
 /// Parses, links against `seed_graph`, and executes inline `test` blocks on a
-/// single `.sl3` source file using the deterministic StageL reference evaluator.
+/// single `.sl3` source file using the deterministic reference evaluator.
 pub fn eval_sl3_inline_tests_with_seed_graph(
     source: &str,
     seed_graph: &SeedGraphIndex,
@@ -1430,13 +1861,37 @@ pub fn eval_sl3_inline_tests_with_seed_graph(
     run_validated_workspace_inline_tests(&ws)
 }
 
+/// Parses, links against `seed_graph`, and executes inline `test` blocks on a
+/// single StageR 3 `.sr3` source file using the deterministic reference
+/// evaluator.
+pub fn eval_sr3_inline_tests_with_seed_graph(
+    source: &str,
+    seed_graph: &SeedGraphIndex,
+) -> Result<TestSuiteReport> {
+    let ws =
+        parse_and_validate_sr3_module_with_seed_graph(source, seed_graph)?;
+    run_validated_workspace_inline_tests(&ws)
+}
+
 /// Parses, links against `seed_graph`, and executes inline `test` blocks across
-/// a multi-module `.sl3` workspace using the StageL reference evaluator.
+/// a multi-module `.sl3` workspace using the reference evaluator.
 pub fn eval_workspace_inline_tests_with_seed_graph(
     inputs: &[ModuleInput<'_>],
     seed_graph: &SeedGraphIndex,
 ) -> Result<TestSuiteReport> {
     let ws = parse_and_validate_workspace_with_seed_graph(inputs, seed_graph)?;
+    run_validated_workspace_inline_tests(&ws)
+}
+
+/// Parses, links against `seed_graph`, and executes inline `test` blocks across
+/// a multi-module StageR 3 `.sr3` / mixed `.sl3`+`.sr3` workspace using the
+/// reference evaluator.
+pub fn eval_stager_workspace_inline_tests_with_seed_graph(
+    inputs: &[ModuleInput<'_>],
+    seed_graph: &SeedGraphIndex,
+) -> Result<TestSuiteReport> {
+    let ws =
+        parse_and_validate_stager_workspace_with_seed_graph(inputs, seed_graph)?;
     run_validated_workspace_inline_tests(&ws)
 }
 

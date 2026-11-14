@@ -34,12 +34,17 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::ast::{
-    BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, ImportTarget,
-    Module, PositionalStructDecl, RoutineDecl, Span, StageDialect, StageLType,
+    BlockItem, BrandTypeDecl, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp,
+    EnumDecl, Expr, ImportTarget, Module, NamedStructDecl,
+    PositionalStructDecl, RoutineDecl, Span, StageDialect, StageLType,
     StructTypeRef, SymbolTarget, TestExpected, TopDecl, TopValueDecl,
-    format_dc_shorthand,
+    TypedIntLit, format_dc_shorthand,
 };
-use super::parser::{parse_module_with_imports, scan_module_header_paths};
+use super::parser::{
+    parse_module_with_imports, parse_sr3_module_with_imports,
+    scan_module_header_paths_with_dialect,
+};
+use super::stager_parser::{StageRImportContext, StageRTypeKind};
 use crate::{DcChar, DcShorthand};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -168,6 +173,70 @@ pub struct StructDef {
     pub span: Span,
 }
 
+/// Validated StageR 3 `brand` or opaque `type` definition (`Dc 2223`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BrandTypeDef {
+    /// Defining namespace path (`None` if declared in an anonymous module).
+    pub namespace: Option<String>,
+    /// Original identifier in its declaring module.
+    pub original_name: String,
+    /// `true` for module-opaque `type`, `false` for transparent `brand`.
+    pub is_opaque: bool,
+    /// Canonicalized underlying representation type.
+    pub inner_ty: StageLType,
+    /// Export visibility.
+    pub is_pub: bool,
+    /// Optional assigned graph Dc identity.
+    pub dc_id: Option<DcChar>,
+    /// Source declaration span.
+    pub span: Span,
+}
+
+/// Validated StageR 3 named-field `struct` definition (`Dc 2224`..`Dc 2225`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NamedStructDef {
+    /// Defining namespace path (`None` if declared in an anonymous module).
+    pub namespace: Option<String>,
+    /// Original struct identifier in its declaring module.
+    pub original_name: String,
+    /// Canonicalized ordered `(field_name, field_type)` pairs (`>= 1` field).
+    pub fields: Vec<(String, StageLType)>,
+    /// Export visibility.
+    pub is_pub: bool,
+    /// Optional assigned graph Dc identity.
+    pub dc_id: Option<DcChar>,
+    /// Source declaration span.
+    pub span: Span,
+}
+
+/// Canonicalized variant entry in a validated [`EnumDef`] (`Dc 2232`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnumVariantDef {
+    /// Variant identifier.
+    pub name: String,
+    /// Canonicalized optional payload type (`None` for unit variant).
+    pub payload: Option<StageLType>,
+    /// Source declaration span.
+    pub span: Span,
+}
+
+/// Validated StageR 3 closed `enum` definition (`Dc 2230`..`Dc 2231`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnumDef {
+    /// Defining namespace path (`None` if declared in an anonymous module).
+    pub namespace: Option<String>,
+    /// Original enum identifier in its declaring module.
+    pub original_name: String,
+    /// Canonicalized variants (`0` or more).
+    pub variants: Vec<EnumVariantDef>,
+    /// Export visibility.
+    pub is_pub: bool,
+    /// Optional assigned graph Dc identity.
+    pub dc_id: Option<DcChar>,
+    /// Source declaration span.
+    pub span: Span,
+}
+
 /// Exported items from one compiled namespace module.
 #[derive(Debug, Clone, Default)]
 pub struct NamespaceExports {
@@ -177,8 +246,20 @@ pub struct NamespaceExports {
     pub routines: HashMap<String, Vec<RoutineSig>>,
     /// Exported `pub` positional structs by exported name.
     pub structs: HashMap<String, StructDef>,
+    /// Exported `pub` StageR 3 `brand` / opaque `type` definitions by name.
+    pub brand_types: HashMap<String, BrandTypeDef>,
+    /// Exported `pub` StageR 3 named-field structs by name.
+    pub named_structs: HashMap<String, NamedStructDef>,
+    /// Exported `pub` StageR 3 enums by name.
+    pub enums: HashMap<String, EnumDef>,
     /// Transitive closure of canonical [`StructDef`]s reachable via this namespace's exports.
     pub all_structs: BTreeMap<(Option<String>, String), StructDef>,
+    /// Transitive closure of canonical [`BrandTypeDef`]s reachable via exports.
+    pub all_brand_types: BTreeMap<(Option<String>, String), BrandTypeDef>,
+    /// Transitive closure of canonical [`NamedStructDef`]s reachable via exports.
+    pub all_named_structs: BTreeMap<(Option<String>, String), NamedStructDef>,
+    /// Transitive closure of canonical [`EnumDef`]s reachable via exports.
+    pub all_enums: BTreeMap<(Option<String>, String), EnumDef>,
     /// Assigned Dc shorthand mappings (`dc -> ImportedSymbol`).
     pub by_dc: HashMap<DcChar, ImportedSymbol>,
 }
@@ -217,6 +298,41 @@ pub enum ImportedSymbol {
         /// Optional Dc identity.
         dc_id: Option<DcChar>,
     },
+    /// Imported `pub` StageR 3 `brand` / opaque `type` definition.
+    BrandType {
+        /// Defining namespace path key.
+        namespace: String,
+        /// Original exported nominal name.
+        original_name: String,
+        /// `true` for module-opaque `type`, `false` for transparent `brand`.
+        is_opaque: bool,
+        /// Canonicalized underlying representation type.
+        inner_ty: StageLType,
+        /// Optional Dc identity.
+        dc_id: Option<DcChar>,
+    },
+    /// Imported `pub` StageR 3 named-field `struct` type.
+    NamedStruct {
+        /// Defining namespace path key.
+        namespace: String,
+        /// Original exported struct name.
+        original_name: String,
+        /// Canonicalized ordered `(field_name, field_type)` pairs.
+        fields: Vec<(String, StageLType)>,
+        /// Optional Dc identity.
+        dc_id: Option<DcChar>,
+    },
+    /// Imported `pub` StageR 3 closed `enum` type.
+    Enum {
+        /// Defining namespace path key.
+        namespace: String,
+        /// Original exported enum name.
+        original_name: String,
+        /// Canonicalized enum variants.
+        variants: Vec<EnumVariantDef>,
+        /// Optional Dc identity.
+        dc_id: Option<DcChar>,
+    },
 }
 
 /// Metadata collected for a validated single module.
@@ -228,14 +344,24 @@ pub struct ValidatedModule {
     pub namespace_key: Option<String>,
     /// Resolved `use` bindings visible inside the module (`local_name -> candidates`).
     pub imports: HashMap<String, Vec<ImportedSymbol>>,
-    /// Direct Dc call/value/struct targets resolved from `use dc/<sh>` or System-graph linking.
+    /// Direct Dc call/value/type targets resolved from `use dc/<sh>` or System-graph linking.
     pub dc_imports: HashMap<DcChar, ImportedSymbol>,
     /// Local or imported struct names mapped to canonical `(namespace, original_name)`.
     pub local_structs: HashMap<String, (Option<String>, String)>,
     /// Local or imported struct Dcs mapped to canonical `(namespace, original_name)`.
     pub dc_structs: HashMap<DcChar, (Option<String>, String)>,
+    /// Local or imported StageR nominal names (`brand`/`type`/`enum`) mapped to canonical keys.
+    pub local_nominals: HashMap<String, (Option<String>, String)>,
+    /// Local or imported StageR nominal Dcs (`brand`/`type`/`enum`) mapped to canonical keys.
+    pub dc_nominals: HashMap<DcChar, (Option<String>, String)>,
     /// All canonical [`StructDef`]s declared or transitively reachable in this module.
     pub struct_defs: BTreeMap<(Option<String>, String), StructDef>,
+    /// All canonical [`BrandTypeDef`]s declared or transitively reachable in this module.
+    pub brand_types: BTreeMap<(Option<String>, String), BrandTypeDef>,
+    /// All canonical [`NamedStructDef`]s declared or transitively reachable in this module.
+    pub named_structs: BTreeMap<(Option<String>, String), NamedStructDef>,
+    /// All canonical [`EnumDef`]s declared or transitively reachable in this module.
+    pub enums: BTreeMap<(Option<String>, String), EnumDef>,
     /// Tail-position annotations indexed by `Span` (`line`, `col`) of `Call`.
     pub tail_calls: HashSet<(usize, usize)>,
     /// Statically resolved top-level/imported routine call targets indexed by `Span` (`line`, `col`).
@@ -244,6 +370,11 @@ pub struct ValidatedModule {
     pub resolved_values: HashMap<(usize, usize), ResolvedValueTarget>,
     /// Statically resolved positional `struct` targets for [`Expr::StructNew`] indexed by `Span` (`line`, `col`).
     pub resolved_structs: HashMap<(usize, usize), StructDef>,
+    /// Statically resolved named `struct` targets for [`Expr::NamedStructNew`] indexed by `Span` (`line`, `col`).
+    pub resolved_named_structs: HashMap<(usize, usize), NamedStructDef>,
+    /// Statically resolved `(enum_key, variant_name)` targets for [`Expr::EnumVariant`] indexed by `Span` (`line`, `col`).
+    pub resolved_enum_variants:
+        HashMap<(usize, usize), ((Option<String>, String), String)>,
     /// Statically resolved [`StageLType`] for every [`Expr::ValueRef`] site indexed by `Span` (`line`, `col`).
     pub value_ref_types: HashMap<(usize, usize), StageLType>,
     /// Canonicalized static [`StageLType`] for every validated [`Expr`] indexed by `Span` (`line`, `col`).
@@ -253,8 +384,9 @@ pub struct ValidatedModule {
 }
 
 impl ValidatedModule {
-    /// Resolves any syntactic struct type references inside `ty` to canonical
-    /// [`StructTypeRef::Canonical`] identities using this module's symbol tables.
+    /// Resolves any syntactic struct or nominal type references inside `ty` to
+    /// canonical [`StructTypeRef::Canonical`] identities using this module's
+    /// symbol tables.
     #[must_use]
     pub fn canonicalize_type(&self, ty: &StageLType) -> StageLType {
         match ty {
@@ -265,7 +397,17 @@ impl ValidatedModule {
             | StageLType::I64
             | StageLType::U64
             | StageLType::Void
-            | StageLType::Never => ty.clone(),
+            | StageLType::Never
+            | StageLType::I128
+            | StageLType::U128
+            | StageLType::Int
+            | StageLType::Rat
+            | StageLType::Dc
+            | StageLType::Dcs
+            | StageLType::S
+            | StageLType::Error
+            | StageLType::View
+            | StageLType::Cursor => ty.clone(),
             StageLType::List(inner) => {
                 StageLType::List(Box::new(self.canonicalize_type(inner)))
             }
@@ -302,17 +444,27 @@ impl ValidatedModule {
             StageLType::Result(inner) => {
                 StageLType::Result(Box::new(self.canonicalize_type(inner)))
             }
-            StageLType::I128
-            | StageLType::U128
-            | StageLType::Int
-            | StageLType::Rat
-            | StageLType::Dc
-            | StageLType::Dcs
-            | StageLType::S
-            | StageLType::Error
-            | StageLType::View
-            | StageLType::Cursor
-            | StageLType::Nominal(_) => ty.clone(),
+            StageLType::Nominal(StructTypeRef::Ident(name)) => {
+                if let Some((ns, orig)) = self.local_nominals.get(name) {
+                    StageLType::Nominal(StructTypeRef::Canonical {
+                        namespace: ns.clone(),
+                        name: orig.clone(),
+                    })
+                } else {
+                    ty.clone()
+                }
+            }
+            StageLType::Nominal(StructTypeRef::Dc(dc)) => {
+                if let Some((ns, orig)) = self.dc_nominals.get(dc) {
+                    StageLType::Nominal(StructTypeRef::Canonical {
+                        namespace: ns.clone(),
+                        name: orig.clone(),
+                    })
+                } else {
+                    ty.clone()
+                }
+            }
+            StageLType::Nominal(StructTypeRef::Canonical { .. }) => ty.clone(),
         }
     }
 
@@ -351,16 +503,43 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule> {
     validate_module_with_registry(module, &HashMap::new())
 }
 
-/// Validates a collection of `.sl3` source files (resolving PSR-4 `ns` paths
-/// and acyclic `use` DAG imports).
+/// Validates a collection of `.sl3` or `.sr3` source files (resolving PSR-4
+/// `ns` paths and acyclic `use` DAG imports).
+///
+/// Files whose `source_path` ends with `.sr3` or `.sri3` are parsed and
+/// validated as StageR 3; other paths (and `None`) default to StageL 3. Use
+/// [`parse_and_validate_stager_workspace`] when validating anonymous StageR 3
+/// sources without file paths.
 pub fn parse_and_validate_workspace(
     inputs: &[ModuleInput<'_>],
 ) -> Result<ValidatedWorkspace> {
+    parse_and_validate_workspace_with_dialect(inputs, StageDialect::StageL3)
+}
+
+/// Validates a collection of StageR 3 (`.sr3`) source modules, defaulting
+/// modules with `source_path: None` to [`StageDialect::StageR3`].
+pub fn parse_and_validate_stager_workspace(
+    inputs: &[ModuleInput<'_>],
+) -> Result<ValidatedWorkspace> {
+    parse_and_validate_workspace_with_dialect(inputs, StageDialect::StageR3)
+}
+
+/// Validates a collection of `.sl3` / `.sr3` source files using
+/// `default_dialect` for any input without a `.sl3`/`.sli3`/`.sr3`/`.sri3`
+/// file extension.
+pub fn parse_and_validate_workspace_with_dialect(
+    inputs: &[ModuleInput<'_>],
+    default_dialect: StageDialect,
+) -> Result<ValidatedWorkspace> {
+    let mut dialects = Vec::with_capacity(inputs.len());
     let mut headers = Vec::with_capacity(inputs.len());
     let mut ns_to_idx: HashMap<String, usize> = HashMap::new();
 
     for (idx, inp) in inputs.iter().enumerate() {
-        let (ns_opt, uses) = scan_module_header_paths(inp.source)?;
+        let dialect = dialect_for_source_path(inp.source_path, default_dialect);
+        dialects.push(dialect);
+        let (ns_opt, uses) =
+            scan_module_header_paths_with_dialect(inp.source, dialect)?;
         let ns_key = ns_opt.as_ref().map(|segs| segs.join("/"));
         if let (Some(src_path), Some(key)) = (inp.source_path, &ns_key) {
             verify_psr4_path(src_path, key)?;
@@ -406,16 +585,18 @@ pub fn parse_and_validate_workspace(
 
     for idx in order {
         let inp = inputs.get(idx).context("Invalid topological index")?;
+        let &dialect = dialects.get(idx).context("Invalid dialect index")?;
         let (_, uses) = headers.get(idx).context("Invalid header index")?;
         let _ = uses;
-        // First collect imported verb arities directly from the source `use`
-        // items (resolving against already-compiled dependency namespaces).
-        let (parsed, _) = parse_with_resolved_use_arities(
+        // First collect imported verb arities and StageR type kinds from `use`
+        // headers (resolving against already-compiled dependency namespaces).
+        let (parsed, _) = parse_with_resolved_use_arities_and_dialect(
             inp.source,
+            dialect,
             &ns_exports,
         )?;
-        let forbid_stagel_internal =
-            inp.source_path.is_some_and(is_stage2_or_sr3_path);
+        let forbid_stagel_internal = dialect == StageDialect::StageR3
+            || inp.source_path.is_some_and(is_stage2_or_sr3_path);
         let vm = validate_module_with_registry_and_dc_imports_and_options(
             &parsed,
             &ns_exports,
@@ -433,6 +614,26 @@ pub fn parse_and_validate_workspace(
     })
 }
 
+#[must_use]
+pub(crate) fn dialect_for_source_path(
+    source_path: Option<&str>,
+    default_dialect: StageDialect,
+) -> StageDialect {
+    match source_path {
+        Some(p) => {
+            let norm = p.replace('\\', "/");
+            if norm.ends_with(".sr3") || norm.ends_with(".sri3") {
+                StageDialect::StageR3
+            } else if norm.ends_with(".sl3") || norm.ends_with(".sli3") {
+                StageDialect::StageL3
+            } else {
+                default_dialect
+            }
+        }
+        None => default_dialect,
+    }
+}
+
 pub(crate) fn is_stage2_or_sr3_path(source_path: &str) -> bool {
     let norm = source_path.replace('\\', "/");
     norm.split('/').any(|seg| seg == "impls")
@@ -446,10 +647,13 @@ pub(crate) fn is_stagel_internal_name(name: &str) -> bool {
 
 pub(crate) fn verify_psr4_path(source_path: &str, ns_key: &str) -> Result<()> {
     let norm = source_path.replace('\\', "/");
-    let expected_suffix = format!("{ns_key}.sl3");
-    ensure!(
+    let matched = [".sl3", ".sli3", ".sr3", ".sri3"].iter().any(|ext| {
+        let expected_suffix = format!("{ns_key}{ext}");
         norm == expected_suffix
-            || norm.ends_with(&format!("/{expected_suffix}")),
+            || norm.ends_with(&format!("/{expected_suffix}"))
+    });
+    ensure!(
+        matched,
         "PSR-4 path mismatch: source file '{source_path}' does not match declared 'ns {ns_key}'"
     );
     Ok(())
@@ -520,25 +724,71 @@ fn topo_sort_modules(
     Ok(order)
 }
 
-fn parse_with_resolved_use_arities(
+fn parse_with_resolved_use_arities_and_dialect(
     source: &str,
+    dialect: StageDialect,
     ns_exports: &HashMap<String, NamespaceExports>,
 ) -> Result<(Module, HashMap<String, usize>)> {
-    // Parse with empty arities if no `use` statements exist; otherwise extract
-    // exact arities from dependency `use` headers before full parse.
-    let imported_arities =
-        collect_use_verb_arities_from_source(source, ns_exports)?;
-    let module = parse_module_with_imports(source, &imported_arities)?;
-    Ok((module, imported_arities))
+    let empty_dc_imports = HashMap::new();
+    let import_ctx = build_stager_import_context(
+        source,
+        ns_exports,
+        &empty_dc_imports,
+    )?;
+    let module = match dialect {
+        StageDialect::StageL3 => {
+            parse_module_with_imports(source, &import_ctx.verb_arities)?
+        }
+        StageDialect::StageR3 => {
+            parse_sr3_module_with_imports(source, &import_ctx)?
+        }
+    };
+    Ok((module, import_ctx.verb_arities))
 }
 
-pub(crate) fn collect_use_verb_arities_from_source(
+fn record_enum_variants_for_ctx(
+    ctx: &mut StageRImportContext,
+    key: StructTypeRef,
+    variants: &[EnumVariantDef],
+) {
+    let map: HashMap<String, bool> = variants
+        .iter()
+        .map(|v| (v.name.clone(), v.payload.is_some()))
+        .collect();
+    ctx.enum_variants.insert(key, map);
+}
+
+pub(crate) fn build_stager_import_context(
     source: &str,
     ns_exports: &HashMap<String, NamespaceExports>,
-) -> Result<HashMap<String, usize>> {
-    // Minimal header token scan for `use path: item [as alias] ... ::.`
-    // leveraging `ns_exports` so calling imported verbs parses cleanly.
-    let mut arities = HashMap::new();
+    extra_dc_imports: &HashMap<DcChar, ImportedSymbol>,
+) -> Result<StageRImportContext> {
+    let mut ctx = StageRImportContext::default();
+    for (&dc, sym) in extra_dc_imports {
+        let dc_word = format!("dc/{}", format_dc_shorthand(dc));
+        match sym {
+            ImportedSymbol::Routine { sig, .. } => {
+                ctx.verb_arities.insert(dc_word, sig.params.len());
+            }
+            ImportedSymbol::NamedStruct { .. } => {
+                ctx.type_kinds_by_dc
+                    .insert(dc, StageRTypeKind::NamedStruct);
+            }
+            ImportedSymbol::BrandType { .. } => {
+                ctx.type_kinds_by_dc.insert(dc, StageRTypeKind::Nominal);
+            }
+            ImportedSymbol::Enum { variants, .. } => {
+                ctx.type_kinds_by_dc.insert(dc, StageRTypeKind::Nominal);
+                record_enum_variants_for_ctx(
+                    &mut ctx,
+                    StructTypeRef::Dc(dc),
+                    variants,
+                );
+            }
+            ImportedSymbol::Value { .. } | ImportedSymbol::Struct { .. } => {}
+        }
+    }
+
     let mut rest = source;
     while !rest.is_empty() {
         let trimmed = rest.trim_start();
@@ -591,78 +841,177 @@ pub(crate) fn collect_use_verb_arities_from_source(
             let mut wi = 0usize;
             while let Some(&item_w) = words.get(wi) {
                 wi = wi.saturating_add(1);
-                let sym = if let Some(sh) = item_w.strip_prefix("dc/") {
+                if let Some(sh) = item_w.strip_prefix("dc/") {
                     let dc = super::ast::parse_dc_shorthand(sh)?;
-                    exports.by_dc.get(&dc).with_context(|| {
+                    let sym = exports.by_dc.get(&dc).with_context(|| {
                         format!("Namespace '{path}' does not export 'dc/{sh}'")
-                    })?
+                    })?;
+                    let has_alias = words.get(wi) == Some(&"as");
+                    let local_name = if has_alias {
+                        wi = wi.saturating_add(1);
+                        let a = *words
+                            .get(wi)
+                            .context("Expected alias after 'as'")?;
+                        wi = wi.saturating_add(1);
+                        a
+                    } else {
+                        item_w
+                    };
+                    match sym {
+                        ImportedSymbol::Routine {
+                            original_name,
+                            sig,
+                            ..
+                        } => {
+                            let new_arity = sig.params.len();
+                            if let Some(&prev_arity) =
+                                ctx.verb_arities.get(local_name)
+                            {
+                                ensure!(
+                                    prev_arity == new_arity,
+                                    "Conflicting parameter count for imported routine '{local_name}': expected {prev_arity}, found {new_arity}"
+                                );
+                            } else {
+                                ctx.verb_arities
+                                    .insert(local_name.to_owned(), new_arity);
+                            }
+                            if !has_alias {
+                                if let Some(&prev_arity) =
+                                    ctx.verb_arities.get(original_name.as_str())
+                                {
+                                    ensure!(
+                                        prev_arity == new_arity,
+                                        "Conflicting parameter count for imported routine '{original_name}': expected {prev_arity}, found {new_arity}"
+                                    );
+                                } else {
+                                    ctx.verb_arities.insert(
+                                        original_name.clone(),
+                                        new_arity,
+                                    );
+                                }
+                            }
+                        }
+                        ImportedSymbol::NamedStruct {
+                            original_name, ..
+                        } => {
+                            ctx.type_kinds_by_name.insert(
+                                local_name.to_owned(),
+                                StageRTypeKind::NamedStruct,
+                            );
+                            if !has_alias {
+                                ctx.type_kinds_by_name.insert(
+                                    original_name.clone(),
+                                    StageRTypeKind::NamedStruct,
+                                );
+                                ctx.type_kinds_by_dc
+                                    .insert(dc, StageRTypeKind::NamedStruct);
+                            }
+                        }
+                        ImportedSymbol::BrandType { original_name, .. } => {
+                            ctx.type_kinds_by_name.insert(
+                                local_name.to_owned(),
+                                StageRTypeKind::Nominal,
+                            );
+                            if !has_alias {
+                                ctx.type_kinds_by_name.insert(
+                                    original_name.clone(),
+                                    StageRTypeKind::Nominal,
+                                );
+                                ctx.type_kinds_by_dc
+                                    .insert(dc, StageRTypeKind::Nominal);
+                            }
+                        }
+                        ImportedSymbol::Enum {
+                            original_name,
+                            variants,
+                            ..
+                        } => {
+                            ctx.type_kinds_by_name.insert(
+                                local_name.to_owned(),
+                                StageRTypeKind::Nominal,
+                            );
+                            record_enum_variants_for_ctx(
+                                &mut ctx,
+                                StructTypeRef::Ident(local_name.to_owned()),
+                                variants,
+                            );
+                            if !has_alias {
+                                ctx.type_kinds_by_name.insert(
+                                    original_name.clone(),
+                                    StageRTypeKind::Nominal,
+                                );
+                                ctx.type_kinds_by_dc
+                                    .insert(dc, StageRTypeKind::Nominal);
+                                record_enum_variants_for_ctx(
+                                    &mut ctx,
+                                    StructTypeRef::Ident(original_name.clone()),
+                                    variants,
+                                );
+                                record_enum_variants_for_ctx(
+                                    &mut ctx,
+                                    StructTypeRef::Dc(dc),
+                                    variants,
+                                );
+                            }
+                        }
+                        ImportedSymbol::Value { .. }
+                        | ImportedSymbol::Struct { .. } => {}
+                    }
                 } else {
+                    let local_name = if words.get(wi) == Some(&"as") {
+                        wi = wi.saturating_add(1);
+                        let a = *words
+                            .get(wi)
+                            .context("Expected alias after 'as'")?;
+                        wi = wi.saturating_add(1);
+                        a
+                    } else {
+                        item_w
+                    };
                     if let Some(sigs) = exports.routines.get(item_w) {
                         let first_sig = sigs
                             .first()
                             .context("Empty routine export overload list")?;
-                        let local_name = if words.get(wi) == Some(&"as") {
-                            wi = wi.saturating_add(1);
-                            let a = *words.get(wi).context("Expected alias after 'as'")?;
-                            wi = wi.saturating_add(1);
-                            a
-                        } else {
-                            item_w
-                        };
-                        if let Some(&prev_arity) = arities.get(local_name) {
+                        if let Some(&prev_arity) =
+                            ctx.verb_arities.get(local_name)
+                        {
                             ensure!(
                                 prev_arity == first_sig.params.len(),
                                 "Conflicting parameter count for imported routine '{local_name}': expected {prev_arity}, found {}",
                                 first_sig.params.len()
                             );
                         } else {
-                            arities.insert(local_name.to_owned(), first_sig.params.len());
+                            ctx.verb_arities.insert(
+                                local_name.to_owned(),
+                                first_sig.params.len(),
+                            );
                         }
-                        continue;
-                    }
-                    if !exports.values.contains_key(item_w)
+                    } else if exports.named_structs.contains_key(item_w) {
+                        ctx.type_kinds_by_name.insert(
+                            local_name.to_owned(),
+                            StageRTypeKind::NamedStruct,
+                        );
+                    } else if exports.brand_types.contains_key(item_w) {
+                        ctx.type_kinds_by_name.insert(
+                            local_name.to_owned(),
+                            StageRTypeKind::Nominal,
+                        );
+                    } else if let Some(edef) = exports.enums.get(item_w) {
+                        ctx.type_kinds_by_name.insert(
+                            local_name.to_owned(),
+                            StageRTypeKind::Nominal,
+                        );
+                        record_enum_variants_for_ctx(
+                            &mut ctx,
+                            StructTypeRef::Ident(local_name.to_owned()),
+                            &edef.variants,
+                        );
+                    } else if !exports.values.contains_key(item_w)
                         && !exports.structs.contains_key(item_w)
                     {
                         bail!(
                             "Namespace '{path}' has no exported item '{item_w}'"
                         );
-                    }
-                    if words.get(wi) == Some(&"as") {
-                        wi = wi.saturating_add(2);
-                    }
-                    continue;
-                };
-                let has_alias = words.get(wi) == Some(&"as");
-                let local_name = if has_alias {
-                    wi = wi.saturating_add(1);
-                    let a = *words.get(wi).context("Expected alias after 'as'")?;
-                    wi = wi.saturating_add(1);
-                    a
-                } else {
-                    item_w
-                };
-                if let ImportedSymbol::Routine {
-                    original_name, sig, ..
-                } = sym
-                {
-                    let new_arity = sig.params.len();
-                    if let Some(&prev_arity) = arities.get(local_name) {
-                        ensure!(
-                            prev_arity == new_arity,
-                            "Conflicting parameter count for imported routine '{local_name}': expected {prev_arity}, found {new_arity}"
-                        );
-                    } else {
-                        arities.insert(local_name.to_owned(), new_arity);
-                    }
-                    if !has_alias {
-                        if let Some(&prev_arity) = arities.get(original_name.as_str()) {
-                            ensure!(
-                                prev_arity == new_arity,
-                                "Conflicting parameter count for imported routine '{original_name}': expected {prev_arity}, found {new_arity}"
-                            );
-                        } else {
-                            arities.insert(original_name.clone(), new_arity);
-                        }
                     }
                 }
             }
@@ -679,39 +1028,48 @@ pub(crate) fn collect_use_verb_arities_from_source(
         }
         break;
     }
-    Ok(arities)
+    Ok(ctx)
+}
+
+pub(crate) fn collect_use_verb_arities_from_source(
+    source: &str,
+    ns_exports: &HashMap<String, NamespaceExports>,
+) -> Result<HashMap<String, usize>> {
+    let empty_dc = HashMap::new();
+    Ok(build_stager_import_context(source, ns_exports, &empty_dc)?.verb_arities)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum BindingKind {
+pub(super) enum BindingKind {
     MutableLet,
     Const,
     Param,
     ForEachElem,
+    MatchArm,
 }
 
 #[derive(Debug, Clone)]
-struct BindingEntry {
-    id: usize,
-    ty: StageLType,
-    kind: BindingKind,
-    span: Span,
+pub(super) struct BindingEntry {
+    pub(super) id: usize,
+    pub(super) ty: StageLType,
+    pub(super) kind: BindingKind,
+    pub(super) span: Span,
 }
 
 #[derive(Debug, Clone)]
-struct NestedVerbSummary {
-    sig: RoutineSig,
+pub(super) struct NestedVerbSummary {
+    pub(super) sig: RoutineSig,
     /// Outer variable IDs read inside this nested verb without being
     /// locally reassigned inside the verb before the read.
-    captured_reads: HashSet<usize>,
+    pub(super) captured_reads: HashSet<usize>,
     /// Outer variable IDs guaranteed to be written on every normal return path.
-    always_written: HashSet<usize>,
-    captures_resolved: bool,
-    span: Span,
+    pub(super) always_written: HashSet<usize>,
+    pub(super) captures_resolved: bool,
+    pub(super) span: Span,
 }
 
 #[derive(Debug, Clone)]
-enum VerbTarget {
+pub(super) enum VerbTarget {
     Nested(usize),
 }
 
@@ -1088,7 +1446,7 @@ fn check_unguarded_struct_cycles(
     Ok(())
 }
 
-fn check_pub_dc_shorthand(dc: DcChar, span: Span) -> Result<()> {
+pub(super) fn check_pub_dc_shorthand(dc: DcChar, span: Span) -> Result<()> {
     let sh = DcShorthand::from_global_id(dc.to_u128());
     match sh {
         DcShorthand::Short(_) | DcShorthand::Format(_) => Ok(()),
@@ -1098,7 +1456,10 @@ fn check_pub_dc_shorthand(dc: DcChar, span: Span) -> Result<()> {
     }
 }
 
-fn types_compatible(actual: &StageLType, expected: &StageLType) -> bool {
+pub(super) fn types_compatible(
+    actual: &StageLType,
+    expected: &StageLType,
+) -> bool {
     actual == expected || *actual == StageLType::Never
 }
 
@@ -1138,10 +1499,13 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
     extra_dc_imports: &HashMap<DcChar, ImportedSymbol>,
     forbid_stagel_internal: bool,
 ) -> Result<ValidatedModule> {
-    ensure!(
-        module.dialect == StageDialect::StageL3,
-        "StageR 3 modules must be validated by stager_validator (not yet wired)"
-    );
+    if module.dialect == StageDialect::StageR3 {
+        return super::stager_validator::validate_stager_module(
+            module,
+            ns_exports,
+            extra_dc_imports,
+        );
+    }
     let namespace_key = module.namespace.as_ref().map(|segs| segs.join("/"));
     let mut exports = NamespaceExports::default();
     let mut imports: HashMap<String, Vec<ImportedSymbol>> = HashMap::new();
@@ -1259,6 +1623,13 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                 }
                 *fields = canon_fields;
             }
+            ImportedSymbol::BrandType { original_name, .. }
+            | ImportedSymbol::NamedStruct { original_name, .. }
+            | ImportedSymbol::Enum { original_name, .. } => {
+                bail!(
+                    "StageR 3 symbol '{original_name}' cannot be referenced inside a StageL 3 module"
+                );
+            }
         }
     }
 
@@ -1340,7 +1711,10 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                 (None, ImportTarget::Dc(_)) => match first_sym {
                     ImportedSymbol::Value { original_name, .. }
                     | ImportedSymbol::Routine { original_name, .. }
-                    | ImportedSymbol::Struct { original_name, .. } => {
+                    | ImportedSymbol::Struct { original_name, .. }
+                    | ImportedSymbol::BrandType { original_name, .. }
+                    | ImportedSymbol::NamedStruct { original_name, .. }
+                    | ImportedSymbol::Enum { original_name, .. } => {
                         original_name.clone()
                     }
                 },
@@ -1466,6 +1840,14 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                             dc_id: *dc_id,
                             span: item.span,
                         });
+                    }
+                    ImportedSymbol::BrandType { original_name, .. }
+                    | ImportedSymbol::NamedStruct { original_name, .. }
+                    | ImportedSymbol::Enum { original_name, .. } => {
+                        bail!(
+                            "StageR 3 symbol '{original_name}' cannot be imported into a StageL 3 module at {}",
+                            item.span
+                        );
                     }
                 }
                 imports
@@ -1876,18 +2258,25 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
         dc_imports,
         local_structs,
         dc_structs,
+        local_nominals: HashMap::new(),
+        dc_nominals: HashMap::new(),
         struct_defs,
+        brand_types: BTreeMap::new(),
+        named_structs: BTreeMap::new(),
+        enums: BTreeMap::new(),
         tail_calls: validator.tail_calls,
         resolved_calls: validator.resolved_calls,
         resolved_values: validator.resolved_values,
         resolved_structs: validator.resolved_structs,
+        resolved_named_structs: HashMap::new(),
+        resolved_enum_variants: HashMap::new(),
         value_ref_types: validator.value_ref_types,
         expr_types: validator.expr_types,
         exports,
     })
 }
 
-fn format_param_types(params: &[StageLType]) -> String {
+pub(super) fn format_param_types(params: &[StageLType]) -> String {
     params
         .iter()
         .map(StageLType::display_name)
@@ -1896,27 +2285,27 @@ fn format_param_types(params: &[StageLType]) -> String {
 }
 
 #[derive(Debug, Clone)]
-struct AssignState {
-    assigned: BTreeMap<usize, bool>,
+pub(super) struct AssignState {
+    pub(super) assigned: BTreeMap<usize, bool>,
 }
 
 impl AssignState {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self {
             assigned: BTreeMap::new(),
         }
     }
 
-    fn set_state(&mut self, id: usize, is_init: bool) {
+    pub(super) fn set_state(&mut self, id: usize, is_init: bool) {
         self.assigned.insert(id, is_init);
     }
 
-    fn is_assigned(&self, id: usize) -> bool {
+    pub(super) fn is_assigned(&self, id: usize) -> bool {
         // Reason for fallback: Variables not yet inserted into the assignment map are unassigned.
         self.assigned.get(&id).copied().unwrap_or(false)
     }
 
-    fn intersect_with(&mut self, other: &Self) {
+    pub(super) fn intersect_with(&mut self, other: &Self) {
         for (id, flag) in &mut self.assigned {
             if !other.is_assigned(*id) {
                 *flag = false;
@@ -1925,18 +2314,18 @@ impl AssignState {
     }
 }
 
-struct CheckCtx {
-    return_type: StageLType,
-    loop_depth: usize,
-    in_tail: bool,
-    allow_buf: bool,
+pub(super) struct CheckCtx {
+    pub(super) return_type: StageLType,
+    pub(super) loop_depth: usize,
+    pub(super) in_tail: bool,
+    pub(super) allow_buf: bool,
     /// Outer binding IDs visible at entry to the current nested routine.
-    outer_ids: HashSet<usize>,
+    pub(super) outer_ids: HashSet<usize>,
     /// Outer variable reads observed on a path where that variable was not yet
     /// assigned locally.
-    captured_reads: HashSet<usize>,
+    pub(super) captured_reads: HashSet<usize>,
     /// Binding IDs written unconditionally along normal completion paths.
-    always_written: HashSet<usize>,
+    pub(super) always_written: HashSet<usize>,
 }
 
 impl<'a> Validator<'a> {
@@ -4072,7 +4461,7 @@ fn unify_int_pair(
     }
 }
 
-fn collect_value_deps(
+pub(super) fn collect_value_deps(
     expr: &Expr,
     dc_to_name: &HashMap<DcChar, String>,
     out: &mut Vec<String>,
@@ -4099,21 +4488,48 @@ fn collect_value_deps(
                 collect_value_deps(e, dc_to_name, out);
             }
         }
-        Expr::Field { base, .. } => {
+        Expr::NamedStructNew { fields, .. } => {
+            for (_, e, _) in fields {
+                collect_value_deps(e, dc_to_name, out);
+            }
+        }
+        Expr::EnumVariant { payload, .. } => {
+            if let Some(e) = payload {
+                collect_value_deps(e, dc_to_name, out);
+            }
+        }
+        Expr::Field { base, .. }
+        | Expr::NamedField { base, .. } => {
             collect_value_deps(base, dc_to_name, out);
         }
-        Expr::With { base, value, .. } => {
+        Expr::With { base, value, .. }
+        | Expr::NamedWith { base, value, .. } => {
             collect_value_deps(base, dc_to_name, out);
             collect_value_deps(value, dc_to_name, out);
         }
-        Expr::Unary { operand, .. } => {
+        Expr::OptionSome { value, .. }
+        | Expr::ResultOk { value, .. } => {
+            collect_value_deps(value, dc_to_name, out);
+        }
+        Expr::ResultErr { error, .. } => {
+            collect_value_deps(error, dc_to_name, out);
+        }
+        Expr::Unary { operand, .. }
+        | Expr::StageRUnary { operand, .. } => {
             collect_value_deps(operand, dc_to_name, out);
         }
-        Expr::Binary { left, right, .. } => {
+        Expr::Binary { left, right, .. }
+        | Expr::StageRBinary { left, right, .. } => {
             collect_value_deps(left, dc_to_name, out);
             collect_value_deps(right, dc_to_name, out);
         }
         Expr::Ternary {
+            first,
+            second,
+            third,
+            ..
+        }
+        | Expr::StageRTernary {
             first,
             second,
             third,
@@ -4123,7 +4539,12 @@ fn collect_value_deps(
             collect_value_deps(second, dc_to_name, out);
             collect_value_deps(third, dc_to_name, out);
         }
-        Expr::Conv { expr, .. } | Expr::Bitcast { expr, .. } => {
+        Expr::Conv { expr, .. }
+        | Expr::Bitcast { expr, .. }
+        | Expr::TotalConv { expr, .. }
+        | Expr::WrapNominal { expr, .. }
+        | Expr::UnwrapNominal { expr, .. }
+        | Expr::Propagate { expr, .. } => {
             collect_value_deps(expr, dc_to_name, out);
         }
         Expr::If {
@@ -4136,7 +4557,222 @@ fn collect_value_deps(
             collect_value_deps(then_branch, dc_to_name, out);
             collect_value_deps(else_branch, dc_to_name, out);
         }
-        _ => {}
+        Expr::Match {
+            scrutinee,
+            arms,
+            fallback,
+            ..
+        } => {
+            collect_value_deps(scrutinee, dc_to_name, out);
+            for arm in arms {
+                collect_value_deps(&arm.body, dc_to_name, out);
+            }
+            if let Some(fb) = fallback {
+                collect_value_deps(fb, dc_to_name, out);
+            }
+        }
+        Expr::Block { stmts, .. } => {
+            for item in stmts {
+                if let BlockItem::Expr(e) = item {
+                    collect_value_deps(e, dc_to_name, out);
+                }
+            }
+        }
+        Expr::Bool { .. }
+        | Expr::Int { .. }
+        | Expr::Bytes { .. }
+        | Expr::BufNew { .. }
+        | Expr::Let { .. }
+        | Expr::Const { .. }
+        | Expr::Set { .. }
+        | Expr::RoutineDecl(_)
+        | Expr::Call { .. }
+        | Expr::While { .. }
+        | Expr::ForEach { .. }
+        | Expr::Break { .. }
+        | Expr::Continue { .. }
+        | Expr::Return { .. }
+        | Expr::Fault { .. }
+        | Expr::Nop { .. }
+        | Expr::DctsString { .. }
+        | Expr::DcLit { .. }
+        | Expr::OptionNone { .. }
+        | Expr::ErrorTag { .. } => {}
+    }
+}
+
+fn type_uses_stager(ty: &StageLType) -> bool {
+    match ty {
+        StageLType::B
+        | StageLType::U8
+        | StageLType::I32
+        | StageLType::U32
+        | StageLType::I64
+        | StageLType::U64
+        | StageLType::Void
+        | StageLType::Never
+        | StageLType::Struct(_) => false,
+        StageLType::List(inner) | StageLType::Buf(inner) => {
+            type_uses_stager(inner)
+        }
+        StageLType::Tuple(elems) => elems.iter().any(type_uses_stager),
+        StageLType::I128
+        | StageLType::U128
+        | StageLType::Int
+        | StageLType::Rat
+        | StageLType::Dc
+        | StageLType::Dcs
+        | StageLType::S
+        | StageLType::Error
+        | StageLType::View
+        | StageLType::Cursor
+        | StageLType::Option(_)
+        | StageLType::Result(_)
+        | StageLType::Nominal(_) => true,
+    }
+}
+
+fn expr_uses_stager(expr: &Expr) -> bool {
+    match expr {
+        Expr::Bool { .. }
+        | Expr::Bytes { .. }
+        | Expr::Break { .. }
+        | Expr::Continue { .. }
+        | Expr::Fault { .. }
+        | Expr::Nop { .. } => false,
+        Expr::Int { value, .. } => matches!(
+            value,
+            TypedIntLit::I128(_) | TypedIntLit::U128(_) | TypedIntLit::Int(_)
+        ),
+        Expr::DctsString { .. }
+        | Expr::DcLit { .. }
+        | Expr::NamedStructNew { .. }
+        | Expr::EnumVariant { .. }
+        | Expr::OptionNone { .. }
+        | Expr::OptionSome { .. }
+        | Expr::ResultOk { .. }
+        | Expr::ResultErr { .. }
+        | Expr::ErrorTag { .. }
+        | Expr::NamedField { .. }
+        | Expr::NamedWith { .. }
+        | Expr::WrapNominal { .. }
+        | Expr::UnwrapNominal { .. }
+        | Expr::Match { .. }
+        | Expr::Propagate { .. }
+        | Expr::StageRUnary { .. }
+        | Expr::StageRBinary { .. }
+        | Expr::StageRTernary { .. }
+        | Expr::TotalConv { .. } => true,
+        Expr::List {
+            elem_ty, elements, ..
+        } => {
+            type_uses_stager(elem_ty) || elements.iter().any(expr_uses_stager)
+        }
+        Expr::TupleNew { elements, .. } => {
+            elements.iter().any(expr_uses_stager)
+        }
+        Expr::StructNew { fields, .. } => fields.iter().any(expr_uses_stager),
+        Expr::Field { base, .. } => expr_uses_stager(base),
+        Expr::With { base, value, .. } => {
+            expr_uses_stager(base) || expr_uses_stager(value)
+        }
+        Expr::BufNew {
+            elem_ty, capacity, ..
+        } => type_uses_stager(elem_ty) || expr_uses_stager(capacity),
+        Expr::ValueRef { ty, .. } => ty.as_ref().is_some_and(type_uses_stager),
+        Expr::Let { ty, init, .. } => {
+            type_uses_stager(ty)
+                || init.as_deref().is_some_and(expr_uses_stager)
+        }
+        Expr::Const { ty, value, .. } => {
+            type_uses_stager(ty) || expr_uses_stager(value)
+        }
+        Expr::Set { ty, value, .. } => {
+            ty.as_ref().is_some_and(type_uses_stager) || expr_uses_stager(value)
+        }
+        Expr::RoutineDecl(r) => routine_uses_stager(r),
+        Expr::Call { args, .. } => args.iter().any(expr_uses_stager),
+        Expr::Block { stmts, .. } => stmts.iter().any(|item| match item {
+            BlockItem::Expr(e) => expr_uses_stager(e),
+            BlockItem::Comment(_) => false,
+        }),
+        Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_uses_stager(cond)
+                || expr_uses_stager(then_branch)
+                || expr_uses_stager(else_branch)
+        }
+        Expr::While { cond, body, .. } => {
+            expr_uses_stager(cond) || expr_uses_stager(body)
+        }
+        Expr::ForEach {
+            elem_ty,
+            list,
+            body,
+            ..
+        } => {
+            type_uses_stager(elem_ty)
+                || expr_uses_stager(list)
+                || expr_uses_stager(body)
+        }
+        Expr::Return { value, .. } => {
+            value.as_deref().is_some_and(expr_uses_stager)
+        }
+        Expr::Unary { operand, .. } => expr_uses_stager(operand),
+        Expr::Binary { left, right, .. } => {
+            expr_uses_stager(left) || expr_uses_stager(right)
+        }
+        Expr::Ternary {
+            first,
+            second,
+            third,
+            ..
+        } => {
+            expr_uses_stager(first)
+                || expr_uses_stager(second)
+                || expr_uses_stager(third)
+        }
+        Expr::Conv {
+            expr, target_ty, ..
+        }
+        | Expr::Bitcast {
+            expr, target_ty, ..
+        } => type_uses_stager(target_ty) || expr_uses_stager(expr),
+    }
+}
+
+fn routine_uses_stager(r: &RoutineDecl) -> bool {
+    type_uses_stager(&r.return_type)
+        || r.params.iter().any(|p| type_uses_stager(&p.ty))
+        || r.tests.iter().any(|tb| {
+            tb.cases.iter().any(|tc| {
+                tc.inputs.iter().any(expr_uses_stager)
+                    || match &tc.expected {
+                        TestExpected::Expr(e) => expr_uses_stager(e),
+                        TestExpected::Fault(_) | TestExpected::Void(_) => false,
+                    }
+            })
+        })
+        || expr_uses_stager(&r.body)
+}
+
+/// Returns `true` if a standalone [`TopDecl`] uses any StageR 3-only
+/// declaration, type, or expression construct.
+#[must_use]
+pub(crate) fn top_decl_uses_stager(decl: &TopDecl) -> bool {
+    match decl {
+        TopDecl::Struct(_) | TopDecl::Comment(_) => false,
+        TopDecl::BrandType(_) | TopDecl::NamedStruct(_) | TopDecl::Enum(_) => {
+            true
+        }
+        TopDecl::Value(v) => {
+            type_uses_stager(&v.ty) || expr_uses_stager(&v.value)
+        }
+        TopDecl::Routine(r) => routine_uses_stager(r),
     }
 }
 
@@ -4159,7 +4795,7 @@ fn collect_value_deps(
 )]
 mod tests {
     use super::*;
-    use super::super::parser::parse_module;
+    use super::super::parser::{parse_module, scan_module_header_paths};
 
     #[crate::ctb_test]
     fn test_psr4_paths_and_use_import_validation() {

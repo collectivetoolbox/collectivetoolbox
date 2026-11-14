@@ -34,8 +34,8 @@ use crate::utilities::*;
 
 use super::ast::{
     BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, RoutineDecl,
-    Span, StageLType, StructTypeRef, SymbolTarget, TestExpected, TopDecl,
-    TypedIntLit,
+    Span, StageLType, StageRErrorTag, StructTypeRef, SymbolTarget,
+    TestExpected, TopDecl, TypedIntLit,
 };
 use super::parser::parse_module;
 use super::validator::{
@@ -43,17 +43,24 @@ use super::validator::{
     parse_and_validate_workspace, validate_module,
 };
 use crate::DcChar;
+use malachite::base::num::logic::traits::SignificantBits;
+use malachite::{Integer, Rational};
+use std::collections::BTreeMap;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-/// Configuration limits for StageL 3 execution.
+/// Configuration limits for StageL 3 and StageR 3 execution.
 #[derive(Debug, Clone, Copy)]
 pub struct EvalConfig {
     /// Maximum execution steps allowed before trapping with quota exhaustion.
     pub compute_quota: u64,
     /// Maximum non-tail call depth (tail calls execute in O(1) stack).
     pub max_call_depth: usize,
+    /// Maximum significant bit-width permitted for arbitrary-precision `int`/`rat`.
+    pub max_bigint_bits: u64,
+    /// Maximum element count permitted for `l/T`, `buf/T`, `s`, or `dcs`.
+    pub max_seq_elems: usize,
 }
 
 impl Default for EvalConfig {
@@ -61,6 +68,8 @@ impl Default for EvalConfig {
         Self {
             compute_quota: 2_000_000,
             max_call_depth: 1_024,
+            max_bigint_bits: 1_048_576,
+            max_seq_elems: 1_048_576,
         }
     }
 }
@@ -74,7 +83,7 @@ pub struct BufStorage {
     pub frozen: bool,
 }
 
-/// Runtime value in StageL 3.
+/// Runtime value in StageL 3 and StageR 3.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
     /// Boolean (`b`).
@@ -89,6 +98,26 @@ pub enum Value {
     I64(i64),
     /// Unsigned 64-bit integer (`u64`).
     U64(u64),
+    /// Signed 128-bit integer (`i128`, StageR 3).
+    I128(i128),
+    /// Unsigned 128-bit integer (`u128`, StageR 3).
+    U128(u128),
+    /// Arbitrary-precision signed integer (`int`, StageR 3).
+    Int(Integer),
+    /// Exact arbitrary-precision rational (`rat`, StageR 3).
+    Rat(Rational),
+    /// Standalone Document Character scalar (`dc`, StageR 3).
+    Dc(DcChar),
+    /// Pure Document Character sequence (`dcs`, StageR 3).
+    Dcs(Rc<Vec<DcChar>>),
+    /// Mixed-mode Document Character + binary string (`s`, StageR 3).
+    S(Rc<Vec<DcChar>>),
+    /// Structured camelCase semantic error tag (`error`, StageR 3).
+    Error(StageRErrorTag),
+    /// Tagged optional value (`option/T`, StageR 3).
+    Option(Option<Box<Value>>),
+    /// Tagged fallible result (`result/T`, StageR 3).
+    Result(std::result::Result<Box<Value>, StageRErrorTag>),
     /// Unit completion value (`void`).
     Void,
     /// Immutable value-semantics list (`l/T`).
@@ -104,28 +133,56 @@ pub enum Value {
         /// Positional field values.
         fields: Rc<Vec<Value>>,
     },
+    /// Immutable StageR 3 named-field `struct` instance.
+    NamedStruct {
+        /// Canonical `(namespace, original_name)` identity of the named `struct`.
+        type_key: (Option<String>, String),
+        /// Field values keyed by field name.
+        fields: Rc<BTreeMap<String, Value>>,
+    },
+    /// Wrapped StageR 3 `brand` or opaque `type` instance.
+    NominalWrap {
+        /// Canonical `(namespace, original_name)` identity of the brand/opaque type.
+        type_key: (Option<String>, String),
+        /// Wrapped underlying value.
+        inner: Box<Value>,
+    },
+    /// StageR 3 closed `enum` variant instance.
+    EnumVariant {
+        /// Canonical `(namespace, original_name)` identity of the enum type.
+        type_key: (Option<String>, String),
+        /// Variant constructor name.
+        variant: String,
+        /// Optional variant payload value.
+        payload: Option<Box<Value>>,
+    },
 }
 
 impl Value {
-    fn from_typed_int(lit: &TypedIntLit) -> Result<Self> {
+    pub(super) fn from_typed_int(
+        lit: &TypedIntLit,
+        max_bigint_bits: u64,
+    ) -> std::result::Result<Self, String> {
         match lit {
             TypedIntLit::U8(v) => Ok(Self::U8(*v)),
             TypedIntLit::I32(v) => Ok(Self::I32(*v)),
             TypedIntLit::U32(v) => Ok(Self::U32(*v)),
             TypedIntLit::I64(v) => Ok(Self::I64(*v)),
             TypedIntLit::U64(v) => Ok(Self::U64(*v)),
-            TypedIntLit::I128(_)
-            | TypedIntLit::U128(_)
-            | TypedIntLit::Int(_) => {
-                bail!(
-                    "StageR 3 integer literal '{}' requires stager_eval",
-                    lit.display_literal()
-                )
+            TypedIntLit::I128(v) => Ok(Self::I128(*v)),
+            TypedIntLit::U128(v) => Ok(Self::U128(*v)),
+            TypedIntLit::Int(v) => {
+                if v.significant_bits() > max_bigint_bits {
+                    return Err(format!(
+                        "arbitrary-precision int literal exceeds max_bigint_bits ({max_bigint_bits})"
+                    ));
+                }
+                Ok(Self::Int(v.clone()))
             }
         }
     }
 
-    fn as_u64_index(&self, context_msg: &str) -> Result<usize> {
+    pub(super) fn as_u64_index(&self, context_msg: &str) -> Result<usize> {
         let Self::U64(n) = self else {
             bail!("{context_msg}: expected u64 index/count, found {self:?}");
         };
@@ -134,7 +191,7 @@ impl Value {
         })
     }
 
-    fn matches_stagel_type(&self, ty: &StageLType) -> bool {
+    pub(super) fn matches_stagel_type(&self, ty: &StageLType) -> bool {
         match (self, ty) {
             (Self::Bool(_), StageLType::B)
             | (Self::U8(_), StageLType::U8)
@@ -142,7 +199,23 @@ impl Value {
             | (Self::U32(_), StageLType::U32)
             | (Self::I64(_), StageLType::I64)
             | (Self::U64(_), StageLType::U64)
+            | (Self::I128(_), StageLType::I128)
+            | (Self::U128(_), StageLType::U128)
+            | (Self::Int(_), StageLType::Int)
+            | (Self::Rat(_), StageLType::Rat)
+            | (Self::Dc(_), StageLType::Dc)
+            | (Self::Dcs(_), StageLType::Dcs)
+            | (Self::S(_), StageLType::S)
+            | (Self::Error(_), StageLType::Error)
             | (Self::Void, StageLType::Void) => true,
+            (Self::Option(None), StageLType::Option(_)) => true,
+            (Self::Option(Some(inner)), StageLType::Option(inner_ty)) => {
+                inner.matches_stagel_type(inner_ty)
+            }
+            (Self::Result(Err(_)), StageLType::Result(_)) => true,
+            (Self::Result(Ok(inner)), StageLType::Result(inner_ty)) => {
+                inner.matches_stagel_type(inner_ty)
+            }
             (Self::List(elems), StageLType::List(elem_ty)) => elems
                 .first()
                 .is_none_or(|first| first.matches_stagel_type(elem_ty)),
@@ -159,8 +232,17 @@ impl Value {
                         .all(|(v, t)| v.matches_stagel_type(t))
             }
             (
-                Self::Struct { type_key, .. },
+                Self::Struct { type_key, .. }
+                | Self::NamedStruct { type_key, .. },
                 StageLType::Struct(StructTypeRef::Canonical {
+                    namespace,
+                    name,
+                }),
+            )
+            | (
+                Self::NominalWrap { type_key, .. }
+                | Self::EnumVariant { type_key, .. },
+                StageLType::Nominal(StructTypeRef::Canonical {
                     namespace,
                     name,
                 }),
@@ -240,18 +322,21 @@ impl TestSuiteReport {
 type Cell = Rc<RefCell<Option<Value>>>;
 
 #[derive(Debug, Clone)]
-struct LexFrame {
+pub(super) struct LexFrame {
     parent: Option<Rc<LexFrame>>,
-    vars: HashMap<String, Cell>,
+    pub(super) vars: HashMap<String, Cell>,
     nested_verbs: Rc<RefCell<HashMap<String, ClosureVerb>>>,
+    pub(super) return_ty: Option<StageLType>,
 }
 
 impl LexFrame {
-    fn new(parent: Option<Rc<LexFrame>>) -> Self {
+    pub(super) fn new(parent: Option<Rc<LexFrame>>) -> Self {
+        let return_ty = parent.as_ref().and_then(|p| p.return_ty.clone());
         Self {
             parent,
             vars: HashMap::new(),
             nested_verbs: Rc::new(RefCell::new(HashMap::new())),
+            return_ty,
         }
     }
 
@@ -300,7 +385,7 @@ enum CallableRoutine {
     Nested(ClosureVerb),
 }
 
-enum EvalSignal {
+pub(super) enum EvalSignal {
     Value(Value),
     Return(Value),
     Break,
@@ -318,28 +403,34 @@ enum ResolvedDcImportTarget {
     Routine { module_idx: usize, key: RoutineKey },
 }
 
-struct ModuleRuntime {
+pub(super) struct ModuleRuntime {
     #[allow(dead_code, reason = "Retained for diagnostics and debugging")]
-    namespace_key: Option<String>,
-    constants: HashMap<ValueKey, Value>,
-    dc_constants: HashMap<DcChar, ValueKey>,
-    routines: HashMap<RoutineKey, RoutineDecl>,
-    dc_routines: HashMap<DcChar, RoutineKey>,
-    resolved_values: HashMap<(usize, usize), (usize, ValueKey)>,
-    resolved_calls: HashMap<(usize, usize), (usize, RoutineKey)>,
-    resolved_structs: HashMap<(usize, usize), (Option<String>, String)>,
-    dc_structs: HashMap<DcChar, (Option<String>, String)>,
-    local_structs: HashMap<String, (Option<String>, String)>,
+    pub(super) namespace_key: Option<String>,
+    pub(super) constants: HashMap<ValueKey, Value>,
+    pub(super) dc_constants: HashMap<DcChar, ValueKey>,
+    pub(super) routines: HashMap<RoutineKey, RoutineDecl>,
+    pub(super) dc_routines: HashMap<DcChar, RoutineKey>,
+    pub(super) resolved_values: HashMap<(usize, usize), (usize, ValueKey)>,
+    pub(super) resolved_calls: HashMap<(usize, usize), (usize, RoutineKey)>,
+    pub(super) resolved_structs: HashMap<(usize, usize), (Option<String>, String)>,
+    pub(super) resolved_named_structs:
+        HashMap<(usize, usize), (Option<String>, String)>,
+    pub(super) resolved_enum_variants:
+        HashMap<(usize, usize), ((Option<String>, String), String)>,
+    pub(super) dc_structs: HashMap<DcChar, (Option<String>, String)>,
+    pub(super) local_structs: HashMap<String, (Option<String>, String)>,
+    pub(super) dc_nominals: HashMap<DcChar, (Option<String>, String)>,
+    pub(super) local_nominals: HashMap<String, (Option<String>, String)>,
     imports_by_dc: HashMap<DcChar, ResolvedDcImportTarget>,
 }
 
 /// Multi-module StageL 3 runtime VM supporting cross-namespace calls, constant
 /// evaluation, tail-call trampolining, and inline `test` execution.
 pub struct StageLWorkspaceVm {
-    modules: Vec<ModuleRuntime>,
+    pub(super) modules: Vec<ModuleRuntime>,
     #[allow(dead_code, reason = "Retained for namespace lookup diagnostics")]
     ns_to_idx: HashMap<String, usize>,
-    config: EvalConfig,
+    pub(super) config: EvalConfig,
 }
 
 impl StageLWorkspaceVm {
@@ -398,6 +489,15 @@ impl StageLWorkspaceVm {
                 );
             }
 
+            let mut resolved_named_structs =
+                HashMap::with_capacity(vm.resolved_named_structs.len());
+            for (&span_key, nsdef) in &vm.resolved_named_structs {
+                resolved_named_structs.insert(
+                    span_key,
+                    (nsdef.namespace.clone(), nsdef.original_name.clone()),
+                );
+            }
+
             let mut imports_by_dc = HashMap::new();
             for (dc, sym) in &vm.dc_imports {
                 let target = match sym {
@@ -436,7 +536,10 @@ impl StageLWorkspaceVm {
                             },
                         }
                     }
-                    ImportedSymbol::Struct { .. } => continue,
+                    ImportedSymbol::Struct { .. }
+                    | ImportedSymbol::BrandType { .. }
+                    | ImportedSymbol::NamedStruct { .. }
+                    | ImportedSymbol::Enum { .. } => continue,
                 };
                 imports_by_dc.insert(*dc, target);
             }
@@ -448,12 +551,11 @@ impl StageLWorkspaceVm {
 
             for decl in &vm.module.items {
                 match decl {
-                    TopDecl::Comment(_) | TopDecl::Struct(_) => {}
-                    TopDecl::BrandType(_)
+                    TopDecl::Comment(_)
+                    | TopDecl::Struct(_)
+                    | TopDecl::BrandType(_)
                     | TopDecl::NamedStruct(_)
-                    | TopDecl::Enum(_) => {
-                        bail!("StageR 3 declaration requires stager_eval");
-                    }
+                    | TopDecl::Enum(_) => {}
                     TopDecl::Value(v) => {
                         let vkey = vm.value_key(v);
                         if let Some(dc) = v.dc_id {
@@ -480,8 +582,12 @@ impl StageLWorkspaceVm {
                 resolved_values,
                 resolved_calls,
                 resolved_structs,
+                resolved_named_structs,
+                resolved_enum_variants: vm.resolved_enum_variants.clone(),
                 dc_structs: vm.dc_structs.clone(),
                 local_structs: vm.local_structs.clone(),
+                dc_nominals: vm.dc_nominals.clone(),
+                local_nominals: vm.local_nominals.clone(),
                 imports_by_dc,
             });
 
@@ -723,7 +829,10 @@ impl StageLWorkspaceVm {
         }
     }
 
-    fn consume_quota(&self, quota: &mut u64) -> std::result::Result<(), String> {
+    pub(super) fn consume_quota(
+        &self,
+        quota: &mut u64,
+    ) -> std::result::Result<(), String> {
         if *quota == 0 {
             return Err(String::from("compute quota exceeded"));
         }
@@ -731,7 +840,7 @@ impl StageLWorkspaceVm {
         Ok(())
     }
 
-    fn invoke_trampoline(
+    pub(super) fn invoke_trampoline(
         &self,
         mut callee: CallableRoutine,
         mut args: Vec<Value>,
@@ -770,6 +879,7 @@ impl StageLWorkspaceVm {
             };
 
             let mut frame = LexFrame::new(parent_frame);
+            frame.return_ty = Some(decl.return_type.clone());
             ensure!(
                 args.len() == decl.params.len(),
                 "Runtime argument count mismatch calling '{}': expected {}, got {}",
@@ -811,7 +921,7 @@ impl StageLWorkspaceVm {
         }
     }
 
-    fn eval_expr(
+    pub(super) fn eval_expr(
         &self,
         mod_idx: usize,
         expr: &Expr,
@@ -826,14 +936,32 @@ impl StageLWorkspaceVm {
 
         match expr {
             Expr::Bool { value, .. } => Ok(EvalSignal::Value(Value::Bool(*value))),
-            Expr::Int { value, .. } => {
-                Ok(EvalSignal::Value(Value::from_typed_int(value)?))
-            }
+            Expr::Int { value, .. } => match Value::from_typed_int(
+                value,
+                self.config.max_bigint_bits,
+            ) {
+                Ok(v) => Ok(EvalSignal::Value(v)),
+                Err(msg) => Ok(EvalSignal::Fault(msg)),
+            },
             Expr::Bytes { value, .. } => {
+                if value.len() > self.config.max_seq_elems {
+                    return Ok(EvalSignal::Fault(format!(
+                        "byte sequence length {} exceeds max_seq_elems ({})",
+                        value.len(),
+                        self.config.max_seq_elems
+                    )));
+                }
                 let elems = value.iter().copied().map(Value::U8).collect();
                 Ok(EvalSignal::Value(Value::List(Rc::new(elems))))
             }
             Expr::List { elements, .. } => {
+                if elements.len() > self.config.max_seq_elems {
+                    return Ok(EvalSignal::Fault(format!(
+                        "list length {} exceeds max_seq_elems ({})",
+                        elements.len(),
+                        self.config.max_seq_elems
+                    )));
+                }
                 let mut vals = Vec::with_capacity(elements.len());
                 for el in elements {
                     match self.eval_expr(mod_idx, el, frame, false, depth, quota)? {
@@ -850,6 +978,12 @@ impl StageLWorkspaceVm {
                         sig => return Ok(sig),
                     };
                 let cap = cap_val.as_u64_index("bufNew")?;
+                if cap > self.config.max_seq_elems {
+                    return Ok(EvalSignal::Fault(format!(
+                        "bufNew capacity {cap} exceeds max_seq_elems ({})",
+                        self.config.max_seq_elems
+                    )));
+                }
                 let storage = BufStorage {
                     elems: Vec::with_capacity(cap.min(65_536)),
                     frozen: false,
@@ -1129,19 +1263,34 @@ impl StageLWorkspaceVm {
                         EvalSignal::Value(v) => v,
                         sig => return Ok(sig),
                     };
-                let Value::List(elems) = lval else {
-                    bail!("'foreach' iterable did not evaluate to l/T");
+                enum SeqIter {
+                    Vals(Rc<Vec<Value>>),
+                    Dcs(Rc<Vec<DcChar>>),
+                }
+                let seq = match lval {
+                    Value::List(elems) => SeqIter::Vals(elems),
+                    Value::Dcs(chars) => SeqIter::Dcs(chars),
+                    _ => bail!("'foreach' iterable did not evaluate to l/T or dcs"),
+                };
+                let len = match &seq {
+                    SeqIter::Vals(v) => v.len(),
+                    SeqIter::Dcs(d) => d.len(),
                 };
                 // Snapshot ensures safe iteration.
-                for item in elems.iter() {
+                for idx in 0..len {
                     if let Err(msg) = self.consume_quota(quota) {
                         return Ok(EvalSignal::Fault(msg));
                     }
+                    let item = match &seq {
+                        SeqIter::Vals(v) => v.get(idx).cloned(),
+                        SeqIter::Dcs(d) => d.get(idx).copied().map(Value::Dc),
+                    }
+                    .context("Validated foreach index out of bounds")?;
                     let mut iter_frame =
                         LexFrame::new(Some(Rc::new(frame.clone())));
                     iter_frame.vars.insert(
                         elem_name.clone(),
-                        Rc::new(RefCell::new(Some(item.clone()))),
+                        Rc::new(RefCell::new(Some(item))),
                     );
                     match self.eval_expr(
                         mod_idx,
@@ -1220,7 +1369,7 @@ impl StageLWorkspaceVm {
                     EvalSignal::Value(v) => v,
                     sig => return Ok(sig),
                 };
-                eval_binary(*op, lv, rv)
+                eval_binary(*op, lv, rv, self.config.max_seq_elems)
             }
             Expr::Ternary {
                 op,
@@ -1418,9 +1567,8 @@ impl StageLWorkspaceVm {
             | Expr::StageRBinary { .. }
             | Expr::StageRTernary { .. }
             | Expr::TotalConv { .. } => {
-                bail!(
-                    "StageR 3 expression requires stager_eval at {}",
-                    expr.span()
+                super::stager_eval::eval_stager_expr(
+                    self, mod_idx, expr, frame, in_tail, depth, quota,
                 )
             }
         }
@@ -1636,6 +1784,8 @@ fn eval_unary(op: CoreUnaryOp, val: Value) -> Result<EvalSignal> {
             Value::U32(x) => Value::U32(!x),
             Value::I64(x) => Value::I64(!x),
             Value::U64(x) => Value::U64(!x),
+            Value::I128(x) => Value::I128(!x),
+            Value::U128(x) => Value::U128(!x),
             other => bail!("Invalid operand {other:?} for 'bitNot'"),
         })),
         CoreUnaryOp::Not => match val {
@@ -1648,6 +1798,8 @@ fn eval_unary(op: CoreUnaryOp, val: Value) -> Result<EvalSignal> {
             Value::U32(x) => x.leading_zeros(),
             Value::I64(x) => x.leading_zeros(),
             Value::U64(x) => x.leading_zeros(),
+            Value::I128(x) => x.leading_zeros(),
+            Value::U128(x) => x.leading_zeros(),
             other => bail!("Invalid operand {other:?} for 'clz'"),
         }))),
         CoreUnaryOp::Ctz => Ok(EvalSignal::Value(Value::U32(match val {
@@ -1656,6 +1808,8 @@ fn eval_unary(op: CoreUnaryOp, val: Value) -> Result<EvalSignal> {
             Value::U32(x) => x.trailing_zeros(),
             Value::I64(x) => x.trailing_zeros(),
             Value::U64(x) => x.trailing_zeros(),
+            Value::I128(x) => x.trailing_zeros(),
+            Value::U128(x) => x.trailing_zeros(),
             other => bail!("Invalid operand {other:?} for 'ctz'"),
         }))),
         CoreUnaryOp::Popcnt => Ok(EvalSignal::Value(Value::U32(match val {
@@ -1664,12 +1818,15 @@ fn eval_unary(op: CoreUnaryOp, val: Value) -> Result<EvalSignal> {
             Value::U32(x) => x.count_ones(),
             Value::I64(x) => x.count_ones(),
             Value::U64(x) => x.count_ones(),
+            Value::I128(x) => x.count_ones(),
+            Value::U128(x) => x.count_ones(),
             other => bail!("Invalid operand {other:?} for 'popcnt'"),
         }))),
         CoreUnaryOp::Len => {
             let len = match val {
                 Value::List(xs) => xs.len(),
                 Value::Buf(b) => b.borrow().elems.len(),
+                Value::Dcs(chars) => chars.len(),
                 other => bail!("Invalid operand {other:?} for 'len'"),
             };
             Ok(EvalSignal::Value(Value::U64(
@@ -1693,29 +1850,34 @@ fn eval_unary(op: CoreUnaryOp, val: Value) -> Result<EvalSignal> {
     }
 }
 
-fn eval_binary(op: CoreBinaryOp, left: Value, right: Value) -> Result<EvalSignal> {
+fn eval_binary(
+    op: CoreBinaryOp,
+    left: Value,
+    right: Value,
+    max_seq_elems: usize,
+) -> Result<EvalSignal> {
     match op {
         CoreBinaryOp::Add => checked_bin_int("add", left, right, |a, b| a.checked_add(b), |a, b| a.checked_add(b), |a, b| a.checked_add(b), |a, b| a.checked_add(b), |a, b| a.checked_add(b)),
         CoreBinaryOp::Sub => checked_bin_int("sub", left, right, |a, b| a.checked_sub(b), |a, b| a.checked_sub(b), |a, b| a.checked_sub(b), |a, b| a.checked_sub(b), |a, b| a.checked_sub(b)),
         CoreBinaryOp::Mul => checked_bin_int("mul", left, right, |a, b| a.checked_mul(b), |a, b| a.checked_mul(b), |a, b| a.checked_mul(b), |a, b| a.checked_mul(b), |a, b| a.checked_mul(b)),
         CoreBinaryOp::Div => checked_bin_int("div", left, right, |a, b| a.checked_div(b), |a, b| a.checked_div(b), |a, b| a.checked_div(b), |a, b| a.checked_div(b), |a, b| a.checked_div(b)),
         CoreBinaryOp::Rem => checked_bin_int("rem", left, right, |a, b| a.checked_rem(b), |a, b| a.checked_rem(b), |a, b| a.checked_rem(b), |a, b| a.checked_rem(b), |a, b| a.checked_rem(b)),
-        CoreBinaryOp::WrapAdd => pure_bin_int(left, right, |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b)),
-        CoreBinaryOp::WrapSub => pure_bin_int(left, right, |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b)),
-        CoreBinaryOp::WrapMul => pure_bin_int(left, right, |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b)),
-        CoreBinaryOp::BitAnd => pure_bin_int(left, right, |a, b| a & b, |a, b| a & b, |a, b| a & b, |a, b| a & b, |a, b| a & b),
-        CoreBinaryOp::BitOr => pure_bin_int(left, right, |a, b| a | b, |a, b| a | b, |a, b| a | b, |a, b| a | b, |a, b| a | b),
-        CoreBinaryOp::BitXor => pure_bin_int(left, right, |a, b| a ^ b, |a, b| a ^ b, |a, b| a ^ b, |a, b| a ^ b, |a, b| a ^ b),
+        CoreBinaryOp::WrapAdd => pure_bin_int(left, right, |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b)),
+        CoreBinaryOp::WrapSub => pure_bin_int(left, right, |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b)),
+        CoreBinaryOp::WrapMul => pure_bin_int(left, right, |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b)),
+        CoreBinaryOp::BitAnd => pure_bin_int(left, right, |a, b| a & b, |a, b| a & b, |a, b| a & b, |a, b| a & b, |a, b| a & b, |a, b| a & b, |a, b| a & b),
+        CoreBinaryOp::BitOr => pure_bin_int(left, right, |a, b| a | b, |a, b| a | b, |a, b| a | b, |a, b| a | b, |a, b| a | b, |a, b| a | b, |a, b| a | b),
+        CoreBinaryOp::BitXor => pure_bin_int(left, right, |a, b| a ^ b, |a, b| a ^ b, |a, b| a ^ b, |a, b| a ^ b, |a, b| a ^ b, |a, b| a ^ b, |a, b| a ^ b),
         CoreBinaryOp::Shl => eval_shift(true, left, right),
         CoreBinaryOp::Shr => eval_shift(false, left, right),
         CoreBinaryOp::Rotl => eval_rotate(true, left, right),
         CoreBinaryOp::Rotr => eval_rotate(false, left, right),
         CoreBinaryOp::Eq => Ok(EvalSignal::Value(Value::Bool(left == right))),
         CoreBinaryOp::Ne => Ok(EvalSignal::Value(Value::Bool(left != right))),
-        CoreBinaryOp::Lt => cmp_int(left, right, |a, b| a < b, |a, b| a < b, |a, b| a < b, |a, b| a < b, |a, b| a < b),
-        CoreBinaryOp::Le => cmp_int(left, right, |a, b| a <= b, |a, b| a <= b, |a, b| a <= b, |a, b| a <= b, |a, b| a <= b),
-        CoreBinaryOp::Gt => cmp_int(left, right, |a, b| a > b, |a, b| a > b, |a, b| a > b, |a, b| a > b, |a, b| a > b),
-        CoreBinaryOp::Ge => cmp_int(left, right, |a, b| a >= b, |a, b| a >= b, |a, b| a >= b, |a, b| a >= b, |a, b| a >= b),
+        CoreBinaryOp::Lt => cmp_numeric(&left, &right, std::cmp::Ordering::is_lt),
+        CoreBinaryOp::Le => cmp_numeric(&left, &right, std::cmp::Ordering::is_le),
+        CoreBinaryOp::Gt => cmp_numeric(&left, &right, std::cmp::Ordering::is_gt),
+        CoreBinaryOp::Ge => cmp_numeric(&left, &right, std::cmp::Ordering::is_ge),
         CoreBinaryOp::Get => {
             let idx = right.as_u64_index("get")?;
             let opt_elem = match left {
@@ -1728,17 +1890,61 @@ fn eval_binary(op: CoreBinaryOp, left: Value, right: Value) -> Result<EvalSignal
                 None => Ok(EvalSignal::Fault(format!("get index {idx} out of bounds"))),
             }
         }
-        CoreBinaryOp::Concat => {
-            let (Value::List(a), Value::List(b)) = (left, right) else {
-                bail!("Invalid operands for 'concat'");
-            };
-            let mut merged = Vec::with_capacity(a.len().saturating_add(b.len()));
-            merged.extend_from_slice(&a);
-            merged.extend_from_slice(&b);
-            Ok(EvalSignal::Value(Value::List(Rc::new(merged))))
-        }
+        CoreBinaryOp::Concat => match (left, right) {
+            (Value::List(a), Value::List(b)) => {
+                let total = a
+                    .len()
+                    .checked_add(b.len())
+                    .context("concat length overflow")?;
+                if total > max_seq_elems {
+                    return Ok(EvalSignal::Fault(format!(
+                        "concat result length {total} exceeds max_seq_elems ({max_seq_elems})"
+                    )));
+                }
+                let mut merged = Vec::with_capacity(total);
+                merged.extend_from_slice(&a);
+                merged.extend_from_slice(&b);
+                Ok(EvalSignal::Value(Value::List(Rc::new(merged))))
+            }
+            (Value::S(a), Value::S(b)) => {
+                let total = a
+                    .len()
+                    .checked_add(b.len())
+                    .context("concat length overflow")?;
+                if total > max_seq_elems {
+                    return Ok(EvalSignal::Fault(format!(
+                        "concat result length {total} exceeds max_seq_elems ({max_seq_elems})"
+                    )));
+                }
+                let mut merged = Vec::with_capacity(total);
+                merged.extend_from_slice(&a);
+                merged.extend_from_slice(&b);
+                Ok(EvalSignal::Value(Value::S(Rc::new(merged))))
+            }
+            (Value::Dcs(a), Value::Dcs(b)) => {
+                let total = a
+                    .len()
+                    .checked_add(b.len())
+                    .context("concat length overflow")?;
+                if total > max_seq_elems {
+                    return Ok(EvalSignal::Fault(format!(
+                        "concat result length {total} exceeds max_seq_elems ({max_seq_elems})"
+                    )));
+                }
+                let mut merged = Vec::with_capacity(total);
+                merged.extend_from_slice(&a);
+                merged.extend_from_slice(&b);
+                Ok(EvalSignal::Value(Value::Dcs(Rc::new(merged))))
+            }
+            _ => bail!("Invalid operands for 'concat'"),
+        },
         CoreBinaryOp::BufFill => {
             let len = right.as_u64_index("bufFill")?;
+            if len > max_seq_elems {
+                return Ok(EvalSignal::Fault(format!(
+                    "bufFill capacity {len} exceeds max_seq_elems ({max_seq_elems})"
+                )));
+            }
             let mut elems = Vec::with_capacity(len.min(65_536));
             elems.resize(len, left);
             Ok(EvalSignal::Value(Value::Buf(Rc::new(RefCell::new(BufStorage {
@@ -1756,6 +1962,11 @@ fn eval_binary(op: CoreBinaryOp, left: Value, right: Value) -> Result<EvalSignal
                     "bufPush on frozen buffer",
                 )));
             }
+            if st.elems.len() >= max_seq_elems {
+                return Ok(EvalSignal::Fault(format!(
+                    "bufPush exceeds max_seq_elems ({max_seq_elems})"
+                )));
+            }
             st.elems.push(right);
             Ok(EvalSignal::Value(Value::Void))
         }
@@ -1767,6 +1978,16 @@ fn eval_binary(op: CoreBinaryOp, left: Value, right: Value) -> Result<EvalSignal
             if st.frozen {
                 return Ok(EvalSignal::Fault(String::from(
                     "bufExtend on frozen buffer",
+                )));
+            }
+            let total = st
+                .elems
+                .len()
+                .checked_add(xs.len())
+                .context("bufExtend length overflow")?;
+            if total > max_seq_elems {
+                return Ok(EvalSignal::Fault(format!(
+                    "bufExtend result length {total} exceeds max_seq_elems ({max_seq_elems})"
                 )));
             }
             st.elems.extend_from_slice(&xs);
@@ -1806,6 +2027,10 @@ fn checked_bin_int(
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Parameterizes bitwise and wrapping arithmetic across all 7 fixed integer widths without code duplication"
+)]
 fn pure_bin_int(
     left: Value,
     right: Value,
@@ -1814,6 +2039,8 @@ fn pure_bin_int(
     f_u32: fn(u32, u32) -> u32,
     f_i64: fn(i64, i64) -> i64,
     f_u64: fn(u64, u64) -> u64,
+    f_i128: fn(i128, i128) -> i128,
+    f_u128: fn(u128, u128) -> u128,
 ) -> Result<EvalSignal> {
     let val = match (left, right) {
         (Value::U8(a), Value::U8(b)) => Value::U8(f_u8(a, b)),
@@ -1821,29 +2048,31 @@ fn pure_bin_int(
         (Value::U32(a), Value::U32(b)) => Value::U32(f_u32(a, b)),
         (Value::I64(a), Value::I64(b)) => Value::I64(f_i64(a, b)),
         (Value::U64(a), Value::U64(b)) => Value::U64(f_u64(a, b)),
+        (Value::I128(a), Value::I128(b)) => Value::I128(f_i128(a, b)),
+        (Value::U128(a), Value::U128(b)) => Value::U128(f_u128(a, b)),
         (l, r) => bail!("Mismatched types {l:?} vs {r:?} for integer op"),
     };
     Ok(EvalSignal::Value(val))
 }
 
-fn cmp_int(
-    left: Value,
-    right: Value,
-    f_u8: fn(u8, u8) -> bool,
-    f_i32: fn(i32, i32) -> bool,
-    f_u32: fn(u32, u32) -> bool,
-    f_i64: fn(i64, i64) -> bool,
-    f_u64: fn(u64, u64) -> bool,
+fn cmp_numeric(
+    left: &Value,
+    right: &Value,
+    pred: fn(std::cmp::Ordering) -> bool,
 ) -> Result<EvalSignal> {
-    let res = match (left, right) {
-        (Value::U8(a), Value::U8(b)) => f_u8(a, b),
-        (Value::I32(a), Value::I32(b)) => f_i32(a, b),
-        (Value::U32(a), Value::U32(b)) => f_u32(a, b),
-        (Value::I64(a), Value::I64(b)) => f_i64(a, b),
-        (Value::U64(a), Value::U64(b)) => f_u64(a, b),
-        (l, r) => bail!("Mismatched types {l:?} vs {r:?} for integer comparison"),
+    let ord = match (left, right) {
+        (Value::U8(a), Value::U8(b)) => a.cmp(b),
+        (Value::I32(a), Value::I32(b)) => a.cmp(b),
+        (Value::U32(a), Value::U32(b)) => a.cmp(b),
+        (Value::I64(a), Value::I64(b)) => a.cmp(b),
+        (Value::U64(a), Value::U64(b)) => a.cmp(b),
+        (Value::I128(a), Value::I128(b)) => a.cmp(b),
+        (Value::U128(a), Value::U128(b)) => a.cmp(b),
+        (Value::Int(a), Value::Int(b)) => a.cmp(b),
+        (Value::Rat(a), Value::Rat(b)) => a.cmp(b),
+        (l, r) => bail!("Mismatched types {l:?} vs {r:?} for comparison"),
     };
-    Ok(EvalSignal::Value(Value::Bool(res)))
+    Ok(EvalSignal::Value(Value::Bool(pred(ord))))
 }
 
 fn eval_shift(is_left: bool, val: Value, count: Value) -> Result<EvalSignal> {
@@ -1910,6 +2139,11 @@ fn eval_rotate(is_left: bool, val: Value, count: Value) -> Result<EvalSignal> {
             x.rotate_right(cnt)
         }),
         Value::U64(x) => Value::U64(if is_left {
+            x.rotate_left(cnt)
+        } else {
+            x.rotate_right(cnt)
+        }),
+        Value::U128(x) => Value::U128(if is_left {
             x.rotate_left(cnt)
         } else {
             x.rotate_right(cnt)
@@ -2007,6 +2241,14 @@ fn eval_bitcast(val: Value, target_ty: &StageLType) -> Result<EvalSignal> {
         (Value::U64(x), StageLType::U64) => Value::U64(x),
         (Value::U64(x), StageLType::I64) => {
             Value::I64(i64::from_le_bytes(x.to_le_bytes()))
+        }
+        (Value::I128(x), StageLType::I128) => Value::I128(x),
+        (Value::I128(x), StageLType::U128) => {
+            Value::U128(u128::from_le_bytes(x.to_le_bytes()))
+        }
+        (Value::U128(x), StageLType::U128) => Value::U128(x),
+        (Value::U128(x), StageLType::I128) => {
+            Value::I128(i128::from_le_bytes(x.to_le_bytes()))
         }
         (src, dst) => bail!("Invalid bitcast from {src:?} to {dst}"),
     };
@@ -2232,6 +2474,7 @@ pub v/u32/useImports u32/inputVal
             EvalConfig {
                 compute_quota: 5_000_000,
                 max_call_depth: 32,
+                ..EvalConfig::default()
             },
         )
         .expect("construct workspace VM");
@@ -2254,6 +2497,7 @@ v/u32/testQuota
             EvalConfig {
                 compute_quota: 250,
                 max_call_depth: 32,
+                ..EvalConfig::default()
             },
         )
         .unwrap();
