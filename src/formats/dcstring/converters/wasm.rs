@@ -2530,9 +2530,19 @@ fn decode_output_bytes_to_dcmstring(out_bytes: &[u8]) -> Result<DcMstring> {
     full.extend_from_slice(&DCMM_MAGIC);
     full.extend_from_slice(&DCMM_UUID);
     full.extend_from_slice(out_bytes);
-    DcMstring::from_bytes(full).map_err(|e| {
-        anyhow!("WASM output buffer contains invalid DcTF payload: {e}")
-    })
+    match DcMstring::from_bytes(full) {
+        Ok(mst) => Ok(mst),
+        Err(mixed_err) => {
+            if let Ok(dc_str) = DcStr::from_bytes(out_bytes)
+                && let Ok(mst) = DcMstring::from_dc_str(dc_str)
+            {
+                return Ok(mst);
+            }
+            Err(anyhow!(
+                "WASM output buffer contains invalid DcTF payload: {mixed_err}"
+            ))
+        }
+    }
 }
 
 fn read_store_global_u64(store: &Store, addr: u32) -> u64 {
@@ -4226,6 +4236,8 @@ fn expand_graph_wasm_shorthands(
     let mut visited_nodes = std::collections::HashSet::new();
     let mut visited_shorthands = std::collections::HashSet::new();
     let mut wasm_prog_depth = 0usize;
+    let mut expanded_dc_str =
+        DcString::with_capacity(shorthands.len().saturating_mul(4));
     let mut frames = vec![WasmExpansionFrame {
         iter: shorthands.iter(),
         node_id: None,
@@ -4420,7 +4432,26 @@ fn expand_graph_wasm_shorthands(
         {
             wasm_prog_depth = wasm_prog_depth.saturating_sub(1);
         }
-        out_doc.push_char(DcChar::from_u128(gid));
+        expanded_dc_str.push(DcChar::from_u128(gid));
+    }
+    let parsed_mstr = DcMstring::from_dc_str_with_policy_and_resolver(
+        &expanded_dc_str,
+        &DcProjectionPolicy::strict(),
+        resolver,
+    )?;
+    if out_doc.is_empty() {
+        *out_doc = parsed_mstr;
+    } else {
+        let mut combined = out_doc.to_dc_string_with_policy_and_resolver(
+            &DcProjectionPolicy::strict(),
+            resolver,
+        )?;
+        combined.push_dc_str(&expanded_dc_str);
+        *out_doc = DcMstring::from_dc_str_with_policy_and_resolver(
+            &combined,
+            &DcProjectionPolicy::strict(),
+            resolver,
+        )?;
     }
     Ok(())
 }

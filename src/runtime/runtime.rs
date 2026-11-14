@@ -742,10 +742,16 @@ impl SystemSupervisorAdmission {
         let wasm_chars = evaluator
             .eval_stream_splice(&dispatch_tokens, resolver)?
             .context("ConvertDcStringToWasm did not produce a Dc-WASM program")?;
-        let mut wasm_doc = DcMstring::new();
+        let mut wasm_dc_str =
+            DcString::with_capacity(wasm_chars.len().saturating_mul(4));
         for ch in wasm_chars {
-            wasm_doc.push_char(ch);
+            wasm_dc_str.push(ch);
         }
+        let wasm_doc = DcMstring::from_dc_str_with_policy_and_resolver(
+            &wasm_dc_str,
+            &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+            resolver,
+        )?;
         Ok((wasm_doc, pin_id))
     }
 }
@@ -4742,6 +4748,414 @@ mod tests {
         assert_eq!(
             trace_mid_allow.result.output.to_dc_string()?.to_string(),
             "Q"
+        );
+        Ok(())
+    }
+
+    fn sl3_source_to_dc_document(
+        src: &str,
+        sg: &SeedGraphIndex,
+        pin: Option<u128>,
+    ) -> Result<DcMstring> {
+        let tokens =
+            ctb_formats_dcstring::stagel3::seed_linker::sl3_to_dc_tokens_with_seed_graph(
+                src, sg,
+            )?;
+        let mut dc_str = DcString::with_capacity(tokens.len().saturating_mul(4));
+        if let Some(pin_id) = pin {
+            dc_str.push(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+            dc_str.push(DcChar::from_u128(pin_id));
+        }
+        for tok in tokens {
+            dc_str.push(tok);
+        }
+        DcMstring::from_dc_str(&dc_str)
+    }
+
+    fn admit_high_budget_execution_kernel() -> Result<SystemSupervisorAdmission> {
+        let mut limits = DcWasmResourceLimits::default();
+        limits.max_instructions_per_step = 100_000_000;
+        SystemSupervisorAdmission::admit_execution_kernel(
+            limits,
+            DcWasmWatchdogLimits::default(),
+        )
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_1936_executes_real_stagel3_via_pinned_self_hosted_wat_converter()
+    -> Result<()> {
+        use ctb_formats_dcstring::stagel_dc_alloc::{
+            DiscoveredStagelFile, ImplStage, reconcile_stagel_and_csv_in_memory,
+        };
+        use ctb_formats_dcstring::syntax::DatasetRuleResolver;
+        use std::collections::BTreeSet;
+        use std::path::PathBuf;
+
+        // 1. Real StageL 3 document importing `std/bytes` & `std/math` and using n-ary tuples
+        //    + positional `struct`s, compiled via `stagel3_to_wasm.wat` in `SeedGraphIndex::shared()`.
+        let shared_sg = SeedGraphIndex::shared()?;
+        let shared_res = DatasetRuleResolver::from_seed_graph(shared_sg)?;
+        let head_pin = shared_sg.system_block_most_recent_node_id().unwrap();
+        let high_adm = admit_high_budget_execution_kernel()?;
+
+        let std_app_src = r#"
+use std/bytes: explode implode ::.
+use std/math: canAdd ::.
+
+struct pairTag :: l/u8 u32.
+
+v/l/u8/step l/u8/input
+    do
+        let tup: l/l/u8 b ::/parts tupNew: explode b"," /input canAdd u32:10 u32:20 ::.
+        if not field /parts u32:1 fault nop.
+        let pairTag/pt structNew pairTag: implode b":" field /parts u32:0 u32:1 ::.
+        let pairTag/pt2 with /pt u32:1 u32:2.
+        if ne field /pt2 u32:1 u32:2 fault nop.
+        concat field /pt2 u32:0 b"!ok".
+    ::.
+"#;
+        let pinned_std_doc =
+            sl3_source_to_dc_document(std_app_src, shared_sg, Some(head_pin))?;
+        let unpinned_std_doc =
+            sl3_source_to_dc_document(std_app_src, shared_sg, None)?;
+        let mut std_in = DcMstring::new();
+        for ch in "one,two,three".chars() {
+            std_in.push_char(DcChar::from(ch));
+        }
+
+        let mut env_std_pinned = ExecutionContext::new(false)
+            .with_system_supervisor_admission(high_adm.clone());
+        let trace_std_pinned = env_std_pinned
+            .execute_dc_document_default_with_trace(
+                &pinned_std_doc,
+                &std_in,
+                &shared_res,
+            )?;
+        assert_eq!(
+            trace_std_pinned.result.output.to_dc_string()?.to_string(),
+            "one:two:three!ok"
+        );
+
+        let mut env_std_unpinned = ExecutionContext::new(false)
+            .with_system_supervisor_admission(high_adm.clone());
+        let trace_std_unpinned = env_std_unpinned
+            .execute_dc_document_default_with_trace(
+                &unpinned_std_doc,
+                &std_in,
+                &shared_res,
+            )?;
+        assert_eq!(
+            trace_std_unpinned.result.output.to_dc_string()?.to_string(),
+            "one:two:three!ok"
+        );
+
+        // 2. Multi-revision historical pin fidelity across StageL 3 dependencies (`Dc 591` & `Dc 592`):
+        let dep_v1_src = "ns demo/ver.\n\npub v/l/u8/tag :: b\"v1:\".\npub v/l/u8/onlyInV1 :: b\"legacy:\".\n";
+        let mut files_v1 = vec![DiscoveredStagelFile {
+            stage: ImplStage::Stage1,
+            disk_path: PathBuf::from("demo/ver.sl3"),
+            repo_rel_path:
+                "src/formats/dcdata/data-src/stage_1_impls/demo/ver.sl3"
+                    .to_owned(),
+            psr4_rel_path: "demo/ver.sl3".to_owned(),
+            raw_bytes: dep_v1_src.as_bytes().to_vec(),
+            source: dep_v1_src.to_owned(),
+        }];
+        let (v1_nodes, _, _) = reconcile_stagel_and_csv_in_memory(
+            Vec::new(),
+            &mut files_v1,
+            &[],
+            &[],
+            &BTreeSet::new(),
+            None,
+        )?;
+        let v1_len = v1_nodes.len();
+        assert!(v1_len > 0);
+
+        // Revision 2 supersedes `tag` (`b"v1:"` -> `b"v2:"`) via `Dc 591` and retracts `onlyInV1` via `Dc 592`.
+        let dep_v2_src = files_v1[0].source.replace("b\"v1:\"", "b\"v2:\"");
+        let v2_lines: Vec<&str> = dep_v2_src.lines().collect();
+        let only_idx = v2_lines
+            .iter()
+            .position(|l| l.contains("onlyInV1"))
+            .expect("onlyInV1 line must exist");
+        let dc_comment_idx = only_idx.checked_sub(1).unwrap();
+        assert!(v2_lines[dc_comment_idx].trim_start().starts_with(": @dc "));
+        let mut trimmed_v2 = String::new();
+        for (i, line) in v2_lines.iter().enumerate() {
+            if i != dc_comment_idx && i != only_idx {
+                trimmed_v2.push_str(line);
+                trimmed_v2.push('\n');
+            }
+        }
+        let mut files_v2 = vec![DiscoveredStagelFile {
+            stage: ImplStage::Stage1,
+            disk_path: PathBuf::from("demo/ver.sl3"),
+            repo_rel_path:
+                "src/formats/dcdata/data-src/stage_1_impls/demo/ver.sl3"
+                    .to_owned(),
+            psr4_rel_path: "demo/ver.sl3".to_owned(),
+            raw_bytes: trimmed_v2.as_bytes().to_vec(),
+            source: trimmed_v2,
+        }];
+        let (v2_nodes, _, v2_stats) = reconcile_stagel_and_csv_in_memory(
+            v1_nodes,
+            &mut files_v2,
+            &[],
+            &[],
+            &BTreeSet::new(),
+            None,
+        )?;
+        assert!(v2_stats.nodes_superseded >= 1);
+        assert!(v2_stats.nodes_retracted >= 1);
+
+        let sys_start =
+            ctb_formats_dcstring::global_graph_layout::SYSTEM_REGION_START;
+        let id_shift = (head_pin + 1) - sys_start;
+        let mut combined_nodes = shared_sg.nodes().to_vec();
+        let mut pin_v1 = 0u128;
+        let mut pin_v2 = 0u128;
+        for (idx, mut node) in v2_nodes.into_iter().enumerate() {
+            node.id += id_shift;
+            for tok in &mut node.tokens {
+                if let DcShorthand::Long(lid) = tok
+                    && *lid >= sys_start
+                {
+                    *lid += id_shift;
+                }
+            }
+            if idx + 1 == v1_len {
+                pin_v1 = node.id;
+            }
+            pin_v2 = node.id;
+            combined_nodes.push(node);
+        }
+        assert!(pin_v1 > head_pin && pin_v2 > pin_v1);
+
+        let v1_only_nodes: Vec<ctb_formats_dcstring::LedgerNode> =
+            combined_nodes
+                .iter()
+                .filter(|n| n.id <= pin_v1)
+                .cloned()
+                .collect();
+        let snapshot_v1 = SeedGraphIndex::from_nodes(v1_only_nodes);
+        let custom_sg =
+            std::sync::Arc::new(SeedGraphIndex::from_nodes(combined_nodes));
+        let custom_res = DatasetRuleResolver::from_seed_graph(&custom_sg)?;
+
+        let caller_tag_src =
+            "use demo/ver: tag ::.\nv/l/u8/step l/u8/inp :: concat tag /inp.\n";
+        let raw_tag_body =
+            sl3_source_to_dc_document(caller_tag_src, &snapshot_v1, None)?;
+
+        let mut doc_tag_v1_str = DcString::new();
+        doc_tag_v1_str
+            .push(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+        doc_tag_v1_str.push(DcChar::from_u128(pin_v1));
+        doc_tag_v1_str.push_dc_str(&raw_tag_body.to_dc_string()?);
+        let doc_tag_v1 = DcMstring::from_dc_str(&doc_tag_v1_str)?;
+
+        let mut doc_tag_v2_str = DcString::new();
+        doc_tag_v2_str
+            .push(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+        doc_tag_v2_str.push(DcChar::from_u128(pin_v2));
+        doc_tag_v2_str.push_dc_str(&raw_tag_body.to_dc_string()?);
+        let doc_tag_v2 = DcMstring::from_dc_str(&doc_tag_v2_str)?;
+
+        let mut world_in = DcMstring::new();
+        for ch in "world".chars() {
+            world_in.push_char(DcChar::from(ch));
+        }
+
+        let mut env_v1 = ExecutionContext::new(false)
+            .with_system_supervisor_admission(high_adm.clone());
+        let trace_v1 = env_v1.execute_dc_document_default_with_trace(
+            &doc_tag_v1,
+            &world_in,
+            &custom_res,
+        )?;
+        assert_eq!(
+            trace_v1.result.output.to_dc_string()?.to_string(),
+            "v1:world"
+        );
+
+        let mut env_v2 = ExecutionContext::new(false)
+            .with_system_supervisor_admission(high_adm.clone());
+        let trace_v2 = env_v2.execute_dc_document_default_with_trace(
+            &doc_tag_v2,
+            &world_in,
+            &custom_res,
+        )?;
+        assert_eq!(
+            trace_v2.result.output.to_dc_string()?.to_string(),
+            "v2:world"
+        );
+
+        // Calling `onlyInV1` succeeds when pinned to `pin_v1` and fails cleanly when pinned to `pin_v2`:
+        let caller_legacy_src =
+            "use demo/ver: onlyInV1 ::.\nv/l/u8/step l/u8/inp :: concat onlyInV1 /inp.\n";
+        let raw_legacy_body =
+            sl3_source_to_dc_document(caller_legacy_src, &snapshot_v1, None)?;
+
+        let mut doc_legacy_v1_str = DcString::new();
+        doc_legacy_v1_str
+            .push(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+        doc_legacy_v1_str.push(DcChar::from_u128(pin_v1));
+        doc_legacy_v1_str.push_dc_str(&raw_legacy_body.to_dc_string()?);
+        let doc_legacy_v1 = DcMstring::from_dc_str(&doc_legacy_v1_str)?;
+
+        let mut env_leg_v1 = ExecutionContext::new(false)
+            .with_system_supervisor_admission(high_adm.clone());
+        let trace_leg_v1 = env_leg_v1.execute_dc_document_default_with_trace(
+            &doc_legacy_v1,
+            &world_in,
+            &custom_res,
+        )?;
+        assert_eq!(
+            trace_leg_v1.result.output.to_dc_string()?.to_string(),
+            "legacy:world"
+        );
+
+        let mut doc_legacy_v2_str = DcString::new();
+        doc_legacy_v2_str
+            .push(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+        doc_legacy_v2_str.push(DcChar::from_u128(pin_v2));
+        doc_legacy_v2_str.push_dc_str(&raw_legacy_body.to_dc_string()?);
+        let doc_legacy_v2 = DcMstring::from_dc_str(&doc_legacy_v2_str)?;
+
+        let mut env_leg_v2 = ExecutionContext::new(false)
+            .with_system_supervisor_admission(high_adm);
+        assert!(
+            env_leg_v2
+                .execute_dc_document_default_with_trace(
+                    &doc_legacy_v2,
+                    &world_in,
+                    &custom_res,
+                )
+                .is_err(),
+            "Retracted StageL dependency routine must be rejected when pinned to pin_v2"
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_1936_real_stagel3_shared_quota_across_compile_and_exec()
+    -> Result<()> {
+        use ctb_formats_dcstring::syntax::DatasetRuleResolver;
+
+        let shared_sg = SeedGraphIndex::shared()?;
+        let shared_res = DatasetRuleResolver::from_seed_graph(shared_sg)?;
+        let head_pin = shared_sg.system_block_most_recent_node_id().unwrap();
+
+        let spin_sl3 = r#"
+v/l/u8/step l/u8/inp
+    do
+        let u32/i u32:0.
+        let u64/acc u64:0.
+        while lt /i u32:600 do
+            set /acc wrapAdd /acc conv /i u64.
+            set /i add /i u32:1.
+        ::.
+        if eq /acc u64:0 fault nop.
+        concat /inp b":done".
+    ::.
+"#;
+        let doc = sl3_source_to_dc_document(spin_sl3, shared_sg, Some(head_pin))?;
+        let mut input = DcMstring::new();
+        for ch in "quota".chars() {
+            input.push_char(DcChar::from(ch));
+        }
+
+        // Measure `stagel3_to_wasm.wat` compilation cost and resulting target `.WASM` execution cost:
+        let high_adm = admit_high_budget_execution_kernel()?;
+        let mut probe_limits = DcWasmResourceLimits::default();
+        probe_limits.max_instructions_per_step = 100_000_000;
+        let probe_quota =
+            ctb_formats_dcstring::converters::wasm::SharedWasmTaskQuota::new(
+                probe_limits,
+            );
+        let (compiled_wasm, compiled_pin) = high_adm
+            .compile_dc_document_to_wasm_with_shared_quota(
+                &doc,
+                &shared_res,
+                probe_quota.clone(),
+            )?;
+        assert_eq!(compiled_pin, Some(head_pin));
+        let compile_cost = probe_quota.snapshot()?.total_instructions_executed;
+        assert!(compile_cost > 10_000);
+
+        let mut probe_session = DcWasmSession::from_dc_wasm_with_resolver(
+            &compiled_wasm,
+            &input,
+            Some(head_pin),
+            &shared_res,
+        )?;
+        let _ = probe_session.step()?;
+        let exec_cost = probe_session.total_instructions_executed();
+        assert!(exec_cost > 1_000);
+
+        // 1. Budget smaller than `compile_cost`: interrupts with ComputeQuotaExhausted during compilation!
+        let mut compile_cap_limits = DcWasmResourceLimits::default();
+        compile_cap_limits.max_instructions_per_step = compile_cost / 2;
+        let compile_cap_adm = SystemSupervisorAdmission::admit_execution_kernel(
+            compile_cap_limits,
+            DcWasmWatchdogLimits::default(),
+        )?;
+        let mut env_compile_deny = ExecutionContext::new(false)
+            .with_system_supervisor_admission(compile_cap_adm)
+            .with_privilege_decision(
+                Privilege::ExcessiveCompute,
+                PermissionDecision::Deny,
+            );
+        let trace_compile_deny = env_compile_deny
+            .execute_dc_document_default_with_trace(&doc, &input, &shared_res)?;
+        assert!(trace_compile_deny.result.broke_out_early);
+        assert!(matches!(
+            trace_compile_deny.events.first(),
+            Some(WasmTraceEvent::ResourceInterruption {
+                interruption: Some(
+                    WasmResourceInterruption::ComputeQuotaExhausted { .. }
+                ),
+                decision: PermissionDecision::Deny,
+                ..
+            })
+        ));
+
+        // 2. Budget covering compilation alone (`compile_cost + exec_cost / 2`), but less than
+        //    `compile_cost + exec_cost`: compilation finishes, then target `.WASM` execution
+        //    exhausts the shared remaining budget!
+        let mid_budget = compile_cost + (exec_cost / 2);
+        assert!(mid_budget > compile_cost && mid_budget > exec_cost);
+        let mut mid_limits = DcWasmResourceLimits::default();
+        mid_limits.max_instructions_per_step = mid_budget;
+        let mid_adm = SystemSupervisorAdmission::admit_execution_kernel(
+            mid_limits,
+            DcWasmWatchdogLimits::default(),
+        )?;
+        let mut env_mid_deny = ExecutionContext::new(false)
+            .with_system_supervisor_admission(mid_adm.clone())
+            .with_privilege_decision(
+                Privilege::ExcessiveCompute,
+                PermissionDecision::Deny,
+            );
+        let trace_mid_deny = env_mid_deny
+            .execute_dc_document_default_with_trace(&doc, &input, &shared_res)?;
+        assert!(trace_mid_deny.result.broke_out_early);
+
+        // Granting `Allow` on `ExcessiveCompute` resumes and finishes target execution cleanly!
+        let mut env_mid_allow = ExecutionContext::new(false)
+            .with_system_supervisor_admission(mid_adm)
+            .with_compute_quota_grant(exec_cost)
+            .with_privilege_decision(
+                Privilege::ExcessiveCompute,
+                PermissionDecision::Allow,
+            );
+        let trace_mid_allow = env_mid_allow
+            .execute_dc_document_default_with_trace(&doc, &input, &shared_res)?;
+        assert!(!trace_mid_allow.result.broke_out_early);
+        assert_eq!(
+            trace_mid_allow.result.output.to_dc_string()?.to_string(),
+            "quota:done"
         );
         Ok(())
     }

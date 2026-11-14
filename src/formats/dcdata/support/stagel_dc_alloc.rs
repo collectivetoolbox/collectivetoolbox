@@ -65,7 +65,7 @@ use crate::stagel3::validator::{
     ModuleInput, RoutineKey, ValidatedModule, ValidatedWorkspace, ValueKey,
     parse_and_validate_workspace,
 };
-use crate::wat::ImplStage;
+pub use crate::wat::ImplStage;
 
 #[must_use]
 fn sh(dc: DcChar) -> DcShorthand {

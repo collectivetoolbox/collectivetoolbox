@@ -85,6 +85,7 @@ pub use ctb_formats_dcdata::seed_graph::{
 };
 pub use ctb_formats_dcdata::shorthand::DcShorthand;
 pub use ctb_formats_dcdata::syntax::{self, DcRole, SyntaxRuleResolver};
+pub use ctb_formats_dcdata::{stagel_dc_alloc, stagel3};
 pub use ctb_formats_utilities::FormatLog;
 pub use dc_char::{DcChar, DcCharExt};
 pub use dc_mixed::{
