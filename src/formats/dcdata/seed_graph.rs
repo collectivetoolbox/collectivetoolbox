@@ -2495,11 +2495,12 @@ impl SeedGraphIndex {
 
     /// Resolves all active `pub` StageL symbols exported in `ns_segments` (`f229` `"File path"`
     /// context on `Dc 574 "Programmatic identifier"`), returning a deterministic map of
-    /// `export_name -> subject_dc_shorthand`.
+    /// `export_name -> Vec<subject_dc_shorthand>` (supporting fixed-arity parameter-type
+    /// routine overloads and typed constant overloads within the same namespace).
     pub fn resolve_stagel_namespace_exports(
         &self,
         ns_segments: &[String],
-    ) -> Result<BTreeMap<String, DcShorthand>> {
+    ) -> Result<BTreeMap<String, Vec<DcShorthand>>> {
         let expected_fp_chars =
             crate::stagel3::dc_tokens::encode_filepath_dc_tokens(ns_segments)?;
         let expected_fp_shorthands: Vec<DcShorthand> = expected_fp_chars
@@ -2509,7 +2510,7 @@ impl SeedGraphIndex {
 
         let sh_prog_ident = sh(DC_PROGRAMMATIC_IDENTIFIER);
         let sh_in_ctx = sh(DC_IN_CONTEXT_OF);
-        let mut exports = BTreeMap::new();
+        let mut exports: BTreeMap<String, Vec<DcShorthand>> = BTreeMap::new();
 
         for (&(subj, prop), &(has_a_id, _, val_tok)) in
             &self.active_single_props
@@ -2557,15 +2558,14 @@ impl SeedGraphIndex {
             let Some(ident_name) = self.string_by_node_id.get(&str_id) else {
                 continue;
             };
-            if let Some(prev) = exports.insert(ident_name.clone(), subj)
-                && prev != subj
-            {
-                bail!(
-                    "Duplicate active StageL export '{}' in namespace '{}' ({prev} vs {subj})",
-                    ident_name,
-                    ns_segments.join("/")
-                );
+            let list = exports.entry(ident_name.clone()).or_default();
+            if !list.contains(&subj) {
+                list.push(subj);
             }
+        }
+
+        for list in exports.values_mut() {
+            list.sort();
         }
 
         Ok(exports)

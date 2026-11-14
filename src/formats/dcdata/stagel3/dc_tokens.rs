@@ -681,6 +681,7 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
 struct Decoder<'a> {
     tokens: &'a [DcChar],
     pos: usize,
+    line: usize,
     resolver: &'a dyn SyntaxRuleResolver,
 }
 
@@ -690,6 +691,7 @@ pub fn decode_module_from_dc_tokens(tokens: &[DcChar]) -> Result<Module> {
     let mut dec = Decoder {
         tokens,
         pos: 0,
+        line: 1,
         resolver: resolver.as_ref(),
     };
     let module = dec.read_module()?;
@@ -704,10 +706,21 @@ pub fn decode_module_from_dc_tokens(tokens: &[DcChar]) -> Result<Module> {
 /// Decodes a standalone top-level routine or constant Token Dc stream (`Dc 2203..2204`,
 /// `Dc 2199`, or `Dc 2200`, optionally preceded by `Dc 246`/`Dc 247..248` comments).
 pub fn decode_top_decl_from_dc_tokens(tokens: &[DcChar]) -> Result<TopDecl> {
+    decode_top_decl_from_dc_tokens_at_line(tokens, 1)
+}
+
+/// Decodes a standalone top-level routine or constant Token Dc stream, stamping
+/// synthetic source [`Span`]s with `line` so multiple standalone items assembled
+/// into a single reconstructed module never collide on `(line, col)`.
+pub fn decode_top_decl_from_dc_tokens_at_line(
+    tokens: &[DcChar],
+    line: usize,
+) -> Result<TopDecl> {
     let resolver = default_syntax_resolver();
     let mut dec = Decoder {
         tokens,
         pos: 0,
+        line: line.max(1),
         resolver: resolver.as_ref(),
     };
     let comments_before = dec.collect_comments()?;
@@ -726,6 +739,7 @@ pub fn decode_filepath_dc_tokens(tokens: &[DcChar]) -> Result<Vec<String>> {
     let mut dec = Decoder {
         tokens,
         pos: 0,
+        line: 1,
         resolver: resolver.as_ref(),
     };
     let segs = dec.read_filepath()?;
@@ -743,6 +757,7 @@ pub fn decode_stagel_type_dc_tokens(tokens: &[DcChar]) -> Result<StageLType> {
     let mut dec = Decoder {
         tokens,
         pos: 0,
+        line: 1,
         resolver: resolver.as_ref(),
     };
     let ty = dec.read_stagel_type()?;
@@ -769,7 +784,7 @@ impl<'a> Decoder<'a> {
 
     fn span(&self) -> Span {
         Span {
-            line: 1,
+            line: self.line,
             col: self.pos.saturating_add(1),
         }
     }

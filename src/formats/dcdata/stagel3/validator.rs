@@ -64,23 +64,109 @@ pub struct RoutineSig {
     pub dc_id: Option<DcChar>,
 }
 
+/// Unique signature key for a top-level routine within a module (`name` + exact parameter types).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct RoutineKey {
+    /// Routine programmatic identifier in its declaring module.
+    pub name: String,
+    /// Ordered formal parameter types.
+    pub params: Vec<StageLType>,
+}
+
+impl RoutineKey {
+    /// Builds a [`RoutineKey`] from a [`RoutineDecl`].
+    #[must_use]
+    pub fn from_decl(r: &RoutineDecl) -> Self {
+        Self {
+            name: r.name.clone(),
+            params: r.params.iter().map(|p| p.ty.clone()).collect(),
+        }
+    }
+}
+
+/// Unique key for a top-level constant value within a module (`name` + `StageLType`).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ValueKey {
+    /// Constant programmatic identifier in its declaring module.
+    pub name: String,
+    /// Declared [`StageLType`].
+    pub ty: StageLType,
+}
+
+impl ValueKey {
+    /// Builds a [`ValueKey`] from a [`TopValueDecl`].
+    #[must_use]
+    pub fn from_decl(v: &TopValueDecl) -> Self {
+        Self {
+            name: v.name.clone(),
+            ty: v.ty.clone(),
+        }
+    }
+}
+
+/// Statically resolved top-level or imported routine target for an `Expr::Call` site.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedCallTarget {
+    /// `None` if defined in the current module; `Some(ns)` if imported from `ns`.
+    pub namespace: Option<String>,
+    /// Original routine identifier in the declaring module.
+    pub routine_name: String,
+    /// Concrete signature of the selected routine overload.
+    pub sig: RoutineSig,
+}
+
+impl ResolvedCallTarget {
+    /// Returns the [`RoutineKey`] in the declaring module.
+    #[must_use]
+    pub fn routine_key(&self) -> RoutineKey {
+        RoutineKey {
+            name: self.routine_name.clone(),
+            params: self.sig.params.clone(),
+        }
+    }
+}
+
+/// Statically resolved top-level or imported constant target for an `Expr::ValueRef` site.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedValueTarget {
+    /// `None` if defined in the current module; `Some(ns)` if imported from `ns`.
+    pub namespace: Option<String>,
+    /// Original constant identifier in the declaring module.
+    pub original_name: String,
+    /// Static constant type.
+    pub ty: StageLType,
+    /// Optional Dc identity on the target constant.
+    pub dc_id: Option<DcChar>,
+}
+
+impl ResolvedValueTarget {
+    /// Returns the [`ValueKey`] in the declaring module.
+    #[must_use]
+    pub fn value_key(&self) -> ValueKey {
+        ValueKey {
+            name: self.original_name.clone(),
+            ty: self.ty.clone(),
+        }
+    }
+}
+
 /// Exported items from one compiled namespace module.
 #[derive(Debug, Clone, Default)]
 pub struct NamespaceExports {
-    /// Exported `pub` immutable values by name.
-    pub values: HashMap<String, (StageLType, Option<DcChar>)>,
-    /// Exported `pub` routines by name.
-    pub routines: HashMap<String, RoutineSig>,
-    /// Assigned Dc shorthand mappings (`dc -> SymbolKind`).
+    /// Exported `pub` immutable values by name (pairwise-distinct [`StageLType`]s).
+    pub values: HashMap<String, Vec<(StageLType, Option<DcChar>)>>,
+    /// Exported `pub` routines by name (same arity, pairwise-distinct parameter type tuples).
+    pub routines: HashMap<String, Vec<RoutineSig>>,
+    /// Assigned Dc shorthand mappings (`dc -> ImportedSymbol`).
     pub by_dc: HashMap<DcChar, ImportedSymbol>,
 }
 
 /// Resolved imported symbol entry inside a dependent module.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ImportedSymbol {
     /// Imported `pub` constant value `(namespace_key, original_name, ty, dc)`.
     Value {
-        /// Defining namespace path key (`"std/bytes/slice"`).
+        /// Defining namespace path key (`"std/math"`).
         namespace: String,
         /// Original exported constant name.
         original_name: String,
@@ -107,12 +193,16 @@ pub struct ValidatedModule {
     pub module: Module,
     /// Namespace key if `ns` was declared.
     pub namespace_key: Option<String>,
-    /// Resolved `use` bindings visible inside the module.
-    pub imports: HashMap<String, ImportedSymbol>,
-    /// Direct Dc call/value targets resolved from `use dc/<sh>`.
+    /// Resolved `use` bindings visible inside the module (`local_name -> candidates`).
+    pub imports: HashMap<String, Vec<ImportedSymbol>>,
+    /// Direct Dc call/value targets resolved from `use dc/<sh>` or System-graph linking.
     pub dc_imports: HashMap<DcChar, ImportedSymbol>,
     /// Tail-position annotations indexed by `Span` (`line`, `col`) of `Call`.
     pub tail_calls: HashSet<(usize, usize)>,
+    /// Statically resolved top-level/imported routine call targets indexed by `Span` (`line`, `col`).
+    pub resolved_calls: HashMap<(usize, usize), ResolvedCallTarget>,
+    /// Statically resolved top-level/imported constant targets indexed by `Span` (`line`, `col`).
+    pub resolved_values: HashMap<(usize, usize), ResolvedValueTarget>,
     /// Module-level exported items.
     pub exports: NamespaceExports,
 }
@@ -357,7 +447,10 @@ pub(crate) fn collect_use_verb_arities_from_source(
                         format!("Namespace '{path}' does not export 'dc/{sh}'")
                     })?
                 } else {
-                    if let Some(sig) = exports.routines.get(item_w) {
+                    if let Some(sigs) = exports.routines.get(item_w) {
+                        let first_sig = sigs
+                            .first()
+                            .context("Empty routine export overload list")?;
                         let local_name = if words.get(wi) == Some(&"as") {
                             wi = wi.saturating_add(1);
                             let a = *words.get(wi).context("Expected alias after 'as'")?;
@@ -366,11 +459,15 @@ pub(crate) fn collect_use_verb_arities_from_source(
                         } else {
                             item_w
                         };
-                        ensure!(
-                            !arities.contains_key(local_name),
-                            "Conflicting imported routine name '{local_name}'"
-                        );
-                        arities.insert(local_name.to_owned(), sig.params.len());
+                        if let Some(&prev_arity) = arities.get(local_name) {
+                            ensure!(
+                                prev_arity == first_sig.params.len(),
+                                "Conflicting parameter count for imported routine '{local_name}': expected {prev_arity}, found {}",
+                                first_sig.params.len()
+                            );
+                        } else {
+                            arities.insert(local_name.to_owned(), first_sig.params.len());
+                        }
                         continue;
                     }
                     exports.values.get(item_w).with_context(|| {
@@ -383,7 +480,8 @@ pub(crate) fn collect_use_verb_arities_from_source(
                     }
                     continue;
                 };
-                let local_name = if words.get(wi) == Some(&"as") {
+                let has_alias = words.get(wi) == Some(&"as");
+                let local_name = if has_alias {
                     wi = wi.saturating_add(1);
                     let a = *words.get(wi).context("Expected alias after 'as'")?;
                     wi = wi.saturating_add(1);
@@ -391,8 +489,29 @@ pub(crate) fn collect_use_verb_arities_from_source(
                 } else {
                     item_w
                 };
-                if let ImportedSymbol::Routine { sig, .. } = sym {
-                    arities.insert(local_name.to_owned(), sig.params.len());
+                if let ImportedSymbol::Routine {
+                    original_name, sig, ..
+                } = sym
+                {
+                    let new_arity = sig.params.len();
+                    if let Some(&prev_arity) = arities.get(local_name) {
+                        ensure!(
+                            prev_arity == new_arity,
+                            "Conflicting parameter count for imported routine '{local_name}': expected {prev_arity}, found {new_arity}"
+                        );
+                    } else {
+                        arities.insert(local_name.to_owned(), new_arity);
+                    }
+                    if !has_alias {
+                        if let Some(&prev_arity) = arities.get(original_name.as_str()) {
+                            ensure!(
+                                prev_arity == new_arity,
+                                "Conflicting parameter count for imported routine '{original_name}': expected {prev_arity}, found {new_arity}"
+                            );
+                        } else {
+                            arities.insert(original_name.clone(), new_arity);
+                        }
+                    }
                 }
             }
             let after_close = items_start
@@ -411,13 +530,12 @@ pub(crate) fn collect_use_verb_arities_from_source(
     Ok(arities)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum BindingKind {
     MutableLet,
     Const,
     Param,
     ForEachElem,
-    ImportedValue { namespace: String, original_name: String },
 }
 
 #[derive(Debug, Clone)]
@@ -442,32 +560,28 @@ struct NestedVerbSummary {
 
 #[derive(Debug, Clone)]
 enum VerbTarget {
-    TopLevel(RoutineSig),
     Nested(usize),
-    Imported(RoutineSig),
 }
 
 struct Validator<'a> {
-    namespace_key: Option<String>,
-    /// Top-level immutable values (`name -> (ty, span)`).
-    top_values: HashMap<String, (StageLType, Span)>,
-    /// Top-level routines (`name -> sig`).
-    top_routines: HashMap<String, RoutineSig>,
-    /// Top-level routine parameter declarations (`name -> Vec<(ty, param_name)>`).
-    top_routine_decls: HashMap<String, &'a RoutineDecl>,
-    /// Imported values (`local_name -> (ty, ns, orig)`).
-    imported_values: HashMap<String, (StageLType, String, String)>,
-    /// Imported routines (`local_name -> sig`).
-    imported_routines: HashMap<String, RoutineSig>,
+    /// Module-scope constant candidates (`local_name -> Vec<ResolvedValueTarget>`),
+    /// combining imported and top-level constants with pairwise-distinct types.
+    value_candidates: HashMap<String, Vec<ResolvedValueTarget>>,
+    /// Module-scope routine candidates (`local_name -> Vec<ResolvedCallTarget>`),
+    /// combining imported and top-level routines with identical arity and
+    /// pairwise-distinct parameter type tuples.
+    routine_candidates: HashMap<String, Vec<ResolvedCallTarget>>,
+    /// Top-level constant types keyed directly by assigned `DcChar`.
+    top_dc_values: HashMap<DcChar, StageLType>,
+    /// Top-level routine signatures keyed directly by assigned `DcChar`.
+    top_dc_routines: HashMap<DcChar, RoutineSig>,
     /// Imported items keyed directly by `DcChar` (`dc/<shorthand>`).
     dc_imports: HashMap<DcChar, ImportedSymbol>,
-    /// Assigned Dcs seen in this module (for duplicate Dc detection).
-    used_dcs: HashMap<DcChar, String>,
     /// Next unique lexical variable ID.
     next_binding_id: usize,
     /// Active lexical variable scopes (outermost local to innermost).
     local_scopes: Vec<HashMap<String, BindingEntry>>,
-    /// Active routine scopes (`name -> VerbTarget`).
+    /// Active nested routine scopes (`name -> VerbTarget`).
     routine_scopes: Vec<HashMap<String, VerbTarget>>,
     /// Summaries of validated nested verbs keyed by numeric ID.
     nested_summaries: HashMap<usize, NestedVerbSummary>,
@@ -475,6 +589,12 @@ struct Validator<'a> {
     pending_nested_calls: Vec<(usize, Span, AssignState)>,
     /// Recorded tail call positions `(line, col)`.
     tail_calls: HashSet<(usize, usize)>,
+    /// Statically resolved top-level/imported call targets indexed by `(line, col)`.
+    resolved_calls: HashMap<(usize, usize), ResolvedCallTarget>,
+    /// Statically resolved top-level/imported constant targets indexed by `(line, col)`.
+    resolved_values: HashMap<(usize, usize), ResolvedValueTarget>,
+    /// Phantom marker tying lifetime `'a` when needed by helper methods.
+    _marker: std::marker::PhantomData<&'a ()>,
 }
 
 /// Evaluates whether a type is valid everywhere in a StageL 3 routine or
@@ -555,11 +675,12 @@ pub fn validate_module_with_registry_and_dc_imports(
 ) -> Result<ValidatedModule> {
     let namespace_key = module.namespace.as_ref().map(|segs| segs.join("/"));
     let mut exports = NamespaceExports::default();
-    let mut imports = HashMap::new();
+    let mut imports: HashMap<String, Vec<ImportedSymbol>> = HashMap::new();
     let mut dc_imports = extra_dc_imports.clone();
-    let mut imported_values = HashMap::new();
-    let mut imported_routines = HashMap::new();
-    let mut used_top_names: HashSet<String> = HashSet::new();
+    let mut value_candidates: HashMap<String, Vec<ResolvedValueTarget>> =
+        HashMap::new();
+    let mut routine_candidates: HashMap<String, Vec<ResolvedCallTarget>> =
+        HashMap::new();
 
     // 1. Resolve `use` imports.
     for u in &module.uses {
@@ -568,21 +689,27 @@ pub fn validate_module_with_registry_and_dc_imports(
             format!("Unresolved namespace '{target_ns}' in 'use' at {}", u.span)
         })?;
         for item in &u.items {
-            let resolved = match &item.target {
+            let resolved_list: Vec<ImportedSymbol> = match &item.target {
                 ImportTarget::Name(name) => {
-                    if let Some((ty, dc_id)) = dep_exp.values.get(name) {
-                        ImportedSymbol::Value {
-                            namespace: target_ns.clone(),
-                            original_name: name.clone(),
-                            ty: ty.clone(),
-                            dc_id: *dc_id,
-                        }
-                    } else if let Some(sig) = dep_exp.routines.get(name) {
-                        ImportedSymbol::Routine {
-                            namespace: target_ns.clone(),
-                            original_name: name.clone(),
-                            sig: sig.clone(),
-                        }
+                    if let Some(val_list) = dep_exp.values.get(name) {
+                        val_list
+                            .iter()
+                            .map(|(ty, dc_id)| ImportedSymbol::Value {
+                                namespace: target_ns.clone(),
+                                original_name: name.clone(),
+                                ty: ty.clone(),
+                                dc_id: *dc_id,
+                            })
+                            .collect()
+                    } else if let Some(sig_list) = dep_exp.routines.get(name) {
+                        sig_list
+                            .iter()
+                            .map(|sig| ImportedSymbol::Routine {
+                                namespace: target_ns.clone(),
+                                original_name: name.clone(),
+                                sig: sig.clone(),
+                            })
+                            .collect()
                     } else {
                         bail!(
                             "Namespace '{target_ns}' has no exported 'pub' symbol named '{name}' (at {})",
@@ -590,61 +717,114 @@ pub fn validate_module_with_registry_and_dc_imports(
                         );
                     }
                 }
-                ImportTarget::Dc(dc) => dep_exp
-                    .by_dc
-                    .get(dc)
-                    .cloned()
-                    .with_context(|| {
-                        format!(
-                            "Namespace '{target_ns}' has no exported 'pub dc/{}' (at {})",
-                            format_dc_shorthand(*dc),
-                            item.span
-                        )
-                    })?,
+                ImportTarget::Dc(dc) => {
+                    let single = dep_exp
+                        .by_dc
+                        .get(dc)
+                        .cloned()
+                        .with_context(|| {
+                            format!(
+                                "Namespace '{target_ns}' has no exported 'pub dc/{}' (at {})",
+                                format_dc_shorthand(*dc),
+                                item.span
+                            )
+                        })?;
+                    if item.alias.is_none() {
+                        dc_imports.insert(*dc, single.clone());
+                    }
+                    vec![single]
+                }
             };
+
+            let first_sym = resolved_list
+                .first()
+                .context("Empty exported symbol list")?;
             let local_name = match (&item.alias, &item.target) {
                 (Some(a), _) => a.clone(),
                 (None, ImportTarget::Name(n)) => n.clone(),
-                (None, ImportTarget::Dc(dc)) => {
-                    dc_imports.insert(*dc, resolved.clone());
-                    match &resolved {
-                        ImportedSymbol::Value { original_name, .. }
-                        | ImportedSymbol::Routine { original_name, .. } => {
-                            original_name.clone()
+                (None, ImportTarget::Dc(_)) => match first_sym {
+                    ImportedSymbol::Value { original_name, .. }
+                    | ImportedSymbol::Routine { original_name, .. } => {
+                        original_name.clone()
+                    }
+                },
+            };
+
+            for resolved in resolved_list {
+                match &resolved {
+                    ImportedSymbol::Value {
+                        namespace,
+                        original_name,
+                        ty,
+                        dc_id,
+                    } => {
+                        ensure!(
+                            !routine_candidates.contains_key(&local_name),
+                            "Conflicting imported name '{local_name}' at {}: cannot be both a constant and a routine",
+                            item.span
+                        );
+                        let list = value_candidates
+                            .entry(local_name.clone())
+                            .or_default();
+                        ensure!(
+                            !list.iter().any(|c| c.ty == *ty),
+                            "Duplicate or conflicting imported constant '{local_name}' of type '{ty}' at {}",
+                            item.span
+                        );
+                        list.push(ResolvedValueTarget {
+                            namespace: Some(namespace.clone()),
+                            original_name: original_name.clone(),
+                            ty: ty.clone(),
+                            dc_id: *dc_id,
+                        });
+                    }
+                    ImportedSymbol::Routine {
+                        namespace,
+                        original_name,
+                        sig,
+                    } => {
+                        ensure!(
+                            !value_candidates.contains_key(&local_name),
+                            "Conflicting imported name '{local_name}' at {}: cannot be both a routine and a constant",
+                            item.span
+                        );
+                        let list = routine_candidates
+                            .entry(local_name.clone())
+                            .or_default();
+                        if let Some(first_existing) = list.first() {
+                            ensure!(
+                                first_existing.sig.params.len()
+                                    == sig.params.len(),
+                                "Conflicting parameter count for imported routine '{local_name}' at {}: expected {} parameter(s), found {}",
+                                item.span,
+                                first_existing.sig.params.len(),
+                                sig.params.len()
+                            );
                         }
+                        ensure!(
+                            !list.iter().any(|c| c.sig.params == sig.params),
+                            "Duplicate or conflicting imported routine '{local_name}' with parameter types ({}) at {}",
+                            format_param_types(&sig.params),
+                            item.span
+                        );
+                        list.push(ResolvedCallTarget {
+                            namespace: Some(namespace.clone()),
+                            routine_name: original_name.clone(),
+                            sig: sig.clone(),
+                        });
                     }
                 }
-            };
-            ensure!(
-                !used_top_names.contains(&local_name),
-                "Duplicate or conflicting imported name '{local_name}' at {}",
-                item.span
-            );
-            used_top_names.insert(local_name.clone());
-            match &resolved {
-                ImportedSymbol::Value {
-                    namespace,
-                    original_name,
-                    ty,
-                    ..
-                } => {
-                    imported_values.insert(
-                        local_name.clone(),
-                        (ty.clone(), namespace.clone(), original_name.clone()),
-                    );
-                }
-                ImportedSymbol::Routine { sig, .. } => {
-                    imported_routines.insert(local_name.clone(), sig.clone());
-                }
+                imports
+                    .entry(local_name.clone())
+                    .or_default()
+                    .push(resolved);
             }
-            imports.insert(local_name, resolved);
         }
     }
 
     // 2. Pass-1 top-level signature and constant header collection.
-    let mut top_values = HashMap::new();
-    let mut top_routines = HashMap::new();
-    let mut top_routine_decls = HashMap::new();
+    let mut top_dc_values = HashMap::new();
+    let mut top_dc_routines = HashMap::new();
     let mut used_dcs = HashMap::new();
     let mut top_value_order = Vec::new();
     let mut top_routine_order = Vec::new();
@@ -654,12 +834,11 @@ pub fn validate_module_with_registry_and_dc_imports(
             TopDecl::Comment(_) => {}
             TopDecl::Value(v) => {
                 ensure!(
-                    !used_top_names.contains(&v.name),
-                    "Top-level constant '{}' at {} duplicates/shadows existing binding or import",
+                    !routine_candidates.contains_key(&v.name),
+                    "Top-level constant '{}' at {} duplicates/shadows an existing routine or import",
                     v.name,
                     v.span
                 );
-                used_top_names.insert(v.name.clone());
                 ensure!(
                     v.ty != StageLType::Void && v.ty != StageLType::Never,
                     "Constant '{}' at {} cannot have type '{}'",
@@ -672,6 +851,14 @@ pub fn validate_module_with_registry_and_dc_imports(
                     !v.ty.is_or_contains_buf(),
                     "Module-level constant '{}' at {} cannot hold local buffer 'buf/T'",
                     v.name,
+                    v.span
+                );
+                let vlist = value_candidates.entry(v.name.clone()).or_default();
+                ensure!(
+                    !vlist.iter().any(|c| c.ty == v.ty),
+                    "Top-level constant '{}' of type '{}' at {} duplicates/shadows existing binding or import",
+                    v.name,
+                    v.ty,
                     v.span
                 );
                 if v.pub_dc_syntax {
@@ -688,12 +875,20 @@ pub fn validate_module_with_registry_and_dc_imports(
                         v.span
                     );
                     used_dcs.insert(dc, v.name.clone());
+                    top_dc_values.insert(dc, v.ty.clone());
                 }
-                top_values.insert(v.name.clone(), (v.ty.clone(), v.span));
+                vlist.push(ResolvedValueTarget {
+                    namespace: None,
+                    original_name: v.name.clone(),
+                    ty: v.ty.clone(),
+                    dc_id: v.dc_id,
+                });
                 if v.is_pub {
                     exports
                         .values
-                        .insert(v.name.clone(), (v.ty.clone(), v.dc_id));
+                        .entry(v.name.clone())
+                        .or_default()
+                        .push((v.ty.clone(), v.dc_id));
                     if let Some(dc) = v.dc_id {
                         exports.by_dc.insert(
                             dc,
@@ -713,12 +908,11 @@ pub fn validate_module_with_registry_and_dc_imports(
             }
             TopDecl::Routine(r) => {
                 ensure!(
-                    !used_top_names.contains(&r.name),
-                    "Routine '{}' at {} duplicates/shadows an existing routine, constant, or import (overloading is disallowed)",
+                    !value_candidates.contains_key(&r.name),
+                    "Routine '{}' at {} duplicates/shadows an existing constant or import",
                     r.name,
                     r.span
                 );
-                used_top_names.insert(r.name.clone());
                 check_type_well_formed(&r.return_type, r.is_pub, r.span)?;
                 let mut seen_params = HashSet::new();
                 let mut param_tys = Vec::with_capacity(r.params.len());
@@ -741,11 +935,36 @@ pub fn validate_module_with_registry_and_dc_imports(
                     );
                     param_tys.push(p.ty.clone());
                 }
+                let rlist =
+                    routine_candidates.entry(r.name.clone()).or_default();
+                if let Some(first_existing) = rlist.first() {
+                    ensure!(
+                        first_existing.sig.params.len() == param_tys.len(),
+                        "Conflicting parameter count for overloaded routine '{}' at {}: expected {} parameter(s), found {}",
+                        r.name,
+                        r.span,
+                        first_existing.sig.params.len(),
+                        param_tys.len()
+                    );
+                }
+                ensure!(
+                    !rlist.iter().any(|c| c.sig.params == param_tys),
+                    "Routine '{}' at {} duplicates/shadows an existing routine or import with parameter types ({}) (return-type-only overloading is disallowed)",
+                    r.name,
+                    r.span,
+                    format_param_types(&param_tys)
+                );
                 if r.pub_dc_syntax {
                     if let Some(dc) = r.dc_id {
                         check_pub_dc_shorthand(dc, r.span)?;
                     }
                 }
+                let sig = RoutineSig {
+                    return_type: r.return_type.clone(),
+                    params: param_tys,
+                    is_pub: r.is_pub,
+                    dc_id: r.dc_id,
+                };
                 if let Some(dc) = r.dc_id {
                     ensure!(
                         !used_dcs.contains_key(&dc),
@@ -755,17 +974,19 @@ pub fn validate_module_with_registry_and_dc_imports(
                         r.span
                     );
                     used_dcs.insert(dc, r.name.clone());
+                    top_dc_routines.insert(dc, sig.clone());
                 }
-                let sig = RoutineSig {
-                    return_type: r.return_type.clone(),
-                    params: param_tys,
-                    is_pub: r.is_pub,
-                    dc_id: r.dc_id,
-                };
-                top_routines.insert(r.name.clone(), sig.clone());
-                top_routine_decls.insert(r.name.clone(), r);
+                rlist.push(ResolvedCallTarget {
+                    namespace: None,
+                    routine_name: r.name.clone(),
+                    sig: sig.clone(),
+                });
                 if r.is_pub {
-                    exports.routines.insert(r.name.clone(), sig.clone());
+                    exports
+                        .routines
+                        .entry(r.name.clone())
+                        .or_default()
+                        .push(sig.clone());
                     if let Some(dc) = r.dc_id {
                         exports.by_dc.insert(
                             dc,
@@ -786,20 +1007,20 @@ pub fn validate_module_with_registry_and_dc_imports(
     }
 
     let mut validator = Validator {
-        namespace_key: namespace_key.clone(),
-        top_values,
-        top_routines,
-        top_routine_decls,
-        imported_values,
-        imported_routines,
+        value_candidates,
+        routine_candidates,
+        top_dc_values,
+        top_dc_routines,
         dc_imports: dc_imports.clone(),
-        used_dcs,
         next_binding_id: 1,
         local_scopes: Vec::new(),
         routine_scopes: Vec::new(),
         nested_summaries: HashMap::new(),
         pending_nested_calls: Vec::new(),
         tail_calls: HashSet::new(),
+        resolved_calls: HashMap::new(),
+        resolved_values: HashMap::new(),
+        _marker: std::marker::PhantomData,
     };
 
     // 3. Validate top-level constant initializers (acyclic pure dependencies).
@@ -816,8 +1037,18 @@ pub fn validate_module_with_registry_and_dc_imports(
         imports,
         dc_imports,
         tail_calls: validator.tail_calls,
+        resolved_calls: validator.resolved_calls,
+        resolved_values: validator.resolved_values,
         exports,
     })
+}
+
+fn format_param_types(params: &[StageLType]) -> String {
+    params
+        .iter()
+        .map(StageLType::display_name)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 #[derive(Debug, Clone)]
@@ -884,10 +1115,8 @@ impl<'a> Validator<'a> {
         if self.lookup_local(name).is_some() {
             return true;
         }
-        if self.top_values.contains_key(name)
-            || self.top_routines.contains_key(name)
-            || self.imported_values.contains_key(name)
-            || self.imported_routines.contains_key(name)
+        if self.value_candidates.contains_key(name)
+            || self.routine_candidates.contains_key(name)
         {
             return true;
         }
@@ -899,17 +1128,11 @@ impl<'a> Validator<'a> {
         false
     }
 
-    fn lookup_routine(&self, name: &str) -> Option<VerbTarget> {
+    fn lookup_nested_routine(&self, name: &str) -> Option<usize> {
         for rs in self.routine_scopes.iter().rev() {
-            if let Some(vt) = rs.get(name) {
-                return Some(vt.clone());
+            if let Some(VerbTarget::Nested(nid)) = rs.get(name) {
+                return Some(*nid);
             }
-        }
-        if let Some(sig) = self.top_routines.get(name) {
-            return Some(VerbTarget::TopLevel(sig.clone()));
-        }
-        if let Some(sig) = self.imported_routines.get(name) {
-            return Some(VerbTarget::Imported(sig.clone()));
         }
         None
     }
@@ -918,9 +1141,14 @@ impl<'a> Validator<'a> {
         &mut self,
         values: &[&'a TopValueDecl],
     ) -> Result<()> {
-        let mut by_name: HashMap<&str, &'a TopValueDecl> = HashMap::new();
+        let mut by_key: HashMap<ValueKey, &'a TopValueDecl> = HashMap::new();
+        let mut dc_to_key: HashMap<DcChar, ValueKey> = HashMap::new();
         for &v in values {
-            by_name.insert(v.name.as_str(), v);
+            let vk = ValueKey::from_decl(v);
+            if let Some(dc) = v.dc_id {
+                dc_to_key.insert(dc, vk.clone());
+            }
+            by_key.insert(vk, v);
         }
 
         // Check initialization order / acyclicity via DFS over value references.
@@ -929,21 +1157,24 @@ impl<'a> Validator<'a> {
             Visiting,
             Done,
         }
-        let mut visit: HashMap<&str, State> = HashMap::new();
+        let mut visit: HashMap<ValueKey, State> = HashMap::new();
         let mut stack: Vec<String> = Vec::new();
 
         fn visit_const<'a>(
             v: &'a TopValueDecl,
-            by_name: &HashMap<&'a str, &'a TopValueDecl>,
+            by_key: &HashMap<ValueKey, &'a TopValueDecl>,
+            dc_to_key: &HashMap<DcChar, ValueKey>,
             validator: &mut Validator<'a>,
-            visit: &mut HashMap<&'a str, State>,
+            visit: &mut HashMap<ValueKey, State>,
             stack: &mut Vec<String>,
         ) -> Result<()> {
-            if let Some(st) = visit.get(v.name.as_str()) {
+            let vk = ValueKey::from_decl(v);
+            let label = format!("{}/{}", v.ty, v.name);
+            if let Some(st) = visit.get(&vk) {
                 match st {
                     State::Done => return Ok(()),
                     State::Visiting => {
-                        stack.push(v.name.clone());
+                        stack.push(label);
                         bail!(
                             "Cyclic constant initializer dependency: {}",
                             stack.join(" -> ")
@@ -951,14 +1182,21 @@ impl<'a> Validator<'a> {
                     }
                 }
             }
-            visit.insert(v.name.as_str(), State::Visiting);
-            stack.push(v.name.clone());
+            visit.insert(vk.clone(), State::Visiting);
+            stack.push(label);
 
             let mut deps = Vec::new();
-            collect_value_deps(&v.value, &mut deps);
+            collect_value_deps(&v.value, dc_to_key, &mut deps);
             for dep in deps {
-                if let Some(&dep_decl) = by_name.get(dep.as_str()) {
-                    visit_const(dep_decl, by_name, validator, visit, stack)?;
+                if let Some(&dep_decl) = by_key.get(&dep) {
+                    visit_const(
+                        dep_decl,
+                        by_key,
+                        dc_to_key,
+                        validator,
+                        visit,
+                        stack,
+                    )?;
                 }
             }
 
@@ -984,12 +1222,12 @@ impl<'a> Validator<'a> {
                 actual,
                 v.span
             );
-            visit.insert(v.name.as_str(), State::Done);
+            visit.insert(vk, State::Done);
             Ok(())
         }
 
         for &v in values {
-            visit_const(v, &by_name, self, &mut visit, &mut stack)?;
+            visit_const(v, &by_key, &dc_to_key, self, &mut visit, &mut stack)?;
         }
         Ok(())
     }
@@ -1371,35 +1609,33 @@ impl<'a> Validator<'a> {
                             }
                             return Ok(entry.ty);
                         }
-                        if let Some((top_ty, _)) = self.top_values.get(name) {
-                            ensure!(
-                                top_ty == ty,
-                                "Type annotation mismatch on constant '{name}' at {span}: declared '{top_ty}', referenced as '{ty}'"
+                        if let Some(cands) = self.value_candidates.get(name) {
+                            if let Some(matched) =
+                                cands.iter().find(|c| &c.ty == ty).cloned()
+                            {
+                                self.resolved_values
+                                    .insert((span.line, span.col), matched);
+                                return Ok(ty.clone());
+                            }
+                            let avail: Vec<String> = cands
+                                .iter()
+                                .map(|c| c.ty.to_string())
+                                .collect();
+                            bail!(
+                                "Type annotation mismatch on constant '{name}' at {span}: declared '{}', referenced as '{ty}'",
+                                avail.join(" | ")
                             );
-                            return Ok(top_ty.clone());
-                        }
-                        if let Some((imp_ty, _, _)) =
-                            self.imported_values.get(name)
-                        {
-                            ensure!(
-                                imp_ty == ty,
-                                "Type annotation mismatch on imported constant '{name}' at {span}: declared '{imp_ty}', referenced as '{ty}'"
-                            );
-                            return Ok(imp_ty.clone());
                         }
                         bail!("Undeclared identifier '{name}' at {span}");
                     }
                     SymbolTarget::Dc(dc) => {
                         let sh = format_dc_shorthand(*dc);
-                        // Allow referencing a top-level value or imported value matching dc.
-                        for (name, (v_ty, _)) in &self.top_values {
-                            if self.used_dcs.get(dc) == Some(name) {
-                                ensure!(
-                                    v_ty == ty,
-                                    "Type mismatch on Dc reference '{sh}' at {span}"
-                                );
-                                return Ok(v_ty.clone());
-                            }
+                        if let Some(v_ty) = self.top_dc_values.get(dc) {
+                            ensure!(
+                                v_ty == ty,
+                                "Type mismatch on Dc reference '{sh}' at {span}"
+                            );
+                            return Ok(v_ty.clone());
                         }
                         if let Some(ImportedSymbol::Value { ty: imp_ty, .. }) =
                             self.dc_imports.get(dc)
@@ -1533,103 +1769,184 @@ impl<'a> Validator<'a> {
                     r.name,
                     r.span
                 );
-                let nested_id = match self.lookup_routine(&r.name) {
-                    Some(VerbTarget::Nested(nid)) => nid,
-                    _ => bail!(
+                let nested_id = self.lookup_nested_routine(&r.name).with_context(|| {
+                    format!(
                         "Nested routine '{}' at {} missing from enclosing block signature table",
                         r.name,
                         r.span
-                    ),
-                };
+                    )
+                })?;
                 self.validate_nested_routine_at_decl(nested_id, r, state)?;
                 Ok(StageLType::Void)
             }
-            Expr::Call { target, args, span } => {
-                let sig = match target {
-                    SymbolTarget::Ident(name) => match self.lookup_routine(name)
-                    {
-                        Some(VerbTarget::TopLevel(s))
-                        | Some(VerbTarget::Imported(s)) => s,
-                        Some(VerbTarget::Nested(nid)) => {
-                            let summary = self
-                                .nested_summaries
-                                .get(&nid)
-                                .cloned()
-                                .with_context(|| {
-                                    format!("Missing nested verb summary for '{name}' at {span}")
-                                })?;
-                            self.pending_nested_calls.push((
-                                nid,
-                                *span,
-                                state.clone(),
-                            ));
-                            if summary.captures_resolved {
-                                for cap_id in &summary.captured_reads {
-                                    if !state.is_assigned(*cap_id) {
-                                        bail!(
-                                            "Calling nested verb '{name}' at {span} before captured 'let' variable (binding #{cap_id}) is definitely assigned"
-                                        );
-                                    }
-                                    if ctx.outer_ids.contains(cap_id)
-                                        && !ctx.always_written.contains(cap_id)
-                                    {
-                                        ctx.captured_reads.insert(*cap_id);
-                                    }
+            Expr::Call { target, args, span } => match target {
+                SymbolTarget::Ident(name) => {
+                    if let Some(nid) = self.lookup_nested_routine(name) {
+                        let summary = self
+                            .nested_summaries
+                            .get(&nid)
+                            .cloned()
+                            .with_context(|| {
+                                format!("Missing nested verb summary for '{name}' at {span}")
+                            })?;
+                        self.pending_nested_calls.push((
+                            nid,
+                            *span,
+                            state.clone(),
+                        ));
+                        if summary.captures_resolved {
+                            for cap_id in &summary.captured_reads {
+                                if !state.is_assigned(*cap_id) {
+                                    bail!(
+                                        "Calling nested verb '{name}' at {span} before captured 'let' variable (binding #{cap_id}) is definitely assigned"
+                                    );
                                 }
-                                for written_id in &summary.always_written {
-                                    state.set_state(*written_id, true);
-                                    ctx.always_written.insert(*written_id);
+                                if ctx.outer_ids.contains(cap_id)
+                                    && !ctx.always_written.contains(cap_id)
+                                {
+                                    ctx.captured_reads.insert(*cap_id);
                                 }
                             }
-                            summary.sig
-                        }
-                        None => {
-                            bail!("Unknown routine '{name}' at {span}");
-                        }
-                    },
-                    SymbolTarget::Dc(dc) => {
-                        let sh = format_dc_shorthand(*dc);
-                        let mut found = None;
-                        if let Some(name) = self.used_dcs.get(dc) {
-                            if let Some(s) = self.top_routines.get(name) {
-                                found = Some(s.clone());
+                            for written_id in &summary.always_written {
+                                state.set_state(*written_id, true);
+                                ctx.always_written.insert(*written_id);
                             }
                         }
-                        if found.is_none() {
-                            if let Some(ImportedSymbol::Routine {
-                                sig,
-                                ..
-                            }) = self.dc_imports.get(dc)
-                            {
-                                found = Some(sig.clone());
-                            }
+                        let sig = summary.sig;
+                        ensure!(
+                            args.len() == sig.params.len(),
+                            "Wrong argument count in call at {span}: expected {}, got {}",
+                            sig.params.len(),
+                            args.len()
+                        );
+                        for (arg_expr, param_ty) in args.iter().zip(&sig.params)
+                        {
+                            let aty =
+                                self.check_subexpr(arg_expr, state, ctx)?;
+                            ensure!(
+                                types_compatible(&aty, param_ty),
+                                "Call argument type mismatch at {}: expected '{param_ty}', found '{aty}'",
+                                arg_expr.span()
+                            );
                         }
-                        found.with_context(|| {
-                            format!(
-                                "Unknown routine Dc reference 'dc/{sh}' at {span}"
-                            )
-                        })?
+                        if ctx.in_tail {
+                            self.tail_calls.insert((span.line, span.col));
+                        }
+                        return Ok(sig.return_type);
                     }
-                };
-                ensure!(
-                    args.len() == sig.params.len(),
-                    "Wrong argument count in call at {span}: expected {}, got {}",
-                    sig.params.len(),
-                    args.len()
-                );
-                for (arg_expr, param_ty) in args.iter().zip(&sig.params) {
-                    let aty = self.check_subexpr(arg_expr, state, ctx)?;
+
+                    let cands = self
+                        .routine_candidates
+                        .get(name)
+                        .cloned()
+                        .with_context(|| {
+                            format!("Unknown routine '{name}' at {span}")
+                        })?;
+                    let first_cand = cands
+                        .first()
+                        .context("Empty routine candidate list")?;
+                    let expected_arity = first_cand.sig.params.len();
                     ensure!(
-                        types_compatible(&aty, param_ty),
-                        "Call argument type mismatch at {}: expected '{param_ty}', found '{aty}'",
-                        arg_expr.span()
+                        args.len() == expected_arity,
+                        "Wrong argument count in call at {span}: expected {expected_arity}, got {}",
+                        args.len()
                     );
+
+                    if cands.len() == 1 {
+                        for (arg_expr, param_ty) in
+                            args.iter().zip(&first_cand.sig.params)
+                        {
+                            let aty =
+                                self.check_subexpr(arg_expr, state, ctx)?;
+                            ensure!(
+                                types_compatible(&aty, param_ty),
+                                "Call argument type mismatch at {}: expected '{param_ty}', found '{aty}'",
+                                arg_expr.span()
+                            );
+                        }
+                        let ret_ty = first_cand.sig.return_type.clone();
+                        self.resolved_calls
+                            .insert((span.line, span.col), first_cand.clone());
+                        if ctx.in_tail {
+                            self.tail_calls.insert((span.line, span.col));
+                        }
+                        return Ok(ret_ty);
+                    }
+
+                    let mut arg_tys = Vec::with_capacity(args.len());
+                    for arg_expr in args {
+                        arg_tys.push(self.check_subexpr(arg_expr, state, ctx)?);
+                    }
+                    let matches: Vec<&ResolvedCallTarget> = cands
+                        .iter()
+                        .filter(|c| {
+                            arg_tys
+                                .iter()
+                                .zip(&c.sig.params)
+                                .all(|(aty, pty)| types_compatible(aty, pty))
+                        })
+                        .collect();
+                    if matches.is_empty() {
+                        let avail: Vec<String> = cands
+                            .iter()
+                            .map(|c| {
+                                format!("({})", format_param_types(&c.sig.params))
+                            })
+                            .collect();
+                        bail!(
+                            "No matching overload for routine '{name}' at {span} with argument types ({}) (Call argument type mismatch; available signatures: {})",
+                            format_param_types(&arg_tys),
+                            avail.join(", ")
+                        );
+                    }
+                    ensure!(
+                        matches.len() == 1,
+                        "Ambiguous call to overloaded routine '{name}' at {span} with argument types ({}): matches {} overloads",
+                        format_param_types(&arg_tys),
+                        matches.len()
+                    );
+                    let chosen = (*matches
+                        .first()
+                        .context("Missing matched routine overload")?)
+                    .clone();
+                    let ret_ty = chosen.sig.return_type.clone();
+                    self.resolved_calls.insert((span.line, span.col), chosen);
+                    if ctx.in_tail {
+                        self.tail_calls.insert((span.line, span.col));
+                    }
+                    Ok(ret_ty)
                 }
-                if ctx.in_tail {
-                    self.tail_calls.insert((span.line, span.col));
+                SymbolTarget::Dc(dc) => {
+                    let sh = format_dc_shorthand(*dc);
+                    let sig = if let Some(s) = self.top_dc_routines.get(dc) {
+                        s.clone()
+                    } else if let Some(ImportedSymbol::Routine { sig, .. }) =
+                        self.dc_imports.get(dc)
+                    {
+                        sig.clone()
+                    } else {
+                        bail!("Unknown routine Dc reference 'dc/{sh}' at {span}");
+                    };
+                    ensure!(
+                        args.len() == sig.params.len(),
+                        "Wrong argument count in call at {span}: expected {}, got {}",
+                        sig.params.len(),
+                        args.len()
+                    );
+                    for (arg_expr, param_ty) in args.iter().zip(&sig.params) {
+                        let aty = self.check_subexpr(arg_expr, state, ctx)?;
+                        ensure!(
+                            types_compatible(&aty, param_ty),
+                            "Call argument type mismatch at {}: expected '{param_ty}', found '{aty}'",
+                            arg_expr.span()
+                        );
+                    }
+                    if ctx.in_tail {
+                        self.tail_calls.insert((span.line, span.col));
+                    }
+                    Ok(sig.return_type)
                 }
-                Ok(sig.return_type)
-            }
+            },
             Expr::Block { stmts, .. } => {
                 // Collect nested routine signatures first inside this block
                 // (enabling forward and mutually recursive nested calls!).
@@ -2462,21 +2779,39 @@ fn unify_int_pair(
     }
 }
 
-fn collect_value_deps(expr: &Expr, out: &mut Vec<String>) {
+fn collect_value_deps(
+    expr: &Expr,
+    dc_to_key: &HashMap<DcChar, ValueKey>,
+    out: &mut Vec<ValueKey>,
+) {
     match expr {
         Expr::ValueRef {
+            ty,
             target: SymbolTarget::Ident(n),
             ..
-        } => out.push(n.clone()),
-        Expr::List { elements, .. } => {
-            for e in elements {
-                collect_value_deps(e, out);
+        } => out.push(ValueKey {
+            name: n.clone(),
+            ty: ty.clone(),
+        }),
+        Expr::ValueRef {
+            target: SymbolTarget::Dc(dc),
+            ..
+        } => {
+            if let Some(vk) = dc_to_key.get(dc) {
+                out.push(vk.clone());
             }
         }
-        Expr::Unary { operand, .. } => collect_value_deps(operand, out),
+        Expr::List { elements, .. } => {
+            for e in elements {
+                collect_value_deps(e, dc_to_key, out);
+            }
+        }
+        Expr::Unary { operand, .. } => {
+            collect_value_deps(operand, dc_to_key, out);
+        }
         Expr::Binary { left, right, .. } => {
-            collect_value_deps(left, out);
-            collect_value_deps(right, out);
+            collect_value_deps(left, dc_to_key, out);
+            collect_value_deps(right, dc_to_key, out);
         }
         Expr::Ternary {
             first,
@@ -2484,12 +2819,12 @@ fn collect_value_deps(expr: &Expr, out: &mut Vec<String>) {
             third,
             ..
         } => {
-            collect_value_deps(first, out);
-            collect_value_deps(second, out);
-            collect_value_deps(third, out);
+            collect_value_deps(first, dc_to_key, out);
+            collect_value_deps(second, dc_to_key, out);
+            collect_value_deps(third, dc_to_key, out);
         }
         Expr::Conv { expr, .. } | Expr::Bitcast { expr, .. } => {
-            collect_value_deps(expr, out);
+            collect_value_deps(expr, dc_to_key, out);
         }
         Expr::If {
             cond,
@@ -2497,9 +2832,9 @@ fn collect_value_deps(expr: &Expr, out: &mut Vec<String>) {
             else_branch,
             ..
         } => {
-            collect_value_deps(cond, out);
-            collect_value_deps(then_branch, out);
-            collect_value_deps(else_branch, out);
+            collect_value_deps(cond, dc_to_key, out);
+            collect_value_deps(then_branch, dc_to_key, out);
+            collect_value_deps(else_branch, dc_to_key, out);
         }
         _ => {}
     }

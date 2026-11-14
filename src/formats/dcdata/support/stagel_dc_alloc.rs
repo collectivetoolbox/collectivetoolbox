@@ -59,7 +59,7 @@ use crate::stagel3::dc_tokens::{
 };
 use crate::stagel3::eval::run_validated_workspace_inline_tests;
 use crate::stagel3::validator::{
-    ImportedSymbol, ModuleInput, ValidatedModule, ValidatedWorkspace,
+    ModuleInput, RoutineKey, ValidatedModule, ValidatedWorkspace, ValueKey,
     parse_and_validate_workspace,
 };
 use crate::wat::ImplStage;
@@ -633,8 +633,8 @@ pub fn assign_stagel_dc_ids_in_memory(
 }
 
 struct DeclRewriteMaps {
-    value_dcs: HashMap<String, DcChar>,
-    routine_dcs: HashMap<String, DcChar>,
+    value_dcs_by_span: HashMap<(usize, usize), DcChar>,
+    routine_dcs_by_span: HashMap<(usize, usize), DcChar>,
 }
 
 #[derive(Default)]
@@ -775,7 +775,9 @@ fn rewrite_expr_refs(
         Expr::ValueRef { ty, target, span } => {
             let new_target = match target {
                 SymbolTarget::Ident(name) if !shadows.has_value(name) => {
-                    if let Some(&dc) = maps.value_dcs.get(name) {
+                    if let Some(&dc) =
+                        maps.value_dcs_by_span.get(&(span.line, span.col))
+                    {
                         SymbolTarget::Dc(dc)
                     } else {
                         SymbolTarget::Ident(name.clone())
@@ -844,7 +846,9 @@ fn rewrite_expr_refs(
         Expr::Call { target, args, span } => {
             let new_target = match target {
                 SymbolTarget::Ident(name) if !shadows.has_routine(name) => {
-                    if let Some(&dc) = maps.routine_dcs.get(name) {
+                    if let Some(&dc) =
+                        maps.routine_dcs_by_span.get(&(span.line, span.col))
+                    {
                         SymbolTarget::Dc(dc)
                     } else {
                         SymbolTarget::Ident(name.clone())
@@ -1028,50 +1032,84 @@ pub(crate) fn compile_stagel_files_into_desired_state(
             comment: format!("FilePath {ns_key:?}"),
         };
 
-        let mut value_dcs: HashMap<String, DcChar> = HashMap::new();
-        let mut routine_dcs: HashMap<String, DcChar> = HashMap::new();
-
-        for (local_name, imp) in &vm.imports {
-            match imp {
-                ImportedSymbol::Value { dc_id, .. } => {
-                    let target_dc = dc_id.with_context(|| {
-                        format!(
-                            "Imported constant '{local_name}' in '{ns_key}' has no assigned Dc"
-                        )
-                    })?;
-                    value_dcs.insert(local_name.clone(), target_dc);
-                }
-                ImportedSymbol::Routine { sig, .. } => {
-                    let target_dc = sig.dc_id.with_context(|| {
-                        format!(
-                            "Imported routine '{local_name}' in '{ns_key}' has no assigned Dc"
-                        )
-                    })?;
-                    routine_dcs.insert(local_name.clone(), target_dc);
-                }
-            }
-        }
+        let mut local_value_dcs: HashMap<ValueKey, DcChar> = HashMap::new();
+        let mut local_routine_dcs: HashMap<RoutineKey, DcChar> = HashMap::new();
         for item in &vm.module.items {
             match item {
                 TopDecl::Value(v) => {
                     let dc = v.dc_id.with_context(|| {
                         format!("Missing Dc on '{}::{}'", ns_key, v.name)
                     })?;
-                    value_dcs.insert(v.name.clone(), dc);
+                    local_value_dcs.insert(
+                        ValueKey {
+                            name: v.name.clone(),
+                            ty: v.ty.clone(),
+                        },
+                        dc,
+                    );
                 }
                 TopDecl::Routine(r) => {
                     let dc = r.dc_id.with_context(|| {
                         format!("Missing Dc on '{}::{}'", ns_key, r.name)
                     })?;
-                    routine_dcs.insert(r.name.clone(), dc);
+                    local_routine_dcs.insert(RoutineKey::from_decl(r), dc);
                 }
                 TopDecl::Comment(_) => {}
             }
         }
 
+        let mut value_dcs_by_span: HashMap<(usize, usize), DcChar> =
+            HashMap::with_capacity(vm.resolved_values.len());
+        for (&span_key, rv) in &vm.resolved_values {
+            let vkey = rv.value_key();
+            let target_dc = if rv.namespace.is_some() {
+                rv.dc_id.with_context(|| {
+                    format!(
+                        "Imported constant '{}/{}' in '{ns_key}' has no assigned Dc",
+                        vkey.ty, vkey.name
+                    )
+                })?
+            } else {
+                rv.dc_id
+                    .or_else(|| local_value_dcs.get(&vkey).copied())
+                    .with_context(|| {
+                        format!(
+                            "Local constant '{}/{}' in '{ns_key}' has no assigned Dc",
+                            vkey.ty, vkey.name
+                        )
+                    })?
+            };
+            value_dcs_by_span.insert(span_key, target_dc);
+        }
+
+        let mut routine_dcs_by_span: HashMap<(usize, usize), DcChar> =
+            HashMap::with_capacity(vm.resolved_calls.len());
+        for (&span_key, rc) in &vm.resolved_calls {
+            let rkey = rc.routine_key();
+            let target_dc = if rc.namespace.is_some() {
+                rc.sig.dc_id.with_context(|| {
+                    format!(
+                        "Imported routine '{}' in '{ns_key}' has no assigned Dc",
+                        rkey.name
+                    )
+                })?
+            } else {
+                rc.sig
+                    .dc_id
+                    .or_else(|| local_routine_dcs.get(&rkey).copied())
+                    .with_context(|| {
+                        format!(
+                            "Local routine '{}' in '{ns_key}' has no assigned Dc",
+                            rkey.name
+                        )
+                    })?
+            };
+            routine_dcs_by_span.insert(span_key, target_dc);
+        }
+
         let maps = DeclRewriteMaps {
-            value_dcs,
-            routine_dcs,
+            value_dcs_by_span,
+            routine_dcs_by_span,
         };
 
         for item in &vm.module.items {
@@ -1576,8 +1614,14 @@ mod tests {
             "base".to_owned(),
         ])?;
         assert_eq!(base_exports.len(), 2);
-        let compute_sh = *base_exports.get("compute").context("missing compute")?;
-        let offset_sh = *base_exports.get("OFFSET").context("missing OFFSET")?;
+        let compute_sh = *base_exports
+            .get("compute")
+            .and_then(|v| v.first())
+            .context("missing compute")?;
+        let offset_sh = *base_exports
+            .get("OFFSET")
+            .and_then(|v| v.first())
+            .context("missing OFFSET")?;
         let (_, compute_tokens) = idx1
             .resolve_stagel_decomposition_tokens(compute_sh)?
             .unwrap();
@@ -1642,7 +1686,10 @@ mod tests {
             "caller".to_owned(),
         ])?;
         assert!(!caller_exports.contains_key("run"));
-        let execute_sh = *caller_exports.get("execute").context("missing execute")?;
+        let execute_sh = *caller_exports
+            .get("execute")
+            .and_then(|v| v.first())
+            .context("missing execute")?;
 
         // 5. Delete `caller.sl3` completely -> retracts `execute_sh` via `Dc 592`!
         files.pop();

@@ -961,11 +961,14 @@ impl Parser {
             // Reason for fallback: Root module scope starts empty when no outer scope was seeded.
             .unwrap_or_default();
         for (k, v) in top_sigs {
-            ensure!(
-                !scope.contains_key(&k),
-                "Duplicate or shadowed routine name '{k}' in module scope"
-            );
-            scope.insert(k, v);
+            if let Some(&prev_arity) = scope.get(&k) {
+                ensure!(
+                    prev_arity == v,
+                    "Conflicting parameter count for overloaded routine '{k}' in module scope: expected {prev_arity} parameter(s), found {v}"
+                );
+            } else {
+                scope.insert(k, v);
+            }
         }
         self.verb_scopes.push(scope);
 

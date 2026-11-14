@@ -43,7 +43,7 @@ use super::ast::{
     SymbolTarget, TestExpected, TopDecl, TopValueDecl,
 };
 use super::dc_tokens::{
-    decode_module_from_dc_tokens, decode_top_decl_from_dc_tokens,
+    decode_module_from_dc_tokens, decode_top_decl_from_dc_tokens_at_line,
     encode_module_to_dc_tokens, strip_comment_frames,
 };
 use super::eval::{
@@ -139,6 +139,14 @@ fn decode_graph_stagel_entry(
     seed_graph: &SeedGraphIndex,
     target_sh: DcShorthand,
 ) -> Result<Option<(Vec<DcChar>, EitherDeclOrModule)>> {
+    decode_graph_stagel_entry_at_line(seed_graph, target_sh, 1)
+}
+
+fn decode_graph_stagel_entry_at_line(
+    seed_graph: &SeedGraphIndex,
+    target_sh: DcShorthand,
+    decl_line: usize,
+) -> Result<Option<(Vec<DcChar>, EitherDeclOrModule)>> {
     let Some((_, chars)) =
         seed_graph.resolve_stagel_decomposition_tokens(target_sh)?
     else {
@@ -151,9 +159,12 @@ fn decode_graph_stagel_entry(
         })?;
         Ok(Some((chars, EitherDeclOrModule::Module(module))))
     } else {
-        let decl = decode_top_decl_from_dc_tokens(&chars).with_context(|| {
-            format!("Failed to decode StageL Token-Dc declaration on {target_sh}")
-        })?;
+        let decl = decode_top_decl_from_dc_tokens_at_line(&chars, decl_line)
+            .with_context(|| {
+                format!(
+                    "Failed to decode StageL Token-Dc declaration on {target_sh}"
+                )
+            })?;
         Ok(Some((chars, EitherDeclOrModule::Decl(decl))))
     }
 }
@@ -169,30 +180,41 @@ fn extract_decl_from_module(
     expected_name: Option<&str>,
     target_sh: DcShorthand,
 ) -> Result<TopDecl> {
+    let mut name_matches: Vec<TopDecl> = Vec::new();
     let mut non_comment_items: Vec<TopDecl> = Vec::new();
     for item in module.items {
         match &item {
             TopDecl::Routine(r) => {
-                if r.dc_id == Some(target_dc)
-                    || expected_name.is_some_and(|n| r.name == n)
-                {
+                if r.dc_id == Some(target_dc) {
                     return Ok(item);
                 }
-                non_comment_items.push(item);
+                if expected_name.is_some_and(|n| r.name == n) {
+                    name_matches.push(item);
+                } else {
+                    non_comment_items.push(item);
+                }
             }
             TopDecl::Value(v) => {
-                if v.dc_id == Some(target_dc)
-                    || expected_name.is_some_and(|n| v.name == n)
-                {
+                if v.dc_id == Some(target_dc) {
                     return Ok(item);
                 }
-                non_comment_items.push(item);
+                if expected_name.is_some_and(|n| v.name == n) {
+                    name_matches.push(item);
+                } else {
+                    non_comment_items.push(item);
+                }
             }
             TopDecl::Comment(_) => {}
         }
     }
-    if non_comment_items.len() == 1
-        && let Some(single) = non_comment_items.into_iter().next()
+    if name_matches.len() == 1
+        && let Some(matched) = name_matches.pop()
+    {
+        return Ok(matched);
+    }
+    if name_matches.is_empty()
+        && non_comment_items.len() == 1
+        && let Some(single) = non_comment_items.pop()
     {
         return Ok(single);
     }
@@ -359,45 +381,57 @@ fn reconstruct_external_namespace_module(
 
     let mut items = Vec::with_capacity(exports_map.len());
     let mut prelim_exports = NamespaceExports::default();
-    for (export_name, target_sh) in exports_map {
-        let gid = target_sh.to_global_id()?;
-        let target_dc = DcChar::from_u128(gid);
-        let (_, entry) = decode_graph_stagel_entry(seed_graph, target_sh)?
+    for (export_name, target_sh_list) in exports_map {
+        for target_sh in target_sh_list {
+            let decl_line = items.len().saturating_add(1);
+            let gid = target_sh.to_global_id()?;
+            let target_dc = DcChar::from_u128(gid);
+            let (_, entry) = decode_graph_stagel_entry_at_line(
+                seed_graph, target_sh, decl_line,
+            )?
             .with_context(|| {
                 format!(
                     "Exported symbol '{export_name}' ({target_sh}) in namespace '{ns_key}' has no active StageL Token-Dc decomposition"
                 )
             })?;
-        let raw_decl = match entry {
-            EitherDeclOrModule::Decl(d) => d,
-            EitherDeclOrModule::Module(m) => {
-                extract_decl_from_module(m, target_dc, Some(&export_name), target_sh)?
+            let raw_decl = match entry {
+                EitherDeclOrModule::Decl(d) => d,
+                EitherDeclOrModule::Module(m) => extract_decl_from_module(
+                    m,
+                    target_dc,
+                    Some(&export_name),
+                    target_sh,
+                )?,
+            };
+            let (prepared_decl, orig_name, kind) =
+                prepare_graph_top_decl(raw_decl, Some(&export_name), target_dc)?;
+            let owner = GraphDcOwner {
+                namespace_key: ns_key.clone(),
+                original_name: orig_name.clone(),
+                kind: kind.clone(),
+            };
+            match &kind {
+                GraphOwnerKind::Value { ty } => {
+                    prelim_exports
+                        .values
+                        .entry(orig_name.clone())
+                        .or_default()
+                        .push((ty.clone(), Some(target_dc)));
+                }
+                GraphOwnerKind::Routine { sig } => {
+                    prelim_exports
+                        .routines
+                        .entry(orig_name.clone())
+                        .or_default()
+                        .push(sig.clone());
+                }
             }
-        };
-        let (prepared_decl, orig_name, kind) =
-            prepare_graph_top_decl(raw_decl, Some(&export_name), target_dc)?;
-        let owner = GraphDcOwner {
-            namespace_key: ns_key.clone(),
-            original_name: orig_name.clone(),
-            kind: kind.clone(),
-        };
-        match &kind {
-            GraphOwnerKind::Value { ty } => {
-                prelim_exports
-                    .values
-                    .insert(orig_name.clone(), (ty.clone(), Some(target_dc)));
-            }
-            GraphOwnerKind::Routine { sig } => {
-                prelim_exports
-                    .routines
-                    .insert(orig_name.clone(), sig.clone());
-            }
+            prelim_exports
+                .by_dc
+                .insert(target_dc, owner.to_imported_symbol(target_dc));
+            dc_owners.insert(target_dc, owner);
+            items.push(prepared_decl);
         }
-        prelim_exports
-            .by_dc
-            .insert(target_dc, owner.to_imported_symbol(target_dc));
-        dc_owners.insert(target_dc, owner);
-        items.push(prepared_decl);
     }
 
     let module = Module {
@@ -931,7 +965,10 @@ pub fn parse_and_validate_workspace_with_seed_graph(
                             is_pub: true,
                             dc_id: r.dc_id,
                         };
-                        exp.routines.insert(r.name.clone(), sig.clone());
+                        exp.routines
+                            .entry(r.name.clone())
+                            .or_default()
+                            .push(sig.clone());
                         if let Some(dc) = r.dc_id {
                             exp.by_dc.insert(
                                 dc,
@@ -945,7 +982,9 @@ pub fn parse_and_validate_workspace_with_seed_graph(
                     }
                     TopDecl::Value(v) if v.is_pub => {
                         exp.values
-                            .insert(v.name.clone(), (v.ty.clone(), v.dc_id));
+                            .entry(v.name.clone())
+                            .or_default()
+                            .push((v.ty.clone(), v.dc_id));
                         if let Some(dc) = v.dc_id {
                             exp.by_dc.insert(
                                 dc,

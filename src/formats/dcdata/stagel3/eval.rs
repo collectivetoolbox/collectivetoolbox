@@ -34,11 +34,11 @@ use crate::utilities::*;
 
 use super::ast::{
     BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, RoutineDecl,
-    StageLType, SymbolTarget, TestExpected, TopDecl, TypedIntLit,
+    Span, StageLType, SymbolTarget, TestExpected, TopDecl, TypedIntLit,
 };
 use super::parser::parse_module;
 use super::validator::{
-    ImportedSymbol, ModuleInput, ValidatedModule, ValidatedWorkspace,
+    ImportedSymbol, ModuleInput, RoutineKey, ValidatedWorkspace, ValueKey,
     parse_and_validate_workspace, validate_module,
 };
 use crate::DcChar;
@@ -114,6 +114,27 @@ impl Value {
         usize::try_from(*n).with_context(|| {
             format!("{context_msg}: u64 index {n} exceeds host usize range")
         })
+    }
+
+    fn matches_stagel_type(&self, ty: &StageLType) -> bool {
+        match (self, ty) {
+            (Self::Bool(_), StageLType::B)
+            | (Self::U8(_), StageLType::U8)
+            | (Self::I32(_), StageLType::I32)
+            | (Self::U32(_), StageLType::U32)
+            | (Self::I64(_), StageLType::I64)
+            | (Self::U64(_), StageLType::U64)
+            | (Self::Void, StageLType::Void) => true,
+            (Self::List(elems), StageLType::List(elem_ty)) => elems
+                .first()
+                .is_none_or(|first| first.matches_stagel_type(elem_ty)),
+            (Self::Buf(buf), StageLType::Buf(elem_ty)) => buf
+                .borrow()
+                .elems
+                .first()
+                .is_none_or(|first| first.matches_stagel_type(elem_ty)),
+            _ => false,
+        }
     }
 }
 
@@ -242,7 +263,7 @@ struct ClosureVerb {
 enum CallableRoutine {
     Top {
         module_idx: usize,
-        routine_name: String,
+        key: RoutineKey,
     },
     Nested(ClosureVerb),
 }
@@ -260,26 +281,28 @@ enum EvalSignal {
 }
 
 #[derive(Debug, Clone)]
-enum ResolvedImportTarget {
-    Value { module_idx: usize, name: String },
-    Routine { module_idx: usize, name: String },
+enum ResolvedDcImportTarget {
+    Value { module_idx: usize, key: ValueKey },
+    Routine { module_idx: usize, key: RoutineKey },
 }
 
 struct ModuleRuntime {
     #[allow(dead_code, reason = "Retained for diagnostics and debugging")]
     namespace_key: Option<String>,
-    constants: HashMap<String, Value>,
-    dc_constants: HashMap<DcChar, String>,
-    routines: HashMap<String, RoutineDecl>,
-    dc_routines: HashMap<DcChar, String>,
-    imports_by_name: HashMap<String, ResolvedImportTarget>,
-    imports_by_dc: HashMap<DcChar, ResolvedImportTarget>,
+    constants: HashMap<ValueKey, Value>,
+    dc_constants: HashMap<DcChar, ValueKey>,
+    routines: HashMap<RoutineKey, RoutineDecl>,
+    dc_routines: HashMap<DcChar, RoutineKey>,
+    resolved_values: HashMap<(usize, usize), (usize, ValueKey)>,
+    resolved_calls: HashMap<(usize, usize), (usize, RoutineKey)>,
+    imports_by_dc: HashMap<DcChar, ResolvedDcImportTarget>,
 }
 
 /// Multi-module StageL 3 runtime VM supporting cross-namespace calls, constant
 /// evaluation, tail-call trampolining, and inline `test` execution.
 pub struct StageLWorkspaceVm {
     modules: Vec<ModuleRuntime>,
+    #[allow(dead_code, reason = "Retained for namespace lookup diagnostics")]
     ns_to_idx: HashMap<String, usize>,
     config: EvalConfig,
 }
@@ -305,73 +328,68 @@ impl StageLWorkspaceVm {
         };
 
         for (mod_idx, vm) in ws.modules.iter().enumerate() {
-            let mut imports_by_name = HashMap::new();
-            for (local_name, sym) in &vm.imports {
-                let target = match sym {
-                    ImportedSymbol::Value {
-                        namespace,
-                        original_name,
-                        ..
-                    } => {
-                        let dep_idx = *vm_state
-                            .ns_to_idx
-                            .get(namespace)
-                            .with_context(|| {
-                                format!("Missing compiled namespace '{namespace}'")
-                            })?;
-                        ResolvedImportTarget::Value {
-                            module_idx: dep_idx,
-                            name: original_name.clone(),
-                        }
-                    }
-                    ImportedSymbol::Routine {
-                        namespace,
-                        original_name,
-                        ..
-                    } => {
-                        let dep_idx = *vm_state
-                            .ns_to_idx
-                            .get(namespace)
-                            .with_context(|| {
-                                format!("Missing compiled namespace '{namespace}'")
-                            })?;
-                        ResolvedImportTarget::Routine {
-                            module_idx: dep_idx,
-                            name: original_name.clone(),
-                        }
-                    }
+            let mut resolved_values =
+                HashMap::with_capacity(vm.resolved_values.len());
+            for (&span_key, rv) in &vm.resolved_values {
+                let target_mod_idx = if let Some(ns) = &rv.namespace {
+                    *vm_state.ns_to_idx.get(ns).with_context(|| {
+                        format!("Missing compiled namespace '{ns}'")
+                    })?
+                } else {
+                    mod_idx
                 };
-                imports_by_name.insert(local_name.clone(), target);
+                resolved_values.insert(span_key, (target_mod_idx, rv.value_key()));
             }
+
+            let mut resolved_calls =
+                HashMap::with_capacity(vm.resolved_calls.len());
+            for (&span_key, rc) in &vm.resolved_calls {
+                let target_mod_idx = if let Some(ns) = &rc.namespace {
+                    *vm_state.ns_to_idx.get(ns).with_context(|| {
+                        format!("Missing compiled namespace '{ns}'")
+                    })?
+                } else {
+                    mod_idx
+                };
+                resolved_calls.insert(span_key, (target_mod_idx, rc.routine_key()));
+            }
+
             let mut imports_by_dc = HashMap::new();
             for (dc, sym) in &vm.dc_imports {
                 let target = match sym {
                     ImportedSymbol::Value {
                         namespace,
                         original_name,
+                        ty,
                         ..
                     } => {
                         let dep_idx = *vm_state
                             .ns_to_idx
                             .get(namespace)
                             .context("Missing imported dc namespace")?;
-                        ResolvedImportTarget::Value {
+                        ResolvedDcImportTarget::Value {
                             module_idx: dep_idx,
-                            name: original_name.clone(),
+                            key: ValueKey {
+                                name: original_name.clone(),
+                                ty: ty.clone(),
+                            },
                         }
                     }
                     ImportedSymbol::Routine {
                         namespace,
                         original_name,
-                        ..
+                        sig,
                     } => {
                         let dep_idx = *vm_state
                             .ns_to_idx
                             .get(namespace)
                             .context("Missing imported dc namespace")?;
-                        ResolvedImportTarget::Routine {
+                        ResolvedDcImportTarget::Routine {
                             module_idx: dep_idx,
-                            name: original_name.clone(),
+                            key: RoutineKey {
+                                name: original_name.clone(),
+                                params: sig.params.clone(),
+                            },
                         }
                     }
                 };
@@ -387,16 +405,21 @@ impl StageLWorkspaceVm {
                 match decl {
                     TopDecl::Comment(_) => {}
                     TopDecl::Value(v) => {
+                        let vkey = ValueKey {
+                            name: v.name.clone(),
+                            ty: v.ty.clone(),
+                        };
                         if let Some(dc) = v.dc_id {
-                            dc_constants.insert(dc, v.name.clone());
+                            dc_constants.insert(dc, vkey);
                         }
                         pending_consts.push(v.clone());
                     }
                     TopDecl::Routine(r) => {
+                        let rkey = RoutineKey::from_decl(r);
                         if let Some(dc) = r.dc_id {
-                            dc_routines.insert(dc, r.name.clone());
+                            dc_routines.insert(dc, rkey.clone());
                         }
-                        routines.insert(r.name.clone(), r.clone());
+                        routines.insert(rkey, r.clone());
                     }
                 }
             }
@@ -407,7 +430,8 @@ impl StageLWorkspaceVm {
                 dc_constants,
                 routines,
                 dc_routines,
-                imports_by_name,
+                resolved_values,
+                resolved_calls,
                 imports_by_dc,
             });
 
@@ -426,12 +450,46 @@ impl StageLWorkspaceVm {
         routine_name: &str,
         args: Vec<Value>,
     ) -> Result<RoutineOutcome> {
+        let mod_rt = self
+            .modules
+            .get(module_idx)
+            .context("Invalid module index during call")?;
+        let mut by_name: Vec<&RoutineKey> = mod_rt
+            .routines
+            .keys()
+            .filter(|k| k.name == routine_name)
+            .collect();
+        if by_name.len() > 1 {
+            by_name.retain(|k| {
+                k.params.len() == args.len()
+                    && args
+                        .iter()
+                        .zip(&k.params)
+                        .all(|(v, ty)| v.matches_stagel_type(ty))
+            });
+        }
+        ensure!(
+            by_name.len() == 1,
+            "Routine '{routine_name}' not uniquely matched for runtime call ({} candidate(s))",
+            by_name.len()
+        );
+        let key = (*by_name
+            .first()
+            .context("Expected single matched routine key")?)
+        .clone();
+        self.call_routine_by_key(module_idx, key, args)
+    }
+
+    /// Invokes a routine identified by [`RoutineKey`] in `module_idx`.
+    pub fn call_routine_by_key(
+        &self,
+        module_idx: usize,
+        key: RoutineKey,
+        args: Vec<Value>,
+    ) -> Result<RoutineOutcome> {
         let mut quota = self.config.compute_quota;
         self.invoke_trampoline(
-            CallableRoutine::Top {
-                module_idx,
-                routine_name: routine_name.to_owned(),
-            },
+            CallableRoutine::Top { module_idx, key },
             args,
             0,
             &mut quota,
@@ -507,8 +565,11 @@ impl StageLWorkspaceVm {
             }
         }
 
-        let outcome =
-            self.call_routine(mod_idx, &routine.name, args)?;
+        let outcome = self.call_routine_by_key(
+            mod_idx,
+            RoutineKey::from_decl(routine),
+            args,
+        )?;
         match (&tc.expected, outcome) {
             (TestExpected::Fault(_), RoutineOutcome::Trapped(msg)) => {
                 Ok(TestCaseReport {
@@ -632,20 +693,17 @@ impl StageLWorkspaceVm {
                 return Ok(RoutineOutcome::Trapped(msg));
             }
             let (mod_idx, decl, parent_frame) = match callee {
-                CallableRoutine::Top {
-                    module_idx,
-                    routine_name,
-                } => {
+                CallableRoutine::Top { module_idx, key } => {
                     let mod_rt = self
                         .modules
                         .get(module_idx)
                         .context("Invalid module index during call")?;
                     let decl = mod_rt
                         .routines
-                        .get(&routine_name)
+                        .get(&key)
                         .cloned()
                         .with_context(|| {
-                            format!("Routine '{routine_name}' not found at runtime")
+                            format!("Routine '{}' not found at runtime", key.name)
                         })?;
                     (module_idx, decl, None)
                 }
@@ -741,7 +799,7 @@ impl StageLWorkspaceVm {
                 };
                 Ok(EvalSignal::Value(Value::Buf(Rc::new(RefCell::new(storage)))))
             }
-            Expr::ValueRef { target, .. } => {
+            Expr::ValueRef { ty, target, span } => {
                 let val = match target {
                     SymbolTarget::Ident(name) => {
                         if let Some(cell) = frame.lookup_var(name) {
@@ -749,7 +807,7 @@ impl StageLWorkspaceVm {
                                 .clone()
                                 .context("Uninitialized variable read at runtime")?
                         } else {
-                            self.lookup_module_value(mod_idx, name)?
+                            self.lookup_module_value(mod_idx, *span, name, ty)?
                         }
                     }
                     SymbolTarget::Dc(dc) => {
@@ -785,7 +843,7 @@ impl StageLWorkspaceVm {
                 *cell.borrow_mut() = Some(new_val);
                 Ok(EvalSignal::Value(Value::Void))
             }
-            Expr::Call { target, args, .. } => {
+            Expr::Call { target, args, span } => {
                 let mut evaluated_args = Vec::with_capacity(args.len());
                 for a in args {
                     match self.eval_expr(mod_idx, a, frame, false, depth, quota)? {
@@ -793,7 +851,7 @@ impl StageLWorkspaceVm {
                         sig => return Ok(sig),
                     }
                 }
-                let callee = self.resolve_callee(mod_idx, target, frame)?;
+                let callee = self.resolve_callee(mod_idx, target, *span, frame)?;
                 if in_tail {
                     Ok(EvalSignal::TailCall {
                         callee,
@@ -1153,42 +1211,60 @@ impl StageLWorkspaceVm {
         }
     }
 
-    fn lookup_module_value(&self, mod_idx: usize, name: &str) -> Result<Value> {
+    fn lookup_module_value(
+        &self,
+        mod_idx: usize,
+        span: Span,
+        name: &str,
+        ty: &StageLType,
+    ) -> Result<Value> {
         let mod_rt = self.modules.get(mod_idx).context("Invalid module idx")?;
-        if let Some(v) = mod_rt.constants.get(name) {
+        if let Some((target_mod_idx, vkey)) =
+            mod_rt.resolved_values.get(&(span.line, span.col))
+        {
+            let target_rt = self
+                .modules
+                .get(*target_mod_idx)
+                .context("Invalid resolved constant module idx")?;
+            return target_rt
+                .constants
+                .get(vkey)
+                .cloned()
+                .with_context(|| {
+                    format!(
+                        "Constant '{}/{}' not yet initialized or missing at runtime",
+                        vkey.ty, vkey.name
+                    )
+                });
+        }
+        let fallback_key = ValueKey {
+            name: name.to_owned(),
+            ty: ty.clone(),
+        };
+        if let Some(v) = mod_rt.constants.get(&fallback_key) {
             return Ok(v.clone());
         }
-        if let Some(ResolvedImportTarget::Value {
-            module_idx: dep_idx,
-            name: orig,
-        }) = mod_rt.imports_by_name.get(name)
-        {
-            let dep_rt = self.modules.get(*dep_idx).context("Invalid dep idx")?;
-            return dep_rt.constants.get(orig).cloned().with_context(|| {
-                format!("Missing constant '{orig}' in dependency module")
-            });
-        }
-        bail!("Constant or variable '{name}' not found at runtime")
+        bail!("Constant or variable '{ty}/{name}' not found at runtime")
     }
 
     fn lookup_dc_value(&self, mod_idx: usize, dc: DcChar) -> Result<Value> {
         let mod_rt = self.modules.get(mod_idx).context("Invalid module idx")?;
-        if let Some(name) = mod_rt.dc_constants.get(&dc) {
+        if let Some(vkey) = mod_rt.dc_constants.get(&dc) {
             return mod_rt
                 .constants
-                .get(name)
+                .get(vkey)
                 .cloned()
                 .context("Missing local Dc constant value");
         }
-        if let Some(ResolvedImportTarget::Value {
+        if let Some(ResolvedDcImportTarget::Value {
             module_idx: dep_idx,
-            name: orig,
+            key: vkey,
         }) = mod_rt.imports_by_dc.get(&dc)
         {
             let dep_rt = self.modules.get(*dep_idx).context("Invalid dep idx")?;
             return dep_rt
                 .constants
-                .get(orig)
+                .get(vkey)
                 .cloned()
                 .context("Missing imported Dc constant value");
         }
@@ -1199,6 +1275,7 @@ impl StageLWorkspaceVm {
         &self,
         mod_idx: usize,
         target: &SymbolTarget,
+        span: Span,
         frame: &LexFrame,
     ) -> Result<CallableRoutine> {
         match target {
@@ -1208,41 +1285,33 @@ impl StageLWorkspaceVm {
                 }
                 let mod_rt =
                     self.modules.get(mod_idx).context("Invalid module idx")?;
-                if mod_rt.routines.contains_key(name) {
-                    return Ok(CallableRoutine::Top {
-                        module_idx: mod_idx,
-                        routine_name: name.clone(),
-                    });
-                }
-                if let Some(ResolvedImportTarget::Routine {
-                    module_idx: dep_idx,
-                    name: orig,
-                }) = mod_rt.imports_by_name.get(name)
+                if let Some((target_mod_idx, rkey)) =
+                    mod_rt.resolved_calls.get(&(span.line, span.col))
                 {
                     return Ok(CallableRoutine::Top {
-                        module_idx: *dep_idx,
-                        routine_name: orig.clone(),
+                        module_idx: *target_mod_idx,
+                        key: rkey.clone(),
                     });
                 }
-                bail!("Routine '{name}' not found at runtime")
+                bail!("Routine '{name}' at {span} not found at runtime")
             }
             SymbolTarget::Dc(dc) => {
                 let mod_rt =
                     self.modules.get(mod_idx).context("Invalid module idx")?;
-                if let Some(rname) = mod_rt.dc_routines.get(dc) {
+                if let Some(rkey) = mod_rt.dc_routines.get(dc) {
                     return Ok(CallableRoutine::Top {
                         module_idx: mod_idx,
-                        routine_name: rname.clone(),
+                        key: rkey.clone(),
                     });
                 }
-                if let Some(ResolvedImportTarget::Routine {
+                if let Some(ResolvedDcImportTarget::Routine {
                     module_idx: dep_idx,
-                    name: orig,
+                    key: rkey,
                 }) = mod_rt.imports_by_dc.get(dc)
                 {
                     return Ok(CallableRoutine::Top {
                         module_idx: *dep_idx,
-                        routine_name: orig.clone(),
+                        key: rkey.clone(),
                     });
                 }
                 bail!("Dc routine reference '{dc}' not found at runtime")
@@ -1266,7 +1335,13 @@ fn eval_pending_constants(
             match vm.eval_expr(mod_idx, &v.value, &empty_frame, false, 0, &mut quota) {
                 Ok(EvalSignal::Value(val)) => {
                     if let Some(m) = vm.modules.get_mut(mod_idx) {
-                        m.constants.insert(v.name, val);
+                        m.constants.insert(
+                            ValueKey {
+                                name: v.name,
+                                ty: v.ty,
+                            },
+                            val,
+                        );
                     }
                 }
                 Ok(EvalSignal::Fault(msg)) => {
