@@ -585,6 +585,17 @@ mod tests {
         let sr_decoded =
             decode_sli3_byte_literal_body(&sr_norm[q_start + 1..q_end])?;
         assert_eq!(std::str::from_utf8(&sr_decoded)?, "Hi @256@!");
+
+        // StageR 3 `?` trailing error-propagation alias normalizes to `/`,
+        // while StageL 3 and non-trailing `?` forms are rejected!
+        assert!(normalize(b"add? /x /y.\n").is_err());
+        let sr_q = normalize_stager3(b"add? /x get? /xs /idx;\ndo? /optVar? }\n")?;
+        let sr_slash =
+            normalize_stager3(b"add/ /x get/ /xs /idx.\ndo/ /optVar/ ::\n")?;
+        assert_eq!(sr_q, sr_slash);
+        assert!(normalize_stager3(b"?bad.\n").is_err());
+        assert!(normalize_stager3(b"foo?bar.\n").is_err());
+        assert!(normalize_stager3(b"u32?:1.\n").is_err());
         Ok(())
     }
 }

@@ -1,18 +1,18 @@
 : SPDX-License-Identifier: AGPL-3.0-or-later
-: Stage 1 integer bounds, Euclidean modulus, and non-trapping overflow/division predicates.
+: Stage 1 integer bounds, StageL-internal Euclidean modulus, and non-trapping overflow/division predicates.
 ns std/math.
 
 : Minimum unsigned 8-bit integer (0).
 : @dc l8589978541
-pub u8/MIN u8:0.
+pub u8/u8Min u8:0.
 
 : Maximum unsigned 8-bit integer (255).
 : @dc l8589978265
-pub u8/MAX u8:255.
+pub u8/u8Max u8:255.
 
-: Unsigned 8-bit Euclidean modulus (`0 <= (mod lhs rhs) < rhs`); faults when `rhs == 0`.
+: Unsigned 8-bit StageL-internal Euclidean modulus (`0 <= (modStageLInternal lhs rhs) < rhs`); faults when `rhs == 0`.
 : @dc l8589978542
-pub v/u8/mod u8/lhs u8/rhs
+pub v/u8/modStageLInternal u8/lhs u8/rhs
     test
         in u8:7 u8:3
         out u8:1.
@@ -22,7 +22,7 @@ pub v/u8/mod u8/lhs u8/rhs
         out u8:0.
         in u8:1 u8:0
         out fault.
-    rem u8/lhs u8/rhs.
+    rem /lhs /rhs.
 
 : Returns true iff checked `add lhs rhs` will not overflow unsigned 8-bit bounds.
 : @dc l8589978266
@@ -36,7 +36,7 @@ pub v/b/canAdd u8/lhs u8/rhs
         out true.
         in u8:255 u8:1
         out false.
-    ge wrapAdd u8/lhs u8/rhs u8/lhs.
+    ge wrapAdd /lhs /rhs /lhs.
 
 : Returns true iff checked `sub lhs rhs` will not underflow unsigned 8-bit bounds.
 : @dc l8589978267
@@ -48,7 +48,7 @@ pub v/b/canSub u8/lhs u8/rhs
         out false.
         in u8:0 u8:1
         out false.
-    ge u8/lhs u8/rhs.
+    ge /lhs /rhs.
 
 : Returns true iff checked `mul lhs rhs` will not overflow unsigned 8-bit bounds.
 : @dc l8589978268
@@ -64,9 +64,9 @@ pub v/b/canMul u8/lhs u8/rhs
         out true.
         in u8:255 u8:1
         out true.
-    if eq u8/rhs u8:0
+    if eq /rhs u8:0
         true
-        eq div wrapMul u8/lhs u8/rhs u8/rhs u8/lhs.
+        eq div wrapMul /lhs /rhs /rhs /lhs.
 
 : Returns true iff checked `div lhs rhs` and `rem lhs rhs` will not fault (`rhs != 0`).
 : @dc l8589978269
@@ -78,20 +78,20 @@ pub v/b/canDiv u8/lhs u8/rhs
         out false.
         in u8:0 u8:0
         out false.
-    ne u8/rhs u8:0.
+    ne /rhs u8:0.
 
 : Minimum signed 32-bit integer (-2^31).
 : @dc l8589978241
-pub i32/MIN i32:-2147483648.
+pub i32/i32Min i32:-2147483648.
 
 : Maximum signed 32-bit integer (2^31 - 1).
 : @dc l8589978242
-pub i32/MAX i32:2147483647.
+pub i32/i32Max i32:2147483647.
 
-: Euclidean modulus satisfying `0 <= (mod lhs rhs) < |rhs|` for all `rhs != 0`
-: (including `mod MIN -1 == 0` and `mod -1 MIN == MAX`); faults when `rhs == 0`.
+: StageL-internal Euclidean modulus satisfying `0 <= (modStageLInternal lhs rhs) < |rhs|` for all `rhs != 0`
+: (including `modStageLInternal i32Min -1 == 0` and `modStageLInternal -1 i32Min == i32Max`); faults when `rhs == 0`.
 : @dc l8589978243
-pub v/i32/mod i32/lhs i32/rhs
+pub v/i32/modStageLInternal i32/lhs i32/rhs
     test
         in i32:7 i32:3
         out i32:1.
@@ -117,17 +117,17 @@ pub v/i32/mod i32/lhs i32/rhs
         out fault.
         in i32:-2147483648 i32:0
         out fault.
-    if eq i32/rhs i32:0
+    if eq /rhs i32:0
         fault
-        if and eq i32/lhs i32/MIN eq i32/rhs i32:-1
+        if and eq /lhs /i32Min eq /rhs i32:-1
             i32:0
             do
-                const i32/remVal rem i32/lhs i32/rhs.
-                if ge i32/remVal i32:0
-                    i32/remVal
-                    if gt i32/rhs i32:0
-                        add i32/remVal i32/rhs
-                        sub i32/remVal i32/rhs.
+                const i32/remVal rem /lhs /rhs.
+                if ge /remVal i32:0
+                    /remVal
+                    if gt /rhs i32:0
+                        add /remVal /rhs
+                        sub /remVal /rhs.
             ::.
 
 : Returns true iff checked `add lhs rhs` will not overflow signed 32-bit bounds.
@@ -146,8 +146,8 @@ pub v/b/canAdd i32/lhs i32/rhs
         out false.
         in i32:-2147483648 i32:2147483647
         out true.
-    const i32/sumVal wrapAdd i32/lhs i32/rhs.
-    ge bitAnd bitXor i32/sumVal i32/lhs bitXor i32/sumVal i32/rhs i32:0.
+    const i32/sumVal wrapAdd /lhs /rhs.
+    ge bitAnd bitXor /sumVal /lhs bitXor /sumVal /rhs i32:0.
 
 : Returns true iff checked `sub lhs rhs` will not overflow signed 32-bit bounds.
 : @dc l8589978245
@@ -165,8 +165,8 @@ pub v/b/canSub i32/lhs i32/rhs
         out false.
         in i32:2147483647 i32:2147483647
         out true.
-    const i32/diffVal wrapSub i32/lhs i32/rhs.
-    ge bitAnd bitXor i32/lhs i32/rhs bitXor i32/diffVal i32/lhs i32:0.
+    const i32/diffVal wrapSub /lhs /rhs.
+    ge bitAnd bitXor /lhs /rhs bitXor /diffVal /lhs i32:0.
 
 : Returns true iff checked `mul lhs rhs` will not overflow signed 32-bit bounds.
 : @dc l8589978246
@@ -188,10 +188,10 @@ pub v/b/canMul i32/lhs i32/rhs
         out true.
         in i32:1073741824 i32:2
         out false.
-    const i64/prod mul conv i32/lhs i64 conv i32/rhs i64.
-    and ge i64/prod conv i32/MIN i64 le i64/prod conv i32/MAX i64.
+    const i64/prod mul conv /lhs i64 conv /rhs i64.
+    and ge /prod conv /i32Min i64 le /prod conv /i32Max i64.
 
-: Returns true iff checked `div lhs rhs` and `rem lhs rhs` will not fault (`rhs != 0` and `!(lhs == MIN && rhs == -1)`).
+: Returns true iff checked `div lhs rhs` and `rem lhs rhs` will not fault (`rhs != 0` and `!(lhs == i32Min && rhs == -1)`).
 : @dc l8589978247
 pub v/b/canDiv i32/lhs i32/rhs
     test
@@ -205,19 +205,19 @@ pub v/b/canDiv i32/lhs i32/rhs
         out true.
         in i32:-2147483647 i32:-1
         out true.
-    and ne i32/rhs i32:0 not and eq i32/lhs i32/MIN eq i32/rhs i32:-1.
+    and ne /rhs i32:0 not and eq /lhs /i32Min eq /rhs i32:-1.
 
 : Minimum unsigned 32-bit integer (0).
 : @dc l8589978543
-pub u32/MIN u32:0.
+pub u32/u32Min u32:0.
 
 : Maximum unsigned 32-bit integer (2^32 - 1).
 : @dc l8589978255
-pub u32/MAX u32:4294967295.
+pub u32/u32Max u32:4294967295.
 
-: Unsigned 32-bit Euclidean modulus (`0 <= (mod lhs rhs) < rhs`); faults when `rhs == 0`.
+: Unsigned 32-bit StageL-internal Euclidean modulus (`0 <= (modStageLInternal lhs rhs) < rhs`); faults when `rhs == 0`.
 : @dc l8589978544
-pub v/u32/mod u32/lhs u32/rhs
+pub v/u32/modStageLInternal u32/lhs u32/rhs
     test
         in u32:7 u32:3
         out u32:1.
@@ -227,7 +227,7 @@ pub v/u32/mod u32/lhs u32/rhs
         out u32:0.
         in u32:1 u32:0
         out fault.
-    rem u32/lhs u32/rhs.
+    rem /lhs /rhs.
 
 : Returns true iff checked `add lhs rhs` will not overflow unsigned 32-bit bounds.
 : @dc l8589978256
@@ -241,7 +241,7 @@ pub v/b/canAdd u32/lhs u32/rhs
         out true.
         in u32:2147483648 u32:2147483648
         out false.
-    ge wrapAdd u32/lhs u32/rhs u32/lhs.
+    ge wrapAdd /lhs /rhs /lhs.
 
 : Returns true iff checked `sub lhs rhs` will not underflow unsigned 32-bit bounds.
 : @dc l8589978257
@@ -253,7 +253,7 @@ pub v/b/canSub u32/lhs u32/rhs
         out false.
         in u32:0 u32:1
         out false.
-    ge u32/lhs u32/rhs.
+    ge /lhs /rhs.
 
 : Returns true iff checked `mul lhs rhs` will not overflow unsigned 32-bit bounds.
 : @dc l8589978258
@@ -267,9 +267,9 @@ pub v/b/canMul u32/lhs u32/rhs
         out true.
         in u32:4294967295 u32:1
         out true.
-    if eq u32/rhs u32:0
+    if eq /rhs u32:0
         true
-        eq div wrapMul u32/lhs u32/rhs u32/rhs u32/lhs.
+        eq div wrapMul /lhs /rhs /rhs /lhs.
 
 : Returns true iff checked `div lhs rhs` and `rem lhs rhs` will not fault (`rhs != 0`).
 : @dc l8589978259
@@ -281,20 +281,20 @@ pub v/b/canDiv u32/lhs u32/rhs
         out false.
         in u32:0 u32:0
         out false.
-    ne u32/rhs u32:0.
+    ne /rhs u32:0.
 
 : Minimum signed 64-bit integer (-2^63).
 : @dc l8589978248
-pub i64/MIN i64:-9223372036854775808.
+pub i64/i64Min i64:-9223372036854775808.
 
 : Maximum signed 64-bit integer (2^63 - 1).
 : @dc l8589978249
-pub i64/MAX i64:9223372036854775807.
+pub i64/i64Max i64:9223372036854775807.
 
-: Euclidean modulus satisfying `0 <= (mod lhs rhs) < |rhs|` for all `rhs != 0`
-: (including `mod MIN -1 == 0` and `mod -1 MIN == MAX`); faults when `rhs == 0`.
+: StageL-internal Euclidean modulus satisfying `0 <= (modStageLInternal lhs rhs) < |rhs|` for all `rhs != 0`
+: (including `modStageLInternal i64Min -1 == 0` and `modStageLInternal -1 i64Min == i64Max`); faults when `rhs == 0`.
 : @dc l8589978250
-pub v/i64/mod i64/lhs i64/rhs
+pub v/i64/modStageLInternal i64/lhs i64/rhs
     test
         in i64:7 i64:3
         out i64:1.
@@ -320,17 +320,17 @@ pub v/i64/mod i64/lhs i64/rhs
         out fault.
         in i64:-9223372036854775808 i64:0
         out fault.
-    if eq i64/rhs i64:0
+    if eq /rhs i64:0
         fault
-        if and eq i64/lhs i64/MIN eq i64/rhs i64:-1
+        if and eq /lhs /i64Min eq /rhs i64:-1
             i64:0
             do
-                const i64/remVal rem i64/lhs i64/rhs.
-                if ge i64/remVal i64:0
-                    i64/remVal
-                    if gt i64/rhs i64:0
-                        add i64/remVal i64/rhs
-                        sub i64/remVal i64/rhs.
+                const i64/remVal rem /lhs /rhs.
+                if ge /remVal i64:0
+                    /remVal
+                    if gt /rhs i64:0
+                        add /remVal /rhs
+                        sub /remVal /rhs.
             ::.
 
 : Returns true iff checked `add lhs rhs` will not overflow signed 64-bit bounds.
@@ -349,8 +349,8 @@ pub v/b/canAdd i64/lhs i64/rhs
         out false.
         in i64:-9223372036854775808 i64:9223372036854775807
         out true.
-    const i64/sumVal wrapAdd i64/lhs i64/rhs.
-    ge bitAnd bitXor i64/sumVal i64/lhs bitXor i64/sumVal i64/rhs i64:0.
+    const i64/sumVal wrapAdd /lhs /rhs.
+    ge bitAnd bitXor /sumVal /lhs bitXor /sumVal /rhs i64:0.
 
 : Returns true iff checked `sub lhs rhs` will not overflow signed 64-bit bounds.
 : @dc l8589978252
@@ -368,8 +368,8 @@ pub v/b/canSub i64/lhs i64/rhs
         out false.
         in i64:9223372036854775807 i64:9223372036854775807
         out true.
-    const i64/diffVal wrapSub i64/lhs i64/rhs.
-    ge bitAnd bitXor i64/lhs i64/rhs bitXor i64/diffVal i64/lhs i64:0.
+    const i64/diffVal wrapSub /lhs /rhs.
+    ge bitAnd bitXor /lhs /rhs bitXor /diffVal /lhs i64:0.
 
 : Returns true iff checked `mul lhs rhs` will not overflow signed 64-bit bounds.
 : @dc l8589978253
@@ -395,13 +395,13 @@ pub v/b/canMul i64/lhs i64/rhs
         out true.
         in i64:4611686018427387904 i64:2
         out false.
-    if eq i64/rhs i64:0
+    if eq /rhs i64:0
         true
-        if eq i64/rhs i64:-1
-            ne i64/lhs i64/MIN
-            eq div wrapMul i64/lhs i64/rhs i64/rhs i64/lhs.
+        if eq /rhs i64:-1
+            ne /lhs /i64Min
+            eq div wrapMul /lhs /rhs /rhs /lhs.
 
-: Returns true iff checked `div lhs rhs` and `rem lhs rhs` will not fault (`rhs != 0` and `!(lhs == MIN && rhs == -1)`).
+: Returns true iff checked `div lhs rhs` and `rem lhs rhs` will not fault (`rhs != 0` and `!(lhs == i64Min && rhs == -1)`).
 : @dc l8589978254
 pub v/b/canDiv i64/lhs i64/rhs
     test
@@ -415,19 +415,19 @@ pub v/b/canDiv i64/lhs i64/rhs
         out true.
         in i64:-9223372036854775807 i64:-1
         out true.
-    and ne i64/rhs i64:0 not and eq i64/lhs i64/MIN eq i64/rhs i64:-1.
+    and ne /rhs i64:0 not and eq /lhs /i64Min eq /rhs i64:-1.
 
 : Minimum unsigned 64-bit integer (0).
 : @dc l8589978545
-pub u64/MIN u64:0.
+pub u64/u64Min u64:0.
 
 : Maximum unsigned 64-bit integer (2^64 - 1).
 : @dc l8589978260
-pub u64/MAX u64:18446744073709551615.
+pub u64/u64Max u64:18446744073709551615.
 
-: Unsigned 64-bit Euclidean modulus (`0 <= (mod lhs rhs) < rhs`); faults when `rhs == 0`.
+: Unsigned 64-bit StageL-internal Euclidean modulus (`0 <= (modStageLInternal lhs rhs) < rhs`); faults when `rhs == 0`.
 : @dc l8589978546
-pub v/u64/mod u64/lhs u64/rhs
+pub v/u64/modStageLInternal u64/lhs u64/rhs
     test
         in u64:7 u64:3
         out u64:1.
@@ -437,7 +437,7 @@ pub v/u64/mod u64/lhs u64/rhs
         out u64:0.
         in u64:1 u64:0
         out fault.
-    rem u64/lhs u64/rhs.
+    rem /lhs /rhs.
 
 : Returns true iff checked `add lhs rhs` will not overflow unsigned 64-bit bounds.
 : @dc l8589978261
@@ -451,7 +451,7 @@ pub v/b/canAdd u64/lhs u64/rhs
         out true.
         in u64:9223372036854775808 u64:9223372036854775808
         out false.
-    ge wrapAdd u64/lhs u64/rhs u64/lhs.
+    ge wrapAdd /lhs /rhs /lhs.
 
 : Returns true iff checked `sub lhs rhs` will not underflow unsigned 64-bit bounds.
 : @dc l8589978262
@@ -463,7 +463,7 @@ pub v/b/canSub u64/lhs u64/rhs
         out false.
         in u64:0 u64:1
         out false.
-    ge u64/lhs u64/rhs.
+    ge /lhs /rhs.
 
 : Returns true iff checked `mul lhs rhs` will not overflow unsigned 64-bit bounds.
 : @dc l8589978263
@@ -477,9 +477,9 @@ pub v/b/canMul u64/lhs u64/rhs
         out true.
         in u64:18446744073709551615 u64:1
         out true.
-    if eq u64/rhs u64:0
+    if eq /rhs u64:0
         true
-        eq div wrapMul u64/lhs u64/rhs u64/rhs u64/lhs.
+        eq div wrapMul /lhs /rhs /rhs /lhs.
 
 : Returns true iff checked `div lhs rhs` and `rem lhs rhs` will not fault (`rhs != 0`).
 : @dc l8589978264
@@ -491,4 +491,4 @@ pub v/b/canDiv u64/lhs u64/rhs
         out false.
         in u64:0 u64:0
         out false.
-    ne u64/rhs u64:0.
+    ne /rhs u64:0.

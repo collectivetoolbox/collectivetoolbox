@@ -8,8 +8,12 @@
 
 ## 1. Relationship to StageL 3 and EM3
 
-StageR 3 builds strictly on top of [StageL 3 (`sl3.md`)](./sl3.md):
-- **Unchanged core & module system**: Every valid StageL 3 type, literal, control-flow form, `ns` / `use` module rule, unified top-level `const` / `pub` declaration rule (including `: @dc l<id>` auto-assigned directive comments), local `let`/`set`/`const` rule, lexical capture rule, constant-stack tail-call guarantee, and core operator signature retains **identical** syntax and return types in StageR 3. StageR 3 never alters inherited StageL 3 signatures (for instance, `add` still returns `T` and faults on overflow; recoverable checked arithmetic uses distinct `tryAdd` verbs returning `result/T`).
+StageR 3 builds on top of [StageL 3 (`sl3.md`)](./sl3.md) while enforcing **strict totality**:
+- **Shared module, binding, and control-flow core**: StageL 3 types, literals, `nop` (`Dc 2455 "No-op"`), control-flow forms, `ns` / `use` module rules, unified top-level `const` / `pub` declarations (`: @dc l<id>` auto-assigned directive comments), single-definition constant names, optional types on value references (`/name`) and `set` (`set /name`), lexical capture rules, and mandatory constant-stack tail calls carry over directly to StageR 3.
+- **Strictly total functions (`fault` and `*StageLInternal` prohibited)**: Every StageR 3 routine (and every verb declared in or imported into `impls/` or `.sr3`) is **strictly total**:
+  - `fault` (`Dc 2454 "Fault trap"`), `unimplemented`, `unwrapSome` / `unwrapOk` / `unwrapErr`, and `*StageLInternal` library symbols (`modStageLInternal`, `assertStageLInternal`) are **compile-time errors** in StageR 3 (only hardware/quota exhaustion in the host supervisor can interrupt execution).
+  - Fallible arithmetic, sequence slicing, and narrowing conversions in StageR 3 (`add`, `sub`, `mul`, `div`, `mod`, `truncRem`, `neg`, `slice`, and narrowing `conv`) return `result/T` directly, while indexed lookup (`get`) returns `option/T`—ensuring every failure path is surfaced in the static type system rather than trapping.
+  - Domain invariants that make an invalid state unreachable are pushed into the static type system via module-opaque newtypes (`type BASE_TYPE/name.`, e.g. `type u64/nonZeroU64.` validated once on construction so division by `nonZeroU64` returns `u64` directly) or uninhabited 0-variant `enum` / `Dc f1426 "Never"` (`match /impossible ::`).
 - **Minimal nominal value types without generics or OOP**: StageR 3 adds monomorphic, immutable nominal value types—branded types/opaque newtypes (`brand` / `type`), product records (`struct`), and tagged unions (`enum`) with shallow exhaustive `match`—so domain invariants are enforced statically without bloating StageL 3's hand-written WAT compiler (`stage_0_impls/f656_*.wat`), while leaving user-defined generics, traits/methods, subtyping, and higher-order abstractions out of StageR 3.
 - **No first-class functions in StageR 3**: Like StageL 3, named nested verbs are directly callable and capture shared lexical bindings, but verbs cannot be assigned, passed as arguments, or returned as values. First-class functions (`v/T[A,B]`, `/name` references, `call /fn ...`, and escaping closures) belong exclusively to **EM3 (`f658`)**.
 - **Tokenized Dc Graph Storage & Transpilation Hierarchy**:
@@ -21,17 +25,19 @@ StageR 3 builds strictly on top of [StageL 3 (`sl3.md`)](./sl3.md):
 
 ---
 
-## 2. Bare `"..."` Dcts Literals & `.sri3` Normalization
+## 2. Bare `"..."` Dcts Literals, `?` Propagation Alias, & `.sri3` Normalization
 
-`FormatId::StageR3Intermediate` (`.sri3`, `f660`) uses the **exact same 32-character alphabet** (`A-Z`, `/`, `:`, `' '`, `'\n'`, `'"'`, `'.'`) and normalizer engine as `.sli3`, with `StageDialect::StageR3` enabling bare `"..."` string literals:
+`FormatId::StageR3Intermediate` (`.sri3`, `f660`) uses the **exact same 32-character alphabet** (`A-Z`, `/`, `:`, `' '`, `'\n'`, `'"'`, `'.'`) and normalizer engine as `.sli3`, with `StageDialect::StageR3` enabling bare `"..."` string literals and the `? -> /` trailing error-propagation alias:
 
 1. **Literal Kind Distinction**:
    - `t"..."` -> `t` (`letters`, ASCII case-folded, 32-character identifier sequence).
    - `b"..."` -> `l/u8` (raw byte list, case-preserving).
    - `"..."` -> `s` (`DcMst` mixed-mode document string, constructed from a **Dcts** `FormatId::Dcts` `f461` payload—**not** JSON string syntax).
 2. **Two-Layer Framing Without Double-Unescaping**:
-   - **Outer framing (`.`sr3 -> `.sri3` normalizer)**: Scans `"..."` using StageL slash escapes (`/"`, `//`, `/0`, `/a`, `/b`, `/t`, `/n`, `/v`, `/f`, `/r`, `/xHH`) plus raw UTF-8 characters, encoding non-`{A-Z, ' ', ':', '.'}` bytes losslessly as `/X<HI><LO>` (`A..P` nibbles).
+   - **Outer framing (`.sr3 -> .sri3` normalizer)**: Scans `"..."` using StageL slash escapes (`/"`, `//`, `/0`, `/a`, `/b`, `/t`, `/n`, `/v`, `/f`, `/r`, `/xHH`) plus raw UTF-8 characters, encoding non-`{A-Z, ' ', ':', '.'}` bytes losslessly as `/X<HI><LO>` (`A..P` nibbles).
    - **Inner Dcts parsing (compile-time / runtime `s` construction)**: Calling `decode_sli3_byte_literal_body` recovers the exact UTF-8 byte sequence, which is parsed **once** by Dcts (`@256@`, `@f656@`, `@@` for literal `@`, etc.) into `DcMstring`. Outer quotes `/"` and slashes `//` never interfere with `@...@` Dcts tokens and are never double-decoded.
+3. **Trailing `? -> /` Error-Propagation Alias**:
+   - Outside comments and string literals, a trailing `?` attached immediately after an ASCII alphanumeric character at the end of a verb, value reference, or `do` block opener (`add? /x /y`, `get? /xs /idx`, `/optVar?`, `do? ... ::`) normalizes in `.sri3` to canonical `/` (`ADD/ /X /Y`, `GET/ /XS /IDX`, `/OPTVAR/`, `DO/ ... ::`), analogous to `; -> .` and `} -> ::`. Standalone `?` or mid-token `foo?bar` is rejected.
 
 ---
 
@@ -41,8 +47,8 @@ StageR 3 builds strictly on top of [StageL 3 (`sl3.md`)](./sl3.md):
 
 | Type | Semantics & Invariants |
 | :--- | :--- |
-| `i128`, `u128` | Fixed-width signed and unsigned 128-bit integers (`i128:-42`, `u128:0`). Support checked `add`/`sub`/`mul`/`div`/`mod` (plus `truncRem` and `neg` on signed `i128`), `can*`, `try*`, bitwise ops, shifts (`COUNT < 128`), comparisons, and explicit conversions. |
-| `int` | Arbitrary-precision signed integer (`int:0`, `int:-100000000000000000000`). Supports `add`/`sub`/`mul`/`div`/`mod`/`truncRem`/`neg`; arithmetic faults only on division/modulus/remainder by zero (memory exhaustion is a host/supervisor resource interruption, never wrapped or converted into `overflow`). |
+| `i128`, `u128` | Fixed-width signed and unsigned 128-bit integers (`i128:-42`, `u128:0`). Support total checked `add`/`sub`/`mul`/`div`/`mod` -> `result/T` (plus `truncRem` and `neg` on signed `i128`), `can*`, `wrapAdd`/`wrapSub`/`wrapMul`, bitwise ops, shifts, comparisons, and explicit conversions. |
+| `int` | Arbitrary-precision signed integer (`int:0`, `int:-100000000000000000000`). Infallible `add`/`sub`/`mul`/`neg` -> `int`; `div`/`mod`/`truncRem` -> `result/int` (`err error:divisionByZero` when `rhs == 0`; memory exhaustion is a host/supervisor resource interruption, never wrapped). |
 | `rat` | Exact arbitrary-precision rational (`num: int`, `den: int`) maintained in canonical reduced form: `den > 0`, `gcd(|num|, den) == 1`, and zero represented uniquely as `0/1`. Constructed via `makeRat int/num int/den -> result/rat` (`err error:invalidDenominator` when `den == 0`). |
 | `dc` | Strongly typed 128-bit Document Character (`DcChar`). Supports `eq`, `ne`, and explicit fallible/lossless conversions (`dcFromU128 -> option/dc`, `u128FromDc -> u128`), never implicit integer arithmetic. |
 | `s` | Mixed-mode Document Character + binary string (`DcMst`, corresponding to Rust `DcMstr`/`DcMstring`). Can hold arbitrary Document Characters and encapsulated binary runs (`Dc 203 "Begin encapsulated binary data"`..`Dc 204 "End encapsulated binary data"`). |
@@ -50,8 +56,8 @@ StageR 3 builds strictly on top of [StageL 3 (`sl3.md`)](./sl3.md):
 | `view` | Immutable checked extent descriptor `(source_id: u32, offset: u64, len: u64)` over a host/graph input stream or value node, satisfying `offset <= source_len` and `len <= source_len - offset`. |
 | `cursor` | Mutable sequential/random-access reader `(view: view, pos: u64)` enforcing `0 <= pos <= view.len`. Failed reads leave `pos` unchanged. |
 | `option/T` | Tagged optional value: `option/T:none` or `option/T:some VALUE`. |
-| `result/T` | Tagged fallible result: `result/T:ok VALUE` or `result/T:err ERROR`. Ordinary values—constructing an `err` does **not** implicitly return from the enclosing verb. |
-| `error` | Structured semantic error value using camelCase `.sri3`-compatible tags (`error:overflow`, `error:divisionByZero`, `error:invalidDenominator`, `error:invalidEncoding`, `error:outOfBounds`, etc.). |
+| `result/T` | Tagged fallible result: `result/T:ok VALUE` or `result/T:err ERROR`. Ordinary values—constructing an `err` does **not** implicitly return from the enclosing verb unless propagated with trailing `/` (`?`). |
+| `error` | Structured semantic error value using camelCase `.sri3`-compatible tags (`error:overflow`, `error:divisionByZero`, `error:invalidDenominator`, `error:invalidEncoding`, `error:outOfBounds`, `error:unexpectedNone`, etc.). |
 
 ---
 
@@ -107,24 +113,38 @@ To keep StageR 3 minimal over StageL 3 (`f656`) and cleanly compilation-compatib
 
 ## 5. StageR 3 Core Operations
 
-### 5.1 Fallible Checked Arithmetic (`try*`)
-- `tryAdd X Y`, `trySub X Y`, `tryMul X Y`, `tryDiv X Y`, `tryMod X Y` -> `(T, T) -> result/T` (and `tryTruncRem X Y` -> `(T, T) -> result/T` on signed `i32`, `i64`, `i128`, `int`):
-  - Fixed-width overflow or `MIN / -1` in `tryDiv` returns `result/T:err error:overflow` (`tryMod` and `tryTruncRem` on `(MIN, -1)` return `result/T:ok 0`).
+### 5.1 Trailing `/` Error-Propagation Operator (`?` Source Alias)
+- Attaching a trailing `/` (or its non-canonical `.sr3` source alias `?`, which normalizes to `/` in `.sri3`) to a head verb, value reference, or `do` block opener (`add/ /x /y`, `get? /xs /idx`, `myVerb/ /a /b`, `/optVar/`, `do/ ... ::`) evaluates the fallible sub-expression and either unwraps its success payload or early-returns from the enclosing routine:
+  - **In a routine returning `option/R`**:
+    - `OPT/` (`option/T -> T`): unwraps `some VALUE` to `VALUE`, or early-returns `option/R:none` on `none`.
+    - Applying `/` to `result/T` in an `option/R`-returning routine is a **compile-time error** (error information is never silently discarded).
+  - **In a routine returning `result/R`**:
+    - `RES/` (`result/T -> T`): unwraps `ok VALUE` to `VALUE`, or early-returns `result/R:err ERROR` on `err ERROR`.
+    - `OPT/` (`option/T -> T`): unwraps `some VALUE` to `VALUE`, or early-returns `result/R:err error:unexpectedNone` on `none`.
+  - Applying `/` inside a routine whose return type is neither `option/R` nor `result/R` (or on an expression whose result type is neither `option/T` nor `result/T`) is a **compile-time error**.
+
+### 5.2 Total Checked Arithmetic, Conversions, & Sequence Indexing
+Because StageR 3 routines are strictly total (`fault` `Dc 2454 "Fault trap"` and `*StageLInternal` symbols are prohibited), operations with invalid inputs or overflow return `result/T` or `option/T` directly:
+- `add X Y`, `sub X Y`, `mul X Y`, `div X Y`, `mod X Y` -> `(T, T) -> result/T` on fixed-width integers (plus `truncRem X Y` and `neg X` -> `result/T` on signed fixed-width integers `i32`, `i64`, `i128`; on arbitrary-precision `int`, `add`/`sub`/`mul`/`neg` are infallible `-> int` while `div`/`mod`/`truncRem` return `result/int`):
+  - Fixed-width overflow (including `neg MIN` and `MIN / -1` in `div`) returns `result/T:err error:overflow` (`mod` and `truncRem` on `(MIN, -1)` return `result/T:ok 0`).
   - Zero divisor returns `result/T:err error:divisionByZero`.
-  - Operands evaluate once left-to-right; bounds are checked without executing a trapping core instruction first.
+  - Operands evaluate once left-to-right; bounds are checked without executing a trapping core instruction first (`wrapAdd`, `wrapSub`, `wrapMul`, and `canAdd`/`canSub`/`canMul`/`canDiv` remain infallible `-> T` / `-> b` when modular or pre-checked arithmetic is intended).
+- `conv EXPR TARGET_TYPE` (`Dc 2541 "Convert value operation"`): lossless widening conversions return `TARGET_TYPE` directly; narrowing or sign-changing conversions return `result/TARGET_TYPE` (`err error:overflow` when out of range).
+- `get SEQ IDX`: returns `option/T` (`none` when `IDX >= len SEQ`, `some ELEM` otherwise) across `l/T`, `t`, and `dcs`.
+- `slice SEQ START END`: returns `result/SEQ_TYPE` (`err error:outOfBounds` when `START > END` or `END > len SEQ`) across `l/T`, `t`, and `dcs`.
 
-### 5.2 `option/T` and `result/T` Convenience Helpers
-- Alongside shallow exhaustive `match` (Section 4.4), StageR 3 provides concise predicates and extractors:
-  - `isSome OPT` (`option/T -> b`), `isNone OPT` (`option/T -> b`), `unwrapOr OPT DEFAULT` (`(option/T, T) -> T`), `unwrapSome OPT` (`option/T -> T`, faults on `none`; distinct from brand `unwrap`).
-  - `isOk RES` (`result/T -> b`), `isErr RES` (`result/T -> b`), `unwrapOk RES` (`result/T -> T`, faults on `err`), `unwrapErr RES` (`result/T -> error`, faults on `ok`).
+### 5.3 `option/T` and `result/T` Total Helpers
+- Alongside shallow exhaustive `match` (Section 4.4) and trailing `/` propagation (Section 5.1), StageR 3 provides total predicates and fallback extractors:
+  - `isSome OPT` (`option/T -> b`), `isNone OPT` (`option/T -> b`), `unwrapOr OPT DEFAULT` (`(option/T, T) -> T`), `okOr OPT ERR` (`(option/T, error) -> result/T`).
+  - `isOk RES` (`result/T -> b`), `isErr RES` (`result/T -> b`), `unwrapOr RES DEFAULT` (`(result/T, T) -> T`).
+  - Trapping extractors (`unwrapSome`, `unwrapOk`, `unwrapErr`) do **not** exist in StageR 3.
 
-### 5.3 `s` and `dcs` String Operations
+### 5.4 `s` and `dcs` String Operations
 Because `s` (`DcMst`) can contain both encoded Document Characters and encapsulated binary runs, StageR 3 distinguishes encoded byte length from character length instead of overloading ambiguous `len s/x`:
-- `byteLen S` -> `s -> u64` (encoded byte length of `DcMst` payload; `eq u64:0 byteLen s/x` tests emptiness in `O(1)`).
-- `len DCS` -> `dcs -> u64` (exact Document Character count in `dcs`), `get DCS IDX` -> `(dcs, u64) -> dc`, `slice DCS START END` -> `(dcs, u64, u64) -> dcs`.
+- `byteLen S` -> `s -> u64` (encoded byte length of `DcMst` payload; `eq u64:0 byteLen /x` tests emptiness in `O(1)`).
+- `len DCS` -> `dcs -> u64` (exact Document Character count in `dcs`), `get DCS IDX` -> `(dcs, u64) -> option/dc`, `slice DCS START END` -> `(dcs, u64, u64) -> result/dcs`.
 - `concat A B` -> `(s, s) -> s` and `(dcs, dcs) -> dcs`.
-- `explode SEP INPUT` and `implode SEP PARTS`: extended to `s` (`(s, s) -> l/s`, `(s, l/s) -> s`) and `dcs` (`(dcs, dcs) -> l/dcs`, `(dcs, l/dcs) -> dcs`) with the same non-empty-separator, left-to-right non-overlapping, empty-piece-retaining contract as StageL 3 (`implode sep (explode sep x) == x`). On `s`, separator matching respects DcTF character/binary-run boundaries so a separator never splits mid-codepoint or mid-encapsulation header.
-- `unimplemented MESSAGE` -> `s -> never`: development-only stub that terminates with a defined `unimplemented` fault.
+- `explode SEP INPUT` and `implode SEP PARTS`: extended to `s` (`(s, s) -> l/s`, `(s, l/s) -> s`) and `dcs` (`(dcs, dcs) -> l/dcs`, `(dcs, l/dcs) -> dcs`) with the same total contract as StageL 3: when `SEP` is empty, `explode` splits `INPUT` into individual single-element slices (`[]` when `INPUT` is also empty); when `SEP` is non-empty, `explode` scans left-to-right without overlap and retains empty pieces so `implode /sep explode /sep /x == /x`. On `s`, both empty-separator splitting and non-empty separator matching respect DcTF character/binary-run boundaries so a split never cuts mid-codepoint or mid-encapsulation header.
 
 ---
 

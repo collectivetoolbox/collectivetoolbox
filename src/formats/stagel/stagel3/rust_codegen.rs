@@ -1946,6 +1946,9 @@ impl<'a> ModuleEmitter<'a> {
                     Ok((String::from("sl3_rt::SlStep::Done(())"), StageLType::Void))
                 }
             }
+            Expr::Nop { .. } => {
+                Ok((String::from("sl3_rt::SlStep::Done(())"), StageLType::Void))
+            }
             other => {
                 let (code, ty) = self.emit_expr(other, indent_level)?;
                 let clean = strip_matched_outer_parens(&code);
@@ -2038,8 +2041,8 @@ impl<'a> ModuleEmitter<'a> {
             }
             Expr::Let { .. }
             | Expr::Const { .. }
-            | Expr::RoutineDecl(_)
-            | Expr::Nop { .. } => Ok((String::from("()"), StageLType::Void)),
+            | Expr::RoutineDecl(_) => Ok((String::from("()"), StageLType::Void)),
+            Expr::Nop { .. } => Ok((String::from("{}"), StageLType::Void)),
             Expr::Set { name, value, .. } => {
                 let (val_code, val_ty) = self.emit_expr(value, indent_level)?;
                 let target_var = self
@@ -2245,6 +2248,9 @@ impl<'a> ModuleEmitter<'a> {
         is_fn_tail: bool,
         indent_level: usize,
     ) -> Result<(String, StageLType)> {
+        if matches!(expr, Expr::Nop { .. }) {
+            return Ok((String::from("{}"), StageLType::Void));
+        }
         if let Expr::Block { stmts, .. } = expr {
             let mut buf = String::from("{\n");
             let ty = self.emit_block_items(
@@ -2619,8 +2625,9 @@ impl<'a> ModuleEmitter<'a> {
                                 expect_void,
                                 is_fn_tail,
                             } => {
-                                if is_fn_tail
-                                    && matches!(other, Expr::Return { value: None, .. })
+                                if matches!(other, Expr::Nop { .. })
+                                    || (is_fn_tail
+                                        && matches!(other, Expr::Return { value: None, .. }))
                                 {
                                     result_ty = StageLType::Void;
                                 } else if is_fn_tail
@@ -2657,7 +2664,7 @@ impl<'a> ModuleEmitter<'a> {
                                 }
                             }
                         }
-                    } else {
+                    } else if !matches!(other, Expr::Nop { .. }) {
                         let (code, ty) = self.emit_expr(other, stmt_indent)?;
                         let clean = strip_matched_outer_parens(&code);
                         if ty == StageLType::Never {
@@ -3119,7 +3126,11 @@ pub(super) struct BlockCapturePlan<'a> {
 fn stmt_ends_without_semi(expr: &Expr) -> bool {
     matches!(
         expr,
-        Expr::If { .. } | Expr::While { .. } | Expr::ForEach { .. } | Expr::Block { .. }
+        Expr::If { .. }
+            | Expr::While { .. }
+            | Expr::ForEach { .. }
+            | Expr::Block { .. }
+            | Expr::Nop { .. }
     )
 }
 
@@ -4724,7 +4735,7 @@ pub v/u32/guard_or_abort u32/val
         let inputs: Vec<ModuleInput<'_>> = std_files
             .iter()
             .map(|f| ModuleInput {
-                source_path: Some(f.psr4_rel_path.as_str()),
+                source_path: Some(f.repo_rel_path.as_str()),
                 source: f.source.as_str(),
             })
             .collect();
@@ -4744,37 +4755,39 @@ pub v/u32/guard_or_abort u32/val
         // without needing `as` import aliases across integer types.
         let linked_client_sl3 = r#"
 use std/bytes: explode implode ::.
-use std/math: MIN MAX mod canAdd canSub canMul canDiv ::.
+use std/math: u8Min u8Max i32Min i64Min u32Min u32Max u64Min u64Max modStageLInternal canAdd canSub canMul canDiv ::.
 
 v/u32/stepCount u32/steps u32/acc
-    if eq u32/steps u32:0
-        u32/acc
-        stepCount sub u32/steps u32:1 add u32/acc u32:1.
+    if eq /steps u32:0
+        /acc
+        stepCount sub /steps u32:1 add /acc u32:1.
 
 v/u64/stepCount u64/steps u64/acc
-    if eq u64/steps u64:0
-        u64/acc
-        stepCount sub u64/steps u64:1 add u64/acc u64:1.
+    if eq /steps u64:0
+        /acc
+        stepCount sub /steps u64:1 add /acc u64:1.
 
 v/l/u8/roundtripJoin l/u8/s
     test roundtrip
         in b",a,,b,"
         out b",a,,b,".
-    implode b"," explode b"," l/u8/s.
+    implode b"," explode b"," /s.
 
 v/b/checkLinkedMath
     test edgeBounds
         in.
         out true.
-    dc/l8589978237 and eq u8/MIN u8:0 eq mod u8:255 u8:10 u8:5.
-    dc/l8589978237 and eq u32/MIN u32:0 eq mod u32/MAX u32:10 u32:5.
-    dc/l8589978237 and eq u64/MIN u64:0 eq mod u64/MAX u64:10 u64:5.
-    dc/l8589978237 eq mod i32/MIN i32:-1 i32:0.
-    dc/l8589978237 eq mod i64/MIN i64:-1 i64:0.
-    dc/l8589978237 and not canMul i32/MIN i32:-1 not canMul i64/MIN i64:-1.
-    dc/l8589978237 and not canSub i32/MIN i32:1 not canDiv i64/MIN i64:-1.
-    dc/l8589978237 and not canAdd u8/MAX u8:1 not canAdd u64/MAX u64:1.
+    if true nop fault.
+    dc/l8589978237 and eq /u8Min u8:0 eq modStageLInternal u8:255 u8:10 u8:5.
+    dc/l8589978237 and eq /u32Min u32:0 eq modStageLInternal /u32Max u32:10 u32:5.
+    dc/l8589978237 and eq /u64Min u64:0 eq modStageLInternal /u64Max u64:10 u64:5.
+    dc/l8589978237 eq modStageLInternal /i32Min i32:-1 i32:0.
+    dc/l8589978237 eq modStageLInternal /i64Min i64:-1 i64:0.
+    dc/l8589978237 and not canMul /i32Min i32:-1 not canMul /i64Min i64:-1.
+    dc/l8589978237 and not canSub /i32Min i32:1 not canDiv /i64Min i64:-1.
+    dc/l8589978237 and not canAdd /u8Max u8:1 not canAdd /u64Max u64:1.
     dc/l8589978237 and eq stepCount u32:5 u32:0 u32:5 eq stepCount u64:5 u64:0 u64:5.
+    dc/l8589978237 eq implode b"-" explode b"" b"abc" b"a-b-c".
     true.
 "#;
         let shared_idx =

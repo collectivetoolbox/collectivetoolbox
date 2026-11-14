@@ -1,7 +1,7 @@
 # StageL 3 Specification (`f656` `.sl3` / `f659` `.sli3`)
 
 **Implementation Status**: `Partially Implemented`
-- **Implemented**: Format registrations (`FormatId::StageL3` `f656` `.sl3`, `FormatId::StageL3Intermediate` `f659` `.sli3`, `FormatId::Boolean` `f1424`, `FormatId::Void` `f1425`, and `FormatId::Never` `f1426`), shared `.EL` and `.EL StageL` base Token Dc repertoire (`Dc 2192 "Begin module"`..`Dc 2214 "End code block"`, `Dc 2448 "If conditional"`..`Dc 2454 "Fault trap"`, `Dc 2512 "Add operation"`..`Dc 2546 "Concatenate sequences operation"`, and `Dc 2576 "StageL list type"`..`Dc 2585 "StageL buffer freeze"`), literal-aware 32-character normalizer (`src/formats/stagel/stagel3.rs`), normalized fixture (`src/formats/stagel/fixtures/sl3/`), lossless `.sl3 <-> StageL Token Dcs` tokenizer/decompiler (`src/formats/dcdata/stagel3/dc_tokens.rs`), `: @dc l<id>` ledger auto-allocator & PSR-4 System-graph Token-Dc emitter (`src/formats/dcdata/support/stagel_dc_alloc.rs`), static type, definite-assignment, and fixed-arity parameter-type dispatch validator (`src/formats/dcdata/stagel3/validator.rs`), `SeedGraphIndex` snapshot Token-Dc linker (`src/formats/dcdata/stagel3/seed_linker.rs`), reference evaluator (`src/formats/dcdata/stagel3/eval.rs`), Rust transpiler (`src/formats/stagel/stagel3/rust_codegen.rs`), host Dc-WASM compiler & inline `test` runner (`src/formats/stagel/stagel3/wasm_codegen.rs`), all 39 Stage 0 `.wat` built-in `.WASM` primitives (`src/formats/dcdata/data-src/stage_0_impls/`), Stage 1 standard library modules (`src/formats/dcdata/data-src/stage_1_impls/std/{assert,bytes,math}.sl3`), staged bootstrap loader support (`src/formats/dcdata/support/wat.rs`), and `tinywasm` constant-stack tail-call execution (`return_call` / `return_call_indirect`).
+- **Implemented**: Format registrations (`FormatId::StageL3` `f656` `.sl3`, `FormatId::StageL3Intermediate` `f659` `.sli3`, `FormatId::Boolean` `f1424`, `FormatId::Void` `f1425`, and `FormatId::Never` `f1426`), shared `.EL` and `.EL StageL` base Token Dc repertoire (`Dc 2192 "Begin module"`..`Dc 2214 "End code block"`, `Dc 2448 "If conditional"`..`Dc 2455 "No-op"`, `Dc 2512 "Add operation"`..`Dc 2546 "Concatenate sequences operation"`, and `Dc 2576 "StageL list type"`..`Dc 2585 "StageL buffer freeze"`), literal-aware 32-character normalizer (`src/formats/stagel/stagel3.rs`), normalized fixture (`src/formats/stagel/fixtures/sl3/`), lossless `.sl3 <-> StageL Token Dcs` tokenizer/decompiler (`src/formats/dcdata/stagel3/dc_tokens.rs`), `: @dc l<id>` ledger auto-allocator & PSR-4 System-graph Token-Dc emitter (`src/formats/dcdata/support/stagel_dc_alloc.rs`), static type, definite-assignment, `*StageLInternal` stage-boundary gating, and fixed-arity parameter-type dispatch validator (`src/formats/dcdata/stagel3/validator.rs`), `SeedGraphIndex` snapshot Token-Dc linker (`src/formats/dcdata/stagel3/seed_linker.rs`), reference evaluator (`src/formats/dcdata/stagel3/eval.rs`), Rust transpiler (`src/formats/stagel/stagel3/rust_codegen.rs`), host Dc-WASM compiler & inline `test` runner (`src/formats/stagel/stagel3/wasm_codegen.rs`), all 39 Stage 0 `.wat` built-in `.WASM` primitives (`src/formats/dcdata/data-src/stage_0_impls/`), Stage 1 standard library modules (`src/formats/dcdata/data-src/stage_1_impls/std/{assert,bytes,math}.sl3`), staged bootstrap loader support (`src/formats/dcdata/support/wat.rs`), and `tinywasm` constant-stack tail-call execution (`return_call` / `return_call_indirect`).
 - **Pending Work**: Self-hosted Stage 0 `.wat` StageL-Dc-to-WASM transpiler (`src/formats/dcdata/data-src/stage_0_impls/f656_*.wat`).
 
 ---
@@ -76,7 +76,7 @@ Typing is static and strict with **zero implicit coercions**:
 | `u64` | `f209` (`U64`) | Unsigned 64-bit integer | `u64:0` |
 | `l/T` | `Dc 2576 "StageL list type"` | Immutable value-semantics list of element type `T` (`b"..."` has type `l/u8`) | `l/u32: u32:1 u32:2 ::`, `b"abc"` |
 | `buf/T` | `Dc 2577 "StageL buffer type"` | Mutable local StageL builder buffer over element type `T` (`O(1)` amortized push/set, zero-copy `bufFreeze -> l/T`; local-only, disallowed in exported `pub` constants/signatures) | `bufNew u8 u64:64`, `bufFill u8:0 u64:16` |
-| `void` | `f1425` (`Void`) | Unit type (single unit value returned by declarations, `set`, buffer mutators, loops, and empty `do ::`) | `do ::` |
+| `void` | `f1425` (`Void`) | Unit type (single unit value returned by declarations, `set`, buffer mutators, loops, `nop`, and empty `do ::`) | `nop` (`Dc 2455 "No-op"`), `do ::` |
 | `never` | `f1426` (`Never`) | Bottom / non-returning type (`break`, `continue`, `return`, `fault`) — compatible with any branch type in `if` | *(control transfer)* |
 
 > **Note on `t` (`letters`)**: Direct `.sl3 -> Token Dcs` compilation omits `t` (`letters`) from the base StageL 3 Token Dc repertoire (using `l/u8` byte slices in StageL 3 and `s` / `dcs` in StageR 3); `t"..."` normalization in `stagel3.rs` is retained only for `.sli3` normalizer compatibility.
@@ -106,7 +106,7 @@ At file top level, all declarations are immutable (`let` and `set` are local-blo
 - **`const TYPE/name EXPR.` (`Dc 2199`)**: Declares a file-private constant value/data/list (evaluated as a pure constant expression).
 - **`pub` is the exported declaration form (`Dc 2200` for values, `Dc 2203` with `true` for routines)**:
   - `pub v/RETURN/name ...` exports a verb from the file's `ns` module.
-  - `pub TYPE/name EXPR.` exports a reusable constant value/data/list (referenced via `Dc 2202 "Typed value reference"` `TYPE/name`, which never collides with 0-arg verb calls `Dc 2211 "Begin routine call"`..`Dc 2212 "End routine call"`).
+  - `pub TYPE/name EXPR.` exports a reusable constant value/data/list (referenced via `Dc 2202 "Typed value reference"` `/name` or `TYPE/name`, which never collides with 0-arg verb calls `Dc 2211 "Begin routine call"`..`Dc 2212 "End routine call"`).
   - `pub dc/<shorthand> v/...` or `pub dc/<shorthand> TYPE/name EXPR.` binds an exported namespace item as the implementation of an already-allocated Core Short Dc or Format Dc from `categories/*.csv`.
 
 | Declaration Scope & Form | Visibility | Graph Node Allocation |
@@ -140,18 +140,23 @@ v/RETURN/name TYPE/param1 TYPE/param2 ...
 - An inline single-statement body uses `::` after the parameter list and still ends with `.` (or `;`), even when its body expression ends with a `::` / `}` closer:
   `v/b/nne i64/a i64/b :: ne i64/a i64/b.` / `v/u32/braceBlock u32/x :: do u32/x. }.`
 - Prefix calls have fixed arity. Verb signatures in a block are collected before parsing bodies so forward and mutually recursive calls work throughout the enclosing block.
-- **Fixed-arity exact-parameter-type implementation dispatch & typed constants (top-level and `use`-imported items only)**:
+- **Fixed-arity exact-parameter-type implementation dispatch & single-definition constant names**:
   - Multiple top-level (`v/...` / `pub v/...`) or `use`-imported routines may share an identifier **iff** they have the **exact same parameter arity** and **pairwise-distinct concrete parameter type tuples** `(T_1, ..., T_n)`. Return-type-only overloading and arity overloading are prohibited, no identifier may denote both a constant and a routine, and a call with a `never` argument (`fault`, `return`, `break`, `continue`) must still select a **unique** candidate overload.
-  - Multiple top-level (`const` / `pub`) or `use`-imported immutable constants may share an identifier **iff** they have **pairwise-distinct `StageLType`s** (disambiguated syntactically at every `TYPE/name` reference).
+  - Constant and variable names have **at most one definition** in scope (constant-by-type overloading is disallowed; use descriptive camelCase names such as `i32Min` / `i64Min` so `/i32Min` is always unambiguous).
   - Nested lexical routines (`const v/...` inside a verb or `do ... ::` block) and local bindings (`let` / `const`) remain strictly non-overloaded and non-shadowing.
-  - Each overloaded top-level routine or typed constant receives its own System-block `l<id>` node, and calls/references inside System-graph bodies resolve statically at compile time to direct `dc/l<id>` references with zero runtime dispatch overhead.
+  - Each overloaded top-level routine receives its own System-block `l<id>` node, and calls/references inside System-graph bodies resolve statically at compile time to direct `dc/l<id>` references with zero runtime dispatch overhead.
+- **Optional type prefix on value references (`/name` vs `TYPE/name`)**:
+  - Value reads (`Dc 2202 "Typed value reference"`) may omit the type prefix (`/lhs`, `/dc/l8589978241`), inferring the type from the single declaration in scope, or include an explicit type annotation (`u32/lhs`, `i32/dc/l8589978241`), which the validator verifies against the declared type.
+  - Explicit types remain mandatory on all new binding declarations (`let`, `const`, `pub`, routine parameters, and `foreach` element bindings).
+- **`*StageLInternal` stage-boundary gating**:
+  - Identifiers ending in `StageLInternal` (case-insensitively, e.g. `modStageLInternal`, `assertStageLInternal`) are Stage 1 bootstrap/StageL-only helpers permitted in `stage_1_impls/` and prohibited from being declared, `use`-imported (including with `as` or `dc/`), or called in Stage 2 `impls/` or `.sr3` files.
 
 Inside a verb or `do ... ::` block:
 1. **`let TYPE/name [EXPR]`** — Declares a new **mutable** local variable in the current block and returns `void` (unit).
    - With `EXPR` (`let u32/x u32:0.`): declares and initializes `x`.
    - Without `EXPR` (`let u32/x.`): declares `x` in an uninitialized state; `x` **must** be definitely assigned via `set` on all control-flow paths before any read (including reads via nested verbs that capture `x`). Reading a potentially uninitialized `let` variable is a **compile-time error**.
    - Once declared with `let`, `name` **cannot** be re-declared in the same block or shadowed in nested scopes within that block; mutate it with `set`.
-2. **`set TYPE/name EXPR`** — Mutates an already-declared `let` variable `name` of matching `TYPE` and returns `void` (unit). Using `set` on a `const` / `pub` binding, parameter, `foreach` `this`, or undeclared identifier is a **compile-time error**.
+2. **`set [/name | TYPE/name] EXPR` (`Dc 2201 "Assign mutable binding"`)** — Mutates an already-declared `let` variable `name` and returns `void` (unit). `set` may **never** change an existing variable's declared type (if `TYPE/name` is written, `TYPE` must equal `name`'s declared type, and `EXPR` must match that type). Using `set` on a `const` / `pub` binding, parameter, `foreach` element binding, or undeclared identifier is a **compile-time error**.
 3. **`const TYPE/name EXPR` / `const v/RETURN/name ...`** — Declares an **immutable** local constant value (`const TYPE/name EXPR`, mandatory initializer) or nested routine (`const v/RETURN/name ...`; bare `v/...` is top-level-only) in the current block and returns `void` (unit). Re-declaration, shadowing, and mutation via `set` are prohibited.
 
 ---
@@ -160,6 +165,7 @@ Inside a verb or `do ... ::` block:
 
 Every normally completing construct is an expression returning a value:
 - **Blocks (`do ... ::` and indented bodies, `Dc 2213 "Begin code block"`..`Dc 2214 "End code block"`)**: Evaluate statements left-to-right / top-to-bottom, discarding intermediate values and returning the final expression's value (`.` and `;` do **not** suppress the final value). An empty block `do ::` returns unit of type `void`.
+- **`nop` (`Dc 2455 "No-op"`)**: Evaluates to unit of type `void` (`f1425`). In Token-Dc-to-`.sl3` decompilation, both `Dc 2455 "No-op"` and an empty `Dc 2213 "Begin code block"` `Dc 2214 "End code block"` pair render canonically as `nop` (while blocks with comments or statements remain `do ... ::`); parsing `nop` back to Token Dcs emits single `Dc 2455 "No-op"`.
 - **`if COND THEN ELSE` (`Dc 2448 "If conditional"`)**: Evaluates `COND` (`b`), then evaluates **only** the selected branch. Result types of `THEN` and `ELSE` must match, except `never` unifies with any type `T` to yield `T`.
 - **`while COND BODY` (`Dc 2449 "While loop"`)**: Repeatedly evaluates `COND` (`b`) and `BODY` (`void`); returns `void` when `COND` is `false` or `break` executes.
 - **`foreach T/elem LIST BODY` (`Dc 2450 "For each"`)**: Evaluates `LIST` (`l/T`) once (iterating a snapshot) and evaluates `BODY` (`void`) for each element with read-only non-shadowing `T/elem` bound (`: ~ [stagel_type] [identifier] [el_expr] [el_expr]`), supporting arbitrary nested `foreach` loops. (Distinct from declarative graph-relationship `Dc 638 "Distribute statement over each element"` + `Dc 639 "This element"`.)
@@ -196,7 +202,7 @@ Invalid checked arithmetic (overflow, division/remainder by zero, or signed `MIN
 - Explicit modular two's-complement wrapping arithmetic (`2^width`, never faulting; needed for hashing, PRNGs, and multi-limb StageR `i128`/`u128`/`int` lowering):
   - `wrapAdd X Y` (`Dc 2518 "Wrapping add operation"`), `wrapSub X Y` (`Dc 2519 "Wrapping subtract operation"`), `wrapMul X Y` (`Dc 2520 "Wrapping multiply operation"`) -> `(T, T) -> T`.
 - **Standard library arithmetic (`stage_1_impls/std/math.sl3`, not core Token Dcs)**:
-  - Euclidean modulus (`mod` across `u8`, `i32`, `u32`, `i64`, `u64`, yielding `0 <= (mod lhs rhs) < |rhs|` for `rhs != 0`, including signed `mod MIN -1 == 0` and `mod -1 MIN == MAX`), typed integer bounds constants (`u8/MIN`..`u64/MIN`, `u8/MAX`..`u64/MAX`), and non-faulting pre-check predicates (`canAdd`, `canSub`, `canMul`, `canDiv`) are exported from a single unified `std/math` namespace using fixed-arity parameter-type dispatch and distinct-type constants.
+  - StageL-internal Euclidean modulus (`modStageLInternal` across `u8`, `i32`, `u32`, `i64`, `u64`, yielding `0 <= (modStageLInternal lhs rhs) < |rhs|` for `rhs != 0`, including signed `modStageLInternal i32Min -1 == 0` and `modStageLInternal -1 i32Min == i32Max`; restricted to `stage_1_impls/`), single-definition camelCase integer bounds constants (`u8Min`, `u8Max`, `i32Min`, `i32Max`, `u32Min`, `u32Max`, `i64Min`, `i64Max`, `u64Min`, `u64Max`), and total pre-check predicates (`canAdd`, `canSub`, `canMul`, `canDiv`) are exported from a single unified `std/math` namespace.
 
 ### 6.2 Bitwise, Shift, Rotate, and Bit-Count Operations (`u8`, `i32`, `u32`, `i64`, `u64`)
 - `bitAnd X Y` (`Dc 2521 "Bitwise AND operation"`), `bitOr X Y` (`Dc 2522 "Bitwise OR operation"`), `bitXor X Y` (`Dc 2523 "Bitwise XOR operation"`) -> `(T, T) -> T`
@@ -232,7 +238,7 @@ All 20 numeric widening/narrowing conversions and 4 same-width bit reinterpretat
   - `bufSet BUF IDX VAL` (`Dc 2584 "StageL buffer set"`) -> `void` (`O(1)` in-place element write at `IDX < len BUF`; faults if out of bounds or frozen)
   - `bufFreeze BUF` (`Dc 2585 "StageL buffer freeze"`) -> `l/T` (`O(1)` zero-copy conversion to immutable `l/T`, marking `BUF` frozen so later mutations fault)
 - **Standard library sequence & assertion helpers (`stage_1_impls/std/{bytes,assert}.sl3`, not core Token Dcs)**:
-  - `explode` and `implode` in `stage_1_impls/std/bytes.sl3` (linear-time byte-slice splitting and joining built over `slice`, `bufNew`, `bufPush`, `bufExtend`, and `bufFreeze` with non-empty separator validation and empty-piece retention so `implode sep (explode sep x) == x`) and `assert` in `stage_1_impls/std/assert.sl3` (`if b/cond do :: fault`) are emitted into the System graph as StageL Token Dcs.
+  - `explode` and `implode` in `stage_1_impls/std/bytes.sl3` are total linear-time byte-slice splitting and joining verbs built over `slice`, `bufNew`, `bufPush`, `bufExtend`, and `bufFreeze`: when `sep` is non-empty, `explode` retains leading, trailing, and adjacent empty slices (`implode sep (explode sep x) == x`); when `sep` is empty (`b""`), `explode` splits `input` into individual 1-byte slices (`explode b"" b"" == []`, `explode b"" b"abc" == [b"a", b"b", b"c"]`). `assertStageLInternal` in `stage_1_impls/std/assert.sl3` (`if /cond nop fault`) is gated to `stage_1_impls/`.
 
 ---
 

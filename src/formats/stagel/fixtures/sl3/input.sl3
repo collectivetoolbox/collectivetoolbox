@@ -18,7 +18,7 @@ v/u32/modStep u32/a u32/b
     test computes unsigned modulus
         in u32:17 u32:5
         out u32:2
-    mod u32/a u32/b.
+    modStageLInternal /a /b.
 
 v/i32/remStep i32/a i32/b
     test computes signed truncated remainder
@@ -52,10 +52,10 @@ v/u32/definiteInit b/pickFirst u32/a u32/b
         out u32:18
     const u32/bonus u32:10.
     let u32/chosen.
-    if b/pickFirst
-        set u32/chosen u32/a
-        set u32/chosen u32/b.
-    add u32/chosen u32/bonus.
+    if /pickFirst
+        set /chosen /a
+        set /chosen /b.
+    add /chosen /bonus.
 
 : Nested verb captures definition-site mutable let binding even when called from a sibling verb.
 v/u32/lexicalCapture u32/initial
@@ -89,5 +89,5 @@ v/l/u32/copyList l/u32/items
     ::.
     l/u32/copied.
 
-: Empty do blocks return unit of type void.
-v/void/unitChoice b/condition :: if b/condition do :: do ::.
+: nop and empty do blocks return unit of type void.
+v/void/unitChoice b/condition :: if /condition nop do ::.

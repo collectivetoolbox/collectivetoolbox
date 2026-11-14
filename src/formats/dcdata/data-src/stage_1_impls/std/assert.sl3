@@ -1,13 +1,13 @@
 : SPDX-License-Identifier: AGPL-3.0-or-later
-: Stage 1 standard library assertion verb for StageL 3.
+: Stage 1 standard library internal assertion verb for StageL 3 (prohibited in StageR 3 / Stage 2).
 ns std/assert.
 
 : Traps deterministically when `cond` is false; returns `void` when `cond` is true.
 : @dc l8589978237
-pub v/void/assert b/cond
+pub v/void/assertStageLInternal b/cond
     test
         in true
         out.
         in false
         out fault.
-    if b/cond do :: fault.
+    if /cond nop fault.

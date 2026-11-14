@@ -775,7 +775,7 @@ v/u32/bufSetOobAndExplicitFault b/triggerFault u64/idx
         let inputs: Vec<ModuleInput<'_>> = std_files
             .iter()
             .map(|f| ModuleInput {
-                source_path: Some(f.psr4_rel_path.as_str()),
+                source_path: Some(f.repo_rel_path.as_str()),
                 source: f.source.as_str(),
             })
             .collect();
@@ -796,56 +796,78 @@ v/u32/bufSetOobAndExplicitFault b/triggerFault u64/idx
 
         // 2. Standalone `.sl3` AND encoded `Dc 2192..2193` Token-Dc module linking
         // `std/*` directly from `SeedGraphIndex::shared()` (including transitive
-        // private helper `std/bytes::matchesAt`, `std/assert::assert`, parameter-type
-        // implementation dispatch and typed constants across `u8`/`i32`/`u32`/`i64`/`u64`
-        // from unified `std/math` without `as` aliases, plus a direct `dc/l8589978243`
-        // call to `std/math::mod` `(i32, i32)`).
+        // private helper `std/bytes::matchesAt`, `std/assert::assertStageLInternal`,
+        // parameter-type implementation dispatch and single-definition camelCase
+        // constants across `u8`/`i32`/`u32`/`i64`/`u64` from unified `std/math`,
+        // infallible empty-separator `explode`, `/name` & `set /name`, `nop`, plus
+        // a direct `dc/l8589978243` call to `std/math::modStageLInternal` `(i32, i32)`).
         let client_src = r#"
-use std/assert: assert ::.
+use std/assert: assertStageLInternal ::.
 use std/bytes: explode implode ::.
-use std/math: MIN MAX mod canAdd canSub canMul canDiv ::.
+use std/math: u8Min u8Max i32Min i32Max u32Min u32Max i64Min i64Max u64Min u64Max modStageLInternal canAdd canSub canMul canDiv ::.
 
 v/l/u8/rejoinNormalize l/u8/raw
     test csvRoundtrip
         in b"alpha,,beta,gamma"
         out b"alpha|empty|beta|gamma".
-    test emptySepTraps
-        in b"TRAP"
-        out fault.
-    if eq l/u8/raw b"TRAP"
-        return implode b"|" explode b"" l/u8/raw
-        do ::.
-    let l/l/u8/pieces explode b"," l/u8/raw.
-    let buf/l/u8/mapped bufNew l/u8 len l/l/u8/pieces.
-    foreach l/u8/part l/l/u8/pieces do
-        if eq len l/u8/part u64:0
-            bufPush buf/l/u8/mapped b"empty"
-            bufPush buf/l/u8/mapped l/u8/part.
+    test emptySepSplitsBytes
+        in b"SPLIT:abc"
+        out b"a|b|c".
+    if eq /raw b"SPLIT:abc"
+        return implode b"|" explode b"" b"abc"
+        nop.
+    let l/l/u8/pieces explode b"," /raw.
+    let buf/l/u8/mapped bufNew l/u8 len /pieces.
+    foreach l/u8/part /pieces do
+        if eq len /part u64:0
+            bufPush /mapped b"empty"
+            bufPush /mapped /part.
     ::.
-    implode b"|" bufFreeze buf/l/u8/mapped.
+    implode b"|" bufFreeze /mapped.
 
 v/b/exerciseAllStdMath
     test allChecksHold
         in.
         out true.
-    assert eq mod i32:-7 i32:3 i32:2.
-    assert eq dc/l8589978243 i32/MIN i32:-1 i32:0.
-    assert eq dc/l8589978243 i32:-1 i32/MIN i32/MAX.
-    assert and not canAdd i32/MAX i32:1 not canSub i32/MIN i32:1.
-    assert and not canMul i32/MIN i32:-1 not canDiv i32/MIN i32:-1.
-    assert eq mod i64/MIN i64:-1 i64:0.
-    assert eq mod i64:-1 i64/MIN i64/MAX.
-    assert and not canAdd i64/MAX i64:1 not canSub i64/MIN i64:1.
-    assert and not canMul i64/MIN i64:-1 not canDiv i64/MIN i64:-1.
-    assert and eq u8/MIN u8:0 eq mod u8/MAX u8:10 u8:5.
-    assert and eq u32/MIN u32:0 eq mod u32/MAX u32:10 u32:5.
-    assert and eq u64/MIN u64:0 eq mod u64/MAX u64:10 u64:5.
-    assert and not canAdd u8/MAX u8:1 and not canSub u8/MIN u8:1 and not canMul u8:16 u8:16 not canDiv u8:1 u8:0.
-    assert and not canAdd u32/MAX u32:1 and not canSub u32/MIN u32:1 and not canMul u32:65536 u32:65536 not canDiv u32:1 u32:0.
-    assert and not canAdd u64/MAX u64:1 and not canSub u64/MIN u64:1 and not canMul u64:4294967296 u64:4294967296 not canDiv u64:1 u64:0.
+    let i32/tmp i32:0.
+    set /tmp if true do let i32/inner i32:7. /inner. :: i32:0.
+    assertStageLInternal eq /tmp i32:7.
+    assertStageLInternal eq modStageLInternal i32:-7 i32:3 i32:2.
+    assertStageLInternal eq dc/l8589978243 /i32Min i32:-1 i32:0.
+    assertStageLInternal eq dc/l8589978243 i32:-1 /i32Min /i32Max.
+    assertStageLInternal and not canAdd /i32Max i32:1 not canSub /i32Min i32:1.
+    assertStageLInternal and not canMul /i32Min i32:-1 not canDiv /i32Min i32:-1.
+    assertStageLInternal eq modStageLInternal /i64Min i64:-1 i64:0.
+    assertStageLInternal eq modStageLInternal i64:-1 /i64Min /i64Max.
+    assertStageLInternal and not canAdd /i64Max i64:1 not canSub /i64Min i64:1.
+    assertStageLInternal and not canMul /i64Min i64:-1 not canDiv /i64Min i64:-1.
+    assertStageLInternal and eq /u8Min u8:0 eq modStageLInternal /u8Max u8:10 u8:5.
+    assertStageLInternal and eq /u32Min u32:0 eq modStageLInternal /u32Max u32:10 u32:5.
+    assertStageLInternal and eq /u64Min u64:0 eq modStageLInternal /u64Max u64:10 u64:5.
+    assertStageLInternal and not canAdd /u8Max u8:1 and not canSub /u8Min u8:1 and not canMul u8:16 u8:16 not canDiv u8:1 u8:0.
+    assertStageLInternal and not canAdd /u32Max u32:1 and not canSub /u32Min u32:1 and not canMul u32:65536 u32:65536 not canDiv u32:1 u32:0.
+    assertStageLInternal and not canAdd /u64Max u64:1 and not canSub /u64Min u64:1 and not canMul u64:4294967296 u64:4294967296 not canDiv u64:1 u64:0.
     true.
 "#;
         let shared_idx = SeedGraphIndex::shared()?;
+        // Stage 2 (`impls/`) caller must be blocked from importing `*StageLInternal` from `SeedGraphIndex::shared()`.
+        let stage2_forbidden_src = r#"
+ns app/bad.
+use std/math: modStageLInternal ::.
+
+pub v/i32/calc i32/x :: modStageLInternal /x i32:3.
+"#;
+        ensure!(
+            crate::stagel3::seed_linker::parse_and_validate_workspace_with_seed_graph(
+                &[ModuleInput {
+                    source_path: Some("impls/app/bad.sl3"),
+                    source: stage2_forbidden_src,
+                }],
+                shared_idx,
+            )
+            .is_err(),
+            "Stage 2 impls/ module must not be allowed to import modStageLInternal"
+        );
         let eval_client =
             crate::stagel3::seed_linker::eval_sl3_inline_tests_with_seed_graph(
                 client_src,

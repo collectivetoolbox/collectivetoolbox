@@ -8,36 +8,32 @@ v/b/zl s/in
     test works with nonzero length string
         in "a"
         out false
-    eq u64:0 byteLen s/in.
+    eq u64:0 byteLen /in.
 
-v/result/i64/addChecked i64/a i64/b :: tryAdd i64/a i64/b.
+v/result/i64/addChecked i64/a i64/b :: add /a /b.
+v/result/i64/addThree i64/a i64/b i64/c :: add add? /a /b /c.
+v/option/s/firstPart l/s/parts :: get? /parts u64:0.
 
-v/s/default s/a s/b :: if zl s/a s/b s/a.
+v/s/default s/a s/b :: if zl /a /b /a.
 
 v/i128/passWide i128/x
     test preserves negative wide integer
         in i128:-42
         out i128:-42
-    i128/x.
+    /x.
 
 v/option/u32/nonZeroOrNone u32/x
     test wraps nonzero value
         in u32:5
         out option/u32:some u32:5
-    if eq u32:0 u32/x
+    if eq u32:0 /x
         option/u32:none
-        option/u32:some u32/x.
+        option/u32:some /x.
 
-v/s/getFormatImportSetting s/a s/b :: unimplemented "Import settings".
-v/option/s/dcGetMappingToFormat dc/a s/b :: unimplemented "Dc mapping".
-v/s/getEnvCodeLanguage :: unimplemented "Environment language".
-
-v/s/getTargetLanguageForDctCodeToText
-    const s/targetLanguage getFormatImportSetting "codetotext" "language".
-    if zl s/targetLanguage getEnvCodeLanguage s/targetLanguage.
+v/void/skipIfEmpty s/in :: if zl /in nop nop.
 
 v/l/s/splitDcts s/sep s/input
     test splits mixed mode string with embedded Dc token
         in ":" "alpha:@256@:beta"
         out l/s: "alpha" "@256@" "beta" ::
-    explode s/sep s/input.
+    explode /sep /input.
