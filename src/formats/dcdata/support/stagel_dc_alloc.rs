@@ -237,7 +237,7 @@ fn parse_validate_and_test_stagel_files(
         .iter()
         .map(|f| ModuleInput {
             source: f.source.as_str(),
-            source_path: Some(f.psr4_rel_path.as_str()),
+            source_path: Some(f.repo_rel_path.as_str()),
         })
         .collect();
     let workspace = parse_and_validate_workspace(&inputs)?;
@@ -930,9 +930,10 @@ fn rewrite_expr_refs(
                 span: *span,
             }
         }
-        Expr::Break { .. } | Expr::Continue { .. } | Expr::Fault { .. } => {
-            expr.clone()
-        }
+        Expr::Break { .. }
+        | Expr::Continue { .. }
+        | Expr::Fault { .. }
+        | Expr::Nop { .. } => expr.clone(),
         Expr::Return { value, span } => Expr::Return {
             value: value
                 .as_ref()

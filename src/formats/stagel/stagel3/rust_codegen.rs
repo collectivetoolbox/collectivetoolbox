@@ -870,19 +870,11 @@ impl WorkspaceRoutineIndex {
                 format!("sl_mod_anon_{mod_idx}")
             };
 
-            let mut val_name_counts: HashMap<&str, usize> = HashMap::new();
             let mut routine_name_counts: HashMap<&str, usize> = HashMap::new();
             for decl in &vm.module.items {
-                match decl {
-                    TopDecl::Value(v) => {
-                        let e = val_name_counts.entry(v.name.as_str()).or_insert(0);
-                        *e = e.saturating_add(1);
-                    }
-                    TopDecl::Routine(r) => {
-                        let e = routine_name_counts.entry(r.name.as_str()).or_insert(0);
-                        *e = e.saturating_add(1);
-                    }
-                    TopDecl::Comment(_) => {}
+                if let TopDecl::Routine(r) = decl {
+                    let e = routine_name_counts.entry(r.name.as_str()).or_insert(0);
+                    *e = e.saturating_add(1);
                 }
             }
 
@@ -891,15 +883,7 @@ impl WorkspaceRoutineIndex {
                 match decl {
                     TopDecl::Value(v) => {
                         let san = sanitize_ident(&v.name);
-                        let overloaded = val_name_counts
-                            .get(v.name.as_str())
-                            .copied()
-                            .is_some_and(|n| n > 1);
-                        let rname = if overloaded {
-                            format!("sl_c_{san}__{}", stagel_type_slug(&v.ty))
-                        } else {
-                            format!("sl_c_{san}")
-                        };
+                        let rname = format!("sl_c_{san}");
                         let vkey = ValueKey::from_decl(v);
                         const_idents_by_key
                             .insert((mod_idx, vkey), (rname.clone(), v.ty.clone()));
@@ -2052,9 +2036,10 @@ impl<'a> ModuleEmitter<'a> {
             Expr::ValueRef { target, span, .. } => {
                 self.resolve_value_ref(target, *span)
             }
-            Expr::Let { .. } | Expr::Const { .. } | Expr::RoutineDecl(_) => {
-                Ok((String::from("()"), StageLType::Void))
-            }
+            Expr::Let { .. }
+            | Expr::Const { .. }
+            | Expr::RoutineDecl(_)
+            | Expr::Nop { .. } => Ok((String::from("()"), StageLType::Void)),
             Expr::Set { name, value, .. } => {
                 let (val_code, val_ty) = self.emit_expr(value, indent_level)?;
                 let target_var = self
@@ -3244,7 +3229,8 @@ fn expr_has_tail_call(expr: &Expr, in_tail: bool) -> bool {
         | Expr::Const { .. }
         | Expr::Break { .. }
         | Expr::Continue { .. }
-        | Expr::Fault { .. } => false,
+        | Expr::Fault { .. }
+        | Expr::Nop { .. } => false,
     }
 }
 
@@ -3888,16 +3874,13 @@ fn collect_free_var_refs(
 fn collect_top_value_deps(
     expr: &Expr,
     bound: &HashSet<String>,
-    ident_out: &mut HashSet<ValueKey>,
+    ident_out: &mut HashSet<String>,
     dc_out: &mut HashSet<DcChar>,
 ) {
     match expr {
-        Expr::ValueRef { ty, target, .. } => match target {
+        Expr::ValueRef { target, .. } => match target {
             SymbolTarget::Ident(n) if !bound.contains(n) => {
-                ident_out.insert(ValueKey {
-                    name: n.clone(),
-                    ty: ty.clone(),
-                });
+                ident_out.insert(n.clone());
             }
             SymbolTarget::Dc(dc) => {
                 dc_out.insert(*dc);
@@ -4027,12 +4010,12 @@ fn collect_top_value_deps(
 
 pub(super) fn topo_sort_top_values(items: &[TopDecl]) -> Vec<&TopValueDecl> {
     let mut vals = Vec::new();
-    let mut by_key = HashMap::new();
+    let mut by_name = HashMap::new();
     let mut by_dc = HashMap::new();
     for item in items {
         if let TopDecl::Value(v) = item {
             let idx = vals.len();
-            by_key.insert(ValueKey::from_decl(v), idx);
+            by_name.insert(v.name.clone(), idx);
             if let Some(dc) = v.dc_id {
                 by_dc.insert(dc, idx);
             }
@@ -4045,7 +4028,7 @@ pub(super) fn topo_sort_top_values(items: &[TopDecl]) -> Vec<&TopValueDecl> {
     fn visit<'a>(
         idx: usize,
         vals: &[&'a TopValueDecl],
-        by_key: &HashMap<ValueKey, usize>,
+        by_name: &HashMap<String, usize>,
         by_dc: &HashMap<DcChar, usize>,
         visited: &mut [bool],
         ordered: &mut Vec<&'a TopValueDecl>,
@@ -4066,13 +4049,13 @@ pub(super) fn topo_sort_top_values(items: &[TopDecl]) -> Vec<&TopValueDecl> {
                 &mut dc_deps,
             );
             for d in ident_deps {
-                if let Some(&dep_idx) = by_key.get(&d) {
-                    visit(dep_idx, vals, by_key, by_dc, visited, ordered);
+                if let Some(&dep_idx) = by_name.get(&d) {
+                    visit(dep_idx, vals, by_name, by_dc, visited, ordered);
                 }
             }
             for dc in dc_deps {
                 if let Some(&dep_idx) = by_dc.get(&dc) {
-                    visit(dep_idx, vals, by_key, by_dc, visited, ordered);
+                    visit(dep_idx, vals, by_name, by_dc, visited, ordered);
                 }
             }
             ordered.push(v);
@@ -4080,7 +4063,7 @@ pub(super) fn topo_sort_top_values(items: &[TopDecl]) -> Vec<&TopValueDecl> {
     }
 
     for i in 0..vals.len() {
-        visit(i, &vals, &by_key, &by_dc, &mut visited, &mut ordered);
+        visit(i, &vals, &by_name, &by_dc, &mut visited, &mut ordered);
     }
     ordered
 }

@@ -423,6 +423,28 @@ pub fn normalize_with_dialect(
                 out.push(b'/');
                 at_expr_boundary = false;
             }
+            b'?' => {
+                ensure!(
+                    dialect == StageDialect::StageR3,
+                    "'?' error-propagation alias belongs to StageR 3; StageL 3 does not use '?'"
+                );
+                let prev_is_alnum = pos
+                    .checked_sub(2)
+                    .and_then(|i| input.get(i))
+                    .is_some_and(u8::is_ascii_alphanumeric);
+                let next_byte = input.get(pos).copied();
+                let next_is_delim = matches!(
+                    next_byte,
+                    None | Some(b' ' | b'\r' | b'\n' | b'.' | b';' | b'}')
+                ) || (next_byte == Some(b':')
+                    && input.get(pos.saturating_add(1)) == Some(&b':'));
+                ensure!(
+                    !at_expr_boundary && prev_is_alnum && next_is_delim,
+                    "'?' in StageR 3 is only valid as a trailing error-propagation suffix on a verb or value reference"
+                );
+                out.push(b'/');
+                at_expr_boundary = false;
+            }
             b'a'..=b'z' => {
                 out.push(raw.to_ascii_uppercase());
                 at_expr_boundary = false;

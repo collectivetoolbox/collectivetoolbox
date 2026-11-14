@@ -59,7 +59,8 @@ use crate::dc::{
     DC_FAULT_TRAP, DC_FILE_PATH_DELIMITER, DC_FOR_EACH, DC_GE_OP, DC_GT_OP,
     DC_IF_CONDITIONAL, DC_LE_OP, DC_LOGICAL_AND_OP, DC_LOGICAL_NOT_OP,
     DC_LOGICAL_OR_OP, DC_LT_OP, DC_MUL_OP, DC_NAMESPACE_DECL, DC_NE_OP,
-    DC_NEG_OP, DC_NEGATIVE, DC_OPTIONAL_ABSENT, DC_POPCNT_OP, DC_REM_OP,
+    DC_NEG_OP, DC_NEGATIVE, DC_NO_OP, DC_OPTIONAL_ABSENT, DC_POPCNT_OP,
+    DC_REM_OP,
     DC_RETURN_ROUTINE, DC_ROTL_OP, DC_ROTR_OP, DC_ROUTINE_PARAM,
     DC_SEQ_CONCAT_OP, DC_SEQ_GET_OP, DC_SEQ_LEN_OP, DC_SEQ_SLICE_OP,
     DC_SHL_OP, DC_SHR_OP, DC_STAGEL_BUF_EXTEND, DC_STAGEL_BUF_FILL,
@@ -538,7 +539,10 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
         }
         Expr::ValueRef { ty, target, .. } => {
             out.push(DC_TYPED_VALUE_REF);
-            push_stagel_type(out, ty)?;
+            match ty {
+                Some(t) => push_stagel_type(out, t)?,
+                None => out.push(DC_OPTIONAL_ABSENT),
+            }
             match target {
                 SymbolTarget::Ident(n) => push_identifier(out, n)?,
                 SymbolTarget::Dc(dc) => push_atom_dc(out, *dc),
@@ -568,7 +572,10 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
         }
         Expr::Set { ty, name, value, .. } => {
             out.push(DC_ASSIGN_SET);
-            push_stagel_type(out, ty)?;
+            match ty {
+                Some(t) => push_stagel_type(out, t)?,
+                None => out.push(DC_OPTIONAL_ABSENT),
+            }
             push_identifier(out, name)?;
             push_expr(out, value)?;
         }
@@ -633,6 +640,7 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
             }
         }
         Expr::Fault { .. } => out.push(DC_FAULT_TRAP),
+        Expr::Nop { .. } => out.push(DC_NO_OP),
         Expr::Unary { op, operand, .. } => {
             out.push(unary_op_dc(*op));
             push_expr(out, operand)?;
@@ -1105,6 +1113,15 @@ impl<'a> Decoder<'a> {
         Ok(seg)
     }
 
+    fn read_optional_stagel_type(&mut self) -> Result<Option<StageLType>> {
+        if self.peek() == Some(DC_OPTIONAL_ABSENT) {
+            self.pos = self.pos.saturating_add(1);
+            Ok(None)
+        } else {
+            Ok(Some(self.read_stagel_type()?))
+        }
+    }
+
     fn read_stagel_type(&mut self) -> Result<StageLType> {
         let tok = self.next("Expected StageL type token")?;
         if tok == DC_STAGEL_LIST_TYPE {
@@ -1443,7 +1460,7 @@ impl<'a> Decoder<'a> {
         }
         if tok == DC_TYPED_VALUE_REF {
             self.pos = self.pos.saturating_add(1);
-            let ty = self.read_stagel_type()?;
+            let ty = self.read_optional_stagel_type()?;
             let target = if self.peek() == Some(DC_BEGIN_IDENTIFIER) {
                 SymbolTarget::Ident(self.read_identifier()?)
             } else {
@@ -1484,7 +1501,7 @@ impl<'a> Decoder<'a> {
         }
         if tok == DC_ASSIGN_SET {
             self.pos = self.pos.saturating_add(1);
-            let ty = self.read_stagel_type()?;
+            let ty = self.read_optional_stagel_type()?;
             let name = self.read_identifier()?;
             let value = Box::new(self.read_expr()?);
             return Ok(Expr::Set {
@@ -1530,6 +1547,9 @@ impl<'a> Decoder<'a> {
                     break;
                 }
                 stmts.push(BlockItem::Expr(self.read_expr()?));
+            }
+            if stmts.is_empty() {
+                return Ok(Expr::Nop { span: sp });
             }
             return Ok(Expr::Block { stmts, span: sp });
         }
@@ -1586,6 +1606,10 @@ impl<'a> Decoder<'a> {
         if tok == DC_FAULT_TRAP {
             self.pos = self.pos.saturating_add(1);
             return Ok(Expr::Fault { span: sp });
+        }
+        if tok == DC_NO_OP {
+            self.pos = self.pos.saturating_add(1);
+            return Ok(Expr::Nop { span: sp });
         }
         if tok == DC_CONVERT_OP {
             self.pos = self.pos.saturating_add(1);
@@ -1895,7 +1919,7 @@ fn write_routine(
     }
 
     match &r.body {
-        Expr::Block { stmts, .. } => {
+        Expr::Block { stmts, .. } if !stmts.is_empty() => {
             for item in stmts {
                 match item {
                     BlockItem::Comment(c) => {
@@ -1966,10 +1990,14 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             write!(out, "bufNew {elem_ty} ")?;
             write_expr(out, capacity, indent)?;
         }
-        Expr::ValueRef { ty, target, .. } => match target {
-            SymbolTarget::Ident(n) => write!(out, "{ty}/{n}")?,
-            SymbolTarget::Dc(dc) => {
-                write!(out, "{ty}/dc/{}", format_dc_shorthand(*dc))?;
+        Expr::ValueRef { ty, target, .. } => match (ty, target) {
+            (Some(t), SymbolTarget::Ident(n)) => write!(out, "{t}/{n}")?,
+            (None, SymbolTarget::Ident(n)) => write!(out, "/{n}")?,
+            (Some(t), SymbolTarget::Dc(dc)) => {
+                write!(out, "{t}/dc/{}", format_dc_shorthand(*dc))?;
+            }
+            (None, SymbolTarget::Dc(dc)) => {
+                write!(out, "/dc/{}", format_dc_shorthand(*dc))?;
             }
         },
         Expr::Let { ty, name, init, .. } => {
@@ -1986,7 +2014,10 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             write_expr(out, value, indent)?;
         }
         Expr::Set { ty, name, value, .. } => {
-            write!(out, "set {ty}/{name} ")?;
+            match ty {
+                Some(t) => write!(out, "set {t}/{name} ")?,
+                None => write!(out, "set /{name} ")?,
+            }
             write_expr(out, value, indent)?;
         }
         Expr::RoutineDecl(r) => write_routine(out, r, indent, true)?,
@@ -2010,7 +2041,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
                 _ => false,
             }) || stmts.len() > 1;
             if stmts.is_empty() {
-                out.push_str("do ::");
+                out.push_str("nop");
             } else if !has_multiline {
                 if let Some(BlockItem::Expr(e)) = stmts.first() {
                     out.push_str("do ");
@@ -2080,6 +2111,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             }
         }
         Expr::Fault { .. } => out.push_str("fault"),
+        Expr::Nop { .. } => out.push_str("nop"),
         Expr::Unary { op, operand, .. } => {
             write!(out, "{} ", op.keyword())?;
             write_expr(out, operand, indent)?;
@@ -2228,33 +2260,33 @@ pub v/u32/roundTripDemo u32/x i32/y l/u8/raw
     const l/u32/items l/u32: u32:1 u32:2 u32:3 ::.
     const i32/minSigned i32:-2147483648.
     const i64/minWide i64:-9223372036854775808.
-    const v/u32/helper u32/n :: add u32/n u32/baseOffset.
-    if b/flag do
-        set u32/acc u32/x.
-        u32/acc.
+    const v/u32/helper u32/n :: add /n /baseOffset.
+    if /flag do
+        set /acc /x.
+        /acc.
     :: do
         set u32/acc u32:0.
         u32/acc.
     ::.
     let buf/u8/scratch bufNew u8 u64:4.
-    bufPush buf/u8/scratch u8:65.
-    let l/u8/frozen bufFreeze buf/u8/scratch.
+    bufPush /scratch u8:65.
+    let l/u8/frozen bufFreeze /scratch.
     let u32/extra u32:0.
-    foreach u8/itemByte l/u8/frozen do
-        set u32/extra wrapAdd u32/extra conv u8/itemByte u32.
+    foreach u8/itemByte /frozen do
+        set /extra wrapAdd /extra conv /itemByte u32.
     ::.
-    if lt len l/u8/raw u64:1 fault do ::.
-    let u8/first get l/u8/raw u64:0.
-    let u32/discard1 add bitcast i32/minSigned u32 wrapSub u32:0 bitcast i32/y u32.
-    set u32/acc helper u32/acc.
-    let u32/discard2 add u32/discard1 u32/acc.
-    add u32/extra sub get l/u32/items u64:1 u32:2.
+    if lt len /raw u64:1 fault nop.
+    let u8/first get /raw u64:0.
+    let u32/discard1 add bitcast /minSigned u32 wrapSub u32:0 bitcast /y u32.
+    set /acc helper /acc.
+    let u32/discard2 add /discard1 /acc.
+    add /extra sub get /items u64:1 u32:2.
 
 v/void/voidRoutine u32/inputVal
     test voidCase
         in u32:1
         out.
-    if eq u32/inputVal u32:0 fault do ::.
+    if eq /inputVal u32:0 fault do ::.
 "#;
 
         let module1 = parse_module(src).expect("parse_module failed");
@@ -2263,6 +2295,16 @@ v/void/voidRoutine u32/inputVal
         let tokens1 =
             encode_module_to_dc_tokens(&module1).expect("encode to dc tokens");
         assert_token_dc_framing_balanced(&tokens1);
+        assert!(
+            tokens1.contains(&DC_NO_OP),
+            "Expected DC_NO_OP in tokens1 for explicit 'nop'"
+        );
+        assert!(
+            tokens1
+                .windows(2)
+                .any(|w| w == [DC_BEGIN_CODE_BLOCK, DC_END_CODE_BLOCK]),
+            "Expected empty 2213..2214 block in tokens1 from 'do ::'"
+        );
 
         // ': @dc l...' directives MUST be stripped from emitted comment frames.
         let mut i = 0usize;
@@ -2291,7 +2333,8 @@ v/void/voidRoutine u32/inputVal
             i = i.saturating_add(1);
         }
 
-        // Decoding restores AtomDc -> ': @dc l...' and 'pub dc/256'.
+        // Decoding restores AtomDc -> ': @dc l...' and 'pub dc/256', preserves
+        // omitted vs explicit value-ref / set types, and normalizes empty 2213..2214 to 'nop'.
         let formatted1 =
             dc_tokens_to_sl3(&tokens1).expect("decode dc tokens to sl3");
         assert!(formatted1.contains(": @dc l9000001"));
@@ -2302,16 +2345,28 @@ v/void/voidRoutine u32/inputVal
         assert!(formatted1.contains("i64:-9223372036854775808"));
         assert!(formatted1.contains(": Leading module comment"));
         assert!(formatted1.contains("voidRoutine"));
+        assert!(formatted1.contains("set /acc /x."));
+        assert!(formatted1.contains("set u32/acc u32:0."));
+        assert!(formatted1.contains("if eq /inputVal u32:0 fault nop."));
+        assert!(!formatted1.contains("do ::"));
 
-        // Second round-trip MUST produce identical Token Dcs and source text.
+        // Re-encoding normalized text produces DC_NO_OP for both 'nop' sites and is idempotent thereafter.
         let tokens2 = sl3_to_dc_tokens(&formatted1).expect("re-encode failed");
-        assert_eq!(
-            strip_comment_frames(&tokens1),
-            strip_comment_frames(&tokens2),
-            "Token Dc stream is not idempotent across round-trips"
+        assert_token_dc_framing_balanced(&tokens2);
+        assert!(
+            !tokens2
+                .windows(2)
+                .any(|w| w == [DC_BEGIN_CODE_BLOCK, DC_END_CODE_BLOCK]),
+            "Empty 2213..2214 should normalize to DC_NO_OP after dc_tokens_to_sl3"
         );
         let formatted2 = dc_tokens_to_sl3(&tokens2).expect("re-decode failed");
         assert_eq!(formatted1, formatted2, "Formatted .sl3 is not idempotent");
+        let tokens3 = sl3_to_dc_tokens(&formatted2).expect("third encode failed");
+        assert_eq!(
+            strip_comment_frames(&tokens2),
+            strip_comment_frames(&tokens3),
+            "Token Dc stream is not idempotent across round-trips"
+        );
 
         let decoded = decode_module_from_dc_tokens(&tokens2).expect("decode AST");
         let formatted_ast = format_module_to_sl3(&decoded).expect("format AST");

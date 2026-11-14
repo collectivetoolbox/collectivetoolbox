@@ -592,10 +592,10 @@ pub enum Expr {
         /// Source location.
         span: Span,
     },
-    /// Explicit typed value reference (`TYPE/name`, `Dc 2202`).
+    /// Value reference (`TYPE/name` or `/name`, `Dc 2202`).
     ValueRef {
-        /// Declared binding type.
-        ty: StageLType,
+        /// Optional explicit binding type (`Some` for `TYPE/name`, `None` for `/name`).
+        ty: Option<StageLType>,
         /// Binding name or Dc reference.
         target: SymbolTarget,
         /// Source location.
@@ -625,10 +625,10 @@ pub enum Expr {
         /// Source location.
         span: Span,
     },
-    /// Mutable local variable assignment (`set TYPE/name expr`, `Dc 2201`).
+    /// Mutable local variable assignment (`set TYPE/name expr` or `set /name expr`, `Dc 2201`).
     Set {
-        /// Expected variable type.
-        ty: StageLType,
+        /// Optional explicit variable type (`Some` for `set TYPE/name`, `None` for `set /name`).
+        ty: Option<StageLType>,
         /// Target variable identifier.
         name: String,
         /// New value expression.
@@ -709,6 +709,11 @@ pub enum Expr {
         /// Source location.
         span: Span,
     },
+    /// Unit no-op expression (`nop`, `Dc 2455`).
+    Nop {
+        /// Source location.
+        span: Span,
+    },
     /// Built-in unary operation.
     Unary {
         /// Unary operator.
@@ -785,6 +790,7 @@ impl Expr {
             | Self::Continue { span }
             | Self::Return { span, .. }
             | Self::Fault { span }
+            | Self::Nop { span }
             | Self::Unary { span, .. }
             | Self::Binary { span, .. }
             | Self::Ternary { span, .. }

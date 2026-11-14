@@ -153,8 +153,8 @@ impl ResolvedValueTarget {
 /// Exported items from one compiled namespace module.
 #[derive(Debug, Clone, Default)]
 pub struct NamespaceExports {
-    /// Exported `pub` immutable values by name (pairwise-distinct [`StageLType`]s).
-    pub values: HashMap<String, Vec<(StageLType, Option<DcChar>)>>,
+    /// Exported `pub` immutable values by unique constant name.
+    pub values: HashMap<String, (StageLType, Option<DcChar>)>,
     /// Exported `pub` routines by name (same arity, pairwise-distinct parameter type tuples).
     pub routines: HashMap<String, Vec<RoutineSig>>,
     /// Assigned Dc shorthand mappings (`dc -> ImportedSymbol`).
@@ -203,6 +203,8 @@ pub struct ValidatedModule {
     pub resolved_calls: HashMap<(usize, usize), ResolvedCallTarget>,
     /// Statically resolved top-level/imported constant targets indexed by `Span` (`line`, `col`).
     pub resolved_values: HashMap<(usize, usize), ResolvedValueTarget>,
+    /// Statically resolved [`StageLType`] for every [`Expr::ValueRef`] site indexed by `Span` (`line`, `col`).
+    pub value_ref_types: HashMap<(usize, usize), StageLType>,
     /// Module-level exported items.
     pub exports: NamespaceExports,
 }
@@ -282,7 +284,14 @@ pub fn parse_and_validate_workspace(
             inp.source,
             &ns_exports,
         )?;
-        let vm = validate_module_with_registry(&parsed, &ns_exports)?;
+        let forbid_stagel_internal =
+            inp.source_path.is_some_and(is_stage2_or_sr3_path);
+        let vm = validate_module_with_registry_and_dc_imports_and_options(
+            &parsed,
+            &ns_exports,
+            &HashMap::new(),
+            forbid_stagel_internal,
+        )?;
         if let Some(ref key) = vm.namespace_key {
             ns_exports.insert(key.clone(), vm.exports.clone());
         }
@@ -292,6 +301,17 @@ pub fn parse_and_validate_workspace(
     Ok(ValidatedWorkspace {
         modules: validated_modules,
     })
+}
+
+pub(crate) fn is_stage2_or_sr3_path(source_path: &str) -> bool {
+    let norm = source_path.replace('\\', "/");
+    norm.split('/').any(|seg| seg == "impls")
+        || norm.ends_with(".sr3")
+        || norm.ends_with(".sri3")
+}
+
+pub(crate) fn is_stagel_internal_name(name: &str) -> bool {
+    name.to_ascii_lowercase().ends_with("stagelinternal")
 }
 
 pub(crate) fn verify_psr4_path(source_path: &str, ns_key: &str) -> Result<()> {
@@ -564,9 +584,9 @@ enum VerbTarget {
 }
 
 struct Validator<'a> {
-    /// Module-scope constant candidates (`local_name -> Vec<ResolvedValueTarget>`),
-    /// combining imported and top-level constants with pairwise-distinct types.
-    value_candidates: HashMap<String, Vec<ResolvedValueTarget>>,
+    /// Module-scope constants (`local_name -> ResolvedValueTarget`), combining
+    /// imported and top-level constants (at most one definition per name).
+    value_candidates: HashMap<String, ResolvedValueTarget>,
     /// Module-scope routine candidates (`local_name -> Vec<ResolvedCallTarget>`),
     /// combining imported and top-level routines with identical arity and
     /// pairwise-distinct parameter type tuples.
@@ -575,8 +595,12 @@ struct Validator<'a> {
     top_dc_values: HashMap<DcChar, StageLType>,
     /// Top-level routine signatures keyed directly by assigned `DcChar`.
     top_dc_routines: HashMap<DcChar, RoutineSig>,
+    /// Top-level declaration names keyed by assigned `DcChar`.
+    top_dc_names: HashMap<DcChar, String>,
     /// Imported items keyed directly by `DcChar` (`dc/<shorthand>`).
     dc_imports: HashMap<DcChar, ImportedSymbol>,
+    /// Whether `*StageLInternal` symbols are prohibited in this module.
+    forbid_stagel_internal: bool,
     /// Next unique lexical variable ID.
     next_binding_id: usize,
     /// Active lexical variable scopes (outermost local to innermost).
@@ -593,6 +617,8 @@ struct Validator<'a> {
     resolved_calls: HashMap<(usize, usize), ResolvedCallTarget>,
     /// Statically resolved top-level/imported constant targets indexed by `(line, col)`.
     resolved_values: HashMap<(usize, usize), ResolvedValueTarget>,
+    /// Statically resolved [`StageLType`] for every [`Expr::ValueRef`] site indexed by `(line, col)`.
+    value_ref_types: HashMap<(usize, usize), StageLType>,
     /// Phantom marker tying lifetime `'a` when needed by helper methods.
     _marker: std::marker::PhantomData<&'a ()>,
 }
@@ -673,11 +699,27 @@ pub fn validate_module_with_registry_and_dc_imports(
     ns_exports: &HashMap<String, NamespaceExports>,
     extra_dc_imports: &HashMap<DcChar, ImportedSymbol>,
 ) -> Result<ValidatedModule> {
+    validate_module_with_registry_and_dc_imports_and_options(
+        module,
+        ns_exports,
+        extra_dc_imports,
+        false,
+    )
+}
+
+/// Validates a parsed `Module` with explicit Stage 2 / StageR `*StageLInternal`
+/// gating enabled when `forbid_stagel_internal` is `true`.
+pub fn validate_module_with_registry_and_dc_imports_and_options(
+    module: &Module,
+    ns_exports: &HashMap<String, NamespaceExports>,
+    extra_dc_imports: &HashMap<DcChar, ImportedSymbol>,
+    forbid_stagel_internal: bool,
+) -> Result<ValidatedModule> {
     let namespace_key = module.namespace.as_ref().map(|segs| segs.join("/"));
     let mut exports = NamespaceExports::default();
     let mut imports: HashMap<String, Vec<ImportedSymbol>> = HashMap::new();
     let mut dc_imports = extra_dc_imports.clone();
-    let mut value_candidates: HashMap<String, Vec<ResolvedValueTarget>> =
+    let mut value_candidates: HashMap<String, ResolvedValueTarget> =
         HashMap::new();
     let mut routine_candidates: HashMap<String, Vec<ResolvedCallTarget>> =
         HashMap::new();
@@ -691,16 +733,13 @@ pub fn validate_module_with_registry_and_dc_imports(
         for item in &u.items {
             let resolved_list: Vec<ImportedSymbol> = match &item.target {
                 ImportTarget::Name(name) => {
-                    if let Some(val_list) = dep_exp.values.get(name) {
-                        val_list
-                            .iter()
-                            .map(|(ty, dc_id)| ImportedSymbol::Value {
-                                namespace: target_ns.clone(),
-                                original_name: name.clone(),
-                                ty: ty.clone(),
-                                dc_id: *dc_id,
-                            })
-                            .collect()
+                    if let Some((ty, dc_id)) = dep_exp.values.get(name) {
+                        vec![ImportedSymbol::Value {
+                            namespace: target_ns.clone(),
+                            original_name: name.clone(),
+                            ty: ty.clone(),
+                            dc_id: *dc_id,
+                        }]
                     } else if let Some(sig_list) = dep_exp.routines.get(name) {
                         sig_list
                             .iter()
@@ -750,6 +789,13 @@ pub fn validate_module_with_registry_and_dc_imports(
                 },
             };
 
+            if forbid_stagel_internal && is_stagel_internal_name(&local_name) {
+                bail!(
+                    "StageL-internal symbol '{local_name}' cannot be imported or declared in Stage 2/StageR module at {}",
+                    item.span
+                );
+            }
+
             for resolved in resolved_list {
                 match &resolved {
                     ImportedSymbol::Value {
@@ -758,31 +804,47 @@ pub fn validate_module_with_registry_and_dc_imports(
                         ty,
                         dc_id,
                     } => {
+                        if forbid_stagel_internal
+                            && is_stagel_internal_name(original_name)
+                        {
+                            bail!(
+                                "StageL-internal symbol '{original_name}' cannot be imported into Stage 2/StageR module at {}",
+                                item.span
+                            );
+                        }
                         ensure!(
                             !routine_candidates.contains_key(&local_name),
                             "Conflicting imported name '{local_name}' at {}: cannot be both a constant and a routine",
                             item.span
                         );
-                        let list = value_candidates
-                            .entry(local_name.clone())
-                            .or_default();
                         ensure!(
-                            !list.iter().any(|c| c.ty == *ty),
-                            "Duplicate or conflicting imported constant '{local_name}' of type '{ty}' at {}",
+                            !value_candidates.contains_key(&local_name),
+                            "Duplicate or conflicting imported constant '{local_name}' at {} (constant names must have a single definition)",
                             item.span
                         );
-                        list.push(ResolvedValueTarget {
-                            namespace: Some(namespace.clone()),
-                            original_name: original_name.clone(),
-                            ty: ty.clone(),
-                            dc_id: *dc_id,
-                        });
+                        value_candidates.insert(
+                            local_name.clone(),
+                            ResolvedValueTarget {
+                                namespace: Some(namespace.clone()),
+                                original_name: original_name.clone(),
+                                ty: ty.clone(),
+                                dc_id: *dc_id,
+                            },
+                        );
                     }
                     ImportedSymbol::Routine {
                         namespace,
                         original_name,
                         sig,
                     } => {
+                        if forbid_stagel_internal
+                            && is_stagel_internal_name(original_name)
+                        {
+                            bail!(
+                                "StageL-internal routine '{original_name}' cannot be imported into Stage 2/StageR module at {}",
+                                item.span
+                            );
+                        }
                         ensure!(
                             !value_candidates.contains_key(&local_name),
                             "Conflicting imported name '{local_name}' at {}: cannot be both a routine and a constant",
@@ -825,6 +887,7 @@ pub fn validate_module_with_registry_and_dc_imports(
     // 2. Pass-1 top-level signature and constant header collection.
     let mut top_dc_values = HashMap::new();
     let mut top_dc_routines = HashMap::new();
+    let mut top_dc_names = HashMap::new();
     let mut used_dcs = HashMap::new();
     let mut top_value_order = Vec::new();
     let mut top_routine_order = Vec::new();
@@ -833,6 +896,13 @@ pub fn validate_module_with_registry_and_dc_imports(
         match decl {
             TopDecl::Comment(_) => {}
             TopDecl::Value(v) => {
+                if forbid_stagel_internal && is_stagel_internal_name(&v.name) {
+                    bail!(
+                        "StageL-internal constant '{}' cannot be declared in Stage 2/StageR module at {}",
+                        v.name,
+                        v.span
+                    );
+                }
                 ensure!(
                     !routine_candidates.contains_key(&v.name),
                     "Top-level constant '{}' at {} duplicates/shadows an existing routine or import",
@@ -853,12 +923,10 @@ pub fn validate_module_with_registry_and_dc_imports(
                     v.name,
                     v.span
                 );
-                let vlist = value_candidates.entry(v.name.clone()).or_default();
                 ensure!(
-                    !vlist.iter().any(|c| c.ty == v.ty),
-                    "Top-level constant '{}' of type '{}' at {} duplicates/shadows existing binding or import",
+                    !value_candidates.contains_key(&v.name),
+                    "Top-level constant '{}' at {} duplicates/shadows existing binding or import (constant names must have a single definition)",
                     v.name,
-                    v.ty,
                     v.span
                 );
                 if v.pub_dc_syntax {
@@ -876,19 +944,21 @@ pub fn validate_module_with_registry_and_dc_imports(
                     );
                     used_dcs.insert(dc, v.name.clone());
                     top_dc_values.insert(dc, v.ty.clone());
+                    top_dc_names.insert(dc, v.name.clone());
                 }
-                vlist.push(ResolvedValueTarget {
-                    namespace: None,
-                    original_name: v.name.clone(),
-                    ty: v.ty.clone(),
-                    dc_id: v.dc_id,
-                });
+                value_candidates.insert(
+                    v.name.clone(),
+                    ResolvedValueTarget {
+                        namespace: None,
+                        original_name: v.name.clone(),
+                        ty: v.ty.clone(),
+                        dc_id: v.dc_id,
+                    },
+                );
                 if v.is_pub {
                     exports
                         .values
-                        .entry(v.name.clone())
-                        .or_default()
-                        .push((v.ty.clone(), v.dc_id));
+                        .insert(v.name.clone(), (v.ty.clone(), v.dc_id));
                     if let Some(dc) = v.dc_id {
                         exports.by_dc.insert(
                             dc,
@@ -907,6 +977,13 @@ pub fn validate_module_with_registry_and_dc_imports(
                 top_value_order.push(v);
             }
             TopDecl::Routine(r) => {
+                if forbid_stagel_internal && is_stagel_internal_name(&r.name) {
+                    bail!(
+                        "StageL-internal routine '{}' cannot be declared in Stage 2/StageR module at {}",
+                        r.name,
+                        r.span
+                    );
+                }
                 ensure!(
                     !value_candidates.contains_key(&r.name),
                     "Routine '{}' at {} duplicates/shadows an existing constant or import",
@@ -975,6 +1052,7 @@ pub fn validate_module_with_registry_and_dc_imports(
                     );
                     used_dcs.insert(dc, r.name.clone());
                     top_dc_routines.insert(dc, sig.clone());
+                    top_dc_names.insert(dc, r.name.clone());
                 }
                 rlist.push(ResolvedCallTarget {
                     namespace: None,
@@ -1011,7 +1089,9 @@ pub fn validate_module_with_registry_and_dc_imports(
         routine_candidates,
         top_dc_values,
         top_dc_routines,
+        top_dc_names,
         dc_imports: dc_imports.clone(),
+        forbid_stagel_internal,
         next_binding_id: 1,
         local_scopes: Vec::new(),
         routine_scopes: Vec::new(),
@@ -1020,6 +1100,7 @@ pub fn validate_module_with_registry_and_dc_imports(
         tail_calls: HashSet::new(),
         resolved_calls: HashMap::new(),
         resolved_values: HashMap::new(),
+        value_ref_types: HashMap::new(),
         _marker: std::marker::PhantomData,
     };
 
@@ -1039,6 +1120,7 @@ pub fn validate_module_with_registry_and_dc_imports(
         tail_calls: validator.tail_calls,
         resolved_calls: validator.resolved_calls,
         resolved_values: validator.resolved_values,
+        value_ref_types: validator.value_ref_types,
         exports,
     })
 }
@@ -1141,14 +1223,13 @@ impl<'a> Validator<'a> {
         &mut self,
         values: &[&'a TopValueDecl],
     ) -> Result<()> {
-        let mut by_key: HashMap<ValueKey, &'a TopValueDecl> = HashMap::new();
-        let mut dc_to_key: HashMap<DcChar, ValueKey> = HashMap::new();
+        let mut by_name: HashMap<String, &'a TopValueDecl> = HashMap::new();
+        let mut dc_to_name: HashMap<DcChar, String> = HashMap::new();
         for &v in values {
-            let vk = ValueKey::from_decl(v);
             if let Some(dc) = v.dc_id {
-                dc_to_key.insert(dc, vk.clone());
+                dc_to_name.insert(dc, v.name.clone());
             }
-            by_key.insert(vk, v);
+            by_name.insert(v.name.clone(), v);
         }
 
         // Check initialization order / acyclicity via DFS over value references.
@@ -1157,20 +1238,19 @@ impl<'a> Validator<'a> {
             Visiting,
             Done,
         }
-        let mut visit: HashMap<ValueKey, State> = HashMap::new();
+        let mut visit: HashMap<String, State> = HashMap::new();
         let mut stack: Vec<String> = Vec::new();
 
         fn visit_const<'a>(
             v: &'a TopValueDecl,
-            by_key: &HashMap<ValueKey, &'a TopValueDecl>,
-            dc_to_key: &HashMap<DcChar, ValueKey>,
+            by_name: &HashMap<String, &'a TopValueDecl>,
+            dc_to_name: &HashMap<DcChar, String>,
             validator: &mut Validator<'a>,
-            visit: &mut HashMap<ValueKey, State>,
+            visit: &mut HashMap<String, State>,
             stack: &mut Vec<String>,
         ) -> Result<()> {
-            let vk = ValueKey::from_decl(v);
             let label = format!("{}/{}", v.ty, v.name);
-            if let Some(st) = visit.get(&vk) {
+            if let Some(st) = visit.get(&v.name) {
                 match st {
                     State::Done => return Ok(()),
                     State::Visiting => {
@@ -1182,17 +1262,17 @@ impl<'a> Validator<'a> {
                     }
                 }
             }
-            visit.insert(vk.clone(), State::Visiting);
+            visit.insert(v.name.clone(), State::Visiting);
             stack.push(label);
 
             let mut deps = Vec::new();
-            collect_value_deps(&v.value, dc_to_key, &mut deps);
+            collect_value_deps(&v.value, dc_to_name, &mut deps);
             for dep in deps {
-                if let Some(&dep_decl) = by_key.get(&dep) {
+                if let Some(&dep_decl) = by_name.get(&dep) {
                     visit_const(
                         dep_decl,
-                        by_key,
-                        dc_to_key,
+                        by_name,
+                        dc_to_name,
                         validator,
                         visit,
                         stack,
@@ -1222,12 +1302,19 @@ impl<'a> Validator<'a> {
                 actual,
                 v.span
             );
-            visit.insert(vk, State::Done);
+            visit.insert(v.name.clone(), State::Done);
             Ok(())
         }
 
         for &v in values {
-            visit_const(v, &by_key, &dc_to_key, self, &mut visit, &mut stack)?;
+            visit_const(
+                v,
+                &by_name,
+                &dc_to_name,
+                self,
+                &mut visit,
+                &mut stack,
+            )?;
         }
         Ok(())
     }
@@ -1238,7 +1325,8 @@ impl<'a> Validator<'a> {
             | Expr::Int { .. }
             | Expr::Bytes { .. }
             | Expr::ValueRef { .. }
-            | Expr::Fault { .. } => Ok(()),
+            | Expr::Fault { .. }
+            | Expr::Nop { .. } => Ok(()),
             Expr::List { elements, .. } => {
                 for e in elements {
                     self.check_const_purity(e)?;
@@ -1587,16 +1675,19 @@ impl<'a> Validator<'a> {
                 Ok(StageLType::Buf(Box::new(elem_ty.clone())))
             }
             Expr::ValueRef { ty, target, span } => {
-                check_type_well_formed(ty, false, *span)?;
+                if let Some(expected_ty) = ty {
+                    check_type_well_formed(expected_ty, false, *span)?;
+                }
                 match target {
                     SymbolTarget::Ident(name) => {
                         if let Some(entry) = self.lookup_local(name).cloned() {
-                            ensure!(
-                                &entry.ty == ty,
-                                "Type annotation mismatch on '{name}' at {span}: declared '{}', referenced as '{}'",
-                                entry.ty,
-                                ty
-                            );
+                            if let Some(expected_ty) = ty {
+                                ensure!(
+                                    &entry.ty == expected_ty,
+                                    "Type annotation mismatch on '{name}' at {span}: declared '{}', referenced as '{expected_ty}'",
+                                    entry.ty
+                                );
+                            }
                             if !state.is_assigned(entry.id) {
                                 bail!(
                                     "Use of potentially uninitialized variable '{name}' at {span}"
@@ -1607,43 +1698,71 @@ impl<'a> Validator<'a> {
                             {
                                 ctx.captured_reads.insert(entry.id);
                             }
+                            self.value_ref_types
+                                .insert((span.line, span.col), entry.ty.clone());
                             return Ok(entry.ty);
                         }
-                        if let Some(cands) = self.value_candidates.get(name) {
-                            if let Some(matched) =
-                                cands.iter().find(|c| &c.ty == ty).cloned()
-                            {
-                                self.resolved_values
-                                    .insert((span.line, span.col), matched);
-                                return Ok(ty.clone());
+                        if let Some(cand) =
+                            self.value_candidates.get(name).cloned()
+                        {
+                            if let Some(expected_ty) = ty {
+                                ensure!(
+                                    &cand.ty == expected_ty,
+                                    "Type annotation mismatch on constant '{name}' at {span}: declared '{}', referenced as '{expected_ty}'",
+                                    cand.ty
+                                );
                             }
-                            let avail: Vec<String> = cands
-                                .iter()
-                                .map(|c| c.ty.to_string())
-                                .collect();
-                            bail!(
-                                "Type annotation mismatch on constant '{name}' at {span}: declared '{}', referenced as '{ty}'",
-                                avail.join(" | ")
-                            );
+                            let cty = cand.ty.clone();
+                            self.resolved_values
+                                .insert((span.line, span.col), cand);
+                            self.value_ref_types
+                                .insert((span.line, span.col), cty.clone());
+                            return Ok(cty);
                         }
                         bail!("Undeclared identifier '{name}' at {span}");
                     }
                     SymbolTarget::Dc(dc) => {
                         let sh = format_dc_shorthand(*dc);
-                        if let Some(v_ty) = self.top_dc_values.get(dc) {
-                            ensure!(
-                                v_ty == ty,
-                                "Type mismatch on Dc reference '{sh}' at {span}"
+                        if self.forbid_stagel_internal
+                            && let Some(orig) = self.top_dc_names.get(dc)
+                            && is_stagel_internal_name(orig)
+                        {
+                            bail!(
+                                "StageL-internal symbol '{orig}' ('dc/{sh}') cannot be referenced in Stage 2/StageR module at {span}"
                             );
+                        }
+                        if let Some(v_ty) = self.top_dc_values.get(dc) {
+                            if let Some(expected_ty) = ty {
+                                ensure!(
+                                    v_ty == expected_ty,
+                                    "Type mismatch on Dc reference '{sh}' at {span}"
+                                );
+                            }
+                            self.value_ref_types
+                                .insert((span.line, span.col), v_ty.clone());
                             return Ok(v_ty.clone());
                         }
-                        if let Some(ImportedSymbol::Value { ty: imp_ty, .. }) =
-                            self.dc_imports.get(dc)
+                        if let Some(ImportedSymbol::Value {
+                            original_name,
+                            ty: imp_ty,
+                            ..
+                        }) = self.dc_imports.get(dc)
                         {
-                            ensure!(
-                                imp_ty == ty,
-                                "Type mismatch on imported Dc reference '{sh}' at {span}"
-                            );
+                            if self.forbid_stagel_internal
+                                && is_stagel_internal_name(original_name)
+                            {
+                                bail!(
+                                    "StageL-internal symbol '{original_name}' ('dc/{sh}') cannot be referenced in Stage 2/StageR module at {span}"
+                                );
+                            }
+                            if let Some(expected_ty) = ty {
+                                ensure!(
+                                    imp_ty == expected_ty,
+                                    "Type mismatch on imported Dc reference '{sh}' at {span}"
+                                );
+                            }
+                            self.value_ref_types
+                                .insert((span.line, span.col), imp_ty.clone());
                             return Ok(imp_ty.clone());
                         }
                         bail!("Unresolved value Dc reference '{sh}' at {span}");
@@ -1656,6 +1775,12 @@ impl<'a> Validator<'a> {
                 init,
                 span,
             } => {
+                if self.forbid_stagel_internal && is_stagel_internal_name(name)
+                {
+                    bail!(
+                        "StageL-internal variable '{name}' cannot be declared in Stage 2/StageR module at {span}"
+                    );
+                }
                 ensure!(
                     *ty != StageLType::Void && *ty != StageLType::Never,
                     "'let' variable '{name}' at {span} cannot have type '{ty}'"
@@ -1698,6 +1823,12 @@ impl<'a> Validator<'a> {
                 span,
                 ..
             } => {
+                if self.forbid_stagel_internal && is_stagel_internal_name(name)
+                {
+                    bail!(
+                        "StageL-internal constant '{name}' cannot be declared in Stage 2/StageR module at {span}"
+                    );
+                }
                 ensure!(
                     *ty != StageLType::Void && *ty != StageLType::Never,
                     "'const' binding '{name}' at {span} cannot have type '{ty}'"
@@ -1734,7 +1865,9 @@ impl<'a> Validator<'a> {
                 value,
                 span,
             } => {
-                check_type_well_formed(ty, false, *span)?;
+                if let Some(expected_ty) = ty {
+                    check_type_well_formed(expected_ty, false, *span)?;
+                }
                 let entry = self
                     .lookup_local(name)
                     .cloned()
@@ -1748,21 +1881,33 @@ impl<'a> Validator<'a> {
                     "Cannot 'set' immutable binding '{name}' ({:?}) at {span}",
                     entry.kind
                 );
-                ensure!(
-                    &entry.ty == ty,
-                    "Type mismatch in 'set {ty}/{name}' at {span}: declared type is '{}'",
-                    entry.ty
-                );
+                if let Some(expected_ty) = ty {
+                    ensure!(
+                        &entry.ty == expected_ty,
+                        "Type mismatch in 'set {expected_ty}/{name}' at {span}: declared type is '{}' ('set' cannot change an existing variable's type)",
+                        entry.ty
+                    );
+                }
                 let rhs_ty = self.check_subexpr(value, state, ctx)?;
                 ensure!(
-                    types_compatible(&rhs_ty, ty),
-                    "Assigned value type mismatch in 'set {ty}/{name}' at {span}: expected '{ty}', found '{rhs_ty}'"
+                    types_compatible(&rhs_ty, &entry.ty),
+                    "Assigned value type mismatch in 'set' on '{name}' at {span}: expected '{}', found '{rhs_ty}'",
+                    entry.ty
                 );
                 state.set_state(entry.id, true);
                 ctx.always_written.insert(entry.id);
                 Ok(StageLType::Void)
             }
             Expr::RoutineDecl(r) => {
+                if self.forbid_stagel_internal
+                    && is_stagel_internal_name(&r.name)
+                {
+                    bail!(
+                        "StageL-internal routine '{}' cannot be declared in Stage 2/StageR module at {}",
+                        r.name,
+                        r.span
+                    );
+                }
                 ensure!(
                     !r.is_pub && !r.pub_dc_syntax && r.dc_id.is_none(),
                     "Nested routine '{}' at {} cannot carry 'pub' or Dc annotations",
@@ -1918,11 +2063,29 @@ impl<'a> Validator<'a> {
                 }
                 SymbolTarget::Dc(dc) => {
                     let sh = format_dc_shorthand(*dc);
+                    if self.forbid_stagel_internal
+                        && let Some(orig) = self.top_dc_names.get(dc)
+                        && is_stagel_internal_name(orig)
+                    {
+                        bail!(
+                            "StageL-internal routine '{orig}' ('dc/{sh}') cannot be called in Stage 2/StageR module at {span}"
+                        );
+                    }
                     let sig = if let Some(s) = self.top_dc_routines.get(dc) {
                         s.clone()
-                    } else if let Some(ImportedSymbol::Routine { sig, .. }) =
-                        self.dc_imports.get(dc)
+                    } else if let Some(ImportedSymbol::Routine {
+                        original_name,
+                        sig,
+                        ..
+                    }) = self.dc_imports.get(dc)
                     {
+                        if self.forbid_stagel_internal
+                            && is_stagel_internal_name(original_name)
+                        {
+                            bail!(
+                                "StageL-internal routine '{original_name}' ('dc/{sh}') cannot be called in Stage 2/StageR module at {span}"
+                            );
+                        }
                         sig.clone()
                     } else {
                         bail!("Unknown routine Dc reference 'dc/{sh}' at {span}");
@@ -2303,6 +2466,7 @@ impl<'a> Validator<'a> {
                 }
             }
             Expr::Fault { .. } => Ok(StageLType::Never),
+            Expr::Nop { .. } => Ok(StageLType::Void),
             Expr::Unary { op, operand, span } => {
                 let ty = self.check_subexpr(operand, state, ctx)?;
                 match op {
@@ -2781,37 +2945,33 @@ fn unify_int_pair(
 
 fn collect_value_deps(
     expr: &Expr,
-    dc_to_key: &HashMap<DcChar, ValueKey>,
-    out: &mut Vec<ValueKey>,
+    dc_to_name: &HashMap<DcChar, String>,
+    out: &mut Vec<String>,
 ) {
     match expr {
         Expr::ValueRef {
-            ty,
             target: SymbolTarget::Ident(n),
             ..
-        } => out.push(ValueKey {
-            name: n.clone(),
-            ty: ty.clone(),
-        }),
+        } => out.push(n.clone()),
         Expr::ValueRef {
             target: SymbolTarget::Dc(dc),
             ..
         } => {
-            if let Some(vk) = dc_to_key.get(dc) {
-                out.push(vk.clone());
+            if let Some(n) = dc_to_name.get(dc) {
+                out.push(n.clone());
             }
         }
         Expr::List { elements, .. } => {
             for e in elements {
-                collect_value_deps(e, dc_to_key, out);
+                collect_value_deps(e, dc_to_name, out);
             }
         }
         Expr::Unary { operand, .. } => {
-            collect_value_deps(operand, dc_to_key, out);
+            collect_value_deps(operand, dc_to_name, out);
         }
         Expr::Binary { left, right, .. } => {
-            collect_value_deps(left, dc_to_key, out);
-            collect_value_deps(right, dc_to_key, out);
+            collect_value_deps(left, dc_to_name, out);
+            collect_value_deps(right, dc_to_name, out);
         }
         Expr::Ternary {
             first,
@@ -2819,12 +2979,12 @@ fn collect_value_deps(
             third,
             ..
         } => {
-            collect_value_deps(first, dc_to_key, out);
-            collect_value_deps(second, dc_to_key, out);
-            collect_value_deps(third, dc_to_key, out);
+            collect_value_deps(first, dc_to_name, out);
+            collect_value_deps(second, dc_to_name, out);
+            collect_value_deps(third, dc_to_name, out);
         }
         Expr::Conv { expr, .. } | Expr::Bitcast { expr, .. } => {
-            collect_value_deps(expr, dc_to_key, out);
+            collect_value_deps(expr, dc_to_name, out);
         }
         Expr::If {
             cond,
@@ -2832,9 +2992,9 @@ fn collect_value_deps(
             else_branch,
             ..
         } => {
-            collect_value_deps(cond, dc_to_key, out);
-            collect_value_deps(then_branch, dc_to_key, out);
-            collect_value_deps(else_branch, dc_to_key, out);
+            collect_value_deps(cond, dc_to_name, out);
+            collect_value_deps(then_branch, dc_to_name, out);
+            collect_value_deps(else_branch, dc_to_name, out);
         }
         _ => {}
     }
@@ -3182,54 +3342,95 @@ v/u32/caller u32/n
 
     #[crate::ctb_test]
     fn test_parameter_type_dispatch_and_typed_constants_validation() {
-        // 1. Positive: intra-module + cross-module `use` of overloaded routines
-        // and distinct-type constants, plus unambiguous single-definition `never` arg.
+        // 1. Positive: intra-module + cross-module `use` of overloaded routines,
+        // single-definition camelCase constants, optional types on `/name` and
+        // `set /name`, `nop`, and unambiguous single-definition `never` arg.
         let lib_src = r#"
 ns demo/math.
 
-pub u8/UNIT u8:1.
-pub i32/UNIT i32:1.
-pub i64/UNIT i64:1.
+pub u8/u8Unit u8:1.
+pub i32/i32Unit i32:1.
+pub i64/i64Unit i64:1.
 
-pub v/i32/stepAdd i32/x i32/y :: add i32/x i32/y.
-pub v/i64/stepAdd i64/x i64/y :: add i64/x i64/y.
-pub v/l/u8/stepAdd l/u8/prefix u64/take :: slice l/u8/prefix u64:0 u64/take.
-pub v/i32/solo i32/x :: i32/x.
+pub v/i32/stepAdd i32/x i32/y :: add /x /y.
+pub v/i64/stepAdd i64/x i64/y :: add /x /y.
+pub v/l/u8/stepAdd l/u8/prefix u64/take :: slice /prefix u64:0 /take.
+pub v/i32/solo i32/x :: /x.
+pub v/i32/modStageLInternal i32/x i32/y :: rem /x /y.
 "#;
         let caller_src = r#"
 ns demo/caller.
-use demo/math: UNIT stepAdd solo ::.
+use demo/math: u8Unit i32Unit i64Unit stepAdd solo modStageLInternal ::.
 
-v/u8/stepAdd u8/x u8/y :: add u8/x u8/y.
+v/u8/stepAdd u8/x u8/y :: add /x /y.
 
 pub v/b/checkAll b/abortEarly
-    if b/abortEarly
+    if /abortEarly
         eq solo fault i32:0
         do
-            const u8/res8 stepAdd u8:2 u8/UNIT.
-            const i32/res32 stepAdd i32:40 i32/UNIT.
-            const i64/res64 stepAdd i64:99 i64/UNIT.
+            let i32/acc i32:0.
+            set /acc modStageLInternal i32:41 i32:42.
+            if eq /acc i32:41 nop fault.
+            const u8/res8 stepAdd u8:2 /u8Unit.
+            const i32/res32 stepAdd i32:40 /i32Unit.
+            const i64/res64 stepAdd i64:99 /i64Unit.
             const l/u8/resBytes stepAdd b"abcdef" u64:3.
-            and eq u8/res8 u8:3 and eq i32/res32 i32:41 and eq i64/res64 i64:100 eq l/u8/resBytes b"abc".
+            and eq /res8 u8:3 and eq /res32 i32:41 and eq /res64 i64:100 eq /resBytes b"abc".
         ::.
 "#;
         let ws = parse_and_validate_workspace(&[
             ModuleInput {
-                source_path: Some("demo/math.sl3"),
+                source_path: Some("stage_1_impls/demo/math.sl3"),
                 source: lib_src,
             },
             ModuleInput {
-                source_path: Some("demo/caller.sl3"),
+                source_path: Some("stage_1_impls/demo/caller.sl3"),
                 source: caller_src,
             },
         ])
         .expect("valid overloaded workspace should pass");
         assert_eq!(ws.modules.len(), 2);
 
+        // 1b. `*StageLInternal` import or declaration is rejected in `impls/` or `.sr3`.
+        let stage2_bad_import = r#"
+ns app/user.
+use demo/math: modStageLInternal as safeMod ::.
+
+pub v/i32/run i32/x :: safeMod /x i32:2.
+"#;
+        let err = parse_and_validate_workspace(&[
+            ModuleInput {
+                source_path: Some("stage_1_impls/demo/math.sl3"),
+                source: lib_src,
+            },
+            ModuleInput {
+                source_path: Some("impls/app/user.sl3"),
+                source: stage2_bad_import,
+            },
+        ])
+        .expect_err("*StageLInternal import in impls/ must fail");
+        assert!(
+            err.to_string().contains("StageL-internal"),
+            "Unexpected error: {err}"
+        );
+
+        let sr3_bad_decl = r#"
+v/i32/helperStageLInternal i32/x :: /x.
+"#;
+        let err = parse_and_validate_workspace(&[ModuleInput {
+            source_path: Some("foo.sr3"),
+            source: sr3_bad_decl,
+        }])
+        .expect_err("*StageLInternal declaration in .sr3 must fail");
+        assert!(
+            err.to_string().contains("StageL-internal"),
+            "Unexpected error: {err}"
+        );
+
         // 2. Return-type-only routine overload is rejected.
         let ret_only_src = r#"
-v/i32/foo i32/x :: i32/x.
-v/i64/foo i32/x :: conv i32/x i64.
+v/i32/foo i32/x :: /x.
+v/i64/foo i32/x :: conv /x i64.
 "#;
         let err = validate_module(&parse_module(ret_only_src).unwrap())
             .expect_err("return-type-only overload must fail");
@@ -3241,8 +3442,8 @@ v/i64/foo i32/x :: conv i32/x i64.
 
         // 3. Mismatched-arity intra-module routine overload is rejected.
         let arity_mismatch_src = r#"
-v/i32/foo i32/x :: i32/x.
-v/i32/foo i32/x i32/y :: add i32/x i32/y.
+v/i32/foo i32/x :: /x.
+v/i32/foo i32/x i32/y :: add /x /y.
 "#;
         let err = parse_module(arity_mismatch_src)
             .and_then(|m| validate_module(&m))
@@ -3258,15 +3459,15 @@ v/i32/foo i32/x i32/y :: add i32/x i32/y.
 ns demo/bad_arity.
 use demo/math: solo ::.
 
-v/i64/solo i64/x i64/y :: add i64/x i64/y.
+v/i64/solo i64/x i64/y :: add /x /y.
 "#;
         let err = parse_and_validate_workspace(&[
             ModuleInput {
-                source_path: Some("demo/math.sl3"),
+                source_path: Some("stage_1_impls/demo/math.sl3"),
                 source: lib_src,
             },
             ModuleInput {
-                source_path: Some("demo/bad_arity.sl3"),
+                source_path: Some("stage_1_impls/demo/bad_arity.sl3"),
                 source: bad_import_arity,
             },
         ])
@@ -3279,8 +3480,8 @@ v/i64/solo i64/x i64/y :: add i64/x i64/y.
 
         // 5. Ambiguous `never`-argument call across multiple overloads is rejected.
         let ambiguous_never_src = r#"
-v/i32/pick i32/x i32/y :: add i32/x i32/y.
-v/i32/pick u32/x i32/y :: i32/y.
+v/i32/pick i32/x i32/y :: add /x /y.
+v/i32/pick u32/x i32/y :: /y.
 v/i32/caller :: pick fault i32:1.
 "#;
         let err = validate_module(&parse_module(ambiguous_never_src).unwrap())
@@ -3292,8 +3493,8 @@ v/i32/caller :: pick fault i32:1.
 
         // 6. Unmatched concrete parameter tuple is rejected.
         let no_match_src = r#"
-v/i32/pair i32/x i32/y :: add i32/x i32/y.
-v/i64/pair i64/x i64/y :: add i64/x i64/y.
+v/i32/pair i32/x i32/y :: add /x /y.
+v/i64/pair i64/x i64/y :: add /x /y.
 v/i64/caller :: pair i32:1 i64:2.
 "#;
         let err = validate_module(&parse_module(no_match_src).unwrap())
@@ -3303,13 +3504,13 @@ v/i64/caller :: pair i32:1 i64:2.
             "Unexpected error: {err}"
         );
 
-        // 7. Duplicate `(name, StageLType)` constant is rejected.
+        // 7. Duplicate constant name is rejected even when declared with distinct types.
         let dup_const_src = r#"
 const i32/K i32:1.
-const i32/K i32:2.
+const i64/K i64:2.
 "#;
         let err = validate_module(&parse_module(dup_const_src).unwrap())
-            .expect_err("duplicate (name, type) constant must fail");
+            .expect_err("duplicate constant name must fail even with distinct types");
         assert!(
             err.to_string().contains("duplicates/shadows")
                 || err.to_string().contains("Duplicate"),

@@ -398,19 +398,11 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 format!("m{mod_idx}")
             };
 
-            let mut val_name_counts: HashMap<&str, usize> = HashMap::new();
             let mut routine_name_counts: HashMap<&str, usize> = HashMap::new();
             for item in &vm.module.items {
-                match item {
-                    TopDecl::Value(v) => {
-                        let e = val_name_counts.entry(v.name.as_str()).or_insert(0);
-                        *e = e.saturating_add(1);
-                    }
-                    TopDecl::Routine(r) => {
-                        let e = routine_name_counts.entry(r.name.as_str()).or_insert(0);
-                        *e = e.saturating_add(1);
-                    }
-                    TopDecl::Comment(_) => {}
+                if let TopDecl::Routine(r) = item {
+                    let e = routine_name_counts.entry(r.name.as_str()).or_insert(0);
+                    *e = e.saturating_add(1);
                 }
             }
 
@@ -423,19 +415,8 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                                 v.name, v.ty
                             )
                         })?;
-                        let overloaded = val_name_counts
-                            .get(v.name.as_str())
-                            .copied()
-                            .is_some_and(|n| n > 1);
                         let san = sanitize_ident(&v.name);
-                        let g_name = if overloaded {
-                            format!(
-                                "__sl_c_{mod_prefix}_{san}__{}",
-                                stagel_type_slug(&v.ty)
-                            )
-                        } else {
-                            format!("__sl_c_{mod_prefix}_{san}")
-                        };
+                        let g_name = format!("__sl_c_{mod_prefix}_{san}");
                         let global_idx = linker.ensure_global(&g_name, vt, 0)?;
                         let entry = TopConstEntry {
                             global_idx,
@@ -1204,7 +1185,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             Expr::Set { name, value, .. } => {
                 self.emit_set_stmt(fctx, name, value)
             }
-            Expr::RoutineDecl(_) => Ok(StageLType::Void),
+            Expr::RoutineDecl(_) | Expr::Nop { .. } => Ok(StageLType::Void),
             Expr::Call { target, args, span } => {
                 self.emit_call_expr(fctx, target, *span, args, in_tail)
             }
@@ -2933,11 +2914,32 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             Expr::BufNew { elem_ty, .. } => {
                 Ok(StageLType::Buf(Box::new(elem_ty.clone())))
             }
-            Expr::ValueRef { ty, .. } => Ok(ty.clone()),
+            Expr::ValueRef { ty, target, span } => {
+                if let Some(explicit_ty) = ty {
+                    return Ok(explicit_ty.clone());
+                }
+                let vm = self
+                    .workspace
+                    .modules
+                    .get(fctx.mod_idx)
+                    .context("Invalid module index")?;
+                if let Some(resolved_ty) =
+                    vm.value_ref_types.get(&(span.line, span.col))
+                {
+                    return Ok(resolved_ty.clone());
+                }
+                if let SymbolTarget::Ident(name) = target
+                    && let Some(var_entry) = fctx.lookup_var(name)
+                {
+                    return Ok(var_entry.ty().clone());
+                }
+                bail!("Missing resolved type for value reference at {span}")
+            }
             Expr::Let { .. }
             | Expr::Const { .. }
             | Expr::Set { .. }
             | Expr::RoutineDecl(_)
+            | Expr::Nop { .. }
             | Expr::While { .. }
             | Expr::ForEach { .. } => Ok(StageLType::Void),
             Expr::Break { .. }

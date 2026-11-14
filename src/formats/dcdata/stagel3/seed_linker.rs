@@ -55,7 +55,8 @@ use super::parser::{
 use super::validator::{
     ImportedSymbol, ModuleInput, NamespaceExports, RoutineSig, ValidatedModule,
     ValidatedWorkspace, collect_use_verb_arities_from_source,
-    validate_module_with_registry_and_dc_imports, verify_psr4_path,
+    is_stage2_or_sr3_path,
+    validate_module_with_registry_and_dc_imports_and_options, verify_psr4_path,
 };
 
 #[derive(Debug, Clone)]
@@ -260,6 +261,7 @@ fn collect_dc_refs_in_expr(expr: &Expr, out: &mut Vec<DcChar>) {
         | Expr::Int { .. }
         | Expr::Bytes { .. }
         | Expr::Fault { .. }
+        | Expr::Nop { .. }
         | Expr::Break { .. }
         | Expr::Continue { .. } => {}
         Expr::ValueRef { target, .. } => {
@@ -412,11 +414,13 @@ fn reconstruct_external_namespace_module(
             };
             match &kind {
                 GraphOwnerKind::Value { ty } => {
+                    ensure!(
+                        !prelim_exports.values.contains_key(&orig_name),
+                        "Duplicate exported constant '{orig_name}' in namespace '{ns_key}'"
+                    );
                     prelim_exports
                         .values
-                        .entry(orig_name.clone())
-                        .or_default()
-                        .push((ty.clone(), Some(target_dc)));
+                        .insert(orig_name.clone(), (ty.clone(), Some(target_dc)));
                 }
                 GraphOwnerKind::Routine { sig } => {
                     prelim_exports
@@ -516,11 +520,19 @@ pub fn link_parsed_modules_with_seed_graph(
     caller_modules: Vec<Module>,
     seed_graph: &SeedGraphIndex,
 ) -> Result<ValidatedWorkspace> {
+    let tagged = caller_modules.into_iter().map(|m| (m, false)).collect();
+    link_parsed_modules_with_seed_graph_and_flags(tagged, seed_graph)
+}
+
+fn link_parsed_modules_with_seed_graph_and_flags(
+    caller_modules: Vec<(Module, bool)>,
+    seed_graph: &SeedGraphIndex,
+) -> Result<ValidatedWorkspace> {
     let mut dc_owners: HashMap<DcChar, GraphDcOwner> = HashMap::new();
     let mut caller_ns_set: HashSet<String> = HashSet::new();
     let mut local_dcs: HashSet<DcChar> = HashSet::new();
 
-    for m in &caller_modules {
+    for (m, _) in &caller_modules {
         if let Some(segs) = &m.namespace {
             let key = segs.join("/");
             ensure!(
@@ -533,7 +545,7 @@ pub fn link_parsed_modules_with_seed_graph(
 
     // 1. Reconstruct any external `use <ns>:` namespaces from `seed_graph`.
     let mut synth_ns_modules: BTreeMap<String, Module> = BTreeMap::new();
-    for m in &caller_modules {
+    for (m, _) in &caller_modules {
         // Reason for fallback: Anonymous caller modules format as '<anonymous>' in diagnostics.
         let caller_label = m
             .namespace
@@ -560,7 +572,10 @@ pub fn link_parsed_modules_with_seed_graph(
     // 2. Transitively resolve all `SymbolTarget::Dc` / `ImportTarget::Dc` helpers from `seed_graph`.
     let mut dc_worklist: VecDeque<DcChar> = VecDeque::new();
     let mut initial_refs = Vec::new();
-    for m in synth_ns_modules.values().chain(caller_modules.iter()) {
+    for m in synth_ns_modules
+        .values()
+        .chain(caller_modules.iter().map(|(m, _)| m))
+    {
         collect_dc_refs_in_module(m, &mut initial_refs);
     }
     for dc in initial_refs {
@@ -745,15 +760,24 @@ pub fn link_parsed_modules_with_seed_graph(
 
     // 3. Assemble all modules (synthetic helpers + synthetic namespaces + caller modules),
     // compute exact dependency edges, topologically sort, and validate!
-    let mut all_modules: Vec<Module> = Vec::with_capacity(
-        synth_helper_modules
-            .len()
-            .saturating_add(synth_ns_modules.len())
-            .saturating_add(caller_modules.len()),
-    );
-    all_modules.extend(synth_helper_modules.into_values());
-    all_modules.extend(synth_ns_modules.into_values());
-    all_modules.extend(caller_modules);
+    let total_cap = synth_helper_modules
+        .len()
+        .saturating_add(synth_ns_modules.len())
+        .saturating_add(caller_modules.len());
+    let mut all_modules: Vec<Module> = Vec::with_capacity(total_cap);
+    let mut all_forbid_flags: Vec<bool> = Vec::with_capacity(total_cap);
+    for m in synth_helper_modules.into_values() {
+        all_modules.push(m);
+        all_forbid_flags.push(false);
+    }
+    for m in synth_ns_modules.into_values() {
+        all_modules.push(m);
+        all_forbid_flags.push(false);
+    }
+    for (m, forbid_flag) in caller_modules {
+        all_modules.push(m);
+        all_forbid_flags.push(forbid_flag);
+    }
 
     let mut ns_to_idx: HashMap<String, usize> = HashMap::new();
     let mut labels: Vec<String> = Vec::with_capacity(all_modules.len());
@@ -829,10 +853,15 @@ pub fn link_parsed_modules_with_seed_graph(
         let extra_dc = module_extra_dc_imports
             .get(idx)
             .context("Invalid module extra dc_imports index")?;
-        let vm = validate_module_with_registry_and_dc_imports(
+        let forbid_stagel_internal = all_forbid_flags
+            .get(idx)
+            .copied()
+            .context("Invalid module forbid_stagel_internal index")?;
+        let vm = validate_module_with_registry_and_dc_imports_and_options(
             m,
             &ns_exports,
             extra_dc,
+            forbid_stagel_internal,
         )?;
         if let Some(ref key) = vm.namespace_key {
             ns_exports.insert(key.clone(), vm.exports.clone());
@@ -982,9 +1011,7 @@ pub fn parse_and_validate_workspace_with_seed_graph(
                     }
                     TopDecl::Value(v) if v.is_pub => {
                         exp.values
-                            .entry(v.name.clone())
-                            .or_default()
-                            .push((v.ty.clone(), v.dc_id));
+                            .insert(v.name.clone(), (v.ty.clone(), v.dc_id));
                         if let Some(dc) = v.dc_id {
                             exp.by_dc.insert(
                                 dc,
@@ -1008,11 +1035,16 @@ pub fn parse_and_validate_workspace_with_seed_graph(
     }
 
     let mut ordered_callers = Vec::with_capacity(inputs.len());
-    for opt in parsed_caller_modules {
-        ordered_callers.push(opt.context("Missing parsed caller module")?);
+    for (idx, opt) in parsed_caller_modules.into_iter().enumerate() {
+        let parsed = opt.context("Missing parsed caller module")?;
+        let forbid = inputs
+            .get(idx)
+            .and_then(|inp| inp.source_path)
+            .is_some_and(is_stage2_or_sr3_path);
+        ordered_callers.push((parsed, forbid));
     }
 
-    link_parsed_modules_with_seed_graph(ordered_callers, seed_graph)
+    link_parsed_modules_with_seed_graph_and_flags(ordered_callers, seed_graph)
 }
 
 /// Parses a single `.sl3` source file using imported routine arities resolved

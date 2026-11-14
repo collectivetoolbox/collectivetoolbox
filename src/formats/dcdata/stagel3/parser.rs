@@ -358,6 +358,7 @@ fn is_reserved_keyword(word: &str) -> bool {
             | "continue"
             | "return"
             | "fault"
+            | "nop"
             | "true"
             | "false"
             | "void"
@@ -471,6 +472,56 @@ fn parse_typed_name(word: &str, span: Span) -> Result<(StageLType, String)> {
     check_user_ident(name, span, "binding")?;
     let ty = parse_type_segments(type_segs, span)?;
     Ok((ty, name.to_owned()))
+}
+
+fn parse_optional_typed_name(
+    word: &str,
+    span: Span,
+) -> Result<(Option<StageLType>, String)> {
+    if let Some(name) = word.strip_prefix('/') {
+        ensure!(
+            !name.contains('/'),
+            "Expected '/name' or 'TYPE/name' identifier at {span}, found '{word}'"
+        );
+        check_user_ident(name, span, "binding")?;
+        return Ok((None, name.to_owned()));
+    }
+    let (ty, name) = parse_typed_name(word, span)?;
+    Ok((Some(ty), name))
+}
+
+fn parse_value_ref_word(
+    word: &str,
+    span: Span,
+) -> Result<(Option<StageLType>, SymbolTarget)> {
+    if let Some(sh) = word.strip_prefix("/dc/") {
+        let dc = parse_dc_shorthand(sh)?;
+        return Ok((None, SymbolTarget::Dc(dc)));
+    }
+    if let Some(name) = word.strip_prefix('/') {
+        ensure!(
+            !name.contains('/'),
+            "Expected '/name' or '/dc/<shorthand>' at {span}, found '{word}'"
+        );
+        check_user_ident(name, span, "binding")?;
+        return Ok((None, SymbolTarget::Ident(name.to_owned())));
+    }
+    let segs: Vec<&str> = word.split('/').collect();
+    if segs.len() >= 3 && segs.get(segs.len().saturating_sub(2)) == Some(&"dc")
+    {
+        let type_segs = segs
+            .get(..segs.len().saturating_sub(2))
+            .with_context(|| format!("Invalid Dc value reference '{word}' at {span}"))?;
+        let sh = segs
+            .last()
+            .copied()
+            .with_context(|| format!("Missing Dc shorthand in '{word}' at {span}"))?;
+        let ty = parse_type_segments(type_segs, span)?;
+        let dc = parse_dc_shorthand(sh)?;
+        return Ok((Some(ty), SymbolTarget::Dc(dc)));
+    }
+    let (ty, name) = parse_typed_name(word, span)?;
+    Ok((Some(ty), SymbolTarget::Ident(name)))
 }
 
 fn parse_routine_sig_token(
@@ -1705,6 +1756,7 @@ impl Parser {
             "break" => return Ok(Expr::Break { span }),
             "continue" => return Ok(Expr::Continue { span }),
             "fault" => return Ok(Expr::Fault { span }),
+            "nop" => return Ok(Expr::Nop { span }),
             "pub" => bail!("'pub' at {span} is only allowed at module top level"),
             "ns" | "use" => bail!("'{word}' at {span} is only allowed at module header"),
             "return" => {
@@ -1777,17 +1829,22 @@ impl Parser {
             "set" => {
                 let target = self
                     .peek()
-                    .with_context(|| format!("Expected 'TYPE/name' after 'set' at {span}"))?
+                    .with_context(|| {
+                        format!("Expected '/name' or 'TYPE/name' after 'set' at {span}")
+                    })?
                     .clone();
                 let LexKind::Word(tw) = target.kind else {
-                    bail!("Expected 'TYPE/name' after 'set' at {}", target.span);
+                    bail!(
+                        "Expected '/name' or 'TYPE/name' after 'set' at {}",
+                        target.span
+                    );
                 };
                 if tw.starts_with("v/") {
                     bail!(
                         "Routine '{tw}' cannot be mutated with 'set' at {span}"
                     );
                 }
-                let (ty, name) = parse_typed_name(&tw, target.span)?;
+                let (ty, name) = parse_optional_typed_name(&tw, target.span)?;
                 self.pos = self.pos.saturating_add(1);
                 let value = Box::new(self.parse_expr(enclosing_is_void)?);
                 return Ok(Expr::Set {
@@ -1947,12 +2004,8 @@ impl Parser {
                     span,
                 });
             }
-            let (ty, name) = parse_typed_name(word, span)?;
-            return Ok(Expr::ValueRef {
-                ty,
-                target: SymbolTarget::Ident(name),
-                span,
-            });
+            let (ty, target) = parse_value_ref_word(word, span)?;
+            return Ok(Expr::ValueRef { ty, target, span });
         }
 
         check_user_ident(word, span, "routine call")?;

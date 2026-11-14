@@ -807,7 +807,12 @@ impl StageLWorkspaceVm {
                                 .clone()
                                 .context("Uninitialized variable read at runtime")?
                         } else {
-                            self.lookup_module_value(mod_idx, *span, name, ty)?
+                            self.lookup_module_value(
+                                mod_idx,
+                                *span,
+                                name,
+                                ty.as_ref(),
+                            )?
                         }
                     }
                     SymbolTarget::Dc(dc) => {
@@ -1113,6 +1118,7 @@ impl StageLWorkspaceVm {
             Expr::Fault { span } => {
                 Ok(EvalSignal::Fault(format!("explicit fault trap at {span}")))
             }
+            Expr::Nop { .. } => Ok(EvalSignal::Value(Value::Void)),
             Expr::Unary { op, operand, .. } => {
                 let v = match self.eval_expr(
                     mod_idx, operand, frame, false, depth, quota,
@@ -1216,7 +1222,7 @@ impl StageLWorkspaceVm {
         mod_idx: usize,
         span: Span,
         name: &str,
-        ty: &StageLType,
+        ty: Option<&StageLType>,
     ) -> Result<Value> {
         let mod_rt = self.modules.get(mod_idx).context("Invalid module idx")?;
         if let Some((target_mod_idx, vkey)) =
@@ -1237,14 +1243,20 @@ impl StageLWorkspaceVm {
                     )
                 });
         }
-        let fallback_key = ValueKey {
-            name: name.to_owned(),
-            ty: ty.clone(),
-        };
-        if let Some(v) = mod_rt.constants.get(&fallback_key) {
+        if let Some(expected_ty) = ty {
+            let fallback_key = ValueKey {
+                name: name.to_owned(),
+                ty: expected_ty.clone(),
+            };
+            if let Some(v) = mod_rt.constants.get(&fallback_key) {
+                return Ok(v.clone());
+            }
+        } else if let Some((_, v)) =
+            mod_rt.constants.iter().find(|(k, _)| k.name == name)
+        {
             return Ok(v.clone());
         }
-        bail!("Constant or variable '{ty}/{name}' not found at runtime")
+        bail!("Constant or variable '{name}' not found at runtime")
     }
 
     fn lookup_dc_value(&self, mod_idx: usize, dc: DcChar) -> Result<Value> {
