@@ -204,7 +204,7 @@ pub fn parse_and_validate_workspace(
     })
 }
 
-fn verify_psr4_path(source_path: &str, ns_key: &str) -> Result<()> {
+pub(crate) fn verify_psr4_path(source_path: &str, ns_key: &str) -> Result<()> {
     let norm = source_path.replace('\\', "/");
     let expected_suffix = format!("{ns_key}.sl3");
     ensure!(
@@ -292,7 +292,7 @@ fn parse_with_resolved_use_arities(
     Ok((module, imported_arities))
 }
 
-fn collect_use_verb_arities_from_source(
+pub(crate) fn collect_use_verb_arities_from_source(
     source: &str,
     ns_exports: &HashMap<String, NamespaceExports>,
 ) -> Result<HashMap<String, usize>> {
@@ -538,10 +538,25 @@ pub fn validate_module_with_registry(
     module: &Module,
     ns_exports: &HashMap<String, NamespaceExports>,
 ) -> Result<ValidatedModule> {
+    validate_module_with_registry_and_dc_imports(
+        module,
+        ns_exports,
+        &HashMap::new(),
+    )
+}
+
+/// Validates a parsed `Module` against already-validated dependency exports and
+/// pre-resolved direct `DcChar` symbol targets (such as transitive helpers
+/// linked from [`crate::SeedGraphIndex`]).
+pub fn validate_module_with_registry_and_dc_imports(
+    module: &Module,
+    ns_exports: &HashMap<String, NamespaceExports>,
+    extra_dc_imports: &HashMap<DcChar, ImportedSymbol>,
+) -> Result<ValidatedModule> {
     let namespace_key = module.namespace.as_ref().map(|segs| segs.join("/"));
     let mut exports = NamespaceExports::default();
     let mut imports = HashMap::new();
-    let mut dc_imports = HashMap::new();
+    let mut dc_imports = extra_dc_imports.clone();
     let mut imported_values = HashMap::new();
     let mut imported_routines = HashMap::new();
     let mut used_top_names: HashSet<String> = HashSet::new();

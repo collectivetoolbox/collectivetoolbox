@@ -31,7 +31,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-pub use ctb_formats_dcdata::stagel3::{ast, dc_tokens, eval, parser, validator};
+pub use ctb_formats_dcdata::stagel3::{
+    ast, dc_tokens, eval, parser, seed_linker, validator,
+};
 pub mod rust_codegen;
 pub mod wasm_codegen;
 

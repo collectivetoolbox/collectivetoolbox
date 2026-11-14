@@ -33,24 +33,29 @@ pub mod runner;
 
 pub use runner::{
     WasmTestConfig, compile_and_run_pure_converter_sl3,
-    run_dc_tokens_inline_tests_wasm, run_module_inline_tests_wasm,
-    run_sl3_inline_tests_wasm, run_workspace_inline_tests_wasm,
+    run_dc_tokens_inline_tests_wasm,
+    run_dc_tokens_inline_tests_wasm_with_seed_graph,
+    run_module_inline_tests_wasm, run_sl3_inline_tests_wasm,
+    run_sl3_inline_tests_wasm_with_seed_graph, run_workspace_inline_tests_wasm,
 };
 
 use super::ast::{
     BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, RoutineDecl,
     StageLType, SymbolTarget, TestExpected, TopDecl, TopValueDecl, TypedIntLit,
 };
-use super::dc_tokens::decode_module_from_dc_tokens;
-use super::parser::parse_module;
 use super::rust_codegen::{
     analyze_block_captures, sanitize_ident, topo_sort_top_values,
 };
+use super::seed_linker::{
+    parse_and_validate_module_with_seed_graph,
+    parse_and_validate_workspace_with_seed_graph,
+    validate_dc_tokens_with_seed_graph,
+};
 use super::validator::{
     ImportedSymbol, ModuleInput, RoutineSig, ValidatedModule,
-    ValidatedWorkspace, parse_and_validate_workspace, validate_module,
+    ValidatedWorkspace,
 };
-use ctb_formats_dcdata::DcChar;
+use ctb_formats_dcdata::{DcChar, SeedGraphIndex};
 use ctb_formats_dcdata::dc::{
     DC_ADD_OP, DC_BIT_AND_OP, DC_BIT_NOT_OP, DC_BIT_OR_OP, DC_BIT_XOR_OP,
     DC_BITCAST_OP, DC_CLZ_OP, DC_CONVERT_OP, DC_CTZ_OP, DC_DIV_OP, DC_EQ_OP,
@@ -72,25 +77,49 @@ use std::collections::{HashMap, HashSet};
 const SHADOW_STACK_BYTES: i32 = 65_536;
 const SHADOW_CELL_BYTES: i32 = 16;
 
-/// Compiles standalone `.sl3` source into a `Dc 1927`..`Dc 1928` [`DcMstring`].
+/// Compiles `.sl3` source into a `Dc 1927`..`Dc 1928` [`DcMstring`], linking
+/// any external `use` namespaces and transitive `dc/<shorthand>` helpers from
+/// [`SeedGraphIndex::shared`].
 pub fn compile_sl3_to_dc_wasm(source: &str) -> Result<DcMstring> {
-    let parsed = parse_module(source)?;
-    let validated = validate_module(&parsed)?;
-    compile_module_to_dc_wasm(&validated)
+    compile_sl3_to_dc_wasm_with_seed_graph(source, SeedGraphIndex::shared()?)
 }
 
-/// Compiles standalone `.sl3` source directly into `.wasm` binary bytes.
+/// Compiles `.sl3` source into a `Dc 1927`..`Dc 1928` [`DcMstring`], linking
+/// any external `use` namespaces and transitive `dc/<shorthand>` helpers from
+/// `seed_graph`.
+pub fn compile_sl3_to_dc_wasm_with_seed_graph(
+    source: &str,
+    seed_graph: &SeedGraphIndex,
+) -> Result<DcMstring> {
+    let ws = parse_and_validate_module_with_seed_graph(source, seed_graph)?;
+    compile_workspace_to_dc_wasm(&ws)
+}
+
+/// Compiles `.sl3` source directly into `.wasm` binary bytes.
 pub fn compile_sl3_to_wasm_bytes(source: &str) -> Result<Vec<u8>> {
     let dc_wasm = compile_sl3_to_dc_wasm(source)?;
     dcmstring_to_wasm(&dc_wasm)
 }
 
 /// Compiles a StageL 3 Token-Dc stream (`Dc 2192`..`Dc 2193`) into a
-/// `Dc 1927`..`Dc 1928` [`DcMstring`].
+/// `Dc 1927`..`Dc 1928` [`DcMstring`], linking external `use` namespaces and
+/// transitive `dc/<shorthand>` helpers from [`SeedGraphIndex::shared`].
 pub fn compile_dc_tokens_to_dc_wasm(tokens: &[DcChar]) -> Result<DcMstring> {
-    let module = decode_module_from_dc_tokens(tokens)?;
-    let validated = validate_module(&module)?;
-    compile_module_to_dc_wasm(&validated)
+    compile_dc_tokens_to_dc_wasm_with_seed_graph(
+        tokens,
+        SeedGraphIndex::shared()?,
+    )
+}
+
+/// Compiles a StageL 3 Token-Dc stream (`Dc 2192`..`Dc 2193`) into a
+/// `Dc 1927`..`Dc 1928` [`DcMstring`], linking external `use` namespaces and
+/// transitive `dc/<shorthand>` helpers from `seed_graph`.
+pub fn compile_dc_tokens_to_dc_wasm_with_seed_graph(
+    tokens: &[DcChar],
+    seed_graph: &SeedGraphIndex,
+) -> Result<DcMstring> {
+    let ws = validate_dc_tokens_with_seed_graph(tokens, seed_graph)?;
+    compile_workspace_to_dc_wasm(&ws)
 }
 
 /// Compiles a validated single StageL 3 module into a `Dc 1927`..`Dc 1928`
@@ -103,11 +132,25 @@ pub fn compile_module_to_dc_wasm(module: &ValidatedModule) -> Result<DcMstring> 
 }
 
 /// Compiles multi-module `.sl3` sources into a linked `Dc 1927`..`Dc 1928`
-/// [`DcMstring`].
+/// [`DcMstring`], resolving any external `use` namespaces and `dc/<shorthand>`
+/// helpers from [`SeedGraphIndex::shared`].
 pub fn compile_workspace_sources_to_dc_wasm(
     inputs: &[ModuleInput<'_>],
 ) -> Result<DcMstring> {
-    let ws = parse_and_validate_workspace(inputs)?;
+    compile_workspace_sources_to_dc_wasm_with_seed_graph(
+        inputs,
+        SeedGraphIndex::shared()?,
+    )
+}
+
+/// Compiles multi-module `.sl3` sources into a linked `Dc 1927`..`Dc 1928`
+/// [`DcMstring`], resolving any external `use` namespaces and `dc/<shorthand>`
+/// helpers from `seed_graph`.
+pub fn compile_workspace_sources_to_dc_wasm_with_seed_graph(
+    inputs: &[ModuleInput<'_>],
+    seed_graph: &SeedGraphIndex,
+) -> Result<DcMstring> {
+    let ws = parse_and_validate_workspace_with_seed_graph(inputs, seed_graph)?;
     compile_workspace_to_dc_wasm(&ws)
 }
 

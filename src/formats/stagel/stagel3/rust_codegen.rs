@@ -42,11 +42,15 @@ use super::ast::{
     TypedIntLit,
 };
 use super::parser::parse_module;
-use super::validator::{
-    ImportedSymbol, RoutineSig, ValidatedModule, ValidatedWorkspace,
-    validate_module,
+use super::seed_linker::{
+    parse_and_validate_module_with_seed_graph,
+    parse_and_validate_workspace_with_seed_graph,
 };
-use ctb_formats_dcdata::DcChar;
+use super::validator::{
+    ImportedSymbol, ModuleInput, RoutineSig, ValidatedModule,
+    ValidatedWorkspace, validate_module,
+};
+use ctb_formats_dcdata::{DcChar, SeedGraphIndex};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write as _;
 
@@ -70,6 +74,29 @@ pub fn transpile_sl3_source_to_rust(
 ) -> Result<String> {
     let module = parse_module(source)?;
     transpile_module_to_rust(&module, options)
+}
+
+/// Parses, links external `use` namespaces and transitive `dc/<shorthand>`
+/// helpers against `seed_graph`, and transpiles a `.sl3` module to Rust.
+pub fn transpile_sl3_source_to_rust_with_seed_graph(
+    source: &str,
+    seed_graph: &SeedGraphIndex,
+    options: &RustTranspileOptions,
+) -> Result<String> {
+    let ws = parse_and_validate_module_with_seed_graph(source, seed_graph)?;
+    transpile_workspace_to_rust(&ws, options)
+}
+
+/// Parses, links external `use` namespaces and transitive `dc/<shorthand>`
+/// helpers against `seed_graph`, and transpiles multi-module `.sl3` sources to
+/// Rust.
+pub fn transpile_workspace_sources_to_rust_with_seed_graph(
+    inputs: &[ModuleInput<'_>],
+    seed_graph: &SeedGraphIndex,
+    options: &RustTranspileOptions,
+) -> Result<String> {
+    let ws = parse_and_validate_workspace_with_seed_graph(inputs, seed_graph)?;
+    transpile_workspace_to_rust(&ws, options)
 }
 
 /// Validates and transpiles a single standalone StageL 3 `Module` AST to Rust.

@@ -648,6 +648,25 @@ pub fn parse_module_with_imports(
     parser.parse_module()
 }
 
+/// Scans `.sl3` source tokens for direct `dc/<shorthand>` words so callers
+/// linking against [`crate::SeedGraphIndex`] can supply routine arities before
+/// expression parsing.
+pub(crate) fn scan_direct_dc_words(
+    source: &str,
+) -> Result<Vec<(String, DcChar)>> {
+    let tokens = tokenize_sl3(source)?;
+    let mut out = Vec::new();
+    for tok in tokens {
+        if let LexKind::Word(w) = tok.kind
+            && let Some(sh) = w.strip_prefix("dc/")
+        {
+            let dc = parse_dc_shorthand(sh)?;
+            out.push((w, dc));
+        }
+    }
+    Ok(out)
+}
+
 /// Extracts only the optional `ns` path and `use` namespace paths from raw `.sl3`
 /// source (header pre-scan for topological multi-module ordering).
 pub fn scan_module_header_paths(

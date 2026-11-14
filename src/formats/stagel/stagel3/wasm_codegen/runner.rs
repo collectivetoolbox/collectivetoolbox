@@ -27,14 +27,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use super::super::dc_tokens::decode_module_from_dc_tokens;
 use super::super::eval::{TestCaseReport, TestSuiteReport};
-use super::super::parser::parse_module;
-use super::super::validator::{
-    ValidatedModule, ValidatedWorkspace, validate_module,
+use super::super::seed_linker::{
+    parse_and_validate_module_with_seed_graph,
+    validate_dc_tokens_with_seed_graph,
 };
+use super::super::validator::{ValidatedModule, ValidatedWorkspace};
 use super::{compile_sl3_to_dc_wasm, compile_workspace_internal};
-use ctb_formats_dcdata::DcChar;
+use ctb_formats_dcdata::{DcChar, SeedGraphIndex};
 use ctb_formats_dcstring::converters::wasm::{
     DcWasmResourceLimits, DcWasmSession, dcmstring_to_wasm,
     run_dc_wasm_pure_conversion,
@@ -180,26 +180,54 @@ pub fn run_module_inline_tests_wasm(
     run_workspace_inline_tests_wasm(&ws, cfg)
 }
 
-/// Parses, validates, compiles `.sl3` source to `.WASM`, and executes all
-/// inline `test` blocks inside [`DcWasmSession`].
+/// Parses, links against [`SeedGraphIndex::shared`], compiles `.sl3` source to
+/// `.WASM`, and executes all inline `test` blocks inside [`DcWasmSession`].
 pub fn run_sl3_inline_tests_wasm(
     source: &str,
     cfg: WasmTestConfig,
 ) -> Result<TestSuiteReport> {
-    let parsed = parse_module(source)?;
-    let validated = validate_module(&parsed)?;
-    run_module_inline_tests_wasm(&validated, cfg)
+    run_sl3_inline_tests_wasm_with_seed_graph(
+        source,
+        SeedGraphIndex::shared()?,
+        cfg,
+    )
 }
 
-/// Decodes StageL 3 Token Dcs (`Dc 2192`..`Dc 2193`), compiles to `.WASM`, and
+/// Parses, links against `seed_graph`, compiles `.sl3` source to `.WASM`, and
 /// executes all inline `test` blocks inside [`DcWasmSession`].
+pub fn run_sl3_inline_tests_wasm_with_seed_graph(
+    source: &str,
+    seed_graph: &SeedGraphIndex,
+    cfg: WasmTestConfig,
+) -> Result<TestSuiteReport> {
+    let ws = parse_and_validate_module_with_seed_graph(source, seed_graph)?;
+    run_workspace_inline_tests_wasm(&ws, cfg)
+}
+
+/// Decodes StageL 3 Token Dcs (`Dc 2192`..`Dc 2193`), links against
+/// [`SeedGraphIndex::shared`], compiles to `.WASM`, and executes all inline
+/// `test` blocks inside [`DcWasmSession`].
 pub fn run_dc_tokens_inline_tests_wasm(
     tokens: &[DcChar],
     cfg: WasmTestConfig,
 ) -> Result<TestSuiteReport> {
-    let module = decode_module_from_dc_tokens(tokens)?;
-    let validated = validate_module(&module)?;
-    run_module_inline_tests_wasm(&validated, cfg)
+    run_dc_tokens_inline_tests_wasm_with_seed_graph(
+        tokens,
+        SeedGraphIndex::shared()?,
+        cfg,
+    )
+}
+
+/// Decodes StageL 3 Token Dcs (`Dc 2192`..`Dc 2193`), links against
+/// `seed_graph`, compiles to `.WASM`, and executes all inline `test` blocks
+/// inside [`DcWasmSession`].
+pub fn run_dc_tokens_inline_tests_wasm_with_seed_graph(
+    tokens: &[DcChar],
+    seed_graph: &SeedGraphIndex,
+    cfg: WasmTestConfig,
+) -> Result<TestSuiteReport> {
+    let ws = validate_dc_tokens_with_seed_graph(tokens, seed_graph)?;
+    run_workspace_inline_tests_wasm(&ws, cfg)
 }
 
 /// Compiles standalone `.sl3` source defining `v/l/u8/step l/u8/input` to
