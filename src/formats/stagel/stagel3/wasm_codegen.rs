@@ -41,10 +41,12 @@ pub use runner::{
 
 use super::ast::{
     BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, RoutineDecl,
-    StageLType, SymbolTarget, TestExpected, TopDecl, TopValueDecl, TypedIntLit,
+    Span, StageLType, SymbolTarget, TestExpected, TopDecl, TopValueDecl,
+    TypedIntLit,
 };
 use super::rust_codegen::{
-    analyze_block_captures, sanitize_ident, topo_sort_top_values,
+    analyze_block_captures, sanitize_ident, stagel_params_slug,
+    stagel_type_slug, topo_sort_top_values,
 };
 use super::seed_linker::{
     parse_and_validate_module_with_seed_graph,
@@ -52,8 +54,8 @@ use super::seed_linker::{
     validate_dc_tokens_with_seed_graph,
 };
 use super::validator::{
-    ImportedSymbol, ModuleInput, RoutineSig, ValidatedModule,
-    ValidatedWorkspace,
+    ImportedSymbol, ModuleInput, RoutineKey, RoutineSig, ValidatedModule,
+    ValidatedWorkspace, ValueKey,
 };
 use ctb_formats_dcdata::{DcChar, SeedGraphIndex};
 use ctb_formats_dcdata::dc::{
@@ -337,9 +339,9 @@ struct WorkspaceWasmCompiler<'a> {
     init_flag_global: Option<u32>,
     init_func_idx: Option<u32>,
     ns_to_mod: HashMap<String, usize>,
-    top_routines_by_name: HashMap<(usize, String), TopRoutineEntry>,
+    top_routines_by_key: HashMap<(usize, RoutineKey), TopRoutineEntry>,
     top_routines_by_dc: HashMap<(usize, DcChar), TopRoutineEntry>,
-    top_consts_by_name: HashMap<(usize, String), TopConstEntry>,
+    top_consts_by_key: HashMap<(usize, ValueKey), TopConstEntry>,
     top_consts_by_dc: HashMap<(usize, DcChar), TopConstEntry>,
     list_eq_helpers: HashMap<StageLType, u32>,
     next_routine_uid: usize,
@@ -383,9 +385,9 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         };
 
         let mut ns_to_mod = HashMap::new();
-        let mut top_routines_by_name = HashMap::new();
+        let mut top_routines_by_key = HashMap::new();
         let mut top_routines_by_dc = HashMap::new();
-        let mut top_consts_by_name = HashMap::new();
+        let mut top_consts_by_key = HashMap::new();
         let mut top_consts_by_dc = HashMap::new();
 
         for (mod_idx, vm) in workspace.modules.iter().enumerate() {
@@ -396,6 +398,22 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 format!("m{mod_idx}")
             };
 
+            let mut val_name_counts: HashMap<&str, usize> = HashMap::new();
+            let mut routine_name_counts: HashMap<&str, usize> = HashMap::new();
+            for item in &vm.module.items {
+                match item {
+                    TopDecl::Value(v) => {
+                        let e = val_name_counts.entry(v.name.as_str()).or_insert(0);
+                        *e = e.saturating_add(1);
+                    }
+                    TopDecl::Routine(r) => {
+                        let e = routine_name_counts.entry(r.name.as_str()).or_insert(0);
+                        *e = e.saturating_add(1);
+                    }
+                    TopDecl::Comment(_) => {}
+                }
+            }
+
             for item in &vm.module.items {
                 match item {
                     TopDecl::Value(v) => {
@@ -405,40 +423,56 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                                 v.name, v.ty
                             )
                         })?;
-                        let g_name = format!(
-                            "__sl_c_{mod_prefix}_{}",
-                            sanitize_ident(&v.name)
-                        );
+                        let overloaded = val_name_counts
+                            .get(v.name.as_str())
+                            .copied()
+                            .is_some_and(|n| n > 1);
+                        let san = sanitize_ident(&v.name);
+                        let g_name = if overloaded {
+                            format!(
+                                "__sl_c_{mod_prefix}_{san}__{}",
+                                stagel_type_slug(&v.ty)
+                            )
+                        } else {
+                            format!("__sl_c_{mod_prefix}_{san}")
+                        };
                         let global_idx = linker.ensure_global(&g_name, vt, 0)?;
                         let entry = TopConstEntry {
                             global_idx,
                             ty: v.ty.clone(),
                         };
-                        top_consts_by_name
-                            .insert((mod_idx, v.name.clone()), entry.clone());
+                        top_consts_by_key
+                            .insert((mod_idx, ValueKey::from_decl(v)), entry.clone());
                         if let Some(dc) = v.dc_id {
                             top_consts_by_dc.insert((mod_idx, dc), entry);
                         }
                     }
                     TopDecl::Routine(r) => {
-                        let f_name = format!(
-                            "sl_fn_{mod_prefix}_{}",
-                            sanitize_ident(&r.name)
-                        );
+                        let params: Vec<StageLType> =
+                            r.params.iter().map(|p| p.ty.clone()).collect();
+                        let overloaded = routine_name_counts
+                            .get(r.name.as_str())
+                            .copied()
+                            .is_some_and(|n| n > 1);
+                        let san = sanitize_ident(&r.name);
+                        let f_name = if overloaded {
+                            format!(
+                                "sl_fn_{mod_prefix}_{san}__{}",
+                                stagel_params_slug(&params)
+                            )
+                        } else {
+                            format!("sl_fn_{mod_prefix}_{san}")
+                        };
                         let func_idx = linker.reserve_routine(&f_name)?;
                         let sig = RoutineSig {
                             return_type: r.return_type.clone(),
-                            params: r
-                                .params
-                                .iter()
-                                .map(|p| p.ty.clone())
-                                .collect(),
+                            params,
                             is_pub: r.is_pub,
                             dc_id: r.dc_id,
                         };
                         let entry = TopRoutineEntry { func_idx, sig };
-                        top_routines_by_name
-                            .insert((mod_idx, r.name.clone()), entry.clone());
+                        top_routines_by_key
+                            .insert((mod_idx, RoutineKey::from_decl(r)), entry.clone());
                         if let Some(dc) = r.dc_id {
                             top_routines_by_dc.insert((mod_idx, dc), entry);
                         }
@@ -456,9 +490,9 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             init_flag_global,
             init_func_idx,
             ns_to_mod,
-            top_routines_by_name,
+            top_routines_by_key,
             top_routines_by_dc,
-            top_consts_by_name,
+            top_consts_by_key,
             top_consts_by_dc,
             list_eq_helpers: HashMap::new(),
             next_routine_uid: 1,
@@ -592,8 +626,8 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                     .collect();
             for val_decl in &sorted {
                 let entry = self
-                    .top_consts_by_name
-                    .get(&(mod_idx, val_decl.name.clone()))
+                    .top_consts_by_key
+                    .get(&(mod_idx, ValueKey::from_decl(val_decl)))
                     .cloned()
                     .context("Missing top-level constant entry")?;
                 let r_uid = self.alloc_routine_uid();
@@ -644,8 +678,8 @@ impl<'a> WorkspaceWasmCompiler<'a> {
 
         for r in &routines {
             let entry = self
-                .top_routines_by_name
-                .get(&(mod_idx, r.name.clone()))
+                .top_routines_by_key
+                .get(&(mod_idx, RoutineKey::from_decl(r)))
                 .cloned()
                 .context("Missing reserved top-level routine")?;
             self.emit_routine_body(
@@ -819,12 +853,15 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         let last_mod_idx = self.workspace.modules.len().saturating_sub(1);
         let bytes_ty = StageLType::List(Box::new(StageLType::U8));
         let converter_step = self
-            .top_routines_by_name
-            .get(&(last_mod_idx, String::from("step")))
-            .filter(|e| {
-                e.sig.return_type == bytes_ty
-                    && e.sig.params.as_slice() == std::slice::from_ref(&bytes_ty)
-            })
+            .top_routines_by_key
+            .get(&(
+                last_mod_idx,
+                RoutineKey {
+                    name: String::from("step"),
+                    params: vec![bytes_ty.clone()],
+                },
+            ))
+            .filter(|e| e.sig.return_type == bytes_ty)
             .cloned();
 
         let step_idx = self.linker.reserve_routine("step")?;
@@ -914,8 +951,8 @@ impl<'a> WorkspaceWasmCompiler<'a> {
 
             for r in &routines {
                 let target_entry = self
-                    .top_routines_by_name
-                    .get(&(mod_idx, r.name.clone()))
+                    .top_routines_by_key
+                    .get(&(mod_idx, RoutineKey::from_decl(r)))
                     .cloned()
                     .context("Missing routine entry for test")?;
                 for tb in &r.tests {
@@ -1155,7 +1192,9 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 fctx.fb.call(fn_idx)?;
                 Ok(StageLType::Buf(Box::new(elem_ty.clone())))
             }
-            Expr::ValueRef { target, .. } => self.emit_value_ref(fctx, target),
+            Expr::ValueRef { target, span, .. } => {
+                self.emit_value_ref(fctx, target, *span)
+            }
             Expr::Let { ty, name, init, .. } => {
                 self.emit_let_stmt(fctx, ty, name, init.as_deref())
             }
@@ -1166,8 +1205,8 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 self.emit_set_stmt(fctx, name, value)
             }
             Expr::RoutineDecl(_) => Ok(StageLType::Void),
-            Expr::Call { target, args, .. } => {
-                self.emit_call_expr(fctx, target, args, in_tail)
+            Expr::Call { target, args, span } => {
+                self.emit_call_expr(fctx, target, *span, args, in_tail)
             }
             Expr::Block { stmts, .. } => {
                 self.emit_block_expr(fctx, stmts, in_tail)
@@ -1406,43 +1445,42 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         &self,
         fctx: &mut FuncEmitCtx<'_>,
         target: &SymbolTarget,
+        span: Span,
     ) -> Result<StageLType> {
         match target {
             SymbolTarget::Ident(name) => {
                 if let Some(binding) = fctx.lookup_var(name).cloned() {
                     return Self::emit_read_var_binding(fctx, &binding);
                 }
-                if let Some(c) =
-                    self.top_consts_by_name.get(&(fctx.mod_idx, name.clone()))
-                {
-                    fctx.fb.global_get(c.global_idx)?;
-                    return Ok(c.ty.clone());
-                }
                 let vm = self
                     .workspace
                     .modules
                     .get(fctx.mod_idx)
                     .context("Invalid module index")?;
-                if let Some(ImportedSymbol::Value {
-                    namespace,
-                    original_name,
-                    ..
-                }) = vm.imports.get(name)
+                if let Some(rv) =
+                    vm.resolved_values.get(&(span.line, span.col))
                 {
-                    let &dep_idx = self
-                        .ns_to_mod
-                        .get(namespace)
-                        .with_context(|| format!("Unknown namespace '{namespace}'"))?;
+                    let target_mod_idx = if let Some(namespace) = &rv.namespace {
+                        *self
+                            .ns_to_mod
+                            .get(namespace)
+                            .with_context(|| format!("Unknown namespace '{namespace}'"))?
+                    } else {
+                        fctx.mod_idx
+                    };
                     let c = self
-                        .top_consts_by_name
-                        .get(&(dep_idx, original_name.clone()))
+                        .top_consts_by_key
+                        .get(&(target_mod_idx, rv.value_key()))
                         .with_context(|| {
-                            format!("Missing imported value '{namespace}::{original_name}'")
+                            format!(
+                                "Missing resolved constant '{}/{}' during WASM compilation",
+                                rv.ty, rv.original_name
+                            )
                         })?;
                     fctx.fb.global_get(c.global_idx)?;
                     return Ok(c.ty.clone());
                 }
-                bail!("Unknown value reference '{name}' during WASM compilation")
+                bail!("Unknown value reference '{name}' at {span} during WASM compilation")
             }
             SymbolTarget::Dc(dc) => {
                 if let Some(c) =
@@ -1459,6 +1497,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 if let Some(ImportedSymbol::Value {
                     namespace,
                     original_name,
+                    ty,
                     ..
                 }) = vm.dc_imports.get(dc)
                 {
@@ -1467,8 +1506,17 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                         .get(namespace)
                         .with_context(|| format!("Unknown namespace '{namespace}'"))?;
                     let c = self
-                        .top_consts_by_name
-                        .get(&(dep_idx, original_name.clone()))
+                        .top_consts_by_dc
+                        .get(&(dep_idx, *dc))
+                        .or_else(|| {
+                            self.top_consts_by_key.get(&(
+                                dep_idx,
+                                ValueKey {
+                                    name: original_name.clone(),
+                                    ty: ty.clone(),
+                                },
+                            ))
+                        })
                         .with_context(|| {
                             format!("Missing imported Dc value '{namespace}::{original_name}'")
                         })?;
@@ -2020,42 +2068,39 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         &self,
         fctx: &FuncEmitCtx<'_>,
         target: &SymbolTarget,
+        span: Span,
     ) -> Result<ResolvedCallee> {
         match target {
             SymbolTarget::Ident(name) => {
                 if let Some(nr) = fctx.lookup_nested_routine(name) {
                     return Ok(ResolvedCallee::Nested(nr.clone()));
                 }
-                if let Some(tr) = self
-                    .top_routines_by_name
-                    .get(&(fctx.mod_idx, name.clone()))
-                {
-                    return Ok(ResolvedCallee::Top(tr.clone()));
-                }
                 let vm = self
                     .workspace
                     .modules
                     .get(fctx.mod_idx)
                     .context("Invalid module index")?;
-                if let Some(ImportedSymbol::Routine {
-                    namespace,
-                    original_name,
-                    ..
-                }) = vm.imports.get(name)
-                {
-                    let &dep_idx = self
-                        .ns_to_mod
-                        .get(namespace)
-                        .with_context(|| format!("Unknown namespace '{namespace}'"))?;
+                if let Some(rc) = vm.resolved_calls.get(&(span.line, span.col)) {
+                    let target_mod_idx = if let Some(namespace) = &rc.namespace {
+                        *self
+                            .ns_to_mod
+                            .get(namespace)
+                            .with_context(|| format!("Unknown namespace '{namespace}'"))?
+                    } else {
+                        fctx.mod_idx
+                    };
                     let tr = self
-                        .top_routines_by_name
-                        .get(&(dep_idx, original_name.clone()))
+                        .top_routines_by_key
+                        .get(&(target_mod_idx, rc.routine_key()))
                         .with_context(|| {
-                            format!("Unknown imported routine '{namespace}::{original_name}'")
+                            format!(
+                                "Unknown resolved routine '{}' during WASM compilation",
+                                rc.routine_name
+                            )
                         })?;
                     return Ok(ResolvedCallee::Top(tr.clone()));
                 }
-                bail!("Unknown routine '{name}' during WASM compilation")
+                bail!("Unknown routine '{name}' at {span} during WASM compilation")
             }
             SymbolTarget::Dc(dc) => {
                 if let Some(tr) =
@@ -2071,7 +2116,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 if let Some(ImportedSymbol::Routine {
                     namespace,
                     original_name,
-                    ..
+                    sig,
                 }) = vm.dc_imports.get(dc)
                 {
                     let &dep_idx = self
@@ -2079,8 +2124,17 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                         .get(namespace)
                         .with_context(|| format!("Unknown namespace '{namespace}'"))?;
                     let tr = self
-                        .top_routines_by_name
-                        .get(&(dep_idx, original_name.clone()))
+                        .top_routines_by_dc
+                        .get(&(dep_idx, *dc))
+                        .or_else(|| {
+                            self.top_routines_by_key.get(&(
+                                dep_idx,
+                                RoutineKey {
+                                    name: original_name.clone(),
+                                    params: sig.params.clone(),
+                                },
+                            ))
+                        })
                         .with_context(|| {
                             format!("Unknown imported Dc routine '{namespace}::{original_name}'")
                         })?;
@@ -2095,10 +2149,11 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         &mut self,
         fctx: &mut FuncEmitCtx<'_>,
         target: &SymbolTarget,
+        span: Span,
         args: &[Expr],
         in_tail: bool,
     ) -> Result<StageLType> {
-        let callee = self.resolve_callee(fctx, target)?;
+        let callee = self.resolve_callee(fctx, target, span)?;
         let callee_ret_ty = callee.sig().return_type.clone();
         let can_return_call = in_tail
             && stagel_wasm_valtype(&fctx.return_type)
@@ -2889,8 +2944,8 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             | Expr::Continue { .. }
             | Expr::Return { .. }
             | Expr::Fault { .. } => Ok(StageLType::Never),
-            Expr::Call { target, .. } => {
-                let callee = self.resolve_callee(fctx, target)?;
+            Expr::Call { target, span, .. } => {
+                let callee = self.resolve_callee(fctx, target, *span)?;
                 Ok(callee.sig().return_type.clone())
             }
             Expr::Block { stmts, .. } => {

@@ -38,8 +38,8 @@ use crate::utilities::*;
 
 use super::ast::{
     BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, Module,
-    RoutineDecl, StageLType, SymbolTarget, TestExpected, TopDecl, TopValueDecl,
-    TypedIntLit,
+    RoutineDecl, Span, StageLType, SymbolTarget, TestExpected, TopDecl,
+    TopValueDecl, TypedIntLit,
 };
 use super::parser::parse_module;
 use super::seed_linker::{
@@ -47,8 +47,8 @@ use super::seed_linker::{
     parse_and_validate_workspace_with_seed_graph,
 };
 use super::validator::{
-    ImportedSymbol, ModuleInput, RoutineSig, ValidatedModule,
-    ValidatedWorkspace, validate_module,
+    ImportedSymbol, ModuleInput, RoutineKey, RoutineSig, ValidatedModule,
+    ValidatedWorkspace, ValueKey, validate_module,
 };
 use ctb_formats_dcdata::{DcChar, SeedGraphIndex};
 use std::collections::{HashMap, HashSet};
@@ -812,23 +812,55 @@ struct TopRoutineMeta {
     mod_ident: String,
     entry_fn: String,
     step_fn: String,
+    test_fn: String,
     is_step: bool,
     sig: RoutineSig,
+}
+
+pub(super) fn stagel_type_slug(ty: &StageLType) -> String {
+    match ty {
+        StageLType::B => String::from("b"),
+        StageLType::U8 => String::from("u8"),
+        StageLType::I32 => String::from("i32"),
+        StageLType::U32 => String::from("u32"),
+        StageLType::I64 => String::from("i64"),
+        StageLType::U64 => String::from("u64"),
+        StageLType::Void => String::from("void"),
+        StageLType::Never => String::from("never"),
+        StageLType::List(inner) => format!("l0_{}", stagel_type_slug(inner)),
+        StageLType::Buf(inner) => format!("buf0_{}", stagel_type_slug(inner)),
+    }
+}
+
+pub(super) fn stagel_params_slug(params: &[StageLType]) -> String {
+    if params.is_empty() {
+        String::from("0")
+    } else {
+        params
+            .iter()
+            .map(stagel_type_slug)
+            .collect::<Vec<_>>()
+            .join("__")
+    }
 }
 
 struct WorkspaceRoutineIndex {
     mod_idents: Vec<String>,
     ns_to_mod_idx: HashMap<String, usize>,
-    by_name: HashMap<(usize, String), TopRoutineMeta>,
+    by_key: HashMap<(usize, RoutineKey), TopRoutineMeta>,
     by_dc: HashMap<(usize, DcChar), TopRoutineMeta>,
+    const_idents_by_key: HashMap<(usize, ValueKey), (String, StageLType)>,
+    const_idents_by_dc: HashMap<(usize, DcChar), (String, StageLType)>,
 }
 
 impl WorkspaceRoutineIndex {
     fn build(workspace: &ValidatedWorkspace) -> Self {
         let mut mod_idents = Vec::with_capacity(workspace.modules.len());
         let mut ns_to_mod_idx = HashMap::new();
-        let mut by_name = HashMap::new();
+        let mut by_key = HashMap::new();
         let mut by_dc = HashMap::new();
+        let mut const_idents_by_key = HashMap::new();
+        let mut const_idents_by_dc = HashMap::new();
 
         for (mod_idx, vm) in workspace.modules.iter().enumerate() {
             let mod_ident = if let Some(ns) = &vm.namespace_key {
@@ -838,33 +870,84 @@ impl WorkspaceRoutineIndex {
                 format!("sl_mod_anon_{mod_idx}")
             };
 
+            let mut val_name_counts: HashMap<&str, usize> = HashMap::new();
+            let mut routine_name_counts: HashMap<&str, usize> = HashMap::new();
+            for decl in &vm.module.items {
+                match decl {
+                    TopDecl::Value(v) => {
+                        let e = val_name_counts.entry(v.name.as_str()).or_insert(0);
+                        *e = e.saturating_add(1);
+                    }
+                    TopDecl::Routine(r) => {
+                        let e = routine_name_counts.entry(r.name.as_str()).or_insert(0);
+                        *e = e.saturating_add(1);
+                    }
+                    TopDecl::Comment(_) => {}
+                }
+            }
+
             let mut routine_idx = 0usize;
             for decl in &vm.module.items {
-                if let TopDecl::Routine(r) = decl {
-                    let san = sanitize_ident(&r.name);
-                    let entry_fn = format!("sl_fn_{san}");
-                    let step_fn = format!("__sl_step_top_{routine_idx}_{san}");
-                    let is_step = expr_has_tail_call(&r.body, true);
-                    let sig = RoutineSig {
-                        return_type: r.return_type.clone(),
-                        params: r.params.iter().map(|p| p.ty.clone()).collect(),
-                        is_pub: r.is_pub,
-                        dc_id: r.dc_id,
-                    };
-                    let meta = TopRoutineMeta {
-                        mod_idx,
-                        routine_idx,
-                        mod_ident: mod_ident.clone(),
-                        entry_fn,
-                        step_fn,
-                        is_step,
-                        sig,
-                    };
-                    by_name.insert((mod_idx, r.name.clone()), meta.clone());
-                    if let Some(dc) = r.dc_id {
-                        by_dc.insert((mod_idx, dc), meta);
+                match decl {
+                    TopDecl::Value(v) => {
+                        let san = sanitize_ident(&v.name);
+                        let overloaded = val_name_counts
+                            .get(v.name.as_str())
+                            .copied()
+                            .is_some_and(|n| n > 1);
+                        let rname = if overloaded {
+                            format!("sl_c_{san}__{}", stagel_type_slug(&v.ty))
+                        } else {
+                            format!("sl_c_{san}")
+                        };
+                        let vkey = ValueKey::from_decl(v);
+                        const_idents_by_key
+                            .insert((mod_idx, vkey), (rname.clone(), v.ty.clone()));
+                        if let Some(dc) = v.dc_id {
+                            const_idents_by_dc
+                                .insert((mod_idx, dc), (rname, v.ty.clone()));
+                        }
                     }
-                    routine_idx = routine_idx.saturating_add(1);
+                    TopDecl::Routine(r) => {
+                        let san = sanitize_ident(&r.name);
+                        let params: Vec<StageLType> =
+                            r.params.iter().map(|p| p.ty.clone()).collect();
+                        let overloaded = routine_name_counts
+                            .get(r.name.as_str())
+                            .copied()
+                            .is_some_and(|n| n > 1);
+                        let suffix = if overloaded {
+                            format!("__{}", stagel_params_slug(&params))
+                        } else {
+                            String::new()
+                        };
+                        let entry_fn = format!("sl_fn_{san}{suffix}");
+                        let step_fn = format!("__sl_step_top_{routine_idx}_{san}{suffix}");
+                        let test_fn = format!("sl_run_tests_{san}{suffix}");
+                        let is_step = expr_has_tail_call(&r.body, true);
+                        let sig = RoutineSig {
+                            return_type: r.return_type.clone(),
+                            params,
+                            is_pub: r.is_pub,
+                            dc_id: r.dc_id,
+                        };
+                        let meta = TopRoutineMeta {
+                            mod_idx,
+                            routine_idx,
+                            mod_ident: mod_ident.clone(),
+                            entry_fn,
+                            step_fn,
+                            test_fn,
+                            is_step,
+                            sig,
+                        };
+                        by_key.insert((mod_idx, RoutineKey::from_decl(r)), meta.clone());
+                        if let Some(dc) = r.dc_id {
+                            by_dc.insert((mod_idx, dc), meta);
+                        }
+                        routine_idx = routine_idx.saturating_add(1);
+                    }
+                    TopDecl::Comment(_) => {}
                 }
             }
             mod_idents.push(mod_ident);
@@ -873,8 +956,10 @@ impl WorkspaceRoutineIndex {
         Self {
             mod_idents,
             ns_to_mod_idx,
-            by_name,
+            by_key,
             by_dc,
+            const_idents_by_key,
+            const_idents_by_dc,
         }
     }
 
@@ -993,8 +1078,6 @@ struct ModuleEmitter<'a> {
     mod_ident: &'a str,
     ws_index: &'a WorkspaceRoutineIndex,
     trampolines: &'a mut WorkspaceTrampolineRegistry,
-    local_consts: HashMap<String, (String, StageLType)>,
-    local_dc_consts: HashMap<DcChar, (String, StageLType)>,
     scopes: Vec<ScopeFrame>,
     routine_ctx_stack: Vec<ActiveRoutineCtx>,
     lifted_routines: Vec<String>,
@@ -1011,27 +1094,12 @@ impl<'a> ModuleEmitter<'a> {
         ws_index: &'a WorkspaceRoutineIndex,
         trampolines: &'a mut WorkspaceTrampolineRegistry,
     ) -> Self {
-        let mut local_consts = HashMap::new();
-        let mut local_dc_consts = HashMap::new();
-
-        for decl in &validated.module.items {
-            if let TopDecl::Value(v) = decl {
-                let rname = format!("sl_c_{}", sanitize_ident(&v.name));
-                local_consts.insert(v.name.clone(), (rname.clone(), v.ty.clone()));
-                if let Some(dc) = v.dc_id {
-                    local_dc_consts.insert(dc, (rname, v.ty.clone()));
-                }
-            }
-        }
-
         Self {
             mod_idx,
             validated,
             mod_ident,
             ws_index,
             trampolines,
-            local_consts,
-            local_dc_consts,
             scopes: Vec::new(),
             routine_ctx_stack: Vec::new(),
             lifted_routines: Vec::new(),
@@ -1113,7 +1181,11 @@ impl<'a> ModuleEmitter<'a> {
 
     fn emit_top_value(&mut self, out: &mut String, v: &TopValueDecl) -> Result<()> {
         let vis = if v.is_pub { "pub " } else { "" };
-        let rname = format!("sl_c_{}", sanitize_ident(&v.name));
+        let (rname, _) = self
+            .ws_index
+            .const_idents_by_key
+            .get(&(self.mod_idx, ValueKey::from_decl(v)))
+            .context("Internal top-level constant metadata missing")?;
         let rty = rust_type(&v.ty);
         let (init_code, _init_ty) = self.emit_expr(&v.value, 2)?;
         let init_clean = strip_matched_outer_parens(&init_code);
@@ -1127,23 +1199,23 @@ impl<'a> ModuleEmitter<'a> {
     fn emit_top_routine(
         &mut self,
         out: &mut String,
-        routine_idx: usize,
+        _routine_idx: usize,
         r: &RoutineDecl,
     ) -> Result<()> {
         let vis = if r.is_pub { "pub " } else { "pub(super) " };
-        let san = sanitize_ident(&r.name);
-        let entry_name = format!("sl_fn_{san}");
         let meta = self
             .ws_index
-            .by_name
-            .get(&(self.mod_idx, r.name.clone()))
+            .by_key
+            .get(&(self.mod_idx, RoutineKey::from_decl(r)))
+            .cloned()
             .context("Internal top-level routine metadata missing")?;
+        let entry_name = &meta.entry_fn;
 
         if !meta.is_step {
             return self.emit_routine_fn(
                 out,
                 vis,
-                &entry_name,
+                entry_name,
                 r,
                 &[],
                 ActiveRoutineMode::Direct,
@@ -1151,7 +1223,7 @@ impl<'a> ModuleEmitter<'a> {
             );
         }
 
-        let step_name = format!("__sl_step_top_{routine_idx}_{san}");
+        let step_name = &meta.step_fn;
         let group_id = if r.return_type == StageLType::Never {
             self.trampolines.ensure_never_group();
             None
@@ -1162,7 +1234,7 @@ impl<'a> ModuleEmitter<'a> {
         self.emit_routine_fn(
             out,
             "pub(super) ",
-            &step_name,
+            step_name,
             r,
             &[],
             ActiveRoutineMode::Step {
@@ -1375,8 +1447,13 @@ impl<'a> ModuleEmitter<'a> {
         if r.tests.is_empty() {
             return Ok(());
         }
-        let fn_target = format!("sl_fn_{}", sanitize_ident(&r.name));
-        let test_fn = format!("sl_run_tests_{}", sanitize_ident(&r.name));
+        let meta = self
+            .ws_index
+            .by_key
+            .get(&(self.mod_idx, RoutineKey::from_decl(r)))
+            .context("Internal top-level routine metadata missing for tests")?;
+        let fn_target = meta.entry_fn.clone();
+        let test_fn = meta.test_fn.clone();
         writeln!(out, "    pub fn {test_fn}() {{")?;
         for (tb_idx, tb) in r.tests.iter().enumerate() {
             for (case_idx, tc) in tb.cases.iter().enumerate() {
@@ -1467,7 +1544,11 @@ impl<'a> ModuleEmitter<'a> {
         map
     }
 
-    fn resolve_routine_target(&self, target: &SymbolTarget) -> Result<RoutineTarget> {
+    fn resolve_routine_target(
+        &self,
+        target: &SymbolTarget,
+        span: Span,
+    ) -> Result<RoutineTarget> {
         match target {
             SymbolTarget::Ident(name) => {
                 for scope in self.scopes.iter().rev() {
@@ -1475,58 +1556,65 @@ impl<'a> ModuleEmitter<'a> {
                         return Ok(rt.clone());
                     }
                 }
-                if let Some(meta) = self.ws_index.by_name.get(&(self.mod_idx, name.clone())) {
-                    let trampoline_call_path = if meta.is_step {
-                        format!("{}::{}", meta.mod_ident, meta.step_fn)
-                    } else {
-                        format!("{}::{}", meta.mod_ident, meta.entry_fn)
-                    };
-                    return Ok(RoutineTarget::TopLevel {
-                        callee_key: CalleeKey::TopLevel {
-                            mod_idx: meta.mod_idx,
-                            routine_idx: meta.routine_idx,
-                        },
-                        direct_call_path: meta.entry_fn.clone(),
-                        trampoline_call_path,
-                        is_step: meta.is_step,
-                        sig: meta.sig.clone(),
-                    });
-                }
-                if let Some(ImportedSymbol::Routine {
-                    namespace,
-                    original_name,
-                    ..
-                }) = self.validated.imports.get(name)
+                if let Some(rc) =
+                    self.validated.resolved_calls.get(&(span.line, span.col))
                 {
-                    let &target_mod_idx = self
-                        .ws_index
-                        .ns_to_mod_idx
-                        .get(namespace)
-                        .with_context(|| format!("Unknown module namespace '{namespace}'"))?;
-                    let meta = self
-                        .ws_index
-                        .by_name
-                        .get(&(target_mod_idx, original_name.clone()))
-                        .with_context(|| {
-                            format!("Unknown imported routine '{namespace}::{original_name}'")
-                        })?;
+                    let rkey = rc.routine_key();
+                    let (meta, is_cross_module) =
+                        if let Some(namespace) = &rc.namespace {
+                            let &target_mod_idx = self
+                                .ws_index
+                                .ns_to_mod_idx
+                                .get(namespace)
+                                .with_context(|| {
+                                    format!("Unknown module namespace '{namespace}'")
+                                })?;
+                            let m = self
+                                .ws_index
+                                .by_key
+                                .get(&(target_mod_idx, rkey))
+                                .with_context(|| {
+                                    format!(
+                                        "Unknown imported routine '{namespace}::{}'",
+                                        rc.routine_name
+                                    )
+                                })?;
+                            (m, true)
+                        } else {
+                            let m = self
+                                .ws_index
+                                .by_key
+                                .get(&(self.mod_idx, rkey))
+                                .with_context(|| {
+                                    format!(
+                                        "Unknown local routine '{}'",
+                                        rc.routine_name
+                                    )
+                                })?;
+                            (m, false)
+                        };
                     let trampoline_call_path = if meta.is_step {
                         format!("{}::{}", meta.mod_ident, meta.step_fn)
                     } else {
                         format!("{}::{}", meta.mod_ident, meta.entry_fn)
+                    };
+                    let direct_call_path = if is_cross_module {
+                        format!("super::{}::{}", meta.mod_ident, meta.entry_fn)
+                    } else {
+                        meta.entry_fn.clone()
                     };
                     return Ok(RoutineTarget::TopLevel {
                         callee_key: CalleeKey::TopLevel {
                             mod_idx: meta.mod_idx,
                             routine_idx: meta.routine_idx,
                         },
-                        direct_call_path: format!("super::{}::{}", meta.mod_ident, meta.entry_fn),
+                        direct_call_path,
                         trampoline_call_path,
                         is_step: meta.is_step,
                         sig: meta.sig.clone(),
                     });
                 }
-                bail!("Unknown routine '{name}' during Rust transpilation")
+                bail!("Unknown routine '{name}' at {span} during Rust transpilation")
             }
             SymbolTarget::Dc(dc) => {
                 if let Some(meta) = self.ws_index.by_dc.get(&(self.mod_idx, *dc)) {
@@ -1549,7 +1637,7 @@ impl<'a> ModuleEmitter<'a> {
                 if let Some(ImportedSymbol::Routine {
                     namespace,
                     original_name,
-                    ..
+                    sig,
                 }) = self.validated.dc_imports.get(dc)
                 {
                     let &target_mod_idx = self
@@ -1559,8 +1647,17 @@ impl<'a> ModuleEmitter<'a> {
                         .with_context(|| format!("Unknown module namespace '{namespace}'"))?;
                     let meta = self
                         .ws_index
-                        .by_name
-                        .get(&(target_mod_idx, original_name.clone()))
+                        .by_dc
+                        .get(&(target_mod_idx, *dc))
+                        .or_else(|| {
+                            self.ws_index.by_key.get(&(
+                                target_mod_idx,
+                                RoutineKey {
+                                    name: original_name.clone(),
+                                    params: sig.params.clone(),
+                                },
+                            ))
+                        })
                         .with_context(|| {
                             format!("Unknown imported Dc routine '{namespace}::{original_name}'")
                         })?;
@@ -1585,40 +1682,66 @@ impl<'a> ModuleEmitter<'a> {
         }
     }
 
-    fn resolve_value_ref(&self, target: &SymbolTarget) -> Result<(String, StageLType)> {
+    fn resolve_value_ref(
+        &self,
+        target: &SymbolTarget,
+        span: Span,
+    ) -> Result<(String, StageLType)> {
         match target {
             SymbolTarget::Ident(name) => {
                 if let Some(vs) = self.lookup_var(name) {
                     return Ok((vs.read_expr(name), vs.ty().clone()));
                 }
-                if let Some((rname, ty)) = self.local_consts.get(name) {
-                    let expr = if rust_type_copy_cheap(ty) {
-                        format!("*{rname}")
-                    } else {
-                        format!("{rname}.clone()")
-                    };
-                    return Ok((expr, ty.clone()));
-                }
-                if let Some(ImportedSymbol::Value {
-                    namespace,
-                    original_name,
-                    ty,
-                    ..
-                }) = self.validated.imports.get(name)
+                if let Some(rv) =
+                    self.validated.resolved_values.get(&(span.line, span.col))
                 {
-                    let mod_ident = self.ws_index.mod_ident_by_ns(namespace)?;
-                    let path = format!("super::{mod_ident}::sl_c_{}", sanitize_ident(original_name));
-                    let expr = if rust_type_copy_cheap(ty) {
+                    let vkey = rv.value_key();
+                    let (path, ty) = if let Some(namespace) = &rv.namespace {
+                        let &target_mod_idx = self
+                            .ws_index
+                            .ns_to_mod_idx
+                            .get(namespace)
+                            .with_context(|| {
+                                format!("Unknown module namespace '{namespace}'")
+                            })?;
+                        let mod_ident = self.ws_index.mod_ident_by_ns(namespace)?;
+                        let (rname, ty) = self
+                            .ws_index
+                            .const_idents_by_key
+                            .get(&(target_mod_idx, vkey))
+                            .with_context(|| {
+                                format!(
+                                    "Unknown imported constant '{namespace}::{}'",
+                                    rv.original_name
+                                )
+                            })?;
+                        (format!("super::{mod_ident}::{rname}"), ty.clone())
+                    } else {
+                        let (rname, ty) = self
+                            .ws_index
+                            .const_idents_by_key
+                            .get(&(self.mod_idx, vkey))
+                            .with_context(|| {
+                                format!(
+                                    "Unknown local constant '{}'",
+                                    rv.original_name
+                                )
+                            })?;
+                        (rname.clone(), ty.clone())
+                    };
+                    let expr = if rust_type_copy_cheap(&ty) {
                         format!("*{path}")
                     } else {
                         format!("{path}.clone()")
                     };
-                    return Ok((expr, ty.clone()));
+                    return Ok((expr, ty));
                 }
-                bail!("Unknown value '{name}' during Rust transpilation")
+                bail!("Unknown value '{name}' at {span} during Rust transpilation")
             }
             SymbolTarget::Dc(dc) => {
-                if let Some((rname, ty)) = self.local_dc_consts.get(dc) {
+                if let Some((rname, ty)) =
+                    self.ws_index.const_idents_by_dc.get(&(self.mod_idx, *dc))
+                {
                     let expr = if rust_type_copy_cheap(ty) {
                         format!("*{rname}")
                     } else {
@@ -1633,8 +1756,31 @@ impl<'a> ModuleEmitter<'a> {
                     ..
                 }) = self.validated.dc_imports.get(dc)
                 {
+                    let &target_mod_idx = self
+                        .ws_index
+                        .ns_to_mod_idx
+                        .get(namespace)
+                        .with_context(|| format!("Unknown module namespace '{namespace}'"))?;
                     let mod_ident = self.ws_index.mod_ident_by_ns(namespace)?;
-                    let path = format!("super::{mod_ident}::sl_c_{}", sanitize_ident(original_name));
+                    let (rname, _) = self
+                        .ws_index
+                        .const_idents_by_dc
+                        .get(&(target_mod_idx, *dc))
+                        .or_else(|| {
+                            self.ws_index.const_idents_by_key.get(&(
+                                target_mod_idx,
+                                ValueKey {
+                                    name: original_name.clone(),
+                                    ty: ty.clone(),
+                                },
+                            ))
+                        })
+                        .with_context(|| {
+                            format!(
+                                "Unknown imported Dc constant '{namespace}::{original_name}'"
+                            )
+                        })?;
+                    let path = format!("super::{mod_ident}::{rname}");
                     let expr = if rust_type_copy_cheap(ty) {
                         format!("*{path}")
                     } else {
@@ -1686,8 +1832,8 @@ impl<'a> ModuleEmitter<'a> {
         indent_level: usize,
     ) -> Result<(String, StageLType)> {
         match expr {
-            Expr::Call { target, args, .. } => {
-                let resolved = self.resolve_routine_target(target)?;
+            Expr::Call { target, args, span } => {
+                let resolved = self.resolve_routine_target(target, *span)?;
                 let (callee_key, trampoline_call_path, callee_is_step, sig, captures) =
                     match resolved {
                         RoutineTarget::TopLevel {
@@ -1903,7 +2049,9 @@ impl<'a> ModuleEmitter<'a> {
                     StageLType::Buf(Box::new(elem_ty.clone())),
                 ))
             }
-            Expr::ValueRef { target, .. } => self.resolve_value_ref(target),
+            Expr::ValueRef { target, span, .. } => {
+                self.resolve_value_ref(target, *span)
+            }
             Expr::Let { .. } | Expr::Const { .. } | Expr::RoutineDecl(_) => {
                 Ok((String::from("()"), StageLType::Void))
             }
@@ -1927,8 +2075,8 @@ impl<'a> ModuleEmitter<'a> {
                 };
                 Ok((code, StageLType::Void))
             }
-            Expr::Call { target, args, .. } => {
-                let resolved = self.resolve_routine_target(target)?;
+            Expr::Call { target, args, span } => {
+                let resolved = self.resolve_routine_target(target, *span)?;
                 match resolved {
                     RoutineTarget::TopLevel {
                         direct_call_path,
@@ -3737,12 +3885,157 @@ fn collect_free_var_refs(
     }
 }
 
+fn collect_top_value_deps(
+    expr: &Expr,
+    bound: &HashSet<String>,
+    ident_out: &mut HashSet<ValueKey>,
+    dc_out: &mut HashSet<DcChar>,
+) {
+    match expr {
+        Expr::ValueRef { ty, target, .. } => match target {
+            SymbolTarget::Ident(n) if !bound.contains(n) => {
+                ident_out.insert(ValueKey {
+                    name: n.clone(),
+                    ty: ty.clone(),
+                });
+            }
+            SymbolTarget::Dc(dc) => {
+                dc_out.insert(*dc);
+            }
+            _ => {}
+        },
+        Expr::Set { value, .. } => {
+            collect_top_value_deps(value, bound, ident_out, dc_out);
+        }
+        Expr::List { elements, .. } => {
+            for e in elements {
+                collect_top_value_deps(e, bound, ident_out, dc_out);
+            }
+        }
+        Expr::BufNew { capacity, .. }
+        | Expr::Conv { expr: capacity, .. }
+        | Expr::Bitcast { expr: capacity, .. }
+        | Expr::Unary { operand: capacity, .. } => {
+            collect_top_value_deps(capacity, bound, ident_out, dc_out);
+        }
+        Expr::Return { value: Some(v), .. } => {
+            collect_top_value_deps(v, bound, ident_out, dc_out);
+        }
+        Expr::Call { args, .. } => {
+            for a in args {
+                collect_top_value_deps(a, bound, ident_out, dc_out);
+            }
+        }
+        Expr::Block { stmts, .. } => {
+            let mut inner_bound = bound.clone();
+            for item in stmts {
+                if let BlockItem::Expr(e) = item {
+                    match e {
+                        Expr::Let { name, init, .. } => {
+                            if let Some(ie) = init {
+                                collect_top_value_deps(
+                                    ie,
+                                    &inner_bound,
+                                    ident_out,
+                                    dc_out,
+                                );
+                            }
+                            inner_bound.insert(name.clone());
+                        }
+                        Expr::Const { name, value, .. } => {
+                            collect_top_value_deps(
+                                value,
+                                &inner_bound,
+                                ident_out,
+                                dc_out,
+                            );
+                            inner_bound.insert(name.clone());
+                        }
+                        Expr::RoutineDecl(r) => {
+                            let mut r_bound = inner_bound.clone();
+                            for p in &r.params {
+                                r_bound.insert(p.name.clone());
+                            }
+                            collect_top_value_deps(
+                                &r.body,
+                                &r_bound,
+                                ident_out,
+                                dc_out,
+                            );
+                        }
+                        other => {
+                            collect_top_value_deps(
+                                other,
+                                &inner_bound,
+                                ident_out,
+                                dc_out,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            collect_top_value_deps(cond, bound, ident_out, dc_out);
+            collect_top_value_deps(then_branch, bound, ident_out, dc_out);
+            collect_top_value_deps(else_branch, bound, ident_out, dc_out);
+        }
+        Expr::While { cond, body, .. } => {
+            collect_top_value_deps(cond, bound, ident_out, dc_out);
+            collect_top_value_deps(body, bound, ident_out, dc_out);
+        }
+        Expr::ForEach {
+            elem_name,
+            list,
+            body,
+            ..
+        } => {
+            collect_top_value_deps(list, bound, ident_out, dc_out);
+            let mut loop_bound = bound.clone();
+            loop_bound.insert(elem_name.clone());
+            collect_top_value_deps(body, &loop_bound, ident_out, dc_out);
+        }
+        Expr::Binary { left, right, .. } => {
+            collect_top_value_deps(left, bound, ident_out, dc_out);
+            collect_top_value_deps(right, bound, ident_out, dc_out);
+        }
+        Expr::Ternary {
+            first,
+            second,
+            third,
+            ..
+        } => {
+            collect_top_value_deps(first, bound, ident_out, dc_out);
+            collect_top_value_deps(second, bound, ident_out, dc_out);
+            collect_top_value_deps(third, bound, ident_out, dc_out);
+        }
+        Expr::RoutineDecl(r) => {
+            let mut r_bound = bound.clone();
+            for p in &r.params {
+                r_bound.insert(p.name.clone());
+            }
+            collect_top_value_deps(&r.body, &r_bound, ident_out, dc_out);
+        }
+        _ => {}
+    }
+}
+
 pub(super) fn topo_sort_top_values(items: &[TopDecl]) -> Vec<&TopValueDecl> {
     let mut vals = Vec::new();
-    let mut by_name = HashMap::new();
+    let mut by_key = HashMap::new();
+    let mut by_dc = HashMap::new();
     for item in items {
         if let TopDecl::Value(v) = item {
-            by_name.insert(v.name.as_str(), vals.len());
+            let idx = vals.len();
+            by_key.insert(ValueKey::from_decl(v), idx);
+            if let Some(dc) = v.dc_id {
+                by_dc.insert(dc, idx);
+            }
             vals.push(v);
         }
     }
@@ -3752,7 +4045,8 @@ pub(super) fn topo_sort_top_values(items: &[TopDecl]) -> Vec<&TopValueDecl> {
     fn visit<'a>(
         idx: usize,
         vals: &[&'a TopValueDecl],
-        by_name: &HashMap<&'a str, usize>,
+        by_key: &HashMap<ValueKey, usize>,
+        by_dc: &HashMap<DcChar, usize>,
         visited: &mut [bool],
         ordered: &mut Vec<&'a TopValueDecl>,
     ) {
@@ -3763,11 +4057,22 @@ pub(super) fn topo_sort_top_values(items: &[TopDecl]) -> Vec<&TopValueDecl> {
             *slot = true;
         }
         if let Some(v) = vals.get(idx) {
-            let mut deps = HashSet::new();
-            collect_free_var_refs(&v.value, &HashSet::new(), &mut deps);
-            for d in deps {
-                if let Some(&dep_idx) = by_name.get(d.as_str()) {
-                    visit(dep_idx, vals, by_name, visited, ordered);
+            let mut ident_deps = HashSet::new();
+            let mut dc_deps = HashSet::new();
+            collect_top_value_deps(
+                &v.value,
+                &HashSet::new(),
+                &mut ident_deps,
+                &mut dc_deps,
+            );
+            for d in ident_deps {
+                if let Some(&dep_idx) = by_key.get(&d) {
+                    visit(dep_idx, vals, by_key, by_dc, visited, ordered);
+                }
+            }
+            for dc in dc_deps {
+                if let Some(&dep_idx) = by_dc.get(&dc) {
+                    visit(dep_idx, vals, by_key, by_dc, visited, ordered);
                 }
             }
             ordered.push(v);
@@ -3775,7 +4080,7 @@ pub(super) fn topo_sort_top_values(items: &[TopDecl]) -> Vec<&TopValueDecl> {
     }
 
     for i in 0..vals.len() {
-        visit(i, &vals, &by_name, &mut visited, &mut ordered);
+        visit(i, &vals, &by_key, &by_dc, &mut visited, &mut ordered);
     }
     ordered
 }
