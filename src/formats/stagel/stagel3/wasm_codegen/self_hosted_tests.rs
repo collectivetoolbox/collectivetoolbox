@@ -27,6 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,

@@ -515,10 +515,9 @@ fn eval_convert_dc_string_to_wasm(
                 }),
             "Unclosed parameter container in ConvertDcStringToWasm"
         );
-        // Reason for fallback: slice bounds >= 2 were verified immediately above.
         raw_arg
             .get(1..raw_arg.len().saturating_sub(1))
-            .unwrap_or(&[])
+            .context("Parameter container slice out of bounds")?
     } else {
         raw_arg
     };

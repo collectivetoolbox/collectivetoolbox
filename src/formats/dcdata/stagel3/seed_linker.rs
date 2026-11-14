@@ -759,7 +759,7 @@ fn assemble_topo_sorted_modules_with_seed_graph(
         };
 
         let synth_ns_seg = format!("$graph_dc_{sh}");
-        let synth_mod = match entry {
+        let (synth_mod, key) = match entry {
             EitherDeclOrModule::Decl(raw_decl) => {
                 let (prepared_decl, orig_name, kind) =
                     prepare_graph_top_decl(raw_decl, None, dc)?;
@@ -771,12 +771,15 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                         kind,
                     },
                 );
-                Module {
-                    leading_comments: Vec::new(),
-                    namespace: Some(vec![synth_ns_seg.clone()]),
-                    uses: Vec::new(),
-                    items: vec![prepared_decl],
-                }
+                (
+                    Module {
+                        leading_comments: Vec::new(),
+                        namespace: Some(vec![synth_ns_seg.clone()]),
+                        uses: Vec::new(),
+                        items: vec![prepared_decl],
+                    },
+                    synth_ns_seg,
+                )
             }
             EitherDeclOrModule::Module(mut m) => {
                 let ns_key = if let Some(existing_ns) = &m.namespace {
@@ -934,7 +937,7 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                         synth_ns_modules.insert(u_key, ext_mod);
                     }
                 }
-                m
+                (m, ns_key)
             }
         };
 
@@ -944,10 +947,6 @@ fn assemble_topo_sorted_modules_with_seed_graph(
         for nested_dc in nested_refs {
             dc_worklist.push_back(nested_dc);
         }
-        let key = synth_mod
-            .namespace
-            .as_ref()
-            .map_or(synth_ns_seg, |s| s.join("/"));
         synth_helper_modules.insert(key, synth_mod);
     }
 
@@ -999,7 +998,7 @@ fn assemble_topo_sorted_modules_with_seed_graph(
             let Some(&dep_idx) = ns_to_idx.get(&target_key) else {
                 let caller_lbl = labels
                     .get(idx)
-                    .map_or("<anonymous>", String::as_str);
+                    .context("Missing caller module label")?;
                 bail!("Unresolved 'use {target_key}:' import in module {caller_lbl}");
             };
             ensure!(
@@ -1147,11 +1146,11 @@ pub fn parse_and_validate_workspace_with_seed_graph(
     let mut caller_deps: Vec<Vec<usize>> = Vec::with_capacity(inputs.len());
     let mut caller_labels: Vec<String> = Vec::with_capacity(inputs.len());
     for (idx, (ns_key, uses)) in headers.iter().enumerate() {
-        caller_labels.push(
-            ns_key
-                .clone()
-                .unwrap_or_else(|| format!("<anonymous#{idx}>")),
-        );
+        // Reason for fallback: anonymous caller modules without a `namespace` declaration are labeled by index for diagnostics.
+        let label = ns_key
+            .clone()
+            .unwrap_or_else(|| format!("<anonymous#{idx}>"));
+        caller_labels.push(label);
         let mut d = Vec::new();
         for u in uses {
             let target_key = u.join("/");
