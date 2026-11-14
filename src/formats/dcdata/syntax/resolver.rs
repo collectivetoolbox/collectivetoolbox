@@ -241,7 +241,8 @@ pub trait SyntaxRuleResolver {
             return true;
         }
         if role == DcRole::EvaluableExpressionStarter
-            && self.matches_script(".EL Routines", token)
+            && (self.matches_script(".EL Routines", token)
+                || self.matches_script(".EL Builtins", token))
         {
             return true;
         }
@@ -1595,9 +1596,11 @@ impl DatasetRuleResolver {
             }
         }
 
-        if let Some(tokens) = self.script_chars.get(".EL Routines") {
-            self.evaluable_expression_starters
-                .extend(tokens.iter().copied());
+        for script in [".EL Routines", ".EL Builtins"] {
+            if let Some(tokens) = self.script_chars.get(script) {
+                self.evaluable_expression_starters
+                    .extend(tokens.iter().copied());
+            }
         }
         if let Some(SyntaxPattern::Alternation(branches)) =
             self.named_types.get("value")
@@ -2287,6 +2290,7 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         {
             return self.evaluable_expression_starters.contains(&token)
                 || self.matches_script(".EL Routines", token)
+                || self.matches_script(".EL Builtins", token)
                 || self.is_splice_trigger_token(token)
                 || role.matches_canonical(self.canonical_token(token));
         }
@@ -2305,6 +2309,7 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         }
         if role == DcRole::EvaluableExpressionStarter
             && (self.matches_script(".EL Routines", token)
+                || self.matches_script(".EL Builtins", token)
                 || self.is_splice_trigger_token(token))
         {
             return true;

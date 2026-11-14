@@ -4,6 +4,7 @@ Script,Block increment size
 .DCE,TBD
 .DCE sheets,TBD
 .DCE versions,TBD
+.EL Builtins,64
 .EL Control Flow,64
 .EL Miscellaneous,128
 .EL Operators,64

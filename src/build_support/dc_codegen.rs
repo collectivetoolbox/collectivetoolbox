@@ -429,7 +429,7 @@ pub fn generate_role_code_from_index(
         type_tokens.insert(require_short(ident)?);
     }
 
-    // 2. EvaluableExpressionStarter: all Short Dcs in `.EL Routines`, plus Short Dc
+    // 2. EvaluableExpressionStarter: all Short Dcs in `.EL Routines` or `.EL Builtins`, plus Short Dc
     // subpattern targets (`605 <sid>`) in NamedConstruct("value"), plus
     // EquivalentRepresentations and PartiallyEquivalentRepresentations.
     let sh_syntax_rule = index.require_ident("SyntaxRule")?;
@@ -437,7 +437,10 @@ pub fn generate_role_code_from_index(
     let mut evaluable_starters: BTreeSet<u32> = BTreeSet::new();
     for short_id in index.all_short_dc_ids()? {
         let subj = DcShorthand::Short(short_id);
-        if index.subject_script(subj) == Some(".EL Routines") {
+        if matches!(
+            index.subject_script(subj),
+            Some(".EL Routines" | ".EL Builtins")
+        ) {
             evaluable_starters.insert(short_id);
         }
     }

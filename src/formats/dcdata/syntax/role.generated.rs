@@ -416,6 +416,8 @@ pub enum DcRole {
     DcDocumentExecutionKernel,
     /// Top-level 1-Short-Dc workspace bootstrap entry document for the full Collective Toolbox workspace application, delegating document execution and resource accounting to Dc 1936 (Dc document execution kernel). (`1937`).
     CollectiveToolboxWorkspace,
+    /// Evaluates its second operand (and all graph definitions, decompositions, and routines transitively resolved within that evaluation) against the graph snapshot specified by [pin_description]. (`1938`).
+    ResolveToPin,
     /// Begins a tokenized module containing an optional namespace declaration, zero or more use imports, and zero or more top-level items. (`2192`).
     BeginModule,
     /// Terminates a module begun by Dc 2192. (`2193`).
@@ -462,6 +464,18 @@ pub enum DcRole {
     BeginCodeBlock,
     /// Terminates a code block begun by Dc 2213. (`2214`).
     EndCodeBlock,
+    /// Begins a single n-ary tuple of length $length, declaring its $length slot types followed by $length contiguous ordered slot values separated by Dc 312. (`2215`).
+    BeginTuple,
+    /// Terminates an n-ary tuple begun by Dc 2215. (`2216`).
+    EndTuple,
+    /// Declares an immutable positional struct with a boolean export flag, optional assigned graph Dc identity, name, and one or more positional slot types. (`2217`).
+    BeginPositionalStructDecl,
+    /// Terminates a positional struct declaration begun by Dc 2217. (`2218`).
+    EndPositionalStructDecl,
+    /// Evaluates positional slot expressions left-to-right and constructs an instance of the referenced positional struct. (`2219`).
+    BeginPositionalStructValue,
+    /// Terminates a positional struct value constructor begun by Dc 2219. (`2220`).
+    EndPositionalStructValue,
     /// Evaluates a boolean condition expression and branches to either the second operand (then) or third operand (else). (`2448`).
     IfConditional,
     /// Repeatedly evaluates the boolean condition expression and executes the void body expression while true. (`2449`).
@@ -548,6 +562,10 @@ pub enum DcRole {
     SeqSliceOp,
     /// Returns a new immutable sequence containing all elements of the first operand followed by all elements of the second operand. (`2546`).
     SeqConcatOp,
+    /// Projects the zero-based compile-time integer slot index from an n-ary tuple or positional struct. (`2547`).
+    GetPositionalFieldOp,
+    /// Evaluates the base tuple or positional struct expression then the replacement expression, returning a new value with the zero-based slot replaced. (`2548`).
+    WithPositionalFieldOp,
     /// Parameterized immutable value-semantics StageL list type l/T over element type T. (`2576`).
     StagelListType,
     /// Parameterized mutable local StageL buffer type buf/T over element type T for linear-time construction and O(1) indexed updates. (`2577`).
@@ -568,6 +586,12 @@ pub enum DcRole {
     StagelBufSet,
     /// Freezes a mutable StageL buffer into an immutable l/T list in O(1) zero-copy time and marks the buffer handle frozen against subsequent mutation. (`2585`).
     StagelBufFreeze,
+    /// Compiles the quoted Dc document inside [string] (Dc 260..Dc 261) into an executable WASM program (Dc 1927..Dc 1928) without executing the target program. (`2608`).
+    ConvertDcStringToWasm,
+    /// Fixed-slot n-ary tuple type parameterized by a Dc 310..Dc 311 list of slot types. (`2672`).
+    TypeTuple,
+    /// References a declared positional or named struct type by identifier or resolved graph Dc. (`2673`).
+    TypeStruct,
     /// Base64 encapsulation digit character (0..=63).
 Base64Digit,
 /// Built-in type token, format token, or type operator.
@@ -771,6 +795,7 @@ match self {
             Self::EndWasmProgram => Some(1928),
             Self::DcDocumentExecutionKernel => Some(1936),
             Self::CollectiveToolboxWorkspace => Some(1937),
+            Self::ResolveToPin => Some(1938),
             Self::BeginModule => Some(2192),
             Self::EndModule => Some(2193),
             Self::NamespaceDecl => Some(2194),
@@ -794,6 +819,12 @@ match self {
             Self::EndRoutineCall => Some(2212),
             Self::BeginCodeBlock => Some(2213),
             Self::EndCodeBlock => Some(2214),
+            Self::BeginTuple => Some(2215),
+            Self::EndTuple => Some(2216),
+            Self::BeginPositionalStructDecl => Some(2217),
+            Self::EndPositionalStructDecl => Some(2218),
+            Self::BeginPositionalStructValue => Some(2219),
+            Self::EndPositionalStructValue => Some(2220),
             Self::IfConditional => Some(2448),
             Self::WhileLoop => Some(2449),
             Self::ForEach => Some(2450),
@@ -837,6 +868,8 @@ match self {
             Self::SeqGetOp => Some(2544),
             Self::SeqSliceOp => Some(2545),
             Self::SeqConcatOp => Some(2546),
+            Self::GetPositionalFieldOp => Some(2547),
+            Self::WithPositionalFieldOp => Some(2548),
             Self::StagelListType => Some(2576),
             Self::StagelBufType => Some(2577),
             Self::BeginStagelList => Some(2578),
@@ -847,6 +880,9 @@ match self {
             Self::StagelBufExtend => Some(2583),
             Self::StagelBufSet => Some(2584),
             Self::StagelBufFreeze => Some(2585),
+            Self::ConvertDcStringToWasm => Some(2608),
+            Self::TypeTuple => Some(2672),
+            Self::TypeStruct => Some(2673),
             _ => None,
 }
 }
@@ -1053,6 +1089,7 @@ match self {
             Self::EndWasmProgram => short == Some(1928),
             Self::DcDocumentExecutionKernel => short == Some(1936),
             Self::CollectiveToolboxWorkspace => short == Some(1937),
+            Self::ResolveToPin => short == Some(1938),
             Self::BeginModule => short == Some(2192),
             Self::EndModule => short == Some(2193),
             Self::NamespaceDecl => short == Some(2194),
@@ -1076,6 +1113,12 @@ match self {
             Self::EndRoutineCall => short == Some(2212),
             Self::BeginCodeBlock => short == Some(2213),
             Self::EndCodeBlock => short == Some(2214),
+            Self::BeginTuple => short == Some(2215),
+            Self::EndTuple => short == Some(2216),
+            Self::BeginPositionalStructDecl => short == Some(2217),
+            Self::EndPositionalStructDecl => short == Some(2218),
+            Self::BeginPositionalStructValue => short == Some(2219),
+            Self::EndPositionalStructValue => short == Some(2220),
             Self::IfConditional => short == Some(2448),
             Self::WhileLoop => short == Some(2449),
             Self::ForEach => short == Some(2450),
@@ -1119,6 +1162,8 @@ match self {
             Self::SeqGetOp => short == Some(2544),
             Self::SeqSliceOp => short == Some(2545),
             Self::SeqConcatOp => short == Some(2546),
+            Self::GetPositionalFieldOp => short == Some(2547),
+            Self::WithPositionalFieldOp => short == Some(2548),
             Self::StagelListType => short == Some(2576),
             Self::StagelBufType => short == Some(2577),
             Self::BeginStagelList => short == Some(2578),
@@ -1129,13 +1174,16 @@ match self {
             Self::StagelBufExtend => short == Some(2583),
             Self::StagelBufSet => short == Some(2584),
             Self::StagelBufFreeze => short == Some(2585),
+            Self::ConvertDcStringToWasm => short == Some(2608),
+            Self::TypeTuple => short == Some(2672),
+            Self::TypeStruct => short == Some(2673),
             Self::Base64Digit => matches!(short, Some(127..=190)),
 Self::TypeToken => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
-|| matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535 | 640 | 643))
+|| matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535 | 640 | 643 | 2672 | 2673))
 }
 Self::EvaluableExpressionStarter => {
-matches!(short, Some(256 | 265 | 266 | 268 | 276 | 279 | 307 | 397 | 511 | 540 | 561))
+matches!(short, Some(256 | 265 | 266 | 268 | 276 | 279 | 307 | 397 | 511 | 540 | 561 | 1938 | 2215 | 2608))
 }
 }
 }

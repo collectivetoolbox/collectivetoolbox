@@ -414,6 +414,8 @@ pub const DC_END_WASM_PROGRAM: DcChar = DcChar::from_short(1928);
 pub const DC_DC_DOCUMENT_EXECUTION_KERNEL: DcChar = DcChar::from_short(1936);
 /// Top-level 1-Short-Dc workspace bootstrap entry document for the full Collective Toolbox workspace application, delegating document execution and resource accounting to Dc 1936 (Dc document execution kernel). (Dc 1937).
 pub const DC_COLLECTIVE_TOOLBOX_WORKSPACE: DcChar = DcChar::from_short(1937);
+/// Evaluates its second operand (and all graph definitions, decompositions, and routines transitively resolved within that evaluation) against the graph snapshot specified by [pin_description]. (Dc 1938).
+pub const DC_RESOLVE_TO_PIN: DcChar = DcChar::from_short(1938);
 /// Begins a tokenized module containing an optional namespace declaration, zero or more use imports, and zero or more top-level items. (Dc 2192).
 pub const DC_BEGIN_MODULE: DcChar = DcChar::from_short(2192);
 /// Terminates a module begun by Dc 2192. (Dc 2193).
@@ -460,6 +462,18 @@ pub const DC_END_ROUTINE_CALL: DcChar = DcChar::from_short(2212);
 pub const DC_BEGIN_CODE_BLOCK: DcChar = DcChar::from_short(2213);
 /// Terminates a code block begun by Dc 2213. (Dc 2214).
 pub const DC_END_CODE_BLOCK: DcChar = DcChar::from_short(2214);
+/// Begins a single n-ary tuple of length $length, declaring its $length slot types followed by $length contiguous ordered slot values separated by Dc 312. (Dc 2215).
+pub const DC_BEGIN_TUPLE: DcChar = DcChar::from_short(2215);
+/// Terminates an n-ary tuple begun by Dc 2215. (Dc 2216).
+pub const DC_END_TUPLE: DcChar = DcChar::from_short(2216);
+/// Declares an immutable positional struct with a boolean export flag, optional assigned graph Dc identity, name, and one or more positional slot types. (Dc 2217).
+pub const DC_BEGIN_POSITIONAL_STRUCT_DECL: DcChar = DcChar::from_short(2217);
+/// Terminates a positional struct declaration begun by Dc 2217. (Dc 2218).
+pub const DC_END_POSITIONAL_STRUCT_DECL: DcChar = DcChar::from_short(2218);
+/// Evaluates positional slot expressions left-to-right and constructs an instance of the referenced positional struct. (Dc 2219).
+pub const DC_BEGIN_POSITIONAL_STRUCT_VALUE: DcChar = DcChar::from_short(2219);
+/// Terminates a positional struct value constructor begun by Dc 2219. (Dc 2220).
+pub const DC_END_POSITIONAL_STRUCT_VALUE: DcChar = DcChar::from_short(2220);
 /// Evaluates a boolean condition expression and branches to either the second operand (then) or third operand (else). (Dc 2448).
 pub const DC_IF_CONDITIONAL: DcChar = DcChar::from_short(2448);
 /// Repeatedly evaluates the boolean condition expression and executes the void body expression while true. (Dc 2449).
@@ -546,6 +560,10 @@ pub const DC_SEQ_GET_OP: DcChar = DcChar::from_short(2544);
 pub const DC_SEQ_SLICE_OP: DcChar = DcChar::from_short(2545);
 /// Returns a new immutable sequence containing all elements of the first operand followed by all elements of the second operand. (Dc 2546).
 pub const DC_SEQ_CONCAT_OP: DcChar = DcChar::from_short(2546);
+/// Projects the zero-based compile-time integer slot index from an n-ary tuple or positional struct. (Dc 2547).
+pub const DC_GET_POSITIONAL_FIELD_OP: DcChar = DcChar::from_short(2547);
+/// Evaluates the base tuple or positional struct expression then the replacement expression, returning a new value with the zero-based slot replaced. (Dc 2548).
+pub const DC_WITH_POSITIONAL_FIELD_OP: DcChar = DcChar::from_short(2548);
 /// Parameterized immutable value-semantics StageL list type l/T over element type T. (Dc 2576).
 pub const DC_STAGEL_LIST_TYPE: DcChar = DcChar::from_short(2576);
 /// Parameterized mutable local StageL buffer type buf/T over element type T for linear-time construction and O(1) indexed updates. (Dc 2577).
@@ -566,6 +584,12 @@ pub const DC_STAGEL_BUF_EXTEND: DcChar = DcChar::from_short(2583);
 pub const DC_STAGEL_BUF_SET: DcChar = DcChar::from_short(2584);
 /// Freezes a mutable StageL buffer into an immutable l/T list in O(1) zero-copy time and marks the buffer handle frozen against subsequent mutation. (Dc 2585).
 pub const DC_STAGEL_BUF_FREEZE: DcChar = DcChar::from_short(2585);
+/// Compiles the quoted Dc document inside [string] (Dc 260..Dc 261) into an executable WASM program (Dc 1927..Dc 1928) without executing the target program. (Dc 2608).
+pub const DC_CONVERT_DC_STRING_TO_WASM: DcChar = DcChar::from_short(2608);
+/// Fixed-slot n-ary tuple type parameterized by a Dc 310..Dc 311 list of slot types. (Dc 2672).
+pub const DC_TYPE_TUPLE: DcChar = DcChar::from_short(2672);
+/// References a declared positional or named struct type by identifier or resolved graph Dc. (Dc 2673).
+pub const DC_TYPE_STRUCT: DcChar = DcChar::from_short(2673);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]
