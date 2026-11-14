@@ -26,8 +26,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use ctb_formats_dcdata::DcChar;
-use ctb_formats_dcdata::DcShorthand;
+use crate::DcChar;
+use crate::DcShorthand;
 use std::fmt;
 
 /// 1-based source location used in parser and validator diagnostics.

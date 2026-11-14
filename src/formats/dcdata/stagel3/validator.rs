@@ -39,7 +39,7 @@ use super::ast::{
     TopValueDecl, format_dc_shorthand,
 };
 use super::parser::{parse_module_with_imports, scan_module_header_paths};
-use ctb_formats_dcdata::{DcChar, DcShorthand};
+use crate::{DcChar, DcShorthand};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Source module paired with an optional repository-relative PSR-4 file path.

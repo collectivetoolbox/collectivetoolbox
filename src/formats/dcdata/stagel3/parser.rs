@@ -37,7 +37,7 @@ use super::ast::{
     TestBlock, TestCase, TestExpected, TopDecl, TopValueDecl, TypedIntLit,
     UseImport, UseImportItem, parse_dc_shorthand,
 };
-use ctb_formats_dcdata::DcChar;
+use crate::DcChar;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

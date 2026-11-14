@@ -31,12 +31,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-pub mod ast;
-pub mod dc_tokens;
-pub mod eval;
-pub mod parser;
+pub use ctb_formats_dcdata::stagel3::{ast, dc_tokens, eval, parser, validator};
 pub mod rust_codegen;
-pub mod validator;
 pub mod wasm_codegen;
 
 /// Dialect selector controlling which string literal prefixes are accepted

@@ -39,7 +39,7 @@ use super::ast::{
     UseImport, UseImportItem, format_dc_shorthand,
 };
 use super::parser::parse_module;
-use ctb_formats_dcdata::dc::{
+use crate::dc::{
     DC_ADD_OP, DC_ASSIGN_SET, DC_BASE64_PADDING, DC_BEGIN_CODE_BLOCK,
     DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_IDENTIFIER, DC_BEGIN_LIST,
     DC_BEGIN_LITERAL, DC_BEGIN_MODULE, DC_BEGIN_NUMBER, DC_BEGIN_ROUTINE_CALL,
@@ -70,12 +70,12 @@ use ctb_formats_dcdata::dc::{
     DC_USE_IMPORT_ITEM, DC_WHILE_LOOP, DC_WRAP_ADD_OP, DC_WRAP_MUL_OP,
     DC_WRAP_SUB_OP,
 };
-use ctb_formats_dcdata::dc_number_minimal::{
+use crate::dc_number_minimal::{
     dc_base64_char_to_digit_with_resolver, dc_base64_digit_to_char,
     read_dc_number_u128_with_resolver, u128_to_dc_number_chars,
 };
-use ctb_formats_dcdata::syntax::{DcRole, SyntaxRuleResolver, default_syntax_resolver};
-use ctb_formats_dcdata::{DC_INTEGER, DcChar, DcCharExt, DcShorthand};
+use crate::syntax::{DcRole, SyntaxRuleResolver, default_syntax_resolver};
+use crate::{DC_INTEGER, DcChar, DcCharExt, DcShorthand};
 use ctb_utilities::format_id::FormatId;
 use std::fmt::Write as _;
 
@@ -2032,7 +2032,7 @@ mod tests {
     use super::*;
     use super::super::ast::{TopDecl, parse_dc_shorthand};
     use super::super::validator::validate_module;
-    use ctb_formats_dcdata::syntax::CharTarget;
+    use crate::syntax::CharTarget;
 
     /// Verifies that every balanced container frame in a stripped Token-Dc stream
     /// closes cleanly and validates the outer module envelope against `dcdata`.

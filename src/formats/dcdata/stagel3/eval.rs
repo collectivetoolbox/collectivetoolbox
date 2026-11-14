@@ -41,7 +41,7 @@ use super::validator::{
     ImportedSymbol, ModuleInput, ValidatedModule, ValidatedWorkspace,
     parse_and_validate_workspace, validate_module,
 };
-use ctb_formats_dcdata::DcChar;
+use crate::DcChar;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;

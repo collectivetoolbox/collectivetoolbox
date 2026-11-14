@@ -44,6 +44,7 @@ pub mod dcts;
 pub mod format_spec;
 pub mod lookup;
 pub mod seed_graph;
+pub mod stagel3;
 pub mod support;
 pub mod syntax;
 
