@@ -79,6 +79,7 @@ pub use converters::{
 pub use ctb_dc_macro::DcMixed;
 pub use ctb_formats_dcdata::ctbnbdl::LedgerNode;
 pub use ctb_formats_dcdata::dc;
+pub use ctb_formats_dcdata::global_graph_layout;
 pub use ctb_formats_dcdata::seed_graph::{
     SeedGraphIndex, TrustedSystemSupervisorResolution,
 };
@@ -123,8 +124,9 @@ pub use navigator::{
     DcPinProvenance, DcProjectionPolicy, DcSyntaxArena, DcSyntaxKind,
     DcSyntaxNode, DefaultDcExpressionEvaluator, DiagnosticAction,
     INLINE_BINARY_THRESHOLD, MAX_SYNTAX_EXPANSION_DEPTH, NodeId,
-    SyntaxEvalContext, SyntaxRuntimeResolver, ValueRequirement,
-    validate_dc_mixed_strict, validate_dc_str_strict, validate_dc_tokens_strict,
+    SharedQuotaDcExpressionEvaluator, SyntaxEvalContext, SyntaxRuntimeResolver,
+    ValueRequirement, validate_dc_mixed_strict, validate_dc_str_strict,
+    validate_dc_tokens_strict,
 };
 pub use shared::{
     SharedJson, SharedValueContext, decode_dc_identifier, decode_identifier,

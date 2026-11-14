@@ -148,7 +148,7 @@
       (else (global.set $tok_cp -1)))
     (get $len))
 
-  (func (export "_start") (result i32)
+  (func (export "step") (result i32)
     (local $in_ptr     i32)
     (local $in_len     i32)
     (local $in_end     i32)

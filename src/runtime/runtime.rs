@@ -554,16 +554,15 @@ impl SystemSupervisorAdmission {
     /// Returns an error if `doc` contains invalid DcTF bytes or a malformed `[pin_description]`.
     pub fn scan_first_pin_description(
         doc: &DcMstr,
-        resolver: &dyn ctb_formats_dcdata::syntax::SyntaxRuleResolver,
+        resolver: &dyn ctb_formats_dcstring::SyntaxRuleResolver,
     ) -> Result<Option<(Vec<DcChar>, u128)>> {
-        use ctb_formats_dcdata::dc_char::DcCharExt;
-        use ctb_formats_dcdata::global_graph_layout::{
+        use ctb_formats_dcstring::global_graph_layout::{
             SYSTEM_REGION_END, SYSTEM_REGION_START,
             unsupported_graph_block_description,
         };
-        use ctb_formats_dcdata::syntax::{DcRole, SyntaxTerm};
+        use ctb_formats_dcstring::syntax::{DcRole, SyntaxTerm};
         use ctb_formats_dcstring::{
-            DcByteSpan, DcDocumentNavigator, SyntaxEvalContext,
+            DcByteSpan, DcCharExt, DcDocumentNavigator, SyntaxEvalContext,
         };
 
         let chars: Vec<DcChar> = doc.to_dc_string()?.chars().collect();
@@ -582,7 +581,7 @@ impl SystemSupervisorAdmission {
             } else if ch
                 .fills_role_with(DcRole::StartEncapsulationBinary, resolver)
             {
-                Some(DcRole::EndEncapsulation)
+                Some(DcRole::EndEncapsulationBinary)
             } else if ch
                 .fills_role_with(DcRole::BeginSingleLineComment, resolver)
                 || ch.fills_role_with(
@@ -622,6 +621,7 @@ impl SystemSupervisorAdmission {
                     tail_mstr.push_char(tok);
                 }
                 let mut nav = DcDocumentNavigator::from_mstr(&tail_mstr);
+                let start_pos = nav.position();
                 let mut ctx = SyntaxEvalContext::new(resolver, None);
                 let matched = nav.eval_term_single(
                     &SyntaxTerm::NamedConstruct {
@@ -632,12 +632,12 @@ impl SystemSupervisorAdmission {
                     &mut ctx,
                 )?;
                 ensure!(
-                    matched && !ctx.has_errors && nav.position() > 0,
+                    matched && !ctx.has_errors && nav.position() > start_pos,
                     "Malformed [pin_description] starting at Dc 641 in document"
                 );
                 let pin_end = nav.position();
                 let pin_u128s =
-                    nav.read_tokens_in_span(DcByteSpan::new(0, pin_end))?;
+                    nav.read_tokens_in_span(DcByteSpan::new(start_pos, pin_end))?;
                 let pin_tokens: Vec<DcChar> =
                     pin_u128s.into_iter().map(DcChar::from_u128).collect();
                 let second = pin_tokens.get(1).copied().context(
@@ -679,10 +679,10 @@ impl SystemSupervisorAdmission {
     /// Returns an error if `doc` contains malformed DcTF bytes.
     pub fn quote_dc_document_as_string_literal(
         doc: &DcMstr,
-        resolver: &dyn ctb_formats_dcdata::syntax::SyntaxRuleResolver,
+        resolver: &dyn ctb_formats_dcstring::SyntaxRuleResolver,
     ) -> Result<Vec<DcChar>> {
-        use ctb_formats_dcdata::dc_char::DcCharExt;
-        use ctb_formats_dcdata::syntax::DcRole;
+        use ctb_formats_dcstring::DcCharExt;
+        use ctb_formats_dcstring::syntax::DcRole;
 
         let chars: Vec<DcChar> = doc.to_dc_string()?.chars().collect();
         let mut out = Vec::with_capacity(chars.len().saturating_add(6));
@@ -713,17 +713,14 @@ impl SystemSupervisorAdmission {
     pub fn compile_dc_document_to_wasm_with_shared_quota(
         &self,
         doc: &DcMstr,
-        resolver: &dyn ctb_formats_dcdata::syntax::SyntaxRuleResolver,
+        resolver: &dyn ctb_formats_dcstring::SyntaxRuleResolver,
         shared_quota: ctb_formats_dcstring::converters::wasm::SharedWasmTaskQuota,
     ) -> Result<(DcMstring, Option<u128>)> {
         use ctb_formats_dcstring::{
             DcExpressionEvaluator, SharedQuotaDcExpressionEvaluator,
         };
 
-        Self::verify_ordinary_dc_document_cannot_elevate(
-            doc,
-            self.resolution.entry_dc,
-        )?;
+        Self::verify_ordinary_dc_document_cannot_elevate(doc, self.entry_dc)?;
         let opt_pin = Self::scan_first_pin_description(doc, resolver)?;
         let quoted_doc =
             Self::quote_dc_document_as_string_literal(doc, resolver)?;
@@ -1742,7 +1739,7 @@ impl ExecutionContext {
         &mut self,
         ordinary_doc: &DcMstr,
         input: &DcMstr,
-        resolver: &dyn ctb_formats_dcdata::syntax::SyntaxRuleResolver,
+        resolver: &dyn ctb_formats_dcstring::SyntaxRuleResolver,
     ) -> Result<WasmExecutionTrace> {
         use ctb_formats_dcstring::converters::wasm::SharedWasmTaskQuota;
 
@@ -1848,14 +1845,14 @@ impl ExecutionContext {
         };
 
         let most_recent_id = opt_pin_id.or_else(|| {
-            resolver.seed_graph().and_then(
-                ctb_formats_dcdata::seed_graph::SeedGraphIndex::system_block_most_recent_node_id,
-            )
+            resolver
+                .seed_graph()
+                .and_then(SeedGraphIndex::system_block_most_recent_node_id)
         });
         let exec_pinned = if let Some(pin_id) = opt_pin_id {
             if let Some(sg) = resolver.seed_graph()
                 && !sg.is_bundled_origin_node(
-                    ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_START,
+                    ctb_formats_dcstring::global_graph_layout::SYSTEM_REGION_START,
                 )
             {
                 let pinned_sg = std::sync::Arc::new(
@@ -1865,19 +1862,21 @@ impl ExecutionContext {
                     ),
                 );
                 Some(std::sync::Arc::new(
-                    ctb_formats_dcdata::syntax::DatasetRuleResolver::from_seed_graph(
+                    ctb_formats_dcstring::syntax::DatasetRuleResolver::from_seed_graph(
                         &pinned_sg,
                     )?,
                 ))
             } else {
-                Some(ctb_formats_dcdata::syntax::syntax_resolver_at_most_recent(
-                    pin_id,
-                )?)
+                Some(
+                    ctb_formats_dcstring::syntax::syntax_resolver_at_most_recent(
+                        pin_id,
+                    )?,
+                )
             }
         } else {
             None
         };
-        let exec_res: &dyn ctb_formats_dcdata::syntax::SyntaxRuleResolver =
+        let exec_res: &dyn ctb_formats_dcstring::SyntaxRuleResolver =
             if let Some(ref pinned) = exec_pinned {
                 pinned.as_ref()
             } else {
@@ -4333,15 +4332,14 @@ mod tests {
         let wat = format!(
             r#"(module
   (memory (export "memory") 1)
-  (func (export "_start") (result i32)
+  (func (export "step") (result i32)
     {spin_wat}
     (i32.store8 256 {output_byte})
     (i32.store 8 256)
     (i32.store 12 1)
     (i32.const 0)))"#
         );
-        let shorthands =
-            ctb_formats_dcdata::wat::parse_wat_module_to_dc_shorthands(&wat)?;
+        let shorthands = ctb_formats_dcstring::wat_to_dc_shorthands(&wat)?;
         let mut doc = DcMstring::new();
         for sh in shorthands {
             doc.push_char(DcChar::from_u128(sh.to_global_id()?));
@@ -4353,10 +4351,8 @@ mod tests {
         target_wasm_doc: &DcMstr,
         spin_iters: u32,
     ) -> Result<Vec<DcShorthand>> {
-        let raw_dctf = target_wasm_doc
-            .as_bytes()
-            .get(21..)
-            .context("Missing DcMM header on target_wasm_doc")?;
+        let dc_str = target_wasm_doc.to_dc_string()?;
+        let raw_dctf = dc_str.as_bytes();
         let mut stores = String::new();
         for (idx, &b) in raw_dctf.iter().enumerate() {
             let addr = 512usize.saturating_add(idx);
@@ -4372,22 +4368,22 @@ mod tests {
         let wat = format!(
             r#"(module
   (memory (export "memory") 1)
-  (func (export "_start") (result i32)
+  (func (export "step") (result i32)
 {spin_wat}{stores}    (i32.store 8 512)
     (i32.store 12 {})
     (i32.const 0)))"#,
             raw_dctf.len()
         );
-        ctb_formats_dcdata::wat::parse_wat_module_to_dc_shorthands(&wat)
+        ctb_formats_dcstring::wat_to_dc_shorthands(&wat)
     }
 
     #[crate::ctb_test]
     fn test_dc_2608_convert_dc_string_to_wasm_and_dc_1938_resolve_to_pin()
     -> Result<()> {
-        use ctb_formats_dcdata::syntax::DatasetRuleResolver;
+        use ctb_formats_dcstring::syntax::DatasetRuleResolver;
 
         let shared_sg = SeedGraphIndex::shared()?;
-        let default_res = ctb_formats_dcdata::syntax::default_syntax_resolver();
+        let default_res = ctb_formats_dcstring::syntax::default_syntax_resolver();
 
         // 1. `scan_first_pin_description` ignores Dc 641 inside comments and literals.
         let head_pin = shared_sg.system_block_most_recent_node_id().unwrap();
@@ -4420,7 +4416,7 @@ mod tests {
         let mut alloc_node = |tokens: Vec<DcShorthand>| -> u128 {
             let id = next_id;
             next_id += 1;
-            nodes.push(LedgerNode {
+            nodes.push(ctb_formats_dcstring::LedgerNode {
                 id,
                 tokens,
                 comment: String::new(),
@@ -4461,12 +4457,12 @@ mod tests {
             DcShorthand::Long(conv_ent_v1),
             DcShorthand::Short(611),
         ]);
-        let _decomp_val_v1 = alloc_node(vec![
+        let decomp_val_v1 = alloc_node(vec![
             DcShorthand::Short(610),
             DcShorthand::Long(decomp_has_a_v1),
             DcShorthand::Long(wasm_node_v1),
         ]);
-        let pin_v1 = next_id - 1;
+        let pin_v1 = decomp_val_v1;
 
         // Revision 2 adds a Preferred (`Dc 570`) standalone converter routine for `2192 -> 1927`.
         let conv_ent_v2 = alloc_node(vec![
@@ -4495,12 +4491,12 @@ mod tests {
             DcShorthand::Long(decomp_has_a_v2),
             DcShorthand::Long(wasm_node_v2),
         ]);
-        let _pref_v2 = alloc_node(vec![
+        let pref_v2 = alloc_node(vec![
             DcShorthand::Short(584),
             DcShorthand::Long(decomp_has_a_v2),
             DcShorthand::Short(570),
         ]);
-        let pin_v2 = next_id - 1;
+        let pin_v2 = pref_v2;
 
         let custom_sg = std::sync::Arc::new(SeedGraphIndex::from_nodes(nodes));
         let custom_res = DatasetRuleResolver::from_seed_graph(&custom_sg)?;
@@ -4572,7 +4568,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_dc_1936_shared_quota_across_compilation_and_execution() -> Result<()>
     {
-        use ctb_formats_dcdata::syntax::DatasetRuleResolver;
+        use ctb_formats_dcstring::syntax::DatasetRuleResolver;
 
         let shared_sg = SeedGraphIndex::shared()?;
         let head_pin = shared_sg.system_block_most_recent_node_id().unwrap();
@@ -4581,7 +4577,7 @@ mod tests {
         let mut alloc_node = |tokens: Vec<DcShorthand>| -> u128 {
             let id = next_id;
             next_id += 1;
-            nodes.push(LedgerNode {
+            nodes.push(ctb_formats_dcstring::LedgerNode {
                 id,
                 tokens,
                 comment: String::new(),
@@ -4621,12 +4617,12 @@ mod tests {
             DcShorthand::Long(conv_ent),
             DcShorthand::Short(611),
         ]);
-        let _decomp_val = alloc_node(vec![
+        let decomp_val = alloc_node(vec![
             DcShorthand::Short(610),
             DcShorthand::Long(decomp_has_a),
             DcShorthand::Long(wasm_node),
         ]);
-        let pin = next_id - 1;
+        let pin = decomp_val;
 
         let custom_sg = std::sync::Arc::new(SeedGraphIndex::from_nodes(nodes));
         let custom_res = DatasetRuleResolver::from_seed_graph(&custom_sg)?;
@@ -4661,8 +4657,7 @@ mod tests {
             &custom_res,
             probe_quota.clone(),
         )?;
-        let compile_cost = probe_quota
-            .with_lock(|st| st.total_instructions_executed)?;
+        let compile_cost = probe_quota.snapshot()?.total_instructions_executed;
         assert!(
             compile_cost > 200,
             "Both Dc 2608 unescaping and converter routine must consume metered quota (got {compile_cost})"
@@ -4676,7 +4671,7 @@ mod tests {
             DcWasmWatchdogLimits::default(),
         )?;
         let mut env_compile_exhaust = ExecutionContext::new(false)
-            .with_supervisor_admission(tiny_adm)
+            .with_system_supervisor_admission(tiny_adm)
             .with_privilege_decision(
                 Privilege::ExcessiveCompute,
                 PermissionDecision::Deny,
@@ -4711,7 +4706,7 @@ mod tests {
             DcWasmWatchdogLimits::default(),
         )?;
         let mut env_mid_deny = ExecutionContext::new(false)
-            .with_supervisor_admission(mid_adm.clone())
+            .with_system_supervisor_admission(mid_adm.clone())
             .with_privilege_decision(
                 Privilege::ExcessiveCompute,
                 PermissionDecision::Deny,
@@ -4726,7 +4721,7 @@ mod tests {
 
         // Granting `Allow` on `ExcessiveCompute` resumes and finishes cleanly!
         let mut env_mid_allow = ExecutionContext::new(false)
-            .with_supervisor_admission(mid_adm)
+            .with_system_supervisor_admission(mid_adm)
             .with_compute_quota_grant(exec_cost)
             .with_privilege_decision(
                 Privilege::ExcessiveCompute,

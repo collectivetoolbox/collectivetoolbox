@@ -1830,7 +1830,11 @@ impl<'a> DcDocumentNavigator<'a> {
         })
     }
 
-    pub(super) fn read_tokens_in_span(
+    /// Reads all raw token global IDs within `span` (preserving escape tokens).
+    ///
+    /// # Errors
+    /// Returns an error if `span` falls on an invalid DcTF or binary boundary.
+    pub fn read_tokens_in_span(
         &mut self,
         span: DcByteSpan,
     ) -> Result<Vec<u128>> {

@@ -291,24 +291,28 @@ pub(crate) fn resolve_pinned_syntax_resolver(
         (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&pin_node_id),
         "Invalid System-block most recent node ID {pin_node_id} for Dc 641: expected System block range {SYSTEM_REGION_START}..={SYSTEM_REGION_END}"
     );
-    if let Some(sg) = base_resolver.seed_graph()
-        && !sg.is_bundled_origin_node(SYSTEM_REGION_START)
-    {
-        let head_id = sg
-            .system_block_most_recent_node_id()
-            .max(sg.nodes().iter().map(|n| n.id).max())
-            .context(
-                "Cannot resolve Dc 641 pin against an empty System graph",
-            )?;
-        ensure!(
-            pin_node_id <= head_id,
-            "Document pin Dc 641 requires a newer System graph snapshot than the local graph (l{pin_node_id} > l{head_id})"
-        );
-        let pinned_sg = Arc::new(SeedGraphIndex::from_nodes_at_most_recent(
-            sg.nodes().to_vec(),
-            pin_node_id,
-        ));
-        return Ok(Arc::new(DatasetRuleResolver::from_seed_graph(&pinned_sg)?));
+    if let Some(sg) = base_resolver.seed_graph() {
+        let is_shared_default = SeedGraphIndex::shared()
+            .is_ok_and(|shared| std::ptr::eq(sg, shared.as_ref()));
+        if !is_shared_default {
+            let head_id = sg
+                .system_block_most_recent_node_id()
+                .max(sg.nodes().iter().map(|n| n.id).max())
+                .context(
+                    "Cannot resolve Dc 641 pin against an empty System graph",
+                )?;
+            ensure!(
+                pin_node_id <= head_id,
+                "Document pin Dc 641 requires a newer System graph snapshot than the local graph (l{pin_node_id} > l{head_id})"
+            );
+            let pinned_sg = Arc::new(SeedGraphIndex::from_nodes_at_most_recent(
+                sg.nodes().to_vec(),
+                pin_node_id,
+            ));
+            return Ok(Arc::new(DatasetRuleResolver::from_seed_graph(
+                &pinned_sg,
+            )?));
+        }
     }
     ctb_formats_dcdata::syntax::syntax_resolver_at_most_recent(pin_node_id)
 }
@@ -396,6 +400,7 @@ fn split_resolve_to_pin_operands(
         rest_mstr.push_char(tok);
     }
     let mut nav = DcDocumentNavigator::from_mstr(&rest_mstr);
+    let start_pos = nav.position();
     let mut ctx = SyntaxEvalContext::new(resolver, None);
     if let Some(ref shared) = shared_quota {
         ctx.evaluator = Some(Arc::new(
@@ -413,11 +418,12 @@ fn split_resolve_to_pin_operands(
         &mut ctx,
     )?;
     ensure!(
-        matched_pin && !ctx.has_errors && nav.position() > 0,
+        matched_pin && !ctx.has_errors && nav.position() > start_pos,
         "ResolveToPin requires a valid leading [pin_description]"
     );
     let pin_end = nav.position();
-    let pin_u128s = nav.read_tokens_in_span(DcByteSpan::new(0, pin_end))?;
+    let pin_u128s =
+        nav.read_tokens_in_span(DcByteSpan::new(start_pos, pin_end))?;
     let pin_chars: Vec<DcChar> =
         pin_u128s.into_iter().map(DcChar::from_u128).collect();
     let pin_node_id = extract_pin_node_id_from_pin_description(
@@ -622,6 +628,7 @@ fn eval_convert_dc_string_to_wasm(
             nav_mstr.push_char(tok);
         }
         let mut nav = DcDocumentNavigator::from_mstr(&nav_mstr);
+        let start_pos = nav.position();
         let mut ctx = SyntaxEvalContext::new(resolver, None);
         let matched_pin = nav.eval_term_single(
             &SyntaxTerm::NamedConstruct {
@@ -632,11 +639,12 @@ fn eval_convert_dc_string_to_wasm(
             &mut ctx,
         )?;
         ensure!(
-            matched_pin && !ctx.has_errors && nav.position() > 0,
+            matched_pin && !ctx.has_errors && nav.position() > start_pos,
             "Invalid leading [pin_description] inside target Dc document"
         );
         let pin_end = nav.position();
-        let pin_u128s = nav.read_tokens_in_span(DcByteSpan::new(0, pin_end))?;
+        let pin_u128s =
+            nav.read_tokens_in_span(DcByteSpan::new(start_pos, pin_end))?;
         let pin_tokens: Vec<DcChar> =
             pin_u128s.into_iter().map(DcChar::from_u128).collect();
         let inner_pin_id = extract_pin_node_id_from_pin_description(
