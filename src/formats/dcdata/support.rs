@@ -29,6 +29,7 @@ pub mod layout;
 pub mod report;
 pub mod seed_graph_reconstruct;
 pub mod shared;
+pub mod stagel_dc_alloc;
 pub mod syntax_ast;
 pub mod syntax_parser;
 pub mod syntax_validator;

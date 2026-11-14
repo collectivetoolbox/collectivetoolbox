@@ -1313,9 +1313,17 @@ pub fn run_workspace_inline_tests(
     inputs: &[ModuleInput<'_>],
 ) -> Result<TestSuiteReport> {
     let ws = parse_and_validate_workspace(inputs)?;
+    run_validated_workspace_inline_tests(&ws)
+}
+
+/// Runs all inline `test` blocks across an already-validated multi-module
+/// [`ValidatedWorkspace`].
+pub fn run_validated_workspace_inline_tests(
+    ws: &ValidatedWorkspace,
+) -> Result<TestSuiteReport> {
     let vm =
-        StageLWorkspaceVm::from_validated_workspace(&ws, EvalConfig::default())?;
-    vm.run_all_tests(&ws)
+        StageLWorkspaceVm::from_validated_workspace(ws, EvalConfig::default())?;
+    vm.run_all_tests(ws)
 }
 
 fn eval_unary(op: CoreUnaryOp, val: Value) -> Result<EvalSignal> {

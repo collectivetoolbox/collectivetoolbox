@@ -248,50 +248,62 @@ impl SeedEntityKey {
     }
 }
 
-/// Desired compilation state derived from the CSV dataset.
+/// Desired compilation state derived from the CSV dataset and staged `.sl3` modules.
 #[derive(Debug, Default)]
-struct DesiredDatasetState {
+pub(crate) struct DesiredDatasetState {
     /// Ordered seed entities to ensure exist in the ledger.
-    seed_entities: BTreeSet<SeedEntityKey>,
+    pub(crate) seed_entities: BTreeSet<SeedEntityKey>,
+    /// Pre-allocated System-block entity nodes (`586 615 <class_tok>`), such as StageL
+    /// top-level routines and constants (`entity_id -> (class_spec, label)`).
+    pub(crate) allocated_entities: BTreeMap<u128, (ValueSpec, String)>,
     /// Named syntax construct rules keyed by construct name.
-    named_construct_rules: BTreeMap<String, (SyntaxPattern, String)>,
+    pub(crate) named_construct_rules: BTreeMap<String, (SyntaxPattern, String)>,
     /// Named syntax construct descriptions (`Dc 573`) keyed by construct name.
-    named_construct_descriptions: BTreeMap<String, String>,
+    pub(crate) named_construct_descriptions: BTreeMap<String, String>,
     /// Single-valued properties: `(subject, prop_token) -> (value_spec, comment)`.
-    single_properties:
+    pub(crate) single_properties:
         BTreeMap<(DcShorthand, DcShorthand), (ValueSpec, String)>,
+    /// `Dc 646 "In context of"` qualifiers attached to a single-valued property's `584` (`Has a`) statement node:
+    /// `((subject, prop_token), context_spec) -> comment`.
+    pub(crate) single_property_contexts: BTreeMap<
+        ((DcShorthand, DcShorthand), ValueSpec),
+        String,
+    >,
     /// Multi-valued properties: `(subject, prop_token, value_spec) -> comment`.
-    multi_properties: BTreeMap<(DcShorthand, DcShorthand, ValueSpec), String>,
+    pub(crate) multi_properties:
+        BTreeMap<(DcShorthand, DcShorthand, ValueSpec), String>,
     /// Multi-valued property entries qualified with `Dc 570` (`Preferred`) as the primary choice:
     /// `(subject, prop_token, value_spec)`.
-    preferred_multi_properties: BTreeSet<(DcShorthand, DcShorthand, ValueSpec)>,
+    pub(crate) preferred_multi_properties:
+        BTreeSet<(DcShorthand, DcShorthand, ValueSpec)>,
     /// Single-valued property qualifiers attached to a multi-valued property's `584` (`Has a`) statement node:
     /// `((subject, prop_token, value_spec), qual_prop_token) -> (qual_value_spec, comment)`.
-    multi_property_single_qualifiers: BTreeMap<
+    pub(crate) multi_property_single_qualifiers: BTreeMap<
         ((DcShorthand, DcShorthand, ValueSpec), DcShorthand),
         (ValueSpec, String),
     >,
     /// `Dc 646 "In context of"` qualifiers attached to a multi-valued property's `584` (`Has a`) statement node:
     /// `((subject, prop_token, value_spec), context_spec) -> comment`.
-    multi_property_contexts: BTreeMap<
+    pub(crate) multi_property_contexts: BTreeMap<
         ((DcShorthand, DcShorthand, ValueSpec), ValueSpec),
         String,
     >,
     /// Preferred replacements (`<prefer>`): `(subject, value_spec) -> comment`.
-    preferred_replacements: BTreeMap<(DcShorthand, ValueSpec), String>,
+    pub(crate) preferred_replacements: BTreeMap<(DcShorthand, ValueSpec), String>,
     /// Direct 3-token binary statements: `(verb, subject, object_spec) -> comment`.
-    direct_statements: BTreeMap<(DcShorthand, DcShorthand, ValueSpec), String>,
+    pub(crate) direct_statements:
+        BTreeMap<(DcShorthand, DcShorthand, ValueSpec), String>,
     /// Subjects whose `Dc 574 "Programmatic identifier"` is marked `@stable_ident()` in the context of `f649` (`Collective Toolbox`).
-    stable_programmatic_identifiers: BTreeSet<DcShorthand>,
+    pub(crate) stable_programmatic_identifiers: BTreeSet<DcShorthand>,
     /// Maps `@stable_ident()` programmatic identifier strings (e.g. `"Integer"`, `"Natural0"`, `"Natural1"`) to their `DcShorthand`.
-    stable_ident_to_shorthand: HashMap<String, DcShorthand>,
+    pub(crate) stable_ident_to_shorthand: HashMap<String, DcShorthand>,
     /// Maps `@vary_as` nicknames (e.g. `"radix"`, `"encoding"`) to their `.Formats:format_variant` Dc shorthand.
-    vary_as_to_format_variant: HashMap<String, DcShorthand>,
+    pub(crate) vary_as_to_format_variant: HashMap<String, DcShorthand>,
 }
 
 /// Specification of a value or target referenced in a statement.
 #[derive(Debug, Clone)]
-enum ValueSpec {
+pub(crate) enum ValueSpec {
     /// Direct reference to an existing Dc/Format/Unicode shorthand.
     Direct(DcShorthand),
     /// Reference to a seed classification entity node.
@@ -501,7 +513,7 @@ fn format_string_summary(text: &str) -> String {
     format!("{text:?}")
 }
 
-fn make_string_value_spec(text: &str) -> ValueSpec {
+pub(crate) fn make_string_value_spec(text: &str) -> ValueSpec {
     ValueSpec::ValueNode {
         tokens: encode_string_value_tokens(text),
         comment: format_string_summary(text),
@@ -756,6 +768,8 @@ struct LedgerBuilder {
     value_node_by_tokens: HashMap<Vec<DcShorthand>, u128>,
     /// Maps a `SeedEntityKey` to its allocated `u128` node ID.
     seed_entity_ids: HashMap<SeedEntityKey, u128>,
+    /// Maps an allocated non-seed entity node ID (`586 615 <class_tok>`) to `<class_tok>`.
+    entity_class_by_id: HashMap<u128, DcShorthand>,
     /// Active single-valued properties: `(subject, prop_token) -> (has_a_id, has_val_id, current_val_token)`.
     active_single_props:
         BTreeMap<(DcShorthand, DcShorthand), (u128, u128, DcShorthand)>,
@@ -985,6 +999,7 @@ impl LedgerBuilder {
             string_by_node_id: index.string_by_node_id,
             value_node_by_tokens: index.value_node_by_tokens,
             seed_entity_ids: index.seed_entity_ids,
+            entity_class_by_id: index.entity_class_by_id,
             active_single_props: index.active_single_props,
             single_props_by_subj_prop: index.single_props_by_subj_prop,
             active_multi_props: index.active_multi_props,
@@ -1896,8 +1911,40 @@ impl LedgerBuilder {
             }
         }
 
-        let seed_entity_id_set: HashSet<u128> =
+        let mut seed_entity_id_set: HashSet<u128> =
             self.seed_entity_ids.values().copied().collect();
+        seed_entity_id_set.extend(self.entity_class_by_id.keys().copied());
+
+        for (&entity_id, (class_spec, label)) in &desired.allocated_entities {
+            let expected_class = self.resolve_value_spec(class_spec)?;
+            let actual_class =
+                self.entity_class_by_id.get(&entity_id).copied().with_context(
+                    || {
+                        format!(
+                            "StageL entity l{entity_id} ({label}) is not an active entity node in the System graph; remove ': @dc l{entity_id}' and re-run validate-data-tables --write to allocate a valid ID"
+                        )
+                    },
+                )?;
+            ensure!(
+                actual_class == expected_class,
+                "StageL entity l{entity_id} ({label}) has ontological class {actual_class} in the System graph, which cannot be mutated in-place to {expected_class}; remove ': @dc l{entity_id}' to allocate a new entity and retract l{entity_id}"
+            );
+            self.token_labels
+                .entry(DcShorthand::Long(entity_id))
+                .or_insert_with(|| label.clone());
+            seed_entity_id_set.insert(entity_id);
+        }
+
+        let existing_allocated_entities: Vec<u128> =
+            self.entity_class_by_id.keys().copied().collect();
+        for existing_id in existing_allocated_entities {
+            if !desired.allocated_entities.contains_key(&existing_id)
+                && !self.is_manual_node(existing_id)
+            {
+                self.entity_class_by_id.remove(&existing_id);
+                retract_targets.insert(existing_id);
+            }
+        }
 
         let existing_seed_entities: Vec<(SeedEntityKey, u128)> = self
             .seed_entity_ids
@@ -2657,6 +2704,25 @@ impl LedgerBuilder {
             }
         }
 
+        for (((subj, prop), ctx_spec), _comment) in
+            &desired.single_property_contexts
+        {
+            let ctx_tok = self.resolve_value_spec(ctx_spec)?;
+            if let Some(&(has_a_id, _, _)) =
+                self.active_single_props.get(&(*subj, *prop))
+            {
+                let ctx_key = (
+                    sh(DC_IN_CONTEXT_OF),
+                    DcShorthand::Long(has_a_id),
+                    ctx_tok,
+                );
+                resolved_direct.insert(
+                    ctx_key,
+                    format!("In context of (l{has_a_id}, {ctx_tok})"),
+                );
+            }
+        }
+
         for (((subj, prop, val_spec), ctx_spec), _comment) in
             &desired.multi_property_contexts
         {
@@ -2720,6 +2786,12 @@ impl LedgerBuilder {
             self.retract_node(target_id)?;
         }
 
+        self.tag_untagged_csv_nodes()?;
+
+        Ok(())
+    }
+
+    fn tag_untagged_csv_nodes(&mut self) -> Result<()> {
         let start_idx = if self.had_initial_in_graph_provenance {
             self.initial_node_count
         } else {
@@ -2765,8 +2837,28 @@ impl LedgerBuilder {
                 }
             }
         }
-
         Ok(())
+    }
+
+    fn allocate_entity_nodes(
+        &mut self,
+        specs: &[(ValueSpec, String)],
+    ) -> Result<Vec<u128>> {
+        let mut ids = Vec::with_capacity(specs.len());
+        for (class_spec, label) in specs {
+            let class_tok = self.resolve_value_spec(class_spec)?;
+            let entity_id = self.append_statement_node(
+                sh(DC_IS_INSTANCE_OF),
+                sh(DC_ENCLOSING_DOCUMENT),
+                class_tok,
+            )?;
+            self.entity_class_by_id.insert(entity_id, class_tok);
+            self.token_labels
+                .insert(DcShorthand::Long(entity_id), label.clone());
+            ids.push(entity_id);
+        }
+        self.tag_untagged_csv_nodes()?;
+        Ok(ids)
     }
 
     fn supersede_node(&mut self, new_id: u128, old_id: u128) -> Result<u128> {
@@ -3807,6 +3899,113 @@ pub fn update_ledger_in_memory_with_provenance(
     Ok((builder.nodes, stats))
 }
 
+pub(crate) fn allocate_stagel_entities_in_memory(
+    existing_nodes: Vec<LedgerNode>,
+    specs: &[(ValueSpec, String)],
+) -> Result<(Vec<LedgerNode>, Vec<u128>)> {
+    if specs.is_empty() {
+        return Ok((existing_nodes, Vec::new()));
+    }
+    let single_props = single_valued_property_set();
+    let initial_labels = build_initial_token_labels(&[], &[]);
+    let mut builder = LedgerBuilder::from_existing_with_provenance(
+        existing_nodes,
+        &single_props,
+        initial_labels,
+        NodeProvenanceMap::default(),
+    );
+    let ids = builder.allocate_entity_nodes(specs)?;
+    Ok((builder.nodes, ids))
+}
+
+pub(crate) fn allocate_stagel_entities_in_repo(
+    repo_root: &Path,
+    specs: &[(ValueSpec, String)],
+) -> Result<Vec<u128>> {
+    if specs.is_empty() {
+        return Ok(Vec::new());
+    }
+    let outcome = execute_durable_ledger_transaction_with_planner(
+        repo_root,
+        "csv_reconciliation",
+        "stagel-entity-alloc",
+        None,
+        false,
+        None,
+        |_write_guard, baseline_nodes, _committed_pairs| {
+            let (updated_nodes, ids) = allocate_stagel_entities_in_memory(
+                baseline_nodes.to_vec(),
+                specs,
+            )?;
+            verify_nodes_append_only_against_baseline(
+                "existing working-tree ledger",
+                baseline_nodes,
+                &updated_nodes,
+            )?;
+            // Reason for fallback: verify_nodes_append_only_against_baseline guarantees updated_nodes.len() >= baseline_nodes.len().
+            let new_slice = updated_nodes
+                .get(baseline_nodes.len()..)
+                .unwrap_or_default();
+            let mut planned_items = Vec::with_capacity(new_slice.len());
+            for node in new_slice {
+                planned_items.push(PlannedLedgerItem {
+                    node_id: node.id,
+                    raw_line: node.format_line(),
+                    target_chunk: chunk_filename_for_node_id(node.id),
+                    tokens: Vec::new(),
+                    comment: String::new(),
+                    provenance: "csv".to_string(),
+                    rationale: None,
+                    allow_duplicate_of: Vec::new(),
+                    inbox_name: None,
+                    allocated_name: None,
+                    inbox_sha256: None,
+                    dcsh_content: None,
+                });
+            }
+            Ok((planned_items, BTreeMap::new(), ids))
+        },
+    )?;
+    outcome
+        .planner_payload
+        .context("Missing allocated StageL entity IDs after durable ledger transaction")
+}
+
+pub(crate) fn update_ledger_in_memory_with_extra_state(
+    existing_nodes: Vec<LedgerNode>,
+    provenance_map: NodeProvenanceMap,
+    dc_defns: &[DcDefn],
+    format_defns: &[DcDefn],
+    known_scripts: &BTreeSet<String>,
+    named_types_bytes: Option<&[u8]>,
+    extra_fn: impl FnOnce(&mut DesiredDatasetState) -> Result<()>,
+) -> Result<(Vec<LedgerNode>, LedgerUpdateStats)> {
+    let single_props = single_valued_property_set();
+    let initial_labels = build_initial_token_labels(dc_defns, format_defns);
+    let mut builder = LedgerBuilder::from_existing_with_provenance(
+        existing_nodes,
+        &single_props,
+        initial_labels,
+        provenance_map,
+    );
+    let mut desired = compile_desired_dataset_state(
+        dc_defns,
+        format_defns,
+        known_scripts,
+        named_types_bytes,
+    )?;
+    extra_fn(&mut desired)?;
+    builder.apply_desired_state(desired)?;
+    let stats = LedgerUpdateStats {
+        total_nodes: builder.nodes.len(),
+        nodes_appended: builder.appended_count,
+        nodes_superseded: builder.superseded_count,
+        nodes_retracted: builder.retracted_count,
+        files_written: 0,
+    };
+    Ok((builder.nodes, stats))
+}
+
 fn plan_csv_reconciliation_items_for_repo(
     repo_root: &Path,
     existing_nodes: &[LedgerNode],
@@ -3928,13 +4127,20 @@ fn plan_csv_reconciliation_items_for_repo(
         format!("Invalid dataset under {}", data_dir.display())
     })?;
 
-    let (updated_nodes, stats) = update_ledger_in_memory_with_provenance(
+    let (updated_nodes, stats) = update_ledger_in_memory_with_extra_state(
         existing_nodes.to_vec(),
         prov_map,
         &dc_defns,
         &format_defns,
         &known_scripts,
         Some(&named_types_bytes),
+        |desired| {
+            crate::support::stagel_dc_alloc::compile_repo_stagel_into_desired_state(
+                &data_dir,
+                desired,
+                &mut pinned_input_sha256s,
+            )
+        },
     )?;
     verify_nodes_append_only_against_baseline(
         "existing working-tree ledger",

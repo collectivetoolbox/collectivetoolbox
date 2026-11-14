@@ -159,32 +159,64 @@ pub fn encode_module_to_dc_tokens(module: &Module) -> Result<Vec<DcChar>> {
     }
 
     for item in &module.items {
-        match item {
-            TopDecl::Value(val) => {
-                for comment in &val.comments_before {
-                    push_comment(&mut out, comment);
-                }
-                out.push(if val.is_pub {
-                    DC_DECLARE_PUB
-                } else {
-                    DC_DECLARE_CONST
-                });
-                push_optional_atom_dc(&mut out, val.dc_id);
-                push_stagel_type(&mut out, &val.ty)?;
-                push_identifier(&mut out, &val.name)?;
-                push_expr(&mut out, &val.value)?;
-            }
-            TopDecl::Routine(r) => {
-                push_routine(&mut out, r)?;
-            }
-            TopDecl::Comment(c) => {
-                push_comment(&mut out, c);
-            }
-        }
+        push_top_decl(&mut out, item)?;
     }
 
     out.push(DC_END_MODULE);
     Ok(out)
+}
+
+/// Encodes a single top-level routine or constant declaration (`TopDecl::Routine`
+/// or `TopDecl::Value`) into its standalone StageL Token Dc stream for System-graph
+/// `Dc 611 "Canonical decomposition"` storage.
+pub fn encode_top_decl_to_dc_tokens(decl: &TopDecl) -> Result<Vec<DcChar>> {
+    ensure!(
+        !matches!(decl, TopDecl::Comment(_)),
+        "Standalone comment cannot be encoded as a top-level item decomposition"
+    );
+    let mut out = Vec::new();
+    push_top_decl(&mut out, decl)?;
+    Ok(out)
+}
+
+/// Encodes a PSR-4 module namespace path into canonical `f229` (`File path`) Token Dcs.
+pub fn encode_filepath_dc_tokens(segments: &[String]) -> Result<Vec<DcChar>> {
+    let mut out = Vec::new();
+    push_filepath(&mut out, segments)?;
+    Ok(out)
+}
+
+/// Encodes a StageL 3 static type into its canonical Token Dc sequence.
+pub fn encode_stagel_type_dc_tokens(ty: &StageLType) -> Result<Vec<DcChar>> {
+    let mut out = Vec::new();
+    push_stagel_type(&mut out, ty)?;
+    Ok(out)
+}
+
+fn push_top_decl(out: &mut Vec<DcChar>, item: &TopDecl) -> Result<()> {
+    match item {
+        TopDecl::Value(val) => {
+            for comment in &val.comments_before {
+                push_comment(out, comment);
+            }
+            out.push(if val.is_pub {
+                DC_DECLARE_PUB
+            } else {
+                DC_DECLARE_CONST
+            });
+            push_optional_atom_dc(out, val.dc_id);
+            push_stagel_type(out, &val.ty)?;
+            push_identifier(out, &val.name)?;
+            push_expr(out, &val.value)?;
+        }
+        TopDecl::Routine(r) => {
+            push_routine(out, r)?;
+        }
+        TopDecl::Comment(c) => {
+            push_comment(out, c);
+        }
+    }
+    Ok(())
 }
 
 fn format_dc_char_opt(fmt: FormatId) -> Result<DcChar> {
@@ -669,6 +701,59 @@ pub fn decode_module_from_dc_tokens(tokens: &[DcChar]) -> Result<Module> {
     Ok(module)
 }
 
+/// Decodes a standalone top-level routine or constant Token Dc stream (`Dc 2203..2204`,
+/// `Dc 2199`, or `Dc 2200`, optionally preceded by `Dc 246`/`Dc 247..248` comments).
+pub fn decode_top_decl_from_dc_tokens(tokens: &[DcChar]) -> Result<TopDecl> {
+    let resolver = default_syntax_resolver();
+    let mut dec = Decoder {
+        tokens,
+        pos: 0,
+        resolver: resolver.as_ref(),
+    };
+    let comments_before = dec.collect_comments()?;
+    let decl = dec.read_top_decl(comments_before)?;
+    ensure!(
+        dec.pos == tokens.len(),
+        "Unexpected trailing Token Dcs after top-level StageL item (at index {})",
+        dec.pos
+    );
+    Ok(decl)
+}
+
+/// Decodes a canonical `f229` (`File path`) Token Dc sequence into path segments.
+pub fn decode_filepath_dc_tokens(tokens: &[DcChar]) -> Result<Vec<String>> {
+    let resolver = default_syntax_resolver();
+    let mut dec = Decoder {
+        tokens,
+        pos: 0,
+        resolver: resolver.as_ref(),
+    };
+    let segs = dec.read_filepath()?;
+    ensure!(
+        dec.pos == tokens.len(),
+        "Unexpected trailing Token Dcs after FilePath (at index {})",
+        dec.pos
+    );
+    Ok(segs)
+}
+
+/// Decodes a canonical StageL 3 static type Token Dc sequence.
+pub fn decode_stagel_type_dc_tokens(tokens: &[DcChar]) -> Result<StageLType> {
+    let resolver = default_syntax_resolver();
+    let mut dec = Decoder {
+        tokens,
+        pos: 0,
+        resolver: resolver.as_ref(),
+    };
+    let ty = dec.read_stagel_type()?;
+    ensure!(
+        dec.pos == tokens.len(),
+        "Unexpected trailing Token Dcs after StageL type (at index {})",
+        dec.pos
+    );
+    Ok(ty)
+}
+
 impl<'a> Decoder<'a> {
     fn peek(&self) -> Option<DcChar> {
         self.tokens.get(self.pos).copied()
@@ -816,39 +901,7 @@ impl<'a> Decoder<'a> {
                 break;
             }
             let comments_before = std::mem::take(&mut carried_comments);
-            let sp = self.span();
-            if tok == DC_DECLARE_PUB || tok == DC_DECLARE_CONST {
-                let is_pub = tok == DC_DECLARE_PUB;
-                self.pos = self.pos.saturating_add(1);
-                let dc_id = self.read_optional_atom_dc()?;
-                let pub_dc_syntax = is_pub
-                    && dc_id.is_some_and(|d| {
-                        matches!(
-                            DcShorthand::from_global_id(d.to_u128()),
-                            DcShorthand::Short(_) | DcShorthand::Format(_)
-                        )
-                    });
-                let ty = self.read_stagel_type()?;
-                let name = self.read_identifier()?;
-                let value = self.read_expr()?;
-                items.push(TopDecl::Value(TopValueDecl {
-                    is_pub,
-                    pub_dc_syntax,
-                    dc_id,
-                    ty,
-                    name,
-                    value,
-                    comments_before,
-                    span: sp,
-                }));
-            } else if tok == DC_BEGIN_ROUTINE_DECL {
-                let r = self.read_routine(comments_before)?;
-                items.push(TopDecl::Routine(r));
-            } else {
-                bail!(
-                    "Unexpected top-level Token Dc {tok} inside Dc 2192 BeginModule"
-                );
-            }
+            items.push(self.read_top_decl(comments_before)?);
         }
 
         Ok(Module {
@@ -857,6 +910,43 @@ impl<'a> Decoder<'a> {
             leading_comments,
             items,
         })
+    }
+
+    fn read_top_decl(&mut self, comments_before: Vec<Comment>) -> Result<TopDecl> {
+        let tok = self
+            .peek()
+            .context("Expected top-level StageL declaration Token Dc")?;
+        let sp = self.span();
+        if tok == DC_DECLARE_PUB || tok == DC_DECLARE_CONST {
+            let is_pub = tok == DC_DECLARE_PUB;
+            self.pos = self.pos.saturating_add(1);
+            let dc_id = self.read_optional_atom_dc()?;
+            let pub_dc_syntax = is_pub
+                && dc_id.is_some_and(|d| {
+                    matches!(
+                        DcShorthand::from_global_id(d.to_u128()),
+                        DcShorthand::Short(_) | DcShorthand::Format(_)
+                    )
+                });
+            let ty = self.read_stagel_type()?;
+            let name = self.read_identifier()?;
+            let value = self.read_expr()?;
+            Ok(TopDecl::Value(TopValueDecl {
+                is_pub,
+                pub_dc_syntax,
+                dc_id,
+                ty,
+                name,
+                value,
+                comments_before,
+                span: sp,
+            }))
+        } else if tok == DC_BEGIN_ROUTINE_DECL {
+            let r = self.read_routine(comments_before)?;
+            Ok(TopDecl::Routine(r))
+        } else {
+            bail!("Unexpected top-level StageL Token Dc {tok}")
+        }
     }
 
     fn read_atom_dc(&mut self) -> Result<DcChar> {
@@ -1639,43 +1729,51 @@ pub fn format_module_to_sl3(module: &Module) -> Result<String> {
     }
 
     for (idx, item) in module.items.iter().enumerate() {
-        match item {
-            TopDecl::Value(v) => {
-                for c in &v.comments_before {
-                    write_comment_line(&mut out, 0, c)?;
-                }
-                write_dc_directive_if_needed(
-                    &mut out,
-                    0,
-                    v.dc_id,
-                    v.pub_dc_syntax,
-                )?;
-                if v.is_pub {
-                    write!(out, "pub ")?;
-                    if v.pub_dc_syntax {
-                        if let Some(dc) = v.dc_id {
-                            write!(out, "dc/{} ", format_dc_shorthand(dc))?;
-                        }
-                    }
-                } else {
-                    write!(out, "const ")?;
-                }
-                write!(out, "{}/{} ", v.ty, v.name)?;
-                write_expr(&mut out, &v.value, 0)?;
-                writeln!(out, ".")?;
-            }
-            TopDecl::Routine(r) => {
-                write_routine(&mut out, r, 0, false)?;
-            }
-            TopDecl::Comment(c) => {
-                write_comment_line(&mut out, 0, c)?;
-            }
-        }
+        write_top_decl(&mut out, item)?;
         if idx.saturating_add(1) < module.items.len() {
             writeln!(out)?;
         }
     }
     Ok(out)
+}
+
+/// Formats a single top-level routine or constant declaration (`TopDecl`) back
+/// into canonical `.sl3` source text.
+pub fn format_top_decl_to_sl3(decl: &TopDecl) -> Result<String> {
+    let mut out = String::new();
+    write_top_decl(&mut out, decl)?;
+    Ok(out)
+}
+
+fn write_top_decl(out: &mut String, item: &TopDecl) -> Result<()> {
+    match item {
+        TopDecl::Value(v) => {
+            for c in &v.comments_before {
+                write_comment_line(out, 0, c)?;
+            }
+            write_dc_directive_if_needed(out, 0, v.dc_id, v.pub_dc_syntax)?;
+            if v.is_pub {
+                write!(out, "pub ")?;
+                if v.pub_dc_syntax {
+                    if let Some(dc) = v.dc_id {
+                        write!(out, "dc/{} ", format_dc_shorthand(dc))?;
+                    }
+                }
+            } else {
+                write!(out, "const ")?;
+            }
+            write!(out, "{}/{} ", v.ty, v.name)?;
+            write_expr(out, &v.value, 0)?;
+            writeln!(out, ".")?;
+        }
+        TopDecl::Routine(r) => {
+            write_routine(out, r, 0, false)?;
+        }
+        TopDecl::Comment(c) => {
+            write_comment_line(out, 0, c)?;
+        }
+    }
+    Ok(())
 }
 
 fn write_indent(out: &mut String, indent: usize) {

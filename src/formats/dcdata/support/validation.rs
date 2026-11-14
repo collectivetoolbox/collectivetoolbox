@@ -253,6 +253,15 @@ pub fn validate_all_data_tables_from_repo(
         );
     }
 
+    // 8. Validate StageL 3 PSR-4 files, `: @dc` ledger bindings, and Gate 4 `.WASM` boundaries
+    crate::support::stagel_dc_alloc::validate_stagel_and_system_graph_in_repo(
+        repo_root,
+        &repo_root.join("src/formats/dcdata/data-src"),
+        &known_dc_ids,
+        &known_format_ids,
+        &mut report,
+    );
+
     report
 }
 

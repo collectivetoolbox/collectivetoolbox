@@ -22,7 +22,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use ctb_formats_dcdata::{
     assign_and_update_dc_categories, assign_and_update_format_categories,
-    check_category_csvs_need_no_id_updates, find_repository_root,
+    assign_and_update_stagel_dc_ids, check_category_csvs_need_no_id_updates,
+    check_stagel_files_need_no_dc_updates, find_repository_root,
     generate_merged_csvs, validate_all_data_tables,
     validate_all_data_tables_from_repo, validate_category_allocations,
 };
@@ -92,6 +93,10 @@ fn main() -> ExitCode {
         };
         if let Err(e) = check_category_csvs_need_no_id_updates(&repo_root) {
             eprintln!("Error checking category CSV IDs: {e:#}");
+            return ExitCode::FAILURE;
+        }
+        if let Err(e) = check_stagel_files_need_no_dc_updates(&repo_root) {
+            eprintln!("Error checking StageL 3 @dc annotations: {e:#}");
             return ExitCode::FAILURE;
         }
         let report = validate_all_data_tables_from_repo(&repo_root);
@@ -188,6 +193,10 @@ fn main() -> ExitCode {
             eprintln!("Error checking category CSV IDs: {e:#}");
             return ExitCode::FAILURE;
         }
+        if let Err(e) = check_stagel_files_need_no_dc_updates(&repo_root) {
+            eprintln!("Error checking StageL 3 @dc annotations: {e:#}");
+            return ExitCode::FAILURE;
+        }
     } else {
         if let Err(error) = validate_category_allocations(&repo_root) {
             eprintln!("Error validating ID allocations: {error:#}");
@@ -223,6 +232,21 @@ fn main() -> ExitCode {
             }
             Err(e) => {
                 eprintln!("Error assigning Format IDs: {e}");
+                return ExitCode::FAILURE;
+            }
+        }
+
+        match assign_and_update_stagel_dc_ids(&repo_root) {
+            Ok(stats) => {
+                if stats.new_ids_assigned > 0 || stats.files_updated > 0 {
+                    println!(
+                        "StageL 3 Files: assigned {} new @dc IDs across {} file(s).",
+                        stats.new_ids_assigned, stats.files_updated
+                    );
+                }
+            }
+            Err(e) => {
+                eprintln!("Error assigning StageL 3 @dc IDs: {e:#}");
                 return ExitCode::FAILURE;
             }
         }

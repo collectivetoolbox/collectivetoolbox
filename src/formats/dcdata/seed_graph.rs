@@ -43,11 +43,13 @@ use ctb_utilities::format_id::DC_COLLECTIVE_TOOLBOX;
 
 use crate::dc::{
     DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP, DC_BEGIN_LIST,
-    DC_BEGIN_LITERAL, DC_BEGIN_TYPE_DEF, DC_BEGIN_WASM_PROGRAM,
+    DC_BEGIN_LITERAL, DC_BEGIN_MODULE, DC_BEGIN_ROUTINE_DECL,
+    DC_BEGIN_TYPE_DEF, DC_BEGIN_WASM_PROGRAM,
     DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE, DC_CANONICAL_DECOMPOSITION,
     DC_CANONICAL_NAME, DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
     DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE,
     DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE, DC_DC_GENERAL_CATEGORY,
+    DC_DECLARE_CONST, DC_DECLARE_PUB,
     DC_DECOMPOSITION, DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP,
     DC_END_LIST, DC_ENTITY_TYPE,
     DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID, DC_HAS_A, DC_HAS_VALUE,
@@ -191,6 +193,9 @@ pub struct SeedGraphIndex {
     /// Highest allocated node ID in the System block at the time the graph bundle was created
     /// (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`).
     pub(crate) system_block_most_recent_node_id: Option<u128>,
+    /// Active non-seed entity nodes (`Dc 586` `"Is an instance of"` `Dc 615` `"Enclosing document"` `<class_tok>`),
+    /// mapped from entity `u128` node ID to `<class_tok>`.
+    pub(crate) entity_class_by_id: HashMap<u128, DcShorthand>,
 }
 
 /// Verified resolution of an unpinned 1-Short-Dc System supervisor entry document
@@ -948,6 +953,7 @@ impl SeedGraphIndex {
         // Second pass: reconstruct seed entities and active statements.
         let mut seed_candidate_class: HashMap<u128, DcShorthand> =
             HashMap::new();
+        let mut entity_class_by_id: HashMap<u128, DcShorthand> = HashMap::new();
         let mut seed_entity_ids = HashMap::new();
         let mut seed_entity_by_id = HashMap::new();
         let mut active_single_props = BTreeMap::new();
@@ -1117,12 +1123,35 @@ impl SeedGraphIndex {
                 continue;
             };
 
-            // Seed entity declaration: `586 615 <class_dc>` where `<class_dc>` is a Short Dc.
+            // Self-referential entity declaration: `586 615 <class_tok>`.
+            // Note: `Dc 615` ("Enclosing document") itself also has CSV classification
+            // statements `586 615 l<gen_cat_or_script_id>` whose `obj` is an already-defined
+            // BidiClass/GeneralCategory/Script seed entity; those are direct statements
+            // about `Dc 615`, whereas all other `586 615 <class_tok>` nodes declare entities.
+            let is_dc_615_classification_stmt =
+                matches!(obj, DcShorthand::Long(obj_id) if matches!(
+                    seed_entity_by_id.get(&obj_id),
+                    Some(
+                        SeedEntityKey::BidiClass(_)
+                            | SeedEntityKey::GeneralCategory(_)
+                            | SeedEntityKey::Script(_)
+                    )
+                ));
             if verb == sh_is_instance_of
                 && subj == sh_enclosing_doc
-                && matches!(obj, DcShorthand::Short(_))
+                && !is_dc_615_classification_stmt
             {
-                seed_candidate_class.insert(node.id, obj);
+                if obj == sh_bidi_class
+                    || obj == sh_char_gen_cat
+                    || obj == sh_dc_gen_cat
+                    || obj == sh_char_script
+                    || obj == sh_uni_script
+                    || obj == sh_entity_type
+                {
+                    seed_candidate_class.insert(node.id, obj);
+                } else {
+                    entity_class_by_id.insert(node.id, obj);
+                }
                 continue;
             }
 
@@ -1362,6 +1391,7 @@ impl SeedGraphIndex {
             subject_all_stmt_ids,
             has_val_stmt_ids_by_has_a,
             system_block_most_recent_node_id,
+            entity_class_by_id,
         }
     }
 
@@ -2244,6 +2274,298 @@ impl SeedGraphIndex {
         }
 
         Ok(None)
+    }
+
+    /// Returns the `<class_tok>` of an active non-seed entity node (`586 615 <class_tok>`),
+    /// if `entity_id` is an active entity in this snapshot.
+    #[must_use]
+    pub fn get_entity_class(&self, entity_id: u128) -> Option<DcShorthand> {
+        self.entity_class_by_id.get(&entity_id).copied()
+    }
+
+    /// Expands interned pure-Unicode string value node references (`DcShorthand::Long(child_id)`
+    /// whose active node contains only `DcShorthand::Unicode(_)` tokens) back into inline
+    /// `DcShorthand::Unicode(_)` tokens.
+    #[must_use]
+    pub fn expand_interned_unicode_runs(
+        &self,
+        tokens: &[DcShorthand],
+    ) -> Vec<DcShorthand> {
+        let mut out = Vec::with_capacity(tokens.len());
+        for &tok in tokens {
+            if let DcShorthand::Long(child_id) = tok
+                && let Some(child_node) = self.get_active_node(child_id)
+                && !child_node.tokens.is_empty()
+                && child_node
+                    .tokens
+                    .iter()
+                    .all(|t| matches!(t, DcShorthand::Unicode(_)))
+            {
+                out.extend_from_slice(&child_node.tokens);
+            } else {
+                out.push(tok);
+            }
+        }
+        out
+    }
+
+    /// Returns `true` if `raw_tokens` (after expanding interned Unicode runs and skipping
+    /// leading single-line comment frames) begins with a StageL 3 module or top-level
+    /// routine/value declaration Token Dc (`Dc 2192`, `Dc 2203`, `Dc 2200`, or `Dc 2199`).
+    #[must_use]
+    pub fn tokens_are_stagel_item_or_module(
+        &self,
+        raw_tokens: &[DcShorthand],
+    ) -> bool {
+        let expanded = self.expand_interned_unicode_runs(raw_tokens);
+        let mut chars = Vec::with_capacity(expanded.len());
+        for tok in expanded {
+            let Ok(gid) = tok.to_global_id() else {
+                return false;
+            };
+            chars.push(DcChar::from_u128(gid));
+        }
+        let stripped = crate::stagel3::dc_tokens::strip_comment_frames(&chars);
+        matches!(
+            stripped.first().copied(),
+            Some(
+                DC_BEGIN_MODULE
+                    | DC_BEGIN_ROUTINE_DECL
+                    | DC_DECLARE_PUB
+                    | DC_DECLARE_CONST
+            )
+        )
+    }
+
+    /// Resolves `subj` (`DcShorthand::Long`, `Short`, or `Format`) to its active StageL 3
+    /// Token-Dc decomposition (`(value_node_id, expanded_dc_chars)`) in this snapshot via
+    /// `Dc 611 "Canonical decomposition"`, `Dc 571 "Decomposition"`, or
+    /// `Dc 614 "Semantic decomposition"`.
+    ///
+    /// # Errors
+    /// Returns an error if `subj` or its StageL decomposition target node was retracted in this
+    /// snapshot (`Dc 592 "Retracts"`), references an unsupported graph block, or exceeds the
+    /// pinned System graph snapshot (`Dc 641`).
+    pub fn resolve_stagel_decomposition_tokens(
+        &self,
+        subj: DcShorthand,
+    ) -> Result<Option<(u128, Vec<DcChar>)>> {
+        if let DcShorthand::Long(subj_id) = subj {
+            if let Some(block_desc) =
+                ctb_storage_minimal::global_graph_layout::unsupported_graph_block_description(
+                    subj_id,
+                )
+            {
+                bail!(
+                    "Graph StageL entity {subj} references unsupported graph block ({block_desc})"
+                );
+            }
+            if let Some(pin_id) = self.system_block_most_recent_node_id
+                && subj_id > pin_id
+            {
+                bail!(
+                    "Graph StageL entity {subj} exceeds pinned System graph snapshot l{pin_id}"
+                );
+            }
+            if self.retracted_by(subj_id).is_some() {
+                bail!(
+                    "Graph StageL entity {subj} was retracted in the active System graph snapshot"
+                );
+            }
+        }
+
+        for prop_dc in [
+            DC_CANONICAL_DECOMPOSITION,
+            DC_DECOMPOSITION,
+            DC_SEMANTIC_DECOMPOSITION,
+        ] {
+            for entry in self.get_multi_properties(subj, sh(prop_dc)) {
+                if !self
+                    .get_direct_objects(
+                        sh(DC_IN_CONTEXT_OF),
+                        DcShorthand::Long(entry.has_a_id),
+                    )
+                    .is_empty()
+                {
+                    continue;
+                }
+                if let DcShorthand::Long(node_id) = entry.value {
+                    if let Some(block_desc) =
+                        ctb_storage_minimal::global_graph_layout::unsupported_graph_block_description(
+                            node_id,
+                        )
+                    {
+                        bail!(
+                            "Graph StageL item {subj} target l{node_id} references unsupported graph block ({block_desc})"
+                        );
+                    }
+                    if let Some(pin_id) = self.system_block_most_recent_node_id
+                        && node_id > pin_id
+                    {
+                        bail!(
+                            "Graph StageL item {subj} target l{node_id} exceeds pinned System graph snapshot l{pin_id}"
+                        );
+                    }
+                    if let Some(node) = self.get_active_node(node_id) {
+                        if let Some(pin_id) =
+                            self.system_block_most_recent_node_id
+                            && node.id > pin_id
+                        {
+                            bail!(
+                                "Graph StageL item {subj} target l{} exceeds pinned System graph snapshot l{pin_id}",
+                                node.id
+                            );
+                        }
+                        if self.tokens_are_stagel_item_or_module(&node.tokens) {
+                            let expanded =
+                                self.expand_interned_unicode_runs(&node.tokens);
+                            let mut dc_chars =
+                                Vec::with_capacity(expanded.len());
+                            for tok in expanded {
+                                let gid = tok.to_global_id().with_context(
+                                    || {
+                                        format!(
+                                            "Invalid DcShorthand token {tok} inside StageL decomposition l{}",
+                                            node.id
+                                        )
+                                    },
+                                )?;
+                                dc_chars.push(DcChar::from_u128(gid));
+                            }
+                            return Ok(Some((node.id, dc_chars)));
+                        }
+                    } else if self.retracted_by(node_id).is_some() {
+                        bail!(
+                            "Graph StageL item {subj} target node l{node_id} was retracted in the active System graph snapshot"
+                        );
+                    }
+                }
+            }
+        }
+
+        if let Some(stmt_ids) = self.subject_all_stmt_ids.get(&subj) {
+            for &stmt_id in stmt_ids {
+                let Some(stmt_node) = self.get_node(stmt_id) else {
+                    continue;
+                };
+                let Some((verb, _, obj)) =
+                    parse_statement_tokens(&stmt_node.tokens)
+                else {
+                    continue;
+                };
+                if verb == sh(DC_HAS_A)
+                    && (obj == sh(DC_CANONICAL_DECOMPOSITION)
+                        || obj == sh(DC_DECOMPOSITION)
+                        || obj == sh(DC_SEMANTIC_DECOMPOSITION))
+                    && !self.has_any_context_qualifier(stmt_id)
+                    && let Some(has_vals) =
+                        self.has_val_stmt_ids_by_has_a.get(&stmt_id)
+                {
+                    for &(has_val_id, val_tok) in has_vals {
+                        if let DcShorthand::Long(target_id) = val_tok {
+                            let is_stagel_target =
+                                self.get_node(target_id).is_some_and(|n| {
+                                    self.tokens_are_stagel_item_or_module(
+                                        &n.tokens,
+                                    )
+                                });
+                            if is_stagel_target
+                                && (self.retracted_by(stmt_id).is_some()
+                                    || self.retracted_by(has_val_id).is_some()
+                                    || self.retracted_by(target_id).is_some()
+                                    || self.inactive_ids.contains(&stmt_id)
+                                    || self.inactive_ids.contains(&has_val_id)
+                                    || self.inactive_ids.contains(&target_id))
+                            {
+                                bail!(
+                                    "Graph StageL item {subj} (or target node l{target_id}) was retracted in the active System graph snapshot"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Resolves all active `pub` StageL symbols exported in `ns_segments` (`f229` `"File path"`
+    /// context on `Dc 574 "Programmatic identifier"`), returning a deterministic map of
+    /// `export_name -> subject_dc_shorthand`.
+    pub fn resolve_stagel_namespace_exports(
+        &self,
+        ns_segments: &[String],
+    ) -> Result<BTreeMap<String, DcShorthand>> {
+        let expected_fp_chars =
+            crate::stagel3::dc_tokens::encode_filepath_dc_tokens(ns_segments)?;
+        let expected_fp_shorthands: Vec<DcShorthand> = expected_fp_chars
+            .iter()
+            .map(|c| DcShorthand::from_global_id(c.to_u128()))
+            .collect();
+
+        let sh_prog_ident = sh(DC_PROGRAMMATIC_IDENTIFIER);
+        let sh_in_ctx = sh(DC_IN_CONTEXT_OF);
+        let mut exports = BTreeMap::new();
+
+        for (&(subj, prop), &(has_a_id, _, val_tok)) in
+            &self.active_single_props
+        {
+            if prop != sh_prog_ident {
+                continue;
+            }
+            let ctx_objs = self
+                .get_direct_objects(sh_in_ctx, DcShorthand::Long(has_a_id));
+            let matches_ns = ctx_objs.iter().any(|&ctx_obj| {
+                let DcShorthand::Long(ctx_id) = ctx_obj else {
+                    return false;
+                };
+                self.get_active_node(ctx_id).is_some_and(|ctx_node| {
+                    self.expand_interned_unicode_runs(&ctx_node.tokens)
+                        == expected_fp_shorthands
+                })
+            });
+            if !matches_ns {
+                continue;
+            }
+            if let DcShorthand::Long(subj_id) = subj {
+                if let Some(block_desc) =
+                    ctb_storage_minimal::global_graph_layout::unsupported_graph_block_description(
+                        subj_id,
+                    )
+                {
+                    bail!(
+                        "StageL export subject {subj} in namespace '{}' references unsupported graph block ({block_desc})",
+                        ns_segments.join("/")
+                    );
+                }
+                if let Some(pin_id) = self.system_block_most_recent_node_id
+                    && subj_id > pin_id
+                {
+                    bail!(
+                        "StageL export subject {subj} in namespace '{}' exceeds pinned System graph snapshot l{pin_id}",
+                        ns_segments.join("/")
+                    );
+                }
+            }
+            let DcShorthand::Long(str_id) = val_tok else {
+                continue;
+            };
+            let Some(ident_name) = self.string_by_node_id.get(&str_id) else {
+                continue;
+            };
+            if let Some(prev) = exports.insert(ident_name.clone(), subj)
+                && prev != subj
+            {
+                bail!(
+                    "Duplicate active StageL export '{}' in namespace '{}' ({prev} vs {subj})",
+                    ident_name,
+                    ns_segments.join("/")
+                );
+            }
+        }
+
+        Ok(exports)
     }
 
     /// Returns `true` if `source` is a trusted Collective Toolbox seed graph provenance source:

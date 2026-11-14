@@ -49,8 +49,8 @@ pub mod support;
 pub mod syntax;
 
 pub use support::{
-    column_spec, format, graph_ledger, layout, report, shared, updater,
-    validation, wat,
+    column_spec, format, graph_ledger, layout, report, shared,
+    stagel_dc_alloc, updater, validation, wat,
 };
 
 pub use column_spec::{
@@ -150,6 +150,10 @@ pub use shared::{
     validate_extension_entry, validate_extensions_field,
     validate_general_category, validate_mime_field, validate_rust_identifier,
     validate_support_level,
+};
+pub use stagel_dc_alloc::{
+    StagelAllocStats, assign_and_update_stagel_dc_ids,
+    check_stagel_files_need_no_dc_updates,
 };
 pub use syntax::{
     ActionArg, CharTarget, DcSyntaxExpr, DcSyntaxRule, Quantifier,
