@@ -588,4 +588,132 @@ mod tests {
         assert!(normalize_stager3(b"u32?:1.\n").is_err());
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_normalize_sr3_protects_dcts_strings_paths_and_comments() -> Result<()> {
+        let src = concat!(
+            ": \"quoted\"; } inside s/comment dcs/comment\n",
+            "const s/empty \"\".\n",
+            "const s/msg \"Hi @256@ /\" // /n; } café\".\n",
+            "const dcs/key dcsFromS? \"abc\".\n",
+        );
+        let norm = normalize_stager3(src.as_bytes())?;
+        assert!(
+            norm.iter().copied().all(is_sli3_byte),
+            "normalized .sri3 bytes must stay strictly within the 32-char alphabet"
+        );
+        let norm_str = std::str::from_utf8(&norm)?;
+        let lines: Vec<&str> = norm_str.lines().collect();
+        assert_eq!(lines.len(), 4);
+        assert!(!lines[0].contains('"'));
+        assert!(lines[0].contains(":CHAR:"));
+        assert!(lines[0].ends_with("S/COMMENT DCS/COMMENT"));
+        assert_eq!(lines[1], "CONST S/EMPTY \"\".");
+        assert!(lines[2].starts_with("CONST S/MSG \""));
+        let msg_start = lines[2].find('"').unwrap();
+        let msg_end = lines[2].rfind('"').unwrap();
+        let decoded =
+            decode_sli3_byte_literal_body(&lines[2].as_bytes()[msg_start + 1..msg_end])?;
+        assert_eq!(
+            std::str::from_utf8(&decoded)?,
+            "Hi @256@ \" / \n; } café"
+        );
+        assert_eq!(
+            lines[3],
+            "CONST DCS/KEY DCSFROMS/ \"/XGB/XGC/XGD\"."
+        );
+
+        // StageL 3 normalizer rejects bare `""` and `"..."` Dcts literals,
+        // and StageR 3 rejects unclosed quotes or invalid escape `/q`.
+        assert!(normalize(b"\"\"").is_err());
+        assert!(normalize_stager3(b"\"unclosed").is_err());
+        assert!(normalize_stager3(b"\"bad /q escape\"").is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_stagel3_public_stager3_api_integration() -> Result<()> {
+        let program = r#"ns demo/api.
+
+pub brand u64/meter.
+pub type u64/nonZeroU64.
+pub struct spanVal :: u64/start u64/spanLen.
+pub enum tag
+    unit.
+    dcs/named.
+
+pub v/result/nonZeroU64/nz u64/n
+    if eq /n u64:0
+        result/nonZeroU64:err error:parseFailure
+        result/nonZeroU64:ok wrap /n nonZeroU64.
+
+pub v/u64/readNonZero nonZeroU64/nzVal :: unwrap /nzVal.
+
+pub v/result/b/roundtripCheck dc/inDc
+    test runs sr3 end to end
+        in dc:256
+        out result/b:ok true
+    const meter/m wrap u64:7 meter.
+    const spanVal/sp structNew spanVal: start unwrap /m spanLen u64:2 ::.
+    const nonZeroU64/nzVal nz? u64:3.
+    const dcs/txt dcsFromS? "hi".
+    const tag/t tag:named /txt.
+    const u64/nval
+        match /t
+            case unit u64:0.
+            case named dcs/inner len /inner.
+        ::.
+    const b/ok1 eq /inDc dc:256.
+    const b/ok2 eq readNonZero /nzVal u64:3.
+    const b/ok3 eq /nval u64:2.
+    const b/ok4 eq field /sp start u64:7.
+    result/b:ok and /ok1 and /ok2 and /ok3 /ok4.
+"#;
+        // 1. Parse, Token-Dc encode/decode, and re-parse through stagel3::dc_tokens
+        let tokens1 = dc_tokens::sr3_to_dc_tokens(program)?;
+        let text1 = dc_tokens::dc_tokens_to_sr3(&tokens1)?;
+        let tokens2 = dc_tokens::sr3_to_dc_tokens(&text1)?;
+        assert_eq!(tokens1, tokens2);
+
+        // 2. Direct parser + validator + evaluator entry points
+        let parsed = parser::parse_sr3_module(program)?;
+        let validated = validator::validate_module(&parsed)?;
+        assert_eq!(validated.exports.brand_types.len(), 2);
+        let report = stager_eval::run_sr3_module_inline_tests(program)?;
+        assert_eq!(report.ensure_all_passed()?, 1);
+
+        // 3. Seed-graph workspace & single-file evaluation via stagel3::seed_linker
+        let sg = ctb_formats_dcdata::SeedGraphIndex::shared()?;
+        let sg_report =
+            seed_linker::eval_sr3_inline_tests_with_seed_graph(program, sg)?;
+        assert_eq!(sg_report.ensure_all_passed()?, 1);
+
+        let caller = r#"ns demo/caller.
+use demo/api: nonZeroU64 nz readNonZero ::.
+
+pub v/result/u64/doubleNz u64/x
+    test uses opaque type across module boundary
+        in u64:9
+        out result/u64:ok u64:18
+    const nonZeroU64/nzVal nz? /x.
+    const u64/raw readNonZero /nzVal.
+    mul /raw u64:2.
+"#;
+        let ws_report =
+            seed_linker::eval_stager_workspace_inline_tests_with_seed_graph(
+                &[
+                    validator::ModuleInput {
+                        source_path: Some("demo/api.sr3"),
+                        source: program,
+                    },
+                    validator::ModuleInput {
+                        source_path: Some("demo/caller.sr3"),
+                        source: caller,
+                    },
+                ],
+                sg,
+            )?;
+        assert_eq!(ws_report.ensure_all_passed()?, 2);
+        Ok(())
+    }
 }

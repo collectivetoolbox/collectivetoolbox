@@ -3124,4 +3124,176 @@ pub v/tup: i32 b l/u8 ::/step point/p
         assert_eq!(formatted1, formatted2);
         assert_eq!(strip_comment_frames(&tokens1), strip_comment_frames(&tokens2));
     }
+
+    fn assert_stager_token_dc_framing_balanced(tokens: &[DcChar]) {
+        use crate::dc::{
+            DC_BEGIN_ENUM_DECL, DC_BEGIN_MATCH, DC_BEGIN_NAMED_STRUCT_DECL,
+            DC_BEGIN_NAMED_STRUCT_VALUE, DC_END_ENUM_DECL, DC_END_MATCH,
+            DC_END_NAMED_STRUCT_DECL, DC_END_NAMED_STRUCT_VALUE,
+        };
+        assert_eq!(tokens.first().copied(), Some(DC_BEGIN_STAGER_MODULE));
+        assert_eq!(tokens.last().copied(), Some(DC_END_STAGER_MODULE));
+
+        let stripped = strip_comment_frames(tokens);
+        let mut stack: Vec<DcChar> = Vec::new();
+        let pairs = [
+            (DC_BEGIN_STAGER_MODULE, DC_END_STAGER_MODULE),
+            (DC_BEGIN_ROUTINE_DECL, DC_END_ROUTINE_DECL),
+            (DC_BEGIN_ROUTINE_CALL, DC_END_ROUTINE_CALL),
+            (DC_BEGIN_CODE_BLOCK, DC_END_CODE_BLOCK),
+            (DC_BEGIN_TEST_BLOCK, DC_END_TEST_BLOCK),
+            (DC_BEGIN_TEST_CASE, DC_END_TEST_CASE),
+            (DC_BEGIN_TUPLE, DC_END_TUPLE),
+            (
+                DC_BEGIN_POSITIONAL_STRUCT_DECL,
+                DC_END_POSITIONAL_STRUCT_DECL,
+            ),
+            (
+                DC_BEGIN_POSITIONAL_STRUCT_VALUE,
+                DC_END_POSITIONAL_STRUCT_VALUE,
+            ),
+            (DC_BEGIN_NAMED_STRUCT_DECL, DC_END_NAMED_STRUCT_DECL),
+            (DC_BEGIN_NAMED_STRUCT_VALUE, DC_END_NAMED_STRUCT_VALUE),
+            (DC_BEGIN_ENUM_DECL, DC_END_ENUM_DECL),
+            (DC_BEGIN_MATCH, DC_END_MATCH),
+        ];
+        for &tok in &stripped {
+            if let Some((_, closer)) = pairs.iter().find(|(o, _)| *o == tok) {
+                stack.push(*closer);
+            } else if pairs.iter().any(|(_, c)| *c == tok) {
+                let expected = stack.pop().unwrap_or_else(|| {
+                    panic!(
+                        "Unexpected StageR closer {} in Token Dc stream",
+                        format_dc_shorthand(tok)
+                    )
+                });
+                assert_eq!(
+                    tok,
+                    expected,
+                    "Mismatched StageR closer: expected {}, got {}",
+                    format_dc_shorthand(expected),
+                    format_dc_shorthand(tok)
+                );
+            }
+        }
+        assert!(
+            stack.is_empty(),
+            "Unclosed StageR Token Dc containers remaining: {:?}",
+            stack
+                .iter()
+                .map(|d| format_dc_shorthand(*d))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_sr3_parser_and_token_dc_roundtrip() {
+        let roundtrip_src = r#": StageR 3 comprehensive syntax & Token-Dc codec roundtrip
+ns std/sr3demo.
+
+pub brand i32/meter.
+type u64/opaqueId.
+
+pub struct point
+    i32/x.
+    i32/y.
+
+struct inlinePair :: s/label dcs/key.
+
+pub enum choice
+    empty.
+    point/pt.
+
+enum inlineTag :: noneVal i128/big.
+
+pub enum neverTag ::.
+
+pub i128/WIDE_CONST i128:-123456789012345678901234567890.
+const dc/ATOM_CONST dc:256.
+const dc/FMT_CONST dc:f657.
+const s/EMPTY_STR "".
+const s/DCTS_STR "Hi @256@ /" // /n".
+
+v/never/absurd neverTag/n :: match /n ::.
+
+pub v/result/i32/exerciseOps i32/a i32/rhs
+    test checks roundtrip ops
+        in i32:4 i32:2
+        out result/i32:ok i32:6
+    const meter/m wrap /a meter.
+    const i32/unw unwrap /m.
+    const point/p structNew point: x /unw y /rhs ::.
+    const point/p2 with /p x field /p y.
+    const dcs/k dcsFromS? "k".
+    const inlinePair/ip structNew inlinePair: label sFromDcs /k key /k ::.
+    const u64/blen byteLen field /ip label.
+    const result/dc/rd dcFromU128 u128FromDc /ATOM_CONST.
+    const option/dc/missing option/dc:none.
+    const option/dc/present option/dc:some /FMT_CONST.
+    const b/chk1 and isSome /present isNone /missing.
+    const choice/c choice:empty.
+    const choice/c2 choice:pt /p2.
+    const result/rat/r makeRat int:123456789012345678901234567890 int:-4.
+    const i32/m1 neg? shl? shr? /unw u32:1 u32:1.
+    const i32/m2 truncRem? mod? /m1 /rhs /rhs.
+    const result/i32/fin okOr get l/i32: i32:1 i32:2 :: u64:0 error:parseFailure.
+    const i32/finUnw unwrapOr /fin i32:0.
+    const option/l/i32/sl slice l/i32: i32:1 i32:2 :: u64:0 u64:1.
+    const l/s/parts explode ":" "a:b".
+    const s/joined implode ":" /parts.
+    const b/bok and isOk /fin isErr result/i32:err error:overflow.
+    let buf/i32/scratch bufNew i32 u64:2.
+    const result/void/bw bufSet /scratch u64:0 /m2.
+    const i32/matched
+        match /c2
+            case empty i32:0.
+            case pt point/inner field /inner x.
+        ::.
+    const i32/errVal
+        match error:invalidEncoding
+            case overflow i32:1.
+            case divisionByZero i32:2.
+            case outOfBounds i32:3.
+            case invalidEncoding i32:4.
+            case invalidDc i32:5.
+            case unexpectedNone i32:6.
+            case frozenBuffer i32:7.
+            else i32:8.
+        ::.
+    const result/i32/tailCheck
+        if or /chk1 /bok
+            result/i32:ok /matched
+            result/i32:err error:unexpectedNone.
+    const i32/finv do?
+        const i32/tcVal /tailCheck?.
+        result/i32:ok add? /tcVal conv? int:5 i32.
+    ::.
+    result/i32:ok add? add? /finv /finUnw /errVal.
+"#;
+        let tokens1 = sr3_to_dc_tokens(roundtrip_src)
+            .expect("encode StageR 3 module to Token Dcs");
+        assert_stager_token_dc_framing_balanced(&tokens1);
+        let formatted1 =
+            dc_tokens_to_sr3(&tokens1).expect("decode Token Dcs to .sr3");
+        let parsed_formatted =
+            crate::stagel3::parser::parse_sr3_module(&formatted1)
+                .expect("parse formatted .sr3");
+        crate::stagel3::validator::validate_module(&parsed_formatted)
+            .expect("validate formatted .sr3");
+        let tokens2 = sr3_to_dc_tokens(&formatted1)
+            .expect("re-encode formatted .sr3 to Token Dcs");
+        assert_stager_token_dc_framing_balanced(&tokens2);
+        let formatted2 =
+            dc_tokens_to_sr3(&tokens2).expect("re-decode Token Dcs to .sr3");
+        assert_eq!(formatted1, formatted2);
+        assert_eq!(strip_comment_frames(&tokens1), strip_comment_frames(&tokens2));
+        // Confirm all distinct error tags and literals survive formatting.
+        assert!(formatted1.contains("dc:256"));
+        assert!(formatted1.contains("dc:f657"));
+        assert!(formatted1.contains("\"\""));
+        assert!(formatted1.contains("\"Hi @256@ /\" // /n\""));
+        assert!(formatted1.contains("brand i32/meter."));
+        assert!(formatted1.contains("type u64/opaqueId."));
+        assert!(formatted1.contains("enum neverTag ::."));
+    }
 }
