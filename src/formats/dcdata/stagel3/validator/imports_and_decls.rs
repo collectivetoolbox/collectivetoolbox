@@ -220,7 +220,7 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
                 (Some(a), _) => a.clone(),
                 (None, ImportTarget::Name(n)) => n.clone(),
                 (None, ImportTarget::Dc(_)) => {
-                    imported_symbol_original_name(first_sym).to_owned()
+                    first_sym.original_name().to_owned()
                 }
             };
             if forbid_stagel_internal && is_stagel_internal_name(&local_name) {
@@ -719,118 +719,21 @@ impl ModuleSymbolReg {
             let Some(mut sym) = dc_imports.get(&dc).cloned() else {
                 continue;
             };
-            match &mut sym {
-                ImportedSymbol::Value { ty, .. } => {
-                    *ty = self.canonicalize_detached(
-                        ty,
-                        &empty_local,
-                        &empty_local,
-                        &empty_top_dc,
-                        span,
-                    )?;
-                }
-                ImportedSymbol::Routine { sig, .. } => {
-                    sig.return_type = self.canonicalize_detached(
-                        &sig.return_type,
-                        &empty_local,
-                        &empty_local,
-                        &empty_top_dc,
-                        span,
-                    )?;
-                    let mut cp = Vec::with_capacity(sig.params.len());
-                    for p in &sig.params {
-                        cp.push(self.canonicalize_detached(
-                            p,
-                            &empty_local,
-                            &empty_local,
-                            &empty_top_dc,
-                            span,
-                        )?);
-                    }
-                    sig.params = cp;
-                }
-                ImportedSymbol::Struct { fields, .. } => {
-                    let mut cf = Vec::with_capacity(fields.len());
-                    for f in fields.iter() {
-                        cf.push(self.canonicalize_detached(
-                            f,
-                            &empty_local,
-                            &empty_local,
-                            &empty_top_dc,
-                            span,
-                        )?);
-                    }
-                    *fields = cf;
-                }
-                ImportedSymbol::BrandType {
-                    original_name,
-                    inner_ty,
-                    ..
-                } => {
-                    ensure!(
-                        self.dialect == StageDialect::StageR3,
-                        "StageR 3 symbol '{original_name}' cannot be referenced inside a StageL 3 module"
-                    );
-                    *inner_ty = self.canonicalize_detached(
-                        inner_ty,
-                        &empty_local,
-                        &empty_local,
-                        &empty_top_dc,
-                        span,
-                    )?;
-                }
-                ImportedSymbol::NamedStruct {
-                    original_name,
-                    fields,
-                    ..
-                } => {
-                    ensure!(
-                        self.dialect == StageDialect::StageR3,
-                        "StageR 3 symbol '{original_name}' cannot be referenced inside a StageL 3 module"
-                    );
-                    let mut cf = Vec::with_capacity(fields.len());
-                    for (fname, fty) in fields.iter() {
-                        let c = self.canonicalize_detached(
-                            fty,
-                            &empty_local,
-                            &empty_local,
-                            &empty_top_dc,
-                            span,
-                        )?;
-                        cf.push((fname.clone(), c));
-                    }
-                    *fields = cf;
-                }
-                ImportedSymbol::Enum {
-                    original_name,
-                    variants,
-                    ..
-                } => {
-                    ensure!(
-                        self.dialect == StageDialect::StageR3,
-                        "StageR 3 symbol '{original_name}' cannot be referenced inside a StageL 3 module"
-                    );
-                    let mut cv = Vec::with_capacity(variants.len());
-                    for v in variants.iter() {
-                        let cp = match &v.payload {
-                            Some(pty) => Some(self.canonicalize_detached(
-                                pty,
-                                &empty_local,
-                                &empty_local,
-                                &empty_top_dc,
-                                span,
-                            )?),
-                            None => None,
-                        };
-                        cv.push(EnumVariantDef {
-                            name: v.name.clone(),
-                            payload: cp,
-                            span: v.span,
-                        });
-                    }
-                    *variants = cv;
-                }
+            if let Some(original_name) = sym.stager_only_name() {
+                ensure!(
+                    self.dialect == StageDialect::StageR3,
+                    "StageR 3 symbol '{original_name}' cannot be referenced inside a StageL 3 module"
+                );
             }
+            sym.try_map_types(|ty| {
+                self.canonicalize_detached(
+                    ty,
+                    &empty_local,
+                    &empty_local,
+                    &empty_top_dc,
+                    span,
+                )
+            })?;
             dc_imports.insert(dc, sym);
         }
 
@@ -991,16 +894,45 @@ impl ModuleSymbolReg {
         )
     }
 
+    fn register_imported_type_key(
+        &mut self,
+        local_name: &str,
+        namespace: &str,
+        original_name: &str,
+        is_struct_table: bool,
+        kind_label: &str,
+        span: Span,
+    ) -> Result<(Option<String>, String)> {
+        ensure!(
+            !self.name_conflicts_top(local_name),
+            "Duplicate or conflicting imported {kind_label} '{local_name}' at {span}"
+        );
+        let key = (Some(namespace.to_owned()), original_name.to_owned());
+        if is_struct_table {
+            self.local_structs.insert(local_name.to_owned(), key.clone());
+        } else {
+            self.local_nominals
+                .insert(local_name.to_owned(), key.clone());
+        }
+        Ok(key)
+    }
+
     fn register_imported_symbol(
         &mut self,
         resolved: &ImportedSymbol,
         local_name: &str,
         span: Span,
     ) -> Result<()> {
-        let orig = imported_symbol_original_name(resolved);
+        let orig = resolved.original_name();
         if self.forbid_stagel_internal && is_stagel_internal_name(orig) {
             bail!(
                 "StageL-internal symbol '{orig}' cannot be imported into Stage 2/StageR module at {span}"
+            );
+        }
+        if let Some(stager_orig) = resolved.stager_only_name() {
+            ensure!(
+                self.dialect == StageDialect::StageR3,
+                "StageR 3 symbol '{stager_orig}' cannot be imported into a StageL 3 module at {span}"
             );
         }
         match resolved {
@@ -1094,12 +1026,14 @@ impl ModuleSymbolReg {
                         span,
                     )?;
                 }
-                ensure!(
-                    !self.name_conflicts_top(local_name),
-                    "Duplicate or conflicting imported struct '{local_name}' at {span}"
-                );
-                let key = (Some(namespace.clone()), original_name.clone());
-                self.local_structs.insert(local_name.to_owned(), key.clone());
+                let key = self.register_imported_type_key(
+                    local_name,
+                    namespace,
+                    original_name,
+                    true,
+                    "struct",
+                    span,
+                )?;
                 self.struct_defs.entry(key).or_insert_with(|| StructDef {
                     namespace: Some(namespace.clone()),
                     original_name: original_name.clone(),
@@ -1116,22 +1050,19 @@ impl ModuleSymbolReg {
                 inner_ty,
                 dc_id,
             } => {
-                ensure!(
-                    self.dialect == StageDialect::StageR3,
-                    "StageR 3 symbol '{original_name}' cannot be imported into a StageL 3 module at {span}"
-                );
                 self.check_imported_type_for_dialect(
                     inner_ty,
                     &format!("nominal type '{original_name}'"),
                     span,
                 )?;
-                ensure!(
-                    !self.name_conflicts_top(local_name),
-                    "Duplicate or conflicting imported nominal type '{local_name}' at {span}"
-                );
-                let key = (Some(namespace.clone()), original_name.clone());
-                self.local_nominals
-                    .insert(local_name.to_owned(), key.clone());
+                let key = self.register_imported_type_key(
+                    local_name,
+                    namespace,
+                    original_name,
+                    false,
+                    "nominal type",
+                    span,
+                )?;
                 self.brand_types.entry(key).or_insert_with(|| BrandTypeDef {
                     namespace: Some(namespace.clone()),
                     original_name: original_name.clone(),
@@ -1148,10 +1079,6 @@ impl ModuleSymbolReg {
                 fields,
                 dc_id,
             } => {
-                ensure!(
-                    self.dialect == StageDialect::StageR3,
-                    "StageR 3 symbol '{original_name}' cannot be imported into a StageL 3 module at {span}"
-                );
                 for (fname, fty) in fields {
                     ensure!(
                         !self.forbid_stagel_internal
@@ -1164,12 +1091,14 @@ impl ModuleSymbolReg {
                         span,
                     )?;
                 }
-                ensure!(
-                    !self.name_conflicts_top(local_name),
-                    "Duplicate or conflicting imported struct '{local_name}' at {span}"
-                );
-                let key = (Some(namespace.clone()), original_name.clone());
-                self.local_structs.insert(local_name.to_owned(), key.clone());
+                let key = self.register_imported_type_key(
+                    local_name,
+                    namespace,
+                    original_name,
+                    true,
+                    "struct",
+                    span,
+                )?;
                 self.named_structs
                     .entry(key)
                     .or_insert_with(|| NamedStructDef {
@@ -1187,10 +1116,6 @@ impl ModuleSymbolReg {
                 variants,
                 dc_id,
             } => {
-                ensure!(
-                    self.dialect == StageDialect::StageR3,
-                    "StageR 3 symbol '{original_name}' cannot be imported into a StageL 3 module at {span}"
-                );
                 for v in variants {
                     ensure!(
                         !self.forbid_stagel_internal
@@ -1209,13 +1134,14 @@ impl ModuleSymbolReg {
                         )?;
                     }
                 }
-                ensure!(
-                    !self.name_conflicts_top(local_name),
-                    "Duplicate or conflicting imported enum '{local_name}' at {span}"
-                );
-                let key = (Some(namespace.clone()), original_name.clone());
-                self.local_nominals
-                    .insert(local_name.to_owned(), key.clone());
+                let key = self.register_imported_type_key(
+                    local_name,
+                    namespace,
+                    original_name,
+                    false,
+                    "enum",
+                    span,
+                )?;
                 self.enums.entry(key).or_insert_with(|| EnumDef {
                     namespace: Some(namespace.clone()),
                     original_name: original_name.clone(),
@@ -1225,6 +1151,102 @@ impl ModuleSymbolReg {
                     span,
                 });
             }
+        }
+        Ok(())
+    }
+
+    fn register_top_type_header(
+        &mut self,
+        kind: TopTypeDeclKind,
+        name: &str,
+        dc: Option<(DcChar, bool)>,
+        span: Span,
+    ) -> Result<(Option<String>, String)> {
+        match kind {
+            TopTypeDeclKind::PositionalStruct { has_fields } => {
+                ensure!(
+                    self.dialect == StageDialect::StageL3,
+                    "Positional StageL 'struct {name}' at {span} is forbidden in StageR 3 (use named-field 'struct' instead)"
+                );
+                if self.forbid_stagel_internal
+                    && is_stagel_internal_name(name)
+                {
+                    bail!(
+                        "StageL-internal struct '{name}' cannot be declared in Stage 2/StageR module at {span}"
+                    );
+                }
+                ensure!(
+                    has_fields,
+                    "Positional struct '{name}' at {span} must declare at least 1 slot"
+                );
+                ensure!(
+                    !self.name_conflicts_top(name),
+                    "Struct '{name}' at {span} duplicates/shadows an existing declaration or import"
+                );
+            }
+            TopTypeDeclKind::BrandType
+            | TopTypeDeclKind::NamedStruct
+            | TopTypeDeclKind::Enum => {
+                ensure!(
+                    self.dialect == StageDialect::StageR3,
+                    "StageR 3 declaration is not supported in StageL 3 validator"
+                );
+                let internal_kind = match kind {
+                    TopTypeDeclKind::BrandType => "type",
+                    TopTypeDeclKind::NamedStruct => "struct",
+                    TopTypeDeclKind::Enum => "enum",
+                    TopTypeDeclKind::PositionalStruct { .. } => "struct",
+                };
+                ensure!(
+                    !self.forbid_stagel_internal
+                        || !is_stagel_internal_name(name),
+                    "StageL-internal {internal_kind} '{name}' cannot be declared in StageR 3 module at {span}"
+                );
+                ensure!(
+                    !self.name_conflicts_top(name),
+                    "Duplicate or conflicting declaration name '{name}' at {span}"
+                );
+            }
+        }
+        let is_struct_table = matches!(
+            kind,
+            TopTypeDeclKind::PositionalStruct { .. }
+                | TopTypeDeclKind::NamedStruct
+        );
+        let key = (self.namespace_key.clone(), name.to_owned());
+        if let Some((dc_id, pub_dc_syntax)) = dc {
+            self.register_dc_binding(dc_id, name, pub_dc_syntax, span)?;
+            if is_struct_table {
+                self.dc_structs.insert(dc_id, key.clone());
+            } else {
+                self.dc_nominals.insert(dc_id, key.clone());
+            }
+        }
+        if is_struct_table {
+            self.local_structs.insert(name.to_owned(), key.clone());
+        } else {
+            self.local_nominals.insert(name.to_owned(), key.clone());
+        }
+        Ok(key)
+    }
+
+    fn record_pub_dc_export(
+        &self,
+        exports: &mut NamespaceExports,
+        kind_kw: &str,
+        name: &str,
+        dc_id: Option<DcChar>,
+        span: Span,
+        make_dc_sym: impl FnOnce(String, DcChar) -> ImportedSymbol,
+    ) -> Result<()> {
+        let export_ns = self.export_ns_for_pub(kind_kw, name, span)?;
+        if let Some(dc) = dc_id {
+            Self::record_export_by_dc(
+                exports,
+                dc,
+                make_dc_sym(export_ns, dc),
+                span,
+            )?;
         }
         Ok(())
     }
@@ -1247,140 +1269,44 @@ impl ModuleSymbolReg {
         for decl in items {
             match decl {
                 TopDecl::Struct(s) => {
-                    ensure!(
-                        self.dialect == StageDialect::StageL3,
-                        "Positional StageL 'struct {}' at {} is forbidden in StageR 3 (use named-field 'struct' instead)",
-                        s.name,
-                        s.span
-                    );
-                    if self.forbid_stagel_internal
-                        && is_stagel_internal_name(&s.name)
-                    {
-                        bail!(
-                            "StageL-internal struct '{}' cannot be declared in Stage 2/StageR module at {}",
-                            s.name,
-                            s.span
-                        );
-                    }
-                    ensure!(
-                        !s.fields.is_empty(),
-                        "Positional struct '{}' at {} must declare at least 1 slot",
-                        s.name,
-                        s.span
-                    );
-                    ensure!(
-                        !self.name_conflicts_top(&s.name),
-                        "Struct '{}' at {} duplicates/shadows an existing declaration or import",
-                        s.name,
-                        s.span
-                    );
-                    let key = (self.namespace_key.clone(), s.name.clone());
-                    if let Some(dc) = s.dc_id {
-                        self.register_dc_binding(
-                            dc,
-                            &s.name,
-                            s.pub_dc_syntax,
-                            s.span,
-                        )?;
-                        self.dc_structs.insert(dc, key.clone());
-                    }
-                    self.local_structs.insert(s.name.clone(), key);
+                    self.register_top_type_header(
+                        TopTypeDeclKind::PositionalStruct {
+                            has_fields: !s.fields.is_empty(),
+                        },
+                        &s.name,
+                        s.dc_id.map(|dc| (dc, s.pub_dc_syntax)),
+                        s.span,
+                    )?;
                     local_struct_decls.push(s);
                 }
                 TopDecl::BrandType(b) => {
-                    ensure!(
-                        self.dialect == StageDialect::StageR3,
-                        "StageR 3 declaration is not supported in StageL 3 validator"
-                    );
-                    ensure!(
-                        !self.forbid_stagel_internal
-                            || !is_stagel_internal_name(&b.name),
-                        "StageL-internal type '{}' cannot be declared in StageR 3 module at {}",
-                        b.name,
-                        b.span
-                    );
-                    ensure!(
-                        !self.name_conflicts_top(&b.name),
-                        "Duplicate or conflicting declaration name '{}' at {}",
-                        b.name,
-                        b.span
-                    );
-                    let key = (self.namespace_key.clone(), b.name.clone());
-                    if let Some(dc) = b.dc_id {
-                        self.register_dc_binding(
-                            dc,
-                            &b.name,
-                            b.pub_dc_syntax,
-                            b.span,
-                        )?;
-                        self.dc_nominals.insert(dc, key.clone());
-                    }
-                    self.local_nominals.insert(b.name.clone(), key.clone());
+                    let key = self.register_top_type_header(
+                        TopTypeDeclKind::BrandType,
+                        &b.name,
+                        b.dc_id.map(|dc| (dc, b.pub_dc_syntax)),
+                        b.span,
+                    )?;
                     if b.is_opaque {
                         self.local_declared_opaque.insert(key);
                     }
                     brand_decls.push(b);
                 }
                 TopDecl::NamedStruct(ns) => {
-                    ensure!(
-                        self.dialect == StageDialect::StageR3,
-                        "StageR 3 declaration is not supported in StageL 3 validator"
-                    );
-                    ensure!(
-                        !self.forbid_stagel_internal
-                            || !is_stagel_internal_name(&ns.name),
-                        "StageL-internal struct '{}' cannot be declared in StageR 3 module at {}",
-                        ns.name,
-                        ns.span
-                    );
-                    ensure!(
-                        !self.name_conflicts_top(&ns.name),
-                        "Duplicate or conflicting declaration name '{}' at {}",
-                        ns.name,
-                        ns.span
-                    );
-                    let key = (self.namespace_key.clone(), ns.name.clone());
-                    if let Some(dc) = ns.dc_id {
-                        self.register_dc_binding(
-                            dc,
-                            &ns.name,
-                            ns.pub_dc_syntax,
-                            ns.span,
-                        )?;
-                        self.dc_structs.insert(dc, key.clone());
-                    }
-                    self.local_structs.insert(ns.name.clone(), key);
+                    self.register_top_type_header(
+                        TopTypeDeclKind::NamedStruct,
+                        &ns.name,
+                        ns.dc_id.map(|dc| (dc, ns.pub_dc_syntax)),
+                        ns.span,
+                    )?;
                     named_struct_decls.push(ns);
                 }
                 TopDecl::Enum(en) => {
-                    ensure!(
-                        self.dialect == StageDialect::StageR3,
-                        "StageR 3 declaration is not supported in StageL 3 validator"
-                    );
-                    ensure!(
-                        !self.forbid_stagel_internal
-                            || !is_stagel_internal_name(&en.name),
-                        "StageL-internal enum '{}' cannot be declared in StageR 3 module at {}",
-                        en.name,
-                        en.span
-                    );
-                    ensure!(
-                        !self.name_conflicts_top(&en.name),
-                        "Duplicate or conflicting declaration name '{}' at {}",
-                        en.name,
-                        en.span
-                    );
-                    let key = (self.namespace_key.clone(), en.name.clone());
-                    if let Some(dc) = en.dc_id {
-                        self.register_dc_binding(
-                            dc,
-                            &en.name,
-                            en.pub_dc_syntax,
-                            en.span,
-                        )?;
-                        self.dc_nominals.insert(dc, key.clone());
-                    }
-                    self.local_nominals.insert(en.name.clone(), key);
+                    self.register_top_type_header(
+                        TopTypeDeclKind::Enum,
+                        &en.name,
+                        en.dc_id.map(|dc| (dc, en.pub_dc_syntax)),
+                        en.span,
+                    )?;
                     enum_decls.push(en);
                 }
                 TopDecl::Value(_)
@@ -1562,22 +1488,20 @@ impl ModuleSymbolReg {
                 )?;
             }
             if s.is_pub {
-                let export_ns =
-                    self.export_ns_for_pub("struct", &s.name, s.span)?;
                 exports.structs.insert(s.name.clone(), sdef.clone());
-                if let Some(dc) = s.dc_id {
-                    Self::record_export_by_dc(
-                        exports,
-                        dc,
-                        ImportedSymbol::Struct {
-                            namespace: export_ns,
-                            original_name: s.name.clone(),
-                            fields: sdef.fields,
-                            dc_id: Some(dc),
-                        },
-                        s.span,
-                    )?;
-                }
+                self.record_pub_dc_export(
+                    exports,
+                    "struct",
+                    &s.name,
+                    s.dc_id,
+                    s.span,
+                    |export_ns, dc| ImportedSymbol::Struct {
+                        namespace: export_ns,
+                        original_name: s.name.clone(),
+                        fields: sdef.fields,
+                        dc_id: Some(dc),
+                    },
+                )?;
             }
         }
 
@@ -1591,24 +1515,22 @@ impl ModuleSymbolReg {
             check_stager_value_type_shape(&def.inner_ty, &defs, b.span)?;
             if b.is_pub {
                 let kind_kw = if b.is_opaque { "type" } else { "brand" };
-                let export_ns =
-                    self.export_ns_for_pub(kind_kw, &b.name, b.span)?;
                 exports.brand_types.insert(b.name.clone(), def.clone());
                 exports.all_brand_types.insert(key, def.clone());
-                if let Some(dc) = b.dc_id {
-                    Self::record_export_by_dc(
-                        exports,
-                        dc,
-                        ImportedSymbol::BrandType {
-                            namespace: export_ns,
-                            original_name: b.name.clone(),
-                            is_opaque: b.is_opaque,
-                            inner_ty: def.inner_ty,
-                            dc_id: Some(dc),
-                        },
-                        b.span,
-                    )?;
-                }
+                self.record_pub_dc_export(
+                    exports,
+                    kind_kw,
+                    &b.name,
+                    b.dc_id,
+                    b.span,
+                    |export_ns, dc| ImportedSymbol::BrandType {
+                        namespace: export_ns,
+                        original_name: b.name.clone(),
+                        is_opaque: b.is_opaque,
+                        inner_ty: def.inner_ty,
+                        dc_id: Some(dc),
+                    },
+                )?;
             }
         }
 
@@ -1623,23 +1545,21 @@ impl ModuleSymbolReg {
                 check_stager_value_type_shape(cf, &defs, field_decl.span)?;
             }
             if ns.is_pub {
-                let export_ns =
-                    self.export_ns_for_pub("struct", &ns.name, ns.span)?;
                 exports.named_structs.insert(ns.name.clone(), def.clone());
                 exports.all_named_structs.insert(key, def.clone());
-                if let Some(dc) = ns.dc_id {
-                    Self::record_export_by_dc(
-                        exports,
-                        dc,
-                        ImportedSymbol::NamedStruct {
-                            namespace: export_ns,
-                            original_name: ns.name.clone(),
-                            fields: def.fields,
-                            dc_id: Some(dc),
-                        },
-                        ns.span,
-                    )?;
-                }
+                self.record_pub_dc_export(
+                    exports,
+                    "struct",
+                    &ns.name,
+                    ns.dc_id,
+                    ns.span,
+                    |export_ns, dc| ImportedSymbol::NamedStruct {
+                        namespace: export_ns,
+                        original_name: ns.name.clone(),
+                        fields: def.fields,
+                        dc_id: Some(dc),
+                    },
+                )?;
             }
         }
 
@@ -1656,23 +1576,21 @@ impl ModuleSymbolReg {
                 }
             }
             if en.is_pub {
-                let export_ns =
-                    self.export_ns_for_pub("enum", &en.name, en.span)?;
                 exports.enums.insert(en.name.clone(), def.clone());
                 exports.all_enums.insert(key, def.clone());
-                if let Some(dc) = en.dc_id {
-                    Self::record_export_by_dc(
-                        exports,
-                        dc,
-                        ImportedSymbol::Enum {
-                            namespace: export_ns,
-                            original_name: en.name.clone(),
-                            variants: def.variants,
-                            dc_id: Some(dc),
-                        },
-                        en.span,
-                    )?;
-                }
+                self.record_pub_dc_export(
+                    exports,
+                    "enum",
+                    &en.name,
+                    en.dc_id,
+                    en.span,
+                    |export_ns, dc| ImportedSymbol::Enum {
+                        namespace: export_ns,
+                        original_name: en.name.clone(),
+                        variants: def.variants,
+                        dc_id: Some(dc),
+                    },
+                )?;
             }
         }
 
@@ -1961,15 +1879,12 @@ impl ModuleSymbolReg {
     }
 }
 
-fn imported_symbol_original_name(sym: &ImportedSymbol) -> &str {
-    match sym {
-        ImportedSymbol::Value { original_name, .. }
-        | ImportedSymbol::Routine { original_name, .. }
-        | ImportedSymbol::Struct { original_name, .. }
-        | ImportedSymbol::BrandType { original_name, .. }
-        | ImportedSymbol::NamedStruct { original_name, .. }
-        | ImportedSymbol::Enum { original_name, .. } => original_name,
-    }
+#[derive(Clone, Copy)]
+enum TopTypeDeclKind {
+    PositionalStruct { has_fields: bool },
+    BrandType,
+    NamedStruct,
+    Enum,
 }
 
 fn type_references_stagel_internal(ty: &StageLType) -> bool {

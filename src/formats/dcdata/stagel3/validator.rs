@@ -352,6 +352,87 @@ pub enum ImportedSymbol {
     },
 }
 
+impl ImportedSymbol {
+    /// Returns the original exported symbol identifier in its defining module.
+    #[must_use]
+    pub fn original_name(&self) -> &str {
+        match self {
+            Self::Value { original_name, .. }
+            | Self::Routine { original_name, .. }
+            | Self::Struct { original_name, .. }
+            | Self::BrandType { original_name, .. }
+            | Self::NamedStruct { original_name, .. }
+            | Self::Enum { original_name, .. } => original_name,
+        }
+    }
+
+    /// Returns `Some(original_name)` if this symbol is StageR 3-only.
+    #[must_use]
+    pub fn stager_only_name(&self) -> Option<&str> {
+        match self {
+            Self::BrandType { original_name, .. }
+            | Self::NamedStruct { original_name, .. }
+            | Self::Enum { original_name, .. } => Some(original_name),
+            Self::Value { .. }
+            | Self::Routine { .. }
+            | Self::Struct { .. } => None,
+        }
+    }
+
+    /// Transforms every embedded [`StageLType`] in place via `f`.
+    pub fn try_map_types(
+        &mut self,
+        mut f: impl FnMut(&StageLType) -> Result<StageLType>,
+    ) -> Result<()> {
+        match self {
+            Self::Value { ty, .. } => {
+                *ty = f(ty)?;
+            }
+            Self::Routine { sig, .. } => {
+                sig.return_type = f(&sig.return_type)?;
+                let mut mapped_params = Vec::with_capacity(sig.params.len());
+                for p in &sig.params {
+                    mapped_params.push(f(p)?);
+                }
+                sig.params = mapped_params;
+            }
+            Self::Struct { fields, .. } => {
+                let mut mapped = Vec::with_capacity(fields.len());
+                for field_ty in fields.iter() {
+                    mapped.push(f(field_ty)?);
+                }
+                *fields = mapped;
+            }
+            Self::BrandType { inner_ty, .. } => {
+                *inner_ty = f(inner_ty)?;
+            }
+            Self::NamedStruct { fields, .. } => {
+                let mut mapped = Vec::with_capacity(fields.len());
+                for (fname, fty) in fields.iter() {
+                    mapped.push((fname.clone(), f(fty)?));
+                }
+                *fields = mapped;
+            }
+            Self::Enum { variants, .. } => {
+                let mut mapped = Vec::with_capacity(variants.len());
+                for v in variants.iter() {
+                    let payload = match &v.payload {
+                        Some(pty) => Some(f(pty)?),
+                        None => None,
+                    };
+                    mapped.push(EnumVariantDef {
+                        name: v.name.clone(),
+                        payload,
+                        span: v.span,
+                    });
+                }
+                *variants = mapped;
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Metadata collected for a validated single module.
 #[derive(Debug, Clone)]
 pub struct ValidatedModule {

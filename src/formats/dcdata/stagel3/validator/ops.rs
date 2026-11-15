@@ -44,6 +44,13 @@ fn is_stager_integer(ty: &StageLType) -> bool {
     ty.is_stager_fixed_int() || *ty == StageLType::Int
 }
 
+#[derive(Clone, Copy)]
+enum ArithResultWrap {
+    Direct,
+    FixedIntResult,
+    AlwaysResult,
+}
+
 impl<'a> ModuleValidator<'a> {
     /// Checks `expr` in the current tail/loop/flow context and records its
     /// static type in `self.expr_types`.
@@ -1176,35 +1183,11 @@ impl<'a> ModuleValidator<'a> {
                 );
                 Ok(StageLType::U32)
             }
-            UnaryOp::IsSome
-            | UnaryOp::IsNone
-            | UnaryOp::IsOk
-            | UnaryOp::IsErr
-            | UnaryOp::ByteLen
-            | UnaryOp::DcFromU128
-            | UnaryOp::U128FromDc
-            | UnaryOp::DcsFromS
-            | UnaryOp::SFromDcs => {
-                self.check_stager_only_unary(op, operand, span, state, ctx)
-            }
-        }
-    }
-
-    /// Type-checks StageR-only value conversion and inspection unary operators.
-    fn check_stager_only_unary(
-        &mut self,
-        op: UnaryOp,
-        operand: &Expr,
-        span: Span,
-        state: &mut FlowState,
-        ctx: &mut BodyCtx,
-    ) -> Result<StageLType> {
-        let ty = self.check_subexpr(operand, state, ctx)?;
-        if ty == StageLType::Never {
-            return Ok(StageLType::Never);
-        }
-        match op {
             UnaryOp::IsSome | UnaryOp::IsNone => {
+                let ty = self.check_subexpr(operand, state, ctx)?;
+                if ty == StageLType::Never {
+                    return Ok(StageLType::Never);
+                }
                 ensure!(
                     matches!(ty, StageLType::Option(_)),
                     "'{}' requires 'option/T' operand, found '{ty}' at {span}",
@@ -1213,6 +1196,10 @@ impl<'a> ModuleValidator<'a> {
                 Ok(StageLType::B)
             }
             UnaryOp::IsOk | UnaryOp::IsErr => {
+                let ty = self.check_subexpr(operand, state, ctx)?;
+                if ty == StageLType::Never {
+                    return Ok(StageLType::Never);
+                }
                 ensure!(
                     matches!(ty, StageLType::Result(_)),
                     "'{}' requires 'result/T' operand, found '{ty}' at {span}",
@@ -1220,43 +1207,78 @@ impl<'a> ModuleValidator<'a> {
                 );
                 Ok(StageLType::B)
             }
-            UnaryOp::ByteLen => {
-                ensure!(
-                    ty == StageLType::S,
-                    "'byteLen' requires 's' operand, found '{ty}' at {span}"
-                );
-                Ok(StageLType::U64)
-            }
-            UnaryOp::DcFromU128 => {
-                ensure!(
-                    ty == StageLType::U128,
-                    "'dcFromU128' requires 'u128' operand, found '{ty}' at {span}"
-                );
-                Ok(StageLType::Result(Box::new(StageLType::Dc)))
-            }
-            UnaryOp::U128FromDc => {
-                ensure!(
-                    ty == StageLType::Dc,
-                    "'u128FromDc' requires 'dc' operand, found '{ty}' at {span}"
-                );
-                Ok(StageLType::U128)
-            }
-            UnaryOp::DcsFromS => {
-                ensure!(
-                    ty == StageLType::S,
-                    "'dcsFromS' requires 's' operand, found '{ty}' at {span}"
-                );
-                Ok(StageLType::Result(Box::new(StageLType::Dcs)))
-            }
-            UnaryOp::SFromDcs => {
-                ensure!(
-                    ty == StageLType::Dcs,
-                    "'sFromDcs' requires 'dcs' operand, found '{ty}' at {span}"
-                );
-                Ok(StageLType::S)
-            }
-            _ => bail!("Internal unary operator dispatch error at {span}"),
+            UnaryOp::ByteLen => self.check_unary_exact(
+                operand,
+                &StageLType::S,
+                StageLType::U64,
+                "byteLen",
+                span,
+                state,
+                ctx,
+            ),
+            UnaryOp::DcFromU128 => self.check_unary_exact(
+                operand,
+                &StageLType::U128,
+                StageLType::Result(Box::new(StageLType::Dc)),
+                "dcFromU128",
+                span,
+                state,
+                ctx,
+            ),
+            UnaryOp::U128FromDc => self.check_unary_exact(
+                operand,
+                &StageLType::Dc,
+                StageLType::U128,
+                "u128FromDc",
+                span,
+                state,
+                ctx,
+            ),
+            UnaryOp::DcsFromS => self.check_unary_exact(
+                operand,
+                &StageLType::S,
+                StageLType::Result(Box::new(StageLType::Dcs)),
+                "dcsFromS",
+                span,
+                state,
+                ctx,
+            ),
+            UnaryOp::SFromDcs => self.check_unary_exact(
+                operand,
+                &StageLType::Dcs,
+                StageLType::S,
+                "sFromDcs",
+                span,
+                state,
+                ctx,
+            ),
         }
+    }
+
+    /// Type-checks a unary operator requiring exact operand type `expected`.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Passes AST context, expected type, and output type directly"
+    )]
+    fn check_unary_exact(
+        &mut self,
+        operand: &Expr,
+        expected: &StageLType,
+        out_ty: StageLType,
+        keyword: &str,
+        span: Span,
+        state: &mut FlowState,
+        ctx: &mut BodyCtx,
+    ) -> Result<StageLType> {
+        let ty = self.check_subexpr(operand, state, ctx)?;
+        if ty == StageLType::Never {
+            return Ok(StageLType::Never);
+        }
+        ensure!(
+            &ty == expected,
+            "'{keyword}' requires '{expected}' operand, found '{ty}' at {span}"
+        );
+        Ok(out_ty)
     }
 
     /// Type-checks a unified binary operator expression across StageL 3 and StageR 3.
@@ -1318,16 +1340,57 @@ impl<'a> ModuleValidator<'a> {
             | BinaryOp::Sub
             | BinaryOp::Mul
             | BinaryOp::Div
-            | BinaryOp::Rem
-            | BinaryOp::TotalAdd
-            | BinaryOp::TotalSub
-            | BinaryOp::TotalMul
-            | BinaryOp::TotalDiv
-            | BinaryOp::TotalMod
-            | BinaryOp::TotalTruncRem => {
+            | BinaryOp::Rem => {
                 let (lty, rty) =
                     self.check_subexpr_pair(left, right, state, ctx)?;
-                Self::check_arith_binary(op, &lty, &rty, span)
+                Self::check_arith_binary(
+                    op.keyword(),
+                    &lty,
+                    &rty,
+                    StageLType::is_integer,
+                    "integer",
+                    ArithResultWrap::Direct,
+                    span,
+                )
+            }
+            BinaryOp::TotalAdd | BinaryOp::TotalSub | BinaryOp::TotalMul => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
+                Self::check_arith_binary(
+                    op.keyword(),
+                    &lty,
+                    &rty,
+                    StageLType::is_stager_numeric,
+                    "numeric",
+                    ArithResultWrap::FixedIntResult,
+                    span,
+                )
+            }
+            BinaryOp::TotalDiv => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
+                Self::check_arith_binary(
+                    "div",
+                    &lty,
+                    &rty,
+                    StageLType::is_stager_numeric,
+                    "numeric",
+                    ArithResultWrap::AlwaysResult,
+                    span,
+                )
+            }
+            BinaryOp::TotalMod | BinaryOp::TotalTruncRem => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
+                Self::check_arith_binary(
+                    op.keyword(),
+                    &lty,
+                    &rty,
+                    is_stager_integer,
+                    "integer",
+                    ArithResultWrap::AlwaysResult,
+                    span,
+                )
             }
             BinaryOp::WrapAdd
             | BinaryOp::WrapSub
@@ -1593,64 +1656,30 @@ impl<'a> ModuleValidator<'a> {
 
     /// Type-checks trapping StageL and total StageR binary arithmetic operators.
     fn check_arith_binary(
-        op: BinaryOp,
+        op_name: &str,
         lty: &StageLType,
         rty: &StageLType,
+        pred: fn(&StageLType) -> bool,
+        desc: &str,
+        wrap: ArithResultWrap,
         span: Span,
     ) -> Result<StageLType> {
-        enum ResultWrap {
-            Direct,
-            FixedIntResult,
-            AlwaysResult,
-        }
-        let (pred, desc, wrap): (fn(&StageLType) -> bool, &str, ResultWrap) =
-            match op {
-                BinaryOp::Add
-                | BinaryOp::Sub
-                | BinaryOp::Mul
-                | BinaryOp::Div
-                | BinaryOp::Rem => (
-                    StageLType::is_integer,
-                    "integer",
-                    ResultWrap::Direct,
-                ),
-                BinaryOp::TotalAdd | BinaryOp::TotalSub | BinaryOp::TotalMul => {
-                    (
-                        StageLType::is_stager_numeric,
-                        "numeric",
-                        ResultWrap::FixedIntResult,
-                    )
-                }
-                BinaryOp::TotalDiv => (
-                    StageLType::is_stager_numeric,
-                    "numeric",
-                    ResultWrap::AlwaysResult,
-                ),
-                BinaryOp::TotalMod | BinaryOp::TotalTruncRem => (
-                    is_stager_integer,
-                    "integer",
-                    ResultWrap::AlwaysResult,
-                ),
-                _ => {
-                    bail!(
-                        "Internal arithmetic operator dispatch error at {span}"
-                    )
-                }
-            };
-        let joined = unify_matching_pair(op.keyword(), lty, rty, pred, desc, span)?;
+        let joined = unify_matching_pair(op_name, lty, rty, pred, desc, span)?;
         if joined == StageLType::Never {
             return Ok(StageLType::Never);
         }
         match wrap {
-            ResultWrap::Direct => Ok(joined),
-            ResultWrap::FixedIntResult => {
+            ArithResultWrap::Direct => Ok(joined),
+            ArithResultWrap::FixedIntResult => {
                 if joined.is_stager_fixed_int() {
                     Ok(StageLType::Result(Box::new(joined)))
                 } else {
                     Ok(joined)
                 }
             }
-            ResultWrap::AlwaysResult => Ok(StageLType::Result(Box::new(joined))),
+            ArithResultWrap::AlwaysResult => {
+                Ok(StageLType::Result(Box::new(joined)))
+            }
         }
     }
 

@@ -18,7 +18,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! Unified built-in unary, binary, ternary, conversion, and bitcast evaluators
-//! for StageL 3 (`Core*Op`) and StageR 3 (`StageR*Op`).
+//! for StageL 3 and StageR 3.
 //!
 //! Shares numeric arithmetic, division/remainder, shifts, sequence indexing,
 //! slicing, buffer mutations, and exact conversions across trapping StageL
@@ -59,191 +59,122 @@ fn err_res(tag: StageRErrorTag) -> EvalSignal {
     EvalSignal::Value(Value::Result(Err(tag)))
 }
 
-trait FixedIntScalar: Copy + Eq + Ord {
-    const ZERO: Self;
-    const NEG_ONE: Option<Self>;
-    fn wrap_val(self) -> Value;
-    fn checked_add(self, rhs: Self) -> Option<Self>;
-    fn checked_sub(self, rhs: Self) -> Option<Self>;
-    fn checked_mul(self, rhs: Self) -> Option<Self>;
-    fn checked_div(self, rhs: Self) -> Option<Self>;
-    fn checked_rem(self, rhs: Self) -> Option<Self>;
-    fn checked_rem_euclid(self, rhs: Self) -> Option<Self>;
-    fn checked_shl(self, cnt: u32) -> Option<Self>;
-    fn checked_shr(self, cnt: u32) -> Option<Self>;
-    fn wrapping_add(self, rhs: Self) -> Self;
-    fn wrapping_sub(self, rhs: Self) -> Self;
-    fn wrapping_mul(self, rhs: Self) -> Self;
-    fn bit_and(self, rhs: Self) -> Self;
-    fn bit_or(self, rhs: Self) -> Self;
-    fn bit_xor(self, rhs: Self) -> Self;
-    fn bit_not(self) -> Self;
-    fn leading_zeros(self) -> u32;
-    fn trailing_zeros(self) -> u32;
-    fn count_ones(self) -> u32;
+/// Formats checked arithmetic/shift/negation results as `Value`/`Fault` in
+/// trapping StageL 3 or `result/T` in total StageR 3.
+fn wrap_checked(
+    res: Option<Value>,
+    total: bool,
+    err_tag: StageRErrorTag,
+    fault_msg: impl FnOnce() -> String,
+) -> EvalSignal {
+    match (res, total) {
+        (Some(v), true) => ok_res(v),
+        (None, true) => err_res(err_tag),
+        (Some(v), false) => EvalSignal::Value(v),
+        (None, false) => EvalSignal::Fault(fault_msg()),
+    }
 }
 
-macro_rules! impl_fixed_int_scalar {
-    ($ty:ty, $variant:ident, $neg_one:expr) => {
-        impl FixedIntScalar for $ty {
-            const ZERO: Self = 0;
-            const NEG_ONE: Option<Self> = $neg_one;
-
-            fn wrap_val(self) -> Value {
-                Value::$variant(self)
+macro_rules! fixed_pair_arms {
+    ($left:expr, $right:expr, $allow_128:expr, $span:expr, $op_name:expr, $handler:ident) => {
+        match ($left, $right) {
+            (Value::U8(a), Value::U8(b)) => $handler!(U8, false, a, b),
+            (Value::I32(a), Value::I32(b)) => $handler!(I32, true, a, b),
+            (Value::U32(a), Value::U32(b)) => $handler!(U32, false, a, b),
+            (Value::I64(a), Value::I64(b)) => $handler!(I64, true, a, b),
+            (Value::U64(a), Value::U64(b)) => $handler!(U64, false, a, b),
+            (Value::I128(a), Value::I128(b)) if $allow_128 => {
+                $handler!(I128, true, a, b)
             }
-            fn checked_add(self, rhs: Self) -> Option<Self> {
-                <$ty>::checked_add(self, rhs)
+            (Value::U128(a), Value::U128(b)) if $allow_128 => {
+                $handler!(U128, false, a, b)
             }
-            fn checked_sub(self, rhs: Self) -> Option<Self> {
-                <$ty>::checked_sub(self, rhs)
-            }
-            fn checked_mul(self, rhs: Self) -> Option<Self> {
-                <$ty>::checked_mul(self, rhs)
-            }
-            fn checked_div(self, rhs: Self) -> Option<Self> {
-                <$ty>::checked_div(self, rhs)
-            }
-            fn checked_rem(self, rhs: Self) -> Option<Self> {
-                <$ty>::checked_rem(self, rhs)
-            }
-            fn checked_rem_euclid(self, rhs: Self) -> Option<Self> {
-                <$ty>::checked_rem_euclid(self, rhs)
-            }
-            fn checked_shl(self, cnt: u32) -> Option<Self> {
-                <$ty>::checked_shl(self, cnt)
-            }
-            fn checked_shr(self, cnt: u32) -> Option<Self> {
-                <$ty>::checked_shr(self, cnt)
-            }
-            fn wrapping_add(self, rhs: Self) -> Self {
-                <$ty>::wrapping_add(self, rhs)
-            }
-            fn wrapping_sub(self, rhs: Self) -> Self {
-                <$ty>::wrapping_sub(self, rhs)
-            }
-            fn wrapping_mul(self, rhs: Self) -> Self {
-                <$ty>::wrapping_mul(self, rhs)
-            }
-            fn bit_and(self, rhs: Self) -> Self {
-                self & rhs
-            }
-            fn bit_or(self, rhs: Self) -> Self {
-                self | rhs
-            }
-            fn bit_xor(self, rhs: Self) -> Self {
-                self ^ rhs
-            }
-            fn bit_not(self) -> Self {
-                !self
-            }
-            fn leading_zeros(self) -> u32 {
-                <$ty>::leading_zeros(self)
-            }
-            fn trailing_zeros(self) -> u32 {
-                <$ty>::trailing_zeros(self)
-            }
-            fn count_ones(self) -> u32 {
-                <$ty>::count_ones(self)
+            (l, r) => {
+                let span_opt: Option<Span> = $span;
+                if let Some(sp) = span_opt {
+                    bail!(
+                        "Mismatched operands {l:?} vs {r:?} for StageR '{}' at {sp}",
+                        $op_name
+                    );
+                }
+                bail!("Mismatched types {l:?} vs {r:?} for '{}'", $op_name);
             }
         }
     };
 }
 
-impl_fixed_int_scalar!(u8, U8, None);
-impl_fixed_int_scalar!(i32, I32, Some(-1));
-impl_fixed_int_scalar!(u32, U32, None);
-impl_fixed_int_scalar!(i64, I64, Some(-1));
-impl_fixed_int_scalar!(u64, U64, None);
-impl_fixed_int_scalar!(i128, I128, Some(-1));
-impl_fixed_int_scalar!(u128, U128, None);
-
 #[derive(Clone, Copy)]
-enum FixedUnaryBitOp {
+enum BitUnaryOp {
     BitNot,
     Clz,
     Ctz,
     Popcnt,
 }
 
-#[derive(Clone, Copy)]
-enum FixedBinKernel {
-    CheckedAdd,
-    CheckedSub,
-    CheckedMul,
-    CheckedDiv,
-    CoreRem,
-    TotalMod,
-    TotalTruncRem,
-    WrapAdd,
-    WrapSub,
-    WrapMul,
-    BitAnd,
-    BitOr,
-    BitXor,
-}
-
-fn apply_fixed_unary_bit<T: FixedIntScalar>(
-    op: FixedUnaryBitOp,
-    x: T,
-) -> Value {
-    match op {
-        FixedUnaryBitOp::BitNot => x.bit_not().wrap_val(),
-        FixedUnaryBitOp::Clz => Value::U32(x.leading_zeros()),
-        FixedUnaryBitOp::Ctz => Value::U32(x.trailing_zeros()),
-        FixedUnaryBitOp::Popcnt => Value::U32(x.count_ones()),
+fn eval_fixed_unary_bit(op: BitUnaryOp, val: Value) -> Result<EvalSignal> {
+    macro_rules! bit_unary_arms {
+        ($($V:ident),+) => {
+            match val {
+                $(Value::$V(x) => match op {
+                    BitUnaryOp::BitNot => Value::$V(!x),
+                    BitUnaryOp::Clz => Value::U32(x.leading_zeros()),
+                    BitUnaryOp::Ctz => Value::U32(x.trailing_zeros()),
+                    BitUnaryOp::Popcnt => Value::U32(x.count_ones()),
+                },)+
+                other => {
+                    let name = match op {
+                        BitUnaryOp::BitNot => "bitNot",
+                        BitUnaryOp::Clz => "clz",
+                        BitUnaryOp::Ctz => "ctz",
+                        BitUnaryOp::Popcnt => "popcnt",
+                    };
+                    bail!("Invalid operand {other:?} for '{name}'");
+                }
+            }
+        };
     }
+    Ok(EvalSignal::Value(bit_unary_arms!(
+        U8, I32, U32, I64, U64, I128, U128
+    )))
 }
 
-fn eval_fixed_unary_bit(op: FixedUnaryBitOp, val: Value) -> Result<EvalSignal> {
-    let out = match val {
-        Value::U8(x) => apply_fixed_unary_bit(op, x),
-        Value::I32(x) => apply_fixed_unary_bit(op, x),
-        Value::U32(x) => apply_fixed_unary_bit(op, x),
-        Value::I64(x) => apply_fixed_unary_bit(op, x),
-        Value::U64(x) => apply_fixed_unary_bit(op, x),
-        Value::I128(x) => apply_fixed_unary_bit(op, x),
-        Value::U128(x) => apply_fixed_unary_bit(op, x),
-        other => {
-            let name = match op {
-                FixedUnaryBitOp::BitNot => "bitNot",
-                FixedUnaryBitOp::Clz => "clz",
-                FixedUnaryBitOp::Ctz => "ctz",
-                FixedUnaryBitOp::Popcnt => "popcnt",
-            };
-            bail!("Invalid operand {other:?} for '{name}'");
-        }
-    };
-    Ok(EvalSignal::Value(out))
-}
-
-fn wrap_checked_neg<T: FixedIntScalar>(
-    res: Option<T>,
-    ty_name: &str,
+fn eval_neg(
+    vm: &StageLWorkspaceVm,
     total: bool,
-) -> EvalSignal {
-    match (res, total) {
-        (Some(v), true) => ok_res(v.wrap_val()),
-        (None, true) => err_res(StageRErrorTag::Overflow),
-        (Some(v), false) => EvalSignal::Value(v.wrap_val()),
-        (None, false) => EvalSignal::Fault(format!("{ty_name} neg overflow")),
-    }
-}
-
-fn eval_fixed_neg(
     val: Value,
-    total: bool,
-    span: Option<Span>,
+    span: Span,
 ) -> Result<EvalSignal> {
+    macro_rules! neg_arm {
+        ($x:expr, $V:ident, $ty_name:literal) => {
+            Ok(wrap_checked(
+                $x.checked_neg().map(Value::$V),
+                total,
+                StageRErrorTag::Overflow,
+                || format!("{} neg overflow", $ty_name),
+            ))
+        };
+    }
     match val {
-        Value::I32(x) => Ok(wrap_checked_neg(x.checked_neg(), "i32", total)),
-        Value::I64(x) => Ok(wrap_checked_neg(x.checked_neg(), "i64", total)),
-        Value::I128(x) if total => {
-            Ok(wrap_checked_neg(x.checked_neg(), "i128", true))
+        Value::I32(x) => neg_arm!(x, I32, "i32"),
+        Value::I64(x) => neg_arm!(x, I64, "i64"),
+        Value::I128(x) if total => neg_arm!(x, I128, "i128"),
+        Value::Int(x) if total => {
+            let neg = x.neg();
+            if let Some(sig) = vm.check_int_limit(&neg, "neg") {
+                return Ok(sig);
+            }
+            Ok(EvalSignal::Value(Value::Int(neg)))
+        }
+        Value::Rat(r) if total => {
+            let neg = r.neg();
+            if let Some(sig) = vm.check_rat_limit(&neg, "neg") {
+                return Ok(sig);
+            }
+            Ok(EvalSignal::Value(Value::Rat(neg)))
         }
         other => {
-            if let Some(sp) = span {
-                bail!("Invalid operand {other:?} for StageR 'neg' at {sp}");
+            if total {
+                bail!("Invalid operand {other:?} for StageR 'neg' at {span}");
             }
             bail!("Invalid operand {other:?} for 'neg'");
         }
@@ -257,15 +188,17 @@ pub(super) fn eval_unary(
     span: Span,
 ) -> Result<EvalSignal> {
     match op {
-        UnaryOp::Neg => eval_fixed_neg(val, false, None),
-        UnaryOp::BitNot => eval_fixed_unary_bit(FixedUnaryBitOp::BitNot, val),
+        UnaryOp::Neg | UnaryOp::TotalNeg => {
+            eval_neg(vm, op == UnaryOp::TotalNeg, val, span)
+        }
+        UnaryOp::BitNot => eval_fixed_unary_bit(BitUnaryOp::BitNot, val),
+        UnaryOp::Clz => eval_fixed_unary_bit(BitUnaryOp::Clz, val),
+        UnaryOp::Ctz => eval_fixed_unary_bit(BitUnaryOp::Ctz, val),
+        UnaryOp::Popcnt => eval_fixed_unary_bit(BitUnaryOp::Popcnt, val),
         UnaryOp::Not => match val {
             Value::Bool(b) => Ok(EvalSignal::Value(Value::Bool(!b))),
             other => bail!("Invalid operand {other:?} for 'not'"),
         },
-        UnaryOp::Clz => eval_fixed_unary_bit(FixedUnaryBitOp::Clz, val),
-        UnaryOp::Ctz => eval_fixed_unary_bit(FixedUnaryBitOp::Ctz, val),
-        UnaryOp::Popcnt => eval_fixed_unary_bit(FixedUnaryBitOp::Popcnt, val),
         UnaryOp::Len => {
             let len = match val {
                 Value::List(xs) => xs.len(),
@@ -291,46 +224,31 @@ pub(super) fn eval_unary(
             let frozen_vec = std::mem::take(&mut st.elems);
             Ok(EvalSignal::Value(Value::List(Rc::new(frozen_vec))))
         }
-        UnaryOp::TotalNeg => match val {
-            Value::Int(x) => {
-                let neg = x.neg();
-                if let Some(sig) = vm.check_int_limit(&neg, "neg") {
-                    return Ok(sig);
-                }
-                Ok(EvalSignal::Value(Value::Int(neg)))
-            }
-            Value::Rat(r) => {
-                let neg = r.neg();
-                if let Some(sig) = vm.check_rat_limit(&neg, "neg") {
-                    return Ok(sig);
-                }
-                Ok(EvalSignal::Value(Value::Rat(neg)))
-            }
-            other => eval_fixed_neg(other, true, Some(span)),
-        },
-        UnaryOp::IsSome => {
+        UnaryOp::IsSome | UnaryOp::IsNone => {
             let Value::Option(opt) = val else {
-                bail!("'isSome' expected option/T, got {val:?} at {span}");
+                bail!(
+                    "'{}' expected option/T, got {val:?} at {span}",
+                    op.keyword()
+                );
             };
-            Ok(EvalSignal::Value(Value::Bool(opt.is_some())))
+            Ok(EvalSignal::Value(Value::Bool(if op == UnaryOp::IsSome {
+                opt.is_some()
+            } else {
+                opt.is_none()
+            })))
         }
-        UnaryOp::IsNone => {
-            let Value::Option(opt) = val else {
-                bail!("'isNone' expected option/T, got {val:?} at {span}");
-            };
-            Ok(EvalSignal::Value(Value::Bool(opt.is_none())))
-        }
-        UnaryOp::IsOk => {
+        UnaryOp::IsOk | UnaryOp::IsErr => {
             let Value::Result(res) = val else {
-                bail!("'isOk' expected result/T, got {val:?} at {span}");
+                bail!(
+                    "'{}' expected result/T, got {val:?} at {span}",
+                    op.keyword()
+                );
             };
-            Ok(EvalSignal::Value(Value::Bool(res.is_ok())))
-        }
-        UnaryOp::IsErr => {
-            let Value::Result(res) = val else {
-                bail!("'isErr' expected result/T, got {val:?} at {span}");
-            };
-            Ok(EvalSignal::Value(Value::Bool(res.is_err())))
+            Ok(EvalSignal::Value(Value::Bool(if op == UnaryOp::IsOk {
+                res.is_ok()
+            } else {
+                res.is_err()
+            })))
         }
         UnaryOp::ByteLen => {
             let Value::S(chars) = val else {
@@ -373,164 +291,10 @@ pub(super) fn eval_unary(
     }
 }
 
-fn wrap_checked_bin<T: FixedIntScalar>(
-    res: Option<T>,
-    op_name: &str,
-    total: bool,
-) -> EvalSignal {
-    match (res, total) {
-        (Some(v), true) => ok_res(v.wrap_val()),
-        (None, true) => err_res(StageRErrorTag::Overflow),
-        (Some(v), false) => EvalSignal::Value(v.wrap_val()),
-        (None, false) => {
-            EvalSignal::Fault(format!("checked arithmetic fault in '{op_name}'"))
-        }
-    }
-}
-
-fn apply_fixed_bin<T: FixedIntScalar>(
-    kernel: FixedBinKernel,
-    a: T,
-    b: T,
-    op_name: &str,
-    total: bool,
-) -> Result<EvalSignal> {
-    match kernel {
-        FixedBinKernel::CheckedAdd => {
-            Ok(wrap_checked_bin(a.checked_add(b), op_name, total))
-        }
-        FixedBinKernel::CheckedSub => {
-            Ok(wrap_checked_bin(a.checked_sub(b), op_name, total))
-        }
-        FixedBinKernel::CheckedMul => {
-            Ok(wrap_checked_bin(a.checked_mul(b), op_name, total))
-        }
-        FixedBinKernel::CheckedDiv => {
-            if b == T::ZERO {
-                return Ok(if total {
-                    err_res(StageRErrorTag::DivisionByZero)
-                } else {
-                    EvalSignal::Fault(format!(
-                        "checked arithmetic fault in '{op_name}'"
-                    ))
-                });
-            }
-            Ok(wrap_checked_bin(a.checked_div(b), op_name, total))
-        }
-        FixedBinKernel::CoreRem => {
-            Ok(wrap_checked_bin(a.checked_rem(b), op_name, false))
-        }
-        FixedBinKernel::TotalMod => {
-            if b == T::ZERO {
-                return Ok(err_res(StageRErrorTag::DivisionByZero));
-            }
-            if T::NEG_ONE == Some(b) {
-                return Ok(ok_res(T::ZERO.wrap_val()));
-            }
-            let out = a.checked_rem_euclid(b).context(
-                "Euclidean modulo failed unexpectedly for divisor != 0, -1",
-            )?;
-            Ok(ok_res(out.wrap_val()))
-        }
-        FixedBinKernel::TotalTruncRem => {
-            if b == T::ZERO {
-                return Ok(err_res(StageRErrorTag::DivisionByZero));
-            }
-            if T::NEG_ONE == Some(b) {
-                return Ok(ok_res(T::ZERO.wrap_val()));
-            }
-            let out = a.checked_rem(b).context(
-                "Truncating remainder failed unexpectedly for divisor != 0, -1",
-            )?;
-            Ok(ok_res(out.wrap_val()))
-        }
-        FixedBinKernel::WrapAdd => {
-            Ok(EvalSignal::Value(a.wrapping_add(b).wrap_val()))
-        }
-        FixedBinKernel::WrapSub => {
-            Ok(EvalSignal::Value(a.wrapping_sub(b).wrap_val()))
-        }
-        FixedBinKernel::WrapMul => {
-            Ok(EvalSignal::Value(a.wrapping_mul(b).wrap_val()))
-        }
-        FixedBinKernel::BitAnd => {
-            Ok(EvalSignal::Value(a.bit_and(b).wrap_val()))
-        }
-        FixedBinKernel::BitOr => Ok(EvalSignal::Value(a.bit_or(b).wrap_val())),
-        FixedBinKernel::BitXor => {
-            Ok(EvalSignal::Value(a.bit_xor(b).wrap_val()))
-        }
-    }
-}
-
-fn dispatch_fixed_bin(
-    kernel: FixedBinKernel,
-    left: Value,
-    right: Value,
-    core_only: bool,
-    total: bool,
-    op_name: &str,
-    span: Option<Span>,
-) -> Result<EvalSignal> {
-    match (left, right) {
-        (Value::U8(a), Value::U8(b)) => {
-            apply_fixed_bin(kernel, a, b, op_name, total)
-        }
-        (Value::I32(a), Value::I32(b)) => {
-            apply_fixed_bin(kernel, a, b, op_name, total)
-        }
-        (Value::U32(a), Value::U32(b)) => {
-            apply_fixed_bin(kernel, a, b, op_name, total)
-        }
-        (Value::I64(a), Value::I64(b)) => {
-            apply_fixed_bin(kernel, a, b, op_name, total)
-        }
-        (Value::U64(a), Value::U64(b)) => {
-            apply_fixed_bin(kernel, a, b, op_name, total)
-        }
-        (Value::I128(a), Value::I128(b)) if !core_only => {
-            apply_fixed_bin(kernel, a, b, op_name, total)
-        }
-        (Value::U128(a), Value::U128(b)) if !core_only => {
-            apply_fixed_bin(kernel, a, b, op_name, total)
-        }
-        (l, r) => {
-            if let Some(sp) = span {
-                bail!(
-                    "Mismatched operands {l:?} vs {r:?} for StageR '{op_name}' at {sp}"
-                );
-            }
-            bail!("Mismatched types {l:?} vs {r:?} for '{op_name}'");
-        }
-    }
-}
-
-fn apply_fixed_shift<T: FixedIntScalar>(
-    is_left: bool,
-    x: T,
-    cnt: u32,
-    total: bool,
-) -> EvalSignal {
-    let shifted = if is_left {
-        x.checked_shl(cnt)
-    } else {
-        x.checked_shr(cnt)
-    };
-    match (shifted, total) {
-        (Some(v), true) => ok_res(v.wrap_val()),
-        (None, true) => err_res(StageRErrorTag::Overflow),
-        (Some(v), false) => EvalSignal::Value(v.wrap_val()),
-        (None, false) => {
-            EvalSignal::Fault(format!("shift count {cnt} out of range"))
-        }
-    }
-}
-
 fn eval_shift_shared(
     is_left: bool,
     val: Value,
     count: Value,
-    allow_128: bool,
     total: bool,
     span: Option<Span>,
 ) -> Result<EvalSignal> {
@@ -540,18 +304,29 @@ fn eval_shift_shared(
         }
         bail!("Shift count must be u32, got {count:?}");
     };
+    macro_rules! shift_arm {
+        ($V:ident, $x:expr) => {{
+            let shifted = if is_left {
+                $x.checked_shl(cnt)
+            } else {
+                $x.checked_shr(cnt)
+            };
+            Ok(wrap_checked(
+                shifted.map(Value::$V),
+                total,
+                StageRErrorTag::Overflow,
+                || format!("shift count {cnt} out of range"),
+            ))
+        }};
+    }
     match val {
-        Value::U8(x) => Ok(apply_fixed_shift(is_left, x, cnt, total)),
-        Value::I32(x) => Ok(apply_fixed_shift(is_left, x, cnt, total)),
-        Value::U32(x) => Ok(apply_fixed_shift(is_left, x, cnt, total)),
-        Value::I64(x) => Ok(apply_fixed_shift(is_left, x, cnt, total)),
-        Value::U64(x) => Ok(apply_fixed_shift(is_left, x, cnt, total)),
-        Value::I128(x) if allow_128 => {
-            Ok(apply_fixed_shift(is_left, x, cnt, total))
-        }
-        Value::U128(x) if allow_128 => {
-            Ok(apply_fixed_shift(is_left, x, cnt, total))
-        }
+        Value::U8(x) => shift_arm!(U8, x),
+        Value::I32(x) => shift_arm!(I32, x),
+        Value::U32(x) => shift_arm!(U32, x),
+        Value::I64(x) => shift_arm!(I64, x),
+        Value::U64(x) => shift_arm!(U64, x),
+        Value::I128(x) if total => shift_arm!(I128, x),
+        Value::U128(x) if total => shift_arm!(U128, x),
         other => {
             if let Some(sp) = span {
                 bail!("Invalid operand {other:?} for StageR shift at {sp}");
@@ -565,30 +340,19 @@ fn eval_rotate(is_left: bool, val: Value, count: Value) -> Result<EvalSignal> {
     let Value::U32(cnt) = count else {
         bail!("Rotate count must be u32, got {count:?}");
     };
-    let res = match val {
-        Value::U8(x) => Value::U8(if is_left {
-            x.rotate_left(cnt)
-        } else {
-            x.rotate_right(cnt)
-        }),
-        Value::U32(x) => Value::U32(if is_left {
-            x.rotate_left(cnt)
-        } else {
-            x.rotate_right(cnt)
-        }),
-        Value::U64(x) => Value::U64(if is_left {
-            x.rotate_left(cnt)
-        } else {
-            x.rotate_right(cnt)
-        }),
-        Value::U128(x) => Value::U128(if is_left {
-            x.rotate_left(cnt)
-        } else {
-            x.rotate_right(cnt)
-        }),
-        other => bail!("Invalid operand {other:?} for rotate"),
-    };
-    Ok(EvalSignal::Value(res))
+    macro_rules! rotate_arms {
+        ($($V:ident),+) => {
+            match val {
+                $(Value::$V(x) => Value::$V(if is_left {
+                    x.rotate_left(cnt)
+                } else {
+                    x.rotate_right(cnt)
+                }),)+
+                other => bail!("Invalid operand {other:?} for rotate"),
+            }
+        };
+    }
+    Ok(EvalSignal::Value(rotate_arms!(U8, U32, U64, U128)))
 }
 
 fn cmp_numeric(
@@ -665,14 +429,21 @@ fn concat_slices<T: Clone>(
     Ok(EvalSignal::Value(wrap(Rc::new(merged))))
 }
 
-fn eval_core_buf_binary(
+#[derive(Clone, Copy)]
+enum BufBinOp {
+    Fill,
+    Push,
+    Extend,
+}
+
+fn eval_buf_binary(
     vm: &StageLWorkspaceVm,
-    op: BinaryOp,
+    op: BufBinOp,
     left: Value,
     right: Value,
 ) -> Result<EvalSignal> {
     match op {
-        BinaryOp::BufFill => {
+        BufBinOp::Fill => {
             let len = right.as_u64_index("bufFill")?;
             if let Some(fault) = vm.check_seq_limit(len, "bufFill capacity") {
                 return Ok(fault);
@@ -686,7 +457,7 @@ fn eval_core_buf_binary(
                 },
             )))))
         }
-        BinaryOp::BufPush => {
+        BufBinOp::Push => {
             let Value::Buf(b) = left else {
                 bail!("Invalid buffer operand for 'bufPush'");
             };
@@ -707,7 +478,7 @@ fn eval_core_buf_binary(
             st.elems.push(right);
             Ok(EvalSignal::Value(Value::Void))
         }
-        BinaryOp::BufExtend => {
+        BufBinOp::Extend => {
             let (Value::Buf(b), Value::List(xs)) = (left, right) else {
                 bail!("Invalid operands for 'bufExtend'");
             };
@@ -728,27 +499,252 @@ fn eval_core_buf_binary(
             st.elems.extend_from_slice(&xs);
             Ok(EvalSignal::Value(Value::Void))
         }
-        _ => bail!("Unexpected non-buffer binary op {op:?}"),
     }
 }
 
-fn core_fixed_bin_spec(
-    op: BinaryOp,
-) -> Result<(FixedBinKernel, bool, &'static str)> {
-    match op {
-        BinaryOp::Add => Ok((FixedBinKernel::CheckedAdd, true, "add")),
-        BinaryOp::Sub => Ok((FixedBinKernel::CheckedSub, true, "sub")),
-        BinaryOp::Mul => Ok((FixedBinKernel::CheckedMul, true, "mul")),
-        BinaryOp::Div => Ok((FixedBinKernel::CheckedDiv, true, "div")),
-        BinaryOp::Rem => Ok((FixedBinKernel::CoreRem, true, "rem")),
-        BinaryOp::WrapAdd => Ok((FixedBinKernel::WrapAdd, false, "wrapAdd")),
-        BinaryOp::WrapSub => Ok((FixedBinKernel::WrapSub, false, "wrapSub")),
-        BinaryOp::WrapMul => Ok((FixedBinKernel::WrapMul, false, "wrapMul")),
-        BinaryOp::BitAnd => Ok((FixedBinKernel::BitAnd, false, "bitAnd")),
-        BinaryOp::BitOr => Ok((FixedBinKernel::BitOr, false, "bitOr")),
-        BinaryOp::BitXor => Ok((FixedBinKernel::BitXor, false, "bitXor")),
-        other => bail!("Unexpected fixed binary op {other:?}"),
+#[derive(Clone, Copy)]
+enum ArithBinOp {
+    Add,
+    Sub,
+    Mul,
+}
+
+impl ArithBinOp {
+    const fn keyword(self) -> &'static str {
+        match self {
+            Self::Add => "add",
+            Self::Sub => "sub",
+            Self::Mul => "mul",
+        }
     }
+}
+
+fn eval_add_sub_mul(
+    vm: &StageLWorkspaceVm,
+    op: ArithBinOp,
+    total: bool,
+    left: Value,
+    right: Value,
+    span: Span,
+) -> Result<EvalSignal> {
+    let op_name = op.keyword();
+    match (left, right) {
+        (Value::Int(a), Value::Int(b)) if total => {
+            let res = match op {
+                ArithBinOp::Add => a.add(b),
+                ArithBinOp::Sub => a.sub(b),
+                ArithBinOp::Mul => a.mul(b),
+            };
+            if let Some(fault) = vm.check_int_limit(&res, op_name) {
+                return Ok(fault);
+            }
+            Ok(EvalSignal::Value(Value::Int(res)))
+        }
+        (Value::Rat(a), Value::Rat(b)) if total => {
+            let res = match op {
+                ArithBinOp::Add => a.add(b),
+                ArithBinOp::Sub => a.sub(b),
+                ArithBinOp::Mul => a.mul(b),
+            };
+            if let Some(fault) = vm.check_rat_limit(&res, op_name) {
+                return Ok(fault);
+            }
+            Ok(EvalSignal::Value(Value::Rat(res)))
+        }
+        (l, r) => {
+            macro_rules! checked_arm {
+                ($V:ident, $_signed:expr, $a:expr, $b:expr) => {{
+                    let res = match op {
+                        ArithBinOp::Add => $a.checked_add($b),
+                        ArithBinOp::Sub => $a.checked_sub($b),
+                        ArithBinOp::Mul => $a.checked_mul($b),
+                    };
+                    Ok(wrap_checked(
+                        res.map(Value::$V),
+                        total,
+                        StageRErrorTag::Overflow,
+                        || format!("checked arithmetic fault in '{op_name}'"),
+                    ))
+                }};
+            }
+            let sp_opt = total.then_some(span);
+            fixed_pair_arms!(l, r, total, sp_opt, op_name, checked_arm)
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum WrapOrBitOp {
+    WrapAdd,
+    WrapSub,
+    WrapMul,
+    BitAnd,
+    BitOr,
+    BitXor,
+}
+
+impl WrapOrBitOp {
+    const fn keyword(self) -> &'static str {
+        match self {
+            Self::WrapAdd => "wrapAdd",
+            Self::WrapSub => "wrapSub",
+            Self::WrapMul => "wrapMul",
+            Self::BitAnd => "bitAnd",
+            Self::BitOr => "bitOr",
+            Self::BitXor => "bitXor",
+        }
+    }
+}
+
+fn eval_wrap_or_bit(
+    op: WrapOrBitOp,
+    left: Value,
+    right: Value,
+) -> Result<EvalSignal> {
+    macro_rules! wrap_arm {
+        ($V:ident, $_signed:expr, $a:expr, $b:expr) => {
+            Ok(EvalSignal::Value(Value::$V(match op {
+                WrapOrBitOp::WrapAdd => $a.wrapping_add($b),
+                WrapOrBitOp::WrapSub => $a.wrapping_sub($b),
+                WrapOrBitOp::WrapMul => $a.wrapping_mul($b),
+                WrapOrBitOp::BitAnd => $a & $b,
+                WrapOrBitOp::BitOr => $a | $b,
+                WrapOrBitOp::BitXor => $a ^ $b,
+            })))
+        };
+    }
+    fixed_pair_arms!(left, right, true, None, op.keyword(), wrap_arm)
+}
+
+fn eval_div(
+    vm: &StageLWorkspaceVm,
+    total: bool,
+    left: Value,
+    right: Value,
+    span: Span,
+) -> Result<EvalSignal> {
+    match (left, right) {
+        (Value::Int(a), Value::Int(b)) if total => {
+            if b == Integer::ZERO {
+                return Ok(err_res(StageRErrorTag::DivisionByZero));
+            }
+            let q = a.div(b);
+            if let Some(fault) = vm.check_int_limit(&q, "div") {
+                return Ok(fault);
+            }
+            Ok(ok_res(Value::Int(q)))
+        }
+        (Value::Rat(a), Value::Rat(b)) if total => {
+            if b == Rational::ZERO {
+                return Ok(err_res(StageRErrorTag::DivisionByZero));
+            }
+            let q = a.div(b);
+            if let Some(fault) = vm.check_rat_limit(&q, "div") {
+                return Ok(fault);
+            }
+            Ok(ok_res(Value::Rat(q)))
+        }
+        (l, r) => {
+            macro_rules! div_arm {
+                ($V:ident, $_signed:expr, $a:expr, $b:expr) => {{
+                    if $b == 0 {
+                        return Ok(if total {
+                            err_res(StageRErrorTag::DivisionByZero)
+                        } else {
+                            EvalSignal::Fault(String::from(
+                                "checked arithmetic fault in 'div'",
+                            ))
+                        });
+                    }
+                    Ok(wrap_checked(
+                        $a.checked_div($b).map(Value::$V),
+                        total,
+                        StageRErrorTag::Overflow,
+                        || String::from("checked arithmetic fault in 'div'"),
+                    ))
+                }};
+            }
+            let sp_opt = total.then_some(span);
+            fixed_pair_arms!(l, r, total, sp_opt, "div", div_arm)
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum RemMode {
+    CoreTruncRem,
+    TotalEuclidMod,
+    TotalTruncRem,
+}
+
+impl RemMode {
+    const fn keyword(self) -> &'static str {
+        match self {
+            Self::CoreTruncRem => "rem",
+            Self::TotalEuclidMod => "mod",
+            Self::TotalTruncRem => "truncRem",
+        }
+    }
+}
+
+fn eval_rem(
+    vm: &StageLWorkspaceVm,
+    mode: RemMode,
+    left: Value,
+    right: Value,
+    span: Span,
+) -> Result<EvalSignal> {
+    let op_name = mode.keyword();
+    let total = !matches!(mode, RemMode::CoreTruncRem);
+    if total && let (Value::Int(a), Value::Int(b)) = (&left, &right) {
+        if *b == Integer::ZERO {
+            return Ok(err_res(StageRErrorTag::DivisionByZero));
+        }
+        let r = if matches!(mode, RemMode::TotalEuclidMod) {
+            let mut rem = a.rem(b);
+            if rem < Integer::ZERO {
+                rem = rem.add(Integer::from(b.unsigned_abs_ref()));
+            }
+            rem
+        } else {
+            a.rem(b)
+        };
+        if let Some(fault) = vm.check_int_limit(&r, op_name) {
+            return Ok(fault);
+        }
+        return Ok(ok_res(Value::Int(r)));
+    }
+    macro_rules! rem_arm {
+        ($V:ident, $signed:expr, $a:expr, $b:expr) => {
+            if !total {
+                Ok(wrap_checked(
+                    $a.checked_rem($b).map(Value::$V),
+                    false,
+                    StageRErrorTag::Overflow,
+                    || format!("checked arithmetic fault in '{op_name}'"),
+                ))
+            } else {
+                if $b == 0 {
+                    return Ok(err_res(StageRErrorTag::DivisionByZero));
+                }
+                // Only signed `b == -1` satisfies `b.checked_add(1) == Some(0)`,
+                // preventing MIN % -1 overflow cleanly across signed/unsigned types.
+                if $signed && $b.checked_add(1) == Some(0) {
+                    return Ok(ok_res(Value::$V(0)));
+                }
+                let out = match mode {
+                    RemMode::TotalEuclidMod => $a.checked_rem_euclid($b),
+                    RemMode::TotalTruncRem | RemMode::CoreTruncRem => {
+                        $a.checked_rem($b)
+                    }
+                }
+                .context("Remainder failed unexpectedly for divisor != 0, -1")?;
+                Ok(ok_res(Value::$V(out)))
+            }
+        };
+    }
+    let sp_opt = total.then_some(span);
+    fixed_pair_arms!(left, right, total, sp_opt, op_name, rem_arm)
 }
 
 pub(super) fn eval_binary(
@@ -759,27 +755,54 @@ pub(super) fn eval_binary(
     span: Span,
 ) -> Result<EvalSignal> {
     match op {
-        BinaryOp::Add
-        | BinaryOp::Sub
-        | BinaryOp::Mul
-        | BinaryOp::Div
-        | BinaryOp::Rem
-        | BinaryOp::WrapAdd
-        | BinaryOp::WrapSub
-        | BinaryOp::WrapMul
-        | BinaryOp::BitAnd
-        | BinaryOp::BitOr
-        | BinaryOp::BitXor => {
-            let (kernel, core_only, name) = core_fixed_bin_spec(op)?;
-            dispatch_fixed_bin(
-                kernel, left, right, core_only, false, name, None,
-            )
+        BinaryOp::Add => {
+            eval_add_sub_mul(vm, ArithBinOp::Add, false, left, right, span)
         }
-        BinaryOp::Shl => {
-            eval_shift_shared(true, left, right, false, false, None)
+        BinaryOp::Sub => {
+            eval_add_sub_mul(vm, ArithBinOp::Sub, false, left, right, span)
         }
-        BinaryOp::Shr => {
-            eval_shift_shared(false, left, right, false, false, None)
+        BinaryOp::Mul => {
+            eval_add_sub_mul(vm, ArithBinOp::Mul, false, left, right, span)
+        }
+        BinaryOp::TotalAdd => {
+            eval_add_sub_mul(vm, ArithBinOp::Add, true, left, right, span)
+        }
+        BinaryOp::TotalSub => {
+            eval_add_sub_mul(vm, ArithBinOp::Sub, true, left, right, span)
+        }
+        BinaryOp::TotalMul => {
+            eval_add_sub_mul(vm, ArithBinOp::Mul, true, left, right, span)
+        }
+        BinaryOp::Div => eval_div(vm, false, left, right, span),
+        BinaryOp::TotalDiv => eval_div(vm, true, left, right, span),
+        BinaryOp::Rem => {
+            eval_rem(vm, RemMode::CoreTruncRem, left, right, span)
+        }
+        BinaryOp::TotalMod => {
+            eval_rem(vm, RemMode::TotalEuclidMod, left, right, span)
+        }
+        BinaryOp::TotalTruncRem => {
+            eval_rem(vm, RemMode::TotalTruncRem, left, right, span)
+        }
+        BinaryOp::WrapAdd => {
+            eval_wrap_or_bit(WrapOrBitOp::WrapAdd, left, right)
+        }
+        BinaryOp::WrapSub => {
+            eval_wrap_or_bit(WrapOrBitOp::WrapSub, left, right)
+        }
+        BinaryOp::WrapMul => {
+            eval_wrap_or_bit(WrapOrBitOp::WrapMul, left, right)
+        }
+        BinaryOp::BitAnd => eval_wrap_or_bit(WrapOrBitOp::BitAnd, left, right),
+        BinaryOp::BitOr => eval_wrap_or_bit(WrapOrBitOp::BitOr, left, right),
+        BinaryOp::BitXor => eval_wrap_or_bit(WrapOrBitOp::BitXor, left, right),
+        BinaryOp::Shl => eval_shift_shared(true, left, right, false, None),
+        BinaryOp::Shr => eval_shift_shared(false, left, right, false, None),
+        BinaryOp::TotalShl => {
+            eval_shift_shared(true, left, right, true, Some(span))
+        }
+        BinaryOp::TotalShr => {
+            eval_shift_shared(false, left, right, true, Some(span))
         }
         BinaryOp::Rotl => eval_rotate(true, left, right),
         BinaryOp::Rotr => eval_rotate(false, left, right),
@@ -790,6 +813,9 @@ pub(super) fn eval_binary(
         BinaryOp::Gt => cmp_numeric(&left, &right, std::cmp::Ordering::is_gt),
         BinaryOp::Ge => cmp_numeric(&left, &right, std::cmp::Ordering::is_ge),
         BinaryOp::Get => eval_get_shared(left, right, false, false, None),
+        BinaryOp::TotalGet => {
+            eval_get_shared(left, right, true, true, Some(span))
+        }
         BinaryOp::Concat => match (left, right) {
             (Value::List(a), Value::List(b)) => {
                 concat_slices(&a, &b, Value::List, vm)
@@ -800,52 +826,10 @@ pub(super) fn eval_binary(
             }
             _ => bail!("Invalid operands for 'concat'"),
         },
-        BinaryOp::BufFill | BinaryOp::BufPush | BinaryOp::BufExtend => {
-            eval_core_buf_binary(vm, op, left, right)
-        }
-        BinaryOp::TotalAdd => eval_total_arith(
-            vm,
-            FixedBinKernel::CheckedAdd,
-            "add",
-            left,
-            right,
-            span,
-            Integer::add,
-            Rational::add,
-        ),
-        BinaryOp::TotalSub => eval_total_arith(
-            vm,
-            FixedBinKernel::CheckedSub,
-            "sub",
-            left,
-            right,
-            span,
-            Integer::sub,
-            Rational::sub,
-        ),
-        BinaryOp::TotalMul => eval_total_arith(
-            vm,
-            FixedBinKernel::CheckedMul,
-            "mul",
-            left,
-            right,
-            span,
-            Integer::mul,
-            Rational::mul,
-        ),
-        BinaryOp::TotalDiv => eval_total_div(vm, left, right, span),
-        BinaryOp::TotalMod => eval_total_rem(vm, true, left, right, span),
-        BinaryOp::TotalTruncRem => {
-            eval_total_rem(vm, false, left, right, span)
-        }
-        BinaryOp::TotalShl => {
-            eval_shift_shared(true, left, right, true, true, Some(span))
-        }
-        BinaryOp::TotalShr => {
-            eval_shift_shared(false, left, right, true, true, Some(span))
-        }
-        BinaryOp::TotalGet => {
-            eval_get_shared(left, right, true, true, Some(span))
+        BinaryOp::BufFill => eval_buf_binary(vm, BufBinOp::Fill, left, right),
+        BinaryOp::BufPush => eval_buf_binary(vm, BufBinOp::Push, left, right),
+        BinaryOp::BufExtend => {
+            eval_buf_binary(vm, BufBinOp::Extend, left, right)
         }
         BinaryOp::UnwrapOr => match left {
             Value::Option(Some(inner)) | Value::Result(Ok(inner)) => {
@@ -894,119 +878,6 @@ pub(super) fn eval_binary(
                 "Short-circuit logical operators must be evaluated directly in eval_expr"
             );
         }
-    }
-}
-
-fn eval_total_arith(
-    vm: &StageLWorkspaceVm,
-    kernel: FixedBinKernel,
-    op_name: &str,
-    v1: Value,
-    v2: Value,
-    span: Span,
-    f_int: fn(Integer, Integer) -> Integer,
-    f_rat: fn(Rational, Rational) -> Rational,
-) -> Result<EvalSignal> {
-    match (v1, v2) {
-        (Value::Int(a), Value::Int(b)) => {
-            let res = f_int(a, b);
-            if let Some(fault) = vm.check_int_limit(&res, op_name) {
-                return Ok(fault);
-            }
-            Ok(EvalSignal::Value(Value::Int(res)))
-        }
-        (Value::Rat(a), Value::Rat(b)) => {
-            let res = f_rat(a, b);
-            if let Some(fault) = vm.check_rat_limit(&res, op_name) {
-                return Ok(fault);
-            }
-            Ok(EvalSignal::Value(Value::Rat(res)))
-        }
-        (l, r) => {
-            dispatch_fixed_bin(kernel, l, r, false, true, op_name, Some(span))
-        }
-    }
-}
-
-fn eval_total_div(
-    vm: &StageLWorkspaceVm,
-    v1: Value,
-    v2: Value,
-    span: Span,
-) -> Result<EvalSignal> {
-    match (v1, v2) {
-        (Value::Int(a), Value::Int(b)) => {
-            if b == Integer::ZERO {
-                return Ok(err_res(StageRErrorTag::DivisionByZero));
-            }
-            let q = a.div(b);
-            if let Some(fault) = vm.check_int_limit(&q, "div") {
-                return Ok(fault);
-            }
-            Ok(ok_res(Value::Int(q)))
-        }
-        (Value::Rat(a), Value::Rat(b)) => {
-            if b == Rational::ZERO {
-                return Ok(err_res(StageRErrorTag::DivisionByZero));
-            }
-            let q = a.div(b);
-            if let Some(fault) = vm.check_rat_limit(&q, "div") {
-                return Ok(fault);
-            }
-            Ok(ok_res(Value::Rat(q)))
-        }
-        (l, r) => dispatch_fixed_bin(
-            FixedBinKernel::CheckedDiv,
-            l,
-            r,
-            false,
-            true,
-            "div",
-            Some(span),
-        ),
-    }
-}
-
-fn eval_total_rem(
-    vm: &StageLWorkspaceVm,
-    euclid: bool,
-    v1: Value,
-    v2: Value,
-    span: Span,
-) -> Result<EvalSignal> {
-    let op_name = if euclid { "mod" } else { "truncRem" };
-    match (v1, v2) {
-        (Value::Int(a), Value::Int(b)) => {
-            if b == Integer::ZERO {
-                return Ok(err_res(StageRErrorTag::DivisionByZero));
-            }
-            let r = if euclid {
-                let mut rem = (&a).rem(&b);
-                if rem < Integer::ZERO {
-                    rem = rem.add(Integer::from(b.unsigned_abs_ref()));
-                }
-                rem
-            } else {
-                a.rem(b)
-            };
-            if let Some(fault) = vm.check_int_limit(&r, op_name) {
-                return Ok(fault);
-            }
-            Ok(ok_res(Value::Int(r)))
-        }
-        (l, r) => dispatch_fixed_bin(
-            if euclid {
-                FixedBinKernel::TotalMod
-            } else {
-                FixedBinKernel::TotalTruncRem
-            },
-            l,
-            r,
-            false,
-            true,
-            op_name,
-            Some(span),
-        ),
     }
 }
 
