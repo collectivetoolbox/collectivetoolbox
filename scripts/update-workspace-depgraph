@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+set -euo pipefail
+
+# Change directory to the repository root
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
+offline=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --offline)
+            offline="--offline"
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+echo "Updating workspace dependency diagram..."
+if python3 -c "" >/dev/null 2>&1; then
+    python3 scripts/workspace-depgraph.py -o docs/workspace-dependencies.generated.svg
+elif command -v ctb >/dev/null 2>&1; then
+    ctb python scripts/workspace-depgraph.py -o docs/workspace-dependencies.generated.svg
+else
+    target_flag=""
+    if [[ "$(uname -s)" == "Linux" && "$(uname -m)" == "x86_64" ]]; then
+        target_flag="--target=x86_64-unknown-linux-musl"
+    elif [[ "$(uname -s)" == "Linux" && "$(uname -m)" =~ i[3-6]86 ]]; then
+        target_flag="--target=i586-unknown-linux-musl"
+    fi
+    cargo run ${offline} ${target_flag} --quiet -p ctb-formats-python --bin ctb-python -- scripts/workspace-depgraph.py -o docs/workspace-dependencies.generated.svg
+fi

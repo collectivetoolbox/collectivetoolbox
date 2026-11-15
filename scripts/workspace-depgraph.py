@@ -561,18 +561,24 @@ def main() -> None:
             pkg_names, adj, layers, flow=opts.flow
         )
 
-    if opts.output:
-        with open(opts.output, "w", encoding="utf-8") as f:
-            f.write(output_content)
-        print(f"Generated {target_format.upper()} diagram at: {opts.output}")
-    else:
-        if target_format == "svg":
-            default_out = "docs/workspace-dependencies.generated.svg"
-            with open(default_out, "w", encoding="utf-8") as f:
-                f.write(output_content)
-            print(f"Generated SVG diagram at: {default_out}")
+    output_path: str | None = opts.output
+    if not output_path and target_format == "svg":
+        output_path = "docs/workspace-dependencies.generated.svg"
+    if output_path:
+        out_file = Path(output_path)
+        existing_content: str | None = None
+        if out_file.is_file():
+            existing_content = out_file.read_text(encoding="utf-8")
+        if existing_content == output_content:
+            print(
+                f"{target_format.upper()} diagram already up to date at: {output_path}"
+            )
         else:
-            sys.stdout.write(output_content)
+            out_file.parent.mkdir(parents=True, exist_ok=True)
+            out_file.write_text(output_content, encoding="utf-8")
+            print(f"Generated {target_format.upper()} diagram at: {output_path}")
+    else:
+        sys.stdout.write(output_content)
 
 
 if __name__ == "__main__":

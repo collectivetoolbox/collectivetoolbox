@@ -381,23 +381,10 @@ if [[ ! -f "built/ctoolbox.rsrc" ]]; then
     cargo run ${offline} --quiet --manifest-path src/build_support/Cargo.toml --bin refresh-asset-bundle -- .
 fi
 
+./scripts/update-workspace-depgraph ${offline} || exit 1
+
 if [[ "$build_docs" == "true" ]]; then
     echo "Building documentation..."
-
-    echo "Generating workspace dependency diagram..."
-    if python3 -c "" >/dev/null 2>&1; then
-        python3 scripts/workspace-depgraph.py -o docs/workspace-dependencies.generated.svg
-    elif command -v ctb >/dev/null 2>&1; then
-        ctb python scripts/workspace-depgraph.py -o docs/workspace-dependencies.generated.svg
-    else
-        target_flag=""
-        if [[ "$(uname -s)" == "Linux" && "$(uname -m)" == "x86_64" ]]; then
-            target_flag="--target=x86_64-unknown-linux-musl"
-        elif [[ "$(uname -s)" == "Linux" && "$(uname -m)" =~ i[3-6]86 ]]; then
-            target_flag="--target=i586-unknown-linux-musl"
-        fi
-        cargo run ${offline} ${target_flag} --quiet -p ctb-formats-python --bin ctb-python -- scripts/workspace-depgraph.py -o docs/workspace-dependencies.generated.svg
-    fi
 
     cargo doc --workspace ${offline} --no-deps --target=x86_64-unknown-linux-musl # --document-private-items
     # Re-run for ctoolbox so all re-exported crate links resolve (requires other crates' docs on disk)
