@@ -48,12 +48,7 @@ StageL 3 source (`.sl3`) normalizes into `FormatId::StageL3Intermediate` (`.sli3
    - Identifiers are ASCII case-insensitive (`a-z` -> `A-Z`).
    - Decimal digits `0`–`9` outside literals encode as `N:A:` (`0`) through `N:J:` (`9`).
    - A leading minus sign immediately after `:` before a digit in a typed negative number (e.g. `i32:-2147483648`) encodes as `N:M:` (yielding `IN:D:N:C::N:M:...`), allowing minimum two's-complement literals without permitting hyphens inside identifiers.
-4. **`letters` Literals (`t"..."` -> `T"..."`)**:
-   - Must start at an expression boundary (`t"` or `T"`).
-   - Lowercase `a-z` fold to `A-Z` (`eq t"a" t"A"` is `true`).
-   - Permitted `/` escapes: `/"` (`"`), `//` (`/`), and `/n` -> `/N` (`\n`).
-   - Digits, arbitrary byte escapes (`/xHH`, `/0`), and characters outside the 32-character `letters` repertoire are rejected.
-5. **Byte Literals (`b"..."` -> `B"..."`)**:
+4. **Byte Literals (`b"..."` -> `B"..."`)**:
    - Denotes a literal of type `l/u8`. Payload byte values are **case-preserving** (`b"a"` is `[0x61]`, distinct from `b"A"` `[0x41]`).
    - Source slash escapes: `/"` (`0x22`), `//` (`0x2F`), `/0` (`0x00`), `/a` (`0x07`), `/b` (`0x08`), `/t` (`0x09`), `/n` (`0x0A`), `/v` (`0x0B`), `/f` (`0x0C`), `/r` (`0x0D`), and `/xHH` (exactly two hex digits `0x00..=0xFF`, e.g. `/x1a`, `/x5c` for backslash).
    - In `.sli3`, `A-Z`, `' '`, `:`, and `.` remain verbatim; `/"`, `//`, `/A`, `/B`, `/T`, `/N`, `/V`, `/F`, `/R` represent their respective escapes; and all other bytes (including lowercase `a-z`, digits `0-9`, `/0`, and `/xHH`) normalize losslessly to `/X<HI><LO>`, where `<HI>` and `<LO>` map nibbles `0..=15` to `A..=P`.
@@ -80,8 +75,6 @@ Typing is static and strict with **zero implicit coercions**:
 | `NAME` / `dc/<shorthand>` | `Dc 2673 "Built-in type identifier: Struct"` | Nominal immutable positional `struct` declared at module top level (`[pub [dc/<sh>]] struct NAME :: T_0 ... T_{n-1}.`, `n >= 1` slots; `Dc 2217 "Begin positional struct declaration"`..`Dc 2218 "End positional struct declaration"`) | `structNew NAME: E_0 ... E_{n-1} ::` (`Dc 2219 "Begin positional struct value"`..`Dc 2220 "End positional struct value"`) |
 | `void` | `f1425` (`Void`) | Unit type (single unit value returned by declarations, `set`, buffer mutators, loops, `nop`, and empty `do ::`) | `nop` (`Dc 2455 "No-op"`), `do ::` |
 | `never` | `f1426` (`Never`) | Bottom / non-returning type (`break`, `continue`, `return`, `fault`) — compatible with any branch type in `if` | *(control transfer)* |
-
-> **Note on `t` (`letters`)**: Direct `.sl3 -> Token Dcs` compilation omits `t` (`letters`) from the base StageL 3 Token Dc repertoire (using `l/u8` byte slices in StageL 3 and `s` / `dcs` in StageR 3); `t"..."` normalization in `stagel3.rs` is retained only for `.sli3` normalizer compatibility.
 
 Named verbs (`v/RETURN/name ...`) are declarations, **not** value types. Assigning, passing, or returning a verb is prohibited in StageL 3 and StageR 3.
 

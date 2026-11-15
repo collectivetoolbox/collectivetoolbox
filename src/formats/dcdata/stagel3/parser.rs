@@ -234,11 +234,6 @@ pub(super) fn tokenize_with_dialect(
                 });
                 only_spaces_on_line = false;
             }
-            b't' | b'T' if bytes.get(idx.saturating_add(1)) == Some(&b'"') => {
-                bail!(
-                    "Letters literal 't\"...\"' at {line}:{col} is not in the {dialect_name} Step 1a Token Dc repertoire"
-                );
-            }
             _ => {
                 let span = Span { line, col };
                 let start = idx;

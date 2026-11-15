@@ -32,7 +32,7 @@ StageR 3 builds on top of [StageL 3 (`sl3.md`)](./sl3.md) while enforcing **stri
 1. **Literal Kind Distinction**:
    - `dc:<shorthand>` -> `dc` (standalone Document Character scalar literal, e.g. `dc:256`, `dc:f657`, `dc:u41`).
    - `b"..."` -> `l/u8` (raw byte list, case-preserving).
-   - `"..."` -> `s` (`DcMst` mixed-mode document string, constructed from a **Dcts** `FormatId::Dcts` `f461` payload—**not** JSON string syntax; `t"..."` / `t` (`letters`) is StageL 3-only and omitted in StageR 3, where `dcs` via `dcsFromS` serves for pure Document Character keys and sequences).
+   - `"..."` -> `s` (`DcMst` mixed-mode document string, constructed from a **Dcts** `FormatId::Dcts` `f461` payload—**not** JSON string syntax).
 2. **Two-Layer Framing Without Double-Unescaping**:
    - **Outer framing (`.sr3 -> .sri3` normalizer)**: Scans `"..."` using StageL slash escapes (`/"`, `//`, `/0`, `/a`, `/b`, `/t`, `/n`, `/v`, `/f`, `/r`, `/xHH`) plus raw UTF-8 characters, encoding non-`{A-Z, ' ', ':', '.'}` bytes losslessly as `/X<HI><LO>` (`A..P` nibbles).
    - **Inner Dcts parsing (compile-time / runtime `s` construction)**: Calling `decode_sli3_byte_literal_body` recovers the exact UTF-8 byte sequence, which is parsed **once** by Dcts (`@256@`, `@f656@`, `@@` for literal `@`, etc.) into `DcMstring`. Outer quotes `/"` and slashes `//` never interfere with `@...@` Dcts tokens and are never double-decoded.

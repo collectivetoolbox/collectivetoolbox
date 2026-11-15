@@ -81,47 +81,6 @@ fn push_comment_char_escape(raw: u8, out: &mut Vec<u8>) {
     out.push(b':');
 }
 
-fn normalize_letters_literal(
-    input: &[u8],
-    pos: &mut usize,
-    out: &mut Vec<u8>,
-) -> Result<()> {
-    out.extend_from_slice(b"T\"");
-    while let Some(&b) = input.get(*pos) {
-        *pos = pos.saturating_add(1);
-        match b {
-            b'"' => {
-                out.push(b'"');
-                return Ok(());
-            }
-            b'\r' | b'\n' => {
-                bail!("Unescaped newline in StageL 3 t\"...\" letters literal");
-            }
-            b'/' => {
-                let esc = *input.get(*pos).context(
-                    "Truncated '/' escape at end of t\"...\" letters literal",
-                )?;
-                *pos = pos.saturating_add(1);
-                match esc {
-                    b'"' => out.extend_from_slice(b"/\""),
-                    b'/' => out.extend_from_slice(b"//"),
-                    b'n' => out.extend_from_slice(b"/N"),
-                    other => bail!(
-                        "Invalid escape '/{}' in t\"...\" letters literal (only /\", //, and /n are allowed)",
-                        char::from(other)
-                    ),
-                }
-            }
-            b'a'..=b'z' => out.push(b.to_ascii_uppercase()),
-            b'A'..=b'Z' | b':' | b' ' | b'.' => out.push(b),
-            other => bail!(
-                "Disallowed byte 0x{other:02X} in StageL 3 t\"...\" letters literal"
-            ),
-        }
-    }
-    bail!("Unclosed StageL 3 t\"...\" letters literal")
-}
-
 fn normalize_byte_or_dcts_literal(
     input: &[u8],
     pos: &mut usize,
@@ -352,19 +311,15 @@ pub fn normalize_with_dialect(
 
         at_line_start = false;
 
-        // Check for prefixed literals `t"..."` / `b"..."` at an expression boundary.
+        // Check for prefixed byte literal `b"..."` at an expression boundary.
         if at_expr_boundary
-            && matches!(raw, b't' | b'T' | b'b' | b'B')
+            && matches!(raw, b'b' | b'B')
             && input.get(pos.saturating_add(1)) == Some(&b'"')
         {
             pos = pos.saturating_add(2);
-            if matches!(raw, b't' | b'T') {
-                normalize_letters_literal(input, &mut pos, &mut out)?;
-            } else {
-                normalize_byte_or_dcts_literal(
-                    input, &mut pos, false, b"B\"", &mut out,
-                )?;
-            }
+            normalize_byte_or_dcts_literal(
+                input, &mut pos, false, b"B\"", &mut out,
+            )?;
             at_expr_boundary = false;
             continue;
         }
@@ -377,7 +332,7 @@ pub fn normalize_with_dialect(
             );
             ensure!(
                 dialect == StageDialect::StageR3,
-                "Bare '\"...\"' Dcts string literals belong to StageR 3; use t\"...\" (letters) or b\"...\" (bytes) in StageL 3"
+                "Bare '\"...\"' Dcts string literals belong to StageR 3; use b\"...\" (bytes) in StageL 3"
             );
             pos = pos.saturating_add(1);
             normalize_byte_or_dcts_literal(input, &mut pos, true, b"\"", &mut out)?;
@@ -541,17 +496,10 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_normalize_letters_bytes_and_dcts_literals_preserve_semantics()
-    -> Result<()> {
-        // `t"..."` folds ASCII lowercase to uppercase and allows `/"`, `//`, `/n`
-        let norm_a = normalize(b"eq t\"abc/\"// /n\" t\"ABC/\"// /n\".\n")?;
-        assert_eq!(
-            std::str::from_utf8(&norm_a)?,
-            "EQ T\"ABC/\"// /N\" T\"ABC/\"// /N\".\n"
-        );
-        // `t"..."` rejects digits and `/x` byte escapes
-        assert!(normalize(b"t\"abc1\"").is_err());
-        assert!(normalize(b"t\"/x41\"").is_err());
+    fn test_normalize_bytes_and_dcts_literals_preserve_semantics() -> Result<()> {
+        // Removed `t"..."` letters literals must be rejected in both StageL 3 and StageR 3
+        assert!(normalize(b"t\"abc\"").is_err());
+        assert!(normalize_stager3(b"t\"abc\"").is_err());
 
         // `b"..."` preserves lowercase vs uppercase payload bytes losslessly!
         let b_src = b"b\"Abc/0/x1a/x5c/n/\"//\"";

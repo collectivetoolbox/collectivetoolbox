@@ -50,12 +50,6 @@ v/l/u32/appendU32 l/u32/a l/u32/b
         out l/u32: u32:0 u32:1 u32:2 u32:3 ::
     concat l/u32/a l/u32/b.
 
-v/l/t/splitLetters t/sep t/input
-    test splits case normalized letters
-        in t"b" t"aBc"
-        out l/t: t"A" t"C" ::
-    explode t/sep t/input.
-
 v/l/u8/roundTripBytes l/u8/sep l/u8/input
     test splits and rejoins case preserving byte slices
         in b"//" b"Abc//def/x5c/n"

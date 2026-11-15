@@ -511,7 +511,7 @@ for p in "${platforms[@]}"; do
         fi
 
         extra_test_args=()
-        test_harness_args=(--include-ignored --skip tests::test_bootstrap_ts_compilation --skip stagel3::tests::test_normalize_sl3_fixtures)
+        test_harness_args=(--include-ignored --skip tests::test_bootstrap_ts_compilation)
         if [[ "$target" == *windows* ]]; then
             export WINEDEBUG="-all"
             export WINEPREFIX="${WINEPREFIX:-/tmp/ctb-wine}"
