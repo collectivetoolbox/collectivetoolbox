@@ -1,0 +1,100 @@
+l8589980292: u43 u6f u6e u76 u65 u72 u74 u20 u76 u61 u6c u75 u65 u20 u28 u66 u61 u75 u6c u74 u69 u6e u67 u29 # "Convert value (faulting)"
+l8589980293: u42 u69 u74 u63 u61 u73 u74 u20 u76 u61 u6c u75 u65 # "Bitcast value"
+l8589980294: u53 u65 u71 u75 u65 u6e u63 u65 u20 u6c u65 u6e u67 u74 u68 # "Sequence length"
+l8589980295: u47 u65 u74 u20 u65 u6c u65 u6d u65 u6e u74 u20 u28 u66 u61 u75 u6c u74 u69 u6e u67 u29 # "Get element (faulting)"
+l8589980296: u53 u6c u69 u63 u65 u20 u73 u65 u71 u75 u65 u6e u63 u65 u20 u28 u66 u61 u75 u6c u74 u69 u6e u67 u29 # "Slice sequence (faulting)"
+l8589980297: u43 u6f u6e u63 u61 u74 u65 u6e u61 u74 u65 u20 u73 u65 u71 u75 u65 u6e u63 u65 u73 # "Concatenate sequences"
+l8589980298: u47 u65 u74 u20 u70 u6f u73 u69 u74 u69 u6f u6e u61 u6c u20 u66 u69 u65 u6c u64 # "Get positional field"
+l8589980299: u57 u69 u74 u68 u20 u70 u6f u73 u69 u74 u69 u6f u6e u61 u6c u20 u66 u69 u65 u6c u64 # "With positional field"
+l8589980300: u47 u65 u74 u20 u6e u61 u6d u65 u64 u20 u66 u69 u65 u6c u64 # "Get named field"
+l8589980301: u57 u69 u74 u68 u20 u6e u61 u6d u65 u64 u20 u66 u69 u65 u6c u64 # "With named field"
+l8589980302: u57 u72 u61 u70 u20 u6e u6f u6d u69 u6e u61 u6c u20 u76 u61 u6c u75 u65 # "Wrap nominal value"
+l8589980303: u55 u6e u77 u72 u61 u70 u20 u6e u6f u6d u69 u6e u61 u6c u20 u76 u61 u6c u75 u65 # "Unwrap nominal value"
+l8589980304: u41 u64 u64 # "Add"
+l8589980305: u53 u75 u62 u74 u72 u61 u63 u74 # "Subtract"
+l8589980306: u4d u75 u6c u74 u69 u70 u6c u79 # "Multiply"
+l8589980307: u44 u69 u76 u69 u64 u65 # "Divide"
+l8589980308: u45 u75 u63 u6c u69 u64 u65 u61 u6e u20 u6d u6f u64 u75 u6c u6f # "Euclidean modulo"
+l8589980309: u54 u72 u75 u6e u63 u61 u74 u69 u6e u67 u20 u72 u65 u6d u61 u69 u6e u64 u65 u72 # "Truncating remainder"
+l8589980310: u4e u65 u67 u61 u74 u65 # "Negate"
+l8589980311: u53 u68 u69 u66 u74 u20 u6c u65 u66 u74 # "Shift left"
+l8589980312: u53 u68 u69 u66 u74 u20 u72 u69 u67 u68 u74 # "Shift right"
+l8589980313: u43 u6f u6e u76 u65 u72 u74 u20 u76 u61 u6c u75 u65 # "Convert value"
+l8589980314: u47 u65 u74 u20 u65 u6c u65 u6d u65 u6e u74 # "Get element"
+l8589980315: u53 u6c u69 u63 u65 u20 u73 u65 u71 u75 u65 u6e u63 u65 # "Slice sequence"
+l8589980316: u42 u75 u66 u66 u65 u72 u20 u73 u65 u74 # "Buffer set"
+l8589980317: u4f u70 u74 u69 u6f u6e u20 u69 u73 u20 u73 u6f u6d u65 # "Option is some"
+l8589980318: u4f u70 u74 u69 u6f u6e u20 u69 u73 u20 u6e u6f u6e u65 # "Option is none"
+l8589980319: u52 u65 u73 u75 u6c u74 u20 u69 u73 u20 u6f u6b # "Result is ok"
+l8589980320: u52 u65 u73 u75 u6c u74 u20 u69 u73 u20 u65 u72 u72 u6f u72 # "Result is error"
+l8589980321: u55 u6e u77 u72 u61 u70 u20 u77 u69 u74 u68 u20 u66 u61 u6c u6c u62 u61 u63 u6b # "Unwrap with fallback"
+l8589980322: u4f u70 u74 u69 u6f u6e u20 u74 u6f u20 u72 u65 u73 u75 u6c u74 # "Option to result"
+l8589980323: u45 u6e u63 u6f u64 u65 u64 u20 u62 u79 u74 u65 u20 u6c u65 u6e u67 u74 u68 # "Encoded byte length"
+l8589980324: u53 u74 u61 u67 u65 u4c u20 u62 u75 u66 u66 u65 u72 u20 u73 u65 u74 u20 u28 u66 u61 u75 u6c u74 u69 u6e u67 u29 # "StageL buffer set (faulting)"
+l8589980325: 610 l8589979759 l8589980268 # Has value (Has a (Propagate error or absence, Canonical name), "Propagate error or absence operator")
+l8589980326: 591 l8589980325 l8589979760 # Supersedes (Has value (Has a (Propagate error or absence, Canonical name), "Propagate error or absence operator"), Has value (Has a (Propagate error or absence, Canonical name), "Propagate error or absence"))
+l8589980327: 610 l8589976855 l8589980269 # Has value (Has a (Add operation, Canonical name), "Add (faulting)")
+l8589980328: 591 l8589980327 l8589976856 # Supersedes (Has value (Has a (Add operation, Canonical name), "Add (faulting)"), Has value (Has a (Add operation, Canonical name), "Add operation"))
+l8589980329: 610 l8589976865 l8589980270 # Has value (Has a (Subtract operation, Canonical name), "Subtract (faulting)")
+l8589980330: 591 l8589980329 l8589976866 # Supersedes (Has value (Has a (Subtract operation, Canonical name), "Subtract (faulting)"), Has value (Has a (Subtract operation, Canonical name), "Subtract operation"))
+l8589980331: 610 l8589976875 l8589980271 # Has value (Has a (Multiply operation, Canonical name), "Multiply (faulting)")
+l8589980332: 591 l8589980331 l8589976876 # Supersedes (Has value (Has a (Multiply operation, Canonical name), "Multiply (faulting)"), Has value (Has a (Multiply operation, Canonical name), "Multiply operation"))
+l8589980333: 610 l8589976885 l8589980272 # Has value (Has a (Divide operation, Canonical name), "Divide (faulting)")
+l8589980334: 591 l8589980333 l8589976886 # Supersedes (Has value (Has a (Divide operation, Canonical name), "Divide (faulting)"), Has value (Has a (Divide operation, Canonical name), "Divide operation"))
+l8589980335: 610 l8589976895 l8589980273 # Has value (Has a (Remainder operation, Canonical name), "Truncating remainder (faulting)")
+l8589980336: 591 l8589980335 l8589976896 # Supersedes (Has value (Has a (Remainder operation, Canonical name), "Truncating remainder (faulting)"), Has value (Has a (Remainder operation, Canonical name), "Remainder operation"))
+l8589980337: 610 l8589976905 l8589980274 # Has value (Has a (Negate operation, Canonical name), "Negate (faulting)")
+l8589980338: 591 l8589980337 l8589976906 # Supersedes (Has value (Has a (Negate operation, Canonical name), "Negate (faulting)"), Has value (Has a (Negate operation, Canonical name), "Negate operation"))
+l8589980339: 610 l8589976915 l8589980275 # Has value (Has a (Wrapping add operation, Canonical name), "Wrapping add")
+l8589980340: 591 l8589980339 l8589976916 # Supersedes (Has value (Has a (Wrapping add operation, Canonical name), "Wrapping add"), Has value (Has a (Wrapping add operation, Canonical name), "Wrapping add operation"))
+l8589980341: 610 l8589976925 l8589980276 # Has value (Has a (Wrapping subtract operation, Canonical name), "Wrapping subtract")
+l8589980342: 591 l8589980341 l8589976926 # Supersedes (Has value (Has a (Wrapping subtract operation, Canonical name), "Wrapping subtract"), Has value (Has a (Wrapping subtract operation, Canonical name), "Wrapping subtract operation"))
+l8589980343: 610 l8589976935 l8589980277 # Has value (Has a (Wrapping multiply operation, Canonical name), "Wrapping multiply")
+l8589980344: 591 l8589980343 l8589976936 # Supersedes (Has value (Has a (Wrapping multiply operation, Canonical name), "Wrapping multiply"), Has value (Has a (Wrapping multiply operation, Canonical name), "Wrapping multiply operation"))
+l8589980345: 610 l8589976945 l8589980278 # Has value (Has a (Bitwise AND operation, Canonical name), "Bitwise AND")
+l8589980346: 591 l8589980345 l8589976946 # Supersedes (Has value (Has a (Bitwise AND operation, Canonical name), "Bitwise AND"), Has value (Has a (Bitwise AND operation, Canonical name), "Bitwise AND operation"))
+l8589980347: 610 l8589976955 l8589980279 # Has value (Has a (Bitwise OR operation, Canonical name), "Bitwise OR")
+l8589980348: 591 l8589980347 l8589976956 # Supersedes (Has value (Has a (Bitwise OR operation, Canonical name), "Bitwise OR"), Has value (Has a (Bitwise OR operation, Canonical name), "Bitwise OR operation"))
+l8589980349: 610 l8589976965 l8589980280 # Has value (Has a (Bitwise XOR operation, Canonical name), "Bitwise XOR")
+l8589980350: 591 l8589980349 l8589976966 # Supersedes (Has value (Has a (Bitwise XOR operation, Canonical name), "Bitwise XOR"), Has value (Has a (Bitwise XOR operation, Canonical name), "Bitwise XOR operation"))
+l8589980351: 610 l8589976975 l8589980281 # Has value (Has a (Bitwise NOT operation, Canonical name), "Bitwise NOT")
+l8589980352: 591 l8589980351 l8589976976 # Supersedes (Has value (Has a (Bitwise NOT operation, Canonical name), "Bitwise NOT"), Has value (Has a (Bitwise NOT operation, Canonical name), "Bitwise NOT operation"))
+l8589980353: 610 l8589976985 l8589980282 # Has value (Has a (Shift left operation, Canonical name), "Shift left (faulting)")
+l8589980354: 591 l8589980353 l8589976986 # Supersedes (Has value (Has a (Shift left operation, Canonical name), "Shift left (faulting)"), Has value (Has a (Shift left operation, Canonical name), "Shift left operation"))
+l8589980355: 610 l8589976995 l8589980283 # Has value (Has a (Shift right operation, Canonical name), "Shift right (faulting)")
+l8589980356: 591 l8589980355 l8589976996 # Supersedes (Has value (Has a (Shift right operation, Canonical name), "Shift right (faulting)"), Has value (Has a (Shift right operation, Canonical name), "Shift right operation"))
+l8589980357: 610 l8589977005 l8589980284 # Has value (Has a (Rotate left operation, Canonical name), "Rotate left")
+l8589980358: 591 l8589980357 l8589977006 # Supersedes (Has value (Has a (Rotate left operation, Canonical name), "Rotate left"), Has value (Has a (Rotate left operation, Canonical name), "Rotate left operation"))
+l8589980359: 610 l8589977015 l8589980285 # Has value (Has a (Rotate right operation, Canonical name), "Rotate right")
+l8589980360: 591 l8589980359 l8589977016 # Supersedes (Has value (Has a (Rotate right operation, Canonical name), "Rotate right"), Has value (Has a (Rotate right operation, Canonical name), "Rotate right operation"))
+l8589980361: 610 l8589977025 l8589980286 # Has value (Has a (Count leading zeros operation, Canonical name), "Count leading zeros")
+l8589980362: 591 l8589980361 l8589977026 # Supersedes (Has value (Has a (Count leading zeros operation, Canonical name), "Count leading zeros"), Has value (Has a (Count leading zeros operation, Canonical name), "Count leading zeros operation"))
+l8589980363: 610 l8589977035 l8589980287 # Has value (Has a (Count trailing zeros operation, Canonical name), "Count trailing zeros")
+l8589980364: 591 l8589980363 l8589977036 # Supersedes (Has value (Has a (Count trailing zeros operation, Canonical name), "Count trailing zeros"), Has value (Has a (Count trailing zeros operation, Canonical name), "Count trailing zeros operation"))
+l8589980365: 610 l8589977045 l8589980288 # Has value (Has a (Population count operation, Canonical name), "Population count")
+l8589980366: 591 l8589980365 l8589977046 # Supersedes (Has value (Has a (Population count operation, Canonical name), "Population count"), Has value (Has a (Population count operation, Canonical name), "Population count operation"))
+l8589980367: 610 l8589977055 l8589980289 # Has value (Has a (Logical NOT operation, Canonical name), "Boolean NOT")
+l8589980368: 591 l8589980367 l8589977056 # Supersedes (Has value (Has a (Logical NOT operation, Canonical name), "Boolean NOT"), Has value (Has a (Logical NOT operation, Canonical name), "Logical NOT operation"))
+l8589980369: 610 l8589977065 l8589980290 # Has value (Has a (Logical AND operation, Canonical name), "Boolean AND")
+l8589980370: 591 l8589980369 l8589977066 # Supersedes (Has value (Has a (Logical AND operation, Canonical name), "Boolean AND"), Has value (Has a (Logical AND operation, Canonical name), "Logical AND operation"))
+l8589980371: 610 l8589977075 l8589980291 # Has value (Has a (Logical OR operation, Canonical name), "Boolean OR")
+l8589980372: 591 l8589980371 l8589977076 # Supersedes (Has value (Has a (Logical OR operation, Canonical name), "Boolean OR"), Has value (Has a (Logical OR operation, Canonical name), "Logical OR operation"))
+l8589980373: 610 l8589977145 l8589980292 # Has value (Has a (Convert value operation, Canonical name), "Convert value (faulting)")
+l8589980374: 591 l8589980373 l8589977146 # Supersedes (Has value (Has a (Convert value operation, Canonical name), "Convert value (faulting)"), Has value (Has a (Convert value operation, Canonical name), "Convert value operation"))
+l8589980375: 610 l8589977155 l8589980293 # Has value (Has a (Bitcast value operation, Canonical name), "Bitcast value")
+l8589980376: 591 l8589980375 l8589977156 # Supersedes (Has value (Has a (Bitcast value operation, Canonical name), "Bitcast value"), Has value (Has a (Bitcast value operation, Canonical name), "Bitcast value operation"))
+l8589980377: 610 l8589977165 l8589980294 # Has value (Has a (Sequence length operation, Canonical name), "Sequence length")
+l8589980378: 591 l8589980377 l8589977166 # Supersedes (Has value (Has a (Sequence length operation, Canonical name), "Sequence length"), Has value (Has a (Sequence length operation, Canonical name), "Sequence length operation"))
+l8589980379: 610 l8589977175 l8589980295 # Has value (Has a (Get element operation, Canonical name), "Get element (faulting)")
+l8589980380: 591 l8589980379 l8589977176 # Supersedes (Has value (Has a (Get element operation, Canonical name), "Get element (faulting)"), Has value (Has a (Get element operation, Canonical name), "Get element operation"))
+l8589980381: 610 l8589977185 l8589980296 # Has value (Has a (Slice sequence operation, Canonical name), "Slice sequence (faulting)")
+l8589980382: 591 l8589980381 l8589977186 # Supersedes (Has value (Has a (Slice sequence operation, Canonical name), "Slice sequence (faulting)"), Has value (Has a (Slice sequence operation, Canonical name), "Slice sequence operation"))
+l8589980383: 610 l8589977195 l8589980297 # Has value (Has a (Concatenate sequences operation, Canonical name), "Concatenate sequences")
+l8589980384: 591 l8589980383 l8589977196 # Supersedes (Has value (Has a (Concatenate sequences operation, Canonical name), "Concatenate sequences"), Has value (Has a (Concatenate sequences operation, Canonical name), "Concatenate sequences operation"))
+l8589980385: 610 l8589978995 l8589980298 # Has value (Has a (Get positional field operation, Canonical name), "Get positional field")
+l8589980386: 591 l8589980385 l8589978996 # Supersedes (Has value (Has a (Get positional field operation, Canonical name), "Get positional field"), Has value (Has a (Get positional field operation, Canonical name), "Get positional field operation"))
+l8589980387: 610 l8589979005 l8589980299 # Has value (Has a (With positional field operation, Canonical name), "With positional field")
+l8589980388: 591 l8589980387 l8589979006 # Supersedes (Has value (Has a (With positional field operation, Canonical name), "With positional field"), Has value (Has a (With positional field operation, Canonical name), "With positional field operation"))
+l8589980389: 610 l8589979769 l8589980300 # Has value (Has a (Get named field operation, Canonical name), "Get named field")
+l8589980390: 591 l8589980389 l8589979770 # Supersedes (Has value (Has a (Get named field operation, Canonical name), "Get named field"), Has value (Has a (Get named field operation, Canonical name), "Get named field operation"))
+l8589980391: 610 l8589979779 l8589980301 # Has value (Has a (With named field operation, Canonical name), "With named field")
