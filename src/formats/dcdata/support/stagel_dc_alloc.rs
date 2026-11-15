@@ -2014,8 +2014,13 @@ pub(crate) fn compile_stagel_files_into_desired_state(
                 tokens: token_shorthands,
                 comment: format!("StageL 3 Token-Dc {label}"),
             };
+            let decomp_dc = if pub_dc_syntax {
+                DC_SEMANTIC_DECOMPOSITION
+            } else {
+                DC_CANONICAL_DECOMPOSITION
+            };
             desired.multi_properties.insert(
-                (subj_sh, sh(DC_CANONICAL_DECOMPOSITION), body_spec),
+                (subj_sh, sh(decomp_dc), body_spec),
                 format!("{subj_sh} StageL 3 decomposition ({label})"),
             );
         }
@@ -2204,6 +2209,24 @@ pub fn validate_system_graph_wasm_and_stagel_boundaries(
                 // entities or non-Stage-0 Dcs).
                 let is_wasm = val_node.tokens.first() == Some(&sh_begin_wasm)
                     || index.tokens_are_wasm_helper_or_definition(&val_node.tokens);
+                let is_stagel =
+                    index.tokens_are_stagel_item_or_module(&val_node.tokens);
+                if (is_wasm || is_stagel)
+                    && matches!(subj, DcShorthand::Format(_))
+                    && !index.is_transformation_format_subject(subj)
+                {
+                    report.add_error(
+                        source_path_label,
+                        None,
+                        Some("Format implementation"),
+                        format!(
+                            "System-graph Format Dc {subj} owns an executable decomposition (l{val_node_id}), but direct implementations on formats are restricted to document transformations (.Formats:transformation)"
+                        ),
+                        Some(
+                            "Implement non-transformation format converters as separate verbs or document transformations referencing the format",
+                        ),
+                    );
+                }
                 if is_wasm && !stage0_targets.contains(&subj) {
                     let ctxs = index.get_direct_objects(
                         sh_in_ctx,
@@ -2284,12 +2307,36 @@ pub fn validate_system_graph_wasm_and_stagel_boundaries(
 }
 
 /// Validates all StageL 3 namespace files under `data_src_dir` and checks System-graph
+/// Validates all `.sl3` files under `data_src_dir/{stage_1_impls,impls}` and verifies
 /// Gate 4 `.WASM` / StageL Token-Dc invariants against `repo_root/assets/data/graph`.
 pub fn validate_stagel_and_system_graph_in_repo(
     repo_root: &Path,
     data_src_dir: &Path,
     known_dc_ids: &HashSet<u32>,
     known_format_ids: &HashSet<usize>,
+    format_registry: Option<&crate::syntax::FormatValidationRegistry>,
+    report: &mut ValidationReport,
+) {
+    validate_stagel_and_system_graph_in_repo_with_options(
+        repo_root,
+        data_src_dir,
+        known_dc_ids,
+        known_format_ids,
+        format_registry,
+        true,
+        report,
+    );
+}
+
+/// Validates all `.sl3` files under `data_src_dir/{stage_1_impls,impls}`, optionally
+/// verifying on-disk `repo_root/assets/data/graph/*.ctbnodes` synchronization (`check_ledger_sync`).
+pub fn validate_stagel_and_system_graph_in_repo_with_options(
+    repo_root: &Path,
+    data_src_dir: &Path,
+    known_dc_ids: &HashSet<u32>,
+    known_format_ids: &HashSet<usize>,
+    format_registry: Option<&crate::syntax::FormatValidationRegistry>,
+    check_ledger_sync: bool,
     report: &mut ValidationReport,
 ) {
     let files = match discover_stagel_namespace_files(data_src_dir) {
@@ -2379,21 +2426,43 @@ pub fn validate_stagel_and_system_graph_in_repo(
                             Some("Define the target Short Dc in categories/*.csv"),
                         );
                     }
-                    DcShorthand::Format(fid)
-                        if !known_format_ids.contains(&fid) =>
-                    {
-                        report.add_error(
-                            &data_src_dir.display().to_string(),
-                            Some(span.line),
-                            Some("pub dc"),
-                            format!("'pub dc/f{fid}' targets unknown Format Dc f{fid}"),
-                            Some("Define the target Format Dc in categories/formats/*.csv"),
-                        );
+                    DcShorthand::Format(fid) => {
+                        if !known_format_ids.contains(&fid) {
+                            report.add_error(
+                                &data_src_dir.display().to_string(),
+                                Some(span.line),
+                                Some("pub dc"),
+                                format!(
+                                    "'pub dc/f{fid}' targets unknown Format Dc f{fid}"
+                                ),
+                                Some(
+                                    "Define the target Format Dc in categories/formats/*.csv",
+                                ),
+                            );
+                        } else if let Some(reg) = format_registry
+                            && !reg.is_transformation_format(fid)
+                        {
+                            report.add_error(
+                                &data_src_dir.display().to_string(),
+                                Some(span.line),
+                                Some("pub dc"),
+                                format!(
+                                    "'pub dc/f{fid}' cannot attach an implementation directly to non-transformation format f{fid}"
+                                ),
+                                Some(
+                                    "Only document transformations (.Formats:transformation) may own direct implementations; implement format converters as verbs/transformations referencing the format instead",
+                                ),
+                            );
+                        }
                     }
                     _ => {}
                 }
             }
         }
+    }
+
+    if !check_ledger_sync {
+        return;
     }
 
     let graph_dir = repo_root.join("assets/data/graph");
@@ -2945,6 +3014,88 @@ pub v/result/u64/runCheck
             "ns bad/stage1.\npub brand u32/m.\n",
         )];
         assert!(assign_stagel_dc_ids_in_memory(Vec::new(), &mut stage1_bad).is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_format_implementation_linter_rejects_non_transformation_formats() -> Result<()> {
+        // Verify `pub dc/f1681` on a `.Formats:transformation` entry passes, whereas
+        // attaching an implementation to a non-transformation format (`f656`, `.Formats:programming`) fails.
+        let sg = SeedGraphIndex::shared()?;
+        assert!(sg.is_transformation_format_subject(crate::DcShorthand::Format(1680)));
+        assert!(sg.is_transformation_format_subject(crate::DcShorthand::Format(1681)));
+        assert!(!sg.is_transformation_format_subject(crate::DcShorthand::Format(656)));
+        assert!(!sg.is_transformation_format_subject(crate::DcShorthand::Format(0)));
+
+        // Reconciling a Stage 1 `pub dc/f1681` routine against the real format CSV rows
+        // must pass `validate_system_graph_wasm_and_stagel_boundaries`, while `pub dc/f656` must fail!
+        let repo_root = crate::find_repository_root()?;
+        let mut fmt_report = ValidationReport::default();
+        let format_rows = crate::format::validate_all_format_files_from_disk(
+            &repo_root.join("src/formats/dcdata/data-src/categories/formats"),
+            None,
+            &mut fmt_report,
+        );
+        let scripts = BTreeSet::new();
+
+        let mut ok_files = vec![make_mem_file(
+            ImplStage::Stage1,
+            "std/ok_xform.sl3",
+            "ns std/ok_xform.\npub dc/f1681 v/l/u8/xform l/u8/input :: l/u8/input.\n",
+        )];
+        let (ok_nodes, _, _) = reconcile_stagel_and_csv_in_memory(
+            Vec::new(),
+            &mut ok_files,
+            &[],
+            &format_rows,
+            &scripts,
+            None,
+        )?;
+        let single_props = single_valued_property_set();
+        let ok_index = SeedGraphIndex::from_nodes_with_single_props(ok_nodes, &single_props);
+        let mut ok_report = ValidationReport::default();
+        let stage0_targets = HashSet::from([crate::DcShorthand::Format(1680)]);
+        validate_system_graph_wasm_and_stagel_boundaries(
+            &ok_index,
+            &stage0_targets,
+            "in-memory",
+            &mut ok_report,
+        );
+        assert!(
+            !ok_report.has_errors(),
+            "Expected transformation format f1681 implementation to pass, got: {}",
+            ok_report.format_report()
+        );
+
+        let mut bad_files = vec![make_mem_file(
+            ImplStage::Stage1,
+            "std/bad_fmt.sl3",
+            "ns std/bad_fmt.\npub dc/f656 v/l/u8/bad l/u8/input :: l/u8/input.\n",
+        )];
+        let (bad_nodes, _, _) = reconcile_stagel_and_csv_in_memory(
+            Vec::new(),
+            &mut bad_files,
+            &[],
+            &format_rows,
+            &scripts,
+            None,
+        )?;
+        let bad_index = SeedGraphIndex::from_nodes_with_single_props(bad_nodes, &single_props);
+        let mut bad_report = ValidationReport::default();
+        validate_system_graph_wasm_and_stagel_boundaries(
+            &bad_index,
+            &HashSet::new(),
+            "in-memory",
+            &mut bad_report,
+        );
+        assert!(bad_report.has_errors());
+        assert!(
+            bad_report
+                .format_report()
+                .contains("System-graph Format Dc f656 owns an executable decomposition"),
+            "Got: {}",
+            bad_report.format_report()
+        );
         Ok(())
     }
 }

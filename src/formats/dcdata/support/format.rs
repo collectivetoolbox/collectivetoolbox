@@ -472,6 +472,42 @@ pub fn validate_formats_category_file(
             );
         }
 
+        if !crate::syntax::is_transformation_format_category(&category) {
+            for decomp in &decompositions {
+                // Reason for fallback: untagged decomposition strings contain payload from index 0.
+                let payload = decomp
+                    .find('>')
+                    .and_then(|idx| decomp.get(idx.saturating_add(1)..))
+                    .unwrap_or(decomp)
+                    .trim();
+                let first_tok = payload.split_whitespace().next().unwrap_or("");
+                if matches!(
+                    first_tok,
+                    "1927"
+                        | "2192"
+                        | "2217"
+                        | "2221"
+                        | "2223"
+                        | "2225"
+                        | "2227"
+                        | "2229"
+                        | "2233"
+                ) {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("Base/Related Format (decomposition)"),
+                        format!(
+                            "Executable implementation decomposition '{decomp}' cannot be attached directly to non-transformation format f{short_id} ('{clean_label}', category '{category}')"
+                        ),
+                        Some(
+                            "Only document transformations (.Formats:transformation) may own direct implementations; implement format converters as verbs/transformations referencing the format instead",
+                        ),
+                    );
+                }
+            }
+        }
+
         rows.push(DcDefn {
             dc_id,
             short_id: Some(short_id),

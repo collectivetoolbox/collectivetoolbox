@@ -87,11 +87,12 @@ impl DatasetRuleResolver {
         let named_types = named_resolver.named_types.keys().cloned().collect();
         let mut fmt_report = crate::report::ValidationReport::new();
         let formats_dir = crate::get_formats_categories_dir_path();
-        let format_defns = crate::format::validate_all_format_files_from_disk(
-            &formats_dir,
-            None,
-            &mut fmt_report,
-        );
+        let mut format_defns =
+            crate::format::validate_all_format_files_from_disk(
+                &formats_dir,
+                None,
+                &mut fmt_report,
+            );
         fmt_report
             .ensure_valid()
             .context("Invalid format dataset for syntax resolution")?;
@@ -116,6 +117,18 @@ impl DatasetRuleResolver {
             Some(&format_registry),
             &mut fmt_report,
         );
+        if let Some(data_src_dir) = categories_dir.parent() {
+            let (staged_impls, _) =
+                crate::wat::load_staged_dc_impls(data_src_dir)?;
+            crate::validation::attach_staged_dc_impls_to_defns_with_registry(
+                &staged_impls,
+                &mut dc_defns,
+                Some(&mut format_defns),
+                None,
+                Some(&format_registry),
+                &mut fmt_report,
+            );
+        }
         fmt_report
             .ensure_valid()
             .context("Invalid Dc dataset for syntax resolution")?;

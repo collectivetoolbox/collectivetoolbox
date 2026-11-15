@@ -1946,23 +1946,34 @@ const STAGE0_WASM_OPERATOR_DCS: &[DcChar] = &[
     crate::dc::DC_STAGEL_BUF_FREEZE,
 ];
 
-/// Bundles an entry StageL 3 Token-Dc module (`Dc 2192`..`Dc 2193`) with its
-/// transitive `use` / `dc/<shorthand>` StageL Token-Dc dependency modules and
-/// active contextual Stage 0 `.WASM` built-ins from `seed_graph` so the pure
-/// linear-memory `stagel3_to_wasm.wat` converter routine can compile the
-/// document deterministically at `seed_graph`'s pinned snapshot without host
-/// callbacks or Rust AST validation.
-pub fn bundle_dc_module_for_wasm_converter(
+/// Synthesizes a minimal StageL 3 Token-Dc entry module (`pub v/l/u8/main l/u8/input`)
+/// that delegates directly to `routine_dc` (`pub dc/<shorthand> v/l/u8/... l/u8/input`)
+/// in `seed_graph`.
+///
+/// # Errors
+/// Returns an error if `routine_dc` cannot be resolved in `seed_graph` or does not have
+/// a single-parameter routine signature.
+pub fn build_entry_module_for_graph_routine_dc(
+    routine_dc: DcChar,
+    seed_graph: &SeedGraphIndex,
+) -> Result<Vec<DcChar>> {
+    let sh = super::ast::format_dc_shorthand(routine_dc);
+    let src = format!(
+        "use dc/{sh} as targetRoutine.\npub v/l/u8/main l/u8/input :: targetRoutine l/u8/input.\n"
+    );
+    sl3_to_dc_tokens_with_seed_graph(&src, seed_graph)
+}
+
+/// Prepends topologically sorted transitive `use` / `dc/<shorthand>` StageL or StageR
+/// Token-Dc dependency modules from `seed_graph` ahead of `entry_tokens`, without
+/// prepending the Stage 0 `.WASM` operator KV map.
+///
+/// # Errors
+/// Returns an error if a transitive dependency in `seed_graph` fails to resolve or encode.
+pub fn bundle_dc_module_dependencies(
     entry_tokens: &[DcChar],
     seed_graph: &SeedGraphIndex,
-    resolver: &dyn crate::syntax::SyntaxRuleResolver,
 ) -> Result<Vec<DcChar>> {
-    use crate::dc::{
-        DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR, DC_BEGIN_LIST, DC_END_KV_MAP,
-        DC_END_KV_PAIR, DC_END_LIST, DC_EQ_OP, DC_LIST_ELEMENT_SEPARATOR,
-        DC_NE_OP, DC_STAGEL_BUF_NEW, DC_TYPE_ANY,
-    };
-
     let mut module_stream: Vec<DcChar> = Vec::new();
     if let Ok(entry_mod) = decode_module_from_dc_tokens(entry_tokens) {
         let assembled = assemble_topo_sorted_modules_with_seed_graph(
@@ -1982,10 +1993,31 @@ pub fn bundle_dc_module_for_wasm_converter(
         }
         module_stream.extend_from_slice(entry_tokens);
     } else {
-        // Malformed Token-Dc input is forwarded directly so `stagel3_to_wasm.wat`
+        // Malformed Token-Dc input is forwarded directly so the downstream converter
         // traps under the active task quota rather than failing in host Rust.
         module_stream.extend_from_slice(entry_tokens);
     }
+    Ok(module_stream)
+}
+
+/// Bundles an entry StageL 3 Token-Dc module (`Dc 2192`..`Dc 2193`) with its
+/// transitive `use` / `dc/<shorthand>` StageL Token-Dc dependency modules and
+/// active contextual Stage 0 `.WASM` built-ins from `seed_graph` so the pure
+/// linear-memory `f1680_stagel3_to_wasm.wat` transformation can compile the
+/// document deterministically at `seed_graph`'s pinned snapshot without host
+/// callbacks or Rust AST validation.
+pub fn bundle_dc_module_for_wasm_converter(
+    entry_tokens: &[DcChar],
+    seed_graph: &SeedGraphIndex,
+    resolver: &dyn crate::syntax::SyntaxRuleResolver,
+) -> Result<Vec<DcChar>> {
+    use crate::dc::{
+        DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR, DC_BEGIN_LIST, DC_END_KV_MAP,
+        DC_END_KV_PAIR, DC_END_LIST, DC_EQ_OP, DC_LIST_ELEMENT_SEPARATOR,
+        DC_NE_OP, DC_STAGEL_BUF_NEW, DC_TYPE_ANY,
+    };
+
+    let module_stream = bundle_dc_module_dependencies(entry_tokens, seed_graph)?;
 
     let mut present_ops: HashSet<DcChar> = HashSet::new();
     present_ops.insert(DC_STAGEL_BUF_NEW);

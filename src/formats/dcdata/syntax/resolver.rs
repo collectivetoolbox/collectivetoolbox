@@ -242,7 +242,8 @@ pub trait SyntaxRuleResolver {
         }
         if role == DcRole::EvaluableExpressionStarter
             && (self.matches_script(".EL Routines", token)
-                || self.matches_script(".EL Builtins", token))
+                || self.matches_script(".EL Builtins", token)
+                || self.is_splice_trigger_token(token))
         {
             return true;
         }

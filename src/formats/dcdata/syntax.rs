@@ -65,7 +65,8 @@ pub use resolver::{
 pub use role::DcRole;
 pub use validator::{
     FormatValidationInfo, FormatValidationRegistry,
-    build_format_validation_registry, validate_dc_syntax,
+    build_format_validation_registry, is_transformation_format_category,
+    validate_dc_syntax,
 };
 
 impl DatasetRuleResolver {

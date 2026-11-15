@@ -116,11 +116,20 @@ pub fn apply_dc_transformation(
         return Ok((out, log));
     }
 
+    if transformation == SupportedDcTransformation::StageL3ToWasm {
+        let wasm_doc = crate::navigator::apply_graph_dc_transformation_format(
+            doc,
+            ctb_utilities::format_id::FormatId::StageL3ToWasm,
+        )?;
+        return Ok((wasm_doc, log));
+    }
+
     for chunk in doc.chunks() {
         if let DcMixedChunk::Text(text) = chunk {
             let dclist = text.to_dclist();
             let transformed_dclist = match transformation {
-                SupportedDcTransformation::AddSystemGraphMostRecent => {
+                SupportedDcTransformation::AddSystemGraphMostRecent
+                | SupportedDcTransformation::StageL3ToWasm => {
                     dclist
                 }
                 SupportedDcTransformation::UnicodeToShortDc => {
@@ -249,6 +258,39 @@ mod tests {
             SupportedDcTransformation::AddSystemGraphMostRecent,
         )?;
         assert_eq!(stamped_again.as_bytes(), stamped.as_bytes());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_stagel3_to_wasm_document_transformation() -> Result<()> {
+        let sg = ctb_formats_dcdata::SeedGraphIndex::shared()?;
+        let sl3_src = r#"
+v/l/u8/step l/u8/input
+    concat b"[" concat l/u8/input b"]".
+"#;
+        let tokens = ctb_formats_dcdata::stagel3::seed_linker::sl3_to_dc_tokens_with_seed_graph(
+            sl3_src, sg,
+        )?;
+        let mut stagel_doc = DcMstring::new();
+        for tok in tokens {
+            stagel_doc.push_char(tok);
+        }
+
+        let (wasm_doc, log) = apply_dc_transformation(
+            &stagel_doc,
+            SupportedDcTransformation::StageL3ToWasm,
+        )?;
+        assert!(!log.has_warnings());
+
+        let mut input = DcMstring::new();
+        input.push_char(DcChar::from_u128(0x6F));
+        input.push_char(DcChar::from_u128(0x6B));
+        let out = crate::converters::wasm::run_dc_wasm_pure_conversion(
+            &wasm_doc, &input,
+        )?;
+        let out_u128s: Vec<u128> =
+            out.to_dc_string()?.chars().map(DcChar::to_u128).collect();
+        assert_eq!(out_u128s, vec![0x5B, 0x6F, 0x6B, 0x5D]);
         Ok(())
     }
 }

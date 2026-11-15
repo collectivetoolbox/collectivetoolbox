@@ -1433,6 +1433,10 @@ pub enum FormatId {
     Void,
     /// Never / uninhabited bottom type (Short 1426, Category: semantic)
     Never,
+    /// StageL 3 Dcs to WASM (Short 1680, Category: transformation)
+    StageL3ToWasm,
+    /// StageR 3 Dcs to StageL 3 Dcs (Short 1681, Category: transformation)
+    StageR3ToStageL3,
 }
 
 impl FormatId {
@@ -2096,7 +2100,9 @@ impl FormatId {
             | Self::AlturaMacToWin
             | Self::AlturaWinToMac
             | Self::UnicodeToShortDc
-            | Self::AddSystemGraphMostRecent => FormatCategory::Transformation,
+            | Self::AddSystemGraphMostRecent
+            | Self::StageL3ToWasm
+            | Self::StageR3ToStageL3 => FormatCategory::Transformation,
             Self::DcBasenb
             | Self::DcBasenbFragment
             | Self::Csur
@@ -2801,6 +2807,8 @@ impl FormatId {
             "boolean" => Some(Self::Boolean),
             "void" => Some(Self::Void),
             "never" => Some(Self::Never),
+            "stagel3towasm" | "stage_l3_to_wasm" | "stagel3_to_wasm" => Some(Self::StageL3ToWasm),
+            "stager3tostagel3" | "stage_r3_to_stage_l3" | "stager3_to_stagel3" => Some(Self::StageR3ToStageL3),
             _ => None,
         }
     }
@@ -3485,6 +3493,8 @@ impl FormatId {
             Self::Boolean => "Boolean",
             Self::Void => "Void",
             Self::Never => "Never",
+            Self::StageL3ToWasm => "StageL3ToWasm",
+            Self::StageR3ToStageL3 => "StageR3ToStageL3",
         }
     }
 
@@ -4387,6 +4397,8 @@ impl FormatId {
             Self::Boolean => "f1424",
             Self::Void => "f1425",
             Self::Never => "f1426",
+            Self::StageL3ToWasm => "f1680",
+            Self::StageR3ToStageL3 => "f1681",
         }
     }
 
@@ -5071,6 +5083,8 @@ impl FormatId {
             "f1424" => Some(Self::Boolean),
             "f1425" => Some(Self::Void),
             "f1426" => Some(Self::Never),
+            "f1680" => Some(Self::StageL3ToWasm),
+            "f1681" => Some(Self::StageR3ToStageL3),
             _ => None,
         }
     }
@@ -5755,6 +5769,8 @@ impl FormatId {
             Self::Boolean => Some(2229648_u128),
             Self::Void => Some(2229649_u128),
             Self::Never => Some(2229650_u128),
+            Self::StageL3ToWasm => Some(2229904_u128),
+            Self::StageR3ToStageL3 => Some(2229905_u128),
         }
     }
 
@@ -6451,6 +6467,8 @@ impl FormatId {
             2229648_u128 => Some(Self::Boolean),
             2229649_u128 => Some(Self::Void),
             2229650_u128 => Some(Self::Never),
+            2229904_u128 => Some(Self::StageL3ToWasm),
+            2229905_u128 => Some(Self::StageR3ToStageL3),
             _ => None,
         }
     }
@@ -7808,3 +7826,7 @@ pub const DC_BOOLEAN: DcChar = DcChar::from_format(1424);
 pub const DC_VOID: DcChar = DcChar::from_format(1425);
 /// DcChar constant for Format `Never` (Short f1426, Category: semantic): Never / uninhabited bottom type
 pub const DC_NEVER: DcChar = DcChar::from_format(1426);
+/// DcChar constant for Format `StageL3ToWasm` (Short f1680, Category: transformation): StageL 3 Dcs to WASM
+pub const DC_STAGE_L3_TO_WASM: DcChar = DcChar::from_format(1680);
+/// DcChar constant for Format `StageR3ToStageL3` (Short f1681, Category: transformation): StageR 3 Dcs to StageL 3 Dcs
+pub const DC_STAGE_R3_TO_STAGE_L3: DcChar = DcChar::from_format(1681);

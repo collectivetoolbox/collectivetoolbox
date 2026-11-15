@@ -682,3 +682,5 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 2229648,f1424,Boolean truth value,0,BN,,!Cx,.Formats:semantic,"@ident(""Boolean""), :[boolean]",Logical truth value (Dc 517 Boolean true or Dc 518 Boolean false).,,,,,,,,,
 2229649,f1425,Void / unit type,0,BN,,!Cx,.Formats:semantic,"@ident(""Void"")",Unit type with a single empty value.,,,,,,,,,
 2229650,f1426,Never / uninhabited bottom type,0,BN,,!Cx,.Formats:semantic,"@ident(""Never"")",Uninhabited bottom type representing diverging control flow that never returns.,,,,,,,,,
+2229904,f1680,StageL 3 Dcs to WASM,0,BN,,!Cx,.Formats:transformation,"@ident(""StageL3ToWasm""), @nick(""stagel3_to_wasm""), @chain(2192 > 1927)",Compiles a StageL 3 Token-Dc module (Dc 2192..Dc 2193) into an executable Dc-WASM program (Dc 1927..Dc 1928).,,,,,3 3,-1 -1,2 2,,
+2229905,f1681,StageR 3 Dcs to StageL 3 Dcs,0,BN,,!Cx,.Formats:transformation,"@ident(""StageR3ToStageL3""), @nick(""stager3_to_stagel3""), @chain(2221 > 2192)",Lowers a StageR 3 Token-Dc module (Dc 2221..Dc 2222) into an equivalent StageL 3 Token-Dc module (Dc 2192..Dc 2193).,,,,,,-1 -1,,,

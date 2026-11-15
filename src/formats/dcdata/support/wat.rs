@@ -2820,7 +2820,7 @@ fn parse_target_from_stem(stem: &str, rel_path: &str) -> Result<DcShorthand> {
     match parsed {
         DcShorthand::Short(_) | DcShorthand::Format(_) => Ok(parsed),
         other => bail!(
-            "Implementation file '{rel_path}' stem prefix '{other}' must be a short Dc (e.g. '1936') or format Dc (e.g. 'f656')"
+            "Implementation file '{rel_path}' stem prefix '{other}' must be a short Dc (e.g. '1936') or transformation format Dc (e.g. 'f1680')"
         ),
     }
 }
@@ -2957,6 +2957,52 @@ pub fn load_staged_dc_impls_with_compiler(
     > = BTreeMap::new();
     let stagel3_sh = ctb_utilities::format_id::FormatId::StageL3.shorthand();
     let stager3_sh = ctb_utilities::format_id::FormatId::StageR3.shorthand();
+    let sh_begin_module = dc_to_sh(DC_BEGIN_MODULE);
+    let sh_begin_stager_module = dc_to_sh(crate::dc::DC_BEGIN_STAGER_MODULE);
+    let sh_begin_wasm = dc_to_sh(DC_BEGIN_WASM_PROGRAM);
+
+    let transformations_csv =
+        data_dir.join("categories/formats/transformations.csv");
+    let mut transformation_converts: BTreeMap<
+        DcShorthand,
+        Option<(DcShorthand, DcShorthand)>,
+    > = BTreeMap::new();
+    let has_formats_dir = data_dir.join("categories/formats").is_dir();
+    if transformations_csv.is_file() {
+        let csv_bytes = std::fs::read(&transformations_csv).with_context(|| {
+            format!("Failed to read {}", transformations_csv.display())
+        })?;
+        let mut dummy_report = crate::report::ValidationReport::new();
+        let valid_variants = std::collections::HashSet::new();
+        let rows = crate::format::validate_formats_category_file(
+            &csv_bytes,
+            "categories/formats/transformations.csv",
+            &valid_variants,
+            &mut dummy_report,
+        );
+        for row in rows {
+            if let Some(fid) = row.short_id {
+                let conv = row
+                    .format
+                    .as_ref()
+                    .and_then(|f| f.format_spec.as_ref())
+                    .and_then(|expr| match expr {
+                        crate::format_spec::FormatExpr::Convert(l, r) => {
+                            match (l.as_ref(), r.as_ref()) {
+                                (
+                                    crate::format_spec::FormatExpr::Dc(s),
+                                    crate::format_spec::FormatExpr::Dc(d),
+                                ) => Some((*s, *d)),
+                                _ => None,
+                            }
+                        }
+                        _ => None,
+                    });
+                transformation_converts
+                    .insert(DcShorthand::Format(fid), conv);
+            }
+        }
+    }
 
     for stage in [ImplStage::Stage0, ImplStage::Stage1, ImplStage::Stage2] {
         let dir_path = data_dir.join(stage.dir_name());
@@ -3060,10 +3106,19 @@ pub fn load_staged_dc_impls_with_compiler(
                 }
                 (None, None) => (parse_target_from_stem(stem, &rel_path)?, None),
             };
+            if has_formats_dir
+                && let DcShorthand::Format(fid) = target
+                && !transformation_converts.contains_key(&target)
+            {
+                bail!(
+                    "Implementation file '{rel_path}' cannot target Format Dc f{fid}: only document transformations (.Formats:transformation in transformations.csv) may own direct implementations"
+                );
+            }
+            let effective_converts = converts.or_else(|| {
+                transformation_converts.get(&target).copied().flatten()
+            });
             let target_key = target.to_string();
             let decomp_tag = directives.decomp_tag;
-            let sh_begin_module = dc_to_sh(DC_BEGIN_MODULE);
-            let sh_begin_wasm = dc_to_sh(DC_BEGIN_WASM_PROGRAM);
             let stagel3_fmt_sh = DcShorthand::parse(&stagel3_sh)
                 .context("Invalid StageL3 format shorthand")?;
             let stager3_fmt_sh = DcShorthand::parse(&stager3_sh)
@@ -3081,12 +3136,11 @@ pub fn load_staged_dc_impls_with_compiler(
                     "sl3" => {
                         let has_sl3_compiler = impls.iter().any(|prior| {
                             prior.stage == ImplStage::Stage0
-                                && (prior.target == stagel3_fmt_sh
-                                    || prior.converts
-                                        == Some((
-                                            sh_begin_module,
-                                            sh_begin_wasm,
-                                        ))
+                                && (prior.converts
+                                    == Some((
+                                        sh_begin_module,
+                                        sh_begin_wasm,
+                                    ))
                                     || prior.converts
                                         == Some((
                                             stagel3_fmt_sh,
@@ -3095,7 +3149,7 @@ pub fn load_staged_dc_impls_with_compiler(
                         });
                         ensure!(
                             has_sl3_compiler,
-                            "Cannot compile '{rel_path}': StageL 3 compiler (@converts(2192 1927) or {stagel3_sh}) must be defined in stage_0_impls/ first"
+                            "Cannot compile '{rel_path}': StageL 3 transformation (@chain(2192 > 1927) or @converts(2192 1927)) must be defined in stage_0_impls/ first"
                         );
                         let compiler = source_compiler.with_context(|| {
                             format!(
@@ -3112,7 +3166,16 @@ pub fn load_staged_dc_impls_with_compiler(
                     "sr3" => {
                         let has_sr3_compiler = impls.iter().any(|prior| {
                             prior.stage < stage
-                                && (prior.target == stager3_fmt_sh
+                                && (prior.converts
+                                    == Some((
+                                        sh_begin_stager_module,
+                                        sh_begin_module,
+                                    ))
+                                    || prior.converts
+                                        == Some((
+                                            sh_begin_stager_module,
+                                            sh_begin_wasm,
+                                        ))
                                     || prior.converts
                                         == Some((
                                             stager3_fmt_sh,
@@ -3121,7 +3184,7 @@ pub fn load_staged_dc_impls_with_compiler(
                         });
                         ensure!(
                             has_sr3_compiler,
-                            "Cannot compile '{rel_path}': StageR 3 compiler (@converts({stager3_sh} 1927) or {stager3_sh}) must be defined in stage_0_impls/ or stage_1_impls/ first"
+                            "Cannot compile '{rel_path}': StageR 3 transformation (@chain(2221 > 2192) or @converts({stager3_sh} 1927)) must be defined in stage_0_impls/ or stage_1_impls/ first"
                         );
                         let compiler = source_compiler.with_context(|| {
                             format!(
@@ -3167,7 +3230,7 @@ pub fn load_staged_dc_impls_with_compiler(
                     stage,
                     rel_path: rel_path.clone(),
                     target,
-                    converts,
+                    converts: effective_converts,
                     context_tokens,
                     decomp_tag: decomp_tag.clone(),
                     tokens,
@@ -3324,16 +3387,27 @@ mod tests {
         let s0 = tmp.path().join("stage_0_impls");
         let s1 = tmp.path().join("stage_1_impls");
         let s2 = tmp.path().join("impls");
+        let fmt_dir = tmp.path().join("categories/formats");
         std::fs::create_dir_all(&s0)?;
         std::fs::create_dir_all(&s1)?;
         std::fs::create_dir_all(&s2)?;
+        std::fs::create_dir_all(&fmt_dir)?;
+
+        std::fs::write(
+            fmt_dir.join("programming.csv"),
+            "Dc,Short,Ident,Title,Category,Base,Extensions,MIME,Magic,Syntax,Nickname,Import support,Export support,Tests,Security audit,Comments,External links\n2228880,656,StageL3,StageL 3,programming,,,,,,sl3,,,,,,\n",
+        )?;
+        std::fs::write(
+            fmt_dir.join("transformations.csv"),
+            "Dc,Short,Ident,Title,Category,Base,Extensions,MIME,Magic,Syntax,Nickname,Import support,Export support,Tests,Security audit,Comments,External links\n2229904,1680,StageL3ToWasm,StageL 3 Dcs to WASM,transformation,@chain(2192 > 1927),,,,,stagel3_to_wasm,,,,,,\n2229905,1681,StageR3ToStageL3,StageR 3 Dcs to StageL 3 Dcs,transformation,@chain(2221 > 2192),,,,,stager3_to_stagel3,,,,,,\n",
+        )?;
 
         let minimal_wat =
             r#"(module (func (export "main") (result i32) (i32.const 0)))"#;
 
-        // `.sl3` in stage_1_impls without `f656` in stage_0_impls must fail.
+        // `.sl3` in stage_1_impls without StageL3ToWasm in stage_0_impls must fail.
         std::fs::write(
-            s1.join("f657_stager3.sl3"),
+            s1.join("f1681_stager3_to_stagel3.sl3"),
             ": @decomp(equiv)\nv/void/noop :: do ::.\n",
         )?;
         assert!(
@@ -3344,9 +3418,20 @@ mod tests {
             .is_err()
         );
 
-        // Adding `f656_stagel3.wat` in stage_0_impls unlocks `.sl3` in stage_1_impls,
-        // and `f657_stager3.sl3` in stage_1_impls unlocks `.sr3` in impls/.
+        // Attaching `.wat` directly to non-transformation format `f656` must fail!
         std::fs::write(s0.join("f656_stagel3.wat"), minimal_wat)?;
+        assert!(
+            load_staged_dc_impls_with_compiler(
+                tmp.path(),
+                Some(&|_, _, _, _| Ok(vec![DcShorthand::Short(1927), DcShorthand::Short(1928)]))
+            )
+            .is_err()
+        );
+        std::fs::remove_file(s0.join("f656_stagel3.wat"))?;
+
+        // Adding `f1680_stagel3_to_wasm.wat` in stage_0_impls unlocks `.sl3` in stage_1_impls,
+        // and `f1681_stager3_to_stagel3.sl3` in stage_1_impls unlocks `.sr3` in impls/.
+        std::fs::write(s0.join("f1680_stagel3_to_wasm.wat"), minimal_wat)?;
         std::fs::write(s2.join("256_say.sr3"), "v/void/say :: do ::.\n")?;
 
         let (loaded, _raw) = load_staged_dc_impls_with_compiler(
@@ -3356,9 +3441,9 @@ mod tests {
             }),
         )?;
         assert_eq!(loaded.len(), 3);
-        assert_eq!(loaded[0].target.to_string(), "f656");
+        assert_eq!(loaded[0].target.to_string(), "f1680");
         assert_eq!(loaded[0].decomp_tag, "semantic");
-        assert_eq!(loaded[1].target.to_string(), "f657");
+        assert_eq!(loaded[1].target.to_string(), "f1681");
         assert_eq!(loaded[1].decomp_tag, "equiv");
         assert_eq!(loaded[2].target, DcShorthand::Short(256));
 

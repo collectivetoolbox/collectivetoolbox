@@ -100,6 +100,33 @@ pub struct ActivePropertyValue {
     pub preferred_id: Option<u128>,
 }
 
+/// Executable implementation body attached to an active converter routine or
+/// `.Formats:transformation` Format Dc in a [`SeedGraphIndex`] snapshot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ActiveConverterBody<'a> {
+    /// Stage 0 `.WASM` decomposition (`Dc 1927`..`Dc 1928` or `wasm_routine`).
+    Wasm(&'a [DcShorthand]),
+    /// Stage 1 / Stage 2 lossless StageL/StageR Token-Dc decomposition.
+    StageL(Vec<DcChar>),
+}
+
+/// Single active conversion edge (`[Dc 302 "Type conversion", src, dst]`) resolved from
+/// [`SeedGraphIndex`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActiveConverterStep<'a> {
+    /// Subject owning the converter (`DcShorthand::Format(_)` transformation or
+    /// `DcShorthand::Long(_)` standalone `Routine` entity).
+    pub subject: DcShorthand,
+    /// Input format or starter Dc shorthand (`src` in `Dc 302 src dst`).
+    pub src: DcShorthand,
+    /// Output format or starter Dc shorthand (`dst` in `Dc 302 src dst`).
+    pub dst: DcShorthand,
+    /// Whether this converter or its decomposition carries `Dc 570 "Preferred"`.
+    pub is_preferred: bool,
+    /// Executable `.WASM` or StageL Token-Dc body.
+    pub body: ActiveConverterBody<'a>,
+}
+
 /// Runtime index over the System-block seed graph (`8589934592..=12884901887`).
 #[derive(Debug, Clone)]
 pub struct SeedGraphIndex {
@@ -2379,24 +2406,37 @@ impl SeedGraphIndex {
         self.entity_class_by_id.get(&entity_id).copied()
     }
 
-    /// Resolves the active standalone converter `Routine` entity (`Dc 280`) in this snapshot
-    /// whose `Dc 595 "Data format or type description"` is `[Dc 302 "Type conversion", src, dst]`,
-    /// returning `(routine_entity_id, wasm_tokens)` for its active `.WASM` decomposition.
-    ///
-    /// When multiple active converter routines match `(src, dst)`, routines marked with
-    /// `Dc 570 "Preferred"` (either on the entity or on its decomposition statement) take
-    /// precedence, breaking ties deterministically by ascending `routine_entity_id`.
+    /// Returns `true` if `subj` is a `DcShorthand::Format(_)` whose active script in this
+    /// snapshot is `.Formats:transformation`.
+    #[must_use]
+    pub fn is_transformation_format_subject(&self, subj: DcShorthand) -> bool {
+        if !matches!(subj, DcShorthand::Format(_)) {
+            return false;
+        }
+        for &obj in self.get_direct_objects(sh(DC_IS_INSTANCE_OF), subj) {
+            if let DcShorthand::Long(seed_id) = obj
+                && let Some(SeedEntityKey::Script(script_name)) =
+                    self.get_seed_entity(seed_id)
+                && crate::syntax::is_transformation_format_category(script_name)
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Lists all active single-step converters (`[Dc 302 "Type conversion", src, dst]`) in this
+    /// snapshot across standalone `Routine` entities (`Dc 280`) and `.Formats:transformation`
+    /// Format Dcs (`DcShorthand::Format(_)`), ordered with `Dc 570 "Preferred"` entries first and
+    /// ties broken by ascending global Dc ID.
     ///
     /// # Errors
-    /// Returns an error if a matching active converter routine's `.WASM` target node was
-    /// retracted, references an unsupported graph block, or exceeds the pinned System graph snapshot.
-    pub fn resolve_active_converter_routine(
+    /// Returns an error if an active converter's decomposition target node was retracted,
+    /// references an unsupported graph block, or exceeds the pinned System graph snapshot.
+    pub fn list_all_active_converter_steps(
         &self,
-        src: DcShorthand,
-        dst: DcShorthand,
-    ) -> Result<Option<(u128, &[DcShorthand])>> {
-        let expected_format_tokens = [sh(DC_TYPE_CONVERSION), src, dst];
-        let mut candidates: Vec<(bool, u128, &[DcShorthand])> = Vec::new();
+    ) -> Result<Vec<ActiveConverterStep<'_>>> {
+        let mut candidate_subjects: Vec<DcShorthand> = Vec::new();
         for (&entity_id, &class_tok) in &self.entity_class_by_id {
             if class_tok != sh(DC_TYPE_ROUTINE) {
                 continue;
@@ -2406,23 +2446,53 @@ impl SeedGraphIndex {
             {
                 continue;
             }
-            let subj = DcShorthand::Long(entity_id);
-            let Some(DcShorthand::Long(fmt_node_id)) =
-                self.get_single_property(subj, sh(DC_DATA_FORMAT_DESCRIPTION))
+            candidate_subjects.push(DcShorthand::Long(entity_id));
+        }
+        for &(subj, prop) in self.active_single_props.keys() {
+            if prop == sh(DC_DATA_FORMAT_DESCRIPTION)
+                && self.is_transformation_format_subject(subj)
+            {
+                candidate_subjects.push(subj);
+            }
+        }
+
+        let mut steps: Vec<(bool, u128, ActiveConverterStep<'_>)> = Vec::new();
+        for subj in candidate_subjects {
+            let Some(&(has_a_id, has_val_id, DcShorthand::Long(fmt_node_id))) =
+                self.active_single_props
+                    .get(&(subj, sh(DC_DATA_FORMAT_DESCRIPTION)))
             else {
                 continue;
             };
+            if let Some(pin_id) = self.system_block_most_recent_node_id
+                && (has_a_id > pin_id
+                    || has_val_id > pin_id
+                    || fmt_node_id > pin_id)
+            {
+                continue;
+            }
             let Some(fmt_node) = self.get_active_node(fmt_node_id) else {
                 continue;
             };
-            if fmt_node.tokens.as_slice() != expected_format_tokens {
-                continue;
-            }
-            let Some((_, wasm_tokens)) =
-                self.resolve_wasm_helper_shorthand(subj)?
-            else {
+            let [conv_op, src, dst] = fmt_node.tokens.as_slice() else {
                 continue;
             };
+            if *conv_op != sh(DC_TYPE_CONVERSION) {
+                continue;
+            }
+
+            let body = if let Some((_, wasm_tokens)) =
+                self.resolve_wasm_helper_shorthand(subj)?
+            {
+                ActiveConverterBody::Wasm(wasm_tokens)
+            } else if let Some((_, stagel_chars)) =
+                self.resolve_stagel_decomposition_tokens(subj)?
+            {
+                ActiveConverterBody::StageL(stagel_chars)
+            } else {
+                continue;
+            };
+
             let entity_pref = self.has_direct_statement(
                 sh(DC_HAS_A),
                 subj,
@@ -2440,12 +2510,104 @@ impl SeedGraphIndex {
                     .any(|e| e.preferred_id.is_some())
             });
             let is_preferred = entity_pref || decomp_pref;
-            candidates.push((!is_preferred, entity_id, wasm_tokens));
+            let gid = subj.to_global_id()?;
+            steps.push((
+                !is_preferred,
+                gid,
+                ActiveConverterStep {
+                    subject: subj,
+                    src: *src,
+                    dst: *dst,
+                    is_preferred,
+                    body,
+                },
+            ));
         }
-        candidates.sort_by_key(|&(not_pref, id, _)| (not_pref, id));
-        Ok(candidates
-            .first()
-            .map(|&(_, entity_id, wasm_tokens)| (entity_id, wasm_tokens)))
+
+        steps.sort_by_key(|&(not_pref, gid, _)| (not_pref, gid));
+        Ok(steps.into_iter().map(|(_, _, step)| step).collect())
+    }
+
+    /// Resolves the shortest active conversion path (`[Dc 302 src_0 dst_0]`, ...,
+    /// `[Dc 302 src_k dst]`) from `src` to `dst` in this snapshot, preferring `Dc 570 "Preferred"`
+    /// converters at each hop and breaking ties deterministically by ascending global Dc ID.
+    ///
+    /// # Errors
+    /// Returns an error if any candidate converter's target node is invalid in this snapshot.
+    pub fn resolve_active_converter_chain(
+        &self,
+        src: DcShorthand,
+        dst: DcShorthand,
+    ) -> Result<Option<Vec<ActiveConverterStep<'_>>>> {
+        let all_steps = self.list_all_active_converter_steps()?;
+        if all_steps.is_empty() {
+            return Ok(None);
+        }
+
+        let mut queue: std::collections::VecDeque<DcShorthand> =
+            std::collections::VecDeque::new();
+        let mut prev_step_idx: HashMap<DcShorthand, usize> = HashMap::new();
+        let mut visited: HashSet<DcShorthand> = HashSet::new();
+        visited.insert(src);
+        queue.push_back(src);
+
+        while let Some(curr) = queue.pop_front() {
+            for (idx, step) in all_steps.iter().enumerate() {
+                if step.src != curr {
+                    continue;
+                }
+                if step.dst == dst {
+                    let mut rev_indices = vec![idx];
+                    let mut back = curr;
+                    while back != src {
+                        let Some(&p_idx) = prev_step_idx.get(&back) else {
+                            break;
+                        };
+                        rev_indices.push(p_idx);
+                        let Some(p_step) = all_steps.get(p_idx) else {
+                            break;
+                        };
+                        back = p_step.src;
+                    }
+                    rev_indices.reverse();
+                    let mut chain = Vec::with_capacity(rev_indices.len());
+                    for s_idx in rev_indices {
+                        if let Some(s) = all_steps.get(s_idx) {
+                            chain.push(s.clone());
+                        }
+                    }
+                    return Ok(Some(chain));
+                }
+                if visited.insert(step.dst) {
+                    prev_step_idx.insert(step.dst, idx);
+                    queue.push_back(step.dst);
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// Resolves the highest-precedence direct `.WASM` converter (`[Dc 302 "Type conversion", src, dst]`)
+    /// in this snapshot (either a `.Formats:transformation` Format Dc or a standalone `Routine`
+    /// entity), returning `(subject_global_dc_id, wasm_tokens)`.
+    ///
+    /// # Errors
+    /// Returns an error if a matching active converter's target node was retracted, references an
+    /// unsupported graph block, or exceeds the pinned System graph snapshot.
+    pub fn resolve_active_converter_routine(
+        &self,
+        src: DcShorthand,
+        dst: DcShorthand,
+    ) -> Result<Option<(u128, &[DcShorthand])>> {
+        for step in self.list_all_active_converter_steps()? {
+            if step.src == src
+                && step.dst == dst
+                && let ActiveConverterBody::Wasm(wasm_tokens) = step.body
+            {
+                return Ok(Some((step.subject.to_global_id()?, wasm_tokens)));
+            }
+        }
+        Ok(None)
     }
 
     /// Expands interned pure-Unicode string value node references (`DcShorthand::Long(child_id)`

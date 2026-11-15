@@ -252,8 +252,14 @@ fn main() -> ExitCode {
         }
     }
 
-    let report = validate_all_data_tables_from_repo(&repo_root);
-    println!("{}", report.format_report());
+    let check_ledger_pre = dry_run || require_manifest.is_some();
+    let report = ctb_formats_dcdata::validate_all_data_tables_from_repo_with_options(
+        &repo_root,
+        check_ledger_pre,
+    );
+    if check_ledger_pre || report.has_errors() {
+        println!("{}", report.format_report());
+    }
 
     if report.has_errors() {
         return ExitCode::FAILURE;
@@ -286,6 +292,14 @@ fn main() -> ExitCode {
 
     if dry_run {
         return ExitCode::SUCCESS;
+    }
+
+    if !check_ledger_pre {
+        let post_report = validate_all_data_tables_from_repo(&repo_root);
+        println!("{}", post_report.format_report());
+        if post_report.has_errors() {
+            return ExitCode::FAILURE;
+        }
     }
 
     match generate_merged_csvs(&repo_root) {

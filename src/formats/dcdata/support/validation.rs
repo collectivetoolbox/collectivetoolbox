@@ -75,6 +75,15 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
 pub fn validate_all_data_tables_from_repo(
     repo_root: &Path,
 ) -> ValidationReport {
+    validate_all_data_tables_from_repo_with_options(repo_root, true)
+}
+
+/// Runs validation directly against live files in a repository directory, optionally
+/// checking on-disk `assets/data/graph/*.ctbnodes` synchronization (`check_ledger_sync`).
+pub fn validate_all_data_tables_from_repo_with_options(
+    repo_root: &Path,
+    check_ledger_sync: bool,
+) -> ValidationReport {
     let mut report = ValidationReport::new();
 
     if let Err(error) = crate::updater::validate_category_allocations(repo_root)
@@ -254,11 +263,13 @@ pub fn validate_all_data_tables_from_repo(
     }
 
     // 8. Validate StageL 3 PSR-4 files, `: @dc` ledger bindings, and Gate 4 `.WASM` boundaries
-    crate::support::stagel_dc_alloc::validate_stagel_and_system_graph_in_repo(
+    crate::support::stagel_dc_alloc::validate_stagel_and_system_graph_in_repo_with_options(
         repo_root,
         &repo_root.join("src/formats/dcdata/data-src"),
         &known_dc_ids,
         &known_format_ids,
+        Some(&format_registry),
+        check_ledger_sync,
         &mut report,
     );
 
@@ -2575,6 +2586,7 @@ pub fn validate_all_dc_files_from_disk(
             data_src_dir,
             &mut defns,
             Some(known_format_ids),
+            format_registry,
             report,
         );
     }
@@ -2587,8 +2599,29 @@ pub fn validate_all_dc_files_from_disk(
 pub fn attach_staged_dc_impls_to_defns(
     staged_impls: &[crate::wat::StagedDcImpl],
     dc_defns: &mut [DcDefn],
+    format_defns: Option<&mut [DcDefn]>,
+    known_format_ids: Option<&HashSet<usize>>,
+    report: &mut ValidationReport,
+) {
+    attach_staged_dc_impls_to_defns_with_registry(
+        staged_impls,
+        dc_defns,
+        format_defns,
+        known_format_ids,
+        None,
+        report,
+    );
+}
+
+/// Attaches already-loaded [`crate::wat::StagedDcImpl`] entries to `dc_defns` and optional
+/// `format_defns`, enforcing that any `DcShorthand::Format(fid)` target belongs to
+/// `.Formats:transformation`.
+pub fn attach_staged_dc_impls_to_defns_with_registry(
+    staged_impls: &[crate::wat::StagedDcImpl],
+    dc_defns: &mut [DcDefn],
     mut format_defns: Option<&mut [DcDefn]>,
     known_format_ids: Option<&HashSet<usize>>,
+    format_registry: Option<&FormatValidationRegistry>,
     report: &mut ValidationReport,
 ) {
     use ctb_storage_minimal::global_graph_layout::{
@@ -2700,9 +2733,28 @@ pub fn attach_staged_dc_impls_to_defns(
                         .iter_mut()
                         .find(|d| d.format.is_some() && d.short_id == Some(fid))
                     {
-                        let entry = staged.to_decomposition_entry();
-                        if !fdefn.decompositions.contains(&entry) {
-                            fdefn.decompositions.push(entry);
+                        if !crate::syntax::is_transformation_format_category(
+                            &fdefn.category,
+                        ) && !crate::syntax::is_transformation_format_category(
+                            &fdefn.script,
+                        ) {
+                            report.add_error(
+                                &staged.rel_path,
+                                None,
+                                Some("Format"),
+                                format!(
+                                    "Staged implementation '{}' cannot be attached directly to non-transformation format f{fid} ('{}', category '{}')",
+                                    staged.rel_path, fdefn.name, fdefn.category
+                                ),
+                                Some(
+                                    "Only document transformations (.Formats:transformation) may own direct implementations; implement format converters as verbs/transformations referencing the format instead",
+                                ),
+                            );
+                        } else {
+                            let entry = staged.to_decomposition_entry();
+                            if !fdefn.decompositions.contains(&entry) {
+                                fdefn.decompositions.push(entry);
+                            }
                         }
                     } else {
                         report.add_error(
@@ -2715,18 +2767,35 @@ pub fn attach_staged_dc_impls_to_defns(
                             Some("Ensure the target Format Dc is defined in categories/formats/*.csv"),
                         );
                     }
-                } else if let Some(known_fids) = known_format_ids
-                    && !known_fids.contains(&fid)
-                {
-                    report.add_error(
-                        &staged.rel_path,
-                        None,
-                        Some("Short"),
-                        format!(
-                            "Staged implementation targets unknown Format Dc f{fid}"
-                        ),
-                        Some("Ensure the target Format Dc is defined in categories/formats/*.csv"),
-                    );
+                } else {
+                    let exists =
+                        known_format_ids.is_none_or(|fids| fids.contains(&fid));
+                    if !exists {
+                        report.add_error(
+                            &staged.rel_path,
+                            None,
+                            Some("Short"),
+                            format!(
+                                "Staged implementation targets unknown Format Dc f{fid}"
+                            ),
+                            Some("Ensure the target Format Dc is defined in categories/formats/*.csv"),
+                        );
+                    } else if let Some(reg) = format_registry
+                        && !reg.is_transformation_format(fid)
+                    {
+                        report.add_error(
+                            &staged.rel_path,
+                            None,
+                            Some("Format"),
+                            format!(
+                                "Staged implementation '{}' cannot be attached directly to non-transformation format f{fid}",
+                                staged.rel_path
+                            ),
+                            Some(
+                                "Only document transformations (.Formats:transformation) may own direct implementations; implement format converters as verbs/transformations referencing the format instead",
+                            ),
+                        );
+                    }
                 }
             }
             DcShorthand::Long(entity_id) if staged.converts.is_some() => {
@@ -2771,7 +2840,7 @@ pub fn attach_staged_dc_impls_to_defns(
                     None,
                     Some("wat"),
                     format!("Unsupported staged implementation target '{other}'"),
-                    Some("Use a Short Dc stem (e.g. 1936_...), Format stem (e.g. f656_...), or '@dc l<id>' + '@converts(<src> <dst>)'"),
+                    Some("Use a Short Dc stem (e.g. 1936_...), transformation Format stem (e.g. f1680_...), or '@dc l<id>' + '@converts(<src> <dst>)'"),
                 );
             }
         }
@@ -2790,6 +2859,7 @@ pub fn attach_staged_dc_impls_from_data_dir(
         data_src_dir,
         dc_defns,
         None,
+        None,
         report,
     );
 }
@@ -2798,15 +2868,17 @@ fn attach_staged_dc_impls_from_data_dir_with_known_formats(
     data_src_dir: &Path,
     dc_defns: &mut [DcDefn],
     known_format_ids: Option<&HashSet<usize>>,
+    format_registry: Option<&FormatValidationRegistry>,
     report: &mut ValidationReport,
 ) {
     match crate::wat::load_staged_dc_impls(data_src_dir) {
         Ok((staged_impls, _raw_files)) => {
-            attach_staged_dc_impls_to_defns(
+            attach_staged_dc_impls_to_defns_with_registry(
                 &staged_impls,
                 dc_defns,
                 None,
                 known_format_ids,
+                format_registry,
                 report,
             );
         }
@@ -4738,5 +4810,95 @@ mod tests {
         assert!(formatted.contains("missing a Block increment size"));
         assert!(formatted.contains("must be a positive multiple of 16"));
         assert!(formatted.contains("Invalid Block increment size 'none'"));
+    }
+
+    #[crate::ctb_test]
+    fn test_staged_and_csv_impl_linter_rejects_non_transformation_formats() {
+        use crate::syntax::build_format_validation_registry;
+        use crate::wat::{ImplStage, StagedDcImpl};
+
+        let repo_root = crate::find_repository_root().unwrap();
+        let mut fmt_report = ValidationReport::default();
+        let mut format_rows = crate::format::validate_all_format_files_from_disk(
+            &repo_root.join("src/formats/dcdata/data-src/categories/formats"),
+            None,
+            &mut fmt_report,
+        );
+        let registry = build_format_validation_registry(&format_rows);
+        assert!(!registry.is_transformation_format(656));
+        assert!(registry.is_transformation_format(1680));
+
+        let known_fids: HashSet<usize> =
+            format_rows.iter().filter_map(|r| r.short_id).collect();
+        let mut dc_defns = crate::validation::validate_all_dc_files_from_disk(
+            &repo_root.join("src/formats/dcdata/data-src/categories"),
+            &known_fids,
+            None,
+            None,
+            None,
+            None,
+            Some(&registry),
+            &mut fmt_report,
+        );
+
+        let ok_impl = StagedDcImpl {
+            stage: ImplStage::Stage0,
+            target: crate::DcShorthand::Format(1680),
+            rel_path: "stage_0_impls/f1680_stagel3_to_wasm.wat".to_owned(),
+            converts: Some((
+                crate::DcShorthand::Short(2192),
+                crate::DcShorthand::Short(1927),
+            )),
+            context_tokens: Vec::new(),
+            decomp_tag: "semantic".to_owned(),
+            tokens: vec![
+                crate::DcShorthand::Short(1927),
+                crate::DcShorthand::Short(1928),
+            ],
+        };
+        let mut ok_report = ValidationReport::default();
+        attach_staged_dc_impls_to_defns_with_registry(
+            std::slice::from_ref(&ok_impl),
+            &mut dc_defns,
+            Some(&mut format_rows),
+            Some(&known_fids),
+            Some(&registry),
+            &mut ok_report,
+        );
+        assert!(
+            !ok_report.has_errors(),
+            "Unexpected error: {}",
+            ok_report.format_report()
+        );
+
+        let bad_impl = StagedDcImpl {
+            stage: ImplStage::Stage0,
+            target: crate::DcShorthand::Format(656),
+            rel_path: "stage_0_impls/f656_stagel3.wat".to_owned(),
+            converts: None,
+            context_tokens: Vec::new(),
+            decomp_tag: "semantic".to_owned(),
+            tokens: vec![
+                crate::DcShorthand::Short(1927),
+                crate::DcShorthand::Short(1928),
+            ],
+        };
+        let mut bad_report = ValidationReport::default();
+        attach_staged_dc_impls_to_defns_with_registry(
+            &[bad_impl],
+            &mut dc_defns,
+            Some(&mut format_rows),
+            Some(&known_fids),
+            Some(&registry),
+            &mut bad_report,
+        );
+        assert!(bad_report.has_errors());
+        assert!(
+            bad_report
+                .format_report()
+                .contains("non-transformation format f656"),
+            "Got: {}",
+            bad_report.format_report()
+        );
     }
 }

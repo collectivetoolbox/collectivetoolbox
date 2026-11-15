@@ -4520,6 +4520,154 @@ pub fn run_graph_wasm_tokens_on_dc_slice_with_quota(
     )
 }
 
+/// Executes a single [`ctb_formats_dcdata::seed_graph::ActiveConverterStep`] from `sg`
+/// (either a Stage 0 `.WASM` converter or a Stage 1 StageL Token-Dc converter compiled
+/// via the active StageL-to-WASM converter) on `input_tokens` under `shared_quota`.
+///
+/// # Errors
+/// Returns an error if dependency bundling, StageL-to-WASM compilation, or WASM execution fails.
+pub fn run_active_converter_step_on_dc_slice_with_quota(
+    step: &ctb_formats_dcdata::seed_graph::ActiveConverterStep,
+    input_tokens: &[DcChar],
+    sg: &ctb_formats_dcdata::seed_graph::SeedGraphIndex,
+    resolver: &dyn SyntaxRuleResolver,
+    shared_quota: Option<SharedWasmTaskQuota>,
+) -> Result<DcMstring> {
+    use ctb_formats_dcdata::seed_graph::ActiveConverterBody;
+    use ctb_storage_minimal::shorthand::DcShorthand;
+
+    let wasm_dst_sh = DcShorthand::from_global_id(
+        ctb_formats_dcdata::dc::DC_BEGIN_WASM_PROGRAM.to_u128(),
+    );
+    let stagel_src_sh = DcShorthand::from_global_id(
+        ctb_formats_dcdata::dc::DC_BEGIN_MODULE.to_u128(),
+    );
+    let stager_src_sh = DcShorthand::from_global_id(
+        ctb_formats_dcdata::dc::DC_BEGIN_STAGER_MODULE.to_u128(),
+    );
+
+    let bundled_storage: Option<Vec<DcChar>> = if step.dst == wasm_dst_sh
+        && input_tokens
+            .first()
+            .is_some_and(|c| c.fills_role_with(DcRole::BeginModule, resolver))
+    {
+        Some(
+            ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_for_wasm_converter(
+                input_tokens, sg, resolver,
+            )?,
+        )
+    } else if step.src == stager_src_sh
+        && input_tokens.first().is_some_and(|c| {
+            c.fills_role_with(DcRole::BeginStagerModule, resolver)
+        })
+    {
+        Some(
+            ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_dependencies(
+                input_tokens, sg,
+            )?,
+        )
+    } else {
+        None
+    };
+    let converter_input: &[DcChar] = if let Some(ref bundled) = bundled_storage
+    {
+        bundled.as_slice()
+    } else {
+        input_tokens
+    };
+
+    match &step.body {
+        ActiveConverterBody::Wasm(wasm_tokens) => {
+            run_graph_wasm_tokens_on_dc_slice_with_quota(
+                wasm_tokens,
+                converter_input,
+                resolver,
+                shared_quota,
+            )
+        }
+        ActiveConverterBody::StageL(_) => {
+            let converter_dc = DcChar::from_u128(step.subject.to_global_id()?);
+            let entry_module_tokens =
+                ctb_formats_dcdata::stagel3::seed_linker::build_entry_module_for_graph_routine_dc(
+                    converter_dc,
+                    sg,
+                )?;
+            let bundled_converter_entry =
+                ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_for_wasm_converter(
+                    &entry_module_tokens,
+                    sg,
+                    resolver,
+                )?;
+            let Some((_, stagel_to_wasm_tokens)) =
+                sg.resolve_active_converter_routine(stagel_src_sh, wasm_dst_sh)?
+            else {
+                bail!(
+                    "Cannot execute StageL converter {}: no active StageL-to-WASM converter ([Dc 302 {stagel_src_sh} {wasm_dst_sh}]) in System graph snapshot",
+                    step.subject
+                );
+            };
+            let raw_converter_wasm =
+                run_graph_wasm_tokens_on_dc_slice_with_quota(
+                    stagel_to_wasm_tokens,
+                    &bundled_converter_entry,
+                    resolver,
+                    shared_quota.clone(),
+                )?;
+            let raw_wasm_chars: Vec<DcChar> =
+                raw_converter_wasm.to_dc_string()?.chars().collect();
+            let raw_wasm_shorthands: Vec<DcShorthand> = raw_wasm_chars
+                .iter()
+                .map(|c| DcShorthand::from_global_id(c.to_u128()))
+                .collect();
+            let compiled_converter_wasm =
+                expand_graph_wasm_shorthands_to_dcmstring(
+                    &raw_wasm_shorthands,
+                    resolver,
+                )?;
+            let mut input_doc = DcMstring::new();
+            for &tok in converter_input {
+                input_doc.push_char(tok);
+            }
+            run_dc_wasm_pure_conversion_with_resolver_and_quota(
+                &compiled_converter_wasm,
+                &input_doc,
+                resolver,
+                shared_quota,
+            )
+        }
+    }
+}
+
+/// Executes an ordered multi-step chain of [`ctb_formats_dcdata::seed_graph::ActiveConverterStep`]s
+/// sequentially on `input_tokens` under a shared [`SharedWasmTaskQuota`].
+///
+/// # Errors
+/// Returns an error if `chain` is empty or if any step fails.
+pub fn run_graph_converter_chain_on_dc_slice_with_quota(
+    chain: &[ctb_formats_dcdata::seed_graph::ActiveConverterStep],
+    input_tokens: &[DcChar],
+    sg: &ctb_formats_dcdata::seed_graph::SeedGraphIndex,
+    resolver: &dyn SyntaxRuleResolver,
+    shared_quota: Option<SharedWasmTaskQuota>,
+) -> Result<DcMstring> {
+    ensure!(!chain.is_empty(), "Converter chain must not be empty");
+    let mut current_tokens: Vec<DcChar> = input_tokens.to_vec();
+    let mut last_doc = DcMstring::new();
+    for (idx, step) in chain.iter().enumerate() {
+        last_doc = run_active_converter_step_on_dc_slice_with_quota(
+            step,
+            &current_tokens,
+            sg,
+            resolver,
+            shared_quota.clone(),
+        )?;
+        if idx.saturating_add(1) < chain.len() {
+            current_tokens = last_doc.to_dc_string()?.chars().collect();
+        }
+    }
+    Ok(last_doc)
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,

@@ -1939,6 +1939,9 @@ pub enum SupportedDcTransformation {
     /// Semantic Dcs to text
     #[value(name = "semantictotext", alias = "SemanticToText", alias = "f19")]
     SemanticToText,
+    /// StageL 3 Dcs to WASM
+    #[value(name = "stagel3_to_wasm", alias = "stagel3towasm", alias = "StageL3ToWasm", alias = "f1680")]
+    StageL3ToWasm,
     /// Unicode characters to equivalent short Dcs
     #[value(name = "unicode_to_short_dc", alias = "unicodetoshortdc", alias = "UnicodeToShortDc", alias = "f654")]
     UnicodeToShortDc,
@@ -1950,6 +1953,7 @@ impl SupportedDcTransformation {
         Self::AddSystemGraphMostRecent,
         Self::CodeToText,
         Self::SemanticToText,
+        Self::StageL3ToWasm,
         Self::UnicodeToShortDc,
     ];
 
@@ -1958,6 +1962,7 @@ impl SupportedDcTransformation {
         FormatId::AddSystemGraphMostRecent,
         FormatId::CodeToText,
         FormatId::SemanticToText,
+        FormatId::StageL3ToWasm,
         FormatId::UnicodeToShortDc,
     ];
 
@@ -1968,6 +1973,7 @@ impl SupportedDcTransformation {
             Self::AddSystemGraphMostRecent => "add_system_graph_most_recent",
             Self::CodeToText => "codetotext",
             Self::SemanticToText => "semantictotext",
+            Self::StageL3ToWasm => "stagel3_to_wasm",
             Self::UnicodeToShortDc => "unicode_to_short_dc",
         }
     }
@@ -1979,6 +1985,7 @@ impl SupportedDcTransformation {
             Self::AddSystemGraphMostRecent => FormatId::AddSystemGraphMostRecent,
             Self::CodeToText => FormatId::CodeToText,
             Self::SemanticToText => FormatId::SemanticToText,
+            Self::StageL3ToWasm => FormatId::StageL3ToWasm,
             Self::UnicodeToShortDc => FormatId::UnicodeToShortDc,
         }
     }
@@ -1990,6 +1997,7 @@ impl SupportedDcTransformation {
             FormatId::AddSystemGraphMostRecent => Some(Self::AddSystemGraphMostRecent),
             FormatId::CodeToText => Some(Self::CodeToText),
             FormatId::SemanticToText => Some(Self::SemanticToText),
+            FormatId::StageL3ToWasm => Some(Self::StageL3ToWasm),
             FormatId::UnicodeToShortDc => Some(Self::UnicodeToShortDc),
             _ => None,
         }

@@ -59,7 +59,30 @@ pub struct FormatValidationRegistry {
     pub id_by_nick: HashMap<String, usize>,
 }
 
+/// Returns `true` when `category_or_script` denotes the `.Formats:transformation`
+/// document-transformation format category.
+#[must_use]
+pub fn is_transformation_format_category(category_or_script: &str) -> bool {
+    let trimmed = category_or_script.trim();
+    // Reason for fallback: Category strings without format prefixes are already normalized.
+    let clean = trimmed
+        .strip_prefix(".Formats:")
+        .or_else(|| trimmed.strip_prefix("Formats:"))
+        .or_else(|| trimmed.strip_prefix("format_"))
+        .unwrap_or(trimmed);
+    clean.eq_ignore_ascii_case("transformation")
+}
+
 impl FormatValidationRegistry {
+    /// Returns `true` if `fid` is registered in this registry and belongs to
+    /// `.Formats:transformation`.
+    #[must_use]
+    pub fn is_transformation_format(&self, fid: usize) -> bool {
+        self.formats_by_id
+            .get(&fid)
+            .is_some_and(|info| is_transformation_format_category(&info.category))
+    }
+
     /// Creates a new empty format validation registry.
     #[must_use]
     pub fn new() -> Self {

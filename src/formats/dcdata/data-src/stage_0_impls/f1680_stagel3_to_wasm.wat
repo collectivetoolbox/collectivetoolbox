@@ -16,10 +16,8 @@
 ;; You should have received a copy of the GNU Affero General Public License along
 ;; with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-;; @dc l8589979107
-;; @converts(2192 1927)
 ;; Self-hosted Stage 0 StageL 3 Token-Dc (`Dc 2192` .. `Dc 2193`) to Dc-WASM
-;; (`Dc 1927` .. `Dc 1928`) compiler routine.
+;; (`Dc 1927` .. `Dc 1928`) document transformation (`f1680` `StageL3ToWasm`).
 (module
   (memory (export "memory") 1)
 

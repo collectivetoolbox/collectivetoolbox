@@ -486,6 +486,17 @@ fn strip_leading_dc_comment_frames<'a>(
     Ok(chars)
 }
 
+/// Temporary host Rust fallback evaluator for `Dc 2608 "Convert Dc string to WASM"`
+/// (`.EL Miscellaneous`).
+///
+/// NOTE (replace with StageR 3 / EM3 graph implementation soon):
+/// `Dc 2608 "Convert Dc string to WASM"` is intentionally NOT a language builtin and has
+/// no `.WASM` decomposition in `assets/data/graph/*.ctbnodes` (`2608_convert_dc_string_to_wasm.wat`
+/// was deleted because `Dc 2608`'s conversion-graph routing belongs in a higher-level
+/// language rather than hand-written WAT). As soon as `DcWasmSession` gains a host
+/// capability ABI for querying `SeedGraphIndex` from inside WASM (`issues/language.md`),
+/// this host fallback MUST be replaced by a normal verb implementation in StageR 3
+/// (or Rust transpiled to EM3) stored in the System graph.
 fn eval_convert_dc_string_to_wasm(
     call_tokens: &[DcChar],
     resolver: &dyn SyntaxRuleResolver,
@@ -718,35 +729,17 @@ fn eval_convert_dc_string_to_wasm(
     let dst_sh = DcShorthand::from_global_id(
         ctb_formats_dcdata::dc::DC_BEGIN_WASM_PROGRAM.to_u128(),
     );
-    let Some((_converter_id, converter_wasm_tokens)) =
-        sg.resolve_active_converter_routine(src_sh, dst_sh)?
-    else {
+    let Some(chain) = sg.resolve_active_converter_chain(src_sh, dst_sh)? else {
         bail!(
-            "No active converter routine ([Dc 302 {src_sh} {dst_sh}]) found in System graph snapshot"
+            "No active converter routine or chain ([Dc 302 {src_sh} ... {dst_sh}]) found in System graph snapshot"
         );
     };
 
-    let bundled_storage: Option<Vec<DcChar>> =
-        if first_body.fills_role_with(DcRole::BeginModule, resolver) {
-            Some(
-                ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_for_wasm_converter(
-                    body_chars, sg, resolver,
-                )?,
-            )
-        } else {
-            None
-        };
-    let converter_input: &[DcChar] =
-        if let Some(ref bundled) = bundled_storage {
-            bundled.as_slice()
-        } else {
-            body_chars
-        };
-
     let raw_wasm_doc =
-        crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice_with_quota(
-            converter_wasm_tokens,
-            converter_input,
+        crate::converters::wasm::run_graph_converter_chain_on_dc_slice_with_quota(
+            &chain,
+            body_chars,
+            sg,
             resolver,
             shared_quota,
         )?;
@@ -763,7 +756,7 @@ fn eval_convert_dc_string_to_wasm(
         )?;
     ensure!(
         is_wasm_routine,
-        "Converter routine for {src_sh} -> {dst_sh} did not emit a valid Dc-WASM program (Dc 1927..Dc 1928)"
+        "Converter chain for {src_sh} -> {dst_sh} did not emit a valid Dc-WASM program (Dc 1927..Dc 1928)"
     );
     let out_shorthands: Vec<DcShorthand> = out_chars
         .iter()
@@ -773,6 +766,158 @@ fn eval_convert_dc_string_to_wasm(
         &out_shorthands,
         resolver,
     )
+}
+
+/// Applies a System-graph `.Formats:transformation` converter (`format_id`, such as
+/// `FormatId::StageL3ToWasm` `f1680` or `FormatId::StageR3ToStageL3` `f1681`) to `doc`.
+///
+/// Strips optional leading comment frames and honors an optional leading
+/// `pin_description` (`Dc 641 "Global graph system block most recent node ID at time of document creation"`).
+pub(crate) fn apply_graph_dc_transformation_format(
+    doc: &DcMstr,
+    format_id: ctb_utilities::format_id::FormatId,
+) -> Result<DcMstring> {
+    use crate::converters::wasm::{DcWasmResourceLimits, SharedWasmTaskQuota};
+    use ctb_storage_minimal::shorthand::DcShorthand;
+
+    let fmt_dc_id = format_id.dc_id().with_context(|| {
+        format!("Format {format_id:?} has no assigned Format Dc ID")
+    })?;
+    let fmt_sh = DcShorthand::from_global_id(fmt_dc_id);
+
+    let base_resolver = default_syntax_resolver();
+    let raw_chars: Vec<DcChar> = doc.to_dc_string()?.chars().collect();
+    let mut body_chars =
+        strip_leading_dc_comment_frames(&raw_chars, base_resolver.as_ref())?;
+    ensure!(
+        !body_chars.is_empty(),
+        "Input document for transformation {} ({}) contains no tokens",
+        format_id.ident(),
+        format_id.shorthand()
+    );
+
+    let mut pinned_holder: Option<
+        Arc<ctb_formats_dcdata::syntax::DatasetRuleResolver>,
+    > = None;
+    if body_chars.first().is_some_and(|c| {
+        c.fills_role_with(
+            DcRole::GlobalGraphSystemBlockMostRecentNodeId,
+            base_resolver.as_ref(),
+        )
+    }) {
+        let mut nav_mstr = DcMstring::new();
+        for &tok in body_chars {
+            nav_mstr.push_char(tok);
+        }
+        let mut nav = DcDocumentNavigator::from_mstr(&nav_mstr);
+        let start_pos = nav.position();
+        let mut ctx = SyntaxEvalContext::new(base_resolver.as_ref(), None);
+        let matched_pin = nav.eval_term_single(
+            &SyntaxTerm::NamedConstruct {
+                name: "pin_description".to_owned(),
+                subtype: None,
+                capture_var: None,
+            },
+            &mut ctx,
+        )?;
+        ensure!(
+            matched_pin && !ctx.has_errors && nav.position() > start_pos,
+            "Invalid leading [pin_description] in transformation input document"
+        );
+        let pin_end = nav.position();
+        let pin_u128s =
+            nav.read_tokens_in_span(DcByteSpan::new(start_pos, pin_end))?;
+        let pin_tokens: Vec<DcChar> =
+            pin_u128s.into_iter().map(DcChar::from_u128).collect();
+        let pin_id = extract_pin_node_id_from_pin_description(
+            &pin_tokens,
+            base_resolver.as_ref(),
+            None,
+        )?;
+        pinned_holder = Some(resolve_pinned_syntax_resolver(
+            base_resolver.as_ref(),
+            pin_id,
+        )?);
+        // Reason for fallback: empty slice after pin_tokens is rejected immediately below.
+        let after_pin = body_chars.get(pin_tokens.len()..).unwrap_or(&[]);
+        body_chars = strip_leading_dc_comment_frames(
+            after_pin,
+            base_resolver.as_ref(),
+        )?;
+        ensure!(
+            !body_chars.is_empty(),
+            "Transformation input document contains only a pin_description and no body"
+        );
+    }
+
+    let active_resolver: &dyn SyntaxRuleResolver =
+        if let Some(ref pinned) = pinned_holder {
+            pinned.as_ref()
+        } else {
+            base_resolver.as_ref()
+        };
+    let sg = active_resolver.seed_graph().context(
+        "Active syntax resolver does not expose a SeedGraphIndex snapshot",
+    )?;
+
+    let steps = sg.list_all_active_converter_steps()?;
+    let step = steps
+        .into_iter()
+        .find(|s| s.subject == fmt_sh)
+        .with_context(|| {
+            format!(
+                "No active converter implementation found in System graph snapshot for transformation {} ({})",
+                format_id.ident(),
+                format_id.shorthand()
+            )
+        })?;
+
+    let first_body = body_chars
+        .first()
+        .copied()
+        .context("Empty transformation body")?;
+    let first_sh = DcShorthand::from_global_id(first_body.to_u128());
+    ensure!(
+        first_sh == step.src,
+        "Transformation {} ({}) expects input starting with {}, found {}",
+        format_id.ident(),
+        format_id.shorthand(),
+        step.src,
+        first_sh
+    );
+
+    let host_quota = SharedWasmTaskQuota::new(DcWasmResourceLimits {
+        max_instructions_per_step: 500_000_000,
+        max_memory_pages: 512,
+        max_step_output_bytes: 16 * 1024 * 1024,
+        max_session_output_bytes: 32 * 1024 * 1024,
+        ..DcWasmResourceLimits::default()
+    });
+    let raw_out =
+        crate::converters::wasm::run_active_converter_step_on_dc_slice_with_quota(
+            &step,
+            body_chars,
+            sg,
+            active_resolver,
+            Some(host_quota),
+        )?;
+
+    let wasm_dst_sh = DcShorthand::from_global_id(
+        ctb_formats_dcdata::dc::DC_BEGIN_WASM_PROGRAM.to_u128(),
+    );
+    if step.dst == wasm_dst_sh {
+        let out_chars: Vec<DcChar> = raw_out.to_dc_string()?.chars().collect();
+        let out_shorthands: Vec<DcShorthand> = out_chars
+            .iter()
+            .map(|c| DcShorthand::from_global_id(c.to_u128()))
+            .collect();
+        return crate::converters::wasm::expand_graph_wasm_shorthands_to_dcmstring(
+            &out_shorthands,
+            active_resolver,
+        );
+    }
+
+    Ok(raw_out)
 }
 
 fn tokens_satisfy_value_requirement(

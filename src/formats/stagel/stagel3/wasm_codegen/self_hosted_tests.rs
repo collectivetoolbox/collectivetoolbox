@@ -75,12 +75,14 @@ mod tests {
     fn load_stagel3_to_wasm_shorthands() -> &'static [DcShorthand] {
         static CACHE: OnceLock<Vec<DcShorthand>> = OnceLock::new();
         CACHE.get_or_init(|| {
-            let wat_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../dcdata/data-src/stage_0_impls/stagel3_to_wasm.wat");
+            let wat_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+                "../dcdata/data-src/stage_0_impls/f1680_stagel3_to_wasm.wat",
+            );
             let wat_src = std::fs::read_to_string(&wat_path)
-                .expect("Failed to read stagel3_to_wasm.wat");
-            wat_to_dc_shorthands(&wat_src)
-                .expect("wat_to_dc_shorthands failed on stagel3_to_wasm.wat")
+                .expect("Failed to read f1680_stagel3_to_wasm.wat");
+            wat_to_dc_shorthands(&wat_src).expect(
+                "wat_to_dc_shorthands failed on f1680_stagel3_to_wasm.wat",
+            )
         })
     }
 

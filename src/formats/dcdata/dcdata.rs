@@ -142,7 +142,8 @@ pub use lookup::{
 };
 pub use report::{ValidationDiagnostic, ValidationReport, ValidationSeverity};
 pub use seed_graph::{
-    ActivePropertyValue, PRIMARY_SEED_GRAPH_ASSET_KEY, ReconstructedNamedType,
+    ActiveConverterBody, ActiveConverterStep, ActivePropertyValue,
+    PRIMARY_SEED_GRAPH_ASSET_KEY, ReconstructedNamedType,
     SEED_GRAPH_ASSET_GLOB, SYSTEM_GRAPH_HISTORY_ASSET_GLOB, SeedGraphIndex,
     TrustedSystemSupervisorResolution,
 };
@@ -173,9 +174,9 @@ pub use updater::{
 pub use validation::{
     parse_dc_aliases_column, split_dc_aliases_column, validate_all_data_tables,
     validate_all_data_tables_embedded, validate_all_data_tables_from_repo,
-    validate_all_dc_files, validate_all_dc_files_from_disk,
-    validate_dc_aliases_spacing, validate_dc_category_file,
-    validate_dc_files_data,
+    validate_all_data_tables_from_repo_with_options, validate_all_dc_files,
+    validate_all_dc_files_from_disk, validate_dc_aliases_spacing,
+    validate_dc_category_file, validate_dc_files_data,
 };
 
 /// Returns the raw bytes of a data source file from `src/formats/dcdata/data-src/`.
