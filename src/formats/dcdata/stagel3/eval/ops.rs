@@ -48,7 +48,7 @@ use super::super::stager_strings::{
     dcs_from_s, explode_slice, implode_slices, is_valid_dc_u128,
     s_atomic_units, s_from_dcs, validate_and_measure_s_byte_len,
 };
-use super::super::stager_validator::is_stager_widening_conv;
+use super::super::validator::is_stager_widening_conv;
 use super::vm::{EvalSignal, StageLWorkspaceVm};
 use super::{BufStorage, Value};
 use crate::DcChar;
