@@ -382,27 +382,89 @@ pub(super) fn is_valid_ident(name: &str) -> bool {
     chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-pub(super) fn is_reserved_keyword_for(
-    word: &str,
-    dialect: StageDialect,
-) -> bool {
+/// Validates syntactic identifier shape (`[A-Za-z_][A-Za-z0-9_]*`).
+/// Bindings, fields, enum variants, and imported names live in `/` or
+/// delimiter-scoped namespaces and need no keyword reservations.
+pub(super) fn check_valid_ident(
+    name: &str,
+    span: Span,
+    role: &str,
+) -> Result<()> {
+    ensure!(
+        is_valid_ident(name),
+        "Invalid {role} identifier '{name}' at {span}"
+    );
+    Ok(())
+}
+
+/// Checks whether `name` is a built-in type keyword in `dialect`.
+fn is_builtin_type_name(name: &str, dialect: StageDialect) -> bool {
     let is_shared = matches!(
-        word,
-        "ns" | "use"
-            | "as"
-            | "pub"
-            | "const"
-            | "let"
-            | "set"
-            | "struct"
+        name,
+        "b" | "u8"
+            | "i32"
+            | "u32"
+            | "i64"
+            | "u64"
+            | "void"
+            | "never"
+            | "l"
+            | "buf"
             | "tup"
-            | "tupNew"
-            | "structNew"
-            | "field"
-            | "with"
+            | "v"
+            | "dc"
+    );
+    is_shared
+        || (dialect == StageDialect::StageR3
+            && matches!(
+                name,
+                "i128"
+                    | "u128"
+                    | "int"
+                    | "rat"
+                    | "dcs"
+                    | "s"
+                    | "error"
+                    | "view"
+                    | "cursor"
+                    | "option"
+                    | "result"
+            ))
+}
+
+/// Validates a type declaration name (`struct`, `brand`, `type`, `enum`),
+/// rejecting built-in type keywords so `TYPE/name` syntax stays unambiguous.
+pub(super) fn check_type_decl_ident(
+    name: &str,
+    span: Span,
+    role: &str,
+    dialect: StageDialect,
+) -> Result<()> {
+    check_valid_ident(name, span, role)?;
+    ensure!(
+        !is_builtin_type_name(name, dialect),
+        "Built-in type keyword '{name}' cannot be used as {role} identifier at {span}"
+    );
+    Ok(())
+}
+
+/// Validates a routine declaration name (`v/RET/name`), rejecting only words
+/// intercepted as bare expression or statement forms in `dialect`.
+fn check_routine_decl_ident(
+    name: &str,
+    span: Span,
+    dialect: StageDialect,
+) -> Result<()> {
+    check_valid_ident(name, span, "routine")?;
+    let is_shared_form = matches!(
+        name,
+        "ns" | "use"
+            | "pub"
+            | "struct"
             | "test"
-            | "in"
-            | "out"
+            | "let"
+            | "const"
+            | "set"
             | "do"
             | "if"
             | "while"
@@ -410,127 +472,49 @@ pub(super) fn is_reserved_keyword_for(
             | "break"
             | "continue"
             | "return"
-            | "fault"
             | "nop"
             | "true"
             | "false"
-            | "void"
-            | "never"
-            | "b"
-            | "u8"
-            | "i32"
-            | "u32"
-            | "i64"
-            | "u64"
-            | "l"
-            | "buf"
-            | "v"
-            | "dc"
-            | "conv"
-            | "bitcast"
             | "bufNew"
-            | "neg"
-            | "bitNot"
-            | "not"
-            | "clz"
-            | "ctz"
-            | "popcnt"
-            | "len"
-            | "bufFreeze"
-            | "add"
-            | "sub"
-            | "mul"
-            | "div"
-            | "rem"
-            | "wrapAdd"
-            | "wrapSub"
-            | "wrapMul"
-            | "bitAnd"
-            | "bitOr"
-            | "bitXor"
-            | "shl"
-            | "shr"
-            | "rotl"
-            | "rotr"
-            | "and"
-            | "or"
-            | "eq"
-            | "ne"
-            | "lt"
-            | "le"
-            | "gt"
-            | "ge"
-            | "get"
-            | "concat"
-            | "bufFill"
-            | "bufPush"
-            | "bufExtend"
-            | "slice"
-            | "bufSet"
+            | "tupNew"
+            | "structNew"
+            | "field"
+            | "with"
+            | "conv"
     );
-    if is_shared {
-        return true;
-    }
-    if dialect == StageDialect::StageR3 {
-        return matches!(
-            word,
-            "brand"
-                | "type"
-                | "enum"
-                | "match"
-                | "case"
-                | "else"
-                | "wrap"
-                | "unwrap"
-                | "i128"
-                | "u128"
-                | "int"
-                | "rat"
-                | "dcs"
-                | "s"
-                | "view"
-                | "cursor"
-                | "option"
-                | "result"
-                | "error"
-                | "mod"
-                | "truncRem"
-                | "isSome"
-                | "isNone"
-                | "isOk"
-                | "isErr"
-                | "unwrapOr"
-                | "okOr"
-                | "byteLen"
-                | "makeRat"
-                | "dcFromU128"
-                | "u128FromDc"
-                | "dcsFromS"
-                | "sFromDcs"
-                | "explode"
-                | "implode"
-                | "unimplemented"
-                | "unwrapSome"
-                | "unwrapOk"
-                | "unwrapErr"
-        );
-    }
-    false
-}
-
-pub(super) fn check_user_ident_for(
-    name: &str,
-    span: Span,
-    role: &str,
-    dialect: StageDialect,
-) -> Result<()> {
+    let is_dialect_form = match dialect {
+        StageDialect::StageL3 => {
+            matches!(name, "fault" | "bitcast")
+                || match_unary_op(name).is_some()
+                || match_binary_op(name).is_some()
+                || match_ternary_op(name).is_some()
+        }
+        StageDialect::StageR3 => {
+            matches!(
+                name,
+                "brand"
+                    | "type"
+                    | "enum"
+                    | "match"
+                    | "case"
+                    | "else"
+                    | "wrap"
+                    | "unwrap"
+            ) || super::stager_parser::is_forbidden_stagel_partial_op(name)
+                || super::stager_parser::match_stager_unary_op(name).is_some()
+                || super::stager_parser::match_stager_binary_op(name).is_some()
+                || super::stager_parser::match_stager_ternary_op(name).is_some()
+                || super::stager_parser::match_stager_shared_core_unary_op(name)
+                    .is_some()
+                || super::stager_parser::match_stager_shared_core_binary_op(
+                    name
+                )
+                .is_some()
+        }
+    };
     ensure!(
-        is_valid_ident(name),
-        "Invalid {role} identifier '{name}' at {span}"
-    );
-    ensure!(
-        !is_reserved_keyword_for(name, dialect),
-        "Reserved keyword '{name}' cannot be used as {role} identifier at {span}"
+        !(is_shared_form || is_dialect_form),
+        "Built-in keyword or verb '{name}' cannot be used as routine identifier at {span}"
     );
     Ok(())
 }
@@ -603,10 +587,16 @@ pub(super) fn parse_type_segments_with_ctx(
             "cursor" if ctx.dialect == StageDialect::StageR3 => {
                 Ok(StageLType::Cursor)
             }
-            other
-                if is_valid_ident(other)
-                    && !is_reserved_keyword_for(other, ctx.dialect) =>
-            {
+            "dc" => {
+                bail!("Bare 'dc' type requires a shorthand (write 'dc/<shorthand>') at {span}")
+            }
+            "l" | "buf" | "tup" | "v" => {
+                bail!("Parameterized type '{head}' requires a type argument at {span}")
+            }
+            "option" | "result" if ctx.dialect == StageDialect::StageR3 => {
+                bail!("Parameterized type '{head}' requires a type argument at {span}")
+            }
+            other if is_valid_ident(other) => {
                 if ctx.dialect == StageDialect::StageR3 {
                     match ctx.types_by_name.get(other) {
                         Some(StageRTypeKind::NamedStruct) => {
@@ -791,7 +781,7 @@ pub(super) fn parse_typed_name_with_ctx(
     let Some((&name, type_segs)) = segs.split_last() else {
         bail!("Invalid typed identifier '{word}' at {span}");
     };
-    check_user_ident_for(name, span, "binding", ctx.dialect)?;
+    check_valid_ident(name, span, "binding")?;
     let ty = parse_type_segments_with_ctx(type_segs, span, ctx)?;
     Ok((ty, name.to_owned()))
 }
@@ -842,7 +832,7 @@ pub(super) fn parse_typed_name_from_tokens_with_ctx(
             "Expected single binding name after '{ty}/' at {}, found '{nw}'",
             name_tok.span
         );
-        check_user_ident_for(name, name_tok.span, "binding", ctx.dialect)?;
+        check_valid_ident(name, name_tok.span, "binding")?;
         *pos = pos.saturating_add(1);
         return Ok((ty, name.to_owned(), tok.span));
     }
@@ -876,7 +866,7 @@ pub(super) fn parse_optional_typed_name_from_tokens_with_ctx(
             "Expected '/name' or 'TYPE/name' identifier at {}, found '{tw}'",
             tok.span
         );
-        check_user_ident_for(name, tok.span, "binding", ctx.dialect)?;
+        check_valid_ident(name, tok.span, "binding")?;
         *pos = pos.saturating_add(1);
         return Ok((None, name.to_owned(), tok.span));
     }
@@ -899,7 +889,7 @@ pub(super) fn parse_value_ref_word_with_ctx(
             !name.contains('/'),
             "Expected '/name' or '/dc/<shorthand>' at {span}, found '{word}'"
         );
-        check_user_ident_for(name, span, "binding", ctx.dialect)?;
+        check_valid_ident(name, span, "binding")?;
         return Ok((None, SymbolTarget::Ident(name.to_owned())));
     }
     let segs: Vec<&str> = word.split('/').collect();
@@ -933,7 +923,7 @@ fn parse_routine_sig_token_with_ctx(
     let Some((&name, prefix)) = segs.split_last() else {
         bail!("Invalid routine signature '{word}' at {span}");
     };
-    check_user_ident_for(name, span, "routine", ctx.dialect)?;
+    check_routine_decl_ident(name, span, ctx.dialect)?;
     let ret_segs = prefix.get(1..).with_context(|| {
         format!("Missing return type in routine signature '{word}' at {span}")
     })?;
@@ -1001,7 +991,7 @@ fn parse_routine_sig_from_tokens_with_ctx(
             "Invalid routine name '{nw}' at {}",
             name_tok.span
         );
-        check_user_ident_for(name, name_tok.span, "routine", ctx.dialect)?;
+        check_routine_decl_ident(name, name_tok.span, ctx.dialect)?;
         *pos = pos.saturating_add(1);
         return Ok((return_type, name.to_owned(), sig_tok.span));
     }
@@ -1784,12 +1774,7 @@ impl Parser {
             let target = if let Some(sh) = item_word.strip_prefix("dc/") {
                 ImportTarget::Dc(parse_dc_shorthand(sh)?)
             } else {
-                check_user_ident_for(
-                    &item_word,
-                    next.span,
-                    "imported item",
-                    self.dialect,
-                )?;
+                check_valid_ident(&item_word, next.span, "imported item")?;
                 ImportTarget::Name(item_word)
             };
             let alias = if let Some(after) = self.peek_skip_comments().cloned() {
@@ -1808,11 +1793,10 @@ impl Parser {
                             alias_tok.span
                         );
                     };
-                    check_user_ident_for(
+                    check_valid_ident(
                         &alias_word,
                         alias_tok.span,
                         "import alias",
-                        self.dialect,
                     )?;
                     self.pos = self.pos.saturating_add(1);
                     Some(alias_word)
@@ -2158,7 +2142,7 @@ impl Parser {
                 name_tok.span
             );
         };
-        check_user_ident_for(&name, name_tok.span, "struct", self.dialect)?;
+        check_type_decl_ident(&name, name_tok.span, "struct", self.dialect)?;
         self.pos = self.pos.saturating_add(1);
 
         let mut fields = Vec::new();
@@ -2875,11 +2859,10 @@ impl Parser {
                 let target = if let Some(sh) = target_prefix.strip_prefix("dc/") {
                     SymbolTarget::Dc(parse_dc_shorthand(sh)?)
                 } else {
-                    check_user_ident_for(
+                    check_valid_ident(
                         target_prefix,
                         target_tok.span,
                         "structNew target",
-                        self.dialect,
                     )?;
                     SymbolTarget::Ident(target_prefix.to_owned())
                 };
@@ -3121,12 +3104,7 @@ impl Parser {
                     "Expected '/name' or '/dc/<shorthand>' after '{ty}' at {}, found '{suffix_word}'",
                     next_tok.span
                 );
-                check_user_ident_for(
-                    name,
-                    next_tok.span,
-                    "binding",
-                    self.dialect,
-                )?;
+                check_valid_ident(name, next_tok.span, "binding")?;
                 SymbolTarget::Ident(name.to_owned())
             } else {
                 bail!(
@@ -3180,7 +3158,7 @@ impl Parser {
             return Ok(Expr::ValueRef { ty, target, span });
         }
 
-        check_user_ident_for(word, span, "routine call", self.dialect)?;
+        check_valid_ident(word, span, "routine call")?;
         let arity = self.lookup_verb_arity(word).with_context(|| {
             format!("Unknown routine '{word}' at {span}")
         })?;

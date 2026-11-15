@@ -716,4 +716,115 @@ pub v/result/u64/doubleNz u64/x
         assert_eq!(ws_report.ensure_all_passed()?, 2);
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_sr3_fixture_parses_validates_roundtrips_and_runs_tests()
+    -> Result<()> {
+        let src = include_str!("fixtures/sr3/input.sr3");
+        let parsed = parser::parse_sr3_module(src)?;
+        let _validated = validator::validate_module(&parsed)?;
+
+        let tokens1 = dc_tokens::sr3_to_dc_tokens(src)?;
+        let text1 = dc_tokens::dc_tokens_to_sr3(&tokens1)?;
+        let tokens2 = dc_tokens::sr3_to_dc_tokens(&text1)?;
+        assert_eq!(tokens1, tokens2);
+
+        let report = stager_eval::run_sr3_module_inline_tests(src)?;
+        assert_eq!(report.ensure_all_passed()?, 5);
+
+        let sg = ctb_formats_dcdata::SeedGraphIndex::shared()?;
+        let sg_report =
+            seed_linker::eval_sr3_inline_tests_with_seed_graph(src, sg)?;
+        assert_eq!(sg_report.ensure_all_passed()?, 5);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_sl3_and_sr3_allow_contextual_identifiers_and_reject_collisions()
+    -> Result<()> {
+        let sr3_program = r#"ns demo/idents.
+
+pub struct rec :: u64/in u64/out u64/s u64/b u64/len u64/type u64/error.
+pub enum tag
+    in.
+    u64/out.
+    s/error.
+
+pub v/u64/useFields u64/in u64/out u64/s u64/b u64/len u64/type u64/error
+    test checks contextual identifiers in bindings fields and variants
+        in u64:1 u64:2 u64:3 u64:4 u64:5 u64:6 u64:7
+        out u64:30.
+    const rec/r structNew rec:
+        in /in
+        out /out
+        s /s
+        b /b
+        len /len
+        type /type
+        error /error
+    ::.
+    const tag/t tag:out field /r in.
+    const u64/v
+        match /t
+            case in u64:0.
+            case out u64/x wrapAdd /x u64:2.
+            case error s/txt byteLen /txt.
+        ::.
+    wrapAdd /v wrapAdd field /r type wrapAdd field /r error wrapAdd field /r len wrapAdd field /r b wrapAdd field /r s field /r out.
+"#;
+        let parsed = parser::parse_sr3_module(sr3_program)?;
+        let _validated = validator::validate_module(&parsed)?;
+        let tokens1 = dc_tokens::sr3_to_dc_tokens(sr3_program)?;
+        let text1 = dc_tokens::dc_tokens_to_sr3(&tokens1)?;
+        let tokens2 = dc_tokens::sr3_to_dc_tokens(&text1)?;
+        assert_eq!(tokens1, tokens2);
+        let report = stager_eval::run_sr3_module_inline_tests(sr3_program)?;
+        assert_eq!(report.ensure_all_passed()?, 1);
+
+        let sl3_program = r#"struct rec :: u32 u32 u32.
+struct s :: u32.
+v/u32/b u32/x :: /x.
+v/u32/useIdents u32/in u32/out u32/len u32/type u32/error
+    test allows non-type words in StageL 3
+        in u32:1 u32:2 u32:3 u32:4 u32:5
+        out u32:20.
+    const rec/r structNew rec: /in /out /len ::.
+    const s/wrap structNew s: b /error ::.
+    add field /r u32:0 add field /r u32:1 add field /r u32:2 add field /wrap u32:0 add /type /error.
+"#;
+        let sl3_parsed = parser::parse_module(sl3_program)?;
+        let _sl3_validated = validator::validate_module(&sl3_parsed)?;
+        let sl3_rep = super::eval::run_module_inline_tests(sl3_program)?;
+        assert_eq!(sl3_rep.ensure_all_passed()?, 1);
+
+        let sl3_in_routine = r#"v/u32/in u32/out
+    test allows routines named after test keywords
+        in u32:4
+        out u32:4.
+    /out.
+"#;
+        let in_rep = super::eval::run_module_inline_tests(sl3_in_routine)?;
+        assert_eq!(in_rep.ensure_all_passed()?, 1);
+
+        // Built-in type keywords must still be rejected as type declarations
+        assert!(parser::parse_sr3_module("brand u64/i32.\n").is_err());
+        assert!(parser::parse_sr3_module("type u64/s.\n").is_err());
+        assert!(
+            parser::parse_sr3_module("struct option :: u64/x.\n").is_err()
+        );
+        assert!(parser::parse_sr3_module("enum result unit.\n").is_err());
+
+        // Built-in expression forms and verbs must still be rejected as routine names
+        assert!(
+            parser::parse_sr3_module("v/u64/if u64/x :: /x.\n").is_err()
+        );
+        assert!(
+            parser::parse_sr3_module("v/u64/add u64/x :: /x.\n").is_err()
+        );
+        assert!(
+            parser::parse_sr3_module("v/u64/match u64/x :: /x.\n").is_err()
+        );
+        assert!(parser::parse_module("v/u32/add u32/x :: /x.\n").is_err());
+        Ok(())
+    }
 }

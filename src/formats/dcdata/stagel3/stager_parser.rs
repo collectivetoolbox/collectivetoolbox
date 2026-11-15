@@ -34,7 +34,7 @@ use super::ast::{
     StageRUnaryOp, StructTypeRef, SymbolTarget, parse_dc_shorthand,
 };
 use super::parser::{
-    LexKind, LexToken, Parser, check_user_ident_for,
+    LexKind, LexToken, Parser, check_type_decl_ident, check_valid_ident,
     parse_dc_directive_comment, parse_quoted_literal_bytes,
     parse_tup_type_outer_ctors_for, parse_type_segments_with_ctx,
 };
@@ -126,7 +126,7 @@ pub(super) fn opens_double_colon_block(
     false
 }
 
-fn match_stager_unary_op(word: &str) -> Option<StageRUnaryOp> {
+pub(super) fn match_stager_unary_op(word: &str) -> Option<StageRUnaryOp> {
     match word {
         "neg" => Some(StageRUnaryOp::TotalNeg),
         "isSome" => Some(StageRUnaryOp::IsSome),
@@ -142,7 +142,7 @@ fn match_stager_unary_op(word: &str) -> Option<StageRUnaryOp> {
     }
 }
 
-fn match_stager_binary_op(word: &str) -> Option<StageRBinaryOp> {
+pub(super) fn match_stager_binary_op(word: &str) -> Option<StageRBinaryOp> {
     match word {
         "add" => Some(StageRBinaryOp::TotalAdd),
         "sub" => Some(StageRBinaryOp::TotalSub),
@@ -162,7 +162,7 @@ fn match_stager_binary_op(word: &str) -> Option<StageRBinaryOp> {
     }
 }
 
-fn match_stager_ternary_op(word: &str) -> Option<StageRTernaryOp> {
+pub(super) fn match_stager_ternary_op(word: &str) -> Option<StageRTernaryOp> {
     match word {
         "slice" => Some(StageRTernaryOp::TotalSlice),
         "bufSet" => Some(StageRTernaryOp::TotalBufSet),
@@ -170,7 +170,9 @@ fn match_stager_ternary_op(word: &str) -> Option<StageRTernaryOp> {
     }
 }
 
-fn match_stager_shared_core_unary_op(word: &str) -> Option<CoreUnaryOp> {
+pub(super) fn match_stager_shared_core_unary_op(
+    word: &str,
+) -> Option<CoreUnaryOp> {
     match word {
         "bitNot" => Some(CoreUnaryOp::BitNot),
         "not" => Some(CoreUnaryOp::Not),
@@ -183,7 +185,9 @@ fn match_stager_shared_core_unary_op(word: &str) -> Option<CoreUnaryOp> {
     }
 }
 
-fn match_stager_shared_core_binary_op(word: &str) -> Option<CoreBinaryOp> {
+pub(super) fn match_stager_shared_core_binary_op(
+    word: &str,
+) -> Option<CoreBinaryOp> {
     match word {
         "bitAnd" => Some(CoreBinaryOp::BitAnd),
         "bitOr" => Some(CoreBinaryOp::BitOr),
@@ -209,7 +213,7 @@ fn match_stager_shared_core_binary_op(word: &str) -> Option<CoreBinaryOp> {
     }
 }
 
-fn is_forbidden_stagel_partial_op(word: &str) -> bool {
+pub(super) fn is_forbidden_stagel_partial_op(word: &str) -> bool {
     matches!(
         word,
         "fault"
@@ -502,7 +506,9 @@ impl Parser {
             .clone();
         self.pos = self.pos.saturating_add(1);
         let desc = format!("after '{kw_name}' at {}", kw_tok.span);
-        let (inner_ty, name, _) = self.parse_typed_name_from_tokens(&desc)?;
+        let (inner_ty, name, name_span) =
+            self.parse_typed_name_from_tokens(&desc)?;
+        check_type_decl_ident(&name, name_span, kw_name, self.dialect)?;
         self.expect_dot(&format!("after '{kw_name}' declaration"))?;
         Ok(BrandTypeDecl {
             is_pub,
@@ -541,7 +547,7 @@ impl Parser {
                 name_tok.span
             );
         };
-        check_user_ident_for(&name, name_tok.span, "struct", self.dialect)?;
+        check_type_decl_ident(&name, name_tok.span, "struct", self.dialect)?;
         self.pos = self.pos.saturating_add(1);
 
         let mut fields = Vec::new();
@@ -664,7 +670,7 @@ impl Parser {
                 name_tok.span
             );
         };
-        check_user_ident_for(&name, name_tok.span, "enum", self.dialect)?;
+        check_type_decl_ident(&name, name_tok.span, "enum", self.dialect)?;
         self.pos = self.pos.saturating_add(1);
 
         let mut variants = Vec::new();
@@ -767,7 +773,7 @@ impl Parser {
         if !w.contains('/')
             && parse_tup_type_outer_ctors_for(w, StageDialect::StageR3).is_none()
         {
-            check_user_ident_for(w, tok.span, "enum variant", self.dialect)?;
+            check_valid_ident(w, tok.span, "enum variant")?;
             self.pos = self.pos.saturating_add(1);
             return Ok(EnumVariantDecl {
                 name: w.clone(),
@@ -778,7 +784,7 @@ impl Parser {
         }
         let (ty, vname, vspan) =
             self.parse_typed_name_from_tokens("enum payload variant")?;
-        check_user_ident_for(&vname, vspan, "enum variant", self.dialect)?;
+        check_valid_ident(&vname, vspan, "enum variant")?;
         Ok(EnumVariantDecl {
             name: vname,
             payload: Some(ty),
@@ -999,20 +1005,14 @@ impl Parser {
                 {
                     StructTypeRef::Dc(parse_dc_shorthand(sh)?)
                 } else {
-                    check_user_ident_for(
+                    check_valid_ident(
                         prefix,
                         span,
                         "enum constructor type",
-                        self.dialect,
                     )?;
                     StructTypeRef::Ident(prefix.to_owned())
                 };
-                check_user_ident_for(
-                    suffix,
-                    span,
-                    "enum variant",
-                    self.dialect,
-                )?;
+                check_valid_ident(suffix, span, "enum variant")?;
                 let has_payload = self
                     .stager_enum_variants
                     .get(&enum_ref)
@@ -1066,11 +1066,10 @@ impl Parser {
         let target = if let Some(sh) = target_prefix.strip_prefix("dc/") {
             SymbolTarget::Dc(parse_dc_shorthand(sh)?)
         } else {
-            check_user_ident_for(
+            check_valid_ident(
                 target_prefix,
                 target_tok.span,
                 "structNew target",
-                self.dialect,
             )?;
             SymbolTarget::Ident(target_prefix.to_owned())
         };
@@ -1097,12 +1096,7 @@ impl Parser {
                     next.span
                 );
             };
-            check_user_ident_for(
-                &fname,
-                next.span,
-                "named struct field",
-                self.dialect,
-            )?;
+            check_valid_ident(&fname, next.span, "named struct field")?;
             self.pos = self.pos.saturating_add(1);
             let val = self.parse_expr(enclosing_is_void)?;
             fields.push((fname, val, next.span));
@@ -1143,7 +1137,7 @@ impl Parser {
             let index = self.parse_u32_slot_index(span, "field")?;
             return Ok(Expr::Field { base, index, span });
         }
-        check_user_ident_for(&w, next.span, "struct field", self.dialect)?;
+        check_valid_ident(&w, next.span, "struct field")?;
         self.pos = self.pos.saturating_add(1);
         Ok(Expr::NamedField {
             base,
@@ -1183,7 +1177,7 @@ impl Parser {
                 span,
             });
         }
-        check_user_ident_for(&w, next.span, "struct field", self.dialect)?;
+        check_valid_ident(&w, next.span, "struct field")?;
         self.pos = self.pos.saturating_add(1);
         let value = Box::new(self.parse_expr(enclosing_is_void)?);
         Ok(Expr::NamedWith {
@@ -1239,11 +1233,10 @@ impl Parser {
                             var_tok.span
                         );
                     };
-                    check_user_ident_for(
+                    check_valid_ident(
                         &variant,
                         var_tok.span,
                         "match case variant",
-                        self.dialect,
                     )?;
                     self.pos = self.pos.saturating_add(1);
 
