@@ -2400,6 +2400,7 @@ v/rType/canonType compEnv/env modScope/mScope b/isStageR rawType/rt
             const l/rawType/subs field /rt u32:2.
             const buf/rType/csubs bufNew rType len /subs.
             foreach rawType/sub /subs do
+                if and /isStageR eq field /sub u32:0 u8:17 fault nop.
                 bufPush /csubs canonType /env /mScope /isStageR /sub.
             ::.
             return structNew rType: /k u32:0 bufFreeze /csubs ::.
@@ -2612,7 +2613,25 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
                     set /prev add /prev u64:1.
                 ::.
             ::
-            nop.
+            if field /pm u32:0
+                do
+                    foreach rawStruct/ns field /pm u32:8 do
+                        if field /ns u32:0 fault nop.
+                    ::.
+                    foreach rawBrand/rb field /pm u32:9 do
+                        if field /rb u32:0 fault nop.
+                    ::.
+                    foreach rawEnum/re field /pm u32:10 do
+                        if field /re u32:0 fault nop.
+                    ::.
+                    foreach rawConst/rc field /pm u32:11 do
+                        if field /rc u32:0 fault nop.
+                    ::.
+                    foreach rawRoutine/rr field /pm u32:12 do
+                        if field /rr u32:0 fault nop.
+                    ::.
+                ::
+                nop.
         bufPush /isSrBuf field /pm u32:0.
         bufPush /nsSegsBuf field /pm u32:4.
         bufPush /nsKeysBuf field /pm u32:5.
@@ -2791,16 +2810,20 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
                     if eq field get field /ns u32:3 /fj u32:0 field /fd u32:0 fault nop.
                     set /fj add /fj u64:1.
                 ::.
-                bufPush /nfs structNew namedFieldDef: field /fd u32:0 canonType /stubEnv /tScope true field /fd u32:1 ::.
+                const rType/fty canonType /stubEnv /tScope true field /fd u32:1.
+                if eq field /fty u32:0 u8:17 fault nop.
+                bufPush /nfs structNew namedFieldDef: field /fd u32:0 /fty ::.
                 set /fi add /fi u64:1.
             ::.
             bufPush /nsFull structNew namedStructDef: /mIdx field /ns u32:0 field /ns u32:1 field /ns u32:2 bufFreeze /nfs ::.
         ::.
 
         foreach rawBrand/rb field /pm u32:9 do
+            const rType/bty canonType /stubEnv /tScope true field /rb u32:4.
+            if eq field /bty u32:0 u8:17 fault nop.
             bufPush /bFull structNew brandDef:
                 /mIdx field /rb u32:0 field /rb u32:1 field /rb u32:2 field /rb u32:3
-                canonType /stubEnv /tScope true field /rb u32:4
+                /bty
             ::.
         ::.
 
@@ -2819,6 +2842,7 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
                 if field /vd u32:1
                     do
                         const rType/pty canonType /stubEnv /tScope true field /vd u32:2.
+                        if eq field /pty u32:0 u8:17 fault nop.
                         const u32/slotIdx conv len /slots u32.
                         bufPush /slots /pty.
                         bufPush /evs structNew enumVarDef: field /vd u32:0 true /pty /slotIdx ::.
@@ -2855,6 +2879,7 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
 
         foreach rawConst/rc field /pm u32:11 do
             const rType/cty canonType /typedEnv /tScope /isSr field /rc u32:2.
+            if and /isSr eq field /cty u32:0 u8:17 fault nop.
             bufPush /vFull structNew valDef: /mIdx field /rc u32:0 field /rc u32:1 field /rc u32:3 /cty ::.
         ::.
 
@@ -2863,9 +2888,12 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
         while lt /ri len /rrouts do
             const rawRoutine/rr get /rrouts /ri.
             const rType/retTy canonType /typedEnv /tScope /isSr field /rr u32:2.
+            if and /isSr eq field /retTy u32:0 u8:17 fault nop.
             const buf/rType/ptys bufNew rType len field /rr u32:4.
             foreach paramDecl/pd field /rr u32:4 do
-                bufPush /ptys canonType /typedEnv /tScope /isSr field /pd u32:0.
+                const rType/pty canonType /typedEnv /tScope /isSr field /pd u32:0.
+                if and /isSr eq field /pty u32:0 u8:17 fault nop.
+                bufPush /ptys /pty.
             ::.
             const l/rType/pList bufFreeze /ptys.
             const l/u8/origName field /rr u32:3.
@@ -4991,9 +5019,11 @@ v/void/lowerExpr buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfN
         nop.
     if eq /k u8:13
         do
+            const rType/cty canonType /env /mScope true get /rts u64:0.
+            if eq field /cty u32:0 u8:17 fault nop.
             emitShort /out u32:2199.
             emitOptAtom /out tupNew: ne /aux u32:0 field /node u32:2 ::.
-            emitLoweredType /out /env /mScope /selfNsKey /uses /stdImports /crossDcs /synths canonType /env /mScope true get /rts u64:0.
+            emitLoweredType /out /env /mScope /selfNsKey /uses /stdImports /crossDcs /synths /cty.
             emitIdent /out field /node u32:3.
             lowerExpr /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym get /args u64:0.
             return.
@@ -5660,6 +5690,7 @@ v/void/lowerExpr buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfN
 : @dc l8589983111
 v/void/lowerRoutine buf/dcVal/out compEnv/env modScope/mScope l/nestedSig/outerNsigs l/u8/selfNsKey l/useItem/uses buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym rawRoutine/rr l/u8/emitName
     const rType/retTy canonType /env /mScope true field /rr u32:2.
+    if eq field /retTy u32:0 u8:17 fault nop.
     emitShort /out u32:2203.
     emitBool /out field /rr u32:0.
     emitOptAtom /out field /rr u32:1.
@@ -5670,6 +5701,7 @@ v/void/lowerRoutine buf/dcVal/out compEnv/env modScope/mScope l/nestedSig/outerN
     const buf/localVar/pVarsBuf bufNew localVar len /params.
     foreach paramDecl/pd /params do
         const rType/pty canonType /env /mScope true field /pd u32:0.
+        if eq field /pty u32:0 u8:17 fault nop.
         emitShort /out u32:2205.
         emitLoweredType /out /env /mScope /selfNsKey /uses /stdImports /crossDcs /synths /pty.
         emitIdent /out field /pd u32:1.
@@ -5710,7 +5742,7 @@ v/void/lowerStageRModule buf/dcVal/out compEnv/env modScope/mScope parsedMod/pm
     const buf/tup: u8 dcVal ::/stdImports bufNew tup: u8 dcVal :: u64:8.
     const buf/tup: l/l/dcVal dcVal ::/crossDcs bufNew tup: l/l/dcVal dcVal :: u64:4.
     const buf/synthImport/synths bufNew synthImport u64:4.
-    const buf/u64/gensym bufFill u64:1 u64:0.
+    const buf/u64/gensym bufFill u64:0 u64:1.
 
     : 1. Named structs -> positional StageL 3 structs (`Dc 2217 .. Dc 2218`).
     foreach namedStructDef/nd field /env u32:4 do

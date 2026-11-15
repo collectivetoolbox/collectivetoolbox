@@ -5159,4 +5159,107 @@ v/l/u8/step l/u8/inp
         );
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_dc_1936_executes_real_stager3_via_pinned_f1681_and_f1680_chain()
+    -> Result<()> {
+        use ctb_formats_dcstring::syntax::DatasetRuleResolver;
+
+        let shared_sg = SeedGraphIndex::shared()?;
+        let shared_res = DatasetRuleResolver::from_seed_graph(shared_sg)?;
+        let head_pin = shared_sg.system_block_most_recent_node_id().unwrap();
+
+        let mut limits = DcWasmResourceLimits::default();
+        limits.max_instructions_per_step = 1_000_000_000;
+        limits.max_memory_pages = 1024;
+        limits.max_step_output_bytes = 32 * 1024 * 1024;
+        limits.max_session_output_bytes = 64 * 1024 * 1024;
+        let watchdog = DcWasmWatchdogLimits::default()
+            .with_hard_max_instructions_per_step(1_000_000_000);
+        let stager_adm =
+            SystemSupervisorAdmission::admit_execution_kernel(limits, watchdog)?;
+
+        let sr3_src = r#"ns app/kernel_stager.
+
+brand u32/tagId.
+
+struct jobSpec
+    tagId/id.
+    i32/offset.
+
+enum jobMode
+    echo.
+    i32/boost.
+
+v/result/i32/evalJob jobSpec/spec jobMode/mode
+    const i32/base conv? unwrap field /spec id i32.
+    const i32/sum add? /base field /spec offset.
+    match /mode
+        case echo result/i32:ok /sum.
+        case boost i32/k add /sum /k.
+    ::.
+
+pub v/l/u8/step l/u8/input
+    const jobSpec/spec structNew jobSpec:
+        offset i32:-3
+        id wrap u32:40 tagId
+    ::.
+    const i32/score unwrapOr evalJob /spec jobMode:boost i32:5 i32:0.
+    const s/joined implode ":" explode "," "left,right".
+    if and eq /score i32:42 eq /joined "left:right"
+        concat b"sr3:" /input
+        b"bad".
+"#;
+        let sr_tokens =
+            ctb_formats_dcstring::stagel3::seed_linker::sr3_to_dc_tokens_with_seed_graph(
+                sr3_src, shared_sg,
+            )?;
+        let build_sr_doc = |pin: Option<u128>| -> Result<DcMstring> {
+            let mut dc_str =
+                DcString::with_capacity(sr_tokens.len().saturating_mul(4));
+            if let Some(pin_id) = pin {
+                dc_str.push(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+                dc_str.push(DcChar::from_u128(pin_id));
+            }
+            for &tok in &sr_tokens {
+                dc_str.push(tok);
+            }
+            DcMstring::from_dc_str(&dc_str)
+        };
+        let pinned_sr_doc = build_sr_doc(Some(head_pin))?;
+        let unpinned_sr_doc = build_sr_doc(None)?;
+
+        let mut in_doc = DcMstring::new();
+        for ch in "payload".chars() {
+            in_doc.push_char(DcChar::from(ch));
+        }
+
+        let mut env_pinned = ExecutionContext::new(false)
+            .with_system_supervisor_admission(stager_adm.clone());
+        let trace_pinned = env_pinned.execute_dc_document_default_with_trace(
+            &pinned_sr_doc,
+            &in_doc,
+            &shared_res,
+        )?;
+        assert_eq!(
+            trace_pinned.result.output.to_dc_string()?.to_string(),
+            "sr3:payload"
+        );
+
+        // Second execution exercises unpinned head resolution (and verifies cached StageL
+        // converter quota accounting under `stager_adm`).
+        let mut env_unpinned = ExecutionContext::new(false)
+            .with_system_supervisor_admission(stager_adm);
+        let trace_unpinned = env_unpinned
+            .execute_dc_document_default_with_trace(
+                &unpinned_sr_doc,
+                &in_doc,
+                &shared_res,
+            )?;
+        assert_eq!(
+            trace_unpinned.result.output.to_dc_string()?.to_string(),
+            "sr3:payload"
+        );
+        Ok(())
+    }
 }

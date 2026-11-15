@@ -2620,6 +2620,7 @@ fn spawn_session_worker(
 
     std::thread::Builder::new()
         .name("ctb-wasm-session".to_owned())
+        .stack_size(16 * 1024 * 1024)
         .spawn(move || {
             let allow_suspend = std::rc::Rc::new(std::cell::Cell::new(false));
             let shutdown_requested =

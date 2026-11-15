@@ -306,7 +306,8 @@ v/l/u8/step l/u8/input
     #[crate::ctb_test]
     fn test_stager3_to_stagel3_and_wasm_document_transformations() -> Result<()> {
         let sg = ctb_formats_dcdata::SeedGraphIndex::shared()?;
-        let sr3_src = r#"
+        let sr3_src = r#"ns app/stager_pipe.
+
 brand u32/tag.
 
 struct boxPair

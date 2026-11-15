@@ -2914,4 +2914,619 @@ pub v/u8/bad
         );
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_stager3_to_stagel3_vm_parity_suite() -> Result<()> {
+        let handle = std::thread::Builder::new()
+            .name(String::from("sr3_to_sl3_parity"))
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| -> Result<()> {
+                use std::rc::Rc;
+
+                use super::super::dc_tokens::encode_module_to_dc_tokens;
+                use super::super::eval::{
+                    EvalConfig, RoutineOutcome, StageLWorkspaceVm, Value,
+                };
+                use super::super::parser::parse_sr3_module;
+
+                let seed_graph = SeedGraphIndex::shared()?;
+                let compiler_src = std::fs::read_to_string(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/data-src/stage_1_impls/std/stager3_to_stagel3.sl3"
+                ))?;
+                let compiler_ws = parse_and_validate_module_with_seed_graph(
+                    &compiler_src,
+                    &seed_graph,
+                )?;
+                let compiler_mod_idx = compiler_ws
+                    .modules
+                    .iter()
+                    .position(|m| {
+                        m.exports.routines.contains_key("stager3ToStagel3")
+                    })
+                    .context("Expected stager3ToStagel3 module in workspace")?;
+                let eval_cfg = EvalConfig {
+                    compute_quota: 50_000_000,
+                    max_call_depth: 50,
+                    max_bigint_bits: 1_048_576,
+                    max_seq_elems: 4_194_304,
+                };
+                let compiler_vm = StageLWorkspaceVm::from_validated_workspace(
+                    &compiler_ws,
+                    eval_cfg,
+                )?;
+
+                let encode_tokens = |tokens: &[DcChar]| -> Vec<u8> {
+                    let mut out = Vec::with_capacity(tokens.len() * 4);
+                    for t in tokens {
+                        out.extend_from_slice(&ctb_formats_dctf::encode_dctf(
+                            t.0,
+                        ));
+                    }
+                    out
+                };
+                let decode_tokens = |bytes: &[u8]| -> Result<Vec<DcChar>> {
+                    let mut out = Vec::new();
+                    let mut pos = 0usize;
+                    while pos < bytes.len() {
+                        let (cp, used) =
+                            ctb_formats_dctf::decode_dctf_buf(&bytes[pos..])
+                                .with_context(|| {
+                                    format!("Invalid DcTF at byte {pos}")
+                                })?;
+                        out.push(DcChar(cp));
+                        pos += used;
+                    }
+                    Ok(out)
+                };
+                let run_compiler =
+                    |in_tokens: &[DcChar]| -> Result<RoutineOutcome> {
+                        let in_bytes = encode_tokens(in_tokens);
+                        let arg = Value::List(Rc::new(
+                            in_bytes.into_iter().map(Value::U8).collect(),
+                        ));
+                        compiler_vm.call_routine(
+                            compiler_mod_idx,
+                            "stager3ToStagel3",
+                            vec![arg],
+                        )
+                    };
+
+                let verify_workspace = |label: &str,
+                                        inputs: &[ModuleInput<'_>],
+                                        calls: &[(&str, Vec<Value>)]|
+                 -> Result<()> {
+                    let sr3_ws =
+                        parse_and_validate_stager_workspace_with_seed_graph(
+                            inputs,
+                            &seed_graph,
+                        )
+                        .with_context(|| {
+                            format!("[{label}] validating StageR workspace")
+                        })?;
+                    let sr3_vm = StageLWorkspaceVm::from_validated_workspace(
+                        &sr3_ws, eval_cfg,
+                    )
+                    .with_context(|| format!("[{label}] building StageR VM"))?;
+                    let sr3_rep = sr3_vm.run_all_tests(&sr3_ws)?;
+                    sr3_rep.ensure_all_passed().with_context(|| {
+                        format!("[{label}] StageR inline tests failed")
+                    })?;
+
+                    let mut bundled_tokens = Vec::new();
+                    for vm in &sr3_ws.modules {
+                        bundled_tokens
+                            .extend(encode_module_to_dc_tokens(&vm.module)?);
+                    }
+                    let out = run_compiler(&bundled_tokens)?;
+                    let out_val = match out {
+                        RoutineOutcome::Returned(v) => v,
+                        RoutineOutcome::Trapped(msg) => {
+                            bail!("[{label}] stager3ToStagel3 trapped: {msg}");
+                        }
+                    };
+                    let Value::List(out_list) = out_val else {
+                        bail!(
+                            "[{label}] Expected List(u8) from stager3ToStagel3, got {out_val:?}"
+                        );
+                    };
+                    let out_bytes: Vec<u8> = out_list
+                        .iter()
+                        .map(|v| match v {
+                            Value::U8(b) => Ok(*b),
+                            other => {
+                                bail!("Expected U8 element, got {other:?}")
+                            }
+                        })
+                        .collect::<Result<_>>()?;
+                    let sl3_tokens = decode_tokens(&out_bytes)?;
+                    let sl3_ws = validate_dc_tokens_with_seed_graph(
+                        &sl3_tokens,
+                        &seed_graph,
+                    )
+                    .with_context(|| {
+                        format!(
+                            "[{label}] validating lowered StageL 3 Token-Dc stream"
+                        )
+                    })?;
+                    let sl3_vm = StageLWorkspaceVm::from_validated_workspace(
+                        &sl3_ws, eval_cfg,
+                    )
+                    .with_context(|| {
+                        format!("[{label}] building lowered StageL VM")
+                    })?;
+                    let sl3_rep = sl3_vm.run_all_tests(&sl3_ws)?;
+                    sl3_rep.ensure_all_passed().with_context(|| {
+                        format!(
+                            "[{label}] Lowered StageL 3 inline tests failed"
+                        )
+                    })?;
+
+                    let sr3_entry = sr3_ws.modules.len() - 1;
+                    let sl3_entry = sl3_ws.modules.len() - 1;
+                    for (fn_name, args) in calls {
+                        let expected = sr3_vm.call_routine(
+                            sr3_entry,
+                            fn_name,
+                            args.clone(),
+                        )?;
+                        let actual = sl3_vm.call_routine(
+                            sl3_entry,
+                            fn_name,
+                            args.clone(),
+                        )?;
+                        assert_eq!(
+                            actual, expected,
+                            "[{label}] mismatch calling '{fn_name}' with {args:?}"
+                        );
+                    }
+                    Ok(())
+                };
+
+                // 1. Pipeline transform test (`brand`, named `struct`, `enum`, `?`, `match`, `okOr`, `unwrapOr`)
+                let sr3_transform_src = r#"ns app/stager_pipe.
+
+brand u32/tag.
+
+struct boxPair
+    tag/id.
+    i32/delta.
+
+enum op
+    keep.
+    i32/shift.
+
+v/result/i32/applyOp boxPair/bp op/act
+    const u32/raw unwrap field /bp id.
+    const i32/base conv? /raw i32.
+    const i32/sum add? /base field /bp delta.
+    match /act
+        case keep result/i32:ok /sum.
+        case shift i32/s add /sum /s.
+    ::.
+
+pub v/l/u8/step l/u8/input
+    test
+        in b"hi"
+        out b"<hi>".
+    const boxPair/bp structNew boxPair:
+        delta i32:-5
+        id wrap u32:40 tag
+    ::.
+    const result/i32/res applyOp /bp op:shift i32:7.
+    if isOk /res
+        do
+            const i32/v unwrapOr okOr get l/i32: i32:42 :: u64:0 error:unexpectedNone i32:0.
+            if and eq /res result/i32:ok i32:42 eq /v i32:42
+                concat b"<" concat /input b">"
+                b"bad"
+        ::
+        b"err".
+"#;
+                verify_workspace(
+                    "sr3_transform",
+                    &[ModuleInput {
+                        source_path: Some("app/stager_pipe.sr3"),
+                        source: sr3_transform_src,
+                    }],
+                    &[(
+                        "step",
+                        vec![Value::List(Rc::new(vec![
+                            Value::U8(b'A'),
+                            Value::U8(b'!'),
+                        ]))],
+                    )],
+                )?;
+
+                // 2. Anonymous StageR 3 module + tail-recursive `match` (depth 200 > max_call_depth 50)
+                let anon_tail_src = r#"
+enum counter
+    done.
+    u64/more.
+
+v/u64/sumDown counter/c u64/acc
+    match /c
+        case done /acc.
+        case more u64/n
+            if eq /n u64:0
+                sumDown counter:done /acc
+                sumDown counter:more wrapSub /n u64:1 wrapAdd /acc /n.
+    ::.
+
+v/u64/runTail u64/n
+    test
+        in u64:200
+        out u64:20100.
+    sumDown counter:more /n u64:0.
+"#;
+                verify_workspace(
+                    "anon_tail_match",
+                    &[ModuleInput {
+                        source_path: None,
+                        source: anon_tail_src,
+                    }],
+                    &[("runTail", vec![Value::U64(200)])],
+                )?;
+
+                // 3. Multi-module StageR 3: transparent `brand` vs opaque `type`, `struct`, `enum`, overloaded `pub` verbs, `std/math` import
+                let mod_defs = r#"ns demo/defs.
+use std/math: u8Max ::.
+
+pub brand u64/meter.
+pub type u64/secretToken.
+
+pub struct point
+    meter/x.
+    meter/y.
+
+pub enum action
+    idle.
+    i32/stepBy.
+    i32/jumpBy.
+    u64/resetTo.
+
+pub meter/unitMeter wrap u64:1 meter.
+
+pub v/result/secretToken/mintToken u64/raw
+    if eq /raw u64:0
+        result/secretToken:err error:outOfBounds
+        result/secretToken:ok wrap wrapAdd /raw conv /u8Max u64 secretToken.
+
+pub v/u64/revealToken secretToken/tok
+    unwrap /tok.
+
+pub v/i64/describe i32/x
+    conv /x i64.
+
+pub v/i64/describe u64/x
+    unwrapOr conv /x i64 i64:-1.
+"#;
+                let mod_user = r#"ns demo/user.
+use demo/defs: meter secretToken point action unitMeter mintToken revealToken describe ::.
+
+v/i64/evalAction point/p action/a
+    const u64/sumM wrapAdd unwrap field /p x unwrap field /p y.
+    match /a
+        case idle describe /sumM.
+        case stepBy i32/dx wrapAdd describe /sumM describe /dx.
+        case jumpBy i32/jx wrapSub describe /sumM describe /jx.
+        else i64:999.
+    ::.
+
+pub v/result/i64/runMulti u64/seed
+    test
+        in u64:10
+        out result/i64:ok i64:1278.
+        in u64:0
+        out result/i64:err error:outOfBounds.
+    const secretToken/t mintToken? /seed.
+    const secretToken/t2 mintToken? /seed.
+    if not eq /t /t2
+        return result/i64:err error:unexpectedNone
+        nop.
+    const point/pt structNew point: y wrap u64:7 meter x /unitMeter ::.
+    const i64/a1 evalAction /pt action:stepBy i32:3.
+    const i64/a2 evalAction /pt action:jumpBy i32:5.
+    const i64/a3 evalAction /pt action:resetTo u64:99.
+    const i64/tokVal conv? revealToken /t i64.
+    result/i64:ok wrapAdd wrapAdd /a1 /a2 wrapAdd /a3 /tokVal.
+"#;
+                verify_workspace(
+                    "multi_module_nominal_overload",
+                    &[
+                        ModuleInput {
+                            source_path: Some("demo/defs.sr3"),
+                            source: mod_defs,
+                        },
+                        ModuleInput {
+                            source_path: Some("demo/user.sr3"),
+                            source: mod_user,
+                        },
+                    ],
+                    &[],
+                )?;
+
+                // 4. All 4 `match` domains (`option`, `result`, `error`, `enum`) + `?` (`option`, `result`, `result/void`) + `bufSet`
+                let flow_and_buf_src = r#"ns demo/flow.
+
+v/option/i32/doubleOpt option/i32/mx
+    const i32/x /mx?.
+    option/i32:some unwrapOr mul /x i32:2 i32:0.
+
+v/result/l/i32/buildTwo u64/idx i32/val
+    let buf/i32/b bufFill i32:0 u64:3.
+    bufSet? /b /idx /val.
+    bufSet? /b wrapAdd /idx u64:1 wrapAdd /val i32:10.
+    result/l/i32:ok bufFreeze /b.
+
+v/result/void/checkWriteBounds u64/idx
+    let buf/i32/b bufFill i32:0 u64:3.
+    bufSet? /b /idx i32:9.
+    result/void:ok nop.
+
+v/i32/codeForErr error/e
+    match /e
+        case divisionByZero i32:10.
+        case overflow i32:20.
+        case outOfBounds i32:30.
+        else i32:40.
+    ::.
+
+pub v/b/checkFlow
+    test
+        in.
+        out true.
+    const option/i32/o1 doubleOpt option/i32:some i32:21.
+    const option/i32/o2 doubleOpt option/i32:none.
+    const i32/m1 match /o1
+        case some i32/v /v.
+        case none i32:-1.
+    ::.
+    const i32/m2 match /o2
+        case some i32/v /v.
+        else i32:77.
+    ::.
+    const result/l/i32/wOk buildTwo u64:0 i32:5.
+    const result/void/wBad checkWriteBounds u64:3.
+    const l/i32/frozen unwrapOr /wOk l/i32: ::.
+    const i32/wErrCode match /wBad
+        case ok i32:0.
+        case err error/e codeForErr /e.
+    ::.
+    const option/l/i32/slOk slice /frozen u64:0 u64:2.
+    const option/l/i32/slBad slice /frozen u64:2 u64:5.
+    and eq /m1 i32:42
+        and eq /m2 i32:77
+            and isOk /wOk
+                and eq /wErrCode i32:30
+                    and eq /slOk option/l/i32:some l/i32: i32:5 i32:15 ::
+                        isNone /slBad.
+"#;
+                verify_workspace(
+                    "flow_match_and_buf",
+                    &[ModuleInput {
+                        source_path: Some("demo/flow.sr3"),
+                        source: flow_and_buf_src,
+                    }],
+                    &[("checkFlow", vec![])],
+                )?;
+
+                // 5. Numeric suite: `i128`, `u128`, `int`, `rat`, total arithmetic, `truncRem` vs `mod`, shifts, bitops, `conv`
+                let numeric_src = r#"ns demo/nums.
+
+pub v/b/checkWideInts
+    test
+        in.
+        out true.
+    const i128/a i128:-170141183460469231731687303715884105728.
+    const result/i128/negMin neg /a.
+    const result/i128/divMin div /a i128:-1.
+    const result/i128/modMin mod /a i128:-1.
+    const result/i128/remNeg truncRem i128:-7 i128:3.
+    const result/i128/modNeg mod i128:-7 i128:3.
+    const u128/uMax u128:340282366920938463463374607431768211455.
+    const result/u128/uOv add /uMax u128:1.
+    const result/u128/shBad shl u128:1 u32:128.
+    const result/u128/shOk shl u128:1 u32:100.
+    const u32/pc popcnt /uMax.
+    and isErr /negMin
+        and isErr /divMin
+            and eq /modMin result/i128:ok i128:0
+                and eq /remNeg result/i128:ok i128:-1
+                    and eq /modNeg result/i128:ok i128:2
+                        and isErr /uOv
+                            and isErr /shBad
+                                and isOk /shOk
+                                    eq /pc u32:128.
+
+pub v/result/b/checkBigIntAndRat
+    test
+        in.
+        out result/b:ok true.
+    const int/big mul int:1000000000000000000000000000000000000000 int:-3.
+    const result/int/q div /big int:1000000000000000000000000000000000000000.
+    const result/int/em mod int:-7 int:-3.
+    const result/int/tr truncRem int:-7 int:-3.
+    const rat/r1 makeRat? int:-6 int:8.
+    const rat/r2 makeRat? int:1 int:4.
+    const rat/rSum add /r1 /r2.
+    const rat/rWhole mul /rSum makeRat? int:-4 int:1.
+    const result/int/cBad conv /rSum int.
+    const result/int/cGood conv /rWhole int.
+    const result/rat/rDiv0 div /r1 makeRat? int:0 int:1.
+    const rat/wide conv int:-42 rat.
+    result/b:ok
+        and eq /q result/int:ok int:-3
+            and eq /em result/int:ok int:2
+                and eq /tr result/int:ok int:-1
+                    and eq /rSum makeRat? int:-1 int:2
+                        and isErr /cBad
+                            and eq /cGood result/int:ok int:2
+                                and eq /wide makeRat? int:-42 int:1
+                                    isErr /rDiv0.
+"#;
+                verify_workspace(
+                    "numeric_wide_bigint_rat",
+                    &[ModuleInput {
+                        source_path: Some("demo/nums.sr3"),
+                        source: numeric_src,
+                    }],
+                    &[("checkWideInts", vec![])],
+                )?;
+
+                // 6. Document Character & string suite: `dcFromU128`, `u128FromDc`, `dcsFromS`, `sFromDcs`, `byteLen` (including embedded Base64 binary runs), `explode`/`implode` (`s`, `dcs`, `l/i32`)
+                let dc_strings_src = r#"ns demo/dcstrings.
+
+pub v/result/b/checkDcAndStrings
+    test
+        in.
+        out result/b:ok true.
+    const dc/cu100 dcFromU128? u128:256.
+    const dc/c256 dcFromU128? u128:1114368.
+    const b/okDc and eq /cu100 dc:u100 and eq /c256 dc:256 eq u128FromDc /c256 u128:1114368.
+    const b/badSurrogate eq dcFromU128 u128:55296 result/dc:err error:invalidDc.
+
+    const dcs/pure dcsFromS? "hi @256@".
+    const b/okLen and eq len /pure u64:4 eq get /pure u64:3 option/dc:some dc:256.
+    const b/okOob and eq get /pure u64:9 option/dc:none eq slice /pure u64:3 u64:1 option/dcs:none.
+    const dcs/sl slice? /pure u64:1 u64:3.
+    const s/back sFromDcs /sl.
+    const b/okRound eq /back "i ".
+
+    const dcs/dsub dcsFromS? "a:b:c".
+    const dcs/dcolon dcsFromS? ":".
+    const dcs/ddash dcsFromS? "-".
+    const l/dcs/dparts explode /dcolon /dsub.
+    const dcs/drejoined implode /ddash /dparts.
+    const b/okDcsSplit eq sFromDcs /drejoined "a-b-c".
+
+    const s/withBin "pre:@203@@127@@127@@127@@127@@204@:post".
+    const b/binRejected eq dcsFromS /withBin result/dcs:err error:invalidEncoding.
+    const u64/blen byteLen /withBin.
+    const l/s/parts explode ":" /withBin.
+    const s/rejoined implode ":" /parts.
+    const l/s/chars explode "" "a@256@@203@@127@@127@@127@@127@@204@".
+    const b/okBinSplit and eq /rejoined /withBin and eq len /parts u64:3 and eq len /chars u64:3 eq get /parts u64:1 option/s:some "@203@@127@@127@@127@@127@@204@".
+
+    const l/l/i32/lparts explode l/i32: i32:0 :: l/i32: i32:1 i32:0 i32:2 i32:3 ::.
+    const l/i32/ljoined implode l/i32: i32:9 :: /lparts.
+    const l/l/i32/charsSplit explode l/i32: :: l/i32: i32:7 i32:8 ::.
+    const b/okListSplit and eq /ljoined l/i32: i32:1 i32:9 i32:2 i32:3 :: eq len /charsSplit u64:2.
+
+    result/b:ok and /okDc and /badSurrogate and /okLen and /okOob and /okRound and /okDcsSplit and /binRejected and gt /blen u64:24 and /okBinSplit /okListSplit.
+"#;
+                verify_workspace(
+                    "dc_and_strings",
+                    &[ModuleInput {
+                        source_path: Some("demo/dcstrings.sr3"),
+                        source: dc_strings_src,
+                    }],
+                    &[],
+                )?;
+
+                // 7. Negative compile-time rejection tests in `stager3ToStagel3`:
+                // 7a. `pub` item in anonymous StageR 3 module (no `ns`) must trap!
+                let bad_anon_pub = sr3_to_dc_tokens_with_seed_graph(
+                    "pub v/i32/bad\n    i32:1.\n",
+                    &seed_graph,
+                )?;
+                assert!(
+                    matches!(
+                        run_compiler(&bad_anon_pub)?,
+                        RoutineOutcome::Trapped(_)
+                    ),
+                    "Expected anonymous StageR 'pub' item to trap in stager3ToStagel3"
+                );
+
+                // 7b. Non-exhaustive `enum` match without `else` must trap!
+                let bad_non_exhaustive = sr3_to_dc_tokens_with_seed_graph(
+                    concat!(
+                        "ns bad/m.\n",
+                        "enum color\n    red.\n    blue.\n\n",
+                        "pub v/i32/f color/c\n",
+                        "    match /c\n        case red i32:1.\n    ::.\n",
+                    ),
+                    &seed_graph,
+                )?;
+                assert!(
+                    matches!(
+                        run_compiler(&bad_non_exhaustive)?,
+                        RoutineOutcome::Trapped(_)
+                    ),
+                    "Expected non-exhaustive enum match to trap in stager3ToStagel3"
+                );
+
+                // 7c. Cross-module `unwrap` on opaque `type` must trap!
+                let opq_def = parse_sr3_module(
+                    "ns bad/opq.\npub type u64/tok.\npub v/tok/mk u64/x\n    wrap /x tok.\n",
+                )?;
+                let mut import_ctx = HashMap::new();
+                let mut exp = NamespaceExports::default();
+                exp.brand_types.insert(
+                    String::from("tok"),
+                    BrandTypeDef {
+                        namespace: Some(String::from("bad/opq")),
+                        original_name: String::from("tok"),
+                        is_opaque: true,
+                        inner_ty: StageLType::U64,
+                        is_pub: true,
+                        dc_id: None,
+                        span: super::super::ast::Span { line: 1, col: 1 },
+                    },
+                );
+                exp.routines.insert(
+                    String::from("mk"),
+                    vec![RoutineSig {
+                        return_type: StageLType::Struct(
+                            super::super::ast::StructTypeRef::Ident(
+                                String::from("tok"),
+                            ),
+                        ),
+                        params: vec![StageLType::U64],
+                        is_pub: true,
+                        dc_id: None,
+                    }],
+                );
+                import_ctx.insert(String::from("bad/opq"), exp);
+                let sr_import_ctx = build_stager_import_context(
+                    "ns bad/caller.\nuse bad/opq: tok mk ::.\npub v/u64/steal\n    unwrap mk u64:5.\n",
+                    &import_ctx,
+                    &HashMap::new(),
+                )?;
+                let opq_caller = parse_sr3_module_with_imports(
+                    "ns bad/caller.\nuse bad/opq: tok mk ::.\npub v/u64/steal\n    unwrap mk u64:5.\n",
+                    &sr_import_ctx,
+                )?;
+                let mut bad_opq_tokens = encode_module_to_dc_tokens(&opq_def)?;
+                bad_opq_tokens
+                    .extend(encode_module_to_dc_tokens(&opq_caller)?);
+                assert!(
+                    matches!(
+                        run_compiler(&bad_opq_tokens)?,
+                        RoutineOutcome::Trapped(_)
+                    ),
+                    "Expected cross-module unwrap on opaque 'type' to trap in stager3ToStagel3"
+                );
+
+                // 7d. `buf/T` parameter in StageR 3 routine must trap!
+                let bad_buf_param_mod = parse_sr3_module(
+                    "ns bad/bufp.\nv/void/bad buf/i32/b\n    nop.\n",
+                )?;
+                let bad_buf_tokens =
+                    encode_module_to_dc_tokens(&bad_buf_param_mod)?;
+                assert!(
+                    matches!(
+                        run_compiler(&bad_buf_tokens)?,
+                        RoutineOutcome::Trapped(_)
+                    ),
+                    "Expected StageR routine 'buf/T' parameter to trap in stager3ToStagel3"
+                );
+
+                Ok(())
+            })
+            .context("Failed to spawn sr3_to_sl3_parity thread")?;
+        handle
+            .join()
+            .map_err(|_| anyhow::anyhow!("sr3_to_sl3_parity thread panicked"))?
+    }
 }

@@ -456,8 +456,12 @@ impl StageLWorkspaceVm {
         quota: &mut u64,
     ) -> Result<RoutineOutcome> {
         if depth > self.config.max_call_depth {
+            let name = match &callee {
+                CallableRoutine::Top { key, .. } => key.name.as_str(),
+                CallableRoutine::Nested(cv) => cv.decl.name.as_str(),
+            };
             return Ok(RoutineOutcome::Trapped(format!(
-                "max non-tail call depth ({}) exceeded",
+                "max non-tail call depth ({}) exceeded calling '{name}'",
                 self.config.max_call_depth
             )));
         }
@@ -510,7 +514,10 @@ impl StageLWorkspaceVm {
                     return Ok(RoutineOutcome::Returned(v));
                 }
                 EvalSignal::Fault(msg) => {
-                    return Ok(RoutineOutcome::Trapped(msg));
+                    return Ok(RoutineOutcome::Trapped(format!(
+                        "{msg} <- {}",
+                        decl.name
+                    )));
                 }
                 EvalSignal::TailCall {
                     callee: next_callee,
