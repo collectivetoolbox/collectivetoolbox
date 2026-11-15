@@ -1660,6 +1660,30 @@ impl<'a> ModuleValidator<'a> {
             "StageR 3 operator '{}' is not supported in StageL 3 at {span}",
             op.keyword()
         );
+        if op == StageRBinaryOp::TotalGet {
+            let lty =
+                self.check_buf_target(left, op.keyword(), false, state, ctx)?;
+            let rty = self.check_subexpr(right, state, ctx)?;
+            ensure!(
+                types_compatible(&rty, &StageLType::U64),
+                "'get' index must be 'u64', found '{rty}' at {}",
+                right.span()
+            );
+            if lty == StageLType::Never || rty == StageLType::Never {
+                return Ok(StageLType::Never);
+            }
+            return match lty {
+                StageLType::List(el) | StageLType::Buf(el) => {
+                    Ok(StageLType::Option(el))
+                }
+                StageLType::Dcs => {
+                    Ok(StageLType::Option(Box::new(StageLType::Dc)))
+                }
+                other => bail!(
+                    "'get' sequence operand must be 'l/T', 'buf/T', or 'dcs', found '{other}' at {span}"
+                ),
+            };
+        }
         let lty = self.check_subexpr(left, state, ctx)?;
         let rty = self.check_subexpr(right, state, ctx)?;
 
@@ -1734,26 +1758,11 @@ impl<'a> ModuleValidator<'a> {
                 }
             }
             StageRBinaryOp::TotalGet => {
-                ensure!(
-                    rty == StageLType::U64 || rty == StageLType::Never,
-                    "'get' index must be 'u64', found '{rty}' at {span}"
-                );
-                if lty == StageLType::Never || rty == StageLType::Never {
-                    return Ok(StageLType::Never);
-                }
-                match lty {
-                    StageLType::List(inner) => Ok(StageLType::Option(inner)),
-                    StageLType::Dcs => {
-                        Ok(StageLType::Option(Box::new(StageLType::Dc)))
-                    }
-                    _ => bail!(
-                        "StageR 'get' requires 'l/T' or 'dcs' operand, found '{lty}' at {span}"
-                    ),
-                }
+                unreachable!("TotalGet handled before check_subexpr above")
             }
             StageRBinaryOp::UnwrapOr => {
                 if lty == StageLType::Never {
-                    return Ok(StageLType::Never);
+                    return Ok(rty);
                 }
                 let ok_ty = match lty {
                     StageLType::Option(inner) | StageLType::Result(inner) => {
@@ -1886,11 +1895,11 @@ impl<'a> ModuleValidator<'a> {
                     return Ok(StageLType::Never);
                 }
                 match seq_ty {
-                    StageLType::List(_)
-                    | StageLType::S
-                    | StageLType::Dcs => Ok(StageLType::Option(Box::new(seq_ty))),
+                    StageLType::List(_) | StageLType::Dcs => {
+                        Ok(StageLType::Option(Box::new(seq_ty)))
+                    }
                     _ => bail!(
-                        "StageR 'slice' requires 'l/T', 's', or 'dcs', found '{seq_ty}' at {span}"
+                        "StageR 'slice' requires 'l/T' or 'dcs', found '{seq_ty}' at {span}"
                     ),
                 }
             }

@@ -996,4 +996,24 @@ pub v/u64/boom
         let _ = StageDialect::StageR3;
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn stager_eval_get_on_buf_in_and_out_of_bounds() -> Result<()> {
+        let src = r#"ns eval/bufget.
+pub v/tup: i32 b ::/getBufAndFreeze
+    test verifies StageR get on live buf/i32 before bufFreeze
+        in.
+        out tupNew: i32:42 true ::
+    let buf/i32/b bufNew i32 u64:2.
+    bufPush /b i32:42.
+    const option/i32/hit get /b u64:0.
+    const option/i32/miss get /b u64:5.
+    const l/i32/out bufFreeze /b.
+    const u64/_n len /out.
+    tupNew: unwrapOr /hit i32:0 eq /miss option/i32:none ::.
+"#;
+        let report = run_sr3_module_inline_tests(src)?;
+        assert_eq!(report.ensure_all_passed()?, 1);
+        Ok(())
+    }
 }

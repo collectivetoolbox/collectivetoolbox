@@ -1597,4 +1597,58 @@ pub v/i32/useOpaque i32/a i32/b
         }
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn stager_get_accepts_live_buf_and_rejects_frozen_buf() -> Result<()> {
+        let valid_src = r#"ns demo/bufget_ok.
+v/result/i32/peekFirst :: do
+    let buf/i32/b bufNew i32 u64:2.
+    bufPush /b i32:7.
+    let option/i32/x get /b u64:0.
+    let l/i32/out bufFreeze /b.
+    const u64/_n len /out.
+    okOr /x error:unexpectedNone.
+::.
+"#;
+        validate_sr3(valid_src)?;
+
+        let frozen_src = r#"ns demo/bufget_frozen.
+v/option/i32/peekAfterFreeze :: do
+    let buf/i32/b bufNew i32 u64:2.
+    bufPush /b i32:7.
+    let l/i32/out bufFreeze /b.
+    const u64/_n len /out.
+    get /b u64:0.
+::.
+"#;
+        let err = validate_sr3(frozen_src)
+            .expect_err("get after bufFreeze must fail validation")
+            .to_string();
+        assert!(
+            err.contains("already consumed by 'bufFreeze'"),
+            "Unexpected frozen-buf get error: {err}"
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn stager_slice_rejects_s_and_accepts_dcs_and_list() -> Result<()> {
+        let bad_s_slice = r#"ns demo/slice_s.
+v/option/s/bad :: slice "hello" u64:0 u64:2.
+"#;
+        let err = validate_sr3(bad_s_slice)
+            .expect_err("StageR slice must reject 's'")
+            .to_string();
+        assert!(
+            err.contains("requires 'l/T' or 'dcs'"),
+            "Unexpected StageR slice error: {err}"
+        );
+
+        let valid_src = r#"ns demo/slice_ok.
+v/option/dcs/subDcs dcs/xs :: slice /xs u64:0 u64:2.
+v/option/l/u8/subList :: slice l/u8: u8:1 u8:2 :: u64:0 u64:1.
+"#;
+        validate_sr3(valid_src)?;
+        Ok(())
+    }
 }
