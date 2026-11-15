@@ -11,7 +11,7 @@ ctb-utilities = { path = "../../utilities" }
 
 html2text = "0.16.5"
 html5ever = "0.38.0"
-ammonia = "4"
+ammonia = "4.2.5"
 html-escape = "0.2.13"
 include_dir = { version = "0.7.4", features = ["glob"] }
 regex = "1.12.2"
