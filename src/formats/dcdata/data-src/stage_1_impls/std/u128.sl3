@@ -1,0 +1,621 @@
+: SPDX-License-Identifier: AGPL-3.0-or-later
+:
+: This file is part of Collective Toolbox, a database and document workspace and utilities.
+: Copyright (C) 2026 Collective Toolbox Developers
+: Contact: info@collectivetoolbox.com
+:
+: This program is free software: you can redistribute it and/or modify it under
+: the terms of the GNU Affero General Public License as published by the Free
+: Software Foundation, either version 3 of the License, or (at your option) any
+: later version.
+:
+: This program is distributed in the hope that it will be useful, but WITHOUT ANY
+: WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+: A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+:
+: You should have received a copy of the GNU Affero General Public License along
+: with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+: Stage 1 128-bit unsigned integer (`u128Val`) arithmetic, bitwise, shift, and conversion primitives
+: plus canonical StageR 3 diagnostic `error` tag constants (`u8:0`..`u8:7`).
+ns std/u128.
+
+: Two-limb little-endian 128-bit unsigned integer: slot 0 = `lo` (`u64`), slot 1 = `hi` (`u64`).
+: @dc l8589980643
+pub struct u128Val :: u64 u64.
+
+: StageR 3 `error:overflow` tag (`0`).
+: @dc l8589980736
+pub u8/errOverflow u8:0.
+
+: StageR 3 `error:divisionByZero` tag (`1`).
+: @dc l8589980737
+pub u8/errDivisionByZero u8:1.
+
+: StageR 3 `error:outOfBounds` tag (`2`).
+: @dc l8589980738
+pub u8/errOutOfBounds u8:2.
+
+: StageR 3 `error:frozenBuffer` tag (`3`).
+: @dc l8589980739
+pub u8/errFrozenBuffer u8:3.
+
+: StageR 3 `error:invalidEncoding` tag (`4`).
+: @dc l8589980740
+pub u8/errInvalidEncoding u8:4.
+
+: StageR 3 `error:invalidDc` tag (`5`).
+: @dc l8589980741
+pub u8/errInvalidDc u8:5.
+
+: StageR 3 `error:parseFailure` tag (`6`).
+: @dc l8589980742
+pub u8/errParseFailure u8:6.
+
+: StageR 3 `error:unexpectedNone` tag (`7`).
+: @dc l8589980743
+pub u8/errUnexpectedNone u8:7.
+
+: Constant `0` (`u128:0`).
+: @dc l8589980745
+pub u128Val/u128Zero structNew u128Val: u64:0 u64:0 ::.
+
+: Constant `1` (`u128:1`).
+: @dc l8589980746
+pub u128Val/u128One structNew u128Val: u64:1 u64:0 ::.
+
+: Constant `2^128 - 1` (`u128Max`).
+: @dc l8589980747
+pub u128Val/u128Max structNew u128Val: u64:18446744073709551615 u64:18446744073709551615 ::.
+
+: Constructs `u128Val` from `(lo, hi)` 64-bit limbs.
+: @dc l8589980748
+pub v/u128Val/u128New u64/lo u64/hi
+    test
+        in u64:42 u64:7
+        out structNew u128Val: u64:42 u64:7 ::.
+    structNew u128Val: /lo /hi ::.
+
+: Widens `u64` to `u128Val`.
+: @dc l8589980749
+pub v/u128Val/u128FromU64 u64/x
+    test
+        in u64:99
+        out structNew u128Val: u64:99 u64:0 ::.
+    structNew u128Val: /x u64:0 ::.
+
+: Widens `u32` to `u128Val`.
+: @dc l8589980750
+pub v/u128Val/u128FromU32 u32/x
+    test
+        in u32:12345
+        out structNew u128Val: u64:12345 u64:0 ::.
+    structNew u128Val: conv /x u64 u64:0 ::.
+
+: Widens `u8` to `u128Val`.
+: @dc l8589980751
+pub v/u128Val/u128FromU8 u8/x
+    test
+        in u8:255
+        out structNew u128Val: u64:255 u64:0 ::.
+    structNew u128Val: conv /x u64 u64:0 ::.
+
+: Checked narrowing `u128Val -> result/u64` (`tup: b u64 u8 ::`).
+: @dc l8589980752
+pub v/tup: b u64 u8 ::/u128ToU64 u128Val/x
+    test
+        in structNew u128Val: u64:500 u64:0 ::
+        out tupNew: true u64:500 u8:0 ::.
+        in structNew u128Val: u64:0 u64:1 ::
+        out tupNew: false u64:0 u8:0 ::.
+    if eq field /x u32:1 u64:0
+        tupNew: true field /x u32:0 u8:0 ::
+        tupNew: false u64:0 /errOverflow ::.
+
+: Checked narrowing `u128Val -> result/u32` (`tup: b u32 u8 ::`).
+: @dc l8589980753
+pub v/tup: b u32 u8 ::/u128ToU32 u128Val/x
+    test
+        in structNew u128Val: u64:4294967295 u64:0 ::
+        out tupNew: true u32:4294967295 u8:0 ::.
+        in structNew u128Val: u64:4294967296 u64:0 ::
+        out tupNew: false u32:0 u8:0 ::.
+    if and eq field /x u32:1 u64:0 le field /x u32:0 u64:4294967295
+        tupNew: true conv field /x u32:0 u32 u8:0 ::
+        tupNew: false u32:0 /errOverflow ::.
+
+: Checked narrowing `u128Val -> result/u8` (`tup: b u8 u8 ::`).
+: @dc l8589980754
+pub v/tup: b u8 u8 ::/u128ToU8 u128Val/x
+    test
+        in structNew u128Val: u64:255 u64:0 ::
+        out tupNew: true u8:255 u8:0 ::.
+        in structNew u128Val: u64:256 u64:0 ::
+        out tupNew: false u8:0 u8:0 ::.
+    if and eq field /x u32:1 u64:0 le field /x u32:0 u64:255
+        tupNew: true conv field /x u32:0 u8 u8:0 ::
+        tupNew: false u8:0 /errOverflow ::.
+
+: Checked narrowing `u128Val -> result/i64` (`tup: b i64 u8 ::`).
+: @dc l8589980755
+pub v/tup: b i64 u8 ::/u128ToI64 u128Val/x
+    test
+        in structNew u128Val: u64:9223372036854775807 u64:0 ::
+        out tupNew: true i64:9223372036854775807 u8:0 ::.
+        in structNew u128Val: u64:9223372036854775808 u64:0 ::
+        out tupNew: false i64:0 u8:0 ::.
+    if and eq field /x u32:1 u64:0 le field /x u32:0 u64:9223372036854775807
+        tupNew: true conv field /x u32:0 i64 u8:0 ::
+        tupNew: false i64:0 /errOverflow ::.
+
+: Checked narrowing `u128Val -> result/i32` (`tup: b i32 u8 ::`).
+: @dc l8589980756
+pub v/tup: b i32 u8 ::/u128ToI32 u128Val/x
+    test
+        in structNew u128Val: u64:2147483647 u64:0 ::
+        out tupNew: true i32:2147483647 u8:0 ::.
+        in structNew u128Val: u64:2147483648 u64:0 ::
+        out tupNew: false i32:0 u8:0 ::.
+    if and eq field /x u32:1 u64:0 le field /x u32:0 u64:2147483647
+        tupNew: true conv field /x u32:0 i32 u8:0 ::
+        tupNew: false i32:0 /errOverflow ::.
+
+: Checked conversion `i64 -> result/u128` (`tup: b u128Val u8 ::`).
+: @dc l8589980757
+pub v/tup: b u128Val u8 ::/u128FromI64 i64/x
+    test
+        in i64:42
+        out tupNew: true structNew u128Val: u64:42 u64:0 :: u8:0 ::.
+        in i64:-1
+        out tupNew: false structNew u128Val: u64:0 u64:0 :: u8:0 ::.
+    if ge /x i64:0
+        tupNew: true structNew u128Val: conv /x u64 u64:0 :: u8:0 ::
+        tupNew: false /u128Zero /errOverflow ::.
+
+: Checked conversion `i32 -> result/u128` (`tup: b u128Val u8 ::`).
+: @dc l8589980758
+pub v/tup: b u128Val u8 ::/u128FromI32 i32/x
+    test
+        in i32:42
+        out tupNew: true structNew u128Val: u64:42 u64:0 :: u8:0 ::.
+        in i32:-1
+        out tupNew: false structNew u128Val: u64:0 u64:0 :: u8:0 ::.
+    if ge /x i32:0
+        tupNew: true structNew u128Val: conv /x u64 u64:0 :: u8:0 ::
+        tupNew: false /u128Zero /errOverflow ::.
+
+: Equality `a == b`.
+: @dc l8589980759
+pub v/b/u128Eq u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:1 u64:2 :: structNew u128Val: u64:1 u64:2 ::
+        out true.
+        in structNew u128Val: u64:1 u64:2 :: structNew u128Val: u64:1 u64:3 ::
+        out false.
+    eq /a /b.
+
+: Inequality `a != b`.
+: @dc l8589980760
+pub v/b/u128Ne u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:1 u64:2 :: structNew u128Val: u64:1 u64:3 ::
+        out true.
+    ne /a /b.
+
+: Unsigned `<` on `u128Val`.
+: @dc l8589980761
+pub v/b/u128Lt u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:10 u64:0 :: structNew u128Val: u64:0 u64:1 ::
+        out true.
+        in structNew u128Val: u64:5 u64:2 :: structNew u128Val: u64:6 u64:2 ::
+        out true.
+        in structNew u128Val: u64:6 u64:2 :: structNew u128Val: u64:6 u64:2 ::
+        out false.
+    if ne field /a u32:1 field /b u32:1
+        lt field /a u32:1 field /b u32:1
+        lt field /a u32:0 field /b u32:0.
+
+: Unsigned `<=` on `u128Val`.
+: @dc l8589980762
+pub v/b/u128Le u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:6 u64:2 :: structNew u128Val: u64:6 u64:2 ::
+        out true.
+    not u128Lt /b /a.
+
+: Unsigned `>` on `u128Val`.
+: @dc l8589980763
+pub v/b/u128Gt u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:0 u64:1 :: structNew u128Val: u64:99 u64:0 ::
+        out true.
+    u128Lt /b /a.
+
+: Unsigned `>=` on `u128Val`.
+: @dc l8589980764
+pub v/b/u128Ge u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:5 u64:1 :: structNew u128Val: u64:5 u64:1 ::
+        out true.
+    not u128Lt /a /b.
+
+: Wrapping `2^128` addition.
+: @dc l8589980765
+pub v/u128Val/u128WrapAdd u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:18446744073709551615 u64:0 :: structNew u128Val: u64:2 u64:0 ::
+        out structNew u128Val: u64:1 u64:1 ::.
+        in structNew u128Val: u64:18446744073709551615 u64:18446744073709551615 :: structNew u128Val: u64:1 u64:0 ::
+        out structNew u128Val: u64:0 u64:0 ::.
+    const u64/lo wrapAdd field /a u32:0 field /b u32:0.
+    const u64/carry if lt /lo field /a u32:0 u64:1 u64:0.
+    const u64/hi wrapAdd wrapAdd field /a u32:1 field /b u32:1 /carry.
+    structNew u128Val: /lo /hi ::.
+
+: Wrapping `2^128` subtraction.
+: @dc l8589980766
+pub v/u128Val/u128WrapSub u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:1 u64:1 :: structNew u128Val: u64:2 u64:0 ::
+        out structNew u128Val: u64:18446744073709551615 u64:0 ::.
+        in structNew u128Val: u64:0 u64:0 :: structNew u128Val: u64:1 u64:0 ::
+        out structNew u128Val: u64:18446744073709551615 u64:18446744073709551615 ::.
+    const u64/lo wrapSub field /a u32:0 field /b u32:0.
+    const u64/borrow if lt field /a u32:0 field /b u32:0 u64:1 u64:0.
+    const u64/hi wrapSub wrapSub field /a u32:1 field /b u32:1 /borrow.
+    structNew u128Val: /lo /hi ::.
+
+: Full widening `u64 * u64 -> u128Val` exact 128-bit product.
+: @dc l8589980767
+pub v/u128Val/mul64Wide u64/x u64/y
+    test
+        in u64:18446744073709551615 u64:18446744073709551615
+        out structNew u128Val: u64:1 u64:18446744073709551614 ::.
+        in u64:4294967296 u64:4294967296
+        out structNew u128Val: u64:0 u64:1 ::.
+    const u64/mask32 u64:4294967295.
+    const u64/x0 bitAnd /x /mask32.
+    const u64/x1 shr /x u32:32.
+    const u64/y0 bitAnd /y /mask32.
+    const u64/y1 shr /y u32:32.
+    const u64/p00 mul /x0 /y0.
+    const u64/p01 mul /x0 /y1.
+    const u64/p10 mul /x1 /y0.
+    const u64/p11 mul /x1 /y1.
+    const u64/mid add add shr /p00 u32:32 bitAnd /p01 /mask32 bitAnd /p10 /mask32.
+    const u64/lo bitOr bitAnd /p00 /mask32 shl bitAnd /mid /mask32 u32:32.
+    const u64/hi add /p11 add shr /p01 u32:32 add shr /p10 u32:32 shr /mid u32:32.
+    structNew u128Val: /lo /hi ::.
+
+: Wrapping `2^128` multiplication.
+: @dc l8589980768
+pub v/u128Val/u128WrapMul u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:18446744073709551615 u64:0 :: structNew u128Val: u64:2 u64:0 ::
+        out structNew u128Val: u64:18446744073709551614 u64:1 ::.
+        in structNew u128Val: u64:0 u64:1 :: structNew u128Val: u64:0 u64:1 ::
+        out structNew u128Val: u64:0 u64:0 ::.
+    const u128Val/lowProd mul64Wide field /a u32:0 field /b u32:0.
+    const u64/cross wrapAdd wrapMul field /a u32:0 field /b u32:1 wrapMul field /a u32:1 field /b u32:0.
+    structNew u128Val: field /lowProd u32:0 wrapAdd field /lowProd u32:1 /cross ::.
+
+: Predicate returning true iff `a + b < 2^128`.
+: @dc l8589980769
+pub v/b/u128CanAdd u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:18446744073709551615 u64:18446744073709551615 :: structNew u128Val: u64:0 u64:0 ::
+        out true.
+        in structNew u128Val: u64:18446744073709551615 u64:18446744073709551615 :: structNew u128Val: u64:1 u64:0 ::
+        out false.
+    u128Ge u128WrapAdd /a /b /a.
+
+: Predicate returning true iff `a >= b`.
+: @dc l8589980770
+pub v/b/u128CanSub u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:0 u64:0 :: structNew u128Val: u64:1 u64:0 ::
+        out false.
+    u128Ge /a /b.
+
+: Predicate returning true iff `a * b < 2^128`.
+: @dc l8589980771
+pub v/b/u128CanMul u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:18446744073709551615 u64:0 :: structNew u128Val: u64:18446744073709551615 u64:0 ::
+        out true.
+        in structNew u128Val: u64:0 u64:1 :: structNew u128Val: u64:0 u64:1 ::
+        out false.
+        in structNew u128Val: u64:2 u64:0 :: structNew u128Val: u64:0 u64:9223372036854775808 ::
+        out false.
+    const u64/ahi field /a u32:1.
+    const u64/bhi field /b u32:1.
+    if and ne /ahi u64:0 ne /bhi u64:0
+        return false
+        nop.
+    const u128Val/lowProd mul64Wide field /a u32:0 field /b u32:0.
+    const u128Val/c1 mul64Wide field /a u32:0 /bhi.
+    const u128Val/c2 mul64Wide /ahi field /b u32:0.
+    const u64/cHi bitOr field /c1 u32:1 field /c2 u32:1.
+    if ne /cHi u64:0
+        return false
+        nop.
+    const u64/cLo bitOr field /c1 u32:0 field /c2 u32:0.
+    const u64/sumHi wrapAdd field /lowProd u32:1 /cLo.
+    ge /sumHi field /lowProd u32:1.
+
+: Predicate returning true iff `b != 0`.
+: @dc l8589980772
+pub v/b/u128CanDiv u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:10 u64:0 :: structNew u128Val: u64:0 u64:0 ::
+        out false.
+    const u128Val/_unused /a.
+    ne /b /u128Zero.
+
+: Total StageR 3 `add` for `u128` (`tup: b u128Val u8 ::`).
+: @dc l8589980773
+pub v/tup: b u128Val u8 ::/u128Add u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:5 u64:0 :: structNew u128Val: u64:7 u64:0 ::
+        out tupNew: true structNew u128Val: u64:12 u64:0 :: u8:0 ::.
+        in structNew u128Val: u64:18446744073709551615 u64:18446744073709551615 :: structNew u128Val: u64:1 u64:0 ::
+        out tupNew: false structNew u128Val: u64:0 u64:0 :: u8:0 ::.
+    const u128Val/sum u128WrapAdd /a /b.
+    if u128Ge /sum /a
+        tupNew: true /sum u8:0 ::
+        tupNew: false /u128Zero /errOverflow ::.
+
+: Total StageR 3 `sub` for `u128` (`tup: b u128Val u8 ::`).
+: @dc l8589980774
+pub v/tup: b u128Val u8 ::/u128Sub u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:10 u64:0 :: structNew u128Val: u64:3 u64:0 ::
+        out tupNew: true structNew u128Val: u64:7 u64:0 :: u8:0 ::.
+        in structNew u128Val: u64:0 u64:0 :: structNew u128Val: u64:1 u64:0 ::
+        out tupNew: false structNew u128Val: u64:0 u64:0 :: u8:0 ::.
+    if u128Ge /a /b
+        tupNew: true u128WrapSub /a /b u8:0 ::
+        tupNew: false /u128Zero /errOverflow ::.
+
+: Total StageR 3 `mul` for `u128` (`tup: b u128Val u8 ::`).
+: @dc l8589980775
+pub v/tup: b u128Val u8 ::/u128Mul u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:6 u64:0 :: structNew u128Val: u64:7 u64:0 ::
+        out tupNew: true structNew u128Val: u64:42 u64:0 :: u8:0 ::.
+        in structNew u128Val: u64:0 u64:1 :: structNew u128Val: u64:0 u64:1 ::
+        out tupNew: false structNew u128Val: u64:0 u64:0 :: u8:0 ::.
+    if u128CanMul /a /b
+        tupNew: true u128WrapMul /a /b u8:0 ::
+        tupNew: false /u128Zero /errOverflow ::.
+
+: Bitwise AND on `u128Val`.
+: @dc l8589980776
+pub v/u128Val/u128BitAnd u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:15 u64:240 :: structNew u128Val: u64:7 u64:16 ::
+        out structNew u128Val: u64:7 u64:16 ::.
+    structNew u128Val: bitAnd field /a u32:0 field /b u32:0 bitAnd field /a u32:1 field /b u32:1 ::.
+
+: Bitwise OR on `u128Val`.
+: @dc l8589980777
+pub v/u128Val/u128BitOr u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:1 u64:2 :: structNew u128Val: u64:4 u64:8 ::
+        out structNew u128Val: u64:5 u64:10 ::.
+    structNew u128Val: bitOr field /a u32:0 field /b u32:0 bitOr field /a u32:1 field /b u32:1 ::.
+
+: Bitwise XOR on `u128Val`.
+: @dc l8589980778
+pub v/u128Val/u128BitXor u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:5 u64:10 :: structNew u128Val: u64:3 u64:12 ::
+        out structNew u128Val: u64:6 u64:6 ::.
+    structNew u128Val: bitXor field /a u32:0 field /b u32:0 bitXor field /a u32:1 field /b u32:1 ::.
+
+: Bitwise NOT on `u128Val`.
+: @dc l8589980779
+pub v/u128Val/u128BitNot u128Val/a
+    test
+        in structNew u128Val: u64:0 u64:18446744073709551615 ::
+        out structNew u128Val: u64:18446744073709551615 u64:0 ::.
+    structNew u128Val: bitNot field /a u32:0 bitNot field /a u32:1 ::.
+
+: Internal raw left shift for `0 <= cnt < 128`.
+: @dc l8589980780
+pub v/u128Val/u128ShlRaw u128Val/a u32/cnt
+    test
+        in structNew u128Val: u64:1 u64:0 :: u32:64
+        out structNew u128Val: u64:0 u64:1 ::.
+        in structNew u128Val: u64:3 u64:0 :: u32:63
+        out structNew u128Val: u64:9223372036854775808 u64:1 ::.
+    const u64/lo field /a u32:0.
+    const u64/hi field /a u32:1.
+    if eq /cnt u32:0
+        /a
+        if lt /cnt u32:64
+            structNew u128Val: shl /lo /cnt bitOr shl /hi /cnt shr /lo sub u32:64 /cnt ::
+            if eq /cnt u32:64
+                structNew u128Val: u64:0 /lo ::
+                structNew u128Val: u64:0 shl /lo sub /cnt u32:64 ::.
+
+: Internal raw logical right shift for `0 <= cnt < 128`.
+: @dc l8589980781
+pub v/u128Val/u128ShrRaw u128Val/a u32/cnt
+    test
+        in structNew u128Val: u64:0 u64:1 :: u32:64
+        out structNew u128Val: u64:1 u64:0 ::.
+        in structNew u128Val: u64:9223372036854775808 u64:1 :: u32:63
+        out structNew u128Val: u64:3 u64:0 ::.
+    const u64/lo field /a u32:0.
+    const u64/hi field /a u32:1.
+    if eq /cnt u32:0
+        /a
+        if lt /cnt u32:64
+            structNew u128Val: bitOr shr /lo /cnt shl /hi sub u32:64 /cnt shr /hi /cnt ::
+            if eq /cnt u32:64
+                structNew u128Val: /hi u64:0 ::
+                structNew u128Val: shr /hi sub /cnt u32:64 u64:0 ::.
+
+: Total StageR 3 `shl` for `u128` (`tup: b u128Val u8 ::`, returning `errOverflow` when `cnt >= 128`).
+: @dc l8589980782
+pub v/tup: b u128Val u8 ::/u128Shl u128Val/a u32/cnt
+    test
+        in structNew u128Val: u64:1 u64:0 :: u32:127
+        out tupNew: true structNew u128Val: u64:0 u64:9223372036854775808 :: u8:0 ::.
+        in structNew u128Val: u64:1 u64:0 :: u32:128
+        out tupNew: false structNew u128Val: u64:0 u64:0 :: u8:0 ::.
+    if ge /cnt u32:128
+        tupNew: false /u128Zero /errOverflow ::
+        tupNew: true u128ShlRaw /a /cnt u8:0 ::.
+
+: Total StageR 3 `shr` for `u128` (`tup: b u128Val u8 ::`, returning `errOverflow` when `cnt >= 128`).
+: @dc l8589980783
+pub v/tup: b u128Val u8 ::/u128Shr u128Val/a u32/cnt
+    test
+        in structNew u128Val: u64:8 u64:0 :: u32:127
+        out tupNew: true structNew u128Val: u64:0 u64:0 :: u8:0 ::.
+        in structNew u128Val: u64:8 u64:0 :: u32:128
+        out tupNew: false structNew u128Val: u64:0 u64:0 :: u8:0 ::.
+    if ge /cnt u32:128
+        tupNew: false /u128Zero /errOverflow ::
+        tupNew: true u128ShrRaw /a /cnt u8:0 ::.
+
+: Rotate left on `u128Val` (`cnt` masked modulo 128).
+: @dc l8589980784
+pub v/u128Val/u128Rotl u128Val/a u32/cnt
+    test
+        in structNew u128Val: u64:0 u64:9223372036854775808 :: u32:1
+        out structNew u128Val: u64:1 u64:0 ::.
+        in structNew u128Val: u64:5 u64:7 :: u32:128
+        out structNew u128Val: u64:5 u64:7 ::.
+    const u32/k bitAnd /cnt u32:127.
+    if eq /k u32:0
+        /a
+        u128BitOr u128ShlRaw /a /k u128ShrRaw /a sub u32:128 /k.
+
+: Rotate right on `u128Val` (`cnt` masked modulo 128).
+: @dc l8589980785
+pub v/u128Val/u128Rotr u128Val/a u32/cnt
+    test
+        in structNew u128Val: u64:1 u64:0 :: u32:1
+        out structNew u128Val: u64:0 u64:9223372036854775808 ::.
+    const u32/k bitAnd /cnt u32:127.
+    if eq /k u32:0
+        /a
+        u128BitOr u128ShrRaw /a /k u128ShlRaw /a sub u32:128 /k.
+
+: Count leading zeros (`0..=128`).
+: @dc l8589980786
+pub v/u32/u128Clz u128Val/a
+    test
+        in structNew u128Val: u64:0 u64:0 ::
+        out u32:128.
+        in structNew u128Val: u64:1 u64:0 ::
+        out u32:127.
+        in structNew u128Val: u64:0 u64:9223372036854775808 ::
+        out u32:0.
+    const u64/hi field /a u32:1.
+    if ne /hi u64:0
+        clz /hi
+        add u32:64 clz field /a u32:0.
+
+: Count trailing zeros (`0..=128`).
+: @dc l8589980787
+pub v/u32/u128Ctz u128Val/a
+    test
+        in structNew u128Val: u64:0 u64:0 ::
+        out u32:128.
+        in structNew u128Val: u64:0 u64:1 ::
+        out u32:64.
+    const u64/lo field /a u32:0.
+    if ne /lo u64:0
+        ctz /lo
+        add u32:64 ctz field /a u32:1.
+
+: Population count (`0..=128`).
+: @dc l8589980788
+pub v/u32/u128Popcnt u128Val/a
+    test
+        in structNew u128Val: u64:18446744073709551615 u64:18446744073709551615 ::
+        out u32:128.
+        in structNew u128Val: u64:3 u64:5 ::
+        out u32:4.
+    add popcnt field /a u32:0 popcnt field /a u32:1.
+
+: Extracts bit `idx` (`0..=127`) as `u64:0` or `u64:1`.
+: @dc l8589980789
+v/u64/u128BitAt u128Val/a u32/idx
+    if lt /idx u32:64
+        bitAnd shr field /a u32:0 /idx u64:1
+        bitAnd shr field /a u32:1 sub /idx u32:64 u64:1.
+
+: Sets bit `idx` (`0..=127`) in `a`.
+: @dc l8589980790
+v/u128Val/u128SetBit u128Val/a u32/idx
+    if lt /idx u32:64
+        structNew u128Val: bitOr field /a u32:0 shl u64:1 /idx field /a u32:1 ::
+        structNew u128Val: field /a u32:0 bitOr field /a u32:1 shl u64:1 sub /idx u32:64 ::.
+
+: Combined total unsigned division and remainder `(ok, quot, rem, err)`.
+: @dc l8589980791
+pub v/tup: b u128Val u128Val u8 ::/u128DivMod u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:100 u64:0 :: structNew u128Val: u64:0 u64:0 ::
+        out tupNew: false structNew u128Val: u64:0 u64:0 :: structNew u128Val: u64:0 u64:0 :: u8:1 ::.
+        in structNew u128Val: u64:100 u64:0 :: structNew u128Val: u64:7 u64:0 ::
+        out tupNew: true structNew u128Val: u64:14 u64:0 :: structNew u128Val: u64:2 u64:0 :: u8:0 ::.
+        in structNew u128Val: u64:5 u64:10 :: structNew u128Val: u64:0 u64:3 ::
+        out tupNew: true structNew u128Val: u64:3 u64:0 :: structNew u128Val: u64:5 u64:1 :: u8:0 ::.
+        in structNew u128Val: u64:18446744073709551615 u64:18446744073709551615 :: structNew u128Val: u64:1 u64:9223372036854775808 ::
+        out tupNew: true structNew u128Val: u64:1 u64:0 :: structNew u128Val: u64:18446744073709551614 u64:9223372036854775807 :: u8:0 ::.
+    if eq /b /u128Zero
+        return tupNew: false /u128Zero /u128Zero /errDivisionByZero ::
+        nop.
+    if u128Lt /a /b
+        return tupNew: true /u128Zero /a u8:0 ::
+        nop.
+    if and eq field /a u32:1 u64:0 eq field /b u32:1 u64:0
+        do
+            const u64/alo field /a u32:0.
+            const u64/blo field /b u32:0.
+            return tupNew: true structNew u128Val: div /alo /blo u64:0 :: structNew u128Val: rem /alo /blo u64:0 :: u8:0 ::.
+        ::
+        nop.
+    let u128Val/quot /u128Zero.
+    let u128Val/remVal /u128Zero.
+    let i32/bit i32:127.
+    const u64/msbMask u64:9223372036854775808.
+    while ge /bit i32:0 do
+        const u32/uBit conv /bit u32.
+        const b/remMsb ne bitAnd field /remVal u32:1 /msbMask u64:0.
+        const u64/inBit u128BitAt /a /uBit.
+        set /remVal u128BitOr u128ShlRaw /remVal u32:1 structNew u128Val: /inBit u64:0 ::.
+        if or /remMsb u128Ge /remVal /b
+            do
+                set /remVal u128WrapSub /remVal /b.
+                set /quot u128SetBit /quot /uBit.
+            ::
+            nop.
+        set /bit sub /bit i32:1.
+    ::.
+    tupNew: true /quot /remVal u8:0 ::.
+
+: Total StageR 3 `div` for `u128` (`tup: b u128Val u8 ::`).
+: @dc l8589980792
+pub v/tup: b u128Val u8 ::/u128Div u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:100 u64:0 :: structNew u128Val: u64:7 u64:0 ::
+        out tupNew: true structNew u128Val: u64:14 u64:0 :: u8:0 ::.
+    const tup: b u128Val u128Val u8 ::/dm u128DivMod /a /b.
+    tupNew: field /dm u32:0 field /dm u32:1 field /dm u32:3 ::.
+
+: Total StageR 3 `mod` (and `truncRem`) for `u128` (`tup: b u128Val u8 ::`).
+: @dc l8589980793
+pub v/tup: b u128Val u8 ::/u128Mod u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:100 u64:0 :: structNew u128Val: u64:7 u64:0 ::
+        out tupNew: true structNew u128Val: u64:2 u64:0 :: u8:0 ::.
+    const tup: b u128Val u128Val u8 ::/dm u128DivMod /a /b.
+    tupNew: field /dm u32:0 field /dm u32:2 field /dm u32:3 ::.
