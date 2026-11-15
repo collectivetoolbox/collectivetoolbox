@@ -116,13 +116,51 @@ pub(super) fn decode_module_from_dc_tokens(tokens: &[DcChar]) -> Result<Module> 
         line: 1,
         resolver: resolver.as_ref(),
     };
-    let module = dec.read_module()?;
+    let mut pre_comments = dec.collect_comments()?;
+    let mut module = dec.read_module()?;
+    if !pre_comments.is_empty() {
+        pre_comments.append(&mut module.leading_comments);
+        module.leading_comments = pre_comments;
+    }
+    let _ = dec.collect_comments()?;
     ensure!(
         dec.pos == tokens.len(),
         "Unexpected trailing Token Dcs after module closing Dc (at index {})",
         dec.pos
     );
     Ok(module)
+}
+
+/// Decodes a non-empty stream of one or more StageL/StageR Token Dc modules
+/// (`Dc 2192..2193` or `Dc 2221..2222`).
+pub(super) fn decode_modules_from_dc_tokens(
+    tokens: &[DcChar],
+) -> Result<Vec<Module>> {
+    let resolver = default_syntax_resolver();
+    let mut dec = Decoder {
+        tokens,
+        pos: 0,
+        line: 1,
+        resolver: resolver.as_ref(),
+    };
+    let mut modules = Vec::new();
+    loop {
+        let mut pre_comments = dec.collect_comments()?;
+        if dec.pos == tokens.len() {
+            break;
+        }
+        let mut module = dec.read_module()?;
+        if !pre_comments.is_empty() {
+            pre_comments.append(&mut module.leading_comments);
+            module.leading_comments = pre_comments;
+        }
+        modules.push(module);
+    }
+    ensure!(
+        !modules.is_empty(),
+        "Expected at least one StageL/StageR module in Token Dc stream"
+    );
+    Ok(modules)
 }
 
 /// Decodes a standalone top-level declaration Token Dc stream, stamping
@@ -286,19 +324,34 @@ impl Decoder<'_> {
     fn collect_comments(&mut self) -> Result<Vec<Comment>> {
         let mut out = Vec::new();
         while let Some(tok) = self.peek() {
-            let is_inline = self.token_fills(tok, DcRole::BeginSingleLineComment);
-            let is_newline =
+            let is_single_inline =
+                self.token_fills(tok, DcRole::BeginSingleLineComment);
+            let is_single_newline =
                 self.token_fills(tok, DcRole::BeginSingleLineCommentNewLine);
-            if !is_inline && !is_newline {
+            let is_block_inline =
+                self.token_fills(tok, DcRole::BeginBlockComment);
+            let is_block_newline =
+                self.token_fills(tok, DcRole::BeginBlockCommentNewLine);
+            if !is_single_inline
+                && !is_single_newline
+                && !is_block_inline
+                && !is_block_newline
+            {
                 break;
             }
+            let close_role = if is_single_inline || is_single_newline {
+                DcRole::EndSingleLineComment
+            } else {
+                DcRole::EndBlockComment
+            };
+            let is_inline = is_single_inline || is_block_inline;
             let sp = self.span();
             self.pos = self.pos.saturating_add(1);
             let mut text = String::new();
             let mut closed = false;
             while let Some(ch) = self.peek() {
                 self.pos = self.pos.saturating_add(1);
-                if self.token_fills(ch, DcRole::EndSingleLineComment) {
+                if self.token_fills(ch, close_role) {
                     closed = true;
                     break;
                 }
@@ -315,7 +368,7 @@ impl Decoder<'_> {
                     })?;
                 text.push(cp);
             }
-            ensure!(closed, "Unclosed single-line comment Dc (missing Dc 248)");
+            ensure!(closed, "Unclosed comment Dc frame");
             if text == " " {
                 text.clear();
             }

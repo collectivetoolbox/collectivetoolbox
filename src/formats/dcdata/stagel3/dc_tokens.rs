@@ -271,6 +271,12 @@ pub fn decode_module_from_dc_tokens(tokens: &[DcChar]) -> Result<Module> {
     decode::decode_module_from_dc_tokens(tokens)
 }
 
+/// Decodes a non-empty stream of one or more StageL/StageR Token Dc modules
+/// (`Dc 2192..2193` or `Dc 2221..2222`).
+pub fn decode_modules_from_dc_tokens(tokens: &[DcChar]) -> Result<Vec<Module>> {
+    decode::decode_modules_from_dc_tokens(tokens)
+}
+
 /// Decodes a standalone top-level routine or constant Token Dc stream
 /// (`Dc 2203..2204`, `Dc 2199`, or `Dc 2200`, optionally preceded by
 /// `Dc 246`/`Dc 247..248` comments).

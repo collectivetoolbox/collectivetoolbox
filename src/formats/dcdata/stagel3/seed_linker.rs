@@ -44,8 +44,9 @@ use super::ast::{
     TestExpected, TopDecl, TopValueDecl,
 };
 use super::dc_tokens::{
-    decode_module_from_dc_tokens, decode_top_decl_from_dc_tokens_at_line,
-    encode_module_to_dc_tokens, strip_comment_frames,
+    decode_module_from_dc_tokens, decode_modules_from_dc_tokens,
+    decode_top_decl_from_dc_tokens_at_line, encode_module_to_dc_tokens,
+    strip_comment_frames,
 };
 use super::eval::{
     TestSuiteReport, run_validated_workspace_inline_tests,
@@ -1975,14 +1976,15 @@ pub fn bundle_dc_module_dependencies(
     seed_graph: &SeedGraphIndex,
 ) -> Result<Vec<DcChar>> {
     let mut module_stream: Vec<DcChar> = Vec::new();
-    if let Ok(entry_mod) = decode_module_from_dc_tokens(entry_tokens) {
-        let assembled = assemble_topo_sorted_modules_with_seed_graph(
-            vec![(entry_mod, false)],
-            seed_graph,
-        )?;
+    if let Ok(caller_mods) = decode_modules_from_dc_tokens(entry_tokens) {
+        let single_caller = caller_mods.len() == 1;
+        let tagged: Vec<(Module, bool)> =
+            caller_mods.into_iter().map(|m| (m, false)).collect();
+        let assembled =
+            assemble_topo_sorted_modules_with_seed_graph(tagged, seed_graph)?;
         let entry_idx = assembled.all_modules.len().saturating_sub(1);
-        for idx in assembled.order {
-            if idx == entry_idx {
+        for &idx in &assembled.order {
+            if single_caller && idx == entry_idx {
                 continue;
             }
             let dep_mod = assembled
@@ -1991,7 +1993,9 @@ pub fn bundle_dc_module_dependencies(
                 .context("Invalid dependency module index")?;
             module_stream.extend(encode_module_to_dc_tokens(dep_mod)?);
         }
-        module_stream.extend_from_slice(entry_tokens);
+        if single_caller {
+            module_stream.extend_from_slice(entry_tokens);
+        }
     } else {
         // Malformed Token-Dc input is forwarded directly so the downstream converter
         // traps under the active task quota rather than failing in host Rust.

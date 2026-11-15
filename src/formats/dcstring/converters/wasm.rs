@@ -4546,9 +4546,48 @@ pub fn run_active_converter_step_on_dc_slice_with_quota(
         ctb_formats_dcdata::dc::DC_BEGIN_STAGER_MODULE.to_u128(),
     );
 
+    let first_structural_tok = {
+        let mut idx = 0usize;
+        let mut found = None;
+        while let Some(&tok) = input_tokens.get(idx) {
+            let is_single = tok
+                .fills_role_with(DcRole::BeginSingleLineComment, resolver)
+                || tok.fills_role_with(
+                    DcRole::BeginSingleLineCommentNewLine,
+                    resolver,
+                );
+            let is_block = tok
+                .fills_role_with(DcRole::BeginBlockComment, resolver)
+                || tok.fills_role_with(
+                    DcRole::BeginBlockCommentNewLine,
+                    resolver,
+                );
+            if !is_single && !is_block {
+                found = Some(tok);
+                break;
+            }
+            let close_role = if is_single {
+                DcRole::EndSingleLineComment
+            } else {
+                DcRole::EndBlockComment
+            };
+            idx = idx.saturating_add(1);
+            while let Some(&inner) = input_tokens.get(idx) {
+                idx = idx.saturating_add(1);
+                if inner.fills_role_with(DcRole::Escape, resolver) {
+                    idx = idx.saturating_add(1);
+                    continue;
+                }
+                if inner.fills_role_with(close_role, resolver) {
+                    break;
+                }
+            }
+        }
+        found
+    };
+
     let bundled_storage: Option<Vec<DcChar>> = if step.dst == wasm_dst_sh
-        && input_tokens
-            .first()
+        && first_structural_tok
             .is_some_and(|c| c.fills_role_with(DcRole::BeginModule, resolver))
     {
         Some(
@@ -4557,8 +4596,9 @@ pub fn run_active_converter_step_on_dc_slice_with_quota(
             )?,
         )
     } else if step.src == stager_src_sh
-        && input_tokens.first().is_some_and(|c| {
+        && first_structural_tok.is_some_and(|c| {
             c.fills_role_with(DcRole::BeginStagerModule, resolver)
+                || c.fills_role_with(DcRole::BeginModule, resolver)
         })
     {
         Some(
