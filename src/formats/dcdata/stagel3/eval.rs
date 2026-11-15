@@ -18,12 +18,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! Deterministic reference evaluator and inline `test` runner for validated
-//! StageL 3 (`f656` `.sl3`) modules and workspaces.
+//! StageL 3 (`f656` `.sl3`) and StageR 3 (`.sr3`) modules and workspaces.
 //!
 //! Enforces strict left-to-right operand evaluation (short-circuiting `if`,
-//! `and`, and `or`), checked vs. wrapping integer traps, mutable local `buf/T`
-//! freeze tracking, shared mutable capture cells for nested verbs, bounded
-//! compute quotas, and constant-stack tail-call trampolining.
+//! `and`, and `or`), checked/wrapping/total integer arithmetic, exact `int`
+//! and `rat` bounds, mutable local `buf/T` freeze tracking, shared mutable
+//! capture cells for nested verbs, bounded compute quotas, and constant-stack
+//! tail-call trampolining.
 
 #[allow(
     unused_imports,
@@ -32,23 +33,27 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use super::ast::{
-    BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, RoutineDecl,
-    Span, StageLType, StageRErrorTag, StructTypeRef, SymbolTarget,
-    TestExpected, TopDecl, TypedIntLit,
-};
-use super::parser::parse_module;
-use super::validator::{
-    ImportedSymbol, ModuleInput, RoutineKey, ValidatedWorkspace, ValueKey,
-    parse_and_validate_workspace, validate_module,
-};
-use crate::DcChar;
+mod ops;
+mod vm;
+
+pub use vm::StageLWorkspaceVm;
+
+use std::cell::RefCell;
+use std::collections::BTreeMap;
+use std::rc::Rc;
+
 use malachite::base::num::logic::traits::SignificantBits;
 use malachite::{Integer, Rational};
-use std::collections::BTreeMap;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
+
+use super::ast::{
+    StageDialect, StageLType, StageRErrorTag, StructTypeRef, TypedIntLit,
+};
+use super::parser::parse_module_with_dialect;
+use super::validator::{
+    ModuleInput, ValidatedWorkspace, parse_and_validate_workspace_with_dialect,
+    validate_module,
+};
+use crate::DcChar;
 
 /// Configuration limits for StageL 3 and StageR 3 execution.
 #[derive(Debug, Clone, Copy)]
@@ -57,7 +62,8 @@ pub struct EvalConfig {
     pub compute_quota: u64,
     /// Maximum non-tail call depth (tail calls execute in O(1) stack).
     pub max_call_depth: usize,
-    /// Maximum significant bit-width permitted for arbitrary-precision `int`/`rat`.
+    /// Maximum significant bit-width permitted for arbitrary-precision `int`
+    /// and `rat`.
     pub max_bigint_bits: u64,
     /// Maximum element count permitted for `l/T`, `buf/T`, `s`, or `dcs`.
     pub max_seq_elems: usize,
@@ -126,23 +132,26 @@ pub enum Value {
     Buf(Rc<RefCell<BufStorage>>),
     /// Immutable structural `n`-ary tuple (`tup: T0 ... ::`).
     Tuple(Rc<Vec<Value>>),
-    /// Immutable nominal positional `struct` instance (`struct <name> :: T0 ... .`).
+    /// Immutable nominal positional `struct` (`struct <name> :: T0 ... .`).
     Struct {
-        /// Canonical `(namespace, original_name)` identity of the positional `struct`.
+        /// Canonical `(namespace, original_name)` identity of the positional
+        /// `struct`.
         type_key: (Option<String>, String),
         /// Positional field values.
         fields: Rc<Vec<Value>>,
     },
     /// Immutable StageR 3 named-field `struct` instance.
     NamedStruct {
-        /// Canonical `(namespace, original_name)` identity of the named `struct`.
+        /// Canonical `(namespace, original_name)` identity of the named
+        /// `struct`.
         type_key: (Option<String>, String),
         /// Field values keyed by field name.
         fields: Rc<BTreeMap<String, Value>>,
     },
     /// Wrapped StageR 3 `brand` or opaque `type` instance.
     NominalWrap {
-        /// Canonical `(namespace, original_name)` identity of the brand/opaque type.
+        /// Canonical `(namespace, original_name)` identity of the brand or
+        /// opaque type.
         type_key: (Option<String>, String),
         /// Wrapped underlying value.
         inner: Box<Value>,
@@ -252,7 +261,7 @@ impl Value {
     }
 }
 
-/// Result of running a single StageL 3 routine invocation.
+/// Result of running a single StageL 3 / StageR 3 routine invocation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RoutineOutcome {
     /// Returned normally with a concrete value (or `Value::Void`).
@@ -310,7 +319,7 @@ impl TestSuiteReport {
                 })
                 .collect();
             bail!(
-                "{} StageL 3 inline test case(s) failed:\n{}",
+                "{} StageL 3 / StageR 3 inline test case(s) failed:\n{}",
                 self.failed_count,
                 failures.join("\n")
             );
@@ -319,1416 +328,29 @@ impl TestSuiteReport {
     }
 }
 
-type Cell = Rc<RefCell<Option<Value>>>;
-
-#[derive(Debug, Clone)]
-pub(super) struct LexFrame {
-    parent: Option<Rc<LexFrame>>,
-    pub(super) vars: HashMap<String, Cell>,
-    nested_verbs: Rc<RefCell<HashMap<String, ClosureVerb>>>,
-    pub(super) return_ty: Option<StageLType>,
-}
-
-impl LexFrame {
-    pub(super) fn new(parent: Option<Rc<LexFrame>>) -> Self {
-        let return_ty = parent.as_ref().and_then(|p| p.return_ty.clone());
-        Self {
-            parent,
-            vars: HashMap::new(),
-            nested_verbs: Rc::new(RefCell::new(HashMap::new())),
-            return_ty,
-        }
-    }
-
-    fn lookup_var(&self, name: &str) -> Option<Cell> {
-        if let Some(c) = self.vars.get(name) {
-            return Some(Rc::clone(c));
-        }
-        let mut cur = self.parent.as_deref();
-        while let Some(fr) = cur {
-            if let Some(c) = fr.vars.get(name) {
-                return Some(Rc::clone(c));
-            }
-            cur = fr.parent.as_deref();
-        }
-        None
-    }
-
-    fn lookup_nested_verb(&self, name: &str) -> Option<ClosureVerb> {
-        if let Some(v) = self.nested_verbs.borrow().get(name) {
-            return Some(v.clone());
-        }
-        let mut cur = self.parent.as_deref();
-        while let Some(fr) = cur {
-            if let Some(v) = fr.nested_verbs.borrow().get(name) {
-                return Some(v.clone());
-            }
-            cur = fr.parent.as_deref();
-        }
-        None
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ClosureVerb {
-    decl: RoutineDecl,
-    module_idx: usize,
-    captured_frame: Rc<LexFrame>,
-}
-
-#[derive(Debug, Clone)]
-enum CallableRoutine {
-    Top {
-        module_idx: usize,
-        key: RoutineKey,
-    },
-    Nested(ClosureVerb),
-}
-
-pub(super) enum EvalSignal {
-    Value(Value),
-    Return(Value),
-    Break,
-    Continue,
-    TailCall {
-        callee: CallableRoutine,
-        args: Vec<Value>,
-    },
-    Fault(String),
-}
-
-#[derive(Debug, Clone)]
-enum ResolvedDcImportTarget {
-    Value { module_idx: usize, key: ValueKey },
-    Routine { module_idx: usize, key: RoutineKey },
-}
-
-pub(super) struct ModuleRuntime {
-    #[allow(dead_code, reason = "Retained for diagnostics and debugging")]
-    pub(super) namespace_key: Option<String>,
-    pub(super) constants: HashMap<ValueKey, Value>,
-    pub(super) dc_constants: HashMap<DcChar, ValueKey>,
-    pub(super) routines: HashMap<RoutineKey, RoutineDecl>,
-    pub(super) dc_routines: HashMap<DcChar, RoutineKey>,
-    pub(super) resolved_values: HashMap<(usize, usize), (usize, ValueKey)>,
-    pub(super) resolved_calls: HashMap<(usize, usize), (usize, RoutineKey)>,
-    pub(super) resolved_structs: HashMap<(usize, usize), (Option<String>, String)>,
-    pub(super) resolved_named_structs:
-        HashMap<(usize, usize), (Option<String>, String)>,
-    pub(super) resolved_enum_variants:
-        HashMap<(usize, usize), ((Option<String>, String), String)>,
-    pub(super) dc_structs: HashMap<DcChar, (Option<String>, String)>,
-    pub(super) local_structs: HashMap<String, (Option<String>, String)>,
-    pub(super) dc_nominals: HashMap<DcChar, (Option<String>, String)>,
-    pub(super) local_nominals: HashMap<String, (Option<String>, String)>,
-    imports_by_dc: HashMap<DcChar, ResolvedDcImportTarget>,
-}
-
-/// Multi-module StageL 3 runtime VM supporting cross-namespace calls, constant
-/// evaluation, tail-call trampolining, and inline `test` execution.
-pub struct StageLWorkspaceVm {
-    pub(super) modules: Vec<ModuleRuntime>,
-    #[allow(dead_code, reason = "Retained for namespace lookup diagnostics")]
-    ns_to_idx: HashMap<String, usize>,
-    pub(super) config: EvalConfig,
-}
-
-impl StageLWorkspaceVm {
-    /// Initializes a workspace VM from validated modules, eagerly evaluating all
-    /// top-level `const` and `pub` constant initializers in topological order.
-    pub fn from_validated_workspace(
-        ws: &ValidatedWorkspace,
-        config: EvalConfig,
-    ) -> Result<Self> {
-        let mut ns_to_idx = HashMap::new();
-        for (idx, vm) in ws.modules.iter().enumerate() {
-            if let Some(ref key) = vm.namespace_key {
-                ns_to_idx.insert(key.clone(), idx);
-            }
-        }
-
-        let mut vm_state = Self {
-            modules: Vec::with_capacity(ws.modules.len()),
-            ns_to_idx,
-            config,
-        };
-
-        for (mod_idx, vm) in ws.modules.iter().enumerate() {
-            let mut resolved_values =
-                HashMap::with_capacity(vm.resolved_values.len());
-            for (&span_key, rv) in &vm.resolved_values {
-                let target_mod_idx = if let Some(ns) = &rv.namespace {
-                    *vm_state.ns_to_idx.get(ns).with_context(|| {
-                        format!("Missing compiled namespace '{ns}'")
-                    })?
-                } else {
-                    mod_idx
-                };
-                resolved_values.insert(span_key, (target_mod_idx, rv.value_key()));
-            }
-
-            let mut resolved_calls =
-                HashMap::with_capacity(vm.resolved_calls.len());
-            for (&span_key, rc) in &vm.resolved_calls {
-                let target_mod_idx = if let Some(ns) = &rc.namespace {
-                    *vm_state.ns_to_idx.get(ns).with_context(|| {
-                        format!("Missing compiled namespace '{ns}'")
-                    })?
-                } else {
-                    mod_idx
-                };
-                resolved_calls.insert(span_key, (target_mod_idx, rc.routine_key()));
-            }
-
-            let mut resolved_structs =
-                HashMap::with_capacity(vm.resolved_structs.len());
-            for (&span_key, sdef) in &vm.resolved_structs {
-                resolved_structs.insert(
-                    span_key,
-                    (sdef.namespace.clone(), sdef.original_name.clone()),
-                );
-            }
-
-            let mut resolved_named_structs =
-                HashMap::with_capacity(vm.resolved_named_structs.len());
-            for (&span_key, nsdef) in &vm.resolved_named_structs {
-                resolved_named_structs.insert(
-                    span_key,
-                    (nsdef.namespace.clone(), nsdef.original_name.clone()),
-                );
-            }
-
-            let mut imports_by_dc = HashMap::new();
-            for (dc, sym) in &vm.dc_imports {
-                let target = match sym {
-                    ImportedSymbol::Value {
-                        namespace,
-                        original_name,
-                        ty,
-                        ..
-                    } => {
-                        let dep_idx = *vm_state
-                            .ns_to_idx
-                            .get(namespace)
-                            .context("Missing imported dc namespace")?;
-                        ResolvedDcImportTarget::Value {
-                            module_idx: dep_idx,
-                            key: ValueKey {
-                                name: original_name.clone(),
-                                ty: ty.clone(),
-                            },
-                        }
-                    }
-                    ImportedSymbol::Routine {
-                        namespace,
-                        original_name,
-                        sig,
-                    } => {
-                        let dep_idx = *vm_state
-                            .ns_to_idx
-                            .get(namespace)
-                            .context("Missing imported dc namespace")?;
-                        ResolvedDcImportTarget::Routine {
-                            module_idx: dep_idx,
-                            key: RoutineKey {
-                                name: original_name.clone(),
-                                params: sig.params.clone(),
-                            },
-                        }
-                    }
-                    ImportedSymbol::Struct { .. }
-                    | ImportedSymbol::BrandType { .. }
-                    | ImportedSymbol::NamedStruct { .. }
-                    | ImportedSymbol::Enum { .. } => continue,
-                };
-                imports_by_dc.insert(*dc, target);
-            }
-
-            let mut routines = HashMap::new();
-            let mut dc_routines = HashMap::new();
-            let mut dc_constants = HashMap::new();
-            let mut pending_consts = Vec::new();
-
-            for decl in &vm.module.items {
-                match decl {
-                    TopDecl::Comment(_)
-                    | TopDecl::Struct(_)
-                    | TopDecl::BrandType(_)
-                    | TopDecl::NamedStruct(_)
-                    | TopDecl::Enum(_) => {}
-                    TopDecl::Value(v) => {
-                        let vkey = vm.value_key(v);
-                        if let Some(dc) = v.dc_id {
-                            dc_constants.insert(dc, vkey.clone());
-                        }
-                        pending_consts.push((vkey, v.clone()));
-                    }
-                    TopDecl::Routine(r) => {
-                        let rkey = vm.routine_key(r);
-                        if let Some(dc) = r.dc_id {
-                            dc_routines.insert(dc, rkey.clone());
-                        }
-                        routines.insert(rkey, r.clone());
-                    }
-                }
-            }
-
-            vm_state.modules.push(ModuleRuntime {
-                namespace_key: vm.namespace_key.clone(),
-                constants: HashMap::new(),
-                dc_constants,
-                routines,
-                dc_routines,
-                resolved_values,
-                resolved_calls,
-                resolved_structs,
-                resolved_named_structs,
-                resolved_enum_variants: vm.resolved_enum_variants.clone(),
-                dc_structs: vm.dc_structs.clone(),
-                local_structs: vm.local_structs.clone(),
-                dc_nominals: vm.dc_nominals.clone(),
-                local_nominals: vm.local_nominals.clone(),
-                imports_by_dc,
-            });
-
-            // Evaluate top-level constants in topological dependency order (handling
-            // valid out-of-order pure references).
-            eval_pending_constants(&mut vm_state, mod_idx, &pending_consts)?;
-        }
-
-        Ok(vm_state)
-    }
-
-    /// Invokes a named routine in module index `module_idx`.
-    pub fn call_routine(
-        &self,
-        module_idx: usize,
-        routine_name: &str,
-        args: Vec<Value>,
-    ) -> Result<RoutineOutcome> {
-        let mod_rt = self
-            .modules
-            .get(module_idx)
-            .context("Invalid module index during call")?;
-        let mut by_name: Vec<&RoutineKey> = mod_rt
-            .routines
-            .keys()
-            .filter(|k| k.name == routine_name)
-            .collect();
-        if by_name.len() > 1 {
-            by_name.retain(|k| {
-                k.params.len() == args.len()
-                    && args
-                        .iter()
-                        .zip(&k.params)
-                        .all(|(v, ty)| v.matches_stagel_type(ty))
-            });
-        }
-        ensure!(
-            by_name.len() == 1,
-            "Routine '{routine_name}' not uniquely matched for runtime call ({} candidate(s))",
-            by_name.len()
-        );
-        let key = (*by_name
-            .first()
-            .context("Expected single matched routine key")?)
-        .clone();
-        self.call_routine_by_key(module_idx, key, args)
-    }
-
-    /// Invokes a routine identified by [`RoutineKey`] in `module_idx`.
-    pub fn call_routine_by_key(
-        &self,
-        module_idx: usize,
-        key: RoutineKey,
-        args: Vec<Value>,
-    ) -> Result<RoutineOutcome> {
-        let mut quota = self.config.compute_quota;
-        self.invoke_trampoline(
-            CallableRoutine::Top { module_idx, key },
-            args,
-            0,
-            &mut quota,
-        )
-    }
-
-    /// Runs all inline `test` cases across every module in `ws`.
-    pub fn run_all_tests(&self, ws: &ValidatedWorkspace) -> Result<TestSuiteReport> {
-        let mut report = TestSuiteReport::default();
-        for (mod_idx, vm) in ws.modules.iter().enumerate() {
-            for decl in &vm.module.items {
-                let TopDecl::Routine(r) = decl else {
-                    continue;
-                };
-                let rkey = vm.routine_key(r);
-                for tb in &r.tests {
-                    for (case_idx, tc) in tb.cases.iter().enumerate() {
-                        let case_report = self.run_single_test_case(
-                            mod_idx,
-                            vm.namespace_key.clone(),
-                            r,
-                            rkey.clone(),
-                            tb.label.clone(),
-                            case_idx,
-                            tc,
-                        )?;
-                        if case_report.passed {
-                            report.passed_count =
-                                report.passed_count.saturating_add(1);
-                        } else {
-                            report.failed_count =
-                                report.failed_count.saturating_add(1);
-                        }
-                        report.cases.push(case_report);
-                    }
-                }
-            }
-        }
-        Ok(report)
-    }
-
-    #[allow(
-        clippy::too_many_arguments,
-        reason = "Passes pre-canonicalized RoutineKey alongside diagnostic test context"
-    )]
-    fn run_single_test_case(
-        &self,
-        mod_idx: usize,
-        namespace: Option<String>,
-        routine: &RoutineDecl,
-        routine_key: RoutineKey,
-        block_label: Option<String>,
-        case_index: usize,
-        tc: &super::ast::TestCase,
-    ) -> Result<TestCaseReport> {
-        let mut args = Vec::with_capacity(tc.inputs.len());
-        let empty_frame = LexFrame::new(None);
-        for inp in &tc.inputs {
-            let mut quota = self.config.compute_quota;
-            match self.eval_expr(
-                mod_idx,
-                inp,
-                &empty_frame,
-                false,
-                0,
-                &mut quota,
-            )? {
-                EvalSignal::Value(v) => args.push(v),
-                EvalSignal::Fault(msg) => {
-                    return Ok(TestCaseReport {
-                        namespace,
-                        routine_name: routine.name.clone(),
-                        block_label,
-                        case_index,
-                        passed: false,
-                        detail: format!("Evaluating test input trapped: {msg}"),
-                    });
-                }
-                _ => bail!("Control-flow keyword disallowed in test input"),
-            }
-        }
-
-        let outcome = self.call_routine_by_key(
-            mod_idx,
-            routine_key,
-            args,
-        )?;
-        match (&tc.expected, outcome) {
-            (TestExpected::Fault(_), RoutineOutcome::Trapped(msg)) => {
-                Ok(TestCaseReport {
-                    namespace,
-                    routine_name: routine.name.clone(),
-                    block_label,
-                    case_index,
-                    passed: true,
-                    detail: format!("trapped as expected ({msg})"),
-                })
-            }
-            (TestExpected::Fault(_), RoutineOutcome::Returned(v)) => {
-                Ok(TestCaseReport {
-                    namespace,
-                    routine_name: routine.name.clone(),
-                    block_label,
-                    case_index,
-                    passed: false,
-                    detail: format!("expected fault trap, got {v:?}"),
-                })
-            }
-            (TestExpected::Void(_), RoutineOutcome::Returned(Value::Void)) => {
-                Ok(TestCaseReport {
-                    namespace,
-                    routine_name: routine.name.clone(),
-                    block_label,
-                    case_index,
-                    passed: true,
-                    detail: String::from("void ok"),
-                })
-            }
-            (TestExpected::Void(_), other) => Ok(TestCaseReport {
-                namespace,
-                routine_name: routine.name.clone(),
-                block_label,
-                case_index,
-                passed: false,
-                detail: format!("expected void completion, got {other:?}"),
-            }),
-            (TestExpected::Expr(exp_expr), RoutineOutcome::Trapped(msg)) => {
-                let _ = exp_expr;
-                Ok(TestCaseReport {
-                    namespace,
-                    routine_name: routine.name.clone(),
-                    block_label,
-                    case_index,
-                    passed: false,
-                    detail: format!("routine trapped unexpectedly: {msg}"),
-                })
-            }
-            (TestExpected::Expr(exp_expr), RoutineOutcome::Returned(actual)) => {
-                let mut quota = self.config.compute_quota;
-                let expected = match self.eval_expr(
-                    mod_idx,
-                    exp_expr,
-                    &empty_frame,
-                    false,
-                    0,
-                    &mut quota,
-                )? {
-                    EvalSignal::Value(v) => v,
-                    EvalSignal::Fault(msg) => {
-                        return Ok(TestCaseReport {
-                            namespace,
-                            routine_name: routine.name.clone(),
-                            block_label,
-                            case_index,
-                            passed: false,
-                            detail: format!("evaluating expected output trapped: {msg}"),
-                        });
-                    }
-                    _ => bail!("Control-flow disallowed in test expected expr"),
-                };
-                if actual == expected {
-                    Ok(TestCaseReport {
-                        namespace,
-                        routine_name: routine.name.clone(),
-                        block_label,
-                        case_index,
-                        passed: true,
-                        detail: format!("matched {expected:?}"),
-                    })
-                } else {
-                    Ok(TestCaseReport {
-                        namespace,
-                        routine_name: routine.name.clone(),
-                        block_label,
-                        case_index,
-                        passed: false,
-                        detail: format!("expected {expected:?}, got {actual:?}"),
-                    })
-                }
-            }
-        }
-    }
-
-    pub(super) fn consume_quota(
-        &self,
-        quota: &mut u64,
-    ) -> std::result::Result<(), String> {
-        if *quota == 0 {
-            return Err(String::from("compute quota exceeded"));
-        }
-        *quota = quota.saturating_sub(1);
-        Ok(())
-    }
-
-    pub(super) fn invoke_trampoline(
-        &self,
-        mut callee: CallableRoutine,
-        mut args: Vec<Value>,
-        depth: usize,
-        quota: &mut u64,
-    ) -> Result<RoutineOutcome> {
-        if depth > self.config.max_call_depth {
-            return Ok(RoutineOutcome::Trapped(format!(
-                "max non-tail call depth ({}) exceeded",
-                self.config.max_call_depth
-            )));
-        }
-
-        loop {
-            if let Err(msg) = self.consume_quota(quota) {
-                return Ok(RoutineOutcome::Trapped(msg));
-            }
-            let (mod_idx, decl, parent_frame) = match callee {
-                CallableRoutine::Top { module_idx, key } => {
-                    let mod_rt = self
-                        .modules
-                        .get(module_idx)
-                        .context("Invalid module index during call")?;
-                    let decl = mod_rt
-                        .routines
-                        .get(&key)
-                        .cloned()
-                        .with_context(|| {
-                            format!("Routine '{}' not found at runtime", key.name)
-                        })?;
-                    (module_idx, decl, None)
-                }
-                CallableRoutine::Nested(cv) => {
-                    (cv.module_idx, cv.decl, Some(cv.captured_frame))
-                }
-            };
-
-            let mut frame = LexFrame::new(parent_frame);
-            frame.return_ty = Some(decl.return_type.clone());
-            ensure!(
-                args.len() == decl.params.len(),
-                "Runtime argument count mismatch calling '{}': expected {}, got {}",
-                decl.name,
-                decl.params.len(),
-                args.len()
-            );
-            for (param, val) in decl.params.iter().zip(args.drain(..)) {
-                frame
-                    .vars
-                    .insert(param.name.clone(), Rc::new(RefCell::new(Some(val))));
-            }
-
-            match self.eval_expr(
-                mod_idx,
-                &decl.body,
-                &frame,
-                true,
-                depth,
-                quota,
-            )? {
-                EvalSignal::Value(v) | EvalSignal::Return(v) => {
-                    return Ok(RoutineOutcome::Returned(v));
-                }
-                EvalSignal::Fault(msg) => {
-                    return Ok(RoutineOutcome::Trapped(msg));
-                }
-                EvalSignal::TailCall {
-                    callee: next_callee,
-                    args: next_args,
-                } => {
-                    callee = next_callee;
-                    args = next_args;
-                }
-                EvalSignal::Break | EvalSignal::Continue => {
-                    bail!("Uncaught loop control signal exiting routine '{}'", decl.name);
-                }
-            }
-        }
-    }
-
-    pub(super) fn eval_expr(
-        &self,
-        mod_idx: usize,
-        expr: &Expr,
-        frame: &LexFrame,
-        in_tail: bool,
-        depth: usize,
-        quota: &mut u64,
-    ) -> Result<EvalSignal> {
-        if let Err(msg) = self.consume_quota(quota) {
-            return Ok(EvalSignal::Fault(msg));
-        }
-
-        match expr {
-            Expr::Bool { value, .. } => Ok(EvalSignal::Value(Value::Bool(*value))),
-            Expr::Int { value, .. } => match Value::from_typed_int(
-                value,
-                self.config.max_bigint_bits,
-            ) {
-                Ok(v) => Ok(EvalSignal::Value(v)),
-                Err(msg) => Ok(EvalSignal::Fault(msg)),
-            },
-            Expr::Bytes { value, .. } => {
-                if value.len() > self.config.max_seq_elems {
-                    return Ok(EvalSignal::Fault(format!(
-                        "byte sequence length {} exceeds max_seq_elems ({})",
-                        value.len(),
-                        self.config.max_seq_elems
-                    )));
-                }
-                let elems = value.iter().copied().map(Value::U8).collect();
-                Ok(EvalSignal::Value(Value::List(Rc::new(elems))))
-            }
-            Expr::List { elements, .. } => {
-                if elements.len() > self.config.max_seq_elems {
-                    return Ok(EvalSignal::Fault(format!(
-                        "list length {} exceeds max_seq_elems ({})",
-                        elements.len(),
-                        self.config.max_seq_elems
-                    )));
-                }
-                let mut vals = Vec::with_capacity(elements.len());
-                for el in elements {
-                    match self.eval_expr(mod_idx, el, frame, false, depth, quota)? {
-                        EvalSignal::Value(v) => vals.push(v),
-                        sig => return Ok(sig),
-                    }
-                }
-                Ok(EvalSignal::Value(Value::List(Rc::new(vals))))
-            }
-            Expr::BufNew { capacity, .. } => {
-                let cap_val =
-                    match self.eval_expr(mod_idx, capacity, frame, false, depth, quota)? {
-                        EvalSignal::Value(v) => v,
-                        sig => return Ok(sig),
-                    };
-                let cap = cap_val.as_u64_index("bufNew")?;
-                if cap > self.config.max_seq_elems {
-                    return Ok(EvalSignal::Fault(format!(
-                        "bufNew capacity {cap} exceeds max_seq_elems ({})",
-                        self.config.max_seq_elems
-                    )));
-                }
-                let storage = BufStorage {
-                    elems: Vec::with_capacity(cap.min(65_536)),
-                    frozen: false,
-                };
-                Ok(EvalSignal::Value(Value::Buf(Rc::new(RefCell::new(storage)))))
-            }
-            Expr::ValueRef { ty, target, span } => {
-                let val = match target {
-                    SymbolTarget::Ident(name) => {
-                        if let Some(cell) = frame.lookup_var(name) {
-                            cell.borrow()
-                                .clone()
-                                .context("Uninitialized variable read at runtime")?
-                        } else {
-                            self.lookup_module_value(
-                                mod_idx,
-                                *span,
-                                name,
-                                ty.as_ref(),
-                            )?
-                        }
-                    }
-                    SymbolTarget::Dc(dc) => {
-                        self.lookup_dc_value(mod_idx, *dc)?
-                    }
-                };
-                Ok(EvalSignal::Value(val))
-            }
-            Expr::Let { name, init, .. } => {
-                let init_val = if let Some(init_expr) = init {
-                    match self.eval_expr(mod_idx, init_expr, frame, false, depth, quota)? {
-                        EvalSignal::Value(v) => Some(v),
-                        sig => return Ok(sig),
-                    }
-                } else {
-                    None
-                };
-                let _ = (name, init_val);
-                bail!("'let' must execute inside a block frame")
-            }
-            Expr::Const { .. } | Expr::RoutineDecl(_) => {
-                Ok(EvalSignal::Value(Value::Void))
-            }
-            Expr::Set { name, value, .. } => {
-                let new_val =
-                    match self.eval_expr(mod_idx, value, frame, false, depth, quota)? {
-                        EvalSignal::Value(v) => v,
-                        sig => return Ok(sig),
-                    };
-                let cell = frame
-                    .lookup_var(name)
-                    .with_context(|| format!("Variable '{name}' missing at runtime"))?;
-                *cell.borrow_mut() = Some(new_val);
-                Ok(EvalSignal::Value(Value::Void))
-            }
-            Expr::Call { target, args, span } => {
-                let mut evaluated_args = Vec::with_capacity(args.len());
-                for a in args {
-                    match self.eval_expr(mod_idx, a, frame, false, depth, quota)? {
-                        EvalSignal::Value(v) => evaluated_args.push(v),
-                        sig => return Ok(sig),
-                    }
-                }
-                let callee = self.resolve_callee(mod_idx, target, *span, frame)?;
-                if in_tail {
-                    Ok(EvalSignal::TailCall {
-                        callee,
-                        args: evaluated_args,
-                    })
-                } else {
-                    match self.invoke_trampoline(
-                        callee,
-                        evaluated_args,
-                        depth.saturating_add(1),
-                        quota,
-                    )? {
-                        RoutineOutcome::Returned(v) => Ok(EvalSignal::Value(v)),
-                        RoutineOutcome::Trapped(msg) => Ok(EvalSignal::Fault(msg)),
-                    }
-                }
-            }
-            Expr::Block { stmts, .. } => {
-                let mut block_frame = LexFrame::new(Some(Rc::new(frame.clone())));
-                // Register all nested routines defined directly in this block
-                // into the shared `nested_verbs` map before running statements so
-                // forward and mutually recursive calls capture the block frame.
-                let mut pending_routines = Vec::new();
-                for item in stmts {
-                    if let BlockItem::Expr(Expr::RoutineDecl(r)) = item {
-                        pending_routines.push((**r).clone());
-                    }
-                }
-                let block_rc_for_closures = Rc::new(block_frame.clone());
-                {
-                    let mut map = block_frame.nested_verbs.borrow_mut();
-                    for r in &pending_routines {
-                        map.insert(
-                            r.name.clone(),
-                            ClosureVerb {
-                                decl: r.clone(),
-                                module_idx: mod_idx,
-                                captured_frame: Rc::clone(&block_rc_for_closures),
-                            },
-                        );
-                    }
-                }
-                // Pre-create variable cells in `block_frame` so `ClosureVerb`
-                // captures them even if `let` runs sequentially below. Wait: in
-                // order for `captured_frame` to share newly added `let` cells,
-                // keep `block_frame` itself mutated OR pre-register `let` / `const`
-                // slots (`None`) in `block_frame.vars` right now, then update
-                // their `Cell` contents sequentially!
-                for item in stmts {
-                    match item {
-                        BlockItem::Expr(Expr::Let { name, .. })
-                        | BlockItem::Expr(Expr::Const { name, .. }) => {
-                            let cell = Rc::new(RefCell::new(None));
-                            block_frame.vars.insert(name.clone(), cell);
-                        }
-                        _ => {}
-                    }
-                }
-                // Update closures' `captured_frame` with finalized `block_frame`
-                // carrying all variable cells!
-                let live_frame = Rc::new(block_frame);
-                {
-                    let mut map = live_frame.nested_verbs.borrow_mut();
-                    for cv in map.values_mut() {
-                        cv.captured_frame = Rc::clone(&live_frame);
-                    }
-                }
-
-                let last_expr_idx = stmts
-                    .iter()
-                    .rposition(|it| matches!(it, BlockItem::Expr(_)));
-                let mut last_val = Value::Void;
-
-                for (idx, item) in stmts.iter().enumerate() {
-                    let BlockItem::Expr(e) = item else {
-                        continue;
-                    };
-                    let is_last = Some(idx) == last_expr_idx;
-                    match e {
-                        Expr::Let { name, init, .. } => {
-                            let val = if let Some(init_e) = init {
-                                match self.eval_expr(
-                                    mod_idx,
-                                    init_e,
-                                    &live_frame,
-                                    false,
-                                    depth,
-                                    quota,
-                                )? {
-                                    EvalSignal::Value(v) => Some(v),
-                                    sig => return Ok(sig),
-                                }
-                            } else {
-                                None
-                            };
-                            if let Some(cell) = live_frame.vars.get(name) {
-                                *cell.borrow_mut() = val;
-                            }
-                            if is_last {
-                                last_val = Value::Void;
-                            }
-                        }
-                        Expr::Const { name, value, .. } => {
-                            let val = match self.eval_expr(
-                                mod_idx,
-                                value,
-                                &live_frame,
-                                false,
-                                depth,
-                                quota,
-                            )? {
-                                EvalSignal::Value(v) => v,
-                                sig => return Ok(sig),
-                            };
-                            if let Some(cell) = live_frame.vars.get(name) {
-                                *cell.borrow_mut() = Some(val);
-                            }
-                            if is_last {
-                                last_val = Value::Void;
-                            }
-                        }
-                        Expr::RoutineDecl(_) => {
-                            if is_last {
-                                last_val = Value::Void;
-                            }
-                        }
-                        _ => {
-                            match self.eval_expr(
-                                mod_idx,
-                                e,
-                                &live_frame,
-                                in_tail && is_last,
-                                depth,
-                                quota,
-                            )? {
-                                EvalSignal::Value(v) => {
-                                    if is_last {
-                                        last_val = v;
-                                    }
-                                }
-                                sig => return Ok(sig),
-                            }
-                        }
-                    }
-                }
-                Ok(EvalSignal::Value(last_val))
-            }
-            Expr::If {
-                cond,
-                then_branch,
-                else_branch,
-                ..
-            } => {
-                let cval =
-                    match self.eval_expr(mod_idx, cond, frame, false, depth, quota)? {
-                        EvalSignal::Value(v) => v,
-                        sig => return Ok(sig),
-                    };
-                let Value::Bool(b) = cval else {
-                    bail!("'if' condition did not evaluate to bool");
-                };
-                if b {
-                    self.eval_expr(
-                        mod_idx,
-                        then_branch,
-                        frame,
-                        in_tail,
-                        depth,
-                        quota,
-                    )
-                } else {
-                    self.eval_expr(
-                        mod_idx,
-                        else_branch,
-                        frame,
-                        in_tail,
-                        depth,
-                        quota,
-                    )
-                }
-            }
-            Expr::While { cond, body, .. } => loop {
-                if let Err(msg) = self.consume_quota(quota) {
-                    return Ok(EvalSignal::Fault(msg));
-                }
-                let cval =
-                    match self.eval_expr(mod_idx, cond, frame, false, depth, quota)? {
-                        EvalSignal::Value(v) => v,
-                        sig => return Ok(sig),
-                    };
-                let Value::Bool(b) = cval else {
-                    bail!("'while' condition did not evaluate to bool");
-                };
-                if !b {
-                    return Ok(EvalSignal::Value(Value::Void));
-                }
-                match self.eval_expr(mod_idx, body, frame, false, depth, quota)? {
-                    EvalSignal::Value(_) | EvalSignal::Continue => {}
-                    EvalSignal::Break => {
-                        return Ok(EvalSignal::Value(Value::Void));
-                    }
-                    sig => return Ok(sig),
-                }
-            },
-            Expr::ForEach {
-                elem_name,
-                list,
-                body,
-                ..
-            } => {
-                let lval =
-                    match self.eval_expr(mod_idx, list, frame, false, depth, quota)? {
-                        EvalSignal::Value(v) => v,
-                        sig => return Ok(sig),
-                    };
-                enum SeqIter {
-                    Vals(Rc<Vec<Value>>),
-                    Dcs(Rc<Vec<DcChar>>),
-                }
-                let seq = match lval {
-                    Value::List(elems) => SeqIter::Vals(elems),
-                    Value::Dcs(chars) => SeqIter::Dcs(chars),
-                    _ => bail!("'foreach' iterable did not evaluate to l/T or dcs"),
-                };
-                let len = match &seq {
-                    SeqIter::Vals(v) => v.len(),
-                    SeqIter::Dcs(d) => d.len(),
-                };
-                // Snapshot ensures safe iteration.
-                for idx in 0..len {
-                    if let Err(msg) = self.consume_quota(quota) {
-                        return Ok(EvalSignal::Fault(msg));
-                    }
-                    let item = match &seq {
-                        SeqIter::Vals(v) => v.get(idx).cloned(),
-                        SeqIter::Dcs(d) => d.get(idx).copied().map(Value::Dc),
-                    }
-                    .context("Validated foreach index out of bounds")?;
-                    let mut iter_frame =
-                        LexFrame::new(Some(Rc::new(frame.clone())));
-                    iter_frame.vars.insert(
-                        elem_name.clone(),
-                        Rc::new(RefCell::new(Some(item))),
-                    );
-                    match self.eval_expr(
-                        mod_idx,
-                        body,
-                        &iter_frame,
-                        false,
-                        depth,
-                        quota,
-                    )? {
-                        EvalSignal::Value(_) | EvalSignal::Continue => {}
-                        EvalSignal::Break => {
-                            return Ok(EvalSignal::Value(Value::Void));
-                        }
-                        sig => return Ok(sig),
-                    }
-                }
-                Ok(EvalSignal::Value(Value::Void))
-            }
-            Expr::Break { .. } => Ok(EvalSignal::Break),
-            Expr::Continue { .. } => Ok(EvalSignal::Continue),
-            Expr::Return { value, .. } => {
-                if let Some(vexpr) = value {
-                    match self.eval_expr(mod_idx, vexpr, frame, true, depth, quota)? {
-                        EvalSignal::Value(v) => Ok(EvalSignal::Return(v)),
-                        sig => Ok(sig),
-                    }
-                } else {
-                    Ok(EvalSignal::Return(Value::Void))
-                }
-            }
-            Expr::Fault { span } => {
-                Ok(EvalSignal::Fault(format!("explicit fault trap at {span}")))
-            }
-            Expr::Nop { .. } => Ok(EvalSignal::Value(Value::Void)),
-            Expr::Unary { op, operand, .. } => {
-                let v = match self.eval_expr(
-                    mod_idx, operand, frame, false, depth, quota,
-                )? {
-                    EvalSignal::Value(v) => v,
-                    sig => return Ok(sig),
-                };
-                eval_unary(*op, v)
-            }
-            Expr::Binary {
-                op, left, right, ..
-            } => {
-                if matches!(op, CoreBinaryOp::And | CoreBinaryOp::Or) {
-                    let lv = match self.eval_expr(
-                        mod_idx, left, frame, false, depth, quota,
-                    )? {
-                        EvalSignal::Value(v) => v,
-                        sig => return Ok(sig),
-                    };
-                    let Value::Bool(lb) = lv else {
-                        bail!("Logical operand must be bool");
-                    };
-                    if *op == CoreBinaryOp::And && !lb {
-                        return Ok(EvalSignal::Value(Value::Bool(false)));
-                    }
-                    if *op == CoreBinaryOp::Or && lb {
-                        return Ok(EvalSignal::Value(Value::Bool(true)));
-                    }
-                    return self.eval_expr(
-                        mod_idx, right, frame, false, depth, quota,
-                    );
-                }
-                let lv = match self.eval_expr(
-                    mod_idx, left, frame, false, depth, quota,
-                )? {
-                    EvalSignal::Value(v) => v,
-                    sig => return Ok(sig),
-                };
-                let rv = match self.eval_expr(
-                    mod_idx, right, frame, false, depth, quota,
-                )? {
-                    EvalSignal::Value(v) => v,
-                    sig => return Ok(sig),
-                };
-                eval_binary(*op, lv, rv, self.config.max_seq_elems)
-            }
-            Expr::Ternary {
-                op,
-                first,
-                second,
-                third,
-                ..
-            } => {
-                let v1 = match self.eval_expr(
-                    mod_idx, first, frame, false, depth, quota,
-                )? {
-                    EvalSignal::Value(v) => v,
-                    sig => return Ok(sig),
-                };
-                let v2 = match self.eval_expr(
-                    mod_idx, second, frame, false, depth, quota,
-                )? {
-                    EvalSignal::Value(v) => v,
-                    sig => return Ok(sig),
-                };
-                let v3 = match self.eval_expr(
-                    mod_idx, third, frame, false, depth, quota,
-                )? {
-                    EvalSignal::Value(v) => v,
-                    sig => return Ok(sig),
-                };
-                eval_ternary(*op, v1, v2, v3)
-            }
-            Expr::Conv {
-                expr, target_ty, ..
-            } => {
-                let v = match self.eval_expr(
-                    mod_idx, expr, frame, false, depth, quota,
-                )? {
-                    EvalSignal::Value(v) => v,
-                    sig => return Ok(sig),
-                };
-                eval_conv(v, target_ty)
-            }
-            Expr::Bitcast {
-                expr, target_ty, ..
-            } => {
-                let v = match self.eval_expr(
-                    mod_idx, expr, frame, false, depth, quota,
-                )? {
-                    EvalSignal::Value(v) => v,
-                    sig => return Ok(sig),
-                };
-                eval_bitcast(v, target_ty)
-            }
-            Expr::TupleNew { elements, .. } => {
-                let mut vals = Vec::with_capacity(elements.len());
-                for el in elements {
-                    match self.eval_expr(mod_idx, el, frame, false, depth, quota)? {
-                        EvalSignal::Value(v) => vals.push(v),
-                        sig => return Ok(sig),
-                    }
-                }
-                Ok(EvalSignal::Value(Value::Tuple(Rc::new(vals))))
-            }
-            Expr::StructNew {
-                target,
-                fields,
-                span,
-            } => {
-                let mod_rt =
-                    self.modules.get(mod_idx).context("Invalid module idx")?;
-                let type_key = if let Some(k) =
-                    mod_rt.resolved_structs.get(&(span.line, span.col))
-                {
-                    k.clone()
-                } else {
-                    match target {
-                        SymbolTarget::Ident(name) => mod_rt
-                            .local_structs
-                            .get(name)
-                            .cloned()
-                            .with_context(|| {
-                                format!(
-                                    "Struct '{name}' not found at runtime at {span}"
-                                )
-                            })?,
-                        SymbolTarget::Dc(dc) => mod_rt
-                            .dc_structs
-                            .get(dc)
-                            .cloned()
-                            .with_context(|| {
-                                format!(
-                                    "Struct Dc '{dc}' not found at runtime at {span}"
-                                )
-                            })?,
-                    }
-                };
-                let mut vals = Vec::with_capacity(fields.len());
-                for f in fields {
-                    match self.eval_expr(mod_idx, f, frame, false, depth, quota)? {
-                        EvalSignal::Value(v) => vals.push(v),
-                        sig => return Ok(sig),
-                    }
-                }
-                Ok(EvalSignal::Value(Value::Struct {
-                    type_key,
-                    fields: Rc::new(vals),
-                }))
-            }
-            Expr::Field { index, base, span } => {
-                let idx_usize = usize::try_from(*index)
-                    .context("Field index exceeds usize")?;
-                let base_val =
-                    match self.eval_expr(mod_idx, base, frame, false, depth, quota)? {
-                        EvalSignal::Value(v) => v,
-                        sig => return Ok(sig),
-                    };
-                match base_val {
-                    Value::Tuple(slots)
-                    | Value::Struct { fields: slots, .. } => {
-                        let v =
-                            slots.get(idx_usize).cloned().with_context(|| {
-                                format!(
-                                    "Field index {index} out of bounds at runtime ({span})"
-                                )
-                            })?;
-                        Ok(EvalSignal::Value(v))
-                    }
-                    other => {
-                        bail!("Invalid operand {other:?} for 'field' at {span}")
-                    }
-                }
-            }
-            Expr::With {
-                index,
-                base,
-                value,
-                span,
-            } => {
-                let idx_usize = usize::try_from(*index)
-                    .context("Field index exceeds usize")?;
-                let base_val =
-                    match self.eval_expr(mod_idx, base, frame, false, depth, quota)? {
-                        EvalSignal::Value(v) => v,
-                        sig => return Ok(sig),
-                    };
-                let repl_val =
-                    match self.eval_expr(mod_idx, value, frame, false, depth, quota)? {
-                        EvalSignal::Value(v) => v,
-                        sig => return Ok(sig),
-                    };
-                match base_val {
-                    Value::Tuple(slots) => {
-                        let mut next_slots = (*slots).clone();
-                        let slot =
-                            next_slots.get_mut(idx_usize).with_context(|| {
-                                format!(
-                                    "Field index {index} out of bounds in 'with' ({span})"
-                                )
-                            })?;
-                        *slot = repl_val;
-                        Ok(EvalSignal::Value(Value::Tuple(Rc::new(next_slots))))
-                    }
-                    Value::Struct { type_key, fields } => {
-                        let mut next_fields = (*fields).clone();
-                        let slot =
-                            next_fields.get_mut(idx_usize).with_context(|| {
-                                format!(
-                                    "Field index {index} out of bounds in 'with' ({span})"
-                                )
-                            })?;
-                        *slot = repl_val;
-                        Ok(EvalSignal::Value(Value::Struct {
-                            type_key,
-                            fields: Rc::new(next_fields),
-                        }))
-                    }
-                    other => {
-                        bail!("Invalid operand {other:?} for 'with' at {span}")
-                    }
-                }
-            }
-            Expr::DctsString { .. }
-            | Expr::DcLit { .. }
-            | Expr::NamedStructNew { .. }
-            | Expr::EnumVariant { .. }
-            | Expr::OptionNone { .. }
-            | Expr::OptionSome { .. }
-            | Expr::ResultOk { .. }
-            | Expr::ResultErr { .. }
-            | Expr::ErrorTag { .. }
-            | Expr::NamedField { .. }
-            | Expr::NamedWith { .. }
-            | Expr::WrapNominal { .. }
-            | Expr::UnwrapNominal { .. }
-            | Expr::Match { .. }
-            | Expr::Propagate { .. }
-            | Expr::StageRUnary { .. }
-            | Expr::StageRBinary { .. }
-            | Expr::StageRTernary { .. }
-            | Expr::TotalConv { .. } => {
-                super::stager_eval::eval_stager_expr(
-                    self, mod_idx, expr, frame, in_tail, depth, quota,
-                )
-            }
-        }
-    }
-
-    fn lookup_module_value(
-        &self,
-        mod_idx: usize,
-        span: Span,
-        name: &str,
-        ty: Option<&StageLType>,
-    ) -> Result<Value> {
-        let mod_rt = self.modules.get(mod_idx).context("Invalid module idx")?;
-        if let Some((target_mod_idx, vkey)) =
-            mod_rt.resolved_values.get(&(span.line, span.col))
-        {
-            let target_rt = self
-                .modules
-                .get(*target_mod_idx)
-                .context("Invalid resolved constant module idx")?;
-            return target_rt
-                .constants
-                .get(vkey)
-                .cloned()
-                .with_context(|| {
-                    format!(
-                        "Constant '{}/{}' not yet initialized or missing at runtime",
-                        vkey.ty, vkey.name
-                    )
-                });
-        }
-        if let Some(expected_ty) = ty {
-            let fallback_key = ValueKey {
-                name: name.to_owned(),
-                ty: expected_ty.clone(),
-            };
-            if let Some(v) = mod_rt.constants.get(&fallback_key) {
-                return Ok(v.clone());
-            }
-        } else if let Some((_, v)) =
-            mod_rt.constants.iter().find(|(k, _)| k.name == name)
-        {
-            return Ok(v.clone());
-        }
-        bail!("Constant or variable '{name}' not found at runtime")
-    }
-
-    fn lookup_dc_value(&self, mod_idx: usize, dc: DcChar) -> Result<Value> {
-        let mod_rt = self.modules.get(mod_idx).context("Invalid module idx")?;
-        if let Some(vkey) = mod_rt.dc_constants.get(&dc) {
-            return mod_rt
-                .constants
-                .get(vkey)
-                .cloned()
-                .context("Missing local Dc constant value");
-        }
-        if let Some(ResolvedDcImportTarget::Value {
-            module_idx: dep_idx,
-            key: vkey,
-        }) = mod_rt.imports_by_dc.get(&dc)
-        {
-            let dep_rt = self.modules.get(*dep_idx).context("Invalid dep idx")?;
-            return dep_rt
-                .constants
-                .get(vkey)
-                .cloned()
-                .context("Missing imported Dc constant value");
-        }
-        bail!("Dc value reference '{dc}' not found at runtime")
-    }
-
-    fn resolve_callee(
-        &self,
-        mod_idx: usize,
-        target: &SymbolTarget,
-        span: Span,
-        frame: &LexFrame,
-    ) -> Result<CallableRoutine> {
-        match target {
-            SymbolTarget::Ident(name) => {
-                if let Some(cv) = frame.lookup_nested_verb(name) {
-                    return Ok(CallableRoutine::Nested(cv));
-                }
-                let mod_rt =
-                    self.modules.get(mod_idx).context("Invalid module idx")?;
-                if let Some((target_mod_idx, rkey)) =
-                    mod_rt.resolved_calls.get(&(span.line, span.col))
-                {
-                    return Ok(CallableRoutine::Top {
-                        module_idx: *target_mod_idx,
-                        key: rkey.clone(),
-                    });
-                }
-                bail!("Routine '{name}' at {span} not found at runtime")
-            }
-            SymbolTarget::Dc(dc) => {
-                let mod_rt =
-                    self.modules.get(mod_idx).context("Invalid module idx")?;
-                if let Some(rkey) = mod_rt.dc_routines.get(dc) {
-                    return Ok(CallableRoutine::Top {
-                        module_idx: mod_idx,
-                        key: rkey.clone(),
-                    });
-                }
-                if let Some(ResolvedDcImportTarget::Routine {
-                    module_idx: dep_idx,
-                    key: rkey,
-                }) = mod_rt.imports_by_dc.get(dc)
-                {
-                    return Ok(CallableRoutine::Top {
-                        module_idx: *dep_idx,
-                        key: rkey.clone(),
-                    });
-                }
-                bail!("Dc routine reference '{dc}' not found at runtime")
-            }
-        }
-    }
-}
-
-fn eval_pending_constants(
-    vm: &mut StageLWorkspaceVm,
-    mod_idx: usize,
-    pending: &[(ValueKey, super::ast::TopValueDecl)],
-) -> Result<()> {
-    let mut remaining: Vec<(ValueKey, super::ast::TopValueDecl)> =
-        pending.to_vec();
-    let empty_frame = LexFrame::new(None);
-    while !remaining.is_empty() {
-        let before = remaining.len();
-        let mut next_remaining = Vec::new();
-        for (vkey, v) in remaining {
-            let mut quota = vm.config.compute_quota;
-            match vm.eval_expr(mod_idx, &v.value, &empty_frame, false, 0, &mut quota) {
-                Ok(EvalSignal::Value(val)) => {
-                    if let Some(m) = vm.modules.get_mut(mod_idx) {
-                        m.constants.insert(vkey, val);
-                    }
-                }
-                Ok(EvalSignal::Fault(msg)) => {
-                    bail!("Constant '{}' trapped during initialization: {msg}", v.name);
-                }
-                Ok(_) => bail!("Invalid signal evaluating constant '{}'", v.name),
-                Err(_) => next_remaining.push((vkey, v)),
-            }
-        }
-        if next_remaining.len() == before {
-            bail!(
-                "Failed to evaluate module constants (unresolved constant dependency)"
-            );
-        }
-        remaining = next_remaining;
-    }
-    Ok(())
+/// Parses, validates, and runs all inline `test` blocks of a single module
+/// under the requested `dialect` and [`EvalConfig`] limits.
+pub fn run_module_inline_tests_with_dialect(
+    source: &str,
+    dialect: StageDialect,
+    config: EvalConfig,
+) -> Result<TestSuiteReport> {
+    let parsed = parse_module_with_dialect(source, dialect)?;
+    let validated = validate_module(&parsed)?;
+    let ws = ValidatedWorkspace {
+        modules: vec![validated],
+    };
+    run_validated_workspace_inline_tests_with_config(&ws, config)
 }
 
 /// Parses, validates, and runs all inline `test` blocks of a single `.sl3`
 /// source module.
 pub fn run_module_inline_tests(source: &str) -> Result<TestSuiteReport> {
-    run_module_inline_tests_with_config(source, EvalConfig::default())
+    run_module_inline_tests_with_dialect(
+        source,
+        StageDialect::StageL3,
+        EvalConfig::default(),
+    )
 }
 
 /// Parses, validates, and runs all inline `test` blocks of a single `.sl3`
@@ -1737,13 +359,38 @@ pub fn run_module_inline_tests_with_config(
     source: &str,
     config: EvalConfig,
 ) -> Result<TestSuiteReport> {
-    let parsed = parse_module(source)?;
-    let validated = validate_module(&parsed)?;
-    let ws = ValidatedWorkspace {
-        modules: vec![validated],
-    };
-    let vm = StageLWorkspaceVm::from_validated_workspace(&ws, config)?;
-    vm.run_all_tests(&ws)
+    run_module_inline_tests_with_dialect(source, StageDialect::StageL3, config)
+}
+
+/// Parses, validates, and runs all inline `test` blocks inside a standalone
+/// StageR 3 `.sr3` module.
+pub fn run_sr3_module_inline_tests(source: &str) -> Result<TestSuiteReport> {
+    run_module_inline_tests_with_dialect(
+        source,
+        StageDialect::StageR3,
+        EvalConfig::default(),
+    )
+}
+
+/// Parses, validates, and runs all inline `test` blocks inside a standalone
+/// StageR 3 `.sr3` module using explicit [`EvalConfig`] limits.
+pub fn run_sr3_module_inline_tests_with_config(
+    source: &str,
+    config: EvalConfig,
+) -> Result<TestSuiteReport> {
+    run_module_inline_tests_with_dialect(source, StageDialect::StageR3, config)
+}
+
+/// Parses, validates, and runs all inline `test` blocks across a multi-module
+/// workspace using `default_dialect` when a module has no explicit `.sl3`/`.sr3`
+/// path suffix and explicit [`EvalConfig`] limits.
+pub fn run_workspace_inline_tests_with_dialect(
+    inputs: &[ModuleInput<'_>],
+    default_dialect: StageDialect,
+    config: EvalConfig,
+) -> Result<TestSuiteReport> {
+    let ws = parse_and_validate_workspace_with_dialect(inputs, default_dialect)?;
+    run_validated_workspace_inline_tests_with_config(&ws, config)
 }
 
 /// Parses, validates (with PSR-4 `ns` and `use` DAG), and runs all inline
@@ -1751,8 +398,36 @@ pub fn run_module_inline_tests_with_config(
 pub fn run_workspace_inline_tests(
     inputs: &[ModuleInput<'_>],
 ) -> Result<TestSuiteReport> {
-    let ws = parse_and_validate_workspace(inputs)?;
-    run_validated_workspace_inline_tests(&ws)
+    run_workspace_inline_tests_with_dialect(
+        inputs,
+        StageDialect::StageL3,
+        EvalConfig::default(),
+    )
+}
+
+/// Parses, validates, and runs all inline `test` blocks across a StageR 3
+/// `.sr3` workspace.
+pub fn run_sr3_workspace_inline_tests(
+    inputs: &[ModuleInput<'_>],
+) -> Result<TestSuiteReport> {
+    run_workspace_inline_tests_with_dialect(
+        inputs,
+        StageDialect::StageR3,
+        EvalConfig::default(),
+    )
+}
+
+/// Parses, validates, and runs all inline `test` blocks across a StageR 3
+/// `.sr3` workspace using explicit [`EvalConfig`] limits.
+pub fn run_sr3_workspace_inline_tests_with_config(
+    inputs: &[ModuleInput<'_>],
+    config: EvalConfig,
+) -> Result<TestSuiteReport> {
+    run_workspace_inline_tests_with_dialect(
+        inputs,
+        StageDialect::StageR3,
+        config,
+    )
 }
 
 /// Runs all inline `test` blocks across an already-validated multi-module
@@ -1760,499 +435,17 @@ pub fn run_workspace_inline_tests(
 pub fn run_validated_workspace_inline_tests(
     ws: &ValidatedWorkspace,
 ) -> Result<TestSuiteReport> {
-    let vm =
-        StageLWorkspaceVm::from_validated_workspace(ws, EvalConfig::default())?;
+    run_validated_workspace_inline_tests_with_config(ws, EvalConfig::default())
+}
+
+/// Runs all inline `test` blocks across an already-validated multi-module
+/// [`ValidatedWorkspace`] using explicit [`EvalConfig`] limits.
+pub fn run_validated_workspace_inline_tests_with_config(
+    ws: &ValidatedWorkspace,
+    config: EvalConfig,
+) -> Result<TestSuiteReport> {
+    let vm = StageLWorkspaceVm::from_validated_workspace(ws, config)?;
     vm.run_all_tests(ws)
-}
-
-fn eval_unary(op: CoreUnaryOp, val: Value) -> Result<EvalSignal> {
-    match op {
-        CoreUnaryOp::Neg => match val {
-            Value::I32(x) => match x.checked_neg() {
-                Some(r) => Ok(EvalSignal::Value(Value::I32(r))),
-                None => Ok(EvalSignal::Fault(String::from("i32 neg overflow"))),
-            },
-            Value::I64(x) => match x.checked_neg() {
-                Some(r) => Ok(EvalSignal::Value(Value::I64(r))),
-                None => Ok(EvalSignal::Fault(String::from("i64 neg overflow"))),
-            },
-            other => bail!("Invalid operand {other:?} for 'neg'"),
-        },
-        CoreUnaryOp::BitNot => Ok(EvalSignal::Value(match val {
-            Value::U8(x) => Value::U8(!x),
-            Value::I32(x) => Value::I32(!x),
-            Value::U32(x) => Value::U32(!x),
-            Value::I64(x) => Value::I64(!x),
-            Value::U64(x) => Value::U64(!x),
-            Value::I128(x) => Value::I128(!x),
-            Value::U128(x) => Value::U128(!x),
-            other => bail!("Invalid operand {other:?} for 'bitNot'"),
-        })),
-        CoreUnaryOp::Not => match val {
-            Value::Bool(b) => Ok(EvalSignal::Value(Value::Bool(!b))),
-            other => bail!("Invalid operand {other:?} for 'not'"),
-        },
-        CoreUnaryOp::Clz => Ok(EvalSignal::Value(Value::U32(match val {
-            Value::U8(x) => x.leading_zeros(),
-            Value::I32(x) => x.leading_zeros(),
-            Value::U32(x) => x.leading_zeros(),
-            Value::I64(x) => x.leading_zeros(),
-            Value::U64(x) => x.leading_zeros(),
-            Value::I128(x) => x.leading_zeros(),
-            Value::U128(x) => x.leading_zeros(),
-            other => bail!("Invalid operand {other:?} for 'clz'"),
-        }))),
-        CoreUnaryOp::Ctz => Ok(EvalSignal::Value(Value::U32(match val {
-            Value::U8(x) => x.trailing_zeros(),
-            Value::I32(x) => x.trailing_zeros(),
-            Value::U32(x) => x.trailing_zeros(),
-            Value::I64(x) => x.trailing_zeros(),
-            Value::U64(x) => x.trailing_zeros(),
-            Value::I128(x) => x.trailing_zeros(),
-            Value::U128(x) => x.trailing_zeros(),
-            other => bail!("Invalid operand {other:?} for 'ctz'"),
-        }))),
-        CoreUnaryOp::Popcnt => Ok(EvalSignal::Value(Value::U32(match val {
-            Value::U8(x) => x.count_ones(),
-            Value::I32(x) => x.count_ones(),
-            Value::U32(x) => x.count_ones(),
-            Value::I64(x) => x.count_ones(),
-            Value::U64(x) => x.count_ones(),
-            Value::I128(x) => x.count_ones(),
-            Value::U128(x) => x.count_ones(),
-            other => bail!("Invalid operand {other:?} for 'popcnt'"),
-        }))),
-        CoreUnaryOp::Len => {
-            let len = match val {
-                Value::List(xs) => xs.len(),
-                Value::Buf(b) => b.borrow().elems.len(),
-                Value::Dcs(chars) => chars.len(),
-                other => bail!("Invalid operand {other:?} for 'len'"),
-            };
-            Ok(EvalSignal::Value(Value::U64(
-                u64::try_from(len).context("len exceeds u64")?,
-            )))
-        }
-        CoreUnaryOp::BufFreeze => {
-            let Value::Buf(b) = val else {
-                bail!("Invalid operand {val:?} for 'bufFreeze'");
-            };
-            let mut st = b.borrow_mut();
-            if st.frozen {
-                return Ok(EvalSignal::Fault(String::from(
-                    "bufFreeze called on an already-frozen buffer",
-                )));
-            }
-            st.frozen = true;
-            let frozen_vec = std::mem::take(&mut st.elems);
-            Ok(EvalSignal::Value(Value::List(Rc::new(frozen_vec))))
-        }
-    }
-}
-
-fn eval_binary(
-    op: CoreBinaryOp,
-    left: Value,
-    right: Value,
-    max_seq_elems: usize,
-) -> Result<EvalSignal> {
-    match op {
-        CoreBinaryOp::Add => checked_bin_int("add", left, right, |a, b| a.checked_add(b), |a, b| a.checked_add(b), |a, b| a.checked_add(b), |a, b| a.checked_add(b), |a, b| a.checked_add(b)),
-        CoreBinaryOp::Sub => checked_bin_int("sub", left, right, |a, b| a.checked_sub(b), |a, b| a.checked_sub(b), |a, b| a.checked_sub(b), |a, b| a.checked_sub(b), |a, b| a.checked_sub(b)),
-        CoreBinaryOp::Mul => checked_bin_int("mul", left, right, |a, b| a.checked_mul(b), |a, b| a.checked_mul(b), |a, b| a.checked_mul(b), |a, b| a.checked_mul(b), |a, b| a.checked_mul(b)),
-        CoreBinaryOp::Div => checked_bin_int("div", left, right, |a, b| a.checked_div(b), |a, b| a.checked_div(b), |a, b| a.checked_div(b), |a, b| a.checked_div(b), |a, b| a.checked_div(b)),
-        CoreBinaryOp::Rem => checked_bin_int("rem", left, right, |a, b| a.checked_rem(b), |a, b| a.checked_rem(b), |a, b| a.checked_rem(b), |a, b| a.checked_rem(b), |a, b| a.checked_rem(b)),
-        CoreBinaryOp::WrapAdd => pure_bin_int(left, right, |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b), |a, b| a.wrapping_add(b)),
-        CoreBinaryOp::WrapSub => pure_bin_int(left, right, |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b), |a, b| a.wrapping_sub(b)),
-        CoreBinaryOp::WrapMul => pure_bin_int(left, right, |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b), |a, b| a.wrapping_mul(b)),
-        CoreBinaryOp::BitAnd => pure_bin_int(left, right, |a, b| a & b, |a, b| a & b, |a, b| a & b, |a, b| a & b, |a, b| a & b, |a, b| a & b, |a, b| a & b),
-        CoreBinaryOp::BitOr => pure_bin_int(left, right, |a, b| a | b, |a, b| a | b, |a, b| a | b, |a, b| a | b, |a, b| a | b, |a, b| a | b, |a, b| a | b),
-        CoreBinaryOp::BitXor => pure_bin_int(left, right, |a, b| a ^ b, |a, b| a ^ b, |a, b| a ^ b, |a, b| a ^ b, |a, b| a ^ b, |a, b| a ^ b, |a, b| a ^ b),
-        CoreBinaryOp::Shl => eval_shift(true, left, right),
-        CoreBinaryOp::Shr => eval_shift(false, left, right),
-        CoreBinaryOp::Rotl => eval_rotate(true, left, right),
-        CoreBinaryOp::Rotr => eval_rotate(false, left, right),
-        CoreBinaryOp::Eq => Ok(EvalSignal::Value(Value::Bool(left == right))),
-        CoreBinaryOp::Ne => Ok(EvalSignal::Value(Value::Bool(left != right))),
-        CoreBinaryOp::Lt => cmp_numeric(&left, &right, std::cmp::Ordering::is_lt),
-        CoreBinaryOp::Le => cmp_numeric(&left, &right, std::cmp::Ordering::is_le),
-        CoreBinaryOp::Gt => cmp_numeric(&left, &right, std::cmp::Ordering::is_gt),
-        CoreBinaryOp::Ge => cmp_numeric(&left, &right, std::cmp::Ordering::is_ge),
-        CoreBinaryOp::Get => {
-            let idx = right.as_u64_index("get")?;
-            let opt_elem = match left {
-                Value::List(xs) => xs.get(idx).cloned(),
-                Value::Buf(b) => b.borrow().elems.get(idx).cloned(),
-                other => bail!("Invalid operand {other:?} for 'get'"),
-            };
-            match opt_elem {
-                Some(v) => Ok(EvalSignal::Value(v)),
-                None => Ok(EvalSignal::Fault(format!("get index {idx} out of bounds"))),
-            }
-        }
-        CoreBinaryOp::Concat => match (left, right) {
-            (Value::List(a), Value::List(b)) => {
-                let total = a
-                    .len()
-                    .checked_add(b.len())
-                    .context("concat length overflow")?;
-                if total > max_seq_elems {
-                    return Ok(EvalSignal::Fault(format!(
-                        "concat result length {total} exceeds max_seq_elems ({max_seq_elems})"
-                    )));
-                }
-                let mut merged = Vec::with_capacity(total);
-                merged.extend_from_slice(&a);
-                merged.extend_from_slice(&b);
-                Ok(EvalSignal::Value(Value::List(Rc::new(merged))))
-            }
-            (Value::S(a), Value::S(b)) => {
-                let total = a
-                    .len()
-                    .checked_add(b.len())
-                    .context("concat length overflow")?;
-                if total > max_seq_elems {
-                    return Ok(EvalSignal::Fault(format!(
-                        "concat result length {total} exceeds max_seq_elems ({max_seq_elems})"
-                    )));
-                }
-                let mut merged = Vec::with_capacity(total);
-                merged.extend_from_slice(&a);
-                merged.extend_from_slice(&b);
-                Ok(EvalSignal::Value(Value::S(Rc::new(merged))))
-            }
-            (Value::Dcs(a), Value::Dcs(b)) => {
-                let total = a
-                    .len()
-                    .checked_add(b.len())
-                    .context("concat length overflow")?;
-                if total > max_seq_elems {
-                    return Ok(EvalSignal::Fault(format!(
-                        "concat result length {total} exceeds max_seq_elems ({max_seq_elems})"
-                    )));
-                }
-                let mut merged = Vec::with_capacity(total);
-                merged.extend_from_slice(&a);
-                merged.extend_from_slice(&b);
-                Ok(EvalSignal::Value(Value::Dcs(Rc::new(merged))))
-            }
-            _ => bail!("Invalid operands for 'concat'"),
-        },
-        CoreBinaryOp::BufFill => {
-            let len = right.as_u64_index("bufFill")?;
-            if len > max_seq_elems {
-                return Ok(EvalSignal::Fault(format!(
-                    "bufFill capacity {len} exceeds max_seq_elems ({max_seq_elems})"
-                )));
-            }
-            let mut elems = Vec::with_capacity(len.min(65_536));
-            elems.resize(len, left);
-            Ok(EvalSignal::Value(Value::Buf(Rc::new(RefCell::new(BufStorage {
-                elems,
-                frozen: false,
-            })))))
-        }
-        CoreBinaryOp::BufPush => {
-            let Value::Buf(b) = left else {
-                bail!("Invalid buffer operand for 'bufPush'");
-            };
-            let mut st = b.borrow_mut();
-            if st.frozen {
-                return Ok(EvalSignal::Fault(String::from(
-                    "bufPush on frozen buffer",
-                )));
-            }
-            if st.elems.len() >= max_seq_elems {
-                return Ok(EvalSignal::Fault(format!(
-                    "bufPush exceeds max_seq_elems ({max_seq_elems})"
-                )));
-            }
-            st.elems.push(right);
-            Ok(EvalSignal::Value(Value::Void))
-        }
-        CoreBinaryOp::BufExtend => {
-            let (Value::Buf(b), Value::List(xs)) = (left, right) else {
-                bail!("Invalid operands for 'bufExtend'");
-            };
-            let mut st = b.borrow_mut();
-            if st.frozen {
-                return Ok(EvalSignal::Fault(String::from(
-                    "bufExtend on frozen buffer",
-                )));
-            }
-            let total = st
-                .elems
-                .len()
-                .checked_add(xs.len())
-                .context("bufExtend length overflow")?;
-            if total > max_seq_elems {
-                return Ok(EvalSignal::Fault(format!(
-                    "bufExtend result length {total} exceeds max_seq_elems ({max_seq_elems})"
-                )));
-            }
-            st.elems.extend_from_slice(&xs);
-            Ok(EvalSignal::Value(Value::Void))
-        }
-        CoreBinaryOp::And | CoreBinaryOp::Or => {
-            unreachable!("Short-circuit handled directly in eval_expr")
-        }
-    }
-}
-
-#[allow(
-    clippy::too_many_arguments,
-    reason = "Parameterizes checked integer arithmetic across 5 fixed integer widths without code duplication"
-)]
-fn checked_bin_int(
-    name: &str,
-    left: Value,
-    right: Value,
-    f_u8: fn(u8, u8) -> Option<u8>,
-    f_i32: fn(i32, i32) -> Option<i32>,
-    f_u32: fn(u32, u32) -> Option<u32>,
-    f_i64: fn(i64, i64) -> Option<i64>,
-    f_u64: fn(u64, u64) -> Option<u64>,
-) -> Result<EvalSignal> {
-    let res = match (left, right) {
-        (Value::U8(a), Value::U8(b)) => f_u8(a, b).map(Value::U8),
-        (Value::I32(a), Value::I32(b)) => f_i32(a, b).map(Value::I32),
-        (Value::U32(a), Value::U32(b)) => f_u32(a, b).map(Value::U32),
-        (Value::I64(a), Value::I64(b)) => f_i64(a, b).map(Value::I64),
-        (Value::U64(a), Value::U64(b)) => f_u64(a, b).map(Value::U64),
-        (l, r) => bail!("Mismatched types {l:?} vs {r:?} for '{name}'"),
-    };
-    match res {
-        Some(v) => Ok(EvalSignal::Value(v)),
-        None => Ok(EvalSignal::Fault(format!("checked arithmetic fault in '{name}'"))),
-    }
-}
-
-#[allow(
-    clippy::too_many_arguments,
-    reason = "Parameterizes bitwise and wrapping arithmetic across all 7 fixed integer widths without code duplication"
-)]
-fn pure_bin_int(
-    left: Value,
-    right: Value,
-    f_u8: fn(u8, u8) -> u8,
-    f_i32: fn(i32, i32) -> i32,
-    f_u32: fn(u32, u32) -> u32,
-    f_i64: fn(i64, i64) -> i64,
-    f_u64: fn(u64, u64) -> u64,
-    f_i128: fn(i128, i128) -> i128,
-    f_u128: fn(u128, u128) -> u128,
-) -> Result<EvalSignal> {
-    let val = match (left, right) {
-        (Value::U8(a), Value::U8(b)) => Value::U8(f_u8(a, b)),
-        (Value::I32(a), Value::I32(b)) => Value::I32(f_i32(a, b)),
-        (Value::U32(a), Value::U32(b)) => Value::U32(f_u32(a, b)),
-        (Value::I64(a), Value::I64(b)) => Value::I64(f_i64(a, b)),
-        (Value::U64(a), Value::U64(b)) => Value::U64(f_u64(a, b)),
-        (Value::I128(a), Value::I128(b)) => Value::I128(f_i128(a, b)),
-        (Value::U128(a), Value::U128(b)) => Value::U128(f_u128(a, b)),
-        (l, r) => bail!("Mismatched types {l:?} vs {r:?} for integer op"),
-    };
-    Ok(EvalSignal::Value(val))
-}
-
-fn cmp_numeric(
-    left: &Value,
-    right: &Value,
-    pred: fn(std::cmp::Ordering) -> bool,
-) -> Result<EvalSignal> {
-    let ord = match (left, right) {
-        (Value::U8(a), Value::U8(b)) => a.cmp(b),
-        (Value::I32(a), Value::I32(b)) => a.cmp(b),
-        (Value::U32(a), Value::U32(b)) => a.cmp(b),
-        (Value::I64(a), Value::I64(b)) => a.cmp(b),
-        (Value::U64(a), Value::U64(b)) => a.cmp(b),
-        (Value::I128(a), Value::I128(b)) => a.cmp(b),
-        (Value::U128(a), Value::U128(b)) => a.cmp(b),
-        (Value::Int(a), Value::Int(b)) => a.cmp(b),
-        (Value::Rat(a), Value::Rat(b)) => a.cmp(b),
-        (l, r) => bail!("Mismatched types {l:?} vs {r:?} for comparison"),
-    };
-    Ok(EvalSignal::Value(Value::Bool(pred(ord))))
-}
-
-fn eval_shift(is_left: bool, val: Value, count: Value) -> Result<EvalSignal> {
-    let Value::U32(cnt) = count else {
-        bail!("Shift count must be u32, got {count:?}");
-    };
-    let shifted = match val {
-        Value::U8(x) => {
-            if is_left {
-                x.checked_shl(cnt).map(Value::U8)
-            } else {
-                x.checked_shr(cnt).map(Value::U8)
-            }
-        }
-        Value::I32(x) => {
-            if is_left {
-                x.checked_shl(cnt).map(Value::I32)
-            } else {
-                x.checked_shr(cnt).map(Value::I32)
-            }
-        }
-        Value::U32(x) => {
-            if is_left {
-                x.checked_shl(cnt).map(Value::U32)
-            } else {
-                x.checked_shr(cnt).map(Value::U32)
-            }
-        }
-        Value::I64(x) => {
-            if is_left {
-                x.checked_shl(cnt).map(Value::I64)
-            } else {
-                x.checked_shr(cnt).map(Value::I64)
-            }
-        }
-        Value::U64(x) => {
-            if is_left {
-                x.checked_shl(cnt).map(Value::U64)
-            } else {
-                x.checked_shr(cnt).map(Value::U64)
-            }
-        }
-        other => bail!("Invalid operand {other:?} for shift"),
-    };
-    match shifted {
-        Some(v) => Ok(EvalSignal::Value(v)),
-        None => Ok(EvalSignal::Fault(format!("shift count {cnt} out of range"))),
-    }
-}
-
-fn eval_rotate(is_left: bool, val: Value, count: Value) -> Result<EvalSignal> {
-    let Value::U32(cnt) = count else {
-        bail!("Rotate count must be u32, got {count:?}");
-    };
-    let res = match val {
-        Value::U8(x) => Value::U8(if is_left {
-            x.rotate_left(cnt)
-        } else {
-            x.rotate_right(cnt)
-        }),
-        Value::U32(x) => Value::U32(if is_left {
-            x.rotate_left(cnt)
-        } else {
-            x.rotate_right(cnt)
-        }),
-        Value::U64(x) => Value::U64(if is_left {
-            x.rotate_left(cnt)
-        } else {
-            x.rotate_right(cnt)
-        }),
-        Value::U128(x) => Value::U128(if is_left {
-            x.rotate_left(cnt)
-        } else {
-            x.rotate_right(cnt)
-        }),
-        other => bail!("Invalid operand {other:?} for rotate"),
-    };
-    Ok(EvalSignal::Value(res))
-}
-
-fn eval_ternary(
-    op: CoreTernaryOp,
-    v1: Value,
-    v2: Value,
-    v3: Value,
-) -> Result<EvalSignal> {
-    match op {
-        CoreTernaryOp::Slice => {
-            let Value::List(xs) = v1 else {
-                bail!("Invalid sequence operand for 'slice'");
-            };
-            let start = v2.as_u64_index("slice start")?;
-            let end = v3.as_u64_index("slice end")?;
-            if start > end || end > xs.len() {
-                return Ok(EvalSignal::Fault(format!(
-                    "slice bounds [{start}..{end}) out of range for len {}",
-                    xs.len()
-                )));
-            }
-            let sub = xs
-                .get(start..end)
-                .context("Validated slice bounds failed")?
-                .to_vec();
-            Ok(EvalSignal::Value(Value::List(Rc::new(sub))))
-        }
-        CoreTernaryOp::BufSet => {
-            let Value::Buf(b) = v1 else {
-                bail!("Invalid buffer operand for 'bufSet'");
-            };
-            let idx = v2.as_u64_index("bufSet")?;
-            let mut st = b.borrow_mut();
-            if st.frozen {
-                return Ok(EvalSignal::Fault(String::from("bufSet on frozen buffer")));
-            }
-            let Some(slot) = st.elems.get_mut(idx) else {
-                return Ok(EvalSignal::Fault(format!(
-                    "bufSet index {idx} out of bounds"
-                )));
-            };
-            *slot = v3;
-            Ok(EvalSignal::Value(Value::Void))
-        }
-    }
-}
-
-fn eval_conv(val: Value, target_ty: &StageLType) -> Result<EvalSignal> {
-    let v128: i128 = match val {
-        Value::U8(x) => i128::from(x),
-        Value::I32(x) => i128::from(x),
-        Value::U32(x) => i128::from(x),
-        Value::I64(x) => i128::from(x),
-        Value::U64(x) => i128::from(x),
-        other => bail!("Invalid source operand {other:?} for 'conv'"),
-    };
-    let converted = match target_ty {
-        StageLType::U8 => u8::try_from(v128).ok().map(Value::U8),
-        StageLType::I32 => i32::try_from(v128).ok().map(Value::I32),
-        StageLType::U32 => u32::try_from(v128).ok().map(Value::U32),
-        StageLType::I64 => i64::try_from(v128).ok().map(Value::I64),
-        StageLType::U64 => u64::try_from(v128).ok().map(Value::U64),
-        other => bail!("Invalid target type '{other}' for 'conv'"),
-    };
-    match converted {
-        Some(v) => Ok(EvalSignal::Value(v)),
-        None => Ok(EvalSignal::Fault(format!(
-            "conv out of range converting {v128} to {target_ty}"
-        ))),
-    }
-}
-
-fn eval_bitcast(val: Value, target_ty: &StageLType) -> Result<EvalSignal> {
-    let out = match (val, target_ty) {
-        (Value::U8(x), StageLType::U8) => Value::U8(x),
-        (Value::I32(x), StageLType::I32) => Value::I32(x),
-        (Value::I32(x), StageLType::U32) => {
-            Value::U32(u32::from_le_bytes(x.to_le_bytes()))
-        }
-        (Value::U32(x), StageLType::U32) => Value::U32(x),
-        (Value::U32(x), StageLType::I32) => {
-            Value::I32(i32::from_le_bytes(x.to_le_bytes()))
-        }
-        (Value::I64(x), StageLType::I64) => Value::I64(x),
-        (Value::I64(x), StageLType::U64) => {
-            Value::U64(u64::from_le_bytes(x.to_le_bytes()))
-        }
-        (Value::U64(x), StageLType::U64) => Value::U64(x),
-        (Value::U64(x), StageLType::I64) => {
-            Value::I64(i64::from_le_bytes(x.to_le_bytes()))
-        }
-        (Value::I128(x), StageLType::I128) => Value::I128(x),
-        (Value::I128(x), StageLType::U128) => {
-            Value::U128(u128::from_le_bytes(x.to_le_bytes()))
-        }
-        (Value::U128(x), StageLType::U128) => Value::U128(x),
-        (Value::U128(x), StageLType::I128) => {
-            Value::I128(i128::from_le_bytes(x.to_le_bytes()))
-        }
-        (src, dst) => bail!("Invalid bitcast from {src:?} to {dst}"),
-    };
-    Ok(EvalSignal::Value(out))
 }
 
 #[cfg(test)]
@@ -2266,15 +459,12 @@ fn eval_bitcast(val: Value, target_ty: &StageLType) -> Result<EvalSignal> {
     clippy::arithmetic_side_effects,
     reason = "Standard repository test boilerplate"
 )]
-#[allow(
-    clippy::unwrap_used,
-    clippy::expect_used,
-    clippy::indexing_slicing,
-    reason = "Unit tests"
-)]
 mod tests {
     use super::*;
+    use super::super::ast::{Span, StageRErrorTag, StageRTernaryOp};
     use super::super::validator::{ModuleInput, parse_and_validate_workspace};
+    use super::ops::eval_stager_ternary;
+    use super::vm::EvalSignal;
 
     #[crate::ctb_test]
     fn test_eval_arithmetic_bitwise_conv_bitcast_and_traps() {
@@ -2560,5 +750,250 @@ pub v/b/verifyAll
 
         let report = run_workspace_inline_tests(&inputs).expect("eval workspace");
         assert_eq!(report.ensure_all_passed().unwrap(), 2);
+    }
+
+    #[crate::ctb_test]
+    fn test_stager_eval_i128_u128_int_rat_and_shifts() -> Result<()> {
+        let src = r#"ns eval/nums.
+
+pub v/b/checkWideLimits
+    test checks i128 u128 overflow and mod truncRem MIN -1
+        in.
+        out true
+    const i128/min i128:-170141183460469231731687303715884105728.
+    const b/ok1 eq neg /min result/i128:err error:overflow.
+    const b/ok2 eq div /min i128:-1 result/i128:err error:overflow.
+    const b/ok3 eq mod /min i128:-1 result/i128:ok i128:0.
+    const b/ok4 eq truncRem /min i128:-1 result/i128:ok i128:0.
+    const b/ok5 eq sub u128:0 u128:1 result/u128:err error:overflow.
+    const b/ok6 eq shl u32:1 u32:31 result/u32:ok u32:2147483648.
+    const b/ok7 eq shl u32:1 u32:32 result/u32:err error:overflow.
+    const b/ok8 eq shr u128:8 u32:127 result/u128:ok u128:0.
+    const b/ok9 eq shr u128:8 u32:128 result/u128:err error:overflow.
+    and /ok1 and /ok2 and /ok3 and /ok4 and /ok5 and /ok6 and /ok7 and /ok8 /ok9.
+
+pub v/result/b/checkBigIntAndRat
+    test checks arbitrary int and canonical rational arithmetic
+        in.
+        out result/b:ok true
+    const int/big mul int:100000000000000000000000000000 int:200000000000000000000000000000.
+    const b/okInt and
+        eq /big int:20000000000000000000000000000000000000000000000000000000000
+        eq div int:5 int:0 result/int:err error:divisionByZero.
+    const rat/r1 makeRat? int:6 int:-4.
+    const rat/r2 makeRat? int:-3 int:2.
+    const rat/r3 add makeRat? int:1 int:3 makeRat? int:1 int:6.
+    const rat/half makeRat? int:1 int:2.
+    const b/badDen eq makeRat int:1 int:0 result/rat:err error:divisionByZero.
+    result/b:ok and /okInt and eq /r1 /r2 and eq /r3 /half /badDen.
+"#;
+        let report = run_sr3_module_inline_tests(src)?;
+        assert_eq!(report.ensure_all_passed()?, 2);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_stager_eval_euclidean_mod_vs_trunc_rem_and_exact_conv()
+    -> Result<()> {
+        let src = r#"ns eval/modconv.
+
+pub v/result/b/checkModAndTruncRem
+    test checks euclidean mod vs truncRem across signed operands
+        in.
+        out result/b:ok true
+    const i32/m1 mod? i32:-7 i32:3.
+    const i32/m2 mod? i32:-7 i32:-3.
+    const i32/t1 truncRem? i32:-7 i32:3.
+    const i32/t2 truncRem? i32:-7 i32:-3.
+    const i32/m0 mod? i32:5 i32:-1.
+    const i32/t0 truncRem? i32:5 i32:-1.
+    const b/okMod and eq /m1 i32:2 and eq /m2 i32:2 eq /m0 i32:0.
+    const b/okRem and eq /t1 i32:-1 and eq /t2 i32:-1 eq /t0 i32:0.
+    result/b:ok and /okMod /okRem.
+
+pub v/result/b/checkExactConv
+    test checks exact value-preserving conv rules
+        in.
+        out result/b:ok true
+    const rat/exactIntRat makeRat? int:6 int:2.
+    const rat/nonIntRat makeRat? int:5 int:2.
+    const int/fromRat conv? /exactIntRat int.
+    const b/okExact eq /fromRat int:3.
+    const b/failNonInt eq conv /nonIntRat int result/int:err error:overflow.
+    const b/okNarrow eq conv int:255 u8 result/u8:ok u8:255.
+    const b/failRange eq conv int:256 u8 result/u8:err error:overflow.
+    const rat/wide conv int:-42 rat.
+    const b/okWide eq /wide makeRat? int:-42 int:1.
+    result/b:ok and /okExact and /failNonInt and /okNarrow and /failRange /okWide.
+"#;
+        let report = run_sr3_module_inline_tests(src)?;
+        assert_eq!(report.ensure_all_passed()?, 2);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_stager_eval_dc_dcs_s_explode_implode_get_slice_and_bufset()
+    -> Result<()> {
+        let src = r#"ns eval/strings.
+
+pub v/result/b/checkDcAndStrings
+    test checks dcFromU128 dcsFromS sFromDcs byteLen and explode implode
+        in.
+        out result/b:ok true
+    const dc/cu100 dcFromU128? u128:256.
+    const dc/c256 dcFromU128? u128:1114368.
+    const b/okDc and eq /cu100 dc:u100 and eq /c256 dc:256 eq u128FromDc /c256 u128:1114368.
+    const b/badSurrogate eq dcFromU128 u128:55296 result/dc:err error:invalidDc.
+
+    const dcs/pure dcsFromS? "hi @256@".
+    const b/okLen and eq len /pure u64:4 eq get /pure u64:3 option/dc:some dc:256.
+    const b/okOob and eq get /pure u64:9 option/dc:none eq slice /pure u64:3 u64:1 option/dcs:none.
+    const dcs/sl slice? /pure u64:1 u64:3.
+    const s/back sFromDcs /sl.
+    const b/okRound eq /back "i ".
+
+    : Embedded valid Base64 binary run Dc 203..204 (21-byte header + 3 payload bytes = 24 bytes)
+    const s/withBin "pre:@203@@127@@127@@127@@127@@204@:post".
+    const b/binRejected eq dcsFromS /withBin result/dcs:err error:invalidEncoding.
+    const u64/blen byteLen /withBin.
+    const l/s/parts explode ":" /withBin.
+    const s/rejoined implode ":" /parts.
+    const l/s/chars explode "" "a@256@@203@@127@@127@@127@@127@@204@".
+    const b/okBinSplit and eq /rejoined /withBin and eq len /parts u64:3 and eq len /chars u64:3 eq get /parts u64:1 option/s:some "@203@@127@@127@@127@@127@@204@".
+
+    const l/i32/ints l/i32: i32:10 i32:20 i32:30 ::.
+    const l/l/i32/iParts explode l/i32: i32:20 :: /ints.
+    const b/okIntList and eq implode l/i32: i32:20 :: /iParts /ints eq len /iParts u64:2.
+
+    let buf/i32/mbuf bufFill i32:0 u64:2.
+    const b/okSet0 eq bufSet /mbuf u64:0 i32:11 result/void:ok nop.
+    const b/okMatchSet
+        match bufSet /mbuf u64:1 i32:99
+            case ok true.
+            case err error/_ev false.
+        ::.
+    const b/badSet eq bufSet /mbuf u64:5 i32:1 result/void:err error:outOfBounds.
+    const l/i32/frozen bufFreeze /mbuf.
+    const b/okFrozen and eq get /frozen u64:0 option/i32:some i32:11 eq get /frozen u64:1 option/i32:some i32:99.
+
+    result/b:ok and /okDc and /badSurrogate and /okLen and /okOob and /okRound and /binRejected and gt /blen u64:24 and /okBinSplit and /okIntList and /okSet0 and /okMatchSet and /badSet /okFrozen.
+"#;
+        let report = run_sr3_module_inline_tests(src)?;
+        assert_eq!(report.ensure_all_passed()?, 1);
+
+        // Also test runtime `err error:frozenBuffer` directly on a frozen Value::Buf handle.
+        let frozen_buf = Value::Buf(std::rc::Rc::new(std::cell::RefCell::new(
+            crate::stagel3::eval::BufStorage {
+                elems: vec![Value::I32(1)],
+                frozen: true,
+            },
+        )));
+        let sig = eval_stager_ternary(
+            StageRTernaryOp::TotalBufSet,
+            frozen_buf,
+            Value::U64(0),
+            Value::I32(7),
+            Span { line: 1, col: 1 },
+        )?;
+        assert!(matches!(
+            sig,
+            EvalSignal::Value(Value::Result(Err(StageRErrorTag::FrozenBuffer)))
+        ));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_stager_eval_propagate_match_tail_trampoline_and_resource_traps()
+    -> Result<()> {
+        let src = r#"ns eval/control.
+
+enum step
+    int/done.
+    int/next.
+
+v/option/i32/optPropagate option/i32/x
+    const i32/unw /x?.
+    option/i32:some wrapAdd /unw i32:1.
+
+v/result/i32/optToRes option/i32/x
+    const i32/unw /x/.
+    result/i32:ok /unw.
+
+v/int/countRec step/st int/acc
+    match /st
+        case done int/fin /fin.
+        case next int/n if le /n int:0
+            countRec step:done /acc int:0
+            countRec step:next sub /n int:1 add /acc /n.
+    ::.
+
+pub v/int/tailMatchSum int/n
+    test deep match tail call with tight max_call_depth
+        in int:500
+        out int:125250
+    countRec step:next /n int:0.
+
+pub v/b/checkPropagation
+    test verifies option and result propagation conversions
+        in.
+        out true
+    const b/o1 eq optPropagate option/i32:none option/i32:none.
+    const b/o2 eq optToRes option/i32:none result/i32:err error:unexpectedNone.
+    const b/o3 eq optToRes option/i32:some i32:7 result/i32:ok i32:7.
+    and /o1 and /o2 /o3.
+"#;
+        let report = run_sr3_module_inline_tests_with_config(
+            src,
+            EvalConfig {
+                compute_quota: 2_000_000,
+                max_call_depth: 16,
+                ..EvalConfig::default()
+            },
+        )?;
+        assert_eq!(report.ensure_all_passed()?, 2);
+
+        // Verify `max_bigint_bits` and `max_seq_elems` cleanly trap (`EvalSignal::Fault`).
+        let big_trap = r#"ns eval/bigtrap.
+pub v/int/boom
+    test bigint trap
+        in.
+        out int:0
+    mul int:1000000000000 int:1000000000000.
+"#;
+        let big_rep = run_sr3_module_inline_tests_with_config(
+            big_trap,
+            EvalConfig {
+                max_bigint_bits: 32,
+                ..EvalConfig::default()
+            },
+        )?;
+        let big_err = big_rep.ensure_all_passed().unwrap_err().to_string();
+        assert!(big_err.contains("max_bigint_bits"), "got: {big_err}");
+
+        let seq_trap = r#"ns eval/seqtrap.
+pub v/u64/boom
+    test seq trap
+        in.
+        out u64:0
+    let buf/u8/mbuf bufFill u8:1 u64:16.
+    len bufFreeze /mbuf.
+"#;
+        let seq_rep = run_sr3_workspace_inline_tests_with_config(
+            &[ModuleInput {
+                source_path: Some("eval/seqtrap.sr3"),
+                source: seq_trap,
+            }],
+            EvalConfig {
+                max_seq_elems: 4,
+                ..EvalConfig::default()
+            },
+        )?;
+        let seq_err = seq_rep.ensure_all_passed().unwrap_err().to_string();
+        assert!(
+            seq_err.contains("max_seq_elems") || seq_err.contains("capacity"),
+            "got: {seq_err}"
+        );
+        let _ = StageDialect::StageR3;
+        Ok(())
     }
 }

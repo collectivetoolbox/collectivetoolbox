@@ -33,8 +33,8 @@ use crate::utilities::*;
 
 pub use ctb_formats_dcdata::stagel3::ast::StageDialect;
 pub use ctb_formats_dcdata::stagel3::{
-    ast, dc_tokens, eval, parser, seed_linker, stager_eval,
-    stager_strings, stager_validator, validator,
+    ast, dc_tokens, eval, parser, seed_linker, stager_strings,
+    stager_validator, validator,
 };
 pub mod rust_codegen;
 pub mod wasm_codegen;
@@ -627,7 +627,7 @@ pub v/result/b/roundtripCheck dc/inDc
         let parsed = parser::parse_sr3_module(program)?;
         let validated = validator::validate_module(&parsed)?;
         assert_eq!(validated.exports.brand_types.len(), 2);
-        let report = stager_eval::run_sr3_module_inline_tests(program)?;
+        let report = eval::run_sr3_module_inline_tests(program)?;
         assert_eq!(report.ensure_all_passed()?, 1);
 
         // 3. Seed-graph workspace & single-file evaluation via stagel3::seed_linker
@@ -677,7 +677,7 @@ pub v/result/u64/doubleNz u64/x
         let tokens2 = dc_tokens::sr3_to_dc_tokens(&text1)?;
         assert_eq!(tokens1, tokens2);
 
-        let report = stager_eval::run_sr3_module_inline_tests(src)?;
+        let report = eval::run_sr3_module_inline_tests(src)?;
         assert_eq!(report.ensure_all_passed()?, 5);
 
         let sg = ctb_formats_dcdata::SeedGraphIndex::shared()?;
@@ -726,7 +726,7 @@ pub v/u64/useFields u64/in u64/out u64/s u64/b u64/len u64/type u64/error
         let text1 = dc_tokens::dc_tokens_to_sr3(&tokens1)?;
         let tokens2 = dc_tokens::sr3_to_dc_tokens(&text1)?;
         assert_eq!(tokens1, tokens2);
-        let report = stager_eval::run_sr3_module_inline_tests(sr3_program)?;
+        let report = eval::run_sr3_module_inline_tests(sr3_program)?;
         assert_eq!(report.ensure_all_passed()?, 1);
 
         let sl3_program = r#"struct rec :: u32 u32 u32.
