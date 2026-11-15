@@ -392,123 +392,86 @@ pub(super) fn check_valid_ident(
     Ok(())
 }
 
-/// Checks whether `name` is a built-in type keyword in `dialect`.
-fn is_builtin_type_name(name: &str, dialect: StageDialect) -> bool {
-    let is_shared = matches!(
-        name,
-        "b" | "u8"
-            | "i32"
-            | "u32"
-            | "i64"
-            | "u64"
-            | "void"
-            | "never"
-            | "l"
-            | "buf"
-            | "tup"
-            | "v"
-            | "dc"
-    );
-    is_shared
-        || (dialect == StageDialect::StageR3
-            && matches!(
-                name,
-                "i128"
-                    | "u128"
-                    | "int"
-                    | "rat"
-                    | "dcs"
-                    | "s"
-                    | "error"
-                    | "view"
-                    | "cursor"
-                    | "option"
-                    | "result"
-            ))
+/// Built-in type keywords unified across StageL 3 and StageR 3
+/// (`StageL 3 ⊂ StageR 3`).
+///
+/// Matched ASCII case-insensitively on `struct`, `brand`, `type`, and `enum`
+/// declarations so StageL 3 modules never declare type names reserved by
+/// StageR 3.
+const BUILTIN_TYPE_WORDS: &[&str] = &[
+    // Scalar & document primitive types (18)
+    "b", "u8", "i32", "u32", "i64", "u64", "i128", "u128", "int", "rat",
+    "void", "never", "dc", "dcs", "s", "error", "view", "cursor",
+    // Parameterized & callable constructors (6)
+    "l", "buf", "tup", "option", "result", "v",
+];
+
+/// Built-in module/statement/expression head words and core verbs unified
+/// across StageL 3 and StageR 3 (`StageL 3 ⊂ StageR 3`).
+///
+/// Matched ASCII case-insensitively on `v/RET/name` routine declarations so
+/// StageL 3 modules never declare routine names that collide with StageR 3
+/// built-in forms or verbs.
+const BUILTIN_HEAD_WORDS: &[&str] = &[
+    // Module & declaration starters (8)
+    "ns", "use", "pub", "struct", "brand", "type", "enum", "test",
+    // Binding, control-flow, pattern, & literal head forms (18)
+    "let", "const", "set", "do", "if", "while", "foreach", "match", "case",
+    "else", "break", "continue", "return", "fault", "nop", "true", "false",
+    "unimplemented",
+    // Composite, nominal, & conversion head forms (9)
+    "bufNew", "tupNew", "structNew", "field", "with", "wrap", "unwrap", "conv",
+    "bitcast",
+    // Unary built-in verbs (20)
+    "neg", "bitNot", "not", "clz", "ctz", "popcnt", "len", "bufFreeze",
+    "isSome", "isNone", "isOk", "isErr", "byteLen", "dcFromU128", "u128FromDc",
+    "dcsFromS", "sFromDcs", "unwrapSome", "unwrapOk", "unwrapErr",
+    // Binary built-in verbs (35)
+    "add", "sub", "mul", "div", "rem", "mod", "truncRem", "wrapAdd", "wrapSub",
+    "wrapMul", "bitAnd", "bitOr", "bitXor", "shl", "shr", "rotl", "rotr", "and",
+    "or", "eq", "ne", "lt", "le", "gt", "ge", "get", "concat", "bufFill",
+    "bufPush", "bufExtend", "unwrapOr", "okOr", "makeRat", "explode", "implode",
+    // Ternary built-in verbs (2)
+    "slice", "bufSet",
+];
+
+fn contains_ascii_ci(table: &[&str], word: &str) -> bool {
+    table.iter().any(|entry| entry.eq_ignore_ascii_case(word))
 }
 
 /// Validates a type declaration name (`struct`, `brand`, `type`, `enum`),
-/// rejecting built-in type keywords so `TYPE/name` syntax stays unambiguous.
+/// rejecting built-in type keywords unified across StageL 3 and StageR 3 so
+/// `TYPE/name` syntax stays unambiguous and `StageL 3 ⊂ StageR 3`.
 pub(super) fn check_type_decl_ident(
     name: &str,
     span: Span,
     role: &str,
-    dialect: StageDialect,
 ) -> Result<()> {
     check_valid_ident(name, span, role)?;
     ensure!(
-        !is_builtin_type_name(name, dialect),
+        !contains_ascii_ci(BUILTIN_TYPE_WORDS, name),
         "Built-in type keyword '{name}' cannot be used as {role} identifier at {span}"
     );
     Ok(())
 }
 
-/// Validates a routine declaration name (`v/RET/name`), rejecting only words
-/// intercepted as bare expression or statement forms in `dialect`.
+/// Validates a routine declaration name (`v/RET/name`), rejecting built-in
+/// head keywords and core verbs unified across StageL 3 and StageR 3
+/// (`StageL 3 ⊂ StageR 3`), except `std/bytes::{explode, implode}` in StageL 3
+/// Stage 1 bootstrap definitions.
 fn check_routine_decl_ident(
     name: &str,
     span: Span,
-    dialect: StageDialect,
+    allow_std_bytes_builtins: bool,
 ) -> Result<()> {
     check_valid_ident(name, span, "routine")?;
-    let is_shared_form = matches!(
-        name,
-        "ns" | "use"
-            | "pub"
-            | "struct"
-            | "test"
-            | "let"
-            | "const"
-            | "set"
-            | "do"
-            | "if"
-            | "while"
-            | "foreach"
-            | "break"
-            | "continue"
-            | "return"
-            | "nop"
-            | "true"
-            | "false"
-            | "bufNew"
-            | "tupNew"
-            | "structNew"
-            | "field"
-            | "with"
-            | "conv"
-    );
-    let is_dialect_form = match dialect {
-        StageDialect::StageL3 => {
-            matches!(name, "fault" | "bitcast")
-                || match_unary_op(name).is_some()
-                || match_binary_op(name).is_some()
-                || match_ternary_op(name).is_some()
-        }
-        StageDialect::StageR3 => {
-            matches!(
-                name,
-                "brand"
-                    | "type"
-                    | "enum"
-                    | "match"
-                    | "case"
-                    | "else"
-                    | "wrap"
-                    | "unwrap"
-            ) || super::stager_parser::is_forbidden_stagel_partial_op(name)
-                || super::stager_parser::match_stager_unary_op(name).is_some()
-                || super::stager_parser::match_stager_binary_op(name).is_some()
-                || super::stager_parser::match_stager_ternary_op(name).is_some()
-                || super::stager_parser::match_stager_shared_core_unary_op(name)
-                    .is_some()
-                || super::stager_parser::match_stager_shared_core_binary_op(
-                    name
-                )
-                .is_some()
-        }
-    };
+    if allow_std_bytes_builtins
+        && matches!(name, "explode" | "implode")
+    {
+        return Ok(());
+    }
     ensure!(
-        !(is_shared_form || is_dialect_form),
+        !contains_ascii_ci(BUILTIN_HEAD_WORDS, name),
         "Built-in keyword or verb '{name}' cannot be used as routine identifier at {span}"
     );
     Ok(())
@@ -516,6 +479,7 @@ fn check_routine_decl_ident(
 
 pub(super) struct TypeParseCtx<'a> {
     pub(super) dialect: StageDialect,
+    pub(super) allow_std_bytes_builtins: bool,
     pub(super) types_by_name: &'a HashMap<String, StageRTypeKind>,
     pub(super) types_by_dc: &'a HashMap<DcChar, StageRTypeKind>,
 }
@@ -530,6 +494,7 @@ impl TypeParseCtx<'static> {
         > = std::sync::LazyLock::new(HashMap::new);
         Self {
             dialect: StageDialect::StageL3,
+            allow_std_bytes_builtins: false,
             types_by_name: &EMPTY_NAMES,
             types_by_dc: &EMPTY_DCS,
         }
@@ -918,7 +883,7 @@ fn parse_routine_sig_token_with_ctx(
     let Some((&name, prefix)) = segs.split_last() else {
         bail!("Invalid routine signature '{word}' at {span}");
     };
-    check_routine_decl_ident(name, span, ctx.dialect)?;
+    check_routine_decl_ident(name, span, ctx.allow_std_bytes_builtins)?;
     let ret_segs = prefix.get(1..).with_context(|| {
         format!("Missing return type in routine signature '{word}' at {span}")
     })?;
@@ -986,7 +951,11 @@ fn parse_routine_sig_from_tokens_with_ctx(
             "Invalid routine name '{nw}' at {}",
             name_tok.span
         );
-        check_routine_decl_ident(name, name_tok.span, ctx.dialect)?;
+        check_routine_decl_ident(
+            name,
+            name_tok.span,
+            ctx.allow_std_bytes_builtins,
+        )?;
         *pos = pos.saturating_add(1);
         return Ok((return_type, name.to_owned(), sig_tok.span));
     }
@@ -1175,6 +1144,7 @@ pub fn parse_module_with_imports(
     let tokens = tokenize_with_dialect(source, StageDialect::StageL3)?;
     let mut parser = Parser {
         dialect: StageDialect::StageL3,
+        allow_std_bytes_builtins: false,
         tokens,
         pos: 0,
         verb_scopes: vec![imported_verb_arities.clone()],
@@ -1199,6 +1169,7 @@ pub fn parse_sr3_module_with_imports(
     let tokens = tokenize_with_dialect(source, StageDialect::StageR3)?;
     let mut parser = Parser {
         dialect: StageDialect::StageR3,
+        allow_std_bytes_builtins: false,
         tokens,
         pos: 0,
         verb_scopes: vec![imports.verb_arities.clone()],
@@ -1369,6 +1340,7 @@ pub(super) struct PendingComments {
 
 pub(super) struct Parser {
     pub(super) dialect: StageDialect,
+    pub(super) allow_std_bytes_builtins: bool,
     pub(super) tokens: Vec<LexToken>,
     pub(super) pos: usize,
     pub(super) verb_scopes: Vec<HashMap<String, usize>>,
@@ -1382,6 +1354,7 @@ impl Parser {
     pub(super) fn type_ctx(&self) -> TypeParseCtx<'_> {
         TypeParseCtx {
             dialect: self.dialect,
+            allow_std_bytes_builtins: self.allow_std_bytes_builtins,
             types_by_name: &self.stager_types_by_name,
             types_by_dc: &self.stager_types_by_dc,
         }
@@ -1393,6 +1366,7 @@ impl Parser {
     ) -> Result<(StageLType, LexToken)> {
         let ctx = TypeParseCtx {
             dialect: self.dialect,
+            allow_std_bytes_builtins: self.allow_std_bytes_builtins,
             types_by_name: &self.stager_types_by_name,
             types_by_dc: &self.stager_types_by_dc,
         };
@@ -1405,6 +1379,7 @@ impl Parser {
     ) -> Result<(StageLType, String, Span)> {
         let ctx = TypeParseCtx {
             dialect: self.dialect,
+            allow_std_bytes_builtins: self.allow_std_bytes_builtins,
             types_by_name: &self.stager_types_by_name,
             types_by_dc: &self.stager_types_by_dc,
         };
@@ -1422,6 +1397,7 @@ impl Parser {
     ) -> Result<(Option<StageLType>, String, Span)> {
         let ctx = TypeParseCtx {
             dialect: self.dialect,
+            allow_std_bytes_builtins: self.allow_std_bytes_builtins,
             types_by_name: &self.stager_types_by_name,
             types_by_dc: &self.stager_types_by_dc,
         };
@@ -1438,6 +1414,7 @@ impl Parser {
     ) -> Result<(StageLType, String, Span)> {
         let ctx = TypeParseCtx {
             dialect: self.dialect,
+            allow_std_bytes_builtins: self.allow_std_bytes_builtins,
             types_by_name: &self.stager_types_by_name,
             types_by_dc: &self.stager_types_by_dc,
         };
@@ -1578,8 +1555,18 @@ impl Parser {
                     );
                 };
                 self.pos = self.pos.saturating_add(1);
-                namespace =
-                    Some(parse_namespace_segments(&raw_path, path_tok.span)?);
+                let parsed_ns =
+                    parse_namespace_segments(&raw_path, path_tok.span)?;
+                self.allow_std_bytes_builtins =
+                    self.dialect == StageDialect::StageL3
+                        && parsed_ns.len() == 2
+                        && parsed_ns
+                            .first()
+                            .is_some_and(|s| s.eq_ignore_ascii_case("std"))
+                        && parsed_ns
+                            .get(1)
+                            .is_some_and(|s| s.eq_ignore_ascii_case("bytes"));
+                namespace = Some(parsed_ns);
                 self.expect_dot("after 'ns' declaration")?;
 
                 let pc_next = self.consume_comments(true)?;
@@ -2138,7 +2125,7 @@ impl Parser {
                 name_tok.span
             );
         };
-        check_type_decl_ident(&name, name_tok.span, "struct", self.dialect)?;
+        check_type_decl_ident(&name, name_tok.span, "struct")?;
         self.pos = self.pos.saturating_add(1);
 
         let mut fields = Vec::new();
@@ -3702,5 +3689,154 @@ mod tests {
 "#;
         let rep = run_module_inline_tests(ok_nested).expect("run nestedConst");
         assert_eq!(rep.ensure_all_passed().unwrap(), 1);
+    }
+
+    #[crate::ctb_test]
+    fn test_builtin_word_tables_complete_and_deduped() {
+        let mut seen_types = HashSet::new();
+        for &w in BUILTIN_TYPE_WORDS {
+            assert!(
+                is_valid_ident(w),
+                "BUILTIN_TYPE_WORDS entry '{w}' must be a valid identifier"
+            );
+            assert!(
+                seen_types.insert(w.to_ascii_lowercase()),
+                "Duplicate ASCII-case-insensitive entry '{w}' in BUILTIN_TYPE_WORDS"
+            );
+        }
+
+        let mut seen_heads = HashSet::new();
+        for &w in BUILTIN_HEAD_WORDS {
+            assert!(
+                is_valid_ident(w),
+                "BUILTIN_HEAD_WORDS entry '{w}' must be a valid identifier"
+            );
+            assert!(
+                seen_heads.insert(w.to_ascii_lowercase()),
+                "Duplicate ASCII-case-insensitive entry '{w}' in BUILTIN_HEAD_WORDS"
+            );
+        }
+
+        let all_core_and_stager_ops = [
+            // Core unary & binary & ternary ops + StageL partials
+            "neg",
+            "bitNot",
+            "not",
+            "clz",
+            "ctz",
+            "popcnt",
+            "len",
+            "bufFreeze",
+            "add",
+            "sub",
+            "mul",
+            "div",
+            "rem",
+            "wrapAdd",
+            "wrapSub",
+            "wrapMul",
+            "bitAnd",
+            "bitOr",
+            "bitXor",
+            "shl",
+            "shr",
+            "rotl",
+            "rotr",
+            "and",
+            "or",
+            "eq",
+            "ne",
+            "lt",
+            "le",
+            "gt",
+            "ge",
+            "get",
+            "concat",
+            "bufFill",
+            "bufPush",
+            "bufExtend",
+            "slice",
+            "bufSet",
+            "fault",
+            "bitcast",
+            // StageR-added unary/binary/ternary/forbidden ops
+            "isSome",
+            "isNone",
+            "isOk",
+            "isErr",
+            "byteLen",
+            "dcFromU128",
+            "u128FromDc",
+            "dcsFromS",
+            "sFromDcs",
+            "mod",
+            "truncRem",
+            "unwrapOr",
+            "okOr",
+            "makeRat",
+            "explode",
+            "implode",
+            "unimplemented",
+            "unwrapSome",
+            "unwrapOk",
+            "unwrapErr",
+        ];
+        for op in all_core_and_stager_ops {
+            let matched_somewhere = match_unary_op(op).is_some()
+                || match_binary_op(op).is_some()
+                || match_ternary_op(op).is_some()
+                || super::super::stager_parser::match_stager_unary_op(op)
+                    .is_some()
+                || super::super::stager_parser::match_stager_binary_op(op)
+                    .is_some()
+                || super::super::stager_parser::match_stager_ternary_op(op)
+                    .is_some()
+                || super::super::stager_parser::match_stager_shared_core_unary_op(op)
+                    .is_some()
+                || super::super::stager_parser::match_stager_shared_core_binary_op(op)
+                    .is_some()
+                || super::super::stager_parser::is_forbidden_stagel_partial_op(op);
+            assert!(
+                matched_somewhere,
+                "Expected probe op '{op}' to be matched by an operator helper"
+            );
+            assert!(
+                contains_ascii_ci(BUILTIN_HEAD_WORDS, op),
+                "Built-in op '{op}' missing from BUILTIN_HEAD_WORDS"
+            );
+        }
+
+        // Verify `parse_type_segments_with_ctx` recognizes every non-parameterized
+        // built-in type word and diagnoses every parameterized type word in
+        // `BUILTIN_TYPE_WORDS` under StageR 3.
+        let sr3_names = HashMap::new();
+        let sr3_dcs = HashMap::new();
+        let sr3_ctx = TypeParseCtx {
+            dialect: StageDialect::StageR3,
+            allow_std_bytes_builtins: false,
+            types_by_name: &sr3_names,
+            types_by_dc: &sr3_dcs,
+        };
+        let test_span = Span { line: 1, col: 1 };
+        for &ty_word in BUILTIN_TYPE_WORDS {
+            let parsed = parse_type_segments_with_ctx(&[ty_word], test_span, &sr3_ctx);
+            match ty_word {
+                "l" | "buf" | "tup" | "v" | "option" | "result" => {
+                    assert!(
+                        parsed.is_err(),
+                        "Parameterized/callable type '{ty_word}' should require arguments when standalone"
+                    );
+                }
+                _ => {
+                    let ty = parsed.unwrap_or_else(|e| {
+                        panic!("Built-in scalar type '{ty_word}' failed to parse: {e}")
+                    });
+                    assert!(
+                        !matches!(ty, StageLType::Struct(_) | StageLType::Nominal(_)),
+                        "Built-in scalar type '{ty_word}' parsed as user nominal/struct type instead of primitive"
+                    );
+                }
+            }
+        }
     }
 }

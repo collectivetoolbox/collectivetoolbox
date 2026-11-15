@@ -730,14 +730,14 @@ pub v/u64/useFields u64/in u64/out u64/s u64/b u64/len u64/type u64/error
         assert_eq!(report.ensure_all_passed()?, 1);
 
         let sl3_program = r#"struct rec :: u32 u32 u32.
-struct s :: u32.
+struct boxU32 :: u32.
 v/u32/b u32/x :: /x.
 v/u32/useIdents u32/in u32/out u32/len u32/type u32/error
     test allows non-type words in StageL 3
         in u32:1 u32:2 u32:3 u32:4 u32:5
         out u32:20.
     const rec/r structNew rec: /in /out /len ::.
-    const s/wrap structNew s: b /error ::.
+    const boxU32/wrap structNew boxU32: b /error ::.
     add field /r u32:0 add field /r u32:1 add field /r u32:2 add field /wrap u32:0 add /type /error.
 "#;
         let sl3_parsed = parser::parse_module(sl3_program)?;
@@ -754,15 +754,18 @@ v/u32/useIdents u32/in u32/out u32/len u32/type u32/error
         let in_rep = super::eval::run_module_inline_tests(sl3_in_routine)?;
         assert_eq!(in_rep.ensure_all_passed()?, 1);
 
-        // Built-in type keywords must still be rejected as type declarations
+        // Built-in type keywords (unified StageL 3 ⊂ StageR 3) must be rejected on type decls
         assert!(parser::parse_sr3_module("brand u64/i32.\n").is_err());
         assert!(parser::parse_sr3_module("type u64/s.\n").is_err());
         assert!(
             parser::parse_sr3_module("struct option :: u64/x.\n").is_err()
         );
         assert!(parser::parse_sr3_module("enum result unit.\n").is_err());
+        assert!(parser::parse_module("struct s :: u32.\n").is_err());
+        assert!(parser::parse_module("struct option :: u32.\n").is_err());
+        assert!(parser::parse_module("struct U32 :: u32.\n").is_err());
 
-        // Built-in expression forms and verbs must still be rejected as routine names
+        // Built-in head forms and verbs (unified StageL 3 ⊂ StageR 3) must be rejected as routine names
         assert!(
             parser::parse_sr3_module("v/u64/if u64/x :: /x.\n").is_err()
         );
@@ -772,7 +775,32 @@ v/u32/useIdents u32/in u32/out u32/len u32/type u32/error
         assert!(
             parser::parse_sr3_module("v/u64/match u64/x :: /x.\n").is_err()
         );
+        assert!(
+            parser::parse_sr3_module("v/u64/fault u64/x :: /x.\n").is_err()
+        );
+        assert!(
+            parser::parse_sr3_module("v/u64/rem u64/x :: /x.\n").is_err()
+        );
+        assert!(
+            parser::parse_sr3_module("v/u64/bitcast u64/x :: /x.\n").is_err()
+        );
         assert!(parser::parse_module("v/u32/add u32/x :: /x.\n").is_err());
+        assert!(parser::parse_module("v/u32/ADD u32/x :: /x.\n").is_err());
+        assert!(parser::parse_module("v/u32/match u32/x :: /x.\n").is_err());
+        assert!(parser::parse_module("v/u32/makeRat u32/x :: /x.\n").is_err());
+        assert!(parser::parse_module("v/u32/explode u32/x :: /x.\n").is_err());
+        assert!(
+            parser::parse_module(
+                "ns std/bytes.\npub v/l/u8/explode l/u8/x :: /x.\n"
+            )
+            .is_ok()
+        );
+        assert!(
+            parser::parse_sr3_module(
+                "ns std/bytes.\npub v/l/u8/explode l/u8/x :: /x.\n"
+            )
+            .is_err()
+        );
         Ok(())
     }
 }

@@ -146,6 +146,9 @@ v/RETURN/name TYPE/param1 TYPE/param2 ...
   - Explicit types remain mandatory on all new binding declarations (`let`, `const`, `pub`, routine parameters, and `foreach` element bindings).
 - **`*StageLInternal` stage-boundary gating**:
   - Identifiers ending in `StageLInternal` (case-insensitively, e.g. `modStageLInternal`, `assertStageLInternal`) are Stage 1 bootstrap/StageL-only helpers permitted in `stage_1_impls/` and prohibited from being declared, `use`-imported (including with `as` or `dc/`), or called in Stage 2 `impls/` or `.sr3` files.
+- **Namespace-scoped identifier validation (`StageL 3 ⊂ StageR 3`)**:
+  - Any valid `[A-Za-z_][A-Za-z0-9_]*` identifier is permitted for `/`-prefixed bindings, named struct fields, enum variants, and `use`-imported items (so words such as `in`, `out`, `s`, `b`, `len`, `type`, or `error` remain usable in delimited contexts without a global reserved-word table).
+  - Type declarations (`struct`, `brand`, `type`, `enum`) reject the built-in type keywords (`BUILTIN_TYPE_WORDS`, checked ASCII case-insensitively), and routine declarations (`v/RETURN/name`) reject the built-in head forms and core verbs (`BUILTIN_HEAD_WORDS`, checked ASCII case-insensitively). Both tables are unified across StageL 3 and StageR 3 so every valid StageL 3 user declaration remains valid in StageR 3 (preserving the narrow StageL 3 bootstrap exception for `std/bytes::{explode, implode}`).
 
 Inside a verb or `do ... ::` block:
 1. **`let TYPE/name [EXPR]`** — Declares a new **mutable** local variable in the current block and returns `void` (unit).

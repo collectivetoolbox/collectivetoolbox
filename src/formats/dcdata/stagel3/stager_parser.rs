@@ -508,7 +508,7 @@ impl Parser {
         let desc = format!("after '{kw_name}' at {}", kw_tok.span);
         let (inner_ty, name, name_span) =
             self.parse_typed_name_from_tokens(&desc)?;
-        check_type_decl_ident(&name, name_span, kw_name, self.dialect)?;
+        check_type_decl_ident(&name, name_span, kw_name)?;
         self.expect_dot(&format!("after '{kw_name}' declaration"))?;
         Ok(BrandTypeDecl {
             is_pub,
@@ -547,7 +547,7 @@ impl Parser {
                 name_tok.span
             );
         };
-        check_type_decl_ident(&name, name_tok.span, "struct", self.dialect)?;
+        check_type_decl_ident(&name, name_tok.span, "struct")?;
         self.pos = self.pos.saturating_add(1);
 
         let mut fields = Vec::new();
@@ -670,7 +670,7 @@ impl Parser {
                 name_tok.span
             );
         };
-        check_type_decl_ident(&name, name_tok.span, "enum", self.dialect)?;
+        check_type_decl_ident(&name, name_tok.span, "enum")?;
         self.pos = self.pos.saturating_add(1);
 
         let mut variants = Vec::new();
