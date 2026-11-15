@@ -41,10 +41,9 @@ use super::ast::{
     TypedIntLit, format_dc_shorthand,
 };
 use super::parser::{
-    parse_module_with_imports, parse_sr3_module_with_imports,
-    scan_module_header_paths_with_dialect,
+    StageRImportContext, StageRTypeKind, parse_module_with_imports,
+    parse_sr3_module_with_imports, scan_module_header_paths_with_dialect,
 };
-use super::stager_parser::{StageRImportContext, StageRTypeKind};
 use crate::{DcChar, DcShorthand};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
