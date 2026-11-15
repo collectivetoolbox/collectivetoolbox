@@ -1,0 +1,273 @@
+: SPDX-License-Identifier: AGPL-3.0-or-later
+:
+: This file is part of Collective Toolbox, a database and document workspace and utilities.
+: Copyright (C) 2026 Collective Toolbox Developers
+: Contact: info@collectivetoolbox.com
+:
+: This program is free software: you can redistribute it and/or modify it under
+: the terms of the GNU Affero General Public License as published by the Free
+: Software Foundation, either version 3 of the License, or (at your option) any
+: later version.
+:
+: This program is distributed in the hope that it will be useful, but WITHOUT ANY
+: WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+: A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+:
+: You should have received a copy of the GNU Affero General Public License along
+: with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+: Stage 1 canonical arbitrary-precision rational (`ratVal`) arithmetic, comparison, and conversion primitives.
+ns std/rat.
+use std/u128: u128Val errOverflow errDivisionByZero u128Zero ::.
+use std/i128: i128Val i128Zero ::.
+use std/bigint: bigInt intZero intOne intIsZero intFromU8 intFromI32 intFromU32 intFromI64 intFromU64 intFromI128 intFromU128 intToU8 intToI32 intToU32 intToI64 intToU64 intToI128 intToU128 intCmp intNeg intAdd intMul intDiv intGcd ::.
+
+: Canonical reduced rational `num / den`:
+: slot 0 = signed `bigInt` numerator (`num`),
+: slot 1 = strictly positive `bigInt` denominator (`den > 0`) with `gcd(|num|, den) == 1`.
+: @dc l8589982083
+pub struct ratVal :: bigInt bigInt.
+
+: Canonical `rat:0/1`.
+: @dc l8589982148
+pub ratVal/ratZero structNew ratVal: structNew bigInt: false l/u32: :: :: structNew bigInt: false l/u32: u32:1 :: :: ::.
+
+: Canonical `rat:1/1`.
+: @dc l8589982149
+pub ratVal/ratOne structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:1 :: :: ::.
+
+: Reduces `(num, den)` assuming `den > 0`.
+: @dc l8589982150
+v/ratVal/ratReducePosDen bigInt/num bigInt/den
+    if intIsZero /num
+        return /ratZero
+        nop.
+    const bigInt/g intGcd /num /den.
+    if eq /g /intOne
+        structNew ratVal: /num /den ::
+        do
+            const tup: b bigInt u8 ::/rn intDiv /num /g.
+            const tup: b bigInt u8 ::/rd intDiv /den /g.
+            structNew ratVal: field /rn u32:1 field /rd u32:1 ::.
+        ::.
+
+: Total `makeRat` constructor (`(num, den) -> tup: b ratVal u8 ::`), returning `errDivisionByZero` when `den == 0`.
+: @dc l8589982151
+pub v/tup: b ratVal u8 ::/ratMake bigInt/num bigInt/den
+    test
+        in structNew bigInt: false l/u32: u32:6 :: :: structNew bigInt: true l/u32: u32:4 :: ::
+        out tupNew: true structNew ratVal: structNew bigInt: true l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:2 :: :: :: u8:0 ::.
+        in structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: :: ::
+        out tupNew: false structNew ratVal: structNew bigInt: false l/u32: :: :: structNew bigInt: false l/u32: u32:1 :: :: :: u8:1 ::.
+    if intIsZero /den
+        return tupNew: false /ratZero /errDivisionByZero ::
+        nop.
+    if field /den u32:0
+        tupNew: true ratReducePosDen intNeg /num intNeg /den u8:0 ::
+        tupNew: true ratReducePosDen /num /den u8:0 ::.
+
+: Constructs a reduced `ratVal` from compile-time-validated `(num, den)` where `den != 0`.
+: @dc l8589982152
+pub v/ratVal/ratFromPartsChecked bigInt/num bigInt/den
+    test
+        in structNew bigInt: true l/u32: u32:10 :: :: structNew bigInt: true l/u32: u32:15 :: ::
+        out structNew ratVal: structNew bigInt: false l/u32: u32:2 :: :: structNew bigInt: false l/u32: u32:3 :: :: ::.
+    if intIsZero /den
+        /ratZero
+        if field /den u32:0
+            ratReducePosDen intNeg /num intNeg /den
+            ratReducePosDen /num /den.
+
+: Infallible widening `bigInt -> ratVal`.
+: @dc l8589982153
+pub v/ratVal/ratFromInt bigInt/x
+    test
+        in structNew bigInt: true l/u32: u32:42 :: ::
+        out structNew ratVal: structNew bigInt: true l/u32: u32:42 :: :: structNew bigInt: false l/u32: u32:1 :: :: ::.
+    structNew ratVal: /x /intOne ::.
+
+: Infallible widening `u8 -> ratVal`.
+: @dc l8589982154
+pub v/ratVal/ratFromU8 u8/x
+    ratFromInt intFromU8 /x.
+
+: Infallible widening `i32 -> ratVal`.
+: @dc l8589982155
+pub v/ratVal/ratFromI32 i32/x
+    ratFromInt intFromI32 /x.
+
+: Infallible widening `u32 -> ratVal`.
+: @dc l8589982156
+pub v/ratVal/ratFromU32 u32/x
+    ratFromInt intFromU32 /x.
+
+: Infallible widening `i64 -> ratVal`.
+: @dc l8589982157
+pub v/ratVal/ratFromI64 i64/x
+    ratFromInt intFromI64 /x.
+
+: Infallible widening `u64 -> ratVal`.
+: @dc l8589982158
+pub v/ratVal/ratFromU64 u64/x
+    ratFromInt intFromU64 /x.
+
+: Infallible widening `i128Val -> ratVal`.
+: @dc l8589982159
+pub v/ratVal/ratFromI128 i128Val/x
+    ratFromInt intFromI128 /x.
+
+: Infallible widening `u128Val -> ratVal`.
+: @dc l8589982160
+pub v/ratVal/ratFromU128 u128Val/x
+    ratFromInt intFromU128 /x.
+
+: Checked narrowing `ratVal -> result/int` (`tup: b bigInt u8 ::`), succeeding iff `den == 1`.
+: @dc l8589982161
+pub v/tup: b bigInt u8 ::/ratToInt ratVal/r
+    test
+        in structNew ratVal: structNew bigInt: false l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:1 :: :: ::
+        out tupNew: true structNew bigInt: false l/u32: u32:3 :: :: u8:0 ::.
+        in structNew ratVal: structNew bigInt: false l/u32: u32:5 :: :: structNew bigInt: false l/u32: u32:2 :: :: ::
+        out tupNew: false structNew bigInt: false l/u32: :: :: u8:0 ::.
+    if eq field /r u32:1 /intOne
+        tupNew: true field /r u32:0 u8:0 ::
+        tupNew: false /intZero /errOverflow ::.
+
+: Checked narrowing `ratVal -> result/u128`.
+: @dc l8589982162
+pub v/tup: b u128Val u8 ::/ratToU128 ratVal/r
+    const tup: b bigInt u8 ::/iv ratToInt /r.
+    if not field /iv u32:0
+        tupNew: false /u128Zero /errOverflow ::
+        intToU128 field /iv u32:1.
+
+: Checked narrowing `ratVal -> result/i128`.
+: @dc l8589982163
+pub v/tup: b i128Val u8 ::/ratToI128 ratVal/r
+    const tup: b bigInt u8 ::/iv ratToInt /r.
+    if not field /iv u32:0
+        tupNew: false /i128Zero /errOverflow ::
+        intToI128 field /iv u32:1.
+
+: Checked narrowing `ratVal -> result/u64`.
+: @dc l8589982164
+pub v/tup: b u64 u8 ::/ratToU64 ratVal/r
+    const tup: b bigInt u8 ::/iv ratToInt /r.
+    if not field /iv u32:0
+        tupNew: false u64:0 /errOverflow ::
+        intToU64 field /iv u32:1.
+
+: Checked narrowing `ratVal -> result/i64`.
+: @dc l8589982165
+pub v/tup: b i64 u8 ::/ratToI64 ratVal/r
+    const tup: b bigInt u8 ::/iv ratToInt /r.
+    if not field /iv u32:0
+        tupNew: false i64:0 /errOverflow ::
+        intToI64 field /iv u32:1.
+
+: Checked narrowing `ratVal -> result/u32`.
+: @dc l8589982166
+pub v/tup: b u32 u8 ::/ratToU32 ratVal/r
+    const tup: b bigInt u8 ::/iv ratToInt /r.
+    if not field /iv u32:0
+        tupNew: false u32:0 /errOverflow ::
+        intToU32 field /iv u32:1.
+
+: Checked narrowing `ratVal -> result/i32`.
+: @dc l8589982167
+pub v/tup: b i32 u8 ::/ratToI32 ratVal/r
+    const tup: b bigInt u8 ::/iv ratToInt /r.
+    if not field /iv u32:0
+        tupNew: false i32:0 /errOverflow ::
+        intToI32 field /iv u32:1.
+
+: Checked narrowing `ratVal -> result/u8`.
+: @dc l8589982168
+pub v/tup: b u8 u8 ::/ratToU8 ratVal/r
+    const tup: b bigInt u8 ::/iv ratToInt /r.
+    if not field /iv u32:0
+        tupNew: false u8:0 /errOverflow ::
+        intToU8 field /iv u32:1.
+
+: Infallible negation on `ratVal`.
+: @dc l8589982169
+pub v/ratVal/ratNeg ratVal/a
+    test
+        in structNew ratVal: structNew bigInt: false l/u32: :: :: structNew bigInt: false l/u32: u32:1 :: :: ::
+        out structNew ratVal: structNew bigInt: false l/u32: :: :: structNew bigInt: false l/u32: u32:1 :: :: ::.
+        in structNew ratVal: structNew bigInt: false l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:4 :: :: ::
+        out structNew ratVal: structNew bigInt: true l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:4 :: :: ::.
+    structNew ratVal: intNeg field /a u32:0 field /a u32:1 ::.
+
+: Infallible addition `a + b` on `ratVal`.
+: @dc l8589982170
+pub v/ratVal/ratAdd ratVal/a ratVal/b
+    test
+        in structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:6 :: :: :: structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:3 :: :: ::
+        out structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:2 :: :: ::.
+    const bigInt/an field /a u32:0.
+    const bigInt/ad field /a u32:1.
+    const bigInt/bn field /b u32:0.
+    const bigInt/bd field /b u32:1.
+    ratReducePosDen intAdd intMul /an /bd intMul /bn /ad intMul /ad /bd.
+
+: Infallible subtraction `a - b` on `ratVal`.
+: @dc l8589982171
+pub v/ratVal/ratSub ratVal/a ratVal/b
+    ratAdd /a ratNeg /b.
+
+: Infallible multiplication `a * b` on `ratVal`.
+: @dc l8589982172
+pub v/ratVal/ratMul ratVal/a ratVal/b
+    test
+        in structNew ratVal: structNew bigInt: true l/u32: u32:2 :: :: structNew bigInt: false l/u32: u32:3 :: :: :: structNew ratVal: structNew bigInt: false l/u32: u32:9 :: :: structNew bigInt: false l/u32: u32:4 :: :: ::
+        out structNew ratVal: structNew bigInt: true l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:2 :: :: ::.
+    ratReducePosDen intMul field /a u32:0 field /b u32:0 intMul field /a u32:1 field /b u32:1.
+
+: Total division `a / b` on `ratVal` (`tup: b ratVal u8 ::`).
+: @dc l8589982173
+pub v/tup: b ratVal u8 ::/ratDiv ratVal/a ratVal/b
+    test
+        in structNew ratVal: structNew bigInt: false l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:4 :: :: :: structNew ratVal: structNew bigInt: false l/u32: :: :: structNew bigInt: false l/u32: u32:1 :: :: ::
+        out tupNew: false structNew ratVal: structNew bigInt: false l/u32: :: :: structNew bigInt: false l/u32: u32:1 :: :: :: u8:1 ::.
+    if intIsZero field /b u32:0
+        tupNew: false /ratZero /errDivisionByZero ::
+        ratMake intMul field /a u32:0 field /b u32:1 intMul field /a u32:1 field /b u32:0.
+
+: Signed comparison (`-1`, `0`, `1`) on canonical `ratVal`.
+: @dc l8589982174
+pub v/i32/ratCmp ratVal/a ratVal/b
+    test
+        in structNew ratVal: structNew bigInt: true l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:2 :: :: :: structNew ratVal: structNew bigInt: true l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:3 :: :: ::
+        out i32:-1.
+    intCmp intMul field /a u32:0 field /b u32:1 intMul field /b u32:0 field /a u32:1.
+
+: Equality `a == b`.
+: @dc l8589982175
+pub v/b/ratEq ratVal/a ratVal/b
+    eq /a /b.
+
+: Inequality `a != b`.
+: @dc l8589982176
+pub v/b/ratNe ratVal/a ratVal/b
+    ne /a /b.
+
+: Signed `<` on `ratVal`.
+: @dc l8589982177
+pub v/b/ratLt ratVal/a ratVal/b
+    lt ratCmp /a /b i32:0.
+
+: Signed `<=` on `ratVal`.
+: @dc l8589982178
+pub v/b/ratLe ratVal/a ratVal/b
+    le ratCmp /a /b i32:0.
+
+: Signed `>` on `ratVal`.
+: @dc l8589982179
+pub v/b/ratGt ratVal/a ratVal/b
+    gt ratCmp /a /b i32:0.
+
+: Signed `>=` on `ratVal`.
+: @dc l8589982180
+pub v/b/ratGe ratVal/a ratVal/b
+    ge ratCmp /a /b i32:0.

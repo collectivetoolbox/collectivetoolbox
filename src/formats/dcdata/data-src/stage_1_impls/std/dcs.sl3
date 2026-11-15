@@ -1,0 +1,155 @@
+: SPDX-License-Identifier: AGPL-3.0-or-later
+:
+: This file is part of Collective Toolbox, a database and document workspace and utilities.
+: Copyright (C) 2026 Collective Toolbox Developers
+: Contact: info@collectivetoolbox.com
+:
+: This program is free software: you can redistribute it and/or modify it under
+: the terms of the GNU Affero General Public License as published by the Free
+: Software Foundation, either version 3 of the License, or (at your option) any
+: later version.
+:
+: This program is distributed in the hope that it will be useful, but WITHOUT ANY
+: WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+: A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+:
+: You should have received a copy of the GNU Affero General Public License along
+: with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+: Stage 1 pure Document Character (`dc` / `dcVal`) and sequence (`dcs` / `l/dcVal`) runtime helpers.
+ns std/dcs.
+use std/u128: u128Val errInvalidDc ::.
+use std/dctf: dcVal dcNew dcFromU128Raw dcToU128Raw dcIsValid ::.
+
+: Total `dcFromU128` conversion (`u128Val -> tup: b dcVal u8 ::`), rejecting UTF-16 surrogates (`0xD800..=0xDFFF`).
+: @dc l8589982141
+pub v/tup: b dcVal u8 ::/dcTryFromU128 u128Val/raw
+    test
+        in structNew u128Val: u64:256 u64:0 ::
+        out tupNew: true structNew dcVal: u64:256 u64:0 :: u8:0 ::.
+        in structNew u128Val: u64:55296 u64:0 ::
+        out tupNew: false structNew dcVal: u64:0 u64:0 :: u8:5 ::.
+    const dcVal/c dcFromU128Raw /raw.
+    if dcIsValid /c
+        tupNew: true /c u8:0 ::
+        tupNew: false dcNew u64:0 u64:0 /errInvalidDc ::.
+
+: Infallible `u128FromDc` projection (`dcVal -> u128Val`).
+: @dc l8589982142
+pub v/u128Val/dcToU128 dcVal/c
+    test
+        in structNew dcVal: u64:1114368 u64:0 ::
+        out structNew u128Val: u64:1114368 u64:0 ::.
+    dcToU128Raw /c.
+
+: Total `get` on `dcs` (`(l/dcVal, u64) -> tup: b dcVal ::`).
+: @dc l8589982143
+pub v/tup: b dcVal ::/dcsGet l/dcVal/seq u64/idx
+    test
+        in l/dcVal: structNew dcVal: u64:65 u64:0 :: structNew dcVal: u64:66 u64:0 :: :: u64:1
+        out tupNew: true structNew dcVal: u64:66 u64:0 :: ::.
+        in l/dcVal: structNew dcVal: u64:65 u64:0 :: :: u64:3
+        out tupNew: false structNew dcVal: u64:0 u64:0 :: ::.
+    if lt /idx len /seq
+        tupNew: true get /seq /idx ::
+        tupNew: false dcNew u64:0 u64:0 ::.
+
+: Total `slice` on `dcs` (`(l/dcVal, u64, u64) -> tup: b l/dcVal ::`).
+: @dc l8589982144
+pub v/tup: b l/dcVal ::/dcsSlice l/dcVal/seq u64/start u64/end
+    test
+        in l/dcVal: structNew dcVal: u64:65 u64:0 :: structNew dcVal: u64:66 u64:0 :: structNew dcVal: u64:67 u64:0 :: :: u64:1 u64:3
+        out tupNew: true l/dcVal: structNew dcVal: u64:66 u64:0 :: structNew dcVal: u64:67 u64:0 :: :: ::.
+        in l/dcVal: structNew dcVal: u64:65 u64:0 :: :: u64:2 u64:1
+        out tupNew: false l/dcVal: :: ::.
+    if and le /start /end le /end len /seq
+        tupNew: true slice /seq /start /end ::
+        tupNew: false l/dcVal: :: ::.
+
+: Splits `input` around non-overlapping occurrences of `sep` (`explode` on `dcs`).
+: @dc l8589982145
+pub v/l/l/dcVal/dcsExplode l/dcVal/sep l/dcVal/input
+    test
+        in l/dcVal: structNew dcVal: u64:58 u64:0 :: :: l/dcVal: structNew dcVal: u64:97 u64:0 :: structNew dcVal: u64:58 u64:0 :: structNew dcVal: u64:98 u64:0 :: structNew dcVal: u64:58 u64:0 :: ::
+        out l/l/dcVal: l/dcVal: structNew dcVal: u64:97 u64:0 :: :: l/dcVal: structNew dcVal: u64:98 u64:0 :: :: l/dcVal: :: ::.
+        in l/dcVal: :: l/dcVal: structNew dcVal: u64:97 u64:0 :: structNew dcVal: u64:98 u64:0 :: ::
+        out l/l/dcVal: l/dcVal: structNew dcVal: u64:97 u64:0 :: :: l/dcVal: structNew dcVal: u64:98 u64:0 :: :: ::.
+        in l/dcVal: :: l/dcVal: ::
+        out l/l/dcVal: ::.
+    const u64/slen len /sep.
+    const u64/ilen len /input.
+    if eq /slen u64:0
+        do
+            if eq /ilen u64:0
+                return l/l/dcVal: ::
+                nop.
+            const buf/l/dcVal/out bufNew l/dcVal /ilen.
+            let u64/i u64:0.
+            while lt /i /ilen do
+                bufPush /out l/dcVal: get /input /i ::.
+                set /i add /i u64:1.
+            ::.
+            return bufFreeze /out.
+        ::
+        nop.
+    const buf/l/dcVal/out bufNew l/dcVal u64:4.
+    let u64/cursor u64:0.
+    while le /cursor /ilen do
+        const u64/remLen sub /ilen /cursor.
+        if lt /remLen /slen
+            do
+                bufPush /out slice /input /cursor /ilen.
+                return bufFreeze /out.
+            ::
+            nop.
+        const u64/maxOff sub /remLen /slen.
+        let b/found false.
+        let u64/foundOff u64:0.
+        let u64/off u64:0.
+        while and not /found le /off /maxOff do
+            const u64/cand add /cursor /off.
+            if eq slice /input /cand add /cand /slen /sep
+                do
+                    set /found true.
+                    set /foundOff /off.
+                ::
+                set /off add /off u64:1.
+        ::.
+        if /found
+            do
+                bufPush /out slice /input /cursor add /cursor /foundOff.
+                set /cursor add add /cursor /foundOff /slen.
+            ::
+            do
+                bufPush /out slice /input /cursor /ilen.
+                return bufFreeze /out.
+            ::.
+    ::.
+    bufPush /out l/dcVal: ::.
+    bufFreeze /out.
+
+: Concatenates `parts` interspersed with `sep` (`implode` on `dcs`).
+: @dc l8589982146
+pub v/l/dcVal/dcsImplode l/dcVal/sep l/l/dcVal/parts
+    test
+        in l/dcVal: structNew dcVal: u64:58 u64:0 :: :: l/l/dcVal: l/dcVal: structNew dcVal: u64:97 u64:0 :: :: l/dcVal: structNew dcVal: u64:98 u64:0 :: :: l/dcVal: :: ::
+        out l/dcVal: structNew dcVal: u64:97 u64:0 :: structNew dcVal: u64:58 u64:0 :: structNew dcVal: u64:98 u64:0 :: structNew dcVal: u64:58 u64:0 :: ::.
+    const u64/plen len /parts.
+    if eq /plen u64:0
+        return l/dcVal: ::
+        nop.
+    const u64/slen len /sep.
+    let u64/total mul sub /plen u64:1 /slen.
+    foreach l/dcVal/p /parts do
+        set /total add /total len /p.
+    ::.
+    const buf/dcVal/out bufNew dcVal /total.
+    let u64/idx u64:0.
+    while lt /idx /plen do
+        if gt /idx u64:0
+            bufExtend /out /sep
+            nop.
+        bufExtend /out get /parts /idx.
+        set /idx add /idx u64:1.
+    ::.
+    bufFreeze /out.
