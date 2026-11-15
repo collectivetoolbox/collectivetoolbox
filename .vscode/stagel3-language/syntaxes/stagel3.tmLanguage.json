@@ -100,7 +100,7 @@
                         },
                         {
                             "name": "constant.other.dc-token.stagel3",
-                            "match": "@\\d+@"
+                            "match": "@(?:l?\\d+|f\\d+|u[0-9a-fA-F]+|@)@"
                         }
                     ]
                 }
@@ -110,7 +110,7 @@
             "patterns": [
                 {
                     "name": "constant.character.escape.stagel3",
-                    "match": "/(/|n|N|r|R|t|T|\"|0|x[0-9a-fA-F]{2}|X[A-Pa-p]{2})"
+                    "match": "/(/|\"|0|[abtnvfrABTNVFR]|x[0-9a-fA-F]{2}|X[A-Pa-p]{2})"
                 }
             ]
         },
@@ -133,7 +133,7 @@
         "keywords": {
             "patterns": [
                 {
-                    "match": "(?<![A-Za-z0-9_/:])((?i:ns|use))\\s+([A-Za-z](?:[A-Za-z0-9/]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)",
+                    "match": "(?<![A-Za-z0-9_/:])((?i:ns|use))\\s+([A-Za-z_](?:[A-Za-z0-9_/]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)",
                     "captures": {
                         "1": {
                             "name": "keyword.declaration.stagel3"
@@ -144,18 +144,86 @@
                     }
                 },
                 {
-                    "match": "(?<![A-Za-z0-9_/:])((?i:struct|enum))\\s+([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(?![A-Za-z0-9_/:])",
+                    "begin": "(?<![A-Za-z0-9_/:])((?i:struct))\\s+([A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)\\s+(::|\\})",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "keyword.declaration.stagel3"
+                        },
+                        "2": {
+                            "name": "storage.type.user.stagel3"
+                        },
+                        "3": {
+                            "name": "punctuation.section.block.end.stagel3"
+                        }
+                    },
+                    "end": "(\\.|;)",
+                    "endCaptures": {
+                        "1": {
+                            "name": "punctuation.terminator.statement.stagel3"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#comments"
+                        },
+                        {
+                            "name": "meta.type.tuple.stagel3",
+                            "begin": "(?<![A-Za-z0-9_/:])((?:(?i:l|buf|option|result)/)*)((?i:tup):)",
+                            "beginCaptures": {
+                                "1": {
+                                    "name": "storage.type.container.stagel3"
+                                },
+                                "2": {
+                                    "name": "storage.type.tup.stagel3"
+                                }
+                            },
+                            "end": "(::|\\})(/[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)?",
+                            "endCaptures": {
+                                "1": {
+                                    "name": "storage.type.tup.stagel3"
+                                },
+                                "2": {
+                                    "name": "variable.other.stagel3"
+                                }
+                            },
+                            "patterns": [
+                                {
+                                    "include": "#tuple-type-body"
+                                }
+                            ]
+                        },
+                        {
+                            "match": "(?<![A-Za-z0-9_/:])((?:(?i:l|buf|option|result)/)*)((?i:dc/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+)|(?i:dc)/(?:[lLfFuU])?(?:[0-9a-fA-F]|n:[a-jA-J]:)+)|(?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|never|error)|(?!(?i:l|buf|option|result|tup|v)(?=/))[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(/[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(?![A-Za-z0-9_/:])",
+                            "captures": {
+                                "1": {
+                                    "name": "storage.type.container.stagel3"
+                                },
+                                "2": {
+                                    "name": "storage.type.value.stagel3"
+                                },
+                                "3": {
+                                    "name": "variable.other.stagel3"
+                                }
+                            }
+                        },
+                        {
+                            "include": "#tuple-type-body"
+                        }
+                    ]
+                },
+                {
+                    "match": "(?<![A-Za-z0-9_/:])((?i:struct|enum))\\s+([A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(?![A-Za-z0-9_/:])",
                     "captures": {
                         "1": {
                             "name": "keyword.declaration.stagel3"
                         },
                         "2": {
-                            "name": "entity.name.type.stagel3"
+                            "name": "storage.type.user.stagel3"
                         }
                     }
                 },
                 {
-                    "match": "(?<![A-Za-z0-9_/:])((?i:case))\\s+([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(?![A-Za-z0-9_/:])",
+                    "match": "(?<![A-Za-z0-9_/:])((?i:case))\\s+([A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(?![A-Za-z0-9_/:])",
                     "captures": {
                         "1": {
                             "name": "keyword.control.stagel3"
@@ -189,7 +257,49 @@
         "operators": {
             "patterns": [
                 {
-                    "match": "(?<![A-Za-z0-9_/:])((?i:add|sub|mul|div|rem|truncRem|mod|neg|wrapAdd|wrapSub|wrapMul|tryAdd|trySub|tryMul|tryDiv|tryMod|tryTruncRem|bitAnd|bitOr|bitXor|bitNot|shl|shr|rotl|rotr|clz|ctz|popcnt|not|and|or|eq|ne|lt|le|gt|ge|conv|bitcast|len|byteLen|get|slice|concat|explode|implode|bufNew|bufFill|bufPush|bufExtend|bufSet|bufFreeze|zl|wrap|unwrap|field|with|isSome|isNone|unwrapOr|unwrapSome|isOk|isErr|unwrapOk|unwrapErr|assert))([/?])?(?![A-Za-z0-9_/:?])",
+                    "match": "(?<![A-Za-z0-9_/:])((?i:structNew))\\s+(?:((?i:dc/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+)|(?i:dc)/(?:[lLfFuU])?(?:[0-9a-fA-F]|n:[a-jA-J]:)+))|([A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*))(:)",
+                    "captures": {
+                        "1": {
+                            "name": "support.function.builtin.stagel3"
+                        },
+                        "2": {
+                            "name": "constant.other.dc-shorthand.stagel3"
+                        },
+                        "3": {
+                            "name": "storage.type.user.stagel3"
+                        },
+                        "4": {
+                            "name": "punctuation.separator.colon.stagel3"
+                        }
+                    }
+                },
+                {
+                    "match": "(?<![A-Za-z0-9_/:])((?i:tupNew))(:)",
+                    "captures": {
+                        "1": {
+                            "name": "support.function.builtin.stagel3"
+                        },
+                        "2": {
+                            "name": "punctuation.separator.colon.stagel3"
+                        }
+                    }
+                },
+                {
+                    "match": "(?<![A-Za-z0-9_/:])((?i:conv|bitcast|wrap|bufNew))\\s+((?:(?i:l|buf|option|result)/)*)((?i:dc/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+)|(?i:dc)/(?:[lLfFuU])?(?:[0-9a-fA-F]|n:[a-jA-J]:)+)|(?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|void|never|error)|[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(?![A-Za-z0-9_/:])",
+                    "captures": {
+                        "1": {
+                            "name": "support.function.builtin.stagel3"
+                        },
+                        "2": {
+                            "name": "storage.type.container.stagel3"
+                        },
+                        "3": {
+                            "name": "storage.type.user.stagel3"
+                        }
+                    }
+                },
+                {
+                    "match": "(?<![A-Za-z0-9_/:])((?i:add|sub|mul|div|rem|truncRem|mod|neg|wrapAdd|wrapSub|wrapMul|tryAdd|trySub|tryMul|tryDiv|tryMod|tryTruncRem|bitAnd|bitOr|bitXor|bitNot|shl|shr|rotl|rotr|clz|ctz|popcnt|not|and|or|eq|ne|lt|le|gt|ge|conv|bitcast|len|byteLen|get|slice|concat|explode|implode|bufNew|tupNew|structNew|bufFill|bufPush|bufExtend|bufSet|bufFreeze|zl|wrap|unwrap|field|with|isSome|isNone|unwrapOr|okOr|unwrapSome|isOk|isErr|unwrapOk|unwrapErr|makeRat|dcFromU128|u128FromDc|dcsFromS|sFromDcs|assert))([/?])?(?![A-Za-z0-9_/:?])",
                     "captures": {
                         "1": {
                             "name": "support.function.builtin.stagel3"
@@ -209,23 +319,163 @@
                 },
                 {
                     "name": "constant.numeric.typed.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])(?i:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128):-?\\d+(?![A-Za-z0-9_/:])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|int):-?\\d+(?![A-Za-z0-9_/:])"
                 },
                 {
                     "name": "constant.numeric.typed.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])(?i:[ui](?:n:[a-j]:)+):(?:(?i:n:[a-jm]:)+)(?![A-Za-z0-9_/])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:[ui](?:n:[a-j]:)+|int):(?:(?i:n:[a-jm]:)+)(?![A-Za-z0-9_/])"
+                },
+                {
+                    "name": "constant.other.dc-literal.stagel3",
+                    "match": "(?<![A-Za-z0-9_/:])(?i:dc):(?:l?\\d+|f\\d+|u[0-9a-fA-F]+|(?:[lLfFuU])?(?:[0-9a-fA-F]|(?i:n:[a-j]:))+)(?![A-Za-z0-9_/])"
+                },
+                {
+                    "match": "(?<![A-Za-z0-9_/:])((?i:error))(:)((?i:overflow|divisionByZero|outOfBounds|invalidEncoding|invalidDc|unexpectedNone|frozenBuffer|parseFailure))(?![A-Za-z0-9_/:])",
+                    "captures": {
+                        "1": {
+                            "name": "storage.type.primitive.stagel3"
+                        },
+                        "2": {
+                            "name": "punctuation.separator.colon.stagel3"
+                        },
+                        "3": {
+                            "name": "constant.language.stagel3"
+                        }
+                    }
                 },
                 {
                     "name": "constant.other.dc-shorthand.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])(?i:dc)/(l?\\d+|f\\d+|u[0-9a-fA-F]+)(?![A-Za-z0-9_/:])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:dc)/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+|(?:[lLfFuU])?(?:[0-9a-fA-F]|(?i:n:[a-j]:))+)(?![A-Za-z0-9_/:])"
+                }
+            ]
+        },
+        "tuple-type-body": {
+            "patterns": [
+                {
+                    "include": "#comments"
+                },
+                {
+                    "begin": "(?<![A-Za-z0-9_/:])((?:(?i:l|buf|option|result)/)*)((?i:tup):)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "storage.type.container.stagel3"
+                        },
+                        "2": {
+                            "name": "storage.type.tup.stagel3"
+                        }
+                    },
+                    "end": "(::|\\})",
+                    "endCaptures": {
+                        "1": {
+                            "name": "storage.type.tup.stagel3"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#tuple-type-body"
+                        }
+                    ]
+                },
+                {
+                    "match": "(?<![A-Za-z0-9_/:])((?:(?i:l|buf|option|result)/)+)((?i:dc/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+)|(?i:dc)/(?:[lLfFuU])?(?:[0-9a-fA-F]|n:[a-jA-J]:)+)|(?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|void|never|error)|[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(?![A-Za-z0-9_/:])",
+                    "captures": {
+                        "1": {
+                            "name": "storage.type.container.stagel3"
+                        },
+                        "2": {
+                            "name": "storage.type.slot.stagel3"
+                        }
+                    }
+                },
+                {
+                    "name": "storage.type.primitive.stagel3",
+                    "match": "(?<![A-Za-z0-9_/:])(?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|void|never|error)(?![A-Za-z0-9_/])"
+                },
+                {
+                    "name": "storage.type.dc.stagel3",
+                    "match": "(?<![A-Za-z0-9_/:])(?i:dc)/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+|(?:[lLfFuU])?(?:[0-9a-fA-F]|(?i:n:[a-j]:))+)(?![A-Za-z0-9_/:])"
+                },
+                {
+                    "name": "storage.type.user.stagel3",
+                    "match": "(?<![A-Za-z0-9_/:])[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*(?![A-Za-z0-9_/:])"
                 }
             ]
         },
         "types-and-identifiers": {
             "patterns": [
                 {
-                    "name": "entity.name.function.verb.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])([vV])/((?:(?i:l|buf|option|result)/)*)((?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|void)|[A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)/([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)",
+                    "name": "meta.function.verb.tuple.stagel3",
+                    "begin": "(?<![A-Za-z0-9_/:])([vV]/)((?:(?i:l|buf|option|result)/)*)((?i:tup):)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "storage.type.verb.stagel3"
+                        },
+                        "2": {
+                            "name": "storage.type.container.stagel3"
+                        },
+                        "3": {
+                            "name": "storage.type.tup.stagel3"
+                        }
+                    },
+                    "end": "(::|\\})(/[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)?",
+                    "endCaptures": {
+                        "1": {
+                            "name": "storage.type.tup.stagel3"
+                        },
+                        "2": {
+                            "name": "entity.name.function.stagel3"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#tuple-type-body"
+                        }
+                    ]
+                },
+                {
+                    "name": "meta.type.tuple.stagel3",
+                    "begin": "(?<![A-Za-z0-9_/:])((?:(?i:l|buf|option|result)/)*)((?i:tup):)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "storage.type.container.stagel3"
+                        },
+                        "2": {
+                            "name": "storage.type.tup.stagel3"
+                        }
+                    },
+                    "end": "(::|\\})(?:((?:/(?i:dc)/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+|(?:[lLfFuU])?(?:[0-9a-fA-F]|(?i:n:[a-j]:))+)|/[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*))([/?])?|(:)((?i:some|none|ok|err))([/?])?|(:))?",
+                    "endCaptures": {
+                        "1": {
+                            "name": "storage.type.tup.stagel3"
+                        },
+                        "2": {
+                            "name": "variable.other.stagel3"
+                        },
+                        "3": {
+                            "name": "keyword.operator.try.stagel3"
+                        },
+                        "4": {
+                            "name": "punctuation.separator.colon.stagel3"
+                        },
+                        "5": {
+                            "name": "constant.language.stagel3"
+                        },
+                        "6": {
+                            "name": "keyword.operator.try.stagel3"
+                        },
+                        "7": {
+                            "name": "punctuation.separator.colon.stagel3"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#tuple-type-body"
+                        }
+                    ]
+                },
+                {
+                    "name": "meta.function.verb.stagel3",
+                    "match": "(?<![A-Za-z0-9_/:])([vV]/)((?:(?i:l|buf|option|result)/)*)((?i:dc/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+)|(?i:dc)/(?:[lLfFuU])?(?:[0-9a-fA-F]|n:[a-jA-J]:)+)|(?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|void|never|error)|[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(/[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(?![A-Za-z0-9_/:])",
                     "captures": {
                         "1": {
                             "name": "storage.type.verb.stagel3"
@@ -234,7 +484,7 @@
                             "name": "storage.type.container.stagel3"
                         },
                         "3": {
-                            "name": "storage.type.primitive.stagel3"
+                            "name": "storage.type.return.stagel3"
                         },
                         "4": {
                             "name": "entity.name.function.stagel3"
@@ -242,14 +492,68 @@
                     }
                 },
                 {
-                    "name": "variable.other.typed.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])((?:(?i:l|buf|option|result)/)*)((?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor))/([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)([/?])?(?![A-Za-z0-9_/:?])",
+                    "name": "meta.list-opener.stagel3",
+                    "match": "(?<![A-Za-z0-9_/:])((?i:l)/(?:(?i:l|buf|option|result)/)*)((?i:dc/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+)|(?i:dc)/(?:[lLfFuU])?(?:[0-9a-fA-F]|n:[a-jA-J]:)+)|(?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|void|never|error)|[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(:)(?![:])",
                     "captures": {
                         "1": {
                             "name": "storage.type.container.stagel3"
                         },
                         "2": {
-                            "name": "storage.type.primitive.stagel3"
+                            "name": "storage.type.element.stagel3"
+                        },
+                        "3": {
+                            "name": "punctuation.separator.colon.stagel3"
+                        }
+                    }
+                },
+                {
+                    "name": "meta.sum-constructor.stagel3",
+                    "match": "(?<![A-Za-z0-9_/:])((?:(?i:option|result)/(?:(?i:l|buf|option|result)/)*))((?i:dc/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+)|(?i:dc)/(?:[lLfFuU])?(?:[0-9a-fA-F]|n:[a-jA-J]:)+)|(?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|void|never|error)|[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(:)((?i:some|none|ok|err))([/?])?(?![A-Za-z0-9_/:?])",
+                    "captures": {
+                        "1": {
+                            "name": "storage.type.container.stagel3"
+                        },
+                        "2": {
+                            "name": "storage.type.element.stagel3"
+                        },
+                        "3": {
+                            "name": "punctuation.separator.colon.stagel3"
+                        },
+                        "4": {
+                            "name": "constant.language.stagel3"
+                        },
+                        "5": {
+                            "name": "keyword.operator.try.stagel3"
+                        }
+                    }
+                },
+                {
+                    "name": "meta.enum-constructor.stagel3",
+                    "match": "(?<![A-Za-z0-9_/:])((?i:dc/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+)|(?i:dc)/(?:[lLfFuU])?(?:[0-9a-fA-F]|n:[a-jA-J]:)+)|[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(:)([A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)([/?])?(?![A-Za-z0-9_/:?])",
+                    "captures": {
+                        "1": {
+                            "name": "storage.type.user.stagel3"
+                        },
+                        "2": {
+                            "name": "punctuation.separator.colon.stagel3"
+                        },
+                        "3": {
+                            "name": "constant.language.stagel3"
+                        },
+                        "4": {
+                            "name": "keyword.operator.try.stagel3"
+                        }
+                    }
+                },
+                {
+                    "name": "variable.other.typed.stagel3",
+                    "match": "(?<![A-Za-z0-9_/:])((?:(?i:l|buf|option|result)/)*)((?i:dc/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+)|(?i:dc)/(?:[lLfFuU])?(?:[0-9a-fA-F]|n:[a-jA-J]:)+)|(?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|never|error)|(?!(?i:l|buf|option|result|tup|v)(?=/))[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)((?:/(?i:dc)/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+|(?:[lLfFuU])?(?:[0-9a-fA-F]|(?i:n:[a-j]:))+)|/[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*))([/?])?(?![A-Za-z0-9_/:?])",
+                    "captures": {
+                        "1": {
+                            "name": "storage.type.container.stagel3"
+                        },
+                        "2": {
+                            "name": "storage.type.value.stagel3"
                         },
                         "3": {
                             "name": "variable.other.stagel3"
@@ -261,22 +565,19 @@
                 },
                 {
                     "name": "variable.other.bare.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])(/)([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)([/?])?(?![A-Za-z0-9_/:?])",
+                    "match": "(?<![A-Za-z0-9_/:])((?:/(?i:dc)/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+|(?:[lLfFuU])?(?:[0-9a-fA-F]|(?i:n:[a-j]:))+)|/[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*))([/?])?(?![A-Za-z0-9_/:?])",
                     "captures": {
                         "1": {
-                            "name": "punctuation.accessor.slash.stagel3"
-                        },
-                        "2": {
                             "name": "variable.other.stagel3"
                         },
-                        "3": {
+                        "2": {
                             "name": "keyword.operator.try.stagel3"
                         }
                     }
                 },
                 {
                     "name": "meta.type.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])((?:(?i:l|buf|option|result)/)+)((?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|void))(?![A-Za-z0-9_/])",
+                    "match": "(?<![A-Za-z0-9_/:])((?:(?i:l|buf|option|result)/)+)((?i:dc/(?:l?\\d+|f\\d+|u[0-9a-fA-F]+)|(?i:dc)/(?:[lLfFuU])?(?:[0-9a-fA-F]|n:[a-jA-J]:)+)|(?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|void|never|error)|[A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(?![A-Za-z0-9_/:])",
                     "captures": {
                         "1": {
                             "name": "storage.type.container.stagel3"
@@ -288,21 +589,24 @@
                 },
                 {
                     "name": "storage.type.primitive.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])(?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|void)(?![A-Za-z0-9_/])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|void|never|error)(?![A-Za-z0-9_/])"
                 },
                 {
-                    "match": "(:)((?i:some|none|ok|err))(?![A-Za-z0-9_/:])",
+                    "match": "(:)((?i:some|none|ok|err))([/?])?(?![A-Za-z0-9_/:?])",
                     "captures": {
                         "1": {
                             "name": "punctuation.separator.colon.stagel3"
                         },
                         "2": {
                             "name": "constant.language.stagel3"
+                        },
+                        "3": {
+                            "name": "keyword.operator.try.stagel3"
                         }
                     }
                 },
                 {
-                    "match": "(?<![A-Za-z0-9_/:])([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)([/?])?(?![A-Za-z0-9_/:?])",
+                    "match": "(?<![A-Za-z0-9_/:])([A-Za-z_](?:[A-Za-z0-9_]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)([/?])?(?![A-Za-z0-9_/:?])",
                     "captures": {
                         "1": {
                             "name": "entity.name.function.call.stagel3"
