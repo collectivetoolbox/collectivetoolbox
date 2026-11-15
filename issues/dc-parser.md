@@ -58,8 +58,8 @@ pub fn validate_and_write_dc_record(
   such as `f350 f351`. Single-token canonical equivalence and rejection of
   conflicting single-token syntax on decompositions are already implemented.
 - [ ] **(Intentionally deferred)** Resolve the
-  [routine-invocation clarification](../src/formats/dcdata/data/categories/el.csv#L38)
-  for `Dc 279` (`Routine invocation`) and variable-arity/slurpy `.EL Routines`
+  [routine-invocation clarification](../src/formats/dcdata/data/categories/em.csv#L38)
+  for `Dc 279` (`Routine invocation`) and variable-arity/slurpy `.EM Routines`
   parameter syntax (`Dc 265` and `Dc 307` fixed-arity `lang.invoke` parameter
   syntax is implemented). Restoring a comment or adding an identifier does not
   resolve `Dc 279` semantics.

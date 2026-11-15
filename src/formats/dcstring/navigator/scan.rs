@@ -903,8 +903,10 @@ impl<'a> DcDocumentNavigator<'a> {
                 };
                 let end = if matched
                     && !ctx.has_errors
-                    && resolver
-                        .matches_script(".EL Routines", first_dc.to_u128())
+                    && (resolver
+                        .matches_script(".EM Routines", first_dc.to_u128())
+                        || resolver
+                            .matches_script(".EL Routines", first_dc.to_u128()))
                 {
                     // Reason for fallback: if optional trailing parameter scan fails, fall back to the matched rule end.
                     self.scan_trailing_parameter_frames_with_resolver(

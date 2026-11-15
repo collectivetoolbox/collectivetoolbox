@@ -744,7 +744,7 @@ pub fn validate_dc_aliases_spacing(
     let _ = parse_dc_aliases_column(raw, file_path, line_no, report);
 }
 
-/// Derives a [`DcSyntaxRule`] for a `.EL Routines` entry from the parameter
+/// Derives a [`DcSyntaxRule`] for a `.EM Routines` entry from the parameter
 /// signature in its `Name` column (e.g. `void lang.say([string] text)` ->
 /// `:~ 258 [string $text] 259`).
 pub fn derive_el_routine_syntax(name: &str) -> Result<Option<DcSyntaxRule>> {
@@ -1263,31 +1263,32 @@ pub fn validate_dc_category_file(
             .collect();
         let annotations = parsed_col.annotations;
 
-        let dc_syntax = if script == ".EL Routines" {
-            if raw_dc_syntax.is_some() {
-                report.add_error(
+        let dc_syntax =
+            if matches!(script.as_str(), ".EM Routines" | ".EL Routines") {
+                if raw_dc_syntax.is_some() {
+                    report.add_error(
                     file_path,
                     Some(line_no),
                     Some("Aliases (syntax)"),
-                    "Redundant explicit syntax rule on '.EL Routines' Document Character (syntax is derived automatically from the parameter declaration in Name)"
+                    "Redundant explicit syntax rule on '.EM Routines' Document Character (syntax is derived automatically from the parameter declaration in Name)"
                         .to_string(),
                     Some("Remove explicit ':...' syntax rule from Aliases and declare parameter types in Name"),
                 );
-            }
-            match derive_el_routine_syntax(&name) {
-                Ok(rule) => rule,
-                Err(e) => {
-                    report.add_error(
+                }
+                match derive_el_routine_syntax(&name) {
+                    Ok(rule) => rule,
+                    Err(e) => {
+                        report.add_error(
                         file_path,
                         Some(line_no),
                         Some("Name (!=deprecated)"),
-                        format!("Failed to derive '.EL Routines' parameter syntax from Name '{name}': {e}"),
+                        format!("Failed to derive '.EM Routines' parameter syntax from Name '{name}': {e}"),
                         Some("Specify parameters in the form 'retType routine.name([type] paramName, ...)'"),
                     );
-                    None
+                        None
+                    }
                 }
-            }
-        } else if let Some(raw_syn) = &raw_dc_syntax {
+            } else if let Some(raw_syn) = &raw_dc_syntax {
             match parse_dc_syntax(raw_syn) {
                 Ok(rule) => Some(rule),
                 Err(e) => {
@@ -2014,7 +2015,7 @@ where
         }
     }
     for row in &all_rows {
-        if row.script == ".EL Routines" {
+        if matches!(row.script.as_str(), ".EM Routines" | ".EL Routines") {
             continue;
         }
         let Some(short_id) = row.short_id.and_then(|id| u32::try_from(id).ok())
@@ -3550,7 +3551,7 @@ mod tests {
         let mut known_named_types: HashSet<String> = HashSet::new();
         known_named_types.insert("identifier".to_string());
         let mut known_scripts: HashSet<String> = HashSet::new();
-        known_scripts.insert(".EL Types".to_string());
+        known_scripts.insert(".EM Types".to_string());
         let known_syntax_targets: HashSet<CharTarget> = HashSet::new();
 
         // Valid rule
@@ -3911,7 +3912,7 @@ mod tests {
         let mut known_named_types: HashSet<String> = HashSet::new();
         known_named_types.insert("identifier".to_string());
         let mut known_scripts: HashSet<String> = HashSet::new();
-        known_scripts.insert(".EL Types".to_string());
+        known_scripts.insert(".EM Types".to_string());
         let mut known_syntax_targets: HashSet<CharTarget> = HashSet::new();
         known_syntax_targets.insert(CharTarget::Dc(262));
 
@@ -4604,11 +4605,11 @@ mod tests {
                 .contains("their syntax rules differ")
         );
 
-        // 11. Redundant explicit syntax rule on .EL Routines fails validation
+        // 11. Redundant explicit syntax rule on .EM Routines fails validation
         let mut report_redundant_routine_syn = ValidationReport::default();
-        let csv_redundant_routine_syn = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114368,256,void lang.say([string] text),0,BN,,!Cx,.EL Routines,\"@ident(\"\"LangSay\"\"), :~ 258 [string $text] 259\",\n";
+        let csv_redundant_routine_syn = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114368,256,void lang.say([string] text),0,BN,,!Cx,.EM Routines,\"@ident(\"\"LangSay\"\"), :~ 258 [string $text] 259\",\n";
         validate_dc_files_data(
-            [("el.csv", &csv_redundant_routine_syn[..])],
+            [("em.csv", &csv_redundant_routine_syn[..])],
             "test",
             &known_formats,
             None,
@@ -4622,10 +4623,10 @@ mod tests {
         assert!(
             report_redundant_routine_syn
                 .format_report()
-                .contains("Redundant explicit syntax rule on '.EL Routines'")
+                .contains("Redundant explicit syntax rule on '.EM Routines'")
         );
 
-        // 12. Derived syntax rule on .EL Routines from parameter declaration in Name
+        // 12. Derived syntax rule on .EM Routines from parameter declaration in Name
         let say_rule = derive_el_routine_syntax("void lang.say([string] text)")
             .unwrap()
             .unwrap();

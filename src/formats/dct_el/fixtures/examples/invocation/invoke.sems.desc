@@ -31,9 +31,9 @@ $ ctb character_description --from dcil '256 258 276 270 19 97 82 99 277 270 262
 1114211 : <Dc> Latin Letter Lowercase R {<equiv>u72}
 1114389 : <Dc> Reference list element {syntax: `:( [list] | [string] ) ~ [identifier]`}
 1114382 : <Dc> Begin identifier {syntax: `:~ ([^271 255] | (255 (255 | [^255])))+ 271`}
-1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EL Types] 263`}
+1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EM Types] 263`}
 1114390 : <Dc> Built-in type identifier: Number
-1114375 : <Dc> End type definition {syntax: `:262 [script:.EL Types] ~`}
+1114375 : <Dc> End type definition {syntax: `:262 [script:.EM Types] ~`}
 1114147 : <Dc> One {<equiv>u31}
 1114383 : <Dc> End identifier {syntax: `:270 ([^271 255] | (255 (255 | [^255])))+ ~`}
 1114383 : <Dc> End identifier {syntax: `:270 ([^271 255] | (255 (255 | [^255])))+ ~`}
@@ -45,17 +45,17 @@ $ ctb character_description --from dcil '256 258 276 270 19 97 82 99 277 270 262
 1114211 : <Dc> Latin Letter Lowercase R {<equiv>u72}
 1114389 : <Dc> Reference list element {syntax: `:( [list] | [string] ) ~ [identifier]`}
 1114382 : <Dc> Begin identifier {syntax: `:~ ([^271 255] | (255 (255 | [^255])))+ 271`}
-1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EL Types] 263`}
+1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EM Types] 263`}
 1114390 : <Dc> Built-in type identifier: Number
-1114375 : <Dc> End type definition {syntax: `:262 [script:.EL Types] ~`}
+1114375 : <Dc> End type definition {syntax: `:262 [script:.EM Types] ~`}
 1114148 : <Dc> Two {<equiv>u32}
 1114383 : <Dc> End identifier {syntax: `:270 ([^271 255] | (255 (255 | [^255])))+ ~`}
 1114383 : <Dc> End identifier {syntax: `:270 ([^271 255] | (255 (255 | [^255])))+ ~`}
 1114388 : <Dc> Reference named object {syntax: `:~ ([identifier] | ([type] [identifier]))`}
 1114382 : <Dc> Begin identifier {syntax: `:~ ([^271 255] | (255 (255 | [^255])))+ 271`}
-1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EL Types] 263`}
+1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EM Types] 263`}
 1114376 : <Dc> Built-in type identifier: String {<approx>(f80)}
-1114375 : <Dc> End type definition {syntax: `:262 [script:.EL Types] ~`}
+1114375 : <Dc> End type definition {syntax: `:262 [script:.EM Types] ~`}
 1114210 : <Dc> Latin Letter Lowercase Q {<equiv>u71}
 1114214 : <Dc> Latin Letter Lowercase U {<equiv>u75}
 1114217 : <Dc> Latin Letter Lowercase X {<equiv>u78}
@@ -93,15 +93,15 @@ $ ctb character_description --from dcil '279 276 270 262 264 263 271 258 260 262
 1114391 : <Dc> Routine invocation {syntax: `:~ [identifier]`}
 1114388 : <Dc> Reference named object {syntax: `:~ ([identifier] | ([type] [identifier]))`}
 1114382 : <Dc> Begin identifier {syntax: `:~ ([^271 255] | (255 (255 | [^255])))+ 271`}
-1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EL Types] 263`}
+1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EM Types] 263`}
 1114376 : <Dc> Built-in type identifier: String {<approx>(f80)}
-1114375 : <Dc> End type definition {syntax: `:262 [script:.EL Types] ~`}
+1114375 : <Dc> End type definition {syntax: `:262 [script:.EM Types] ~`}
 1114383 : <Dc> End identifier {syntax: `:270 ([^271 255] | (255 (255 | [^255])))+ ~`}
 1114370 : <Dc> Begin parameter {syntax: `:~ [value] 259`}
 1114372 : <Dc> Begin literal value {syntax: `:~ [262:]{1} ([^261 255] | (255 (255 | [^255])))* 261`}
-1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EL Types] 263`}
+1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EM Types] 263`}
 1114376 : <Dc> Built-in type identifier: String {<approx>(f80)}
-1114375 : <Dc> End type definition {syntax: `:262 [script:.EL Types] ~`}
+1114375 : <Dc> End type definition {syntax: `:262 [script:.EM Types] ~`}
 1114195 : <Dc> Latin Letter Lowercase B {<equiv>u62}
 1114194 : <Dc> Latin Letter Lowercase A {<equiv>u61}
 1114211 : <Dc> Latin Letter Lowercase R {<equiv>u72}
@@ -109,9 +109,9 @@ $ ctb character_description --from dcil '279 276 270 262 264 263 271 258 260 262
 1114371 : <Dc> End parameter {syntax: `:258 [value] ~`}
 1114370 : <Dc> Begin parameter {syntax: `:~ [value] 259`}
 1114372 : <Dc> Begin literal value {syntax: `:~ [262:]{1} ([^261 255] | (255 (255 | [^255])))* 261`}
-1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EL Types] 263`}
+1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EM Types] 263`}
 1114376 : <Dc> Built-in type identifier: String {<approx>(f80)}
-1114375 : <Dc> End type definition {syntax: `:262 [script:.EL Types] ~`}
+1114375 : <Dc> End type definition {syntax: `:262 [script:.EM Types] ~`}
 1114195 : <Dc> Latin Letter Lowercase B {<equiv>u62}
 1114194 : <Dc> Latin Letter Lowercase A {<equiv>u61}
 1114219 : <Dc> Latin Letter Lowercase Z {<equiv>u7a}

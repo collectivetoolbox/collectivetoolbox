@@ -243,7 +243,7 @@ pub fn strip_comment_frames(tokens: &[DcChar]) -> Vec<DcChar> {
 }
 
 /// Encodes a parsed StageL 3 `Module` AST into a canonical StageL Token Dc
-/// stream matching the `el.csv` and `README-named-types.csv` syntax rules.
+/// stream matching the `em.csv` and `README-named-types.csv` syntax rules.
 pub fn encode_module_to_dc_tokens(module: &Module) -> Result<Vec<DcChar>> {
     encode::encode_module_to_dc_tokens(module)
 }

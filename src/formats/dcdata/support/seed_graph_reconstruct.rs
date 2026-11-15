@@ -2057,6 +2057,10 @@ fn category_for_dc_subject(subj: DcShorthand, script: &str) -> String {
     if script == ".Semantic" || script.starts_with(".Semantic:") {
         return "semantic".to_string();
     }
+    if script == ".EM" || script.starts_with(".EM ") {
+        return "em".to_string();
+    }
+    // Historical snapshot pins use legacy `.EL*` script names mapped to `el.csv`.
     if script == ".EL" || script.starts_with(".EL ") {
         return "el".to_string();
     }

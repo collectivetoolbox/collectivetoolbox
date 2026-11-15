@@ -41,7 +41,7 @@ pub enum BuildSeedEntity {
     BidiClass(String),
     /// Character or Dc General Category code (e.g. `"!Cx"`, `"Cc"`, `"Zl"`).
     GeneralCategory(String),
-    /// Script classification name (e.g. `".EL Types"`, `".Formats:compression"`).
+    /// Script classification name (e.g. `".EM Types"`, `".Formats:compression"`).
     Script(String),
     /// Named syntax construct (e.g. `"value"`, `"boolean"`, `"number"`).
     NamedConstruct(String),
@@ -523,7 +523,7 @@ impl BuildGraphIndex {
             .map_or(&[], Vec::as_slice)
     }
 
-    /// Returns the script name (e.g. `".EL Types"`, `".Formats:compression"`) for `subj` if declared via `IsInstanceOf`.
+    /// Returns the script name (e.g. `".EM Types"`, `".Formats:compression"`) for `subj` if declared via `IsInstanceOf`.
     #[must_use]
     pub fn subject_script(&self, subj: DcShorthand) -> Option<&str> {
         let sh_inst = self.framing.is_instance_of;

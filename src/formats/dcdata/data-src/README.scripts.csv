@@ -4,15 +4,15 @@ Script,Block increment size
 .DCE,TBD
 .DCE sheets,TBD
 .DCE versions,TBD
-.EL Builtins,64
-.EL Control Flow,64
-.EL Miscellaneous,128
-.EL Operators,64
-.EL Pronouns,32
-.EL Routines,256
-.EL StageL,32
-.EL Syntax,256
-.EL Types,64
+.EM Builtins,64
+.EM Control Flow,64
+.EM Miscellaneous,128
+.EM Operators,64
+.EM Pronouns,32
+.EM Routines,256
+.EM StageL,32
+.EM Syntax,256
+.EM Types,64
 .Emoji,TBD
 .Encapsulation,TBD
 .Financial,TBD

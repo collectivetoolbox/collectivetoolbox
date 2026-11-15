@@ -255,7 +255,7 @@ mod tests {
     fn test_composite_role_canonical_matches() {
         use crate::syntax::DcRole;
 
-        // TypeToken: .EL Types and format IDs match, routines do not
+        // TypeToken: .EM Types and format IDs match, routines do not
         assert!(
             DcRole::TypeToken
                 .matches_canonical(DcChar::from_short(278).to_u128())
@@ -299,7 +299,7 @@ mod tests {
                 .matches_canonical(DcChar::from_short(195).to_u128())
         );
 
-        // EvaluableExpressionStarter: .EL Routines and reference/invocation starters
+        // EvaluableExpressionStarter: .EM Routines and reference/invocation starters
         assert!(
             DcRole::EvaluableExpressionStarter
                 .matches_canonical(DcChar::from_short(256).to_u128())

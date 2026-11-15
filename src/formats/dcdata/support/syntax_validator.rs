@@ -699,7 +699,7 @@ fn validate_syntax_element(
                         source_file,
                         Some(line_no),
                         Some(col_name),
-                        "Named construct '[script]' requires a non-empty script name (e.g. '[script:.EL Types]')".to_string(),
+                        "Named construct '[script]' requires a non-empty script name (e.g. '[script:.EM Types]')".to_string(),
                         Some("Specify a valid script name following a colon"),
                     );
                 } else if let Some(st) = script_target {

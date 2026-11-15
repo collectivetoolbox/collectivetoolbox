@@ -487,7 +487,7 @@ fn strip_leading_dc_comment_frames<'a>(
 }
 
 /// Temporary host Rust fallback evaluator for `Dc 2608 "Convert Dc string to WASM"`
-/// (`.EL Miscellaneous`).
+/// (`.EM Miscellaneous`).
 ///
 /// NOTE (replace with StageR 3 / EM3 graph implementation soon):
 /// `Dc 2608 "Convert Dc string to WASM"` is intentionally NOT a language builtin and has

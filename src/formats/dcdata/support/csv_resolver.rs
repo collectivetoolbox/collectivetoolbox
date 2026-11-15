@@ -238,7 +238,7 @@ impl DatasetRuleResolver {
         // Declared delimiters take precedence: a field ending in a nested
         // representation's closer does not itself open that representation.
         for defn in dc_defns {
-            if defn.script == ".EL Routines" {
+            if matches!(defn.script.as_str(), ".EM Routines" | ".EL Routines") {
                 continue;
             }
             if let (Some(short_id), Some(rule)) = (defn.short_id, &defn.syntax)
@@ -355,7 +355,10 @@ impl DatasetRuleResolver {
             .collect();
         let non_routine_short_ids: Vec<u32> = dc_defns
             .iter()
-            .filter(|d| d.script != ".EL Routines" && d.syntax.is_some())
+            .filter(|d| {
+                !matches!(d.script.as_str(), ".EM Routines" | ".EL Routines")
+                    && d.syntax.is_some()
+            })
             .filter_map(|d| d.short_id.and_then(|sid| u32::try_from(sid).ok()))
             .collect();
 

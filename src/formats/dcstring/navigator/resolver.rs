@@ -363,15 +363,20 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
             }
         }
         if role == DcRole::TypeToken
-            && (self.matches_script(".EL Types", token)
-                || (canon != token && self.matches_script(".EL Types", canon)))
+            && (self.matches_script(".EM Types", token)
+                || self.matches_script(".EL Types", token)
+                || (canon != token
+                    && (self.matches_script(".EM Types", canon)
+                        || self.matches_script(".EL Types", canon))))
         {
             return true;
         }
         if role == DcRole::EvaluableExpressionStarter
-            && (self.matches_script(".EL Routines", token)
+            && (self.matches_script(".EM Routines", token)
+                || self.matches_script(".EL Routines", token)
                 || (canon != token
-                    && self.matches_script(".EL Routines", canon)))
+                    && (self.matches_script(".EM Routines", canon)
+                        || self.matches_script(".EL Routines", canon))))
         {
             return true;
         }

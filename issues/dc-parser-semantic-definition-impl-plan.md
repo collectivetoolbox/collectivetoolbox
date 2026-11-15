@@ -26,7 +26,7 @@
 - [ ] Precompute static active-statement, equivalence (`Dc 611` `Canonical decomposition`), and transitive `Dc 586` (`Is an instance of`) / `Dc 587` (`Is a subtype of`) closures at build time so startup does not need to replay and re-index `.ctbnbdl` into heap `HashMap`s in `SeedGraphIndex` and `DatasetRuleResolver`.
 
 ### 2. `DcDocumentNavigator` Graph-Driven Scanning & Evaluation (`src/formats/dcstring/navigator/`)
-- [ ] Unify the remaining role-specific hooks inside prefix-rule scanning in `scan_sibling_stub_with_resolver` (`src/formats/dcstring/navigator.rs`: `.EL Routines`, `RoutineInvocation` trailing parameter scanning, and `is_representation_set` grammar verification) into `Dc 594` (`Syntax rule`) pattern definitions.
+- [ ] Unify the remaining role-specific hooks inside prefix-rule scanning in `scan_sibling_stub_with_resolver` (`src/formats/dcstring/navigator.rs`: `.EM Routines`, `RoutineInvocation` trailing parameter scanning, and `is_representation_set` grammar verification) into `Dc 594` (`Syntax rule`) pattern definitions.
 - [ ] Replace `number_satisfies_subtype` and `type_tokens_satisfy` in `src/formats/dcstring/navigator/eval.rs` with unified graph subtype/instance reachability (`Dc 586` / `Dc 587`) and `.Semantic:Pattern` rule evaluation (`Dc 594`).
 - [ ] Replace bespoke evaluators in `src/formats/dcstring/navigator/eval.rs` (`eval_list_constraints`, `check_equivalent_list_grammar_with_resolver`, `eval_data_construct`, and `eval_typed_data_construct`) with general `Dc 606` (`Pattern capture`) and `Dc 607` (`Pattern replacement`) binding evaluation (`$length`, `$keyType`, `$valType`, and `[data:...]` / `[typed_data:...]`).
 
@@ -47,6 +47,6 @@ Every `DcSyntaxRule` and named construct in `README-named-types.csv` is encoded 
 | `ConstraintExpr::And(lhs, rhs)` (`A & B`) | `601 <list_of_conjuncts>` using `Dc 601` (`Pattern conjunction`) |
 | `Quantifier` (`?`, `*`, `+`, `{n}`, `{m..n}`) | `603 <count_or_range> <inner_pattern>` using `Dc 603` (`Pattern repetition`), with unbounded upper bound `Dc 316` (`Optional value absent`) |
 | `SyntaxTerm::Negated(inner)` (`[^261 255]`) | `604 <inner_pattern>` using `Dc 604` (`Negated pattern`) |
-| `[262:]`, `[type]`, `[script:.EL Types]` | `605 <target_entity_or_type>` using `Dc 605` (`Subpattern match`) |
+| `[262:]`, `[type]`, `[script:.EM Types]` | `605 <target_entity_or_type>` using `Dc 605` (`Subpattern match`) |
 | `$ident` capture binding (`[number $length]`) | `606 270 <ident_chars> 271 <inner_pattern>` using `Dc 606` (`Pattern capture`) and `Dc 270`..`Dc 271` (`Begin identifier`..`End identifier`) |
 | `SyntaxAction` (`: lang.assign($ident, $val)`) | `607 <match_pattern> <replacement_expr>` using `Dc 607` (`Pattern replacement`) |

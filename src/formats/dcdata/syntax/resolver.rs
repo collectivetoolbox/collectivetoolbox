@@ -236,12 +236,16 @@ pub trait SyntaxRuleResolver {
         if canonical != token && role.matches_canonical(canonical) {
             return true;
         }
-        if role == DcRole::TypeToken && self.matches_script(".EL Types", token)
+        if role == DcRole::TypeToken
+            && (self.matches_script(".EM Types", token)
+                || self.matches_script(".EL Types", token))
         {
             return true;
         }
         if role == DcRole::EvaluableExpressionStarter
-            && (self.matches_script(".EL Routines", token)
+            && (self.matches_script(".EM Routines", token)
+                || self.matches_script(".EM Builtins", token)
+                || self.matches_script(".EL Routines", token)
                 || self.matches_script(".EL Builtins", token)
                 || self.is_splice_trigger_token(token))
         {
@@ -509,6 +513,7 @@ pub trait SyntaxRuleResolver {
             "type" => {
                 let is_type = self.token_fills_role(tok, DcRole::TypeToken)
                     || is_format
+                    || self.matches_script(".EM Types", tok)
                     || self.matches_script(".EL Types", tok);
                 is_type
                     && req_subtype.is_none_or(|sub| {
@@ -730,15 +735,37 @@ fn propagate_char_target_table<V: Clone>(
     }
 }
 
+fn strip_em_or_el(s: &str) -> Option<&str> {
+    if let Some(rest) = s.strip_prefix("EM ") {
+        Some(rest)
+    } else if let Some(rest) = s.strip_prefix("EL ") {
+        Some(rest)
+    } else if s == "EM" || s == "EL" {
+        Some("")
+    } else {
+        None
+    }
+}
+
 fn script_name_matches_query(name: &str, script_name: &str) -> bool {
     if name == script_name {
         return true;
     }
     let clean_target = script_name.trim_start_matches('.');
     let clean_name = name.trim_start_matches('.');
-    clean_name == clean_target
+    if clean_name == clean_target
         || clean_name.starts_with(clean_target)
         || clean_name.split(':').next_back() == Some(clean_target)
+    {
+        return true;
+    }
+    // Support legacy `.EL *` snapshots alongside current `.EM *` scripts.
+    if let (Some(n_rest), Some(t_rest)) =
+        (strip_em_or_el(clean_name), strip_em_or_el(clean_target))
+    {
+        return n_rest == t_rest || t_rest.is_empty() || n_rest.starts_with(t_rest);
+    }
+    false
 }
 
 fn element_matches_closer(el: &SyntaxElement, closer_token: u128) -> bool {
@@ -1329,6 +1356,7 @@ impl DatasetRuleResolver {
                     ));
                 }
                 if name == "type" && subtype.is_none() {
+                    out.scripts.push(".EM Types".to_string());
                     out.scripts.push(".EL Types".to_string());
                     out.exact_tokens.insert(DC_FILE_PATH_DELIMITER.to_u128());
                     for (target, rule) in &self.rules {
@@ -1557,7 +1585,7 @@ impl DatasetRuleResolver {
         }
 
         // 4. Populate graph-derived `type_tokens` and `evaluable_expression_starters`
-        for script_name in [".EL Types", ".Semantic:Ontological"] {
+        for script_name in [".EM Types", ".EL Types", ".Semantic:Ontological"] {
             if let Some(tokens) = self.script_chars.get(script_name) {
                 self.type_tokens.extend(tokens.iter().copied());
             }
@@ -1599,7 +1627,12 @@ impl DatasetRuleResolver {
             }
         }
 
-        for script in [".EL Routines", ".EL Builtins"] {
+        for script in [
+            ".EM Routines",
+            ".EM Builtins",
+            ".EL Routines",
+            ".EL Builtins",
+        ] {
             if let Some(tokens) = self.script_chars.get(script) {
                 self.evaluable_expression_starters
                     .extend(tokens.iter().copied());
@@ -2287,6 +2320,7 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
                 .contains(&token)
                 || self.type_tokens.contains(&token)
                 || self.matches_script("Formats", token)
+                || self.matches_script(".EM Types", token)
                 || self.matches_script(".EL Types", token)
                 || self.matches_script(".Semantic:Ontological", token)
                 || role.matches_canonical(self.canonical_token(token));
@@ -2295,6 +2329,8 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
             && !self.evaluable_expression_starters.is_empty()
         {
             return self.evaluable_expression_starters.contains(&token)
+                || self.matches_script(".EM Routines", token)
+                || self.matches_script(".EM Builtins", token)
                 || self.matches_script(".EL Routines", token)
                 || self.matches_script(".EL Builtins", token)
                 || self.is_splice_trigger_token(token)
@@ -2308,13 +2344,16 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
             return true;
         }
         if role == DcRole::TypeToken
-            && (self.matches_script(".EL Types", token)
+            && (self.matches_script(".EM Types", token)
+                || self.matches_script(".EL Types", token)
                 || self.matches_script(".Semantic:Ontological", token))
         {
             return true;
         }
         if role == DcRole::EvaluableExpressionStarter
-            && (self.matches_script(".EL Routines", token)
+            && (self.matches_script(".EM Routines", token)
+                || self.matches_script(".EM Builtins", token)
+                || self.matches_script(".EL Routines", token)
                 || self.matches_script(".EL Builtins", token)
                 || self.is_splice_trigger_token(token))
         {

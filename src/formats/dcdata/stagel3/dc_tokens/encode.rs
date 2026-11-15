@@ -77,7 +77,7 @@ use crate::dc_number_minimal::{dc_base64_digit_to_char, u128_to_dc_number_chars}
 use ctb_utilities::format_id::FormatId;
 
 /// Encodes a parsed StageL 3 or StageR 3 `Module` AST into a canonical Token Dc
-/// stream matching the `el.csv` and `README-named-types.csv` syntax rules.
+/// stream matching the `em.csv` and `README-named-types.csv` syntax rules.
 pub(super) fn encode_module_to_dc_tokens(module: &Module) -> Result<Vec<DcChar>> {
     let mut out = Vec::new();
     push_module_tokens(&mut out, module)?;

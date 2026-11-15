@@ -622,7 +622,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_sl3_forbids_legacy_braces_and_bare_strings_and_evaluates_do_blocks() {
-        // Curly braces and bare "..." belong to StageR 3 / .EL sugar, not StageL 3
+        // Curly braces and bare "..." belong to StageR 3 / .EM sugar, not StageL 3
         let err_brace = parse_module("v/u32/f u32/a :: do { u32/a }.\n")
             .expect_err("braces must fail in StageL 3");
         assert!(err_brace.to_string().contains("brace"));

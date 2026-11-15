@@ -5580,13 +5580,13 @@ mod tests {
     #[crate::ctb_test]
     fn test_context_scoped_wasm_decompositions_roundtrip_and_query() -> Result<()> {
         let mut op = sample_dc_defn(2544, "Sequence index read", "Get");
-        op.script = ".EL Routines".to_string();
+        op.script = ".EM Routines".to_string();
         op.decompositions = vec![
             "<semantic@2576 f203>1927 260 262 280 f208 263 712 6 f199 128 7 261 1928".to_string(),
             "<semantic@2576 275>1927 260 262 280 f208 263 712 6 f199 131 7 261 1928".to_string(),
             "<semantic@f208>1927 260 262 280 f208 263 712 6 f199 135 7 261 1928".to_string(),
         ];
-        let scripts = BTreeSet::from([".EL Routines".to_string()]);
+        let scripts = BTreeSet::from([".EM Routines".to_string()]);
         let (nodes, stats) = update_ledger_in_memory(
             Vec::new(),
             std::slice::from_ref(&op),

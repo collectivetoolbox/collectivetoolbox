@@ -407,14 +407,14 @@ pub fn generate_role_code_from_index(
     );
     let base64_digits: BTreeSet<u32> = (base64_start..=base64_end).collect();
 
-    // 1. TypeToken: all Short Dcs in `.EL Types` or `.Semantic:Ontological`, plus
+    // 1. TypeToken: all Short Dcs in `.EM Types` (or legacy `.EL Types`) or `.Semantic:Ontological`, plus
     // TypeUnion, FilePathDelimiter, TypeIntersection, FormatParamApplication, ValueRange.
     let mut type_tokens: BTreeSet<u32> = BTreeSet::new();
     for short_id in index.all_short_dc_ids()? {
         let subj = DcShorthand::Short(short_id);
         if matches!(
             index.subject_script(subj),
-            Some(".EL Types" | ".Semantic:Ontological")
+            Some(".EM Types" | ".EL Types" | ".Semantic:Ontological")
         ) {
             type_tokens.insert(short_id);
         }
@@ -429,7 +429,7 @@ pub fn generate_role_code_from_index(
         type_tokens.insert(require_short(ident)?);
     }
 
-    // 2. EvaluableExpressionStarter: all Short Dcs in `.EL Routines` or `.EL Builtins`, plus Short Dc
+    // 2. EvaluableExpressionStarter: all Short Dcs in `.EM Routines` or `.EM Builtins` (or legacy `.EL`), plus Short Dc
     // subpattern targets (`605 <sid>`) in NamedConstruct("value"), plus
     // EquivalentRepresentations and PartiallyEquivalentRepresentations.
     let sh_syntax_rule = index.require_ident("SyntaxRule")?;
@@ -439,7 +439,12 @@ pub fn generate_role_code_from_index(
         let subj = DcShorthand::Short(short_id);
         if matches!(
             index.subject_script(subj),
-            Some(".EL Routines" | ".EL Builtins")
+            Some(
+                ".EM Routines"
+                    | ".EM Builtins"
+                    | ".EL Routines"
+                    | ".EL Builtins"
+            )
         ) {
             evaluable_starters.insert(short_id);
         }
@@ -518,7 +523,7 @@ pub fn generate_role_code_from_index(
     Base64Digit,\n\
     /// Built-in type token, format token, or type operator.\n\
     TypeToken,\n\
-    /// Expression starter token that can be evaluated (`.EL Routines`, references, invocations, representation sets).\n\
+    /// Expression starter token that can be evaluated (`.EM Routines`, references, invocations, representation sets).\n\
     EvaluableExpressionStarter,\n\
 }\n\n"
     );

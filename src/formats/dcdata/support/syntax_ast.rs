@@ -385,7 +385,7 @@ pub enum SubtypeConstraint {
     LengthRange { min: u128, max: u128 },
     /// Bound template variable reference (e.g. `$type` in `[type:$type]`).
     BoundVar(String),
-    /// Named target, script, or format constraint (e.g. `[script:.EL Types]`, `[type:transformation]`, `[list:number]`).
+    /// Named target, script, or format constraint (e.g. `[script:.EM Types]`, `[type:transformation]`, `[list:number]`).
     Target(String),
 }
 

@@ -714,7 +714,7 @@ pub enum DcRole {
 Base64Digit,
 /// Built-in type token, format token, or type operator.
 TypeToken,
-/// Expression starter token that can be evaluated (`.EL Routines`, references, invocations, representation sets).
+/// Expression starter token that can be evaluated (`.EM Routines`, references, invocations, representation sets).
 EvaluableExpressionStarter,
 }
 

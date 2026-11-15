@@ -30,12 +30,12 @@ Rather than proliferating monolithic predicate Dcs that bake a verb and a specif
 
 ### D. Generalized Regex-Like Pattern Matcher for Dcs (`.Semantic:Pattern`)
 The pattern-matching Dcs in `.Semantic:Pattern` are defined generally so they serve as a reusable regex/structural-pattern-matching toolkit over Dc streams anywhere in the system—not exclusively for `:<syntax>` definitions of Dcs:
-- **Reused `.Semantic` and `.EL` primitives**:
+- **Reused `.Semantic` and `.EM` primitives**:
   - Inclusive range (`[start] 4 [end]`): `Dc 4` (`Range`)
     - *Historic DCE Wiki Compatibility ([representing_ranges_in_dce.txt](file:///workspaces/ctoolbox/old/wiki/ember-web-site-only-relevant/data/pages/representing_ranges_in_dce.txt), [dce_calendar_format.txt](file:///workspaces/ctoolbox/old/wiki/ember-web-site-only-relevant/data/pages/dce_calendar_format.txt))*: In DCE, `Dc 4` is strictly a binary infix operator `[start value] 4 [end value]` (`{base string #1}@4@{base string #2}`). Using `[start] 4 [end]` for character/token ranges (`a..b`) and repetition count bounds (`m..n`, `0..1`) aligns with the historic wiki syntax, provided open-ended upper bounds (`*`, `+`, `{m..}`) always supply an explicit `[end value]` token (such as `u221e` `∞` or `Dc 316` `Optional value absent`) rather than leaving `Dc 4` without a right-hand operand.
   - Grouping (`( ... )`): `Dc 298` / `Dc 299` (`Begin associativity group` / `End associativity group`)
   - Ordered sequence (`A B C`): `Dc 310` / `Dc 311` (`Begin list` / `End list`)
-- **9 General Pattern-Matching Dcs in `.Semantic:Pattern`** (`Dc 275`, `Dc 300`, and `Dc 516` are kept strictly for `.EL` / `.Semantic` type expressions rather than overloaded for pattern matching):
+- **9 General Pattern-Matching Dcs in `.Semantic:Pattern`** (`Dc 275`, `Dc 300`, and `Dc 516` are kept strictly for `.EM` / `.Semantic` type expressions rather than overloaded for pattern matching):
   1. `Self reference` (`@ident("SelfReference")`): Placeholder referring to the enclosing subject entity or the pattern rule currently being defined or matched (`~` in `:<syntax>`, or recursive self-reference in a pattern).
   2. `Wildcard pattern` (`@ident("WildcardPattern")`): Matches any single Dc token or balanced syntactic frame (`.` / wildcard in patterns).
   3. `Pattern conjunction` (`@ident("PatternConjunction")`): Matches a Dc sequence only if all of the specified component patterns match (`A & B`).

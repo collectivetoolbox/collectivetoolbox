@@ -2164,6 +2164,7 @@ impl<'a> DcDocumentNavigator<'a> {
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<Option<u64>> {
         if after_first >= self.active_span.end
+            || resolver.matches_script(".EM Routines", first_dc.to_u128())
             || resolver.matches_script(".EL Routines", first_dc.to_u128())
             || first_dc.fills_role_with(DcRole::RoutineInvocation, resolver)
             || resolver.is_representation_set(first_dc.to_u128())
@@ -2593,8 +2594,12 @@ impl<'a> DcDocumentNavigator<'a> {
                     };
                     if matched
                         && !ctx.has_errors
-                        && resolver
-                            .matches_script(".EL Routines", first_dc.to_u128())
+                        && (resolver
+                            .matches_script(".EM Routines", first_dc.to_u128())
+                            || resolver.matches_script(
+                                ".EL Routines",
+                                first_dc.to_u128(),
+                            ))
                         && self
                             .read_token_or_binary_at(self.cursor)?
                             .is_some_and(|(tok, _)| {
@@ -2649,8 +2654,10 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
             }
 
-            // Built-in routine invocation (e.g. Dc 256 `lang.say` in `.EL Routines`)
-            if resolver.matches_script(".EL Routines", first_dc.to_u128()) {
+            // Built-in routine invocation (e.g. Dc 256 `lang.say` in `.EM Routines`)
+            if resolver.matches_script(".EM Routines", first_dc.to_u128())
+                || resolver.matches_script(".EL Routines", first_dc.to_u128())
+            {
                 let last_end = self
                     .scan_trailing_parameter_frames_with_resolver(
                         after_first,
@@ -4090,7 +4097,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_dc_syntax_typed_literal_headers_el_types() -> Result<()> {
         let sdc = |id: u32| DcChar::from_short(id).to_u128();
-        let rule = parse_dc_syntax(":~ [script:.EL Types] 263")?;
+        let rule = parse_dc_syntax(":~ [script:.EM Types] 263")?;
         for type_dc in [264u32, 275, 278, 280, 306] {
             let stream = vec![sdc(262), sdc(type_dc), sdc(263)];
             let (ok, _) =
@@ -4646,7 +4653,7 @@ mod tests {
         let strict = DcProjectionPolicy::strict();
         let forgiving = DcProjectionPolicy::forgiving();
 
-        // 1. .EL Routines derived parameter syntax (256, 265, 268, 307):
+        // 1. .EM Routines derived parameter syntax (256, 265, 268, 307):
         //    - 256: void lang.say([string] text) -> accepts 258 [string] 259, rejects 258 [number] 259 or extra 258..259
         let valid_say = vec![
             sdc(256),
