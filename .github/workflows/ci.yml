@@ -255,7 +255,7 @@ jobs:
     timeout-minutes: 150
     concurrency:
       group: verify-initrd-${{ needs.check-weekly-v86.outputs.week_key }}
-      cancel-in-progress: false
+      cancel-in-progress: true
 
     steps:
       - name: Recheck weekly v86 cache after queue
