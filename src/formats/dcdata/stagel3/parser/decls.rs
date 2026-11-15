@@ -147,11 +147,9 @@ fn scan_enum_variant_token_in_prescan(
 impl Parser {
     pub(super) fn parse_module(&mut self) -> Result<Module> {
         let mut leading_comments = Vec::new();
-        let mut pending_dc: Option<DcChar> = None;
-
         let pc = self.consume_comments(true)?;
         leading_comments.extend(pc.comments);
-        pending_dc = pc.dc_directive;
+        let mut pending_dc = pc.dc_directive;
 
         let mut namespace = None;
         if let Some(tok) = self.peek().cloned()

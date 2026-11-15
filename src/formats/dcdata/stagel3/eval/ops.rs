@@ -36,7 +36,6 @@ use std::cell::RefCell;
 use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 use std::rc::Rc;
 
-use malachite::base::num::arithmetic::traits::UnsignedAbs;
 use malachite::base::num::basic::traits::Zero;
 use malachite::{Integer, Rational};
 

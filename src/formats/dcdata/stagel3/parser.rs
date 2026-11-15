@@ -269,15 +269,6 @@ pub fn parse_module_with_dialect(
     }
 }
 
-/// Scans `.sl3` source tokens for direct `dc/<shorthand>` words so callers
-/// linking against [`crate::SeedGraphIndex`] can supply routine arities before
-/// expression parsing.
-pub(crate) fn scan_direct_dc_words(
-    source: &str,
-) -> Result<Vec<(String, DcChar)>> {
-    scan_direct_dc_words_with_dialect(source, StageDialect::StageL3)
-}
-
 fn strip_stager_dc_shorthand(raw_sh: &str) -> &str {
     let no_prop = raw_sh.trim_end_matches(['?', '/']);
     if let Some((base_sh, _)) = no_prop.split_once(':') {
@@ -409,25 +400,24 @@ pub fn scan_module_header_paths_with_dialect(
     Ok((ns, uses))
 }
 
-pub(super) struct PendingComments {
-    pub(super) comments: Vec<Comment>,
-    pub(super) dc_directive: Option<DcChar>,
+struct PendingComments {
+    comments: Vec<Comment>,
+    dc_directive: Option<DcChar>,
 }
 
-pub(super) struct Parser {
-    pub(super) dialect: StageDialect,
-    pub(super) allow_std_bytes_builtins: bool,
-    pub(super) tokens: Vec<LexToken>,
-    pub(super) pos: usize,
-    pub(super) verb_scopes: Vec<HashMap<String, usize>>,
-    pub(super) stager_types_by_name: HashMap<String, StageRTypeKind>,
-    pub(super) stager_types_by_dc: HashMap<DcChar, StageRTypeKind>,
-    pub(super) stager_enum_variants:
-        HashMap<StructTypeRef, HashMap<String, bool>>,
+struct Parser {
+    dialect: StageDialect,
+    allow_std_bytes_builtins: bool,
+    tokens: Vec<LexToken>,
+    pos: usize,
+    verb_scopes: Vec<HashMap<String, usize>>,
+    stager_types_by_name: HashMap<String, StageRTypeKind>,
+    stager_types_by_dc: HashMap<DcChar, StageRTypeKind>,
+    stager_enum_variants: HashMap<StructTypeRef, HashMap<String, bool>>,
 }
 
 impl Parser {
-    pub(super) fn type_ctx(&self) -> TypeParseCtx<'_> {
+    fn type_ctx(&self) -> TypeParseCtx<'_> {
         TypeParseCtx {
             dialect: self.dialect,
             allow_std_bytes_builtins: self.allow_std_bytes_builtins,
@@ -436,7 +426,7 @@ impl Parser {
         }
     }
 
-    pub(super) fn parse_type_from_tokens(
+    fn parse_type_from_tokens(
         &mut self,
         ctx_desc: &str,
     ) -> Result<(StageLType, LexToken)> {
@@ -454,7 +444,7 @@ impl Parser {
         )
     }
 
-    pub(super) fn parse_typed_name_from_tokens(
+    fn parse_typed_name_from_tokens(
         &mut self,
         ctx_desc: &str,
     ) -> Result<(StageLType, String, Span)> {
@@ -472,7 +462,7 @@ impl Parser {
         )
     }
 
-    pub(super) fn parse_optional_typed_name_from_tokens(
+    fn parse_optional_typed_name_from_tokens(
         &mut self,
         ctx_desc: &str,
     ) -> Result<(Option<StageLType>, String, Span)> {
@@ -490,7 +480,7 @@ impl Parser {
         )
     }
 
-    pub(super) fn parse_routine_sig_from_tokens(
+    fn parse_routine_sig_from_tokens(
         &mut self,
     ) -> Result<(StageLType, String, Span)> {
         let ctx = TypeParseCtx {
@@ -506,15 +496,15 @@ impl Parser {
         )
     }
 
-    pub(super) fn peek_at(&self, idx: usize) -> Option<&LexToken> {
+    fn peek_at(&self, idx: usize) -> Option<&LexToken> {
         self.tokens.get(idx)
     }
 
-    pub(super) fn peek(&self) -> Option<&LexToken> {
+    fn peek(&self) -> Option<&LexToken> {
         self.tokens.get(self.pos)
     }
 
-    pub(super) fn peek_skip_comments(&self) -> Option<&LexToken> {
+    fn peek_skip_comments(&self) -> Option<&LexToken> {
         let mut i = self.pos;
         while let Some(tok) = self.tokens.get(i) {
             if !matches!(tok.kind, LexKind::Comment { .. }) {
@@ -525,14 +515,11 @@ impl Parser {
         None
     }
 
-    pub(super) fn consume_comments(
-        &mut self,
-        allow_dc: bool,
-    ) -> Result<PendingComments> {
+    fn consume_comments(&mut self, allow_dc: bool) -> Result<PendingComments> {
         self.consume_comments_indented_past(0, allow_dc)
     }
 
-    pub(super) fn consume_comments_indented_past(
+    fn consume_comments_indented_past(
         &mut self,
         min_exclusive_col: usize,
         allow_dc: bool,
@@ -578,7 +565,7 @@ impl Parser {
         })
     }
 
-    pub(super) fn expect_dot(&mut self, context_desc: &str) -> Result<Span> {
+    fn expect_dot(&mut self, context_desc: &str) -> Result<Span> {
         while let Some(tok) = self.peek() {
             if matches!(tok.kind, LexKind::Comment { .. }) {
                 let pc = self.consume_comments(false)?;
@@ -603,7 +590,7 @@ impl Parser {
         Ok(tok.span)
     }
 
-    pub(super) fn lookup_verb_arity(&self, name: &str) -> Option<usize> {
+    fn lookup_verb_arity(&self, name: &str) -> Option<usize> {
         for scope in self.verb_scopes.iter().rev() {
             if let Some(&arity) = scope.get(name) {
                 return Some(arity);
