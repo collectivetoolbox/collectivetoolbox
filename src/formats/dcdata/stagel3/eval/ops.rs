@@ -40,8 +40,7 @@ use malachite::base::num::basic::traits::Zero;
 use malachite::{Integer, Rational};
 
 use super::super::ast::{
-    CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Span, StageLType, StageRBinaryOp,
-    StageRErrorTag, StageRTernaryOp, StageRUnaryOp,
+    BinaryOp, Span, StageLType, StageRErrorTag, TernaryOp, UnaryOp,
 };
 use super::super::stager_strings::{
     dcs_from_s, explode_slice, implode_slices, is_valid_dc_u128,
@@ -251,22 +250,23 @@ fn eval_fixed_neg(
     }
 }
 
-pub(super) fn eval_unary(op: CoreUnaryOp, val: Value) -> Result<EvalSignal> {
+pub(super) fn eval_unary(
+    vm: &StageLWorkspaceVm,
+    op: UnaryOp,
+    val: Value,
+    span: Span,
+) -> Result<EvalSignal> {
     match op {
-        CoreUnaryOp::Neg => eval_fixed_neg(val, false, None),
-        CoreUnaryOp::BitNot => {
-            eval_fixed_unary_bit(FixedUnaryBitOp::BitNot, val)
-        }
-        CoreUnaryOp::Not => match val {
+        UnaryOp::Neg => eval_fixed_neg(val, false, None),
+        UnaryOp::BitNot => eval_fixed_unary_bit(FixedUnaryBitOp::BitNot, val),
+        UnaryOp::Not => match val {
             Value::Bool(b) => Ok(EvalSignal::Value(Value::Bool(!b))),
             other => bail!("Invalid operand {other:?} for 'not'"),
         },
-        CoreUnaryOp::Clz => eval_fixed_unary_bit(FixedUnaryBitOp::Clz, val),
-        CoreUnaryOp::Ctz => eval_fixed_unary_bit(FixedUnaryBitOp::Ctz, val),
-        CoreUnaryOp::Popcnt => {
-            eval_fixed_unary_bit(FixedUnaryBitOp::Popcnt, val)
-        }
-        CoreUnaryOp::Len => {
+        UnaryOp::Clz => eval_fixed_unary_bit(FixedUnaryBitOp::Clz, val),
+        UnaryOp::Ctz => eval_fixed_unary_bit(FixedUnaryBitOp::Ctz, val),
+        UnaryOp::Popcnt => eval_fixed_unary_bit(FixedUnaryBitOp::Popcnt, val),
+        UnaryOp::Len => {
             let len = match val {
                 Value::List(xs) => xs.len(),
                 Value::Buf(b) => b.borrow().elems.len(),
@@ -277,7 +277,7 @@ pub(super) fn eval_unary(op: CoreUnaryOp, val: Value) -> Result<EvalSignal> {
                 u64::try_from(len).context("len exceeds u64")?,
             )))
         }
-        CoreUnaryOp::BufFreeze => {
+        UnaryOp::BufFreeze => {
             let Value::Buf(b) = val else {
                 bail!("Invalid operand {val:?} for 'bufFreeze'");
             };
@@ -291,17 +291,7 @@ pub(super) fn eval_unary(op: CoreUnaryOp, val: Value) -> Result<EvalSignal> {
             let frozen_vec = std::mem::take(&mut st.elems);
             Ok(EvalSignal::Value(Value::List(Rc::new(frozen_vec))))
         }
-    }
-}
-
-pub(super) fn eval_stager_unary(
-    vm: &StageLWorkspaceVm,
-    op: StageRUnaryOp,
-    val: Value,
-    span: Span,
-) -> Result<EvalSignal> {
-    match op {
-        StageRUnaryOp::TotalNeg => match val {
+        UnaryOp::TotalNeg => match val {
             Value::Int(x) => {
                 let neg = x.neg();
                 if let Some(sig) = vm.check_int_limit(&neg, "neg") {
@@ -318,38 +308,38 @@ pub(super) fn eval_stager_unary(
             }
             other => eval_fixed_neg(other, true, Some(span)),
         },
-        StageRUnaryOp::IsSome => {
+        UnaryOp::IsSome => {
             let Value::Option(opt) = val else {
                 bail!("'isSome' expected option/T, got {val:?} at {span}");
             };
             Ok(EvalSignal::Value(Value::Bool(opt.is_some())))
         }
-        StageRUnaryOp::IsNone => {
+        UnaryOp::IsNone => {
             let Value::Option(opt) = val else {
                 bail!("'isNone' expected option/T, got {val:?} at {span}");
             };
             Ok(EvalSignal::Value(Value::Bool(opt.is_none())))
         }
-        StageRUnaryOp::IsOk => {
+        UnaryOp::IsOk => {
             let Value::Result(res) = val else {
                 bail!("'isOk' expected result/T, got {val:?} at {span}");
             };
             Ok(EvalSignal::Value(Value::Bool(res.is_ok())))
         }
-        StageRUnaryOp::IsErr => {
+        UnaryOp::IsErr => {
             let Value::Result(res) = val else {
                 bail!("'isErr' expected result/T, got {val:?} at {span}");
             };
             Ok(EvalSignal::Value(Value::Bool(res.is_err())))
         }
-        StageRUnaryOp::ByteLen => {
+        UnaryOp::ByteLen => {
             let Value::S(chars) = val else {
                 bail!("'byteLen' expected 's', got {val:?} at {span}");
             };
             let byte_len = validate_and_measure_s_byte_len(&chars)?;
             Ok(EvalSignal::Value(Value::U64(byte_len)))
         }
-        StageRUnaryOp::DcFromU128 => {
+        UnaryOp::DcFromU128 => {
             let Value::U128(raw) = val else {
                 bail!("'dcFromU128' expected 'u128', got {val:?} at {span}");
             };
@@ -359,13 +349,13 @@ pub(super) fn eval_stager_unary(
                 Ok(err_res(StageRErrorTag::InvalidDc))
             }
         }
-        StageRUnaryOp::U128FromDc => {
+        UnaryOp::U128FromDc => {
             let Value::Dc(dc) = val else {
                 bail!("'u128FromDc' expected 'dc', got {val:?} at {span}");
             };
             Ok(EvalSignal::Value(Value::U128(dc.to_u128())))
         }
-        StageRUnaryOp::DcsFromS => {
+        UnaryOp::DcsFromS => {
             let Value::S(chars) = val else {
                 bail!("'dcsFromS' expected 's', got {val:?} at {span}");
             };
@@ -374,7 +364,7 @@ pub(super) fn eval_stager_unary(
                 Err(()) => Ok(err_res(StageRErrorTag::InvalidEncoding)),
             }
         }
-        StageRUnaryOp::SFromDcs => {
+        UnaryOp::SFromDcs => {
             let Value::Dcs(chars) = val else {
                 bail!("'sFromDcs' expected 'dcs', got {val:?} at {span}");
             };
@@ -677,12 +667,12 @@ fn concat_slices<T: Clone>(
 
 fn eval_core_buf_binary(
     vm: &StageLWorkspaceVm,
-    op: CoreBinaryOp,
+    op: BinaryOp,
     left: Value,
     right: Value,
 ) -> Result<EvalSignal> {
     match op {
-        CoreBinaryOp::BufFill => {
+        BinaryOp::BufFill => {
             let len = right.as_u64_index("bufFill")?;
             if let Some(fault) = vm.check_seq_limit(len, "bufFill capacity") {
                 return Ok(fault);
@@ -696,7 +686,7 @@ fn eval_core_buf_binary(
                 },
             )))))
         }
-        CoreBinaryOp::BufPush => {
+        BinaryOp::BufPush => {
             let Value::Buf(b) = left else {
                 bail!("Invalid buffer operand for 'bufPush'");
             };
@@ -717,7 +707,7 @@ fn eval_core_buf_binary(
             st.elems.push(right);
             Ok(EvalSignal::Value(Value::Void))
         }
-        CoreBinaryOp::BufExtend => {
+        BinaryOp::BufExtend => {
             let (Value::Buf(b), Value::List(xs)) = (left, right) else {
                 bail!("Invalid operands for 'bufExtend'");
             };
@@ -743,71 +733,64 @@ fn eval_core_buf_binary(
 }
 
 fn core_fixed_bin_spec(
-    op: CoreBinaryOp,
+    op: BinaryOp,
 ) -> Result<(FixedBinKernel, bool, &'static str)> {
     match op {
-        CoreBinaryOp::Add => Ok((FixedBinKernel::CheckedAdd, true, "add")),
-        CoreBinaryOp::Sub => Ok((FixedBinKernel::CheckedSub, true, "sub")),
-        CoreBinaryOp::Mul => Ok((FixedBinKernel::CheckedMul, true, "mul")),
-        CoreBinaryOp::Div => Ok((FixedBinKernel::CheckedDiv, true, "div")),
-        CoreBinaryOp::Rem => Ok((FixedBinKernel::CoreRem, true, "rem")),
-        CoreBinaryOp::WrapAdd => Ok((FixedBinKernel::WrapAdd, false, "wrapAdd")),
-        CoreBinaryOp::WrapSub => Ok((FixedBinKernel::WrapSub, false, "wrapSub")),
-        CoreBinaryOp::WrapMul => Ok((FixedBinKernel::WrapMul, false, "wrapMul")),
-        CoreBinaryOp::BitAnd => Ok((FixedBinKernel::BitAnd, false, "bitAnd")),
-        CoreBinaryOp::BitOr => Ok((FixedBinKernel::BitOr, false, "bitOr")),
-        CoreBinaryOp::BitXor => Ok((FixedBinKernel::BitXor, false, "bitXor")),
+        BinaryOp::Add => Ok((FixedBinKernel::CheckedAdd, true, "add")),
+        BinaryOp::Sub => Ok((FixedBinKernel::CheckedSub, true, "sub")),
+        BinaryOp::Mul => Ok((FixedBinKernel::CheckedMul, true, "mul")),
+        BinaryOp::Div => Ok((FixedBinKernel::CheckedDiv, true, "div")),
+        BinaryOp::Rem => Ok((FixedBinKernel::CoreRem, true, "rem")),
+        BinaryOp::WrapAdd => Ok((FixedBinKernel::WrapAdd, false, "wrapAdd")),
+        BinaryOp::WrapSub => Ok((FixedBinKernel::WrapSub, false, "wrapSub")),
+        BinaryOp::WrapMul => Ok((FixedBinKernel::WrapMul, false, "wrapMul")),
+        BinaryOp::BitAnd => Ok((FixedBinKernel::BitAnd, false, "bitAnd")),
+        BinaryOp::BitOr => Ok((FixedBinKernel::BitOr, false, "bitOr")),
+        BinaryOp::BitXor => Ok((FixedBinKernel::BitXor, false, "bitXor")),
         other => bail!("Unexpected fixed binary op {other:?}"),
     }
 }
 
 pub(super) fn eval_binary(
     vm: &StageLWorkspaceVm,
-    op: CoreBinaryOp,
+    op: BinaryOp,
     left: Value,
     right: Value,
+    span: Span,
 ) -> Result<EvalSignal> {
     match op {
-        CoreBinaryOp::Add
-        | CoreBinaryOp::Sub
-        | CoreBinaryOp::Mul
-        | CoreBinaryOp::Div
-        | CoreBinaryOp::Rem
-        | CoreBinaryOp::WrapAdd
-        | CoreBinaryOp::WrapSub
-        | CoreBinaryOp::WrapMul
-        | CoreBinaryOp::BitAnd
-        | CoreBinaryOp::BitOr
-        | CoreBinaryOp::BitXor => {
+        BinaryOp::Add
+        | BinaryOp::Sub
+        | BinaryOp::Mul
+        | BinaryOp::Div
+        | BinaryOp::Rem
+        | BinaryOp::WrapAdd
+        | BinaryOp::WrapSub
+        | BinaryOp::WrapMul
+        | BinaryOp::BitAnd
+        | BinaryOp::BitOr
+        | BinaryOp::BitXor => {
             let (kernel, core_only, name) = core_fixed_bin_spec(op)?;
             dispatch_fixed_bin(
                 kernel, left, right, core_only, false, name, None,
             )
         }
-        CoreBinaryOp::Shl => {
+        BinaryOp::Shl => {
             eval_shift_shared(true, left, right, false, false, None)
         }
-        CoreBinaryOp::Shr => {
+        BinaryOp::Shr => {
             eval_shift_shared(false, left, right, false, false, None)
         }
-        CoreBinaryOp::Rotl => eval_rotate(true, left, right),
-        CoreBinaryOp::Rotr => eval_rotate(false, left, right),
-        CoreBinaryOp::Eq => Ok(EvalSignal::Value(Value::Bool(left == right))),
-        CoreBinaryOp::Ne => Ok(EvalSignal::Value(Value::Bool(left != right))),
-        CoreBinaryOp::Lt => {
-            cmp_numeric(&left, &right, std::cmp::Ordering::is_lt)
-        }
-        CoreBinaryOp::Le => {
-            cmp_numeric(&left, &right, std::cmp::Ordering::is_le)
-        }
-        CoreBinaryOp::Gt => {
-            cmp_numeric(&left, &right, std::cmp::Ordering::is_gt)
-        }
-        CoreBinaryOp::Ge => {
-            cmp_numeric(&left, &right, std::cmp::Ordering::is_ge)
-        }
-        CoreBinaryOp::Get => eval_get_shared(left, right, false, false, None),
-        CoreBinaryOp::Concat => match (left, right) {
+        BinaryOp::Rotl => eval_rotate(true, left, right),
+        BinaryOp::Rotr => eval_rotate(false, left, right),
+        BinaryOp::Eq => Ok(EvalSignal::Value(Value::Bool(left == right))),
+        BinaryOp::Ne => Ok(EvalSignal::Value(Value::Bool(left != right))),
+        BinaryOp::Lt => cmp_numeric(&left, &right, std::cmp::Ordering::is_lt),
+        BinaryOp::Le => cmp_numeric(&left, &right, std::cmp::Ordering::is_le),
+        BinaryOp::Gt => cmp_numeric(&left, &right, std::cmp::Ordering::is_gt),
+        BinaryOp::Ge => cmp_numeric(&left, &right, std::cmp::Ordering::is_ge),
+        BinaryOp::Get => eval_get_shared(left, right, false, false, None),
+        BinaryOp::Concat => match (left, right) {
             (Value::List(a), Value::List(b)) => {
                 concat_slices(&a, &b, Value::List, vm)
             }
@@ -817,10 +800,96 @@ pub(super) fn eval_binary(
             }
             _ => bail!("Invalid operands for 'concat'"),
         },
-        CoreBinaryOp::BufFill
-        | CoreBinaryOp::BufPush
-        | CoreBinaryOp::BufExtend => eval_core_buf_binary(vm, op, left, right),
-        CoreBinaryOp::And | CoreBinaryOp::Or => {
+        BinaryOp::BufFill | BinaryOp::BufPush | BinaryOp::BufExtend => {
+            eval_core_buf_binary(vm, op, left, right)
+        }
+        BinaryOp::TotalAdd => eval_total_arith(
+            vm,
+            FixedBinKernel::CheckedAdd,
+            "add",
+            left,
+            right,
+            span,
+            Integer::add,
+            Rational::add,
+        ),
+        BinaryOp::TotalSub => eval_total_arith(
+            vm,
+            FixedBinKernel::CheckedSub,
+            "sub",
+            left,
+            right,
+            span,
+            Integer::sub,
+            Rational::sub,
+        ),
+        BinaryOp::TotalMul => eval_total_arith(
+            vm,
+            FixedBinKernel::CheckedMul,
+            "mul",
+            left,
+            right,
+            span,
+            Integer::mul,
+            Rational::mul,
+        ),
+        BinaryOp::TotalDiv => eval_total_div(vm, left, right, span),
+        BinaryOp::TotalMod => eval_total_rem(vm, true, left, right, span),
+        BinaryOp::TotalTruncRem => {
+            eval_total_rem(vm, false, left, right, span)
+        }
+        BinaryOp::TotalShl => {
+            eval_shift_shared(true, left, right, true, true, Some(span))
+        }
+        BinaryOp::TotalShr => {
+            eval_shift_shared(false, left, right, true, true, Some(span))
+        }
+        BinaryOp::TotalGet => {
+            eval_get_shared(left, right, true, true, Some(span))
+        }
+        BinaryOp::UnwrapOr => match left {
+            Value::Option(Some(inner)) | Value::Result(Ok(inner)) => {
+                Ok(EvalSignal::Value(*inner))
+            }
+            Value::Option(None) | Value::Result(Err(_)) => {
+                Ok(EvalSignal::Value(right))
+            }
+            other => bail!(
+                "Invalid operand {other:?} for 'unwrapOr' at {span}"
+            ),
+        },
+        BinaryOp::OkOr => {
+            let Value::Error(tag) = right else {
+                bail!(
+                    "'okOr' expected 'error' second operand, got {right:?} at {span}"
+                );
+            };
+            match left {
+                Value::Option(Some(inner)) => {
+                    Ok(EvalSignal::Value(Value::Result(Ok(inner))))
+                }
+                Value::Option(None) => Ok(err_res(tag)),
+                other => {
+                    bail!("Invalid first operand {other:?} for 'okOr' at {span}")
+                }
+            }
+        }
+        BinaryOp::MakeRat => {
+            let (Value::Int(num), Value::Int(den)) = (left, right) else {
+                bail!("'makeRat' requires (int, int) operands at {span}");
+            };
+            if den == Integer::ZERO {
+                return Ok(err_res(StageRErrorTag::DivisionByZero));
+            }
+            let rat = Rational::from_integers(num, den);
+            if let Some(sig) = vm.check_rat_limit(&rat, "makeRat") {
+                return Ok(sig);
+            }
+            Ok(ok_res(Value::Rat(rat)))
+        }
+        BinaryOp::Explode => eval_explode(vm, left, right, span),
+        BinaryOp::Implode => eval_implode(vm, left, right, span),
+        BinaryOp::And | BinaryOp::Or => {
             bail!(
                 "Short-circuit logical operators must be evaluated directly in eval_expr"
             );
@@ -941,103 +1010,6 @@ fn eval_total_rem(
     }
 }
 
-pub(super) fn eval_stager_binary(
-    vm: &StageLWorkspaceVm,
-    op: StageRBinaryOp,
-    v1: Value,
-    v2: Value,
-    span: Span,
-) -> Result<EvalSignal> {
-    match op {
-        StageRBinaryOp::TotalAdd => eval_total_arith(
-            vm,
-            FixedBinKernel::CheckedAdd,
-            "add",
-            v1,
-            v2,
-            span,
-            Integer::add,
-            Rational::add,
-        ),
-        StageRBinaryOp::TotalSub => eval_total_arith(
-            vm,
-            FixedBinKernel::CheckedSub,
-            "sub",
-            v1,
-            v2,
-            span,
-            Integer::sub,
-            Rational::sub,
-        ),
-        StageRBinaryOp::TotalMul => eval_total_arith(
-            vm,
-            FixedBinKernel::CheckedMul,
-            "mul",
-            v1,
-            v2,
-            span,
-            Integer::mul,
-            Rational::mul,
-        ),
-        StageRBinaryOp::TotalDiv => eval_total_div(vm, v1, v2, span),
-        StageRBinaryOp::TotalMod => eval_total_rem(vm, true, v1, v2, span),
-        StageRBinaryOp::TotalTruncRem => {
-            eval_total_rem(vm, false, v1, v2, span)
-        }
-        StageRBinaryOp::TotalShl => {
-            eval_shift_shared(true, v1, v2, true, true, Some(span))
-        }
-        StageRBinaryOp::TotalShr => {
-            eval_shift_shared(false, v1, v2, true, true, Some(span))
-        }
-        StageRBinaryOp::TotalGet => {
-            eval_get_shared(v1, v2, true, true, Some(span))
-        }
-        StageRBinaryOp::UnwrapOr => match v1 {
-            Value::Option(Some(inner)) | Value::Result(Ok(inner)) => {
-                Ok(EvalSignal::Value(*inner))
-            }
-            Value::Option(None) | Value::Result(Err(_)) => {
-                Ok(EvalSignal::Value(v2))
-            }
-            other => bail!(
-                "Invalid operand {other:?} for 'unwrapOr' at {span}"
-            ),
-        },
-        StageRBinaryOp::OkOr => {
-            let Value::Error(tag) = v2 else {
-                bail!(
-                    "'okOr' expected 'error' second operand, got {v2:?} at {span}"
-                );
-            };
-            match v1 {
-                Value::Option(Some(inner)) => {
-                    Ok(EvalSignal::Value(Value::Result(Ok(inner))))
-                }
-                Value::Option(None) => Ok(err_res(tag)),
-                other => {
-                    bail!("Invalid first operand {other:?} for 'okOr' at {span}")
-                }
-            }
-        }
-        StageRBinaryOp::MakeRat => {
-            let (Value::Int(num), Value::Int(den)) = (v1, v2) else {
-                bail!("'makeRat' requires (int, int) operands at {span}");
-            };
-            if den == Integer::ZERO {
-                return Ok(err_res(StageRErrorTag::DivisionByZero));
-            }
-            let rat = Rational::from_integers(num, den);
-            if let Some(sig) = vm.check_rat_limit(&rat, "makeRat") {
-                return Ok(sig);
-            }
-            Ok(ok_res(Value::Rat(rat)))
-        }
-        StageRBinaryOp::Explode => eval_explode(vm, v1, v2, span),
-        StageRBinaryOp::Implode => eval_implode(vm, v1, v2, span),
-    }
-}
-
 fn eval_slice_shared(
     seq: Value,
     start_val: Value,
@@ -1132,31 +1104,21 @@ fn eval_buf_set_shared(
 }
 
 pub(super) fn eval_ternary(
-    op: CoreTernaryOp,
-    v1: Value,
-    v2: Value,
-    v3: Value,
-) -> Result<EvalSignal> {
-    match op {
-        CoreTernaryOp::Slice => {
-            eval_slice_shared(v1, v2, v3, false, false, None)
-        }
-        CoreTernaryOp::BufSet => eval_buf_set_shared(v1, v2, v3, false, None),
-    }
-}
-
-pub(super) fn eval_stager_ternary(
-    op: StageRTernaryOp,
+    op: TernaryOp,
     v1: Value,
     v2: Value,
     v3: Value,
     span: Span,
 ) -> Result<EvalSignal> {
     match op {
-        StageRTernaryOp::TotalSlice => {
+        TernaryOp::Slice => {
+            eval_slice_shared(v1, v2, v3, false, false, None)
+        }
+        TernaryOp::BufSet => eval_buf_set_shared(v1, v2, v3, false, None),
+        TernaryOp::TotalSlice => {
             eval_slice_shared(v1, v2, v3, true, true, Some(span))
         }
-        StageRTernaryOp::TotalBufSet => {
+        TernaryOp::TotalBufSet => {
             eval_buf_set_shared(v1, v2, v3, true, Some(span))
         }
     }
@@ -1371,24 +1333,25 @@ fn convert_int_to_fixed_target(
     }
 }
 
-pub(super) fn eval_conv(val: Value, target_ty: &StageLType) -> Result<EvalSignal> {
-    let n = value_to_exact_integer(val, false, None)?
-        .context("Core integer operand must be integral")?;
-    let converted = convert_int_to_fixed_target(&n, target_ty, false, None)?;
-    match converted {
-        Some(v) => Ok(EvalSignal::Value(v)),
-        None => Ok(EvalSignal::Fault(format!(
-            "conv out of range converting {n} to {target_ty}"
-        ))),
-    }
-}
-
-pub(super) fn eval_total_conv(
+pub(super) fn eval_conv(
     vm: &StageLWorkspaceVm,
+    total: bool,
     val: Value,
     target_ty: &StageLType,
     span: Span,
 ) -> Result<EvalSignal> {
+    if !total {
+        let n = value_to_exact_integer(val, false, None)?
+            .context("Core integer operand must be integral")?;
+        let converted = convert_int_to_fixed_target(&n, target_ty, false, None)?;
+        return Ok(match converted {
+            Some(v) => EvalSignal::Value(v),
+            None => EvalSignal::Fault(format!(
+                "conv out of range converting {n} to {target_ty}"
+            )),
+        });
+    }
+
     let src_ty = numeric_value_type(&val, span)?;
     let widening = is_stager_widening_conv(&src_ty, target_ty);
 

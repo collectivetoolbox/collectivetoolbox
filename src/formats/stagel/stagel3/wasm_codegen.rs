@@ -52,9 +52,9 @@ pub use runner::{
 };
 
 use super::ast::{
-    BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, RoutineDecl,
-    Span, StageDialect, StageLType, StructTypeRef, SymbolTarget, TestExpected,
-    TopDecl, TopValueDecl, TypedIntLit,
+    BinaryOp, BlockItem, Expr, RoutineDecl, Span, StageDialect, StageLType,
+    StructTypeRef, SymbolTarget, TernaryOp, TestExpected, TopDecl, TopValueDecl,
+    TypedIntLit, UnaryOp,
 };
 use super::rust_codegen::{
     analyze_block_captures, sanitize_ident, stagel_params_slug,
@@ -1425,6 +1425,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 ..
             } => self.emit_ternary_expr(fctx, *op, first, second, third),
             Expr::Conv {
+                total: false,
                 expr: inner,
                 target_ty,
                 ..
@@ -1434,7 +1435,8 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 target_ty,
                 ..
             } => self.emit_bitcast_expr(fctx, inner, target_ty),
-            Expr::DctsString { .. }
+            Expr::Conv { total: true, .. }
+            | Expr::DctsString { .. }
             | Expr::DcLit { .. }
             | Expr::NamedStructNew { .. }
             | Expr::EnumVariant { .. }
@@ -1448,11 +1450,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             | Expr::WrapNominal { .. }
             | Expr::UnwrapNominal { .. }
             | Expr::Match { .. }
-            | Expr::Propagate { .. }
-            | Expr::StageRUnary { .. }
-            | Expr::StageRBinary { .. }
-            | Expr::StageRTernary { .. }
-            | Expr::TotalConv { .. } => {
+            | Expr::Propagate { .. } => {
                 bail!("Direct WebAssembly codegen from StageR 3 (.sr3) is not yet implemented")
             }
         }
@@ -2639,7 +2637,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
     fn emit_unary_expr(
         &mut self,
         fctx: &mut FuncEmitCtx<'_>,
-        op: CoreUnaryOp,
+        op: UnaryOp,
         operand: &Expr,
     ) -> Result<StageLType> {
         let op_ty = self.emit_expr(fctx, operand, false)?;
@@ -2647,38 +2645,38 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             return Ok(StageLType::Never);
         }
         match op {
-            CoreUnaryOp::Neg => {
+            UnaryOp::Neg => {
                 let fn_idx = self.link_scalar_builtin(DC_NEG_OP, &op_ty)?;
                 fctx.fb.call(fn_idx)?;
                 Ok(op_ty)
             }
-            CoreUnaryOp::BitNot => {
+            UnaryOp::BitNot => {
                 let fn_idx = self.link_scalar_builtin(DC_BIT_NOT_OP, &op_ty)?;
                 fctx.fb.call(fn_idx)?;
                 Ok(op_ty)
             }
-            CoreUnaryOp::Not => {
+            UnaryOp::Not => {
                 let fn_idx =
                     self.link_scalar_builtin(DC_LOGICAL_NOT_OP, &op_ty)?;
                 fctx.fb.call(fn_idx)?;
                 Ok(StageLType::B)
             }
-            CoreUnaryOp::Clz => {
+            UnaryOp::Clz => {
                 let fn_idx = self.link_scalar_builtin(DC_CLZ_OP, &op_ty)?;
                 fctx.fb.call(fn_idx)?;
                 Ok(StageLType::U32)
             }
-            CoreUnaryOp::Ctz => {
+            UnaryOp::Ctz => {
                 let fn_idx = self.link_scalar_builtin(DC_CTZ_OP, &op_ty)?;
                 fctx.fb.call(fn_idx)?;
                 Ok(StageLType::U32)
             }
-            CoreUnaryOp::Popcnt => {
+            UnaryOp::Popcnt => {
                 let fn_idx = self.link_scalar_builtin(DC_POPCNT_OP, &op_ty)?;
                 fctx.fb.call(fn_idx)?;
                 Ok(StageLType::U32)
             }
-            CoreUnaryOp::Len => {
+            UnaryOp::Len => {
                 let container_dc = match &op_ty {
                     StageLType::List(_) => DC_STAGEL_LIST_TYPE,
                     StageLType::Buf(_) => DC_STAGEL_BUF_TYPE,
@@ -2693,7 +2691,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 fctx.fb.call(fn_idx)?;
                 Ok(StageLType::U64)
             }
-            CoreUnaryOp::BufFreeze => {
+            UnaryOp::BufFreeze => {
                 let StageLType::Buf(inner) = op_ty else {
                     bail!("Invalid operand type '{op_ty}' for 'bufFreeze'");
                 };
@@ -2705,13 +2703,25 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 fctx.fb.call(fn_idx)?;
                 Ok(StageLType::List(inner))
             }
+            UnaryOp::TotalNeg
+            | UnaryOp::IsSome
+            | UnaryOp::IsNone
+            | UnaryOp::IsOk
+            | UnaryOp::IsErr
+            | UnaryOp::ByteLen
+            | UnaryOp::DcFromU128
+            | UnaryOp::U128FromDc
+            | UnaryOp::DcsFromS
+            | UnaryOp::SFromDcs => {
+                bail!("Direct WebAssembly codegen from StageR 3 (.sr3) is not yet implemented")
+            }
         }
     }
 
     fn emit_binary_expr(
         &mut self,
         fctx: &mut FuncEmitCtx<'_>,
-        op: CoreBinaryOp,
+        op: BinaryOp,
         left: &Expr,
         right: &Expr,
     ) -> Result<StageLType> {
@@ -2721,10 +2731,10 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         }
 
         // Short-circuiting `and` / `or`
-        if matches!(op, CoreBinaryOp::And | CoreBinaryOp::Or) {
+        if matches!(op, BinaryOp::And | BinaryOp::Or) {
             fctx.fb.if_open(Some(WasmValType::I32))?;
             fctx.control_depth = fctx.control_depth.saturating_add(1);
-            if op == CoreBinaryOp::And {
+            if op == BinaryOp::And {
                 let r_ty = self.emit_expr(fctx, right, false)?;
                 let _ = r_ty;
                 fctx.fb.else_op()?;
@@ -2758,113 +2768,113 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         fctx.fb.local_get(r_loc)?;
 
         match op {
-            CoreBinaryOp::Add => {
+            BinaryOp::Add => {
                 let f = self.link_scalar_builtin(DC_ADD_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::Sub => {
+            BinaryOp::Sub => {
                 let f = self.link_scalar_builtin(DC_SUB_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::Mul => {
+            BinaryOp::Mul => {
                 let f = self.link_scalar_builtin(DC_MUL_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::Div => {
+            BinaryOp::Div => {
                 let f = self.link_scalar_builtin(DC_DIV_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::Rem => {
+            BinaryOp::Rem => {
                 let f = self.link_scalar_builtin(DC_REM_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::WrapAdd => {
+            BinaryOp::WrapAdd => {
                 let f = self.link_scalar_builtin(DC_WRAP_ADD_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::WrapSub => {
+            BinaryOp::WrapSub => {
                 let f = self.link_scalar_builtin(DC_WRAP_SUB_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::WrapMul => {
+            BinaryOp::WrapMul => {
                 let f = self.link_scalar_builtin(DC_WRAP_MUL_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::BitAnd => {
+            BinaryOp::BitAnd => {
                 let f = self.link_scalar_builtin(DC_BIT_AND_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::BitOr => {
+            BinaryOp::BitOr => {
                 let f = self.link_scalar_builtin(DC_BIT_OR_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::BitXor => {
+            BinaryOp::BitXor => {
                 let f = self.link_scalar_builtin(DC_BIT_XOR_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::Shl => {
+            BinaryOp::Shl => {
                 let f = self.link_scalar_builtin(DC_SHL_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::Shr => {
+            BinaryOp::Shr => {
                 let f = self.link_scalar_builtin(DC_SHR_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::Rotl => {
+            BinaryOp::Rotl => {
                 let f = self.link_scalar_builtin(DC_ROTL_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::Rotr => {
+            BinaryOp::Rotr => {
                 let f = self.link_scalar_builtin(DC_ROTR_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::And | CoreBinaryOp::Or => {
+            BinaryOp::And | BinaryOp::Or => {
                 bail!("Internal error: short-circuit ops handled above")
             }
-            CoreBinaryOp::Eq => {
+            BinaryOp::Eq => {
                 self.emit_eq_op(fctx, &l_ty, false)?;
                 Ok(StageLType::B)
             }
-            CoreBinaryOp::Ne => {
+            BinaryOp::Ne => {
                 self.emit_eq_op(fctx, &l_ty, true)?;
                 Ok(StageLType::B)
             }
-            CoreBinaryOp::Lt => {
+            BinaryOp::Lt => {
                 let f = self.link_scalar_builtin(DC_LT_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(StageLType::B)
             }
-            CoreBinaryOp::Le => {
+            BinaryOp::Le => {
                 let f = self.link_scalar_builtin(DC_LE_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(StageLType::B)
             }
-            CoreBinaryOp::Gt => {
+            BinaryOp::Gt => {
                 let f = self.link_scalar_builtin(DC_GT_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(StageLType::B)
             }
-            CoreBinaryOp::Ge => {
+            BinaryOp::Ge => {
                 let f = self.link_scalar_builtin(DC_GE_OP, &l_ty)?;
                 fctx.fb.call(f)?;
                 Ok(StageLType::B)
             }
-            CoreBinaryOp::Get => match &l_ty {
+            BinaryOp::Get => match &l_ty {
                 StageLType::List(inner) => {
                     let f = self.link_seq_or_buf_builtin(
                         DC_SEQ_GET_OP,
@@ -2885,7 +2895,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 }
                 other => bail!("Invalid sequence type '{other}' for 'get'"),
             },
-            CoreBinaryOp::Concat => {
+            BinaryOp::Concat => {
                 let StageLType::List(ref inner) = l_ty else {
                     bail!("Invalid operand '{l_ty}' for 'concat'");
                 };
@@ -2897,7 +2907,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 fctx.fb.call(f)?;
                 Ok(l_ty)
             }
-            CoreBinaryOp::BufFill => {
+            BinaryOp::BufFill => {
                 let f = self.link_seq_or_buf_builtin(
                     DC_STAGEL_BUF_FILL,
                     DC_STAGEL_BUF_TYPE,
@@ -2906,7 +2916,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 fctx.fb.call(f)?;
                 Ok(StageLType::Buf(Box::new(l_ty)))
             }
-            CoreBinaryOp::BufPush => {
+            BinaryOp::BufPush => {
                 let StageLType::Buf(ref inner) = l_ty else {
                     bail!("Invalid operand '{l_ty}' for 'bufPush'");
                 };
@@ -2918,7 +2928,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 fctx.fb.call(f)?;
                 Ok(StageLType::Void)
             }
-            CoreBinaryOp::BufExtend => {
+            BinaryOp::BufExtend => {
                 let StageLType::Buf(ref inner) = l_ty else {
                     bail!("Invalid operand '{l_ty}' for 'bufExtend'");
                 };
@@ -2930,13 +2940,29 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 fctx.fb.call(f)?;
                 Ok(StageLType::Void)
             }
+            BinaryOp::TotalAdd
+            | BinaryOp::TotalSub
+            | BinaryOp::TotalMul
+            | BinaryOp::TotalDiv
+            | BinaryOp::TotalMod
+            | BinaryOp::TotalTruncRem
+            | BinaryOp::TotalShl
+            | BinaryOp::TotalShr
+            | BinaryOp::TotalGet
+            | BinaryOp::UnwrapOr
+            | BinaryOp::OkOr
+            | BinaryOp::MakeRat
+            | BinaryOp::Explode
+            | BinaryOp::Implode => {
+                bail!("Direct WebAssembly codegen from StageR 3 (.sr3) is not yet implemented")
+            }
         }
     }
 
     fn emit_ternary_expr(
         &mut self,
         fctx: &mut FuncEmitCtx<'_>,
-        op: CoreTernaryOp,
+        op: TernaryOp,
         first: &Expr,
         second: &Expr,
         third: &Expr,
@@ -2973,7 +2999,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         fctx.fb.local_get(l3)?;
 
         match op {
-            CoreTernaryOp::Slice => {
+            TernaryOp::Slice => {
                 let StageLType::List(ref inner) = t1 else {
                     bail!("Invalid sequence operand '{t1}' for 'slice'");
                 };
@@ -2985,7 +3011,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 fctx.fb.call(f)?;
                 Ok(t1)
             }
-            CoreTernaryOp::BufSet => {
+            TernaryOp::BufSet => {
                 let StageLType::Buf(ref inner) = t1 else {
                     bail!("Invalid buffer operand '{t1}' for 'bufSet'");
                 };
@@ -2996,6 +3022,9 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 )?;
                 fctx.fb.call(f)?;
                 Ok(StageLType::Void)
+            }
+            TernaryOp::TotalSlice | TernaryOp::TotalBufSet => {
+                bail!("Direct WebAssembly codegen from StageR 3 (.sr3) is not yet implemented")
             }
         }
     }
@@ -3552,16 +3581,28 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                     return Ok(StageLType::Never);
                 }
                 Ok(match op {
-                    CoreUnaryOp::Neg | CoreUnaryOp::BitNot => oty,
-                    CoreUnaryOp::Not => StageLType::B,
-                    CoreUnaryOp::Clz
-                    | CoreUnaryOp::Ctz
-                    | CoreUnaryOp::Popcnt => StageLType::U32,
-                    CoreUnaryOp::Len => StageLType::U64,
-                    CoreUnaryOp::BufFreeze => match oty {
+                    UnaryOp::Neg | UnaryOp::BitNot => oty,
+                    UnaryOp::Not => StageLType::B,
+                    UnaryOp::Clz | UnaryOp::Ctz | UnaryOp::Popcnt => {
+                        StageLType::U32
+                    }
+                    UnaryOp::Len => StageLType::U64,
+                    UnaryOp::BufFreeze => match oty {
                         StageLType::Buf(inner) => StageLType::List(inner),
                         other => other,
                     },
+                    UnaryOp::TotalNeg
+                    | UnaryOp::IsSome
+                    | UnaryOp::IsNone
+                    | UnaryOp::IsOk
+                    | UnaryOp::IsErr
+                    | UnaryOp::ByteLen
+                    | UnaryOp::DcFromU128
+                    | UnaryOp::U128FromDc
+                    | UnaryOp::DcsFromS
+                    | UnaryOp::SFromDcs => {
+                        bail!("Direct WebAssembly codegen from StageR 3 (.sr3) is not yet implemented")
+                    }
                 })
             }
             Expr::Binary {
@@ -3571,45 +3612,59 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 if lty == StageLType::Never {
                     return Ok(StageLType::Never);
                 }
-                if !matches!(op, CoreBinaryOp::And | CoreBinaryOp::Or)
+                if !matches!(op, BinaryOp::And | BinaryOp::Or)
                     && self.infer_expr_type(fctx, right)? == StageLType::Never
                 {
                     return Ok(StageLType::Never);
                 }
                 Ok(match op {
-                    CoreBinaryOp::Add
-                    | CoreBinaryOp::Sub
-                    | CoreBinaryOp::Mul
-                    | CoreBinaryOp::Div
-                    | CoreBinaryOp::Rem
-                    | CoreBinaryOp::WrapAdd
-                    | CoreBinaryOp::WrapSub
-                    | CoreBinaryOp::WrapMul
-                    | CoreBinaryOp::BitAnd
-                    | CoreBinaryOp::BitOr
-                    | CoreBinaryOp::BitXor
-                    | CoreBinaryOp::Shl
-                    | CoreBinaryOp::Shr
-                    | CoreBinaryOp::Rotl
-                    | CoreBinaryOp::Rotr
-                    | CoreBinaryOp::Concat => lty,
-                    CoreBinaryOp::And
-                    | CoreBinaryOp::Or
-                    | CoreBinaryOp::Eq
-                    | CoreBinaryOp::Ne
-                    | CoreBinaryOp::Lt
-                    | CoreBinaryOp::Le
-                    | CoreBinaryOp::Gt
-                    | CoreBinaryOp::Ge => StageLType::B,
-                    CoreBinaryOp::Get => match lty {
+                    BinaryOp::Add
+                    | BinaryOp::Sub
+                    | BinaryOp::Mul
+                    | BinaryOp::Div
+                    | BinaryOp::Rem
+                    | BinaryOp::WrapAdd
+                    | BinaryOp::WrapSub
+                    | BinaryOp::WrapMul
+                    | BinaryOp::BitAnd
+                    | BinaryOp::BitOr
+                    | BinaryOp::BitXor
+                    | BinaryOp::Shl
+                    | BinaryOp::Shr
+                    | BinaryOp::Rotl
+                    | BinaryOp::Rotr
+                    | BinaryOp::Concat => lty,
+                    BinaryOp::And
+                    | BinaryOp::Or
+                    | BinaryOp::Eq
+                    | BinaryOp::Ne
+                    | BinaryOp::Lt
+                    | BinaryOp::Le
+                    | BinaryOp::Gt
+                    | BinaryOp::Ge => StageLType::B,
+                    BinaryOp::Get => match lty {
                         StageLType::List(inner) | StageLType::Buf(inner) => {
                             *inner
                         }
                         other => other,
                     },
-                    CoreBinaryOp::BufFill => StageLType::Buf(Box::new(lty)),
-                    CoreBinaryOp::BufPush | CoreBinaryOp::BufExtend => {
-                        StageLType::Void
+                    BinaryOp::BufFill => StageLType::Buf(Box::new(lty)),
+                    BinaryOp::BufPush | BinaryOp::BufExtend => StageLType::Void,
+                    BinaryOp::TotalAdd
+                    | BinaryOp::TotalSub
+                    | BinaryOp::TotalMul
+                    | BinaryOp::TotalDiv
+                    | BinaryOp::TotalMod
+                    | BinaryOp::TotalTruncRem
+                    | BinaryOp::TotalShl
+                    | BinaryOp::TotalShr
+                    | BinaryOp::TotalGet
+                    | BinaryOp::UnwrapOr
+                    | BinaryOp::OkOr
+                    | BinaryOp::MakeRat
+                    | BinaryOp::Explode
+                    | BinaryOp::Implode => {
+                        bail!("Direct WebAssembly codegen from StageR 3 (.sr3) is not yet implemented")
                     }
                 })
             }
@@ -3628,11 +3683,15 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                     return Ok(StageLType::Never);
                 }
                 Ok(match op {
-                    CoreTernaryOp::Slice => t1,
-                    CoreTernaryOp::BufSet => StageLType::Void,
+                    TernaryOp::Slice => t1,
+                    TernaryOp::BufSet => StageLType::Void,
+                    TernaryOp::TotalSlice | TernaryOp::TotalBufSet => {
+                        bail!("Direct WebAssembly codegen from StageR 3 (.sr3) is not yet implemented")
+                    }
                 })
             }
             Expr::Conv {
+                total: false,
                 expr: inner,
                 target_ty,
                 ..
@@ -3647,7 +3706,8 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 }
                 self.canon_type(fctx.mod_idx, target_ty)
             }
-            Expr::DctsString { .. }
+            Expr::Conv { total: true, .. }
+            | Expr::DctsString { .. }
             | Expr::DcLit { .. }
             | Expr::NamedStructNew { .. }
             | Expr::EnumVariant { .. }
@@ -3661,11 +3721,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             | Expr::WrapNominal { .. }
             | Expr::UnwrapNominal { .. }
             | Expr::Match { .. }
-            | Expr::Propagate { .. }
-            | Expr::StageRUnary { .. }
-            | Expr::StageRBinary { .. }
-            | Expr::StageRTernary { .. }
-            | Expr::TotalConv { .. } => {
+            | Expr::Propagate { .. } => {
                 bail!("Direct WebAssembly codegen from StageR 3 (.sr3) is not yet implemented")
             }
         }

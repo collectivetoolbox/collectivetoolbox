@@ -28,9 +28,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::super::ast::{
-    CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Span, StageDialect, StageLType,
-    StageRBinaryOp, StageRTernaryOp, StageRUnaryOp, StructTypeRef, SymbolTarget,
-    TypedIntLit, parse_dc_shorthand,
+    BinaryOp, Span, StageDialect, StageLType, StructTypeRef, SymbolTarget,
+    TernaryOp, TypedIntLit, UnaryOp, parse_dc_shorthand,
 };
 use super::lexer::{LexKind, LexToken};
 use super::{
@@ -627,104 +626,98 @@ pub(super) fn parse_namespace_segments(
     Ok(out)
 }
 
-pub(super) fn match_unary_op(word: &str) -> Option<CoreUnaryOp> {
-    match word {
-        "neg" => Some(CoreUnaryOp::Neg),
-        "bitNot" => Some(CoreUnaryOp::BitNot),
-        "not" => Some(CoreUnaryOp::Not),
-        "clz" => Some(CoreUnaryOp::Clz),
-        "ctz" => Some(CoreUnaryOp::Ctz),
-        "popcnt" => Some(CoreUnaryOp::Popcnt),
-        "len" => Some(CoreUnaryOp::Len),
-        "bufFreeze" => Some(CoreUnaryOp::BufFreeze),
-        _ => None,
-    }
+pub(super) fn match_unary_op(
+    word: &str,
+    dialect: StageDialect,
+) -> Option<UnaryOp> {
+    let op = match (dialect, word) {
+        (StageDialect::StageL3, "neg") => UnaryOp::Neg,
+        (StageDialect::StageR3, "neg") => UnaryOp::TotalNeg,
+        (StageDialect::StageR3, "isSome") => UnaryOp::IsSome,
+        (StageDialect::StageR3, "isNone") => UnaryOp::IsNone,
+        (StageDialect::StageR3, "isOk") => UnaryOp::IsOk,
+        (StageDialect::StageR3, "isErr") => UnaryOp::IsErr,
+        (StageDialect::StageR3, "byteLen") => UnaryOp::ByteLen,
+        (StageDialect::StageR3, "dcFromU128") => UnaryOp::DcFromU128,
+        (StageDialect::StageR3, "u128FromDc") => UnaryOp::U128FromDc,
+        (StageDialect::StageR3, "dcsFromS") => UnaryOp::DcsFromS,
+        (StageDialect::StageR3, "sFromDcs") => UnaryOp::SFromDcs,
+        (_, "bitNot") => UnaryOp::BitNot,
+        (_, "not") => UnaryOp::Not,
+        (_, "clz") => UnaryOp::Clz,
+        (_, "ctz") => UnaryOp::Ctz,
+        (_, "popcnt") => UnaryOp::Popcnt,
+        (_, "len") => UnaryOp::Len,
+        (_, "bufFreeze") => UnaryOp::BufFreeze,
+        _ => return None,
+    };
+    Some(op)
 }
 
-pub(super) fn match_binary_op(word: &str) -> Option<CoreBinaryOp> {
-    match word {
-        "add" => Some(CoreBinaryOp::Add),
-        "sub" => Some(CoreBinaryOp::Sub),
-        "mul" => Some(CoreBinaryOp::Mul),
-        "div" => Some(CoreBinaryOp::Div),
-        "rem" => Some(CoreBinaryOp::Rem),
-        "wrapAdd" => Some(CoreBinaryOp::WrapAdd),
-        "wrapSub" => Some(CoreBinaryOp::WrapSub),
-        "wrapMul" => Some(CoreBinaryOp::WrapMul),
-        "bitAnd" => Some(CoreBinaryOp::BitAnd),
-        "bitOr" => Some(CoreBinaryOp::BitOr),
-        "bitXor" => Some(CoreBinaryOp::BitXor),
-        "shl" => Some(CoreBinaryOp::Shl),
-        "shr" => Some(CoreBinaryOp::Shr),
-        "rotl" => Some(CoreBinaryOp::Rotl),
-        "rotr" => Some(CoreBinaryOp::Rotr),
-        "and" => Some(CoreBinaryOp::And),
-        "or" => Some(CoreBinaryOp::Or),
-        "eq" => Some(CoreBinaryOp::Eq),
-        "ne" => Some(CoreBinaryOp::Ne),
-        "lt" => Some(CoreBinaryOp::Lt),
-        "le" => Some(CoreBinaryOp::Le),
-        "gt" => Some(CoreBinaryOp::Gt),
-        "ge" => Some(CoreBinaryOp::Ge),
-        "get" => Some(CoreBinaryOp::Get),
-        "concat" => Some(CoreBinaryOp::Concat),
-        "bufFill" => Some(CoreBinaryOp::BufFill),
-        "bufPush" => Some(CoreBinaryOp::BufPush),
-        "bufExtend" => Some(CoreBinaryOp::BufExtend),
-        _ => None,
-    }
+pub(super) fn match_binary_op(
+    word: &str,
+    dialect: StageDialect,
+) -> Option<BinaryOp> {
+    let op = match (dialect, word) {
+        (StageDialect::StageL3, "add") => BinaryOp::Add,
+        (StageDialect::StageR3, "add") => BinaryOp::TotalAdd,
+        (StageDialect::StageL3, "sub") => BinaryOp::Sub,
+        (StageDialect::StageR3, "sub") => BinaryOp::TotalSub,
+        (StageDialect::StageL3, "mul") => BinaryOp::Mul,
+        (StageDialect::StageR3, "mul") => BinaryOp::TotalMul,
+        (StageDialect::StageL3, "div") => BinaryOp::Div,
+        (StageDialect::StageR3, "div") => BinaryOp::TotalDiv,
+        (StageDialect::StageL3, "rem") => BinaryOp::Rem,
+        (StageDialect::StageR3, "mod") => BinaryOp::TotalMod,
+        (StageDialect::StageR3, "truncRem") => BinaryOp::TotalTruncRem,
+        (StageDialect::StageL3, "shl") => BinaryOp::Shl,
+        (StageDialect::StageR3, "shl") => BinaryOp::TotalShl,
+        (StageDialect::StageL3, "shr") => BinaryOp::Shr,
+        (StageDialect::StageR3, "shr") => BinaryOp::TotalShr,
+        (StageDialect::StageL3, "get") => BinaryOp::Get,
+        (StageDialect::StageR3, "get") => BinaryOp::TotalGet,
+        (StageDialect::StageR3, "unwrapOr") => BinaryOp::UnwrapOr,
+        (StageDialect::StageR3, "okOr") => BinaryOp::OkOr,
+        (StageDialect::StageR3, "makeRat") => BinaryOp::MakeRat,
+        (StageDialect::StageR3, "explode") => BinaryOp::Explode,
+        (StageDialect::StageR3, "implode") => BinaryOp::Implode,
+        (_, "wrapAdd") => BinaryOp::WrapAdd,
+        (_, "wrapSub") => BinaryOp::WrapSub,
+        (_, "wrapMul") => BinaryOp::WrapMul,
+        (_, "bitAnd") => BinaryOp::BitAnd,
+        (_, "bitOr") => BinaryOp::BitOr,
+        (_, "bitXor") => BinaryOp::BitXor,
+        (_, "rotl") => BinaryOp::Rotl,
+        (_, "rotr") => BinaryOp::Rotr,
+        (_, "and") => BinaryOp::And,
+        (_, "or") => BinaryOp::Or,
+        (_, "eq") => BinaryOp::Eq,
+        (_, "ne") => BinaryOp::Ne,
+        (_, "lt") => BinaryOp::Lt,
+        (_, "le") => BinaryOp::Le,
+        (_, "gt") => BinaryOp::Gt,
+        (_, "ge") => BinaryOp::Ge,
+        (_, "concat") => BinaryOp::Concat,
+        (_, "bufFill") => BinaryOp::BufFill,
+        (_, "bufPush") => BinaryOp::BufPush,
+        (_, "bufExtend") => BinaryOp::BufExtend,
+        _ => return None,
+    };
+    Some(op)
 }
 
-pub(super) fn match_ternary_op(word: &str) -> Option<CoreTernaryOp> {
-    match word {
-        "slice" => Some(CoreTernaryOp::Slice),
-        "bufSet" => Some(CoreTernaryOp::BufSet),
-        _ => None,
-    }
-}
-
-pub(super) fn match_stager_unary_op(word: &str) -> Option<StageRUnaryOp> {
-    match word {
-        "neg" => Some(StageRUnaryOp::TotalNeg),
-        "isSome" => Some(StageRUnaryOp::IsSome),
-        "isNone" => Some(StageRUnaryOp::IsNone),
-        "isOk" => Some(StageRUnaryOp::IsOk),
-        "isErr" => Some(StageRUnaryOp::IsErr),
-        "byteLen" => Some(StageRUnaryOp::ByteLen),
-        "dcFromU128" => Some(StageRUnaryOp::DcFromU128),
-        "u128FromDc" => Some(StageRUnaryOp::U128FromDc),
-        "dcsFromS" => Some(StageRUnaryOp::DcsFromS),
-        "sFromDcs" => Some(StageRUnaryOp::SFromDcs),
-        _ => None,
-    }
-}
-
-pub(super) fn match_stager_binary_op(word: &str) -> Option<StageRBinaryOp> {
-    match word {
-        "add" => Some(StageRBinaryOp::TotalAdd),
-        "sub" => Some(StageRBinaryOp::TotalSub),
-        "mul" => Some(StageRBinaryOp::TotalMul),
-        "div" => Some(StageRBinaryOp::TotalDiv),
-        "mod" => Some(StageRBinaryOp::TotalMod),
-        "truncRem" => Some(StageRBinaryOp::TotalTruncRem),
-        "shl" => Some(StageRBinaryOp::TotalShl),
-        "shr" => Some(StageRBinaryOp::TotalShr),
-        "get" => Some(StageRBinaryOp::TotalGet),
-        "unwrapOr" => Some(StageRBinaryOp::UnwrapOr),
-        "okOr" => Some(StageRBinaryOp::OkOr),
-        "makeRat" => Some(StageRBinaryOp::MakeRat),
-        "explode" => Some(StageRBinaryOp::Explode),
-        "implode" => Some(StageRBinaryOp::Implode),
-        _ => None,
-    }
-}
-
-pub(super) fn match_stager_ternary_op(word: &str) -> Option<StageRTernaryOp> {
-    match word {
-        "slice" => Some(StageRTernaryOp::TotalSlice),
-        "bufSet" => Some(StageRTernaryOp::TotalBufSet),
-        _ => None,
-    }
+pub(super) fn match_ternary_op(
+    word: &str,
+    dialect: StageDialect,
+) -> Option<TernaryOp> {
+    let op = match (dialect, word) {
+        (StageDialect::StageL3, "slice") => TernaryOp::Slice,
+        (StageDialect::StageR3, "slice") => TernaryOp::TotalSlice,
+        (StageDialect::StageL3, "bufSet") => TernaryOp::BufSet,
+        (StageDialect::StageR3, "bufSet") => TernaryOp::TotalBufSet,
+        _ => return None,
+    };
+    Some(op)
 }
 
 pub(super) fn is_forbidden_stagel_partial_op(word: &str) -> bool {

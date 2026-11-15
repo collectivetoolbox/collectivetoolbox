@@ -36,8 +36,7 @@ use super::super::ast::{
 };
 use super::super::stager_strings::is_valid_dc_u128;
 use super::{
-    CORE_BINARY_OPS, CORE_TERNARY_OPS, CORE_UNARY_OPS, STAGER_BINARY_OPS,
-    STAGER_TERNARY_OPS, STAGER_UNARY_OPS, dc_chars_to_dcts_string,
+    BINARY_OPS, TERNARY_OPS, UNARY_OPS, dc_chars_to_dcts_string,
     format_dc_char_opt, lookup_dc_op,
 };
 use crate::dc_number_minimal::{
@@ -1577,6 +1576,7 @@ impl Decoder<'_> {
             let expr = Box::new(self.read_expr()?);
             let target_ty = self.read_stagel_type()?;
             return Ok(Expr::Conv {
+                total: false,
                 expr,
                 target_ty,
                 span: sp,
@@ -1593,7 +1593,7 @@ impl Decoder<'_> {
             });
         }
 
-        if let Some(op) = lookup_dc_op(CORE_UNARY_OPS, self.resolver, tok) {
+        if let Some(op) = lookup_dc_op(UNARY_OPS, self.resolver, tok) {
             self.pos = self.pos.saturating_add(1);
             let operand = Box::new(self.read_expr()?);
             return Ok(Expr::Unary {
@@ -1602,7 +1602,7 @@ impl Decoder<'_> {
                 span: sp,
             });
         }
-        if let Some(op) = lookup_dc_op(CORE_BINARY_OPS, self.resolver, tok) {
+        if let Some(op) = lookup_dc_op(BINARY_OPS, self.resolver, tok) {
             self.pos = self.pos.saturating_add(1);
             let left = Box::new(self.read_expr()?);
             let right = Box::new(self.read_expr()?);
@@ -1613,7 +1613,7 @@ impl Decoder<'_> {
                 span: sp,
             });
         }
-        if let Some(op) = lookup_dc_op(CORE_TERNARY_OPS, self.resolver, tok) {
+        if let Some(op) = lookup_dc_op(TERNARY_OPS, self.resolver, tok) {
             self.pos = self.pos.saturating_add(1);
             let first = Box::new(self.read_expr()?);
             let second = Box::new(self.read_expr()?);
@@ -1783,42 +1783,10 @@ impl Decoder<'_> {
             self.pos = self.pos.saturating_add(1);
             let expr = Box::new(self.read_expr()?);
             let target_ty = self.read_stagel_type()?;
-            return Ok(Some(Expr::TotalConv {
+            return Ok(Some(Expr::Conv {
+                total: true,
                 expr,
                 target_ty,
-                span: sp,
-            }));
-        }
-        if let Some(op) = lookup_dc_op(STAGER_UNARY_OPS, self.resolver, tok) {
-            self.pos = self.pos.saturating_add(1);
-            let operand = Box::new(self.read_expr()?);
-            return Ok(Some(Expr::StageRUnary {
-                op,
-                operand,
-                span: sp,
-            }));
-        }
-        if let Some(op) = lookup_dc_op(STAGER_BINARY_OPS, self.resolver, tok) {
-            self.pos = self.pos.saturating_add(1);
-            let left = Box::new(self.read_expr()?);
-            let right = Box::new(self.read_expr()?);
-            return Ok(Some(Expr::StageRBinary {
-                op,
-                left,
-                right,
-                span: sp,
-            }));
-        }
-        if let Some(op) = lookup_dc_op(STAGER_TERNARY_OPS, self.resolver, tok) {
-            self.pos = self.pos.saturating_add(1);
-            let first = Box::new(self.read_expr()?);
-            let second = Box::new(self.read_expr()?);
-            let third = Box::new(self.read_expr()?);
-            return Ok(Some(Expr::StageRTernary {
-                op,
-                first,
-                second,
-                third,
                 span: sp,
             }));
         }

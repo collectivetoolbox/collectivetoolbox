@@ -461,9 +461,9 @@ pub fn run_validated_workspace_inline_tests_with_config(
 )]
 mod tests {
     use super::*;
-    use super::super::ast::{Span, StageRErrorTag, StageRTernaryOp};
+    use super::super::ast::{Span, StageRErrorTag, TernaryOp};
     use super::super::validator::{ModuleInput, parse_and_validate_workspace};
-    use super::ops::eval_stager_ternary;
+    use super::ops::eval_ternary;
     use super::vm::EvalSignal;
 
     #[crate::ctb_test]
@@ -888,8 +888,8 @@ pub v/result/b/checkDcAndStrings
                 frozen: true,
             },
         )));
-        let sig = eval_stager_ternary(
-            StageRTernaryOp::TotalBufSet,
+        let sig = eval_ternary(
+            TernaryOp::TotalBufSet,
             frozen_buf,
             Value::U64(0),
             Value::I32(7),

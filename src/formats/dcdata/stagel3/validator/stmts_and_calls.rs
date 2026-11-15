@@ -29,7 +29,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::super::ast::{
-    BlockItem, CoreBinaryOp, Expr, MatchArm, RoutineDecl, Span, StageDialect,
+    BinaryOp, BlockItem, Expr, MatchArm, RoutineDecl, Span, StageDialect,
     StageLType, StageRErrorTag, StructTypeRef, SymbolTarget,
 };
 use super::consts_and_flow::{
@@ -491,7 +491,7 @@ impl<'a> ModuleValidator<'a> {
                         init_expr,
                         Expr::BufNew { .. }
                             | Expr::Binary {
-                                op: CoreBinaryOp::BufFill,
+                                op: BinaryOp::BufFill,
                                 ..
                             }
                     ),

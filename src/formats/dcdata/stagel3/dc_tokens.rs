@@ -36,10 +36,7 @@ mod decode;
 mod encode;
 mod format;
 
-use super::ast::{
-    CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Module, StageLType,
-    StageRBinaryOp, StageRTernaryOp, StageRUnaryOp, TopDecl,
-};
+use super::ast::{BinaryOp, Module, StageLType, TernaryOp, TopDecl, UnaryOp};
 use super::parser::{parse_module, parse_sr3_module};
 use crate::DcChar;
 use crate::dc::{
@@ -66,175 +63,94 @@ use crate::dcts::{DctsOptions, dclist_to_dcts_string_with_options};
 use crate::syntax::{DcRole, SyntaxRuleResolver};
 use ctb_utilities::format_id::FormatId;
 
-const CORE_UNARY_OPS: &[(CoreUnaryOp, DcChar, DcRole)] = &[
-    (CoreUnaryOp::Neg, DC_NEG_OP, DcRole::NegOp),
-    (CoreUnaryOp::BitNot, DC_BIT_NOT_OP, DcRole::BitNotOp),
-    (CoreUnaryOp::Not, DC_LOGICAL_NOT_OP, DcRole::LogicalNotOp),
-    (CoreUnaryOp::Clz, DC_CLZ_OP, DcRole::ClzOp),
-    (CoreUnaryOp::Ctz, DC_CTZ_OP, DcRole::CtzOp),
-    (CoreUnaryOp::Popcnt, DC_POPCNT_OP, DcRole::PopcntOp),
-    (CoreUnaryOp::Len, DC_SEQ_LEN_OP, DcRole::SeqLenOp),
+const UNARY_OPS: &[(UnaryOp, DcChar, DcRole)] = &[
+    (UnaryOp::Neg, DC_NEG_OP, DcRole::NegOp),
+    (UnaryOp::TotalNeg, DC_TOTAL_NEG_OP, DcRole::TotalNegOp),
+    (UnaryOp::BitNot, DC_BIT_NOT_OP, DcRole::BitNotOp),
+    (UnaryOp::Not, DC_LOGICAL_NOT_OP, DcRole::LogicalNotOp),
+    (UnaryOp::Clz, DC_CLZ_OP, DcRole::ClzOp),
+    (UnaryOp::Ctz, DC_CTZ_OP, DcRole::CtzOp),
+    (UnaryOp::Popcnt, DC_POPCNT_OP, DcRole::PopcntOp),
+    (UnaryOp::Len, DC_SEQ_LEN_OP, DcRole::SeqLenOp),
     (
-        CoreUnaryOp::BufFreeze,
+        UnaryOp::BufFreeze,
         DC_STAGEL_BUF_FREEZE,
         DcRole::StagelBufFreeze,
     ),
+    (UnaryOp::IsSome, DC_OPTION_IS_SOME_OP, DcRole::OptionIsSomeOp),
+    (UnaryOp::IsNone, DC_OPTION_IS_NONE_OP, DcRole::OptionIsNoneOp),
+    (UnaryOp::IsOk, DC_RESULT_IS_OK_OP, DcRole::ResultIsOkOp),
+    (UnaryOp::IsErr, DC_RESULT_IS_ERR_OP, DcRole::ResultIsErrOp),
+    (UnaryOp::ByteLen, DC_BYTE_LEN_OP, DcRole::ByteLenOp),
+    (UnaryOp::DcFromU128, DC_DC_FROM_U128_OP, DcRole::DcFromU128Op),
+    (UnaryOp::U128FromDc, DC_U128_FROM_DC_OP, DcRole::U128FromDcOp),
+    (UnaryOp::DcsFromS, DC_DCS_FROM_S_OP, DcRole::DcsFromSOp),
+    (UnaryOp::SFromDcs, DC_S_FROM_DCS_OP, DcRole::SFromDcsOp),
 ];
 
-const CORE_BINARY_OPS: &[(CoreBinaryOp, DcChar, DcRole)] = &[
-    (CoreBinaryOp::Add, DC_ADD_OP, DcRole::AddOp),
-    (CoreBinaryOp::Sub, DC_SUB_OP, DcRole::SubOp),
-    (CoreBinaryOp::Mul, DC_MUL_OP, DcRole::MulOp),
-    (CoreBinaryOp::Div, DC_DIV_OP, DcRole::DivOp),
-    (CoreBinaryOp::Rem, DC_REM_OP, DcRole::RemOp),
-    (CoreBinaryOp::WrapAdd, DC_WRAP_ADD_OP, DcRole::WrapAddOp),
-    (CoreBinaryOp::WrapSub, DC_WRAP_SUB_OP, DcRole::WrapSubOp),
-    (CoreBinaryOp::WrapMul, DC_WRAP_MUL_OP, DcRole::WrapMulOp),
-    (CoreBinaryOp::BitAnd, DC_BIT_AND_OP, DcRole::BitAndOp),
-    (CoreBinaryOp::BitOr, DC_BIT_OR_OP, DcRole::BitOrOp),
-    (CoreBinaryOp::BitXor, DC_BIT_XOR_OP, DcRole::BitXorOp),
-    (CoreBinaryOp::Shl, DC_SHL_OP, DcRole::ShlOp),
-    (CoreBinaryOp::Shr, DC_SHR_OP, DcRole::ShrOp),
-    (CoreBinaryOp::Rotl, DC_ROTL_OP, DcRole::RotlOp),
-    (CoreBinaryOp::Rotr, DC_ROTR_OP, DcRole::RotrOp),
-    (CoreBinaryOp::And, DC_LOGICAL_AND_OP, DcRole::LogicalAndOp),
-    (CoreBinaryOp::Or, DC_LOGICAL_OR_OP, DcRole::LogicalOrOp),
-    (CoreBinaryOp::Eq, DC_EQ_OP, DcRole::EqOp),
-    (CoreBinaryOp::Ne, DC_NE_OP, DcRole::NeOp),
-    (CoreBinaryOp::Lt, DC_LT_OP, DcRole::LtOp),
-    (CoreBinaryOp::Le, DC_LE_OP, DcRole::LeOp),
-    (CoreBinaryOp::Gt, DC_GT_OP, DcRole::GtOp),
-    (CoreBinaryOp::Ge, DC_GE_OP, DcRole::GeOp),
-    (CoreBinaryOp::Get, DC_SEQ_GET_OP, DcRole::SeqGetOp),
-    (CoreBinaryOp::Concat, DC_SEQ_CONCAT_OP, DcRole::SeqConcatOp),
-    (CoreBinaryOp::BufFill, DC_STAGEL_BUF_FILL, DcRole::StagelBufFill),
-    (CoreBinaryOp::BufPush, DC_STAGEL_BUF_PUSH, DcRole::StagelBufPush),
+const BINARY_OPS: &[(BinaryOp, DcChar, DcRole)] = &[
+    (BinaryOp::Add, DC_ADD_OP, DcRole::AddOp),
+    (BinaryOp::TotalAdd, DC_TOTAL_ADD_OP, DcRole::TotalAddOp),
+    (BinaryOp::Sub, DC_SUB_OP, DcRole::SubOp),
+    (BinaryOp::TotalSub, DC_TOTAL_SUB_OP, DcRole::TotalSubOp),
+    (BinaryOp::Mul, DC_MUL_OP, DcRole::MulOp),
+    (BinaryOp::TotalMul, DC_TOTAL_MUL_OP, DcRole::TotalMulOp),
+    (BinaryOp::Div, DC_DIV_OP, DcRole::DivOp),
+    (BinaryOp::TotalDiv, DC_TOTAL_DIV_OP, DcRole::TotalDivOp),
+    (BinaryOp::Rem, DC_REM_OP, DcRole::RemOp),
+    (BinaryOp::TotalMod, DC_TOTAL_MOD_OP, DcRole::TotalModOp),
     (
-        CoreBinaryOp::BufExtend,
-        DC_STAGEL_BUF_EXTEND,
-        DcRole::StagelBufExtend,
-    ),
-];
-
-const CORE_TERNARY_OPS: &[(CoreTernaryOp, DcChar, DcRole)] = &[
-    (CoreTernaryOp::Slice, DC_SEQ_SLICE_OP, DcRole::SeqSliceOp),
-    (CoreTernaryOp::BufSet, DC_STAGEL_BUF_SET, DcRole::StagelBufSet),
-];
-
-const STAGER_UNARY_OPS: &[(StageRUnaryOp, DcChar, DcRole)] = &[
-    (StageRUnaryOp::TotalNeg, DC_TOTAL_NEG_OP, DcRole::TotalNegOp),
-    (
-        StageRUnaryOp::IsSome,
-        DC_OPTION_IS_SOME_OP,
-        DcRole::OptionIsSomeOp,
-    ),
-    (
-        StageRUnaryOp::IsNone,
-        DC_OPTION_IS_NONE_OP,
-        DcRole::OptionIsNoneOp,
-    ),
-    (
-        StageRUnaryOp::IsOk,
-        DC_RESULT_IS_OK_OP,
-        DcRole::ResultIsOkOp,
-    ),
-    (
-        StageRUnaryOp::IsErr,
-        DC_RESULT_IS_ERR_OP,
-        DcRole::ResultIsErrOp,
-    ),
-    (StageRUnaryOp::ByteLen, DC_BYTE_LEN_OP, DcRole::ByteLenOp),
-    (
-        StageRUnaryOp::DcFromU128,
-        DC_DC_FROM_U128_OP,
-        DcRole::DcFromU128Op,
-    ),
-    (
-        StageRUnaryOp::U128FromDc,
-        DC_U128_FROM_DC_OP,
-        DcRole::U128FromDcOp,
-    ),
-    (StageRUnaryOp::DcsFromS, DC_DCS_FROM_S_OP, DcRole::DcsFromSOp),
-    (StageRUnaryOp::SFromDcs, DC_S_FROM_DCS_OP, DcRole::SFromDcsOp),
-];
-
-const STAGER_BINARY_OPS: &[(StageRBinaryOp, DcChar, DcRole)] = &[
-    (
-        StageRBinaryOp::TotalAdd,
-        DC_TOTAL_ADD_OP,
-        DcRole::TotalAddOp,
-    ),
-    (
-        StageRBinaryOp::TotalSub,
-        DC_TOTAL_SUB_OP,
-        DcRole::TotalSubOp,
-    ),
-    (
-        StageRBinaryOp::TotalMul,
-        DC_TOTAL_MUL_OP,
-        DcRole::TotalMulOp,
-    ),
-    (
-        StageRBinaryOp::TotalDiv,
-        DC_TOTAL_DIV_OP,
-        DcRole::TotalDivOp,
-    ),
-    (
-        StageRBinaryOp::TotalMod,
-        DC_TOTAL_MOD_OP,
-        DcRole::TotalModOp,
-    ),
-    (
-        StageRBinaryOp::TotalTruncRem,
+        BinaryOp::TotalTruncRem,
         DC_TOTAL_TRUNC_REM_OP,
         DcRole::TotalTruncRemOp,
     ),
+    (BinaryOp::WrapAdd, DC_WRAP_ADD_OP, DcRole::WrapAddOp),
+    (BinaryOp::WrapSub, DC_WRAP_SUB_OP, DcRole::WrapSubOp),
+    (BinaryOp::WrapMul, DC_WRAP_MUL_OP, DcRole::WrapMulOp),
+    (BinaryOp::BitAnd, DC_BIT_AND_OP, DcRole::BitAndOp),
+    (BinaryOp::BitOr, DC_BIT_OR_OP, DcRole::BitOrOp),
+    (BinaryOp::BitXor, DC_BIT_XOR_OP, DcRole::BitXorOp),
+    (BinaryOp::Shl, DC_SHL_OP, DcRole::ShlOp),
+    (BinaryOp::TotalShl, DC_TOTAL_SHL_OP, DcRole::TotalShlOp),
+    (BinaryOp::Shr, DC_SHR_OP, DcRole::ShrOp),
+    (BinaryOp::TotalShr, DC_TOTAL_SHR_OP, DcRole::TotalShrOp),
+    (BinaryOp::Rotl, DC_ROTL_OP, DcRole::RotlOp),
+    (BinaryOp::Rotr, DC_ROTR_OP, DcRole::RotrOp),
+    (BinaryOp::And, DC_LOGICAL_AND_OP, DcRole::LogicalAndOp),
+    (BinaryOp::Or, DC_LOGICAL_OR_OP, DcRole::LogicalOrOp),
+    (BinaryOp::Eq, DC_EQ_OP, DcRole::EqOp),
+    (BinaryOp::Ne, DC_NE_OP, DcRole::NeOp),
+    (BinaryOp::Lt, DC_LT_OP, DcRole::LtOp),
+    (BinaryOp::Le, DC_LE_OP, DcRole::LeOp),
+    (BinaryOp::Gt, DC_GT_OP, DcRole::GtOp),
+    (BinaryOp::Ge, DC_GE_OP, DcRole::GeOp),
+    (BinaryOp::Get, DC_SEQ_GET_OP, DcRole::SeqGetOp),
+    (BinaryOp::TotalGet, DC_TOTAL_SEQ_GET_OP, DcRole::TotalSeqGetOp),
+    (BinaryOp::Concat, DC_SEQ_CONCAT_OP, DcRole::SeqConcatOp),
+    (BinaryOp::BufFill, DC_STAGEL_BUF_FILL, DcRole::StagelBufFill),
+    (BinaryOp::BufPush, DC_STAGEL_BUF_PUSH, DcRole::StagelBufPush),
     (
-        StageRBinaryOp::TotalShl,
-        DC_TOTAL_SHL_OP,
-        DcRole::TotalShlOp,
+        BinaryOp::BufExtend,
+        DC_STAGEL_BUF_EXTEND,
+        DcRole::StagelBufExtend,
     ),
-    (
-        StageRBinaryOp::TotalShr,
-        DC_TOTAL_SHR_OP,
-        DcRole::TotalShrOp,
-    ),
-    (
-        StageRBinaryOp::TotalGet,
-        DC_TOTAL_SEQ_GET_OP,
-        DcRole::TotalSeqGetOp,
-    ),
-    (
-        StageRBinaryOp::UnwrapOr,
-        DC_UNWRAP_OR_OP,
-        DcRole::UnwrapOrOp,
-    ),
-    (
-        StageRBinaryOp::OkOr,
-        DC_OPTION_OK_OR_OP,
-        DcRole::OptionOkOrOp,
-    ),
-    (StageRBinaryOp::MakeRat, DC_MAKE_RAT_OP, DcRole::MakeRatOp),
-    (
-        StageRBinaryOp::Explode,
-        DC_SEQ_EXPLODE_OP,
-        DcRole::SeqExplodeOp,
-    ),
-    (
-        StageRBinaryOp::Implode,
-        DC_SEQ_IMPLODE_OP,
-        DcRole::SeqImplodeOp,
-    ),
+    (BinaryOp::UnwrapOr, DC_UNWRAP_OR_OP, DcRole::UnwrapOrOp),
+    (BinaryOp::OkOr, DC_OPTION_OK_OR_OP, DcRole::OptionOkOrOp),
+    (BinaryOp::MakeRat, DC_MAKE_RAT_OP, DcRole::MakeRatOp),
+    (BinaryOp::Explode, DC_SEQ_EXPLODE_OP, DcRole::SeqExplodeOp),
+    (BinaryOp::Implode, DC_SEQ_IMPLODE_OP, DcRole::SeqImplodeOp),
 ];
 
-const STAGER_TERNARY_OPS: &[(StageRTernaryOp, DcChar, DcRole)] = &[
+const TERNARY_OPS: &[(TernaryOp, DcChar, DcRole)] = &[
+    (TernaryOp::Slice, DC_SEQ_SLICE_OP, DcRole::SeqSliceOp),
     (
-        StageRTernaryOp::TotalSlice,
+        TernaryOp::TotalSlice,
         DC_TOTAL_SEQ_SLICE_OP,
         DcRole::TotalSeqSliceOp,
     ),
+    (TernaryOp::BufSet, DC_STAGEL_BUF_SET, DcRole::StagelBufSet),
     (
-        StageRTernaryOp::TotalBufSet,
+        TernaryOp::TotalBufSet,
         DC_TOTAL_BUF_SET_OP,
         DcRole::TotalBufSetOp,
     ),
@@ -623,43 +539,22 @@ mod tests {
         let mut global_dcs = HashSet::new();
         let mut global_roles = HashSet::new();
         verify_operator_table(
-            "CORE_UNARY_OPS",
-            CORE_UNARY_OPS,
+            "UNARY_OPS",
+            UNARY_OPS,
             resolver.as_ref(),
             &mut global_dcs,
             &mut global_roles,
         );
         verify_operator_table(
-            "CORE_BINARY_OPS",
-            CORE_BINARY_OPS,
+            "BINARY_OPS",
+            BINARY_OPS,
             resolver.as_ref(),
             &mut global_dcs,
             &mut global_roles,
         );
         verify_operator_table(
-            "CORE_TERNARY_OPS",
-            CORE_TERNARY_OPS,
-            resolver.as_ref(),
-            &mut global_dcs,
-            &mut global_roles,
-        );
-        verify_operator_table(
-            "STAGER_UNARY_OPS",
-            STAGER_UNARY_OPS,
-            resolver.as_ref(),
-            &mut global_dcs,
-            &mut global_roles,
-        );
-        verify_operator_table(
-            "STAGER_BINARY_OPS",
-            STAGER_BINARY_OPS,
-            resolver.as_ref(),
-            &mut global_dcs,
-            &mut global_roles,
-        );
-        verify_operator_table(
-            "STAGER_TERNARY_OPS",
-            STAGER_TERNARY_OPS,
+            "TERNARY_OPS",
+            TERNARY_OPS,
             resolver.as_ref(),
             &mut global_dcs,
             &mut global_roles,

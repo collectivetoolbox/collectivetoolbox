@@ -1489,10 +1489,12 @@ fn rewrite_expr_refs(
             span: *span,
         },
         Expr::Conv {
+            total,
             expr: inner,
             target_ty,
             span,
         } => Expr::Conv {
+            total: *total,
             expr: Box::new(rewrite_expr_refs(inner, maps, shadows)),
             target_ty: maps.rewrite_type(target_ty),
             span: *span,
@@ -1720,44 +1722,6 @@ fn rewrite_expr_refs(
         }
         Expr::Propagate { expr: inner, span } => Expr::Propagate {
             expr: Box::new(rewrite_expr_refs(inner, maps, shadows)),
-            span: *span,
-        },
-        Expr::StageRUnary { op, operand, span } => Expr::StageRUnary {
-            op: *op,
-            operand: Box::new(rewrite_expr_refs(operand, maps, shadows)),
-            span: *span,
-        },
-        Expr::StageRBinary {
-            op,
-            left,
-            right,
-            span,
-        } => Expr::StageRBinary {
-            op: *op,
-            left: Box::new(rewrite_expr_refs(left, maps, shadows)),
-            right: Box::new(rewrite_expr_refs(right, maps, shadows)),
-            span: *span,
-        },
-        Expr::StageRTernary {
-            op,
-            first,
-            second,
-            third,
-            span,
-        } => Expr::StageRTernary {
-            op: *op,
-            first: Box::new(rewrite_expr_refs(first, maps, shadows)),
-            second: Box::new(rewrite_expr_refs(second, maps, shadows)),
-            third: Box::new(rewrite_expr_refs(third, maps, shadows)),
-            span: *span,
-        },
-        Expr::TotalConv {
-            expr: inner,
-            target_ty,
-            span,
-        } => Expr::TotalConv {
-            expr: Box::new(rewrite_expr_refs(inner, maps, shadows)),
-            target_ty: maps.rewrite_type(target_ty),
             span: *span,
         },
     }

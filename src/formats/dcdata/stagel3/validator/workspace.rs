@@ -651,11 +651,7 @@ fn expr_uses_stager(expr: &Expr) -> bool {
         | Expr::WrapNominal { .. }
         | Expr::UnwrapNominal { .. }
         | Expr::Match { .. }
-        | Expr::Propagate { .. }
-        | Expr::StageRUnary { .. }
-        | Expr::StageRBinary { .. }
-        | Expr::StageRTernary { .. }
-        | Expr::TotalConv { .. } => true,
+        | Expr::Propagate { .. } => true,
         Expr::List {
             elem_ty, elements, ..
         } => {
@@ -715,24 +711,36 @@ fn expr_uses_stager(expr: &Expr) -> bool {
         Expr::Return { value, .. } => {
             value.as_deref().is_some_and(expr_uses_stager)
         }
-        Expr::Unary { operand, .. } => expr_uses_stager(operand),
-        Expr::Binary { left, right, .. } => {
-            expr_uses_stager(left) || expr_uses_stager(right)
+        Expr::Unary { op, operand, .. } => {
+            op.dialect_restriction() == Some(StageDialect::StageR3)
+                || expr_uses_stager(operand)
+        }
+        Expr::Binary {
+            op, left, right, ..
+        } => {
+            op.dialect_restriction() == Some(StageDialect::StageR3)
+                || expr_uses_stager(left)
+                || expr_uses_stager(right)
         }
         Expr::Ternary {
+            op,
             first,
             second,
             third,
             ..
         } => {
-            expr_uses_stager(first)
+            op.dialect_restriction() == Some(StageDialect::StageR3)
+                || expr_uses_stager(first)
                 || expr_uses_stager(second)
                 || expr_uses_stager(third)
         }
         Expr::Conv {
-            expr, target_ty, ..
-        }
-        | Expr::Bitcast {
+            total,
+            expr,
+            target_ty,
+            ..
+        } => *total || type_uses_stager(target_ty) || expr_uses_stager(expr),
+        Expr::Bitcast {
             expr, target_ty, ..
         } => type_uses_stager(target_ty) || expr_uses_stager(expr),
     }

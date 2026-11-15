@@ -34,8 +34,7 @@ use super::super::ast::{
 use super::decls::NestedVerbPrescanScope;
 use super::lexer::{LexKind, strip_trailing_prop, wrap_propagate};
 use super::types_and_sigs::{
-    is_forbidden_stagel_partial_op, match_binary_op, match_stager_binary_op,
-    match_stager_ternary_op, match_stager_unary_op, match_ternary_op,
+    is_forbidden_stagel_partial_op, match_binary_op, match_ternary_op,
     match_unary_op, parse_list_opener_with_ctx, parse_tup_type_outer_ctors_for,
     parse_type_segments_with_ctx, parse_typed_int_literal_for,
     parse_value_ref_word_with_ctx,
@@ -153,17 +152,11 @@ impl Parser {
             "conv" => {
                 let expr = Box::new(self.parse_expr(enclosing_is_void)?);
                 let target_ty = self.parse_type_operand(span, "conv")?;
-                return Ok(match self.dialect {
-                    StageDialect::StageL3 => Expr::Conv {
-                        expr,
-                        target_ty,
-                        span,
-                    },
-                    StageDialect::StageR3 => Expr::TotalConv {
-                        expr,
-                        target_ty,
-                        span,
-                    },
+                return Ok(Expr::Conv {
+                    total: self.dialect == StageDialect::StageR3,
+                    expr,
+                    target_ty,
+                    span,
                 });
             }
             "bitcast" if self.dialect == StageDialect::StageL3 => {
@@ -187,40 +180,11 @@ impl Parser {
             _ => {}
         }
 
-        if self.dialect == StageDialect::StageR3 {
-            if let Some(op) = match_stager_unary_op(word) {
-                let operand = Box::new(self.parse_expr(enclosing_is_void)?);
-                return Ok(Expr::StageRUnary { op, operand, span });
-            }
-            if let Some(op) = match_stager_binary_op(word) {
-                let left = Box::new(self.parse_expr(enclosing_is_void)?);
-                let right = Box::new(self.parse_expr(enclosing_is_void)?);
-                return Ok(Expr::StageRBinary {
-                    op,
-                    left,
-                    right,
-                    span,
-                });
-            }
-            if let Some(op) = match_stager_ternary_op(word) {
-                let first = Box::new(self.parse_expr(enclosing_is_void)?);
-                let second = Box::new(self.parse_expr(enclosing_is_void)?);
-                let third = Box::new(self.parse_expr(enclosing_is_void)?);
-                return Ok(Expr::StageRTernary {
-                    op,
-                    first,
-                    second,
-                    third,
-                    span,
-                });
-            }
-        }
-
-        if let Some(op) = match_unary_op(word) {
+        if let Some(op) = match_unary_op(word, self.dialect) {
             let operand = Box::new(self.parse_expr(enclosing_is_void)?);
             return Ok(Expr::Unary { op, operand, span });
         }
-        if let Some(op) = match_binary_op(word) {
+        if let Some(op) = match_binary_op(word, self.dialect) {
             let left = Box::new(self.parse_expr(enclosing_is_void)?);
             let right = Box::new(self.parse_expr(enclosing_is_void)?);
             return Ok(Expr::Binary {
@@ -230,7 +194,7 @@ impl Parser {
                 span,
             });
         }
-        if let Some(op) = match_ternary_op(word) {
+        if let Some(op) = match_ternary_op(word, self.dialect) {
             let first = Box::new(self.parse_expr(enclosing_is_void)?);
             let second = Box::new(self.parse_expr(enclosing_is_void)?);
             let third = Box::new(self.parse_expr(enclosing_is_void)?);

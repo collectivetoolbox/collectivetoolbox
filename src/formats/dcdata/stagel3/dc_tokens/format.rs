@@ -741,21 +741,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
         Expr::Unary { op, operand, .. } => {
             write_prefix_op_call(out, op.keyword(), &[operand], None, indent)?;
         }
-        Expr::StageRUnary { op, operand, .. } => {
-            write_prefix_op_call(out, op.keyword(), &[operand], None, indent)?;
-        }
         Expr::Binary {
-            op, left, right, ..
-        } => {
-            write_prefix_op_call(
-                out,
-                op.keyword(),
-                &[left, right],
-                None,
-                indent,
-            )?;
-        }
-        Expr::StageRBinary {
             op, left, right, ..
         } => {
             write_prefix_op_call(
@@ -781,25 +767,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
                 indent,
             )?;
         }
-        Expr::StageRTernary {
-            op,
-            first,
-            second,
-            third,
-            ..
-        } => {
-            write_prefix_op_call(
-                out,
-                op.keyword(),
-                &[first, second, third],
-                None,
-                indent,
-            )?;
-        }
         Expr::Conv {
-            expr, target_ty, ..
-        }
-        | Expr::TotalConv {
             expr, target_ty, ..
         } => {
             write_prefix_op_call(out, "conv", &[expr], Some(target_ty), indent)?;

@@ -749,37 +749,60 @@ impl StageRErrorTag {
     }
 }
 
-/// Unary built-in operator specific to StageR 3 (`Dc 2559..2572`, `Dc 2610..2613`).
+/// Unary built-in operator shared across StageL 3 and StageR 3.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum StageRUnaryOp {
-    /// Total checked negation (`neg`, `Dc 2559`).
+pub enum UnaryOp {
+    /// Checked faulting negation (`neg`, `Dc 2517`, StageL 3 only).
+    Neg,
+    /// Total checked negation returning `result/T` (`neg`, `Dc 2559`, StageR 3 only).
     TotalNeg,
-    /// Option present predicate (`isSome`, `Dc 2566`).
+    /// Bitwise inversion (`bitNot`, `Dc 2524`).
+    BitNot,
+    /// Logical negation (`not`, `Dc 2532`).
+    Not,
+    /// Count leading zero bits (`clz`, `Dc 2529`).
+    Clz,
+    /// Count trailing zero bits (`ctz`, `Dc 2530`).
+    Ctz,
+    /// Population bit count (`popcnt`, `Dc 2531`).
+    Popcnt,
+    /// Sequence/buffer length (`len`, `Dc 2543`).
+    Len,
+    /// Zero-copy freeze `buf/T -> l/T` (`bufFreeze`, `Dc 2585`).
+    BufFreeze,
+    /// Option present predicate (`isSome`, `Dc 2566`, StageR 3 only).
     IsSome,
-    /// Option absent predicate (`isNone`, `Dc 2567`).
+    /// Option absent predicate (`isNone`, `Dc 2567`, StageR 3 only).
     IsNone,
-    /// Result success predicate (`isOk`, `Dc 2568`).
+    /// Result success predicate (`isOk`, `Dc 2568`, StageR 3 only).
     IsOk,
-    /// Result error predicate (`isErr`, `Dc 2569`).
+    /// Result error predicate (`isErr`, `Dc 2569`, StageR 3 only).
     IsErr,
-    /// Mixed-mode `s` payload byte length (`byteLen`, `Dc 2572`).
+    /// Mixed-mode `s` payload byte length (`byteLen`, `Dc 2572`, StageR 3 only).
     ByteLen,
-    /// Fallible `u128 -> result/dc` validation (`dcFromU128`, `Dc 2610`).
+    /// Fallible `u128 -> result/dc` validation (`dcFromU128`, `Dc 2610`, StageR 3 only).
     DcFromU128,
-    /// Infallible `dc -> u128` extraction (`u128FromDc`, `Dc 2611`).
+    /// Infallible `dc -> u128` extraction (`u128FromDc`, `Dc 2611`, StageR 3 only).
     U128FromDc,
-    /// Fallible `s -> result/dcs` validation (`dcsFromS`, `Dc 2612`).
+    /// Fallible `s -> result/dcs` validation (`dcsFromS`, `Dc 2612`, StageR 3 only).
     DcsFromS,
-    /// Infallible `dcs -> s` widening (`sFromDcs`, `Dc 2613`).
+    /// Infallible `dcs -> s` widening (`sFromDcs`, `Dc 2613`, StageR 3 only).
     SFromDcs,
 }
 
-impl StageRUnaryOp {
-    /// Returns the canonical keyword in `.sr3` notation.
+impl UnaryOp {
+    /// Canonical camelCase source keyword.
     #[must_use]
     pub const fn keyword(self) -> &'static str {
         match self {
-            Self::TotalNeg => "neg",
+            Self::Neg | Self::TotalNeg => "neg",
+            Self::BitNot => "bitNot",
+            Self::Not => "not",
+            Self::Clz => "clz",
+            Self::Ctz => "ctz",
+            Self::Popcnt => "popcnt",
+            Self::Len => "len",
+            Self::BufFreeze => "bufFreeze",
             Self::IsSome => "isSome",
             Self::IsNone => "isNone",
             Self::IsOk => "isOk",
@@ -791,56 +814,177 @@ impl StageRUnaryOp {
             Self::SFromDcs => "sFromDcs",
         }
     }
+
+    /// Returns `Some(dialect)` when this operator is restricted to one dialect.
+    #[must_use]
+    pub const fn dialect_restriction(self) -> Option<StageDialect> {
+        match self {
+            Self::Neg => Some(StageDialect::StageL3),
+            Self::TotalNeg
+            | Self::IsSome
+            | Self::IsNone
+            | Self::IsOk
+            | Self::IsErr
+            | Self::ByteLen
+            | Self::DcFromU128
+            | Self::U128FromDc
+            | Self::DcsFromS
+            | Self::SFromDcs => Some(StageDialect::StageR3),
+            Self::BitNot
+            | Self::Not
+            | Self::Clz
+            | Self::Ctz
+            | Self::Popcnt
+            | Self::Len
+            | Self::BufFreeze => None,
+        }
+    }
+
+    /// Reports whether this operator is permitted in `dialect`.
+    #[must_use]
+    pub const fn allowed_in(self, dialect: StageDialect) -> bool {
+        match self.dialect_restriction() {
+            None => true,
+            Some(required) => matches!(
+                (required, dialect),
+                (StageDialect::StageL3, StageDialect::StageL3)
+                    | (StageDialect::StageR3, StageDialect::StageR3)
+            ),
+        }
+    }
+
+    /// Reports whether this unary op is an imperative buffer verb forbidden in
+    /// `const` expressions.
+    #[must_use]
+    pub const fn is_imperative_buf_op(self) -> bool {
+        matches!(self, Self::BufFreeze)
+    }
 }
 
-/// Binary built-in operator specific to StageR 3 (`Dc 2553..2571`, `Dc 2609`,
-/// `Dc 2614..2615`).
+/// Binary built-in operator shared across StageL 3 and StageR 3.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum StageRBinaryOp {
-    /// Total checked/exact addition (`add`, `Dc 2553`).
+pub enum BinaryOp {
+    /// Checked faulting add (`add`, `Dc 2512`, StageL 3 only).
+    Add,
+    /// Total checked/exact addition (`add`, `Dc 2553`, StageR 3 only).
     TotalAdd,
-    /// Total checked/exact subtraction (`sub`, `Dc 2554`).
+    /// Checked faulting sub (`sub`, `Dc 2513`, StageL 3 only).
+    Sub,
+    /// Total checked/exact subtraction (`sub`, `Dc 2554`, StageR 3 only).
     TotalSub,
-    /// Total checked/exact multiplication (`mul`, `Dc 2555`).
+    /// Checked faulting mul (`mul`, `Dc 2514`, StageL 3 only).
+    Mul,
+    /// Total checked/exact multiplication (`mul`, `Dc 2555`, StageR 3 only).
     TotalMul,
-    /// Total truncating/exact division (`div`, `Dc 2556`).
+    /// Checked faulting truncating div (`div`, `Dc 2515`, StageL 3 only).
+    Div,
+    /// Total truncating/exact division (`div`, `Dc 2556`, StageR 3 only).
     TotalDiv,
-    /// Total Euclidean modulo (`mod`, `Dc 2557`).
+    /// Checked faulting truncating remainder (`rem`, `Dc 2516`, StageL 3 only).
+    Rem,
+    /// Total Euclidean modulo (`mod`, `Dc 2557`, StageR 3 only).
     TotalMod,
-    /// Total truncating remainder (`truncRem`, `Dc 2558`).
+    /// Total truncating remainder (`truncRem`, `Dc 2558`, StageR 3 only).
     TotalTruncRem,
-    /// Total checked left shift (`shl`, `Dc 2560`).
+    /// Wrapping add (`wrapAdd`, `Dc 2518`).
+    WrapAdd,
+    /// Wrapping sub (`wrapSub`, `Dc 2519`).
+    WrapSub,
+    /// Wrapping mul (`wrapMul`, `Dc 2520`).
+    WrapMul,
+    /// Bitwise AND (`bitAnd`, `Dc 2521`).
+    BitAnd,
+    /// Bitwise OR (`bitOr`, `Dc 2522`).
+    BitOr,
+    /// Bitwise XOR (`bitXor`, `Dc 2523`).
+    BitXor,
+    /// Faulting shift left (`shl`, `Dc 2525`, StageL 3 only).
+    Shl,
+    /// Total checked left shift (`shl`, `Dc 2560`, StageR 3 only).
     TotalShl,
-    /// Total checked right shift (`shr`, `Dc 2561`).
+    /// Faulting shift right (`shr`, `Dc 2526`, StageL 3 only).
+    Shr,
+    /// Total checked right shift (`shr`, `Dc 2561`, StageR 3 only).
     TotalShr,
-    /// Total indexed element access returning `option/Elem` (`get`, `Dc 2563`).
+    /// Rotate left (`rotl`, `Dc 2527`).
+    Rotl,
+    /// Rotate right (`rotr`, `Dc 2528`).
+    Rotr,
+    /// Short-circuiting logical AND (`and`, `Dc 2533`).
+    And,
+    /// Short-circuiting logical OR (`or`, `Dc 2534`).
+    Or,
+    /// Structural / value equality (`eq`, `Dc 2535`).
+    Eq,
+    /// Structural / value inequality (`ne`, `Dc 2536`).
+    Ne,
+    /// Less than (`lt`, `Dc 2537`).
+    Lt,
+    /// Less than or equal (`le`, `Dc 2538`).
+    Le,
+    /// Greater than (`gt`, `Dc 2539`).
+    Gt,
+    /// Greater than or equal (`ge`, `Dc 2540`).
+    Ge,
+    /// Faulting sequence element indexing (`get`, `Dc 2544`, StageL 3 only).
+    Get,
+    /// Total indexed element access returning `option/Elem` (`get`, `Dc 2563`, StageR 3 only).
     TotalGet,
-    /// Unwrap `option/T` or `result/T` with fallback value (`unwrapOr`, `Dc 2570`).
+    /// Sequence concatenation (`concat`, `Dc 2546`).
+    Concat,
+    /// Filled buffer allocation (`bufFill`, `Dc 2581`).
+    BufFill,
+    /// Buffer push append (`bufPush`, `Dc 2582`).
+    BufPush,
+    /// Buffer bulk list append (`bufExtend`, `Dc 2583`).
+    BufExtend,
+    /// Unwrap `option/T` or `result/T` with fallback (`unwrapOr`, `Dc 2570`, StageR 3 only).
     UnwrapOr,
-    /// Convert `option/T` with `error` into `result/T` (`okOr`, `Dc 2571`).
+    /// Convert `option/T` with `error` into `result/T` (`okOr`, `Dc 2571`, StageR 3 only).
     OkOr,
-    /// Construct canonical reduced `rat` from `(int, int)` (`makeRat`, `Dc 2609`).
+    /// Construct canonical reduced `rat` from `(int, int)` (`makeRat`, `Dc 2609`, StageR 3 only).
     MakeRat,
-    /// Split sequence by separator (`explode`, `Dc 2614`).
+    /// Split sequence by separator (`explode`, `Dc 2614`, StageR 3 only).
     Explode,
-    /// Join sequences with separator (`implode`, `Dc 2615`).
+    /// Join sequences with separator (`implode`, `Dc 2615`, StageR 3 only).
     Implode,
 }
 
-impl StageRBinaryOp {
-    /// Returns the canonical keyword in `.sr3` notation.
+impl BinaryOp {
+    /// Canonical camelCase source keyword.
     #[must_use]
     pub const fn keyword(self) -> &'static str {
         match self {
-            Self::TotalAdd => "add",
-            Self::TotalSub => "sub",
-            Self::TotalMul => "mul",
-            Self::TotalDiv => "div",
+            Self::Add | Self::TotalAdd => "add",
+            Self::Sub | Self::TotalSub => "sub",
+            Self::Mul | Self::TotalMul => "mul",
+            Self::Div | Self::TotalDiv => "div",
+            Self::Rem => "rem",
             Self::TotalMod => "mod",
             Self::TotalTruncRem => "truncRem",
-            Self::TotalShl => "shl",
-            Self::TotalShr => "shr",
-            Self::TotalGet => "get",
+            Self::WrapAdd => "wrapAdd",
+            Self::WrapSub => "wrapSub",
+            Self::WrapMul => "wrapMul",
+            Self::BitAnd => "bitAnd",
+            Self::BitOr => "bitOr",
+            Self::BitXor => "bitXor",
+            Self::Shl | Self::TotalShl => "shl",
+            Self::Shr | Self::TotalShr => "shr",
+            Self::Rotl => "rotl",
+            Self::Rotr => "rotr",
+            Self::And => "and",
+            Self::Or => "or",
+            Self::Eq => "eq",
+            Self::Ne => "ne",
+            Self::Lt => "lt",
+            Self::Le => "le",
+            Self::Gt => "gt",
+            Self::Ge => "ge",
+            Self::Get | Self::TotalGet => "get",
+            Self::Concat => "concat",
+            Self::BufFill => "bufFill",
+            Self::BufPush => "bufPush",
+            Self::BufExtend => "bufExtend",
             Self::UnwrapOr => "unwrapOr",
             Self::OkOr => "okOr",
             Self::MakeRat => "makeRat",
@@ -848,25 +992,127 @@ impl StageRBinaryOp {
             Self::Implode => "implode",
         }
     }
+
+    /// Returns `Some(dialect)` when this operator is restricted to one dialect.
+    #[must_use]
+    pub const fn dialect_restriction(self) -> Option<StageDialect> {
+        match self {
+            Self::Add
+            | Self::Sub
+            | Self::Mul
+            | Self::Div
+            | Self::Rem
+            | Self::Shl
+            | Self::Shr
+            | Self::Get => Some(StageDialect::StageL3),
+            Self::TotalAdd
+            | Self::TotalSub
+            | Self::TotalMul
+            | Self::TotalDiv
+            | Self::TotalMod
+            | Self::TotalTruncRem
+            | Self::TotalShl
+            | Self::TotalShr
+            | Self::TotalGet
+            | Self::UnwrapOr
+            | Self::OkOr
+            | Self::MakeRat
+            | Self::Explode
+            | Self::Implode => Some(StageDialect::StageR3),
+            Self::WrapAdd
+            | Self::WrapSub
+            | Self::WrapMul
+            | Self::BitAnd
+            | Self::BitOr
+            | Self::BitXor
+            | Self::Rotl
+            | Self::Rotr
+            | Self::And
+            | Self::Or
+            | Self::Eq
+            | Self::Ne
+            | Self::Lt
+            | Self::Le
+            | Self::Gt
+            | Self::Ge
+            | Self::Concat
+            | Self::BufFill
+            | Self::BufPush
+            | Self::BufExtend => None,
+        }
+    }
+
+    /// Reports whether this operator is permitted in `dialect`.
+    #[must_use]
+    pub const fn allowed_in(self, dialect: StageDialect) -> bool {
+        match self.dialect_restriction() {
+            None => true,
+            Some(required) => matches!(
+                (required, dialect),
+                (StageDialect::StageL3, StageDialect::StageL3)
+                    | (StageDialect::StageR3, StageDialect::StageR3)
+            ),
+        }
+    }
+
+    /// Reports whether this binary op is an imperative buffer verb forbidden
+    /// in `const` expressions.
+    #[must_use]
+    pub const fn is_imperative_buf_op(self) -> bool {
+        matches!(self, Self::BufFill | Self::BufPush | Self::BufExtend)
+    }
 }
 
-/// Ternary built-in operator specific to StageR 3 (`Dc 2564..2565`).
+/// Ternary built-in operator shared across StageL 3 and StageR 3.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum StageRTernaryOp {
-    /// Total sub-sequence slice returning `option/Seq` (`slice`, `Dc 2564`).
+pub enum TernaryOp {
+    /// Faulting sequence sub-slice (`slice`, `Dc 2545`, StageL 3 only).
+    Slice,
+    /// Total sub-sequence slice returning `option/Seq` (`slice`, `Dc 2564`, StageR 3 only).
     TotalSlice,
-    /// Total checked mutable buffer overwrite returning `result/void` (`bufSet`, `Dc 2565`).
+    /// Faulting buffer indexed mutation (`bufSet`, `Dc 2584`, StageL 3 only).
+    BufSet,
+    /// Total checked mutable buffer overwrite returning `result/void` (`bufSet`, `Dc 2565`, StageR 3 only).
     TotalBufSet,
 }
 
-impl StageRTernaryOp {
-    /// Returns the canonical keyword in `.sr3` notation.
+impl TernaryOp {
+    /// Canonical camelCase source keyword.
     #[must_use]
     pub const fn keyword(self) -> &'static str {
         match self {
-            Self::TotalSlice => "slice",
-            Self::TotalBufSet => "bufSet",
+            Self::Slice | Self::TotalSlice => "slice",
+            Self::BufSet | Self::TotalBufSet => "bufSet",
         }
+    }
+
+    /// Returns `Some(dialect)` when this operator is restricted to one dialect.
+    #[must_use]
+    pub const fn dialect_restriction(self) -> Option<StageDialect> {
+        match self {
+            Self::Slice | Self::BufSet => Some(StageDialect::StageL3),
+            Self::TotalSlice | Self::TotalBufSet => Some(StageDialect::StageR3),
+        }
+    }
+
+    /// Reports whether this operator is permitted in `dialect`.
+    #[must_use]
+    pub const fn allowed_in(self, dialect: StageDialect) -> bool {
+        match self.dialect_restriction() {
+            None => true,
+            Some(required) => matches!(
+                (required, dialect),
+                (StageDialect::StageL3, StageDialect::StageL3)
+                    | (StageDialect::StageR3, StageDialect::StageR3)
+            ),
+        }
+    }
+
+    /// Reports whether this ternary op is an imperative buffer verb forbidden
+    /// in `const` expressions.
+    #[must_use]
+    pub const fn is_imperative_buf_op(self) -> bool {
+        matches!(self, Self::BufSet | Self::TotalBufSet)
     }
 }
 
@@ -892,162 +1138,6 @@ pub enum SymbolTarget {
     Ident(String),
     /// Direct Document Character reference.
     Dc(DcChar),
-}
-
-/// Unary core built-in operator.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CoreUnaryOp {
-    /// Checked negation (`neg`, `Dc 2517`).
-    Neg,
-    /// Bitwise inversion (`bitNot`, `Dc 2524`).
-    BitNot,
-    /// Logical negation (`not`, `Dc 2532`).
-    Not,
-    /// Count leading zero bits (`clz`, `Dc 2529`).
-    Clz,
-    /// Count trailing zero bits (`ctz`, `Dc 2530`).
-    Ctz,
-    /// Population bit count (`popcnt`, `Dc 2531`).
-    Popcnt,
-    /// Sequence/buffer length (`len`, `Dc 2543`).
-    Len,
-    /// Zero-copy freeze `buf/T -> l/T` (`bufFreeze`, `Dc 2585`).
-    BufFreeze,
-}
-
-impl CoreUnaryOp {
-    /// Canonical camelCase source keyword.
-    #[must_use]
-    pub const fn keyword(self) -> &'static str {
-        match self {
-            Self::Neg => "neg",
-            Self::BitNot => "bitNot",
-            Self::Not => "not",
-            Self::Clz => "clz",
-            Self::Ctz => "ctz",
-            Self::Popcnt => "popcnt",
-            Self::Len => "len",
-            Self::BufFreeze => "bufFreeze",
-        }
-    }
-}
-
-/// Binary core built-in operator.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CoreBinaryOp {
-    /// Checked add (`add`, `Dc 2512`).
-    Add,
-    /// Checked sub (`sub`, `Dc 2513`).
-    Sub,
-    /// Checked mul (`mul`, `Dc 2514`).
-    Mul,
-    /// Checked truncating div (`div`, `Dc 2515`).
-    Div,
-    /// Checked truncating remainder (`rem`, `Dc 2516`).
-    Rem,
-    /// Wrapping add (`wrapAdd`, `Dc 2518`).
-    WrapAdd,
-    /// Wrapping sub (`wrapSub`, `Dc 2519`).
-    WrapSub,
-    /// Wrapping mul (`wrapMul`, `Dc 2520`).
-    WrapMul,
-    /// Bitwise AND (`bitAnd`, `Dc 2521`).
-    BitAnd,
-    /// Bitwise OR (`bitOr`, `Dc 2522`).
-    BitOr,
-    /// Bitwise XOR (`bitXor`, `Dc 2523`).
-    BitXor,
-    /// Shift left (`shl`, `Dc 2525`).
-    Shl,
-    /// Shift right (`shr`, `Dc 2526`).
-    Shr,
-    /// Rotate left (`rotl`, `Dc 2527`).
-    Rotl,
-    /// Rotate right (`rotr`, `Dc 2528`).
-    Rotr,
-    /// Short-circuiting logical AND (`and`, `Dc 2533`).
-    And,
-    /// Short-circuiting logical OR (`or`, `Dc 2534`).
-    Or,
-    /// Structural / value equality (`eq`, `Dc 2535`).
-    Eq,
-    /// Structural / value inequality (`ne`, `Dc 2536`).
-    Ne,
-    /// Less than (`lt`, `Dc 2537`).
-    Lt,
-    /// Less than or equal (`le`, `Dc 2538`).
-    Le,
-    /// Greater than (`gt`, `Dc 2539`).
-    Gt,
-    /// Greater than or equal (`ge`, `Dc 2540`).
-    Ge,
-    /// Sequence element indexing (`get`, `Dc 2544`).
-    Get,
-    /// Sequence concatenation (`concat`, `Dc 2546`).
-    Concat,
-    /// Filled buffer allocation (`bufFill`, `Dc 2581`).
-    BufFill,
-    /// Buffer push append (`bufPush`, `Dc 2582`).
-    BufPush,
-    /// Buffer bulk list append (`bufExtend`, `Dc 2583`).
-    BufExtend,
-}
-
-impl CoreBinaryOp {
-    /// Canonical camelCase source keyword.
-    #[must_use]
-    pub const fn keyword(self) -> &'static str {
-        match self {
-            Self::Add => "add",
-            Self::Sub => "sub",
-            Self::Mul => "mul",
-            Self::Div => "div",
-            Self::Rem => "rem",
-            Self::WrapAdd => "wrapAdd",
-            Self::WrapSub => "wrapSub",
-            Self::WrapMul => "wrapMul",
-            Self::BitAnd => "bitAnd",
-            Self::BitOr => "bitOr",
-            Self::BitXor => "bitXor",
-            Self::Shl => "shl",
-            Self::Shr => "shr",
-            Self::Rotl => "rotl",
-            Self::Rotr => "rotr",
-            Self::And => "and",
-            Self::Or => "or",
-            Self::Eq => "eq",
-            Self::Ne => "ne",
-            Self::Lt => "lt",
-            Self::Le => "le",
-            Self::Gt => "gt",
-            Self::Ge => "ge",
-            Self::Get => "get",
-            Self::Concat => "concat",
-            Self::BufFill => "bufFill",
-            Self::BufPush => "bufPush",
-            Self::BufExtend => "bufExtend",
-        }
-    }
-}
-
-/// Ternary core built-in operator.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CoreTernaryOp {
-    /// Sequence sub-slice (`slice`, `Dc 2545`).
-    Slice,
-    /// Buffer indexed mutation (`bufSet`, `Dc 2584`).
-    BufSet,
-}
-
-impl CoreTernaryOp {
-    /// Canonical camelCase source keyword.
-    #[must_use]
-    pub const fn keyword(self) -> &'static str {
-        match self {
-            Self::Slice => "slice",
-            Self::BufSet => "bufSet",
-        }
-    }
 }
 
 /// Element inside a code block (`do ... ::` or routine body).
@@ -1262,7 +1352,7 @@ pub enum Expr {
     /// Built-in unary operation.
     Unary {
         /// Unary operator.
-        op: CoreUnaryOp,
+        op: UnaryOp,
         /// Single operand.
         operand: Box<Expr>,
         /// Source location.
@@ -1271,7 +1361,7 @@ pub enum Expr {
     /// Built-in binary operation.
     Binary {
         /// Binary operator.
-        op: CoreBinaryOp,
+        op: BinaryOp,
         /// First operand.
         left: Box<Expr>,
         /// Second operand.
@@ -1282,7 +1372,7 @@ pub enum Expr {
     /// Built-in ternary operation.
     Ternary {
         /// Ternary operator.
-        op: CoreTernaryOp,
+        op: TernaryOp,
         /// First operand.
         first: Box<Expr>,
         /// Second operand.
@@ -1292,8 +1382,12 @@ pub enum Expr {
         /// Source location.
         span: Span,
     },
-    /// Explicit numeric conversion (`conv EXPR TARGET_TYPE`, `Dc 2541`).
+    /// Explicit numeric conversion (`conv EXPR TARGET_TYPE`: StageL 3 `Dc 2541`,
+    /// StageR 3 `Dc 2562`).
     Conv {
+        /// `true` for total StageR 3 conversion (`Dc 2562`), `false` for
+        /// trapping StageL 3 conversion (`Dc 2541`).
+        total: bool,
         /// Value expression to convert.
         expr: Box<Expr>,
         /// Destination numeric type.
@@ -1446,48 +1540,6 @@ pub enum Expr {
         /// Source location.
         span: Span,
     },
-    /// StageR 3 total/string/scalar unary operator.
-    StageRUnary {
-        /// Operator kind.
-        op: StageRUnaryOp,
-        /// Operand expression.
-        operand: Box<Expr>,
-        /// Source location.
-        span: Span,
-    },
-    /// StageR 3 total/checked/string binary operator.
-    StageRBinary {
-        /// Operator kind.
-        op: StageRBinaryOp,
-        /// First operand expression.
-        left: Box<Expr>,
-        /// Second operand expression.
-        right: Box<Expr>,
-        /// Source location.
-        span: Span,
-    },
-    /// StageR 3 total ternary operator (`slice`, `bufSet`).
-    StageRTernary {
-        /// Operator kind.
-        op: StageRTernaryOp,
-        /// First operand expression.
-        first: Box<Expr>,
-        /// Second operand expression.
-        second: Box<Expr>,
-        /// Third operand expression.
-        third: Box<Expr>,
-        /// Source location.
-        span: Span,
-    },
-    /// StageR 3 numeric conversion (`conv EXPR TARGET_TYPE`, `Dc 2562`).
-    TotalConv {
-        /// Source numeric expression.
-        expr: Box<Expr>,
-        /// Destination numeric type.
-        target_ty: StageLType,
-        /// Source location.
-        span: Span,
-    },
 }
 
 impl Expr {
@@ -1537,11 +1589,7 @@ impl Expr {
             | Self::WrapNominal { span, .. }
             | Self::UnwrapNominal { span, .. }
             | Self::Match { span, .. }
-            | Self::Propagate { span, .. }
-            | Self::StageRUnary { span, .. }
-            | Self::StageRBinary { span, .. }
-            | Self::StageRTernary { span, .. }
-            | Self::TotalConv { span, .. } => *span,
+            | Self::Propagate { span, .. } => *span,
             Self::RoutineDecl(r) => r.span,
         }
     }

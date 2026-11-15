@@ -29,9 +29,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::super::ast::{
-    CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, Span, StageDialect,
-    StageLType, StageRBinaryOp, StageRTernaryOp, StageRUnaryOp, StructTypeRef,
-    SymbolTarget, TypedIntLit,
+    BinaryOp, Expr, Span, StageDialect, StageLType, StructTypeRef,
+    SymbolTarget, TernaryOp, TypedIntLit, UnaryOp,
 };
 use super::consts_and_flow::{BodyCtx, FlowState};
 use super::imports_and_decls::ModuleValidator;
@@ -489,50 +488,29 @@ impl<'a> ModuleValidator<'a> {
                 self.check_propagate(expr, *span, state, ctx)
             }
             Expr::Unary { op, operand, span } => {
-                self.check_core_unary(*op, operand, *span, state, ctx)
+                self.check_unary(*op, operand, *span, state, ctx)
             }
             Expr::Binary {
                 op,
                 left,
                 right,
                 span,
-            } => self.check_core_binary(*op, left, right, *span, state, ctx),
+            } => self.check_binary(*op, left, right, *span, state, ctx),
             Expr::Ternary {
                 op,
                 first,
                 second,
                 third,
                 span,
-            } => self.check_core_ternary(
-                *op, first, second, third, *span, state, ctx,
-            ),
+            } => {
+                self.check_ternary(*op, first, second, third, *span, state, ctx)
+            }
             Expr::Conv {
                 expr,
                 target_ty,
+                total,
                 span,
-            } => {
-                ensure!(
-                    self.dialect == StageDialect::StageL3,
-                    "Trapping StageL 3 'conv' node at {span} is forbidden in StageR 3 (use StageR total 'conv')"
-                );
-                let src_ty = self.check_subexpr(expr, state, ctx)?;
-                let dst_ty = self.check_and_canonicalize_type(
-                    target_ty,
-                    BufPolicy::Disallowed,
-                    false,
-                    false,
-                    *span,
-                )?;
-                ensure!(
-                    dst_ty.is_integer(),
-                    "'conv' target type must be a StageL 3 integer type, found '{dst_ty}' at {span}"
-                );
-                ensure!(
-                    src_ty == StageLType::Never || src_ty.is_integer(),
-                    "'conv' source operand must be a StageL 3 integer type, found '{src_ty}' at {span}"
-                );
-                Ok(dst_ty)
-            }
+            } => self.check_conv(*total, expr, target_ty, *span, state, ctx),
             Expr::Bitcast {
                 expr,
                 target_ty,
@@ -788,29 +766,6 @@ impl<'a> ModuleValidator<'a> {
                 );
                 Ok(bdef.inner_ty.clone())
             }
-            Expr::StageRUnary { op, operand, span } => {
-                self.check_stager_unary(*op, operand, *span, state, ctx)
-            }
-            Expr::StageRBinary {
-                op,
-                left,
-                right,
-                span,
-            } => self.check_stager_binary(*op, left, right, *span, state, ctx),
-            Expr::StageRTernary {
-                op,
-                first,
-                second,
-                third,
-                span,
-            } => self.check_stager_ternary(
-                *op, first, second, third, *span, state, ctx,
-            ),
-            Expr::TotalConv {
-                expr,
-                target_ty,
-                span,
-            } => self.check_total_conv(expr, target_ty, *span, state, ctx),
         }
     }
 
@@ -1065,16 +1020,55 @@ impl<'a> ModuleValidator<'a> {
         Ok(canon_enum)
     }
 
-    fn check_core_unary(
+    /// Enforces that an operator is permitted in the active module dialect.
+    fn ensure_op_allowed(
+        &self,
+        allowed: bool,
+        keyword: &str,
+        span: Span,
+    ) -> Result<()> {
+        if allowed {
+            return Ok(());
+        }
+        match self.dialect {
+            StageDialect::StageL3 => {
+                bail!(
+                    "StageR 3 operator '{keyword}' is not supported in StageL 3 at {span}"
+                )
+            }
+            StageDialect::StageR3 => {
+                bail!(
+                    "Trapping StageL 3 operator '{keyword}' at {span} is forbidden in StageR 3 (use StageR total '{keyword}')"
+                )
+            }
+        }
+    }
+
+    /// Type-checks a pair of subexpressions left-to-right.
+    fn check_subexpr_pair(
         &mut self,
-        op: CoreUnaryOp,
+        left: &Expr,
+        right: &Expr,
+        state: &mut FlowState,
+        ctx: &mut BodyCtx,
+    ) -> Result<(StageLType, StageLType)> {
+        let lty = self.check_subexpr(left, state, ctx)?;
+        let rty = self.check_subexpr(right, state, ctx)?;
+        Ok((lty, rty))
+    }
+
+    /// Type-checks a unified unary operator expression across StageL 3 and StageR 3.
+    fn check_unary(
+        &mut self,
+        op: UnaryOp,
         operand: &Expr,
         span: Span,
         state: &mut FlowState,
         ctx: &mut BodyCtx,
     ) -> Result<StageLType> {
+        self.ensure_op_allowed(op.allowed_in(self.dialect), op.keyword(), span)?;
         match op {
-            CoreUnaryOp::Len => {
+            UnaryOp::Len => {
                 let ty = self.check_buf_target(operand, "len", false, state, ctx)?;
                 if ty == StageLType::Never {
                     return Ok(if self.dialect == StageDialect::StageL3 {
@@ -1102,7 +1096,7 @@ impl<'a> ModuleValidator<'a> {
                 );
                 Ok(StageLType::U64)
             }
-            CoreUnaryOp::BufFreeze => {
+            UnaryOp::BufFreeze => {
                 let ty = self.check_buf_target(
                     operand,
                     "bufFreeze",
@@ -1120,19 +1114,29 @@ impl<'a> ModuleValidator<'a> {
                 };
                 Ok(StageLType::List(inner))
             }
-            CoreUnaryOp::Neg => {
-                ensure!(
-                    self.dialect == StageDialect::StageL3,
-                    "Trapping unary 'neg' at {span} is forbidden in StageR 3 (use StageR total 'neg')"
-                );
+            UnaryOp::Neg | UnaryOp::TotalNeg => {
                 let ty = self.check_subexpr(operand, state, ctx)?;
-                ensure!(
-                    ty == StageLType::Never || ty.is_signed_int(),
-                    "'neg' requires a signed integer operand, found '{ty}' at {span}"
-                );
-                Ok(ty)
+                if ty == StageLType::Never {
+                    return Ok(StageLType::Never);
+                }
+                if op == UnaryOp::Neg {
+                    ensure!(
+                        ty.is_signed_int(),
+                        "'neg' requires a signed integer operand, found '{ty}' at {span}"
+                    );
+                    return Ok(ty);
+                }
+                match &ty {
+                    StageLType::I32 | StageLType::I64 | StageLType::I128 => {
+                        Ok(StageLType::Result(Box::new(ty)))
+                    }
+                    StageLType::Int | StageLType::Rat => Ok(ty),
+                    _ => bail!(
+                        "StageR 'neg' requires signed integer or 'rat' operand, found '{ty}' at {span}"
+                    ),
+                }
             }
-            CoreUnaryOp::BitNot => {
+            UnaryOp::BitNot => {
                 let ty = self.check_subexpr(operand, state, ctx)?;
                 let ok = match self.dialect {
                     StageDialect::StageL3 => ty.is_integer(),
@@ -1144,7 +1148,7 @@ impl<'a> ModuleValidator<'a> {
                 );
                 Ok(ty)
             }
-            CoreUnaryOp::Not => {
+            UnaryOp::Not => {
                 let ty = self.check_subexpr(operand, state, ctx)?;
                 ensure!(
                     ty == StageLType::B || ty == StageLType::Never,
@@ -1152,7 +1156,7 @@ impl<'a> ModuleValidator<'a> {
                 );
                 Ok(ty)
             }
-            CoreUnaryOp::Clz | CoreUnaryOp::Ctz | CoreUnaryOp::Popcnt => {
+            UnaryOp::Clz | UnaryOp::Ctz | UnaryOp::Popcnt => {
                 let ty = self.check_subexpr(operand, state, ctx)?;
                 if ty == StageLType::Never {
                     return Ok(if self.dialect == StageDialect::StageL3 {
@@ -1172,132 +1176,167 @@ impl<'a> ModuleValidator<'a> {
                 );
                 Ok(StageLType::U32)
             }
+            UnaryOp::IsSome
+            | UnaryOp::IsNone
+            | UnaryOp::IsOk
+            | UnaryOp::IsErr
+            | UnaryOp::ByteLen
+            | UnaryOp::DcFromU128
+            | UnaryOp::U128FromDc
+            | UnaryOp::DcsFromS
+            | UnaryOp::SFromDcs => {
+                self.check_stager_only_unary(op, operand, span, state, ctx)
+            }
         }
     }
 
-    #[allow(
-        clippy::too_many_lines,
-        reason = "Uniform CoreBinaryOp dispatch across StageL 3 and StageR 3 rules"
-    )]
-    fn check_core_binary(
+    /// Type-checks StageR-only value conversion and inspection unary operators.
+    fn check_stager_only_unary(
         &mut self,
-        op: CoreBinaryOp,
+        op: UnaryOp,
+        operand: &Expr,
+        span: Span,
+        state: &mut FlowState,
+        ctx: &mut BodyCtx,
+    ) -> Result<StageLType> {
+        let ty = self.check_subexpr(operand, state, ctx)?;
+        if ty == StageLType::Never {
+            return Ok(StageLType::Never);
+        }
+        match op {
+            UnaryOp::IsSome | UnaryOp::IsNone => {
+                ensure!(
+                    matches!(ty, StageLType::Option(_)),
+                    "'{}' requires 'option/T' operand, found '{ty}' at {span}",
+                    op.keyword()
+                );
+                Ok(StageLType::B)
+            }
+            UnaryOp::IsOk | UnaryOp::IsErr => {
+                ensure!(
+                    matches!(ty, StageLType::Result(_)),
+                    "'{}' requires 'result/T' operand, found '{ty}' at {span}",
+                    op.keyword()
+                );
+                Ok(StageLType::B)
+            }
+            UnaryOp::ByteLen => {
+                ensure!(
+                    ty == StageLType::S,
+                    "'byteLen' requires 's' operand, found '{ty}' at {span}"
+                );
+                Ok(StageLType::U64)
+            }
+            UnaryOp::DcFromU128 => {
+                ensure!(
+                    ty == StageLType::U128,
+                    "'dcFromU128' requires 'u128' operand, found '{ty}' at {span}"
+                );
+                Ok(StageLType::Result(Box::new(StageLType::Dc)))
+            }
+            UnaryOp::U128FromDc => {
+                ensure!(
+                    ty == StageLType::Dc,
+                    "'u128FromDc' requires 'dc' operand, found '{ty}' at {span}"
+                );
+                Ok(StageLType::U128)
+            }
+            UnaryOp::DcsFromS => {
+                ensure!(
+                    ty == StageLType::S,
+                    "'dcsFromS' requires 's' operand, found '{ty}' at {span}"
+                );
+                Ok(StageLType::Result(Box::new(StageLType::Dcs)))
+            }
+            UnaryOp::SFromDcs => {
+                ensure!(
+                    ty == StageLType::Dcs,
+                    "'sFromDcs' requires 'dcs' operand, found '{ty}' at {span}"
+                );
+                Ok(StageLType::S)
+            }
+            _ => bail!("Internal unary operator dispatch error at {span}"),
+        }
+    }
+
+    /// Type-checks a unified binary operator expression across StageL 3 and StageR 3.
+    fn check_binary(
+        &mut self,
+        op: BinaryOp,
         left: &Expr,
         right: &Expr,
         span: Span,
         state: &mut FlowState,
         ctx: &mut BodyCtx,
     ) -> Result<StageLType> {
-        if self.dialect == StageDialect::StageR3
-            && matches!(
-                op,
-                CoreBinaryOp::Add
-                    | CoreBinaryOp::Sub
-                    | CoreBinaryOp::Mul
-                    | CoreBinaryOp::Div
-                    | CoreBinaryOp::Rem
-                    | CoreBinaryOp::Shl
-                    | CoreBinaryOp::Shr
-                    | CoreBinaryOp::Get
-            )
-        {
-            bail!(
-                "Trapping StageL 3 operator '{}' at {span} is forbidden in StageR 3 (use StageR total '{}')",
-                op.keyword(),
-                op.keyword()
-            );
-        }
-
-        if matches!(op, CoreBinaryOp::And | CoreBinaryOp::Or) {
-            let lty = self.check_subexpr(left, state, ctx)?;
-            ensure!(
-                lty == StageLType::B || lty == StageLType::Never,
-                "'{}' left operand must be 'b', found '{lty}' at {span}",
-                op.keyword()
-            );
-            let mut rhs_state = state.clone();
-            let mut rhs_ctx = ctx.fork_child(
-                false,
-                ctx.loop_depth,
-                ctx.loop_protected_bufs.clone(),
-            );
-            let rty = self.check_expr(right, &mut rhs_state, &mut rhs_ctx)?;
-            ctx.captured_reads.extend(rhs_ctx.captured_reads);
-            ctx.called_nested.extend(rhs_ctx.called_nested);
-            ensure!(
-                rty == StageLType::B || rty == StageLType::Never,
-                "'{}' right operand must be 'b', found '{rty}' at {span}",
-                op.keyword()
-            );
-            state.intersect_with(&rhs_state);
-            return Ok(if lty == StageLType::Never {
-                StageLType::Never
-            } else {
-                StageLType::B
-            });
-        }
-
-        if op == CoreBinaryOp::BufPush {
-            let buf_ty =
-                self.check_buf_target(left, "bufPush", true, state, ctx)?;
-            let val_ty = self.check_subexpr(right, state, ctx)?;
-            if buf_ty == StageLType::Never {
-                return Ok(StageLType::Never);
-            }
-            let StageLType::Buf(inner) = buf_ty else {
-                bail!(
-                    "'bufPush' requires 'buf/T' first argument at {span}, found '{buf_ty}'"
-                );
-            };
-            ensure!(
-                types_compatible(&val_ty, &inner),
-                "'bufPush' element at {span} has type '{val_ty}', expected '{inner}'"
-            );
-            return Ok(StageLType::Void);
-        }
-
-        if op == CoreBinaryOp::BufExtend {
-            let buf_ty =
-                self.check_buf_target(left, "bufExtend", true, state, ctx)?;
-            let list_ty = self.check_subexpr(right, state, ctx)?;
-            if buf_ty == StageLType::Never {
-                return Ok(StageLType::Never);
-            }
-            let StageLType::Buf(inner) = buf_ty else {
-                bail!(
-                    "'bufExtend' requires 'buf/T' first argument at {span}, found '{buf_ty}'"
-                );
-            };
-            let expected_list = StageLType::List(inner);
-            ensure!(
-                types_compatible(&list_ty, &expected_list),
-                "'bufExtend' list at {span} has type '{list_ty}', expected '{expected_list}'"
-            );
-            return Ok(StageLType::Void);
-        }
-
-        let lty = self.check_subexpr(left, state, ctx)?;
-        let rty = self.check_subexpr(right, state, ctx)?;
-
+        self.ensure_op_allowed(op.allowed_in(self.dialect), op.keyword(), span)?;
         match op {
-            CoreBinaryOp::Add
-            | CoreBinaryOp::Sub
-            | CoreBinaryOp::Mul
-            | CoreBinaryOp::Div
-            | CoreBinaryOp::Rem => unify_matching_pair(
-                op.keyword(),
-                &lty,
-                &rty,
-                StageLType::is_integer,
-                "integer",
-                span,
-            ),
-            CoreBinaryOp::WrapAdd
-            | CoreBinaryOp::WrapSub
-            | CoreBinaryOp::WrapMul
-            | CoreBinaryOp::BitAnd
-            | CoreBinaryOp::BitOr
-            | CoreBinaryOp::BitXor => {
+            BinaryOp::And | BinaryOp::Or => {
+                self.check_short_circuit_logic(op, left, right, span, state, ctx)
+            }
+            BinaryOp::BufPush => {
+                let buf_ty =
+                    self.check_buf_target(left, "bufPush", true, state, ctx)?;
+                let val_ty = self.check_subexpr(right, state, ctx)?;
+                if buf_ty == StageLType::Never {
+                    return Ok(StageLType::Never);
+                }
+                let StageLType::Buf(inner) = buf_ty else {
+                    bail!(
+                        "'bufPush' requires 'buf/T' first argument at {span}, found '{buf_ty}'"
+                    );
+                };
+                ensure!(
+                    types_compatible(&val_ty, &inner),
+                    "'bufPush' element at {span} has type '{val_ty}', expected '{inner}'"
+                );
+                Ok(StageLType::Void)
+            }
+            BinaryOp::BufExtend => {
+                let buf_ty =
+                    self.check_buf_target(left, "bufExtend", true, state, ctx)?;
+                let list_ty = self.check_subexpr(right, state, ctx)?;
+                if buf_ty == StageLType::Never {
+                    return Ok(StageLType::Never);
+                }
+                let StageLType::Buf(inner) = buf_ty else {
+                    bail!(
+                        "'bufExtend' requires 'buf/T' first argument at {span}, found '{buf_ty}'"
+                    );
+                };
+                let expected_list = StageLType::List(inner);
+                ensure!(
+                    types_compatible(&list_ty, &expected_list),
+                    "'bufExtend' list at {span} has type '{list_ty}', expected '{expected_list}'"
+                );
+                Ok(StageLType::Void)
+            }
+            BinaryOp::Get | BinaryOp::TotalGet => {
+                self.check_get_binary(op, left, right, span, state, ctx)
+            }
+            BinaryOp::Add
+            | BinaryOp::Sub
+            | BinaryOp::Mul
+            | BinaryOp::Div
+            | BinaryOp::Rem
+            | BinaryOp::TotalAdd
+            | BinaryOp::TotalSub
+            | BinaryOp::TotalMul
+            | BinaryOp::TotalDiv
+            | BinaryOp::TotalMod
+            | BinaryOp::TotalTruncRem => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
+                Self::check_arith_binary(op, &lty, &rty, span)
+            }
+            BinaryOp::WrapAdd
+            | BinaryOp::WrapSub
+            | BinaryOp::WrapMul
+            | BinaryOp::BitAnd
+            | BinaryOp::BitOr
+            | BinaryOp::BitXor => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
                 let (pred, desc): (fn(&StageLType) -> bool, &str) =
                     match self.dialect {
                         StageDialect::StageL3 => {
@@ -1310,93 +1349,27 @@ impl<'a> ModuleValidator<'a> {
                     };
                 unify_matching_pair(op.keyword(), &lty, &rty, pred, desc, span)
             }
-            CoreBinaryOp::Shl | CoreBinaryOp::Shr => {
-                if lty == StageLType::Never {
-                    ensure!(
-                        rty == StageLType::U32 || rty == StageLType::Never,
-                        "'{}' shift count must be 'u32', found '{rty}' at {span}",
-                        op.keyword()
-                    );
-                    return Ok(StageLType::Never);
-                }
-                ensure!(
-                    lty.is_integer(),
-                    "'{}' target must be integer, found '{lty}' at {span}",
-                    op.keyword()
-                );
-                ensure!(
-                    rty == StageLType::U32 || rty == StageLType::Never,
-                    "'{}' shift count must be 'u32', found '{rty}' at {span}",
-                    op.keyword()
-                );
-                Ok(lty)
+            BinaryOp::Shl
+            | BinaryOp::Shr
+            | BinaryOp::TotalShl
+            | BinaryOp::TotalShr => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
+                Self::check_shift_binary(op, lty, &rty, span)
             }
-            CoreBinaryOp::Rotl | CoreBinaryOp::Rotr => {
-                let ok_target = match self.dialect {
-                    StageDialect::StageL3 => lty.is_unsigned_int(),
-                    StageDialect::StageR3 => lty.is_stager_unsigned_int(),
-                };
-                if lty != StageLType::Never {
-                    ensure!(
-                        ok_target,
-                        "'{}' requires an unsigned fixed-width integer operand, found '{lty}' at {span}",
-                        op.keyword()
-                    );
-                }
-                ensure!(
-                    rty == StageLType::U32 || rty == StageLType::Never,
-                    "'{}' rotation count must be 'u32', found '{rty}' at {span}",
-                    op.keyword()
-                );
-                if lty == StageLType::Never || rty == StageLType::Never {
-                    Ok(if self.dialect == StageDialect::StageR3 {
-                        StageLType::Never
-                    } else {
-                        lty
-                    })
-                } else {
-                    Ok(lty)
-                }
+            BinaryOp::Rotl | BinaryOp::Rotr => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
+                self.check_rot_binary(op, lty, &rty, span)
             }
-            CoreBinaryOp::Eq | CoreBinaryOp::Ne => {
-                match (lty == StageLType::Never, rty == StageLType::Never) {
-                    (true, true) => {
-                        Ok(if self.dialect == StageDialect::StageR3 {
-                            StageLType::Never
-                        } else {
-                            StageLType::B
-                        })
-                    }
-                    (true, false) => {
-                        ensure!(
-                            self.type_supports_eq(&rty),
-                            "'{}' does not support type '{rty}' at {span}",
-                            op.keyword()
-                        );
-                        Ok(StageLType::B)
-                    }
-                    (false, true) => {
-                        ensure!(
-                            self.type_supports_eq(&lty),
-                            "'{}' does not support type '{lty}' at {span}",
-                            op.keyword()
-                        );
-                        Ok(StageLType::B)
-                    }
-                    (false, false) => {
-                        ensure!(
-                            lty == rty && self.type_supports_eq(&lty),
-                            "'{}' requires matching comparable types at {span}, found '{lty}' and '{rty}'",
-                            op.keyword()
-                        );
-                        Ok(StageLType::B)
-                    }
-                }
+            BinaryOp::Eq | BinaryOp::Ne => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
+                self.check_eq_binary(op, &lty, &rty, span)
             }
-            CoreBinaryOp::Lt
-            | CoreBinaryOp::Le
-            | CoreBinaryOp::Gt
-            | CoreBinaryOp::Ge => {
+            BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
                 let (pred, desc): (fn(&StageLType) -> bool, &str) =
                     match self.dialect {
                         StageDialect::StageL3 => {
@@ -1422,49 +1395,38 @@ impl<'a> ModuleValidator<'a> {
                     Ok(StageLType::B)
                 }
             }
-            CoreBinaryOp::Get => {
-                ensure!(
-                    rty == StageLType::U64 || rty == StageLType::Never,
-                    "'get' index must be 'u64', found '{rty}' at {span}"
-                );
-                if lty == StageLType::Never {
-                    return Ok(StageLType::Never);
-                }
-                match &lty {
-                    StageLType::List(inner) | StageLType::Buf(inner) => {
-                        Ok((**inner).clone())
-                    }
-                    _ => bail!(
-                        "'get' requires 'l/T' or 'buf/T' operand, found '{lty}' at {span}"
+            BinaryOp::Concat => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
+                match self.dialect {
+                    StageDialect::StageL3 => unify_matching_pair(
+                        "concat",
+                        &lty,
+                        &rty,
+                        |t| matches!(t, StageLType::List(_)),
+                        "list",
+                        span,
+                    ),
+                    StageDialect::StageR3 => unify_matching_pair(
+                        "concat",
+                        &lty,
+                        &rty,
+                        |t| {
+                            matches!(
+                                t,
+                                StageLType::List(_)
+                                    | StageLType::S
+                                    | StageLType::Dcs
+                            )
+                        },
+                        "sequence ('l/T', 's', or 'dcs')",
+                        span,
                     ),
                 }
             }
-            CoreBinaryOp::Concat => match self.dialect {
-                StageDialect::StageL3 => unify_matching_pair(
-                    "concat",
-                    &lty,
-                    &rty,
-                    |t| matches!(t, StageLType::List(_)),
-                    "list",
-                    span,
-                ),
-                StageDialect::StageR3 => unify_matching_pair(
-                    "concat",
-                    &lty,
-                    &rty,
-                    |t| {
-                        matches!(
-                            t,
-                            StageLType::List(_)
-                                | StageLType::S
-                                | StageLType::Dcs
-                        )
-                    },
-                    "sequence ('l/T', 's', or 'dcs')",
-                    span,
-                ),
-            },
-            CoreBinaryOp::BufFill => {
+            BinaryOp::BufFill => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
                 ensure!(
                     rty == StageLType::U64 || rty == StageLType::Never,
                     "'bufFill' count must be 'u64', found '{rty}' at {span}"
@@ -1485,282 +1447,9 @@ impl<'a> ModuleValidator<'a> {
                 }
                 Ok(StageLType::Buf(Box::new(lty)))
             }
-            CoreBinaryOp::And
-            | CoreBinaryOp::Or
-            | CoreBinaryOp::BufPush
-            | CoreBinaryOp::BufExtend => {
-                // Handled directly above.
-                bail!("Internal operator dispatch error at {span}")
-            }
-        }
-    }
-
-    fn check_core_ternary(
-        &mut self,
-        op: CoreTernaryOp,
-        first: &Expr,
-        second: &Expr,
-        third: &Expr,
-        span: Span,
-        state: &mut FlowState,
-        ctx: &mut BodyCtx,
-    ) -> Result<StageLType> {
-        ensure!(
-            self.dialect == StageDialect::StageL3,
-            "Trapping StageL 3 ternary '{}' at {span} is forbidden in StageR 3 (use StageR total '{}')",
-            op.keyword(),
-            op.keyword()
-        );
-        let first_ty = self.check_subexpr(first, state, ctx)?;
-        let second_ty = self.check_subexpr(second, state, ctx)?;
-        let third_ty = self.check_subexpr(third, state, ctx)?;
-        match op {
-            CoreTernaryOp::Slice => {
-                ensure!(
-                    second_ty == StageLType::U64
-                        || second_ty == StageLType::Never,
-                    "'slice' start index must be 'u64', found '{second_ty}' at {span}"
-                );
-                ensure!(
-                    third_ty == StageLType::U64
-                        || third_ty == StageLType::Never,
-                    "'slice' end index must be 'u64', found '{third_ty}' at {span}"
-                );
-                if first_ty == StageLType::Never {
-                    return Ok(StageLType::Never);
-                }
-                match first_ty {
-                    StageLType::List(inner) | StageLType::Buf(inner) => {
-                        Ok(StageLType::List(inner))
-                    }
-                    _ => bail!(
-                        "'slice' requires 'l/T' or 'buf/T' first operand, found '{first_ty}' at {span}"
-                    ),
-                }
-            }
-            CoreTernaryOp::BufSet => {
-                ensure!(
-                    second_ty == StageLType::U64
-                        || second_ty == StageLType::Never,
-                    "'bufSet' index must be 'u64', found '{second_ty}' at {span}"
-                );
-                if first_ty == StageLType::Never {
-                    return Ok(StageLType::Void);
-                }
-                let StageLType::Buf(inner) = first_ty else {
-                    bail!(
-                        "'bufSet' requires 'buf/T' first operand, found '{first_ty}' at {span}"
-                    );
-                };
-                ensure!(
-                    types_compatible(&third_ty, &inner),
-                    "'bufSet' value at {span} has type '{third_ty}', expected '{inner}'"
-                );
-                Ok(StageLType::Void)
-            }
-        }
-    }
-
-    fn check_stager_unary(
-        &mut self,
-        op: StageRUnaryOp,
-        operand: &Expr,
-        span: Span,
-        state: &mut FlowState,
-        ctx: &mut BodyCtx,
-    ) -> Result<StageLType> {
-        ensure!(
-            self.dialect == StageDialect::StageR3,
-            "StageR 3 operator '{}' is not supported in StageL 3 at {span}",
-            op.keyword()
-        );
-        let ty = self.check_subexpr(operand, state, ctx)?;
-        if ty == StageLType::Never {
-            return Ok(StageLType::Never);
-        }
-        match op {
-            StageRUnaryOp::TotalNeg => match &ty {
-                StageLType::I32 | StageLType::I64 | StageLType::I128 => {
-                    Ok(StageLType::Result(Box::new(ty)))
-                }
-                StageLType::Int | StageLType::Rat => Ok(ty),
-                _ => bail!(
-                    "StageR 'neg' requires signed integer or 'rat' operand, found '{ty}' at {span}"
-                ),
-            },
-            StageRUnaryOp::IsSome | StageRUnaryOp::IsNone => {
-                ensure!(
-                    matches!(ty, StageLType::Option(_)),
-                    "'{}' requires 'option/T' operand, found '{ty}' at {span}",
-                    op.keyword()
-                );
-                Ok(StageLType::B)
-            }
-            StageRUnaryOp::IsOk | StageRUnaryOp::IsErr => {
-                ensure!(
-                    matches!(ty, StageLType::Result(_)),
-                    "'{}' requires 'result/T' operand, found '{ty}' at {span}",
-                    op.keyword()
-                );
-                Ok(StageLType::B)
-            }
-            StageRUnaryOp::ByteLen => {
-                ensure!(
-                    ty == StageLType::S,
-                    "'byteLen' requires 's' operand, found '{ty}' at {span}"
-                );
-                Ok(StageLType::U64)
-            }
-            StageRUnaryOp::DcFromU128 => {
-                ensure!(
-                    ty == StageLType::U128,
-                    "'dcFromU128' requires 'u128' operand, found '{ty}' at {span}"
-                );
-                Ok(StageLType::Result(Box::new(StageLType::Dc)))
-            }
-            StageRUnaryOp::U128FromDc => {
-                ensure!(
-                    ty == StageLType::Dc,
-                    "'u128FromDc' requires 'dc' operand, found '{ty}' at {span}"
-                );
-                Ok(StageLType::U128)
-            }
-            StageRUnaryOp::DcsFromS => {
-                ensure!(
-                    ty == StageLType::S,
-                    "'dcsFromS' requires 's' operand, found '{ty}' at {span}"
-                );
-                Ok(StageLType::Result(Box::new(StageLType::Dcs)))
-            }
-            StageRUnaryOp::SFromDcs => {
-                ensure!(
-                    ty == StageLType::Dcs,
-                    "'sFromDcs' requires 'dcs' operand, found '{ty}' at {span}"
-                );
-                Ok(StageLType::S)
-            }
-        }
-    }
-
-    #[allow(
-        clippy::too_many_lines,
-        reason = "Total arithmetic, option/result, rat, and sequence binary operator checks"
-    )]
-    fn check_stager_binary(
-        &mut self,
-        op: StageRBinaryOp,
-        left: &Expr,
-        right: &Expr,
-        span: Span,
-        state: &mut FlowState,
-        ctx: &mut BodyCtx,
-    ) -> Result<StageLType> {
-        ensure!(
-            self.dialect == StageDialect::StageR3,
-            "StageR 3 operator '{}' is not supported in StageL 3 at {span}",
-            op.keyword()
-        );
-        if op == StageRBinaryOp::TotalGet {
-            let lty =
-                self.check_buf_target(left, op.keyword(), false, state, ctx)?;
-            let rty = self.check_subexpr(right, state, ctx)?;
-            ensure!(
-                types_compatible(&rty, &StageLType::U64),
-                "'get' index must be 'u64', found '{rty}' at {}",
-                right.span()
-            );
-            if lty == StageLType::Never || rty == StageLType::Never {
-                return Ok(StageLType::Never);
-            }
-            return match lty {
-                StageLType::List(el) | StageLType::Buf(el) => {
-                    Ok(StageLType::Option(el))
-                }
-                StageLType::Dcs => {
-                    Ok(StageLType::Option(Box::new(StageLType::Dc)))
-                }
-                other => bail!(
-                    "'get' sequence operand must be 'l/T', 'buf/T', or 'dcs', found '{other}' at {span}"
-                ),
-            };
-        }
-        let lty = self.check_subexpr(left, state, ctx)?;
-        let rty = self.check_subexpr(right, state, ctx)?;
-
-        match op {
-            StageRBinaryOp::TotalAdd
-            | StageRBinaryOp::TotalSub
-            | StageRBinaryOp::TotalMul => {
-                let joined = unify_matching_pair(
-                    op.keyword(),
-                    &lty,
-                    &rty,
-                    StageLType::is_stager_numeric,
-                    "numeric",
-                    span,
-                )?;
-                if joined == StageLType::Never {
-                    return Ok(StageLType::Never);
-                }
-                if joined.is_stager_fixed_int() {
-                    Ok(StageLType::Result(Box::new(joined)))
-                } else {
-                    Ok(joined)
-                }
-            }
-            StageRBinaryOp::TotalDiv => {
-                let joined = unify_matching_pair(
-                    "div",
-                    &lty,
-                    &rty,
-                    StageLType::is_stager_numeric,
-                    "numeric",
-                    span,
-                )?;
-                if joined == StageLType::Never {
-                    Ok(StageLType::Never)
-                } else {
-                    Ok(StageLType::Result(Box::new(joined)))
-                }
-            }
-            StageRBinaryOp::TotalMod | StageRBinaryOp::TotalTruncRem => {
-                let joined = unify_matching_pair(
-                    op.keyword(),
-                    &lty,
-                    &rty,
-                    is_stager_integer,
-                    "integer",
-                    span,
-                )?;
-                if joined == StageLType::Never {
-                    Ok(StageLType::Never)
-                } else {
-                    Ok(StageLType::Result(Box::new(joined)))
-                }
-            }
-            StageRBinaryOp::TotalShl | StageRBinaryOp::TotalShr => {
-                if lty != StageLType::Never {
-                    ensure!(
-                        lty.is_stager_fixed_int(),
-                        "'{}' target must be fixed-width integer, found '{lty}' at {span}",
-                        op.keyword()
-                    );
-                }
-                ensure!(
-                    rty == StageLType::U32 || rty == StageLType::Never,
-                    "'{}' shift count must be 'u32', found '{rty}' at {span}",
-                    op.keyword()
-                );
-                if lty == StageLType::Never || rty == StageLType::Never {
-                    Ok(StageLType::Never)
-                } else {
-                    Ok(StageLType::Result(Box::new(lty)))
-                }
-            }
-            StageRBinaryOp::TotalGet => {
-                unreachable!("TotalGet handled before check_subexpr above")
-            }
-            StageRBinaryOp::UnwrapOr => {
+            BinaryOp::UnwrapOr => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
                 if lty == StageLType::Never {
                     return Ok(rty);
                 }
@@ -1778,7 +1467,9 @@ impl<'a> ModuleValidator<'a> {
                 );
                 Ok(ok_ty)
             }
-            StageRBinaryOp::OkOr => {
+            BinaryOp::OkOr => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
                 ensure!(
                     rty == StageLType::Error || rty == StageLType::Never,
                     "'okOr' second operand must be 'error', found '{rty}' at {span}"
@@ -1793,7 +1484,9 @@ impl<'a> ModuleValidator<'a> {
                 };
                 Ok(StageLType::Result(inner))
             }
-            StageRBinaryOp::MakeRat => {
+            BinaryOp::MakeRat => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
                 ensure!(
                     lty == StageLType::Int || lty == StageLType::Never,
                     "'makeRat' numerator must be 'int', found '{lty}' at {span}"
@@ -1808,60 +1501,339 @@ impl<'a> ModuleValidator<'a> {
                     Ok(StageLType::Result(Box::new(StageLType::Rat)))
                 }
             }
-            StageRBinaryOp::Explode => {
-                let seq = match (&lty, &rty) {
-                    (StageLType::Never, _) | (_, StageLType::Never) => {
-                        return Ok(StageLType::Never);
-                    }
-                    (StageLType::S, StageLType::S) => StageLType::S,
-                    (StageLType::Dcs, StageLType::Dcs) => StageLType::Dcs,
-                    (StageLType::List(a), StageLType::List(b)) => {
-                        ensure!(
-                            a == b,
-                            "'explode' list types must match at {span}: '{lty}' vs '{rty}'"
-                        );
-                        ensure!(
-                            self.type_supports_eq(a),
-                            "'explode' element type '{a}' must support 'eq' at {span}"
-                        );
-                        StageLType::List(a.clone())
-                    }
-                    _ => bail!(
-                        "'explode' requires matching 's', 'dcs', or 'l/T' operands at {span}, found '{lty}' and '{rty}'"
-                    ),
-                };
-                Ok(StageLType::List(Box::new(seq)))
+            BinaryOp::Explode => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
+                self.check_explode_binary(&lty, &rty, span)
             }
-            StageRBinaryOp::Implode => match (&lty, &rty) {
-                (StageLType::Never, _) | (_, StageLType::Never) => {
-                    Ok(StageLType::Never)
-                }
-                (seq, StageLType::List(part_elem)) => {
-                    ensure!(
-                        matches!(
-                            seq,
-                            StageLType::S
-                                | StageLType::Dcs
-                                | StageLType::List(_)
-                        ),
-                        "'implode' separator must be 's', 'dcs', or 'l/T', found '{seq}' at {span}"
-                    );
-                    ensure!(
-                        seq == part_elem.as_ref(),
-                        "'implode' parts list element '{part_elem}' must match separator '{seq}' at {span}"
-                    );
-                    Ok(seq.clone())
-                }
-                (sep, other) => bail!(
-                    "'implode' expects 'l/({sep})' parts list as second operand, found '{other}' at {span}"
-                ),
-            },
+            BinaryOp::Implode => {
+                let (lty, rty) =
+                    self.check_subexpr_pair(left, right, state, ctx)?;
+                Self::check_implode_binary(&lty, &rty, span)
+            }
         }
     }
 
-    fn check_stager_ternary(
+    /// Type-checks short-circuiting boolean `and` / `or` with linear-flow intersection.
+    fn check_short_circuit_logic(
         &mut self,
-        op: StageRTernaryOp,
+        op: BinaryOp,
+        left: &Expr,
+        right: &Expr,
+        span: Span,
+        state: &mut FlowState,
+        ctx: &mut BodyCtx,
+    ) -> Result<StageLType> {
+        let lty = self.check_subexpr(left, state, ctx)?;
+        ensure!(
+            lty == StageLType::B || lty == StageLType::Never,
+            "'{}' left operand must be 'b', found '{lty}' at {span}",
+            op.keyword()
+        );
+        let mut rhs_state = state.clone();
+        let mut rhs_ctx = ctx.fork_child(
+            false,
+            ctx.loop_depth,
+            ctx.loop_protected_bufs.clone(),
+        );
+        let rty = self.check_expr(right, &mut rhs_state, &mut rhs_ctx)?;
+        ctx.captured_reads.extend(rhs_ctx.captured_reads);
+        ctx.called_nested.extend(rhs_ctx.called_nested);
+        ensure!(
+            rty == StageLType::B || rty == StageLType::Never,
+            "'{}' right operand must be 'b', found '{rty}' at {span}",
+            op.keyword()
+        );
+        state.intersect_with(&rhs_state);
+        Ok(if lty == StageLType::Never {
+            StageLType::Never
+        } else {
+            StageLType::B
+        })
+    }
+
+    /// Type-checks faulting StageL `get` and total StageR `get`.
+    fn check_get_binary(
+        &mut self,
+        op: BinaryOp,
+        left: &Expr,
+        right: &Expr,
+        span: Span,
+        state: &mut FlowState,
+        ctx: &mut BodyCtx,
+    ) -> Result<StageLType> {
+        let is_total = op == BinaryOp::TotalGet;
+        let lty = self.check_buf_target(left, op.keyword(), false, state, ctx)?;
+        let rty = self.check_subexpr(right, state, ctx)?;
+        let idx_span = if is_total { right.span() } else { span };
+        ensure!(
+            types_compatible(&rty, &StageLType::U64),
+            "'get' index must be 'u64', found '{rty}' at {idx_span}"
+        );
+        if lty == StageLType::Never || (is_total && rty == StageLType::Never) {
+            return Ok(StageLType::Never);
+        }
+        match lty {
+            StageLType::List(el) | StageLType::Buf(el) => Ok(if is_total {
+                StageLType::Option(el)
+            } else {
+                *el
+            }),
+            StageLType::Dcs if is_total => {
+                Ok(StageLType::Option(Box::new(StageLType::Dc)))
+            }
+            other if is_total => bail!(
+                "'get' sequence operand must be 'l/T', 'buf/T', or 'dcs', found '{other}' at {span}"
+            ),
+            other => bail!(
+                "'get' requires 'l/T' or 'buf/T' operand, found '{other}' at {span}"
+            ),
+        }
+    }
+
+    /// Type-checks trapping StageL and total StageR binary arithmetic operators.
+    fn check_arith_binary(
+        op: BinaryOp,
+        lty: &StageLType,
+        rty: &StageLType,
+        span: Span,
+    ) -> Result<StageLType> {
+        enum ResultWrap {
+            Direct,
+            FixedIntResult,
+            AlwaysResult,
+        }
+        let (pred, desc, wrap): (fn(&StageLType) -> bool, &str, ResultWrap) =
+            match op {
+                BinaryOp::Add
+                | BinaryOp::Sub
+                | BinaryOp::Mul
+                | BinaryOp::Div
+                | BinaryOp::Rem => (
+                    StageLType::is_integer,
+                    "integer",
+                    ResultWrap::Direct,
+                ),
+                BinaryOp::TotalAdd | BinaryOp::TotalSub | BinaryOp::TotalMul => {
+                    (
+                        StageLType::is_stager_numeric,
+                        "numeric",
+                        ResultWrap::FixedIntResult,
+                    )
+                }
+                BinaryOp::TotalDiv => (
+                    StageLType::is_stager_numeric,
+                    "numeric",
+                    ResultWrap::AlwaysResult,
+                ),
+                BinaryOp::TotalMod | BinaryOp::TotalTruncRem => (
+                    is_stager_integer,
+                    "integer",
+                    ResultWrap::AlwaysResult,
+                ),
+                _ => {
+                    bail!(
+                        "Internal arithmetic operator dispatch error at {span}"
+                    )
+                }
+            };
+        let joined = unify_matching_pair(op.keyword(), lty, rty, pred, desc, span)?;
+        if joined == StageLType::Never {
+            return Ok(StageLType::Never);
+        }
+        match wrap {
+            ResultWrap::Direct => Ok(joined),
+            ResultWrap::FixedIntResult => {
+                if joined.is_stager_fixed_int() {
+                    Ok(StageLType::Result(Box::new(joined)))
+                } else {
+                    Ok(joined)
+                }
+            }
+            ResultWrap::AlwaysResult => Ok(StageLType::Result(Box::new(joined))),
+        }
+    }
+
+    /// Type-checks trapping StageL and total StageR shift operators.
+    fn check_shift_binary(
+        op: BinaryOp,
+        lty: StageLType,
+        rty: &StageLType,
+        span: Span,
+    ) -> Result<StageLType> {
+        let is_total = matches!(op, BinaryOp::TotalShl | BinaryOp::TotalShr);
+        if lty != StageLType::Never {
+            let valid = if is_total {
+                lty.is_stager_fixed_int()
+            } else {
+                lty.is_integer()
+            };
+            let kind = if is_total {
+                "fixed-width integer"
+            } else {
+                "integer"
+            };
+            ensure!(
+                valid,
+                "'{}' target must be {kind}, found '{lty}' at {span}",
+                op.keyword()
+            );
+        }
+        ensure!(
+            *rty == StageLType::U32 || *rty == StageLType::Never,
+            "'{}' shift count must be 'u32', found '{rty}' at {span}",
+            op.keyword()
+        );
+        if lty == StageLType::Never || (is_total && *rty == StageLType::Never) {
+            Ok(StageLType::Never)
+        } else if is_total {
+            Ok(StageLType::Result(Box::new(lty)))
+        } else {
+            Ok(lty)
+        }
+    }
+
+    /// Type-checks bitwise rotation operators `rotl` and `rotr`.
+    fn check_rot_binary(
+        &self,
+        op: BinaryOp,
+        lty: StageLType,
+        rty: &StageLType,
+        span: Span,
+    ) -> Result<StageLType> {
+        let ok_target = match self.dialect {
+            StageDialect::StageL3 => lty.is_unsigned_int(),
+            StageDialect::StageR3 => lty.is_stager_unsigned_int(),
+        };
+        if lty != StageLType::Never {
+            ensure!(
+                ok_target,
+                "'{}' requires an unsigned fixed-width integer operand, found '{lty}' at {span}",
+                op.keyword()
+            );
+        }
+        ensure!(
+            *rty == StageLType::U32 || *rty == StageLType::Never,
+            "'{}' rotation count must be 'u32', found '{rty}' at {span}",
+            op.keyword()
+        );
+        if lty == StageLType::Never || *rty == StageLType::Never {
+            Ok(if self.dialect == StageDialect::StageR3 {
+                StageLType::Never
+            } else {
+                lty
+            })
+        } else {
+            Ok(lty)
+        }
+    }
+
+    /// Type-checks equality operators `eq` and `ne`.
+    fn check_eq_binary(
+        &self,
+        op: BinaryOp,
+        lty: &StageLType,
+        rty: &StageLType,
+        span: Span,
+    ) -> Result<StageLType> {
+        match (lty == &StageLType::Never, rty == &StageLType::Never) {
+            (true, true) => Ok(if self.dialect == StageDialect::StageR3 {
+                StageLType::Never
+            } else {
+                StageLType::B
+            }),
+            (true, false) => {
+                ensure!(
+                    self.type_supports_eq(rty),
+                    "'{}' does not support type '{rty}' at {span}",
+                    op.keyword()
+                );
+                Ok(StageLType::B)
+            }
+            (false, true) => {
+                ensure!(
+                    self.type_supports_eq(lty),
+                    "'{}' does not support type '{lty}' at {span}",
+                    op.keyword()
+                );
+                Ok(StageLType::B)
+            }
+            (false, false) => {
+                ensure!(
+                    lty == rty && self.type_supports_eq(lty),
+                    "'{}' requires matching comparable types at {span}, found '{lty}' and '{rty}'",
+                    op.keyword()
+                );
+                Ok(StageLType::B)
+            }
+        }
+    }
+
+    /// Type-checks StageR sequence `explode`.
+    fn check_explode_binary(
+        &self,
+        lty: &StageLType,
+        rty: &StageLType,
+        span: Span,
+    ) -> Result<StageLType> {
+        let seq = match (lty, rty) {
+            (StageLType::Never, _) | (_, StageLType::Never) => {
+                return Ok(StageLType::Never);
+            }
+            (StageLType::S, StageLType::S) => StageLType::S,
+            (StageLType::Dcs, StageLType::Dcs) => StageLType::Dcs,
+            (StageLType::List(a), StageLType::List(b)) => {
+                ensure!(
+                    a == b,
+                    "'explode' list types must match at {span}: '{lty}' vs '{rty}'"
+                );
+                ensure!(
+                    self.type_supports_eq(a),
+                    "'explode' element type '{a}' must support 'eq' at {span}"
+                );
+                StageLType::List(a.clone())
+            }
+            _ => bail!(
+                "'explode' requires matching 's', 'dcs', or 'l/T' operands at {span}, found '{lty}' and '{rty}'"
+            ),
+        };
+        Ok(StageLType::List(Box::new(seq)))
+    }
+
+    /// Type-checks StageR sequence `implode`.
+    fn check_implode_binary(
+        lty: &StageLType,
+        rty: &StageLType,
+        span: Span,
+    ) -> Result<StageLType> {
+        match (lty, rty) {
+            (StageLType::Never, _) | (_, StageLType::Never) => {
+                Ok(StageLType::Never)
+            }
+            (seq, StageLType::List(part_elem)) => {
+                ensure!(
+                    matches!(
+                        seq,
+                        StageLType::S | StageLType::Dcs | StageLType::List(_)
+                    ),
+                    "'implode' separator must be 's', 'dcs', or 'l/T', found '{seq}' at {span}"
+                );
+                ensure!(
+                    seq == part_elem.as_ref(),
+                    "'implode' parts list element '{part_elem}' must match separator '{seq}' at {span}"
+                );
+                Ok(seq.clone())
+            }
+            (sep, other) => bail!(
+                "'implode' expects 'l/({sep})' parts list as second operand, found '{other}' at {span}"
+            ),
+        }
+    }
+
+    /// Type-checks a unified ternary operator expression across StageL 3 and StageR 3.
+    fn check_ternary(
+        &mut self,
+        op: TernaryOp,
         first: &Expr,
         second: &Expr,
         third: &Expr,
@@ -1869,68 +1841,94 @@ impl<'a> ModuleValidator<'a> {
         state: &mut FlowState,
         ctx: &mut BodyCtx,
     ) -> Result<StageLType> {
-        ensure!(
-            self.dialect == StageDialect::StageR3,
-            "StageR 3 operator '{}' is not supported in StageL 3 at {span}",
-            op.keyword()
-        );
+        self.ensure_op_allowed(op.allowed_in(self.dialect), op.keyword(), span)?;
         match op {
-            StageRTernaryOp::TotalSlice => {
+            TernaryOp::Slice | TernaryOp::TotalSlice => {
+                let is_total = op == TernaryOp::TotalSlice;
                 let seq_ty = self.check_subexpr(first, state, ctx)?;
                 let start_ty = self.check_subexpr(second, state, ctx)?;
                 let end_ty = self.check_subexpr(third, state, ctx)?;
+                let prefix = if is_total { "StageR 'slice'" } else { "'slice'" };
                 ensure!(
                     start_ty == StageLType::U64
                         || start_ty == StageLType::Never,
-                    "StageR 'slice' start index must be 'u64', found '{start_ty}' at {span}"
+                    "{prefix} start index must be 'u64', found '{start_ty}' at {span}"
                 );
                 ensure!(
                     end_ty == StageLType::U64 || end_ty == StageLType::Never,
-                    "StageR 'slice' end index must be 'u64', found '{end_ty}' at {span}"
+                    "{prefix} end index must be 'u64', found '{end_ty}' at {span}"
                 );
                 if seq_ty == StageLType::Never
-                    || start_ty == StageLType::Never
-                    || end_ty == StageLType::Never
+                    || (is_total
+                        && (start_ty == StageLType::Never
+                            || end_ty == StageLType::Never))
                 {
                     return Ok(StageLType::Never);
                 }
                 match seq_ty {
-                    StageLType::List(_) | StageLType::Dcs => {
+                    StageLType::List(_) if is_total => {
                         Ok(StageLType::Option(Box::new(seq_ty)))
                     }
-                    _ => bail!(
+                    StageLType::Dcs if is_total => {
+                        Ok(StageLType::Option(Box::new(StageLType::Dcs)))
+                    }
+                    StageLType::List(inner) | StageLType::Buf(inner)
+                        if !is_total =>
+                    {
+                        Ok(StageLType::List(inner))
+                    }
+                    _ if is_total => bail!(
                         "StageR 'slice' requires 'l/T' or 'dcs', found '{seq_ty}' at {span}"
+                    ),
+                    _ => bail!(
+                        "'slice' requires 'l/T' or 'buf/T' first operand, found '{seq_ty}' at {span}"
                     ),
                 }
             }
-            StageRTernaryOp::TotalBufSet => {
+            TernaryOp::BufSet | TernaryOp::TotalBufSet => {
+                let is_total = op == TernaryOp::TotalBufSet;
                 let buf_ty =
                     self.check_buf_target(first, "bufSet", true, state, ctx)?;
                 let idx_ty = self.check_subexpr(second, state, ctx)?;
                 let val_ty = self.check_subexpr(third, state, ctx)?;
+                let prefix = if is_total {
+                    "StageR 'bufSet'"
+                } else {
+                    "'bufSet'"
+                };
                 ensure!(
                     idx_ty == StageLType::U64 || idx_ty == StageLType::Never,
-                    "StageR 'bufSet' index must be 'u64', found '{idx_ty}' at {span}"
+                    "{prefix} index must be 'u64', found '{idx_ty}' at {span}"
                 );
                 if buf_ty == StageLType::Never {
-                    return Ok(StageLType::Never);
+                    return Ok(if is_total {
+                        StageLType::Never
+                    } else {
+                        StageLType::Void
+                    });
                 }
                 let StageLType::Buf(inner) = buf_ty else {
                     bail!(
-                        "StageR 'bufSet' requires 'buf/T' first operand, found '{buf_ty}' at {span}"
+                        "{prefix} requires 'buf/T' first operand, found '{buf_ty}' at {span}"
                     );
                 };
                 ensure!(
                     types_compatible(&val_ty, &inner),
-                    "StageR 'bufSet' value at {span} has type '{val_ty}', expected '{inner}'"
+                    "{prefix} value at {span} has type '{val_ty}', expected '{inner}'"
                 );
-                Ok(StageLType::Result(Box::new(StageLType::Void)))
+                Ok(if is_total {
+                    StageLType::Result(Box::new(StageLType::Void))
+                } else {
+                    StageLType::Void
+                })
             }
         }
     }
 
-    fn check_total_conv(
+    /// Type-checks trapping StageL `conv` and total StageR `conv`.
+    fn check_conv(
         &mut self,
+        total: bool,
         expr: &Expr,
         target_ty: &StageLType,
         span: Span,
@@ -1938,8 +1936,17 @@ impl<'a> ModuleValidator<'a> {
         ctx: &mut BodyCtx,
     ) -> Result<StageLType> {
         ensure!(
-            self.dialect == StageDialect::StageR3,
-            "StageR 3 total 'conv' is not supported in StageL 3 at {span}"
+            total == (self.dialect == StageDialect::StageR3),
+            "{}",
+            if total {
+                format!(
+                    "StageR 3 total 'conv' is not supported in StageL 3 at {span}"
+                )
+            } else {
+                format!(
+                    "Trapping StageL 3 'conv' node at {span} is forbidden in StageR 3 (use StageR total 'conv')"
+                )
+            }
         );
         let src_ty = self.check_subexpr(expr, state, ctx)?;
         let dst_ty = self.check_and_canonicalize_type(
@@ -1949,21 +1956,31 @@ impl<'a> ModuleValidator<'a> {
             false,
             span,
         )?;
+        let (pred, role_label, kind): (fn(&StageLType) -> bool, &str, &str) =
+            if total {
+                (StageLType::is_stager_numeric, "StageR 'conv'", "numeric")
+            } else {
+                (
+                    StageLType::is_integer,
+                    "'conv'",
+                    "a StageL 3 integer type",
+                )
+            };
         ensure!(
-            dst_ty.is_stager_numeric(),
-            "StageR 'conv' target type must be numeric, found '{dst_ty}' at {span}"
+            pred(&dst_ty),
+            "{role_label} target type must be {kind}, found '{dst_ty}' at {span}"
         );
         if src_ty == StageLType::Never {
-            return Ok(StageLType::Never);
+            return Ok(if total { StageLType::Never } else { dst_ty });
         }
         ensure!(
-            src_ty.is_stager_numeric(),
-            "StageR 'conv' source operand must be numeric, found '{src_ty}' at {span}"
+            pred(&src_ty),
+            "{role_label} source operand must be {kind}, found '{src_ty}' at {span}"
         );
-        if is_stager_widening_conv(&src_ty, &dst_ty) {
-            Ok(dst_ty)
-        } else {
+        if total && !is_stager_widening_conv(&src_ty, &dst_ty) {
             Ok(StageLType::Result(Box::new(dst_ty)))
+        } else {
+            Ok(dst_ty)
         }
     }
 }

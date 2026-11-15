@@ -39,7 +39,7 @@ use malachite::base::num::logic::traits::SignificantBits;
 use malachite::{Integer, Rational};
 
 use super::super::ast::{
-    BlockItem, CoreBinaryOp, Expr, MatchArm, RoutineDecl, Span, StageDialect,
+    BinaryOp, BlockItem, Expr, MatchArm, RoutineDecl, Span, StageDialect,
     StageLType, StageRErrorTag, StructTypeRef, SymbolTarget, TestCase,
     TestExpected, TopDecl, TopValueDecl,
 };
@@ -47,9 +47,7 @@ use super::super::validator::{
     ImportedSymbol, RoutineKey, ValidatedModule, ValidatedWorkspace, ValueKey,
 };
 use super::ops::{
-    eval_binary, eval_bitcast, eval_conv, eval_stager_binary,
-    eval_stager_ternary, eval_stager_unary, eval_ternary, eval_total_conv,
-    eval_unary,
+    eval_binary, eval_bitcast, eval_conv, eval_ternary, eval_unary,
 };
 use super::{
     BufStorage, EvalConfig, RoutineOutcome, TestCaseReport, TestSuiteReport,
@@ -693,11 +691,7 @@ impl StageLWorkspaceVm {
             | Expr::Binary { .. }
             | Expr::Ternary { .. }
             | Expr::Conv { .. }
-            | Expr::Bitcast { .. }
-            | Expr::StageRUnary { .. }
-            | Expr::StageRBinary { .. }
-            | Expr::StageRTernary { .. }
-            | Expr::TotalConv { .. } => {
+            | Expr::Bitcast { .. } => {
                 self.eval_op_expr(mod_idx, expr, frame, depth, quota)
             }
             Expr::List { .. }
@@ -1129,29 +1123,28 @@ impl StageLWorkspaceVm {
         let mut eval =
             |sub| self.eval_expr(mod_idx, sub, frame, false, depth, quota);
         match expr {
-            Expr::Unary { op, operand, .. } => match eval(operand)? {
-                EvalSignal::Value(v) => eval_unary(*op, v),
-                sig => Ok(sig),
-            },
-            Expr::StageRUnary { op, operand, span } => match eval(operand)? {
-                EvalSignal::Value(v) => eval_stager_unary(self, *op, v, *span),
+            Expr::Unary { op, operand, span } => match eval(operand)? {
+                EvalSignal::Value(v) => eval_unary(self, *op, v, *span),
                 sig => Ok(sig),
             },
             Expr::Binary {
-                op, left, right, ..
+                op,
+                left,
+                right,
+                span,
             } => {
                 let lv = match eval(left)? {
                     EvalSignal::Value(v) => v,
                     sig => return Ok(sig),
                 };
-                if matches!(op, CoreBinaryOp::And | CoreBinaryOp::Or) {
+                if matches!(op, BinaryOp::And | BinaryOp::Or) {
                     let Value::Bool(lb) = lv else {
                         bail!("Logical operand must be bool");
                     };
-                    if *op == CoreBinaryOp::And && !lb {
+                    if *op == BinaryOp::And && !lb {
                         return Ok(EvalSignal::Value(Value::Bool(false)));
                     }
-                    if *op == CoreBinaryOp::Or && lb {
+                    if *op == BinaryOp::Or && lb {
                         return Ok(EvalSignal::Value(Value::Bool(true)));
                     }
                     return eval(right);
@@ -1160,50 +1153,13 @@ impl StageLWorkspaceVm {
                     EvalSignal::Value(v) => v,
                     sig => return Ok(sig),
                 };
-                eval_binary(self, *op, lv, rv)
-            }
-            Expr::StageRBinary {
-                op,
-                left,
-                right,
-                span,
-            } => {
-                let v1 = match eval(left)? {
-                    EvalSignal::Value(v) => v,
-                    sig => return Ok(sig),
-                };
-                let v2 = match eval(right)? {
-                    EvalSignal::Value(v) => v,
-                    sig => return Ok(sig),
-                };
-                eval_stager_binary(self, *op, v1, v2, *span)
+                eval_binary(self, *op, lv, rv, *span)
             }
             Expr::Ternary {
                 op,
                 first,
                 second,
                 third,
-                ..
-            } => {
-                let v1 = match eval(first)? {
-                    EvalSignal::Value(v) => v,
-                    sig => return Ok(sig),
-                };
-                let v2 = match eval(second)? {
-                    EvalSignal::Value(v) => v,
-                    sig => return Ok(sig),
-                };
-                let v3 = match eval(third)? {
-                    EvalSignal::Value(v) => v,
-                    sig => return Ok(sig),
-                };
-                eval_ternary(*op, v1, v2, v3)
-            }
-            Expr::StageRTernary {
-                op,
-                first,
-                second,
-                third,
                 span,
             } => {
                 let v1 = match eval(first)? {
@@ -1218,22 +1174,17 @@ impl StageLWorkspaceVm {
                     EvalSignal::Value(v) => v,
                     sig => return Ok(sig),
                 };
-                eval_stager_ternary(*op, v1, v2, v3, *span)
+                eval_ternary(*op, v1, v2, v3, *span)
             }
             Expr::Conv {
-                expr: inner,
-                target_ty,
-                ..
-            } => match eval(inner)? {
-                EvalSignal::Value(v) => eval_conv(v, target_ty),
-                sig => Ok(sig),
-            },
-            Expr::TotalConv {
+                total,
                 expr: inner,
                 target_ty,
                 span,
             } => match eval(inner)? {
-                EvalSignal::Value(v) => eval_total_conv(self, v, target_ty, *span),
+                EvalSignal::Value(v) => {
+                    eval_conv(self, *total, v, target_ty, *span)
+                }
                 sig => Ok(sig),
             },
             Expr::Bitcast {

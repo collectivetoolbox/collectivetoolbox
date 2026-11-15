@@ -37,9 +37,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::ast::{
-    BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, Module,
-    RoutineDecl, Span, StageDialect, StageLType, StructTypeRef, SymbolTarget,
-    TestExpected, TopDecl, TopValueDecl, TypedIntLit,
+    BinaryOp, BlockItem, Expr, Module, RoutineDecl, Span, StageDialect,
+    StageLType, StructTypeRef, SymbolTarget, TernaryOp, TestExpected, TopDecl,
+    TopValueDecl, TypedIntLit, UnaryOp,
 };
 use super::parser::parse_module;
 use super::seed_linker::{
@@ -2942,6 +2942,7 @@ impl<'a> ModuleEmitter<'a> {
                 ..
             } => self.emit_ternary(*op, first, second, third, indent_level),
             Expr::Conv {
+                total: false,
                 expr: inner,
                 target_ty,
                 ..
@@ -2951,7 +2952,8 @@ impl<'a> ModuleEmitter<'a> {
                 target_ty,
                 ..
             } => self.emit_bitcast(inner, target_ty, indent_level),
-            Expr::DctsString { .. }
+            Expr::Conv { total: true, .. }
+            | Expr::DctsString { .. }
             | Expr::DcLit { .. }
             | Expr::NamedStructNew { .. }
             | Expr::EnumVariant { .. }
@@ -2965,11 +2967,7 @@ impl<'a> ModuleEmitter<'a> {
             | Expr::WrapNominal { .. }
             | Expr::UnwrapNominal { .. }
             | Expr::Match { .. }
-            | Expr::Propagate { .. }
-            | Expr::StageRUnary { .. }
-            | Expr::StageRBinary { .. }
-            | Expr::StageRTernary { .. }
-            | Expr::TotalConv { .. } => {
+            | Expr::Propagate { .. } => {
                 bail!("Direct Rust codegen from StageR 3 (.sr3) is not yet implemented")
             }
         }
@@ -3430,7 +3428,7 @@ impl<'a> ModuleEmitter<'a> {
 
     fn emit_unary(
         &mut self,
-        op: CoreUnaryOp,
+        op: UnaryOp,
         operand: &Expr,
         indent_level: usize,
     ) -> Result<(String, StageLType)> {
@@ -3440,34 +3438,46 @@ impl<'a> ModuleEmitter<'a> {
         }
         let oc = strip_matched_outer_parens(&op_code);
         match op {
-            CoreUnaryOp::Neg => {
+            UnaryOp::Neg => {
                 let code = format!(
                     "{{ let Some(__neg_v) = ({oc}).checked_neg() else {{ panic!(\"checked neg overflow\"); }}; __neg_v }}"
                 );
                 Ok((code, op_ty))
             }
-            CoreUnaryOp::BitNot | CoreUnaryOp::Not => Ok((format!("!({oc})"), op_ty)),
-            CoreUnaryOp::Clz => Ok((format!("({oc}).leading_zeros()"), StageLType::U32)),
-            CoreUnaryOp::Ctz => Ok((format!("({oc}).trailing_zeros()"), StageLType::U32)),
-            CoreUnaryOp::Popcnt => Ok((format!("({oc}).count_ones()"), StageLType::U32)),
-            CoreUnaryOp::Len => match &op_ty {
+            UnaryOp::BitNot | UnaryOp::Not => Ok((format!("!({oc})"), op_ty)),
+            UnaryOp::Clz => Ok((format!("({oc}).leading_zeros()"), StageLType::U32)),
+            UnaryOp::Ctz => Ok((format!("({oc}).trailing_zeros()"), StageLType::U32)),
+            UnaryOp::Popcnt => Ok((format!("({oc}).count_ones()"), StageLType::U32)),
+            UnaryOp::Len => match &op_ty {
                 StageLType::List(_) => Ok((format!("sl3_rt::list_len(&({oc}))"), StageLType::U64)),
                 StageLType::Buf(_) => Ok((format!("({oc}).len()"), StageLType::U64)),
                 other => bail!("Invalid operand type '{other}' for 'len'"),
             },
-            CoreUnaryOp::BufFreeze => match &op_ty {
+            UnaryOp::BufFreeze => match &op_ty {
                 StageLType::Buf(inner) => Ok((
                     format!("({oc}).freeze()"),
                     StageLType::List(inner.clone()),
                 )),
                 other => bail!("Invalid operand type '{other}' for 'bufFreeze'"),
             },
+            UnaryOp::TotalNeg
+            | UnaryOp::IsSome
+            | UnaryOp::IsNone
+            | UnaryOp::IsOk
+            | UnaryOp::IsErr
+            | UnaryOp::ByteLen
+            | UnaryOp::DcFromU128
+            | UnaryOp::U128FromDc
+            | UnaryOp::DcsFromS
+            | UnaryOp::SFromDcs => {
+                bail!("Direct Rust codegen from StageR 3 (.sr3) is not yet implemented")
+            }
         }
     }
 
     fn emit_binary(
         &mut self,
-        op: CoreBinaryOp,
+        op: BinaryOp,
         left: &Expr,
         right: &Expr,
         indent_level: usize,
@@ -3478,10 +3488,10 @@ impl<'a> ModuleEmitter<'a> {
         }
         let lc = strip_matched_outer_parens(&l_code);
 
-        if matches!(op, CoreBinaryOp::And | CoreBinaryOp::Or) {
+        if matches!(op, BinaryOp::And | BinaryOp::Or) {
             let (r_code, _) = self.emit_expr(right, indent_level)?;
             let rc = strip_matched_outer_parens(&r_code);
-            let sym = if op == CoreBinaryOp::And { "&&" } else { "||" };
+            let sym = if op == BinaryOp::And { "&&" } else { "||" };
             return Ok((format!("(({lc}) {sym} ({rc}))"), StageLType::B));
         }
 
@@ -3495,17 +3505,17 @@ impl<'a> ModuleEmitter<'a> {
         let rc = strip_matched_outer_parens(&r_code);
 
         match op {
-            CoreBinaryOp::Add
-            | CoreBinaryOp::Sub
-            | CoreBinaryOp::Mul
-            | CoreBinaryOp::Div
-            | CoreBinaryOp::Rem => {
+            BinaryOp::Add
+            | BinaryOp::Sub
+            | BinaryOp::Mul
+            | BinaryOp::Div
+            | BinaryOp::Rem => {
                 let method = match op {
-                    CoreBinaryOp::Add => "checked_add",
-                    CoreBinaryOp::Sub => "checked_sub",
-                    CoreBinaryOp::Mul => "checked_mul",
-                    CoreBinaryOp::Div => "checked_div",
-                    CoreBinaryOp::Rem => "checked_rem",
+                    BinaryOp::Add => "checked_add",
+                    BinaryOp::Sub => "checked_sub",
+                    BinaryOp::Mul => "checked_mul",
+                    BinaryOp::Div => "checked_div",
+                    BinaryOp::Rem => "checked_rem",
                     _ => unreachable!("handled above"),
                 };
                 let tmp = self.next_tmp("v");
@@ -3515,26 +3525,26 @@ impl<'a> ModuleEmitter<'a> {
                     l_ty,
                 ))
             }
-            CoreBinaryOp::WrapAdd | CoreBinaryOp::WrapSub | CoreBinaryOp::WrapMul => {
+            BinaryOp::WrapAdd | BinaryOp::WrapSub | BinaryOp::WrapMul => {
                 let method = match op {
-                    CoreBinaryOp::WrapAdd => "wrapping_add",
-                    CoreBinaryOp::WrapSub => "wrapping_sub",
-                    CoreBinaryOp::WrapMul => "wrapping_mul",
+                    BinaryOp::WrapAdd => "wrapping_add",
+                    BinaryOp::WrapSub => "wrapping_sub",
+                    BinaryOp::WrapMul => "wrapping_mul",
                     _ => unreachable!("handled above"),
                 };
                 Ok((format!("({lc}).{method}({rc})"), l_ty))
             }
-            CoreBinaryOp::BitAnd | CoreBinaryOp::BitOr | CoreBinaryOp::BitXor => {
+            BinaryOp::BitAnd | BinaryOp::BitOr | BinaryOp::BitXor => {
                 let sym = match op {
-                    CoreBinaryOp::BitAnd => "&",
-                    CoreBinaryOp::BitOr => "|",
-                    CoreBinaryOp::BitXor => "^",
+                    BinaryOp::BitAnd => "&",
+                    BinaryOp::BitOr => "|",
+                    BinaryOp::BitXor => "^",
                     _ => unreachable!("handled above"),
                 };
                 Ok((format!("(({lc}) {sym} ({rc}))"), l_ty))
             }
-            CoreBinaryOp::Shl | CoreBinaryOp::Shr => {
-                let method = if op == CoreBinaryOp::Shl {
+            BinaryOp::Shl | BinaryOp::Shr => {
+                let method = if op == BinaryOp::Shl {
                     "checked_shl"
                 } else {
                     "checked_shr"
@@ -3545,30 +3555,30 @@ impl<'a> ModuleEmitter<'a> {
                     l_ty,
                 ))
             }
-            CoreBinaryOp::Rotl | CoreBinaryOp::Rotr => {
-                let method = if op == CoreBinaryOp::Rotl {
+            BinaryOp::Rotl | BinaryOp::Rotr => {
+                let method = if op == BinaryOp::Rotl {
                     "rotate_left"
                 } else {
                     "rotate_right"
                 };
                 Ok((format!("({lc}).{method}({rc})"), l_ty))
             }
-            CoreBinaryOp::And | CoreBinaryOp::Or => unreachable!("handled above"),
-            CoreBinaryOp::Eq | CoreBinaryOp::Ne => {
-                let sym = if op == CoreBinaryOp::Eq { "==" } else { "!=" };
+            BinaryOp::And | BinaryOp::Or => unreachable!("handled above"),
+            BinaryOp::Eq | BinaryOp::Ne => {
+                let sym = if op == BinaryOp::Eq { "==" } else { "!=" };
                 Ok((format!("(({lc}) {sym} ({rc}))"), StageLType::B))
             }
-            CoreBinaryOp::Lt | CoreBinaryOp::Le | CoreBinaryOp::Gt | CoreBinaryOp::Ge => {
+            BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge => {
                 let sym = match op {
-                    CoreBinaryOp::Lt => "<",
-                    CoreBinaryOp::Le => "<=",
-                    CoreBinaryOp::Gt => ">",
-                    CoreBinaryOp::Ge => ">=",
+                    BinaryOp::Lt => "<",
+                    BinaryOp::Le => "<=",
+                    BinaryOp::Gt => ">",
+                    BinaryOp::Ge => ">=",
                     _ => unreachable!("handled above"),
                 };
                 Ok((format!("(({lc}) {sym} ({rc}))"), StageLType::B))
             }
-            CoreBinaryOp::Get => match &l_ty {
+            BinaryOp::Get => match &l_ty {
                 StageLType::List(inner) => Ok((
                     format!("sl3_rt::list_get(&({lc}), {rc})"),
                     (**inner).clone(),
@@ -3579,11 +3589,11 @@ impl<'a> ModuleEmitter<'a> {
                 )),
                 other => bail!("Invalid target '{other}' for 'get'"),
             },
-            CoreBinaryOp::Concat => Ok((
+            BinaryOp::Concat => Ok((
                 format!("sl3_rt::list_concat(&({lc}), &({rc}))"),
                 l_ty,
             )),
-            CoreBinaryOp::BufFill => {
+            BinaryOp::BufFill => {
                 let canon_l = self.canon_type(&l_ty);
                 let r_elem = self.ws_index.rust_type(&canon_l);
                 Ok((
@@ -3591,20 +3601,36 @@ impl<'a> ModuleEmitter<'a> {
                     StageLType::Buf(Box::new(canon_l)),
                 ))
             }
-            CoreBinaryOp::BufPush => Ok((
+            BinaryOp::BufPush => Ok((
                 format!("({lc}).push({rc})"),
                 StageLType::Void,
             )),
-            CoreBinaryOp::BufExtend => Ok((
+            BinaryOp::BufExtend => Ok((
                 format!("({lc}).extend_list(&({rc}))"),
                 StageLType::Void,
             )),
+            BinaryOp::TotalAdd
+            | BinaryOp::TotalSub
+            | BinaryOp::TotalMul
+            | BinaryOp::TotalDiv
+            | BinaryOp::TotalMod
+            | BinaryOp::TotalTruncRem
+            | BinaryOp::TotalShl
+            | BinaryOp::TotalShr
+            | BinaryOp::TotalGet
+            | BinaryOp::UnwrapOr
+            | BinaryOp::OkOr
+            | BinaryOp::MakeRat
+            | BinaryOp::Explode
+            | BinaryOp::Implode => {
+                bail!("Direct Rust codegen from StageR 3 (.sr3) is not yet implemented")
+            }
         }
     }
 
     fn emit_ternary(
         &mut self,
-        op: CoreTernaryOp,
+        op: TernaryOp,
         first: &Expr,
         second: &Expr,
         third: &Expr,
@@ -3629,14 +3655,17 @@ impl<'a> ModuleEmitter<'a> {
         let c2c = strip_matched_outer_parens(&c2);
         let c3c = strip_matched_outer_parens(&c3);
         match op {
-            CoreTernaryOp::Slice => Ok((
+            TernaryOp::Slice => Ok((
                 format!("sl3_rt::list_slice(&({c1c}), {c2c}, {c3c})"),
                 t1,
             )),
-            CoreTernaryOp::BufSet => Ok((
+            TernaryOp::BufSet => Ok((
                 format!("({c1c}).set({c2c}, {c3c})"),
                 StageLType::Void,
             )),
+            TernaryOp::TotalSlice | TernaryOp::TotalBufSet => {
+                bail!("Direct Rust codegen from StageR 3 (.sr3) is not yet implemented")
+            }
         }
     }
 

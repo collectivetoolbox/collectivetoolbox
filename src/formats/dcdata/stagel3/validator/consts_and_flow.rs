@@ -29,8 +29,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::super::ast::{
-    BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, RoutineDecl,
-    Span, StageDialect, StageLType, StageRTernaryOp, SymbolTarget,
+    BlockItem, Expr, RoutineDecl, Span, StageDialect, StageLType, SymbolTarget,
     TestExpected, TopValueDecl, TypedIntLit,
 };
 use super::imports_and_decls::ModuleValidator;
@@ -347,21 +346,14 @@ pub(super) fn collect_value_deps(
         Expr::ResultErr { error, .. } => {
             collect_value_deps(error, deps, dc_deps);
         }
-        Expr::Unary { operand, .. } | Expr::StageRUnary { operand, .. } => {
+        Expr::Unary { operand, .. } => {
             collect_value_deps(operand, deps, dc_deps);
         }
-        Expr::Binary { left, right, .. }
-        | Expr::StageRBinary { left, right, .. } => {
+        Expr::Binary { left, right, .. } => {
             collect_value_deps(left, deps, dc_deps);
             collect_value_deps(right, deps, dc_deps);
         }
         Expr::Ternary {
-            first,
-            second,
-            third,
-            ..
-        }
-        | Expr::StageRTernary {
             first,
             second,
             third,
@@ -373,7 +365,6 @@ pub(super) fn collect_value_deps(
         }
         Expr::Conv { expr, .. }
         | Expr::Bitcast { expr, .. }
-        | Expr::TotalConv { expr, .. }
         | Expr::WrapNominal { expr, .. }
         | Expr::UnwrapNominal { expr, .. }
         | Expr::Propagate { expr, .. } => {
@@ -634,15 +625,16 @@ impl<'a> ModuleValidator<'a> {
             }
             Expr::Unary { op, operand, span } => {
                 ensure!(
-                    *op != CoreUnaryOp::BufFreeze,
-                    "Imperative buffer operation 'bufFreeze' is not allowed in constant expression at {span}"
+                    op.allowed_in(self.dialect),
+                    "Operator '{}' at {span} is forbidden in {:?}",
+                    op.keyword(),
+                    self.dialect
                 );
-                if self.dialect == StageDialect::StageR3 {
-                    ensure!(
-                        *op != CoreUnaryOp::Neg,
-                        "Trapping unary 'neg' at {span} is forbidden in StageR 3"
-                    );
-                }
+                ensure!(
+                    !op.is_imperative_buf_op(),
+                    "Imperative buffer operation '{}' is not allowed in constant expression at {span}",
+                    op.keyword()
+                );
                 self.check_const_purity(operand)
             }
             Expr::Binary {
@@ -652,12 +644,13 @@ impl<'a> ModuleValidator<'a> {
                 span,
             } => {
                 ensure!(
-                    !matches!(
-                        op,
-                        CoreBinaryOp::BufFill
-                            | CoreBinaryOp::BufPush
-                            | CoreBinaryOp::BufExtend
-                    ),
+                    op.allowed_in(self.dialect),
+                    "Operator '{}' at {span} is forbidden in {:?}",
+                    op.keyword(),
+                    self.dialect
+                );
+                ensure!(
+                    !op.is_imperative_buf_op(),
                     "Imperative buffer operation '{}' is not allowed in constant expression at {span}",
                     op.keyword()
                 );
@@ -672,8 +665,15 @@ impl<'a> ModuleValidator<'a> {
                 span,
             } => {
                 ensure!(
-                    *op != CoreTernaryOp::BufSet,
-                    "Imperative buffer operation 'bufSet' is not allowed in constant expression at {span}"
+                    op.allowed_in(self.dialect),
+                    "Operator '{}' at {span} is forbidden in {:?}",
+                    op.keyword(),
+                    self.dialect
+                );
+                ensure!(
+                    !op.is_imperative_buf_op(),
+                    "Imperative buffer operation '{}' is not allowed in constant expression at {span}",
+                    op.keyword()
                 );
                 self.check_const_purity(first)?;
                 self.check_const_purity(second)?;
@@ -686,7 +686,16 @@ impl<'a> ModuleValidator<'a> {
                 );
                 Ok(())
             }
-            Expr::Conv { expr, span, .. } | Expr::Bitcast { expr, span, .. } => {
+            Expr::Conv {
+                total, expr, span, ..
+            } => {
+                ensure!(
+                    *total == (self.dialect == StageDialect::StageR3),
+                    "Numeric 'conv' dialect mismatch at {span}"
+                );
+                self.check_const_purity(expr)
+            }
+            Expr::Bitcast { expr, span, .. } => {
                 ensure!(
                     self.dialect == StageDialect::StageL3,
                     "StageL 3 conversion/bitcast node at {span} is forbidden in StageR 3"
@@ -740,9 +749,7 @@ impl<'a> ModuleValidator<'a> {
             }
             Expr::NamedField { base, span, .. }
             | Expr::WrapNominal { expr: base, span, .. }
-            | Expr::UnwrapNominal { expr: base, span, .. }
-            | Expr::TotalConv { expr: base, span, .. }
-            | Expr::StageRUnary { operand: base, span, .. } => {
+            | Expr::UnwrapNominal { expr: base, span, .. } => {
                 ensure!(
                     self.dialect == StageDialect::StageR3,
                     "StageR 3 expression is not supported in StageL 3 at {span}"
@@ -751,12 +758,6 @@ impl<'a> ModuleValidator<'a> {
             }
             Expr::NamedWith {
                 base, value, span, ..
-            }
-            | Expr::StageRBinary {
-                left: base,
-                right: value,
-                span,
-                ..
             } => {
                 ensure!(
                     self.dialect == StageDialect::StageR3,
@@ -764,25 +765,6 @@ impl<'a> ModuleValidator<'a> {
                 );
                 self.check_const_purity(base)?;
                 self.check_const_purity(value)
-            }
-            Expr::StageRTernary {
-                op,
-                first,
-                second,
-                third,
-                span,
-            } => {
-                ensure!(
-                    self.dialect == StageDialect::StageR3,
-                    "StageR 3 ternary expression is not supported in StageL 3 at {span}"
-                );
-                ensure!(
-                    *op != StageRTernaryOp::TotalBufSet,
-                    "Imperative buffer operation 'bufSet' is not allowed in constant expression at {span}"
-                );
-                self.check_const_purity(first)?;
-                self.check_const_purity(second)?;
-                self.check_const_purity(third)
             }
             Expr::Match {
                 scrutinee,

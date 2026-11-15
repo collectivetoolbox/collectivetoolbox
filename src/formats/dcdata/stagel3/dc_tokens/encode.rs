@@ -34,8 +34,7 @@ use super::super::ast::{
 };
 use super::super::stager_strings::is_valid_dc_u128;
 use super::{
-    CORE_BINARY_OPS, CORE_TERNARY_OPS, CORE_UNARY_OPS, STAGER_BINARY_OPS,
-    STAGER_TERNARY_OPS, STAGER_UNARY_OPS, format_dc_char_opt, lookup_op_dc,
+    BINARY_OPS, TERNARY_OPS, UNARY_OPS, format_dc_char_opt, lookup_op_dc,
 };
 use crate::DcChar;
 use crate::dc::{
@@ -738,13 +737,13 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
         Expr::Fault { .. } => out.push(DC_FAULT_TRAP),
         Expr::Nop { .. } => out.push(DC_NO_OP),
         Expr::Unary { op, operand, .. } => {
-            out.push(lookup_op_dc(CORE_UNARY_OPS, op)?);
+            out.push(lookup_op_dc(UNARY_OPS, op)?);
             push_expr(out, operand)?;
         }
         Expr::Binary {
             op, left, right, ..
         } => {
-            out.push(lookup_op_dc(CORE_BINARY_OPS, op)?);
+            out.push(lookup_op_dc(BINARY_OPS, op)?);
             push_expr(out, left)?;
             push_expr(out, right)?;
         }
@@ -755,15 +754,22 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
             third,
             ..
         } => {
-            out.push(lookup_op_dc(CORE_TERNARY_OPS, op)?);
+            out.push(lookup_op_dc(TERNARY_OPS, op)?);
             push_expr(out, first)?;
             push_expr(out, second)?;
             push_expr(out, third)?;
         }
         Expr::Conv {
-            expr, target_ty, ..
+            total,
+            expr,
+            target_ty,
+            ..
         } => {
-            out.push(DC_CONVERT_OP);
+            out.push(if *total {
+                DC_TOTAL_CONVERT_OP
+            } else {
+                DC_CONVERT_OP
+            });
             push_expr(out, expr)?;
             push_stagel_type(out, target_ty)?;
         }
@@ -907,36 +913,6 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
         Expr::Propagate { expr, .. } => {
             out.push(DC_PROPAGATE_OP);
             push_expr(out, expr)?;
-        }
-        Expr::StageRUnary { op, operand, .. } => {
-            out.push(lookup_op_dc(STAGER_UNARY_OPS, op)?);
-            push_expr(out, operand)?;
-        }
-        Expr::StageRBinary {
-            op, left, right, ..
-        } => {
-            out.push(lookup_op_dc(STAGER_BINARY_OPS, op)?);
-            push_expr(out, left)?;
-            push_expr(out, right)?;
-        }
-        Expr::StageRTernary {
-            op,
-            first,
-            second,
-            third,
-            ..
-        } => {
-            out.push(lookup_op_dc(STAGER_TERNARY_OPS, op)?);
-            push_expr(out, first)?;
-            push_expr(out, second)?;
-            push_expr(out, third)?;
-        }
-        Expr::TotalConv {
-            expr, target_ty, ..
-        } => {
-            out.push(DC_TOTAL_CONVERT_OP);
-            push_expr(out, expr)?;
-            push_stagel_type(out, target_ty)?;
         }
     }
     Ok(())

@@ -614,9 +614,8 @@ impl Parser {
 mod tests {
     use super::super::eval::run_module_inline_tests;
     use super::types_and_sigs::{
-        is_forbidden_stagel_partial_op, match_binary_op,
-        match_stager_binary_op, match_stager_ternary_op, match_stager_unary_op,
-        match_ternary_op, match_unary_op, parse_type_segments_with_ctx,
+        is_forbidden_stagel_partial_op, match_binary_op, match_ternary_op,
+        match_unary_op, parse_type_segments_with_ctx,
     };
     use super::*;
     use std::collections::HashSet;
@@ -815,12 +814,12 @@ mod tests {
             "unwrapErr",
         ];
         for op in all_core_and_stager_ops {
-            let matched_somewhere = match_unary_op(op).is_some()
-                || match_binary_op(op).is_some()
-                || match_ternary_op(op).is_some()
-                || match_stager_unary_op(op).is_some()
-                || match_stager_binary_op(op).is_some()
-                || match_stager_ternary_op(op).is_some()
+            let matched_somewhere = match_unary_op(op, StageDialect::StageL3).is_some()
+                || match_binary_op(op, StageDialect::StageL3).is_some()
+                || match_ternary_op(op, StageDialect::StageL3).is_some()
+                || match_unary_op(op, StageDialect::StageR3).is_some()
+                || match_binary_op(op, StageDialect::StageR3).is_some()
+                || match_ternary_op(op, StageDialect::StageR3).is_some()
                 || is_forbidden_stagel_partial_op(op);
             assert!(
                 matched_somewhere,

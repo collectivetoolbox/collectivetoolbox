@@ -622,35 +622,14 @@ fn collect_dc_refs_in_expr(expr: &Expr, out: &mut Vec<DcChar>) {
         }
         Expr::NamedField { base, .. }
         | Expr::UnwrapNominal { expr: base, .. }
-        | Expr::Propagate { expr: base, .. }
-        | Expr::StageRUnary { operand: base, .. } => {
+        | Expr::Propagate { expr: base, .. } => {
             collect_dc_refs_in_expr(base, out);
         }
-        Expr::NamedWith { base, value, .. }
-        | Expr::StageRBinary {
-            left: base,
-            right: value,
-            ..
-        } => {
+        Expr::NamedWith { base, value, .. } => {
             collect_dc_refs_in_expr(base, out);
             collect_dc_refs_in_expr(value, out);
         }
-        Expr::StageRTernary {
-            first,
-            second,
-            third,
-            ..
-        } => {
-            collect_dc_refs_in_expr(first, out);
-            collect_dc_refs_in_expr(second, out);
-            collect_dc_refs_in_expr(third, out);
-        }
         Expr::WrapNominal {
-            expr: inner,
-            target_ty,
-            ..
-        }
-        | Expr::TotalConv {
             expr: inner,
             target_ty,
             ..
