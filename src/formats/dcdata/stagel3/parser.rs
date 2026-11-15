@@ -1056,6 +1056,7 @@ pub(super) fn parse_typed_int_literal_for(
             TypedIntLit::U128(v)
         }
         "int" if dialect == StageDialect::StageR3 => {
+            // Reason for fallback: non-negative int literals lack a leading '-' sign, so val_part is already the unsigned digit slice to validate below.
             let digits = val_part.strip_prefix('-').unwrap_or(val_part);
             ensure!(
                 !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()),

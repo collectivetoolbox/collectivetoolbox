@@ -107,11 +107,11 @@ fn parse_binary_frame(chars: &[DcChar], start: usize) -> Result<(usize, u64)> {
         "Unclosed Dc 203 binary encapsulation frame (missing Dc 204)"
     );
 
+    // Reason for fallback: an encapsulation frame with an empty base64 payload has no base64 digit or pad tokens, so all inner tokens are metadata and the payload slice starts at inner.len().
     let first_b64 = inner
         .iter()
         .position(|&c| is_b64_digit_or_pad(c))
         .unwrap_or(inner.len());
-    // Reason for fallback: an encapsulation frame without leading non-base64 tokens has zero metadata.
     let (meta_tokens, b64_tokens) = inner.split_at(first_b64);
     let b64_decoded_len = decoded_base64_len(b64_tokens)?;
     let frame_len = if meta_tokens.is_empty() {

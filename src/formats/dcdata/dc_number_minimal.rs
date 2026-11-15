@@ -261,6 +261,7 @@ fn validate_int_for_format(
     val: &Integer,
     fmt: Option<FormatId>,
 ) -> Result<DcChar> {
+    // Reason for fallback: unannotated Dc integer numerals represent arbitrary-precision integers by specification, so None canonically selects FormatId::Integer rather than masking a missing-format error.
     let resolved = fmt.unwrap_or(FormatId::Integer);
     let in_range = match resolved {
         FormatId::Integer => true,
