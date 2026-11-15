@@ -160,6 +160,81 @@ fn collect_dc_refs_in_owner_kind(kind: &GraphOwnerKind, out: &mut Vec<DcChar>) {
     }
 }
 
+fn top_decl_is_pub(decl: &TopDecl) -> bool {
+    match decl {
+        TopDecl::Routine(r) => r.is_pub,
+        TopDecl::Value(v) => v.is_pub,
+        TopDecl::Struct(s) => s.is_pub,
+        TopDecl::BrandType(b) => b.is_pub,
+        TopDecl::NamedStruct(s) => s.is_pub,
+        TopDecl::Enum(e) => e.is_pub,
+        TopDecl::Comment(_) => false,
+    }
+}
+
+fn top_decl_dc_id(decl: &TopDecl) -> Option<DcChar> {
+    match decl {
+        TopDecl::Routine(r) => r.dc_id,
+        TopDecl::Value(v) => v.dc_id,
+        TopDecl::Struct(s) => s.dc_id,
+        TopDecl::BrandType(b) => b.dc_id,
+        TopDecl::NamedStruct(s) => s.dc_id,
+        TopDecl::Enum(e) => e.dc_id,
+        TopDecl::Comment(_) => None,
+    }
+}
+
+fn set_top_decl_is_pub(decl: &mut TopDecl, is_pub: bool) {
+    match decl {
+        TopDecl::Routine(r) => r.is_pub = is_pub,
+        TopDecl::Value(v) => v.is_pub = is_pub,
+        TopDecl::Struct(s) => s.is_pub = is_pub,
+        TopDecl::BrandType(b) => b.is_pub = is_pub,
+        TopDecl::NamedStruct(s) => s.is_pub = is_pub,
+        TopDecl::Enum(e) => e.is_pub = is_pub,
+        TopDecl::Comment(_) => {}
+    }
+}
+
+fn type_syntactically_contains_buf(ty: &StageLType) -> bool {
+    match ty {
+        StageLType::Buf(_) => true,
+        StageLType::List(inner)
+        | StageLType::Option(inner)
+        | StageLType::Result(inner) => type_syntactically_contains_buf(inner),
+        StageLType::Tuple(elems) => {
+            elems.iter().any(type_syntactically_contains_buf)
+        }
+        _ => false,
+    }
+}
+
+fn top_decl_syntactically_contains_buf(decl: &TopDecl) -> bool {
+    match decl {
+        TopDecl::Routine(r) => {
+            type_syntactically_contains_buf(&r.return_type)
+                || r.params
+                    .iter()
+                    .any(|p| type_syntactically_contains_buf(&p.ty))
+        }
+        TopDecl::Value(v) => type_syntactically_contains_buf(&v.ty),
+        TopDecl::Struct(s) => {
+            s.fields.iter().any(type_syntactically_contains_buf)
+        }
+        TopDecl::BrandType(b) => type_syntactically_contains_buf(&b.inner_ty),
+        TopDecl::NamedStruct(s) => s
+            .fields
+            .iter()
+            .any(|f| type_syntactically_contains_buf(&f.ty)),
+        TopDecl::Enum(e) => e.variants.iter().any(|v| {
+            v.payload
+                .as_ref()
+                .is_some_and(type_syntactically_contains_buf)
+        }),
+        TopDecl::Comment(_) => false,
+    }
+}
+
 fn sig_for_routine_decl(r: &RoutineDecl) -> RoutineSig {
     RoutineSig {
         return_type: r.return_type.clone(),
@@ -702,6 +777,23 @@ fn reconstruct_external_namespace_module(
     caller_ns_for_diag: &str,
     dc_owners: &mut HashMap<DcChar, GraphDcOwner>,
 ) -> Result<(Module, NamespaceExports)> {
+    let mut line_counter = 1usize;
+    reconstruct_external_namespace_module_with_line(
+        seed_graph,
+        ns_segs,
+        caller_ns_for_diag,
+        dc_owners,
+        &mut line_counter,
+    )
+}
+
+fn reconstruct_external_namespace_module_with_line(
+    seed_graph: &SeedGraphIndex,
+    ns_segs: &[String],
+    caller_ns_for_diag: &str,
+    dc_owners: &mut HashMap<DcChar, GraphDcOwner>,
+    next_decl_line: &mut usize,
+) -> Result<(Module, NamespaceExports)> {
     let ns_key = ns_segs.join("/");
     let exports_map = seed_graph.resolve_stagel_namespace_exports(ns_segs)?;
     if exports_map.is_empty() {
@@ -714,7 +806,8 @@ fn reconstruct_external_namespace_module(
     let mut prelim_exports = NamespaceExports::default();
     for (export_name, target_sh_list) in exports_map {
         for target_sh in target_sh_list {
-            let decl_line = items.len().saturating_add(1);
+            let decl_line = *next_decl_line;
+            *next_decl_line = next_decl_line.saturating_add(1);
             let gid = target_sh.to_global_id()?;
             let target_dc = DcChar::from_u128(gid);
             let (_, entry) = decode_graph_stagel_entry_at_line(
@@ -1029,6 +1122,482 @@ struct AssembledGraphModules {
     order: Vec<usize>,
 }
 
+fn tarjan_sccs(
+    node_count: usize,
+    deps: &[Vec<usize>],
+) -> Result<Vec<Vec<usize>>> {
+    struct TarjanState {
+        next_idx: usize,
+        indices: Vec<Option<usize>>,
+        lowlink: Vec<usize>,
+        on_stack: Vec<bool>,
+        stack: Vec<usize>,
+        sccs: Vec<Vec<usize>>,
+    }
+
+    fn strongconnect(
+        v: usize,
+        deps: &[Vec<usize>],
+        st: &mut TarjanState,
+    ) -> Result<()> {
+        let cur_idx = st.next_idx;
+        st.next_idx = st.next_idx.saturating_add(1);
+        *st.indices.get_mut(v).context("Invalid Tarjan index slot")? =
+            Some(cur_idx);
+        *st.lowlink.get_mut(v).context("Invalid Tarjan lowlink slot")? = cur_idx;
+        st.stack.push(v);
+        *st.on_stack.get_mut(v).context("Invalid Tarjan on_stack slot")? = true;
+
+        let v_deps = deps.get(v).context("Missing Tarjan dependency list")?;
+        for &w in v_deps {
+            let w_idx = *st.indices.get(w).context("Invalid Tarjan neighbor")?;
+            if let Some(wi) = w_idx {
+                if *st.on_stack.get(w).context("Invalid Tarjan neighbor stack")? {
+                    let v_low = st
+                        .lowlink
+                        .get_mut(v)
+                        .context("Invalid Tarjan lowlink")?;
+                    *v_low = (*v_low).min(wi);
+                }
+            } else {
+                strongconnect(w, deps, st)?;
+                let w_low =
+                    *st.lowlink.get(w).context("Invalid Tarjan child lowlink")?;
+                let v_low =
+                    st.lowlink.get_mut(v).context("Invalid Tarjan lowlink")?;
+                *v_low = (*v_low).min(w_low);
+            }
+        }
+
+        let is_root =
+            st.lowlink.get(v).copied() == st.indices.get(v).copied().flatten();
+        if is_root {
+            let mut comp = Vec::new();
+            loop {
+                let w = st
+                    .stack
+                    .pop()
+                    .context("Unexpected empty Tarjan stack")?;
+                *st.on_stack
+                    .get_mut(w)
+                    .context("Invalid Tarjan pop slot")? = false;
+                comp.push(w);
+                if w == v {
+                    break;
+                }
+            }
+            st.sccs.push(comp);
+        }
+        Ok(())
+    }
+
+    let mut st = TarjanState {
+        next_idx: 0,
+        indices: vec![None; node_count],
+        lowlink: vec![0; node_count],
+        on_stack: vec![false; node_count],
+        stack: Vec::with_capacity(node_count),
+        sccs: Vec::new(),
+    };
+    for v in 0..node_count {
+        if st.indices.get(v).copied().flatten().is_none() {
+            strongconnect(v, deps, &mut st)?;
+        }
+    }
+    Ok(st.sccs)
+}
+
+fn order_merged_module_items(items: impl IntoIterator<Item = TopDecl>) -> Vec<TopDecl> {
+    let mut type_items = Vec::new();
+    let mut val_items = Vec::new();
+    let mut rout_items = Vec::new();
+    let mut other_items = Vec::new();
+    for item in items {
+        match item {
+            TopDecl::Struct(_)
+            | TopDecl::BrandType(_)
+            | TopDecl::NamedStruct(_)
+            | TopDecl::Enum(_) => type_items.push(item),
+            TopDecl::Value(_) => val_items.push(item),
+            TopDecl::Routine(_) => rout_items.push(item),
+            TopDecl::Comment(_) => other_items.push(item),
+        }
+    }
+    let mut all_items = Vec::with_capacity(
+        type_items
+            .len()
+            .saturating_add(val_items.len())
+            .saturating_add(rout_items.len())
+            .saturating_add(other_items.len()),
+    );
+    all_items.append(&mut type_items);
+    all_items.append(&mut val_items);
+    all_items.append(&mut rout_items);
+    all_items.append(&mut other_items);
+    all_items
+}
+
+fn compute_synth_module_deps(
+    modules: &[(String, bool, bool, Module)],
+    dc_owners: &HashMap<DcChar, GraphDcOwner>,
+) -> Vec<Vec<usize>> {
+    let mut ns_to_idx: HashMap<String, usize> =
+        HashMap::with_capacity(modules.len());
+    for (idx, (k, _, _, _)) in modules.iter().enumerate() {
+        ns_to_idx.insert(k.clone(), idx);
+    }
+    let mut synth_deps: Vec<Vec<usize>> = Vec::with_capacity(modules.len());
+    for (idx, (_, _, _, m)) in modules.iter().enumerate() {
+        let mut mod_local_dcs = HashSet::new();
+        collect_locally_defined_dcs(m, &mut mod_local_dcs);
+        let mut d = Vec::new();
+        for u in &m.uses {
+            let u_key = u.path.join("/");
+            if let Some(&dep_idx) = ns_to_idx.get(&u_key)
+                && dep_idx != idx
+                && !d.contains(&dep_idx)
+            {
+                d.push(dep_idx);
+            }
+        }
+        let mut refs = Vec::new();
+        collect_dc_refs_in_module(m, &mut refs);
+        let mut ref_queue: VecDeque<DcChar> = refs.into_iter().collect();
+        let mut visited = HashSet::new();
+        while let Some(dc) = ref_queue.pop_front() {
+            if mod_local_dcs.contains(&dc) || !visited.insert(dc) {
+                continue;
+            }
+            if let Some(owner) = dc_owners.get(&dc) {
+                let mut sig_refs = Vec::new();
+                collect_dc_refs_in_owner_kind(&owner.kind, &mut sig_refs);
+                for s_dc in sig_refs {
+                    ref_queue.push_back(s_dc);
+                }
+                if let Some(&dep_idx) = ns_to_idx.get(&owner.namespace_key)
+                    && dep_idx != idx
+                    && !d.contains(&dep_idx)
+                {
+                    d.push(dep_idx);
+                }
+            }
+        }
+        synth_deps.push(d);
+    }
+    synth_deps
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "Absorbs single-owner file-private graph helpers, condenses synthetic SCCs, and restores module-private visibility"
+)]
+fn coalesce_synthetic_sccs(
+    synth_helper_modules: BTreeMap<String, (Module, bool)>,
+    synth_ns_modules: BTreeMap<String, Module>,
+    orig_private_dcs: &HashSet<DcChar>,
+    caller_modules: &[(Module, bool)],
+    dc_owners: &mut HashMap<DcChar, GraphDcOwner>,
+) -> Result<Vec<Module>> {
+    let total = synth_helper_modules
+        .len()
+        .saturating_add(synth_ns_modules.len());
+    if total == 0 {
+        return Ok(Vec::new());
+    }
+
+    // Tuple: `(ns_key, is_real_ns, is_anchor, module)`.
+    let mut raw_synth: Vec<(String, bool, bool, Module)> =
+        Vec::with_capacity(total);
+    for (k, (m, is_pub_anchor)) in synth_helper_modules {
+        raw_synth.push((k, false, is_pub_anchor, m));
+    }
+    for (k, m) in synth_ns_modules {
+        raw_synth.push((k, true, true, m));
+    }
+
+    // Phase 1: Absorb non-`pub` `$graph_dc_*` helpers (`!is_anchor`) that are not directly
+    // or transitively reached from `caller_modules` (without crossing an anchor) and belong
+    // to a unique synthetic anchor module (reconstructing file-private helpers in place).
+    let phase1_deps = compute_synth_module_deps(&raw_synth, dc_owners);
+    let mut ns_to_idx: HashMap<String, usize> =
+        HashMap::with_capacity(raw_synth.len());
+    for (idx, (k, _, _, _)) in raw_synth.iter().enumerate() {
+        ns_to_idx.insert(k.clone(), idx);
+    }
+
+    let mut reached_by_caller = vec![false; raw_synth.len()];
+    {
+        let mut caller_refs = Vec::new();
+        let mut caller_local_dcs = HashSet::new();
+        for (cm, _) in caller_modules {
+            collect_locally_defined_dcs(cm, &mut caller_local_dcs);
+            collect_dc_refs_in_module(cm, &mut caller_refs);
+        }
+        let mut dc_q: VecDeque<DcChar> = caller_refs.into_iter().collect();
+        let mut seen_dc = HashSet::new();
+        let mut helper_q: VecDeque<usize> = VecDeque::new();
+        while let Some(dc) = dc_q.pop_front() {
+            if caller_local_dcs.contains(&dc) || !seen_dc.insert(dc) {
+                continue;
+            }
+            if let Some(owner) = dc_owners.get(&dc) {
+                let mut sig_refs = Vec::new();
+                collect_dc_refs_in_owner_kind(&owner.kind, &mut sig_refs);
+                for s_dc in sig_refs {
+                    dc_q.push_back(s_dc);
+                }
+                if let Some(&h_idx) = ns_to_idx.get(&owner.namespace_key)
+                    && let Some((_, _, is_anchor, _)) = raw_synth.get(h_idx)
+                    && !*is_anchor
+                    && let Some(flag) = reached_by_caller.get_mut(h_idx)
+                    && !*flag
+                {
+                    *flag = true;
+                    helper_q.push_back(h_idx);
+                }
+            }
+        }
+        while let Some(h_idx) = helper_q.pop_front() {
+            if let Some(neighbors) = phase1_deps.get(h_idx) {
+                for &n_idx in neighbors {
+                    if let Some((_, _, is_anchor, _)) = raw_synth.get(n_idx)
+                        && !*is_anchor
+                        && let Some(flag) = reached_by_caller.get_mut(n_idx)
+                        && !*flag
+                    {
+                        *flag = true;
+                        helper_q.push_back(n_idx);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut anchor_owners: Vec<HashSet<usize>> =
+        vec![HashSet::new(); raw_synth.len()];
+    for a_idx in 0..raw_synth.len() {
+        let Some((_, _, true, _)) = raw_synth.get(a_idx) else {
+            continue;
+        };
+        let mut helper_q: VecDeque<usize> = VecDeque::new();
+        if let Some(neighbors) = phase1_deps.get(a_idx) {
+            for &n_idx in neighbors {
+                if let Some((_, _, false, _)) = raw_synth.get(n_idx)
+                    && let Some(owners) = anchor_owners.get_mut(n_idx)
+                    && owners.insert(a_idx)
+                {
+                    helper_q.push_back(n_idx);
+                }
+            }
+        }
+        while let Some(h_idx) = helper_q.pop_front() {
+            if let Some(neighbors) = phase1_deps.get(h_idx) {
+                for &n_idx in neighbors {
+                    if let Some((_, _, false, _)) = raw_synth.get(n_idx)
+                        && let Some(owners) = anchor_owners.get_mut(n_idx)
+                        && owners.insert(a_idx)
+                    {
+                        helper_q.push_back(n_idx);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut absorbed_into: Vec<Option<usize>> = vec![None; raw_synth.len()];
+    for h_idx in 0..raw_synth.len() {
+        let Some((_, _, false, _)) = raw_synth.get(h_idx) else {
+            continue;
+        };
+        let by_caller = reached_by_caller.get(h_idx).copied().unwrap_or(false); // Reason for fallback: h_idx is bounded by raw_synth.len() == reached_by_caller.len()
+        if by_caller {
+            continue;
+        }
+        if let Some(owners) = anchor_owners.get(h_idx)
+            && owners.len() == 1
+            && let Some(&sole_anchor) = owners.iter().next()
+            && let Some(slot) = absorbed_into.get_mut(h_idx)
+        {
+            *slot = Some(sole_anchor);
+        }
+    }
+
+    let mut phase1_slots: Vec<Option<(String, bool, bool, Module)>> =
+        raw_synth.into_iter().map(Some).collect();
+    for h_idx in 0..phase1_slots.len() {
+        let Some(Some(a_idx)) = absorbed_into.get(h_idx).copied() else {
+            continue;
+        };
+        let Some((_, _, _, helper_mod)) =
+            phase1_slots.get_mut(h_idx).and_then(Option::take)
+        else {
+            continue;
+        };
+        let Some((anchor_key, _, _, anchor_mod)) =
+            phase1_slots.get_mut(a_idx).and_then(Option::as_mut)
+        else {
+            continue;
+        };
+        let anchor_key_cloned = anchor_key.clone();
+        let mut helper_dcs = HashSet::new();
+        collect_locally_defined_dcs(&helper_mod, &mut helper_dcs);
+        for dc in helper_dcs {
+            if let Some(owner) = dc_owners.get_mut(&dc) {
+                owner.namespace_key.clone_from(&anchor_key_cloned);
+            }
+        }
+        for u in helper_mod.uses {
+            if u.path.join("/") != anchor_key_cloned {
+                anchor_mod.uses.push(u);
+            }
+        }
+        let combined = std::mem::take(&mut anchor_mod.items)
+            .into_iter()
+            .chain(helper_mod.items);
+        anchor_mod.items = order_merged_module_items(combined);
+        anchor_mod.dialect = if anchor_mod.items.iter().any(top_decl_uses_stager)
+        {
+            StageDialect::StageR3
+        } else {
+            StageDialect::StageL3
+        };
+    }
+
+    let post_absorb: Vec<(String, bool, bool, Module)> =
+        phase1_slots.into_iter().flatten().collect();
+
+    // Phase 2: Condense any remaining synthetic SCCs (`<= 1` real namespace per SCC).
+    let synth_deps = compute_synth_module_deps(&post_absorb, dc_owners);
+    let sccs = tarjan_sccs(post_absorb.len(), &synth_deps)?;
+    let mut slots: Vec<Option<(String, bool, bool, Module)>> =
+        post_absorb.into_iter().map(Some).collect();
+    let mut merged = Vec::with_capacity(sccs.len());
+
+    for mut comp in sccs {
+        comp.sort_unstable();
+        if comp.len() == 1 {
+            let only_idx = *comp.first().context("Empty Tarjan component")?;
+            let (_, _, _, m) = slots
+                .get_mut(only_idx)
+                .and_then(Option::take)
+                .context("Missing synthetic module slot")?;
+            merged.push(m);
+            continue;
+        }
+
+        let mut entries = Vec::with_capacity(comp.len());
+        let mut real_ns_count = 0usize;
+        for idx in comp {
+            let entry = slots
+                .get_mut(idx)
+                .and_then(Option::take)
+                .context("Missing synthetic SCC module slot")?;
+            if entry.1 {
+                real_ns_count = real_ns_count.saturating_add(1);
+            }
+            entries.push(entry);
+        }
+
+        // Never merge a cycle spanning two or more real namespaces; leave them
+        // separate so `topo_sort_all_modules` reports the namespace cycle.
+        if real_ns_count > 1 {
+            for (_, _, _, m) in entries {
+                merged.push(m);
+            }
+            continue;
+        }
+
+        let chosen_pos = entries
+            .iter()
+            .position(|(_, is_real, _, _)| *is_real)
+            .or_else(|| entries.iter().position(|(_, _, is_anchor, _)| *is_anchor))
+            .unwrap_or(0); // Reason for fallback: all-helper SCCs deterministically adopt their first `$graph_dc_*` namespace
+        let chosen_entry = entries
+            .get(chosen_pos)
+            .context("Invalid chosen SCC entry")?;
+        let chosen_key = chosen_entry.0.clone();
+        let chosen_ns = chosen_entry.3.namespace.clone();
+
+        let mut merged_uses = Vec::new();
+        let mut raw_items = Vec::new();
+        for (_, _, _, m) in entries {
+            for u in m.uses {
+                if u.path.join("/") != chosen_key {
+                    merged_uses.push(u);
+                }
+            }
+            raw_items.extend(m.items);
+        }
+        let all_items = order_merged_module_items(raw_items);
+        let dialect = if all_items.iter().any(top_decl_uses_stager) {
+            StageDialect::StageR3
+        } else {
+            StageDialect::StageL3
+        };
+        let merged_mod = Module {
+            dialect,
+            leading_comments: Vec::new(),
+            namespace: chosen_ns,
+            uses: merged_uses,
+            items: all_items,
+        };
+        let mut merged_dcs = HashSet::new();
+        collect_locally_defined_dcs(&merged_mod, &mut merged_dcs);
+        for dc in merged_dcs {
+            if let Some(owner) = dc_owners.get_mut(&dc) {
+                owner.namespace_key.clone_from(&chosen_key);
+            }
+        }
+        merged.push(merged_mod);
+    }
+
+    // Phase 3: Restore `is_pub = false` on any originally file-private `@dc` helper
+    // that has no external references outside its owning module (or carries `buf/T`).
+    let mut externally_referenced_dcs: HashSet<DcChar> = HashSet::new();
+    for m in merged.iter().chain(caller_modules.iter().map(|(cm, _)| cm)) {
+        let mut mod_local_dcs = HashSet::new();
+        collect_locally_defined_dcs(m, &mut mod_local_dcs);
+        let mut refs = Vec::new();
+        collect_dc_refs_in_module(m, &mut refs);
+        let mut q: VecDeque<DcChar> = refs.into_iter().collect();
+        let mut seen = HashSet::new();
+        while let Some(dc) = q.pop_front() {
+            if mod_local_dcs.contains(&dc) || !seen.insert(dc) {
+                continue;
+            }
+            externally_referenced_dcs.insert(dc);
+            if let Some(owner) = dc_owners.get(&dc) {
+                let mut sig_refs = Vec::new();
+                collect_dc_refs_in_owner_kind(&owner.kind, &mut sig_refs);
+                for s_dc in sig_refs {
+                    q.push_back(s_dc);
+                }
+            }
+        }
+    }
+
+    for m in &mut merged {
+        for item in &mut m.items {
+            let Some(dc) = top_decl_dc_id(item) else {
+                continue;
+            };
+            if (orig_private_dcs.contains(&dc)
+                && !externally_referenced_dcs.contains(&dc))
+                || top_decl_syntactically_contains_buf(item)
+            {
+                set_top_decl_is_pub(item, false);
+                if let Some(owner) = dc_owners.get_mut(&dc)
+                    && let GraphOwnerKind::Routine { sig } = &mut owner.kind
+                {
+                    sig.is_pub = false;
+                }
+            }
+        }
+    }
+
+    Ok(merged)
+}
+
 fn assemble_topo_sorted_modules_with_seed_graph(
     caller_modules: Vec<(Module, bool)>,
     seed_graph: &SeedGraphIndex,
@@ -1049,6 +1618,7 @@ fn assemble_topo_sorted_modules_with_seed_graph(
     }
 
     // 1. Reconstruct any external `use <ns>:` namespaces from `seed_graph`.
+    let mut next_synth_decl_line: usize = 100_000;
     let mut synth_ns_modules: BTreeMap<String, Module> = BTreeMap::new();
     for (m, _) in &caller_modules {
         // Reason for fallback: Anonymous caller modules format as '<anonymous>' in diagnostics.
@@ -1063,11 +1633,12 @@ fn assemble_topo_sorted_modules_with_seed_graph(
             {
                 continue;
             }
-            let (ext_mod, _) = reconstruct_external_namespace_module(
+            let (ext_mod, _) = reconstruct_external_namespace_module_with_line(
                 seed_graph,
                 &u.path,
                 &caller_label,
                 &mut dc_owners,
+                &mut next_synth_decl_line,
             )?;
             collect_locally_defined_dcs(&ext_mod, &mut local_dcs);
             synth_ns_modules.insert(target_key, ext_mod);
@@ -1087,7 +1658,9 @@ fn assemble_topo_sorted_modules_with_seed_graph(
         dc_worklist.push_back(dc);
     }
 
-    let mut synth_helper_modules: BTreeMap<String, Module> = BTreeMap::new();
+    let mut synth_helper_modules: BTreeMap<String, (Module, bool)> =
+        BTreeMap::new();
+    let mut orig_private_dcs: HashSet<DcChar> = HashSet::new();
     let mut checked_missing_dcs: HashSet<DcChar> = HashSet::new();
 
     while let Some(dc) = dc_worklist.pop_front() {
@@ -1103,12 +1676,14 @@ fn assemble_topo_sorted_modules_with_seed_graph(
             if !caller_ns_set.contains(&ns_key)
                 && !synth_ns_modules.contains_key(&ns_key)
             {
-                let (ext_mod, _) = reconstruct_external_namespace_module(
-                    seed_graph,
-                    &ns_segs,
-                    "<direct dc import>",
-                    &mut dc_owners,
-                )?;
+                let (ext_mod, _) =
+                    reconstruct_external_namespace_module_with_line(
+                        seed_graph,
+                        &ns_segs,
+                        "<direct dc import>",
+                        &mut dc_owners,
+                        &mut next_synth_decl_line,
+                    )?;
                 let mut ext_refs = Vec::new();
                 collect_dc_refs_in_module(&ext_mod, &mut ext_refs);
                 for r_dc in ext_refs {
@@ -1121,15 +1696,22 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                 continue;
             }
         }
-        let Some((_, entry)) = decode_graph_stagel_entry(seed_graph, sh)?
+        let decl_line = next_synth_decl_line;
+        next_synth_decl_line = next_synth_decl_line.saturating_add(1);
+        let Some((_, entry)) =
+            decode_graph_stagel_entry_at_line(seed_graph, sh, decl_line)?
         else {
             checked_missing_dcs.insert(dc);
             continue;
         };
 
         let synth_ns_seg = format!("$graph_dc_{sh}");
-        let (synth_mod, key) = match entry {
+        let (synth_mod, key, is_pub_anchor) = match entry {
             EitherDeclOrModule::Decl(raw_decl) => {
+                let raw_was_pub = top_decl_is_pub(&raw_decl);
+                if !raw_was_pub {
+                    orig_private_dcs.insert(dc);
+                }
                 let (prepared_decl, orig_name, kind) =
                     prepare_graph_top_decl(raw_decl, None, dc)?;
                 dc_owners.insert(
@@ -1154,6 +1736,7 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                         items: vec![prepared_decl],
                     },
                     synth_ns_seg,
+                    raw_was_pub,
                 )
             }
             EitherDeclOrModule::Module(mut m) => {
@@ -1173,7 +1756,13 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                     synth_ns_seg.clone()
                 };
                 let mut matched = false;
+                let mut any_pub = false;
                 for item in &mut m.items {
+                    if top_decl_is_pub(item) {
+                        any_pub = true;
+                    } else if let Some(item_dc) = top_decl_dc_id(item) {
+                        orig_private_dcs.insert(item_dc);
+                    }
                     if let TopDecl::Routine(r) = item {
                         r.tests.clear();
                     }
@@ -1206,12 +1795,14 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                     if !caller_ns_set.contains(&u_key)
                         && !synth_ns_modules.contains_key(&u_key)
                     {
-                        let (ext_mod, _) = reconstruct_external_namespace_module(
-                            seed_graph,
-                            &u.path,
-                            &ns_key,
-                            &mut dc_owners,
-                        )?;
+                        let (ext_mod, _) =
+                            reconstruct_external_namespace_module_with_line(
+                                seed_graph,
+                                &u.path,
+                                &ns_key,
+                                &mut dc_owners,
+                                &mut next_synth_decl_line,
+                            )?;
                         let mut ext_refs = Vec::new();
                         collect_dc_refs_in_module(&ext_mod, &mut ext_refs);
                         for r_dc in ext_refs {
@@ -1221,7 +1812,7 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                         synth_ns_modules.insert(u_key, ext_mod);
                     }
                 }
-                (m, ns_key)
+                (m, ns_key, any_pub)
             }
         };
 
@@ -1231,22 +1822,23 @@ fn assemble_topo_sorted_modules_with_seed_graph(
         for nested_dc in nested_refs {
             dc_worklist.push_back(nested_dc);
         }
-        synth_helper_modules.insert(key, synth_mod);
+        synth_helper_modules.insert(key, (synth_mod, is_pub_anchor));
     }
 
-    // 3. Assemble all modules (synthetic helpers + synthetic namespaces + caller modules),
-    // compute exact dependency edges, topologically sort, and validate!
-    let total_cap = synth_helper_modules
-        .len()
-        .saturating_add(synth_ns_modules.len())
-        .saturating_add(caller_modules.len());
+    // 3. Absorb file-private helpers into their unique owning synthetic anchors and
+    // coalesce any remaining Strongly Connected Components among synthetic graph modules,
+    // then assemble with caller modules, compute exact dependency edges, and topologically sort!
+    let merged_synth = coalesce_synthetic_sccs(
+        synth_helper_modules,
+        synth_ns_modules,
+        &orig_private_dcs,
+        &caller_modules,
+        &mut dc_owners,
+    )?;
+    let total_cap = merged_synth.len().saturating_add(caller_modules.len());
     let mut all_modules: Vec<Module> = Vec::with_capacity(total_cap);
     let mut all_forbid_flags: Vec<bool> = Vec::with_capacity(total_cap);
-    for m in synth_helper_modules.into_values() {
-        all_modules.push(m);
-        all_forbid_flags.push(false);
-    }
-    for m in synth_ns_modules.into_values() {
+    for m in merged_synth {
         all_modules.push(m);
         all_forbid_flags.push(false);
     }
@@ -1851,14 +2443,14 @@ pub fn validate_parsed_module_with_seed_graph(
     link_parsed_modules_with_seed_graph(vec![module.clone()], seed_graph)
 }
 
-/// Decodes a StageL/StageR Token-Dc stream (`Dc 2192`..`Dc 2193` or
-/// `Dc 2218`..`Dc 2193`) and links/validates it against `seed_graph`.
+/// Decodes one or more StageL/StageR Token-Dc modules (`Dc 2192`..`Dc 2193` or
+/// `Dc 2221`..`Dc 2222`) and links/validates them against `seed_graph`.
 pub fn validate_dc_tokens_with_seed_graph(
     tokens: &[DcChar],
     seed_graph: &SeedGraphIndex,
 ) -> Result<ValidatedWorkspace> {
-    let module = decode_module_from_dc_tokens(tokens)?;
-    validate_parsed_module_with_seed_graph(&module, seed_graph)
+    let modules = decode_modules_from_dc_tokens(tokens)?;
+    link_parsed_modules_with_seed_graph(modules, seed_graph)
 }
 
 /// Parses, links against `seed_graph`, and executes inline `test` blocks on a
@@ -1947,7 +2539,7 @@ const STAGE0_WASM_OPERATOR_DCS: &[DcChar] = &[
     crate::dc::DC_STAGEL_BUF_FREEZE,
 ];
 
-/// Synthesizes a minimal StageL 3 Token-Dc entry module (`pub v/l/u8/main l/u8/input`)
+/// Synthesizes a minimal StageL 3 Token-Dc entry module (`v/l/u8/step l/u8/input`)
 /// that delegates directly to `routine_dc` (`pub dc/<shorthand> v/l/u8/... l/u8/input`)
 /// in `seed_graph`.
 ///
@@ -1959,9 +2551,7 @@ pub fn build_entry_module_for_graph_routine_dc(
     seed_graph: &SeedGraphIndex,
 ) -> Result<Vec<DcChar>> {
     let sh = super::ast::format_dc_shorthand(routine_dc);
-    let src = format!(
-        "use dc/{sh} as targetRoutine.\npub v/l/u8/main l/u8/input :: targetRoutine l/u8/input.\n"
-    );
+    let src = format!("v/l/u8/step l/u8/input :: dc/{sh} /input.\n");
     sl3_to_dc_tokens_with_seed_graph(&src, seed_graph)
 }
 

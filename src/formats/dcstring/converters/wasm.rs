@@ -4142,31 +4142,27 @@ pub fn run_dc_wasm_pure_conversion_with_resolver(
     )
 }
 
-/// Runs a pure-compute Dc-WASM conversion (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`
-/// or `wasm_routine`) over `input` using `resolver` and an optional [`SharedWasmTaskQuota`].
+/// Runs a pure-compute WebAssembly conversion from pre-assembled `.wasm` bytes over `input`
+/// using an optional [`SharedWasmTaskQuota`].
 ///
 /// # Errors
-/// Returns an error if assembly or execution fails, if the program requests a privileged
+/// Returns an error if instantiation or execution fails, if the program requests a privileged
 /// capability during pure conversion, or if it exhausts its compute/output quota or step limit.
-pub fn run_dc_wasm_pure_conversion_with_resolver_and_quota(
-    wasm_doc: &DcMstr,
+pub fn run_wasm_bytes_pure_conversion_with_quota(
+    wasm_bytes: &[u8],
     input: &DcMstr,
-    resolver: &dyn SyntaxRuleResolver,
+    most_recent: Option<u128>,
     shared_quota: Option<SharedWasmTaskQuota>,
 ) -> Result<DcMstring> {
-    let most_recent = resolver
-        .seed_graph()
-        .and_then(ctb_formats_dcdata::seed_graph::SeedGraphIndex::system_block_most_recent_node_id);
     let limits = if let Some(ref shared) = shared_quota {
         shared.active_limits()?
     } else {
         DcWasmResourceLimits::default()
     };
-    let mut session = DcWasmSession::from_dc_wasm_with_limits(
-        wasm_doc,
+    let mut session = DcWasmSession::from_wasm_bytes_with_limits(
+        wasm_bytes,
         input,
         most_recent,
-        resolver,
         limits,
     )?;
     if let Some(shared) = shared_quota {
@@ -4198,6 +4194,30 @@ pub fn run_dc_wasm_pure_conversion_with_resolver_and_quota(
     }
     bail!(
         "Pure Dc-WASM conversion exceeded maximum step limit ({DEFAULT_MAX_PURE_CONVERSION_STEPS})"
+    )
+}
+
+/// Runs a pure-compute Dc-WASM conversion (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`
+/// or `wasm_routine`) over `input` using `resolver` and an optional [`SharedWasmTaskQuota`].
+///
+/// # Errors
+/// Returns an error if assembly or execution fails, if the program requests a privileged
+/// capability during pure conversion, or if it exhausts its compute/output quota or step limit.
+pub fn run_dc_wasm_pure_conversion_with_resolver_and_quota(
+    wasm_doc: &DcMstr,
+    input: &DcMstr,
+    resolver: &dyn SyntaxRuleResolver,
+    shared_quota: Option<SharedWasmTaskQuota>,
+) -> Result<DcMstring> {
+    let most_recent = resolver
+        .seed_graph()
+        .and_then(ctb_formats_dcdata::seed_graph::SeedGraphIndex::system_block_most_recent_node_id);
+    let wasm_bytes = dcmstring_to_wasm_with_resolver(wasm_doc, resolver)?;
+    run_wasm_bytes_pure_conversion_with_quota(
+        &wasm_bytes,
+        input,
+        most_recent,
+        shared_quota,
     )
 }
 
@@ -4524,6 +4544,10 @@ pub fn run_graph_wasm_tokens_on_dc_slice_with_quota(
 /// (either a Stage 0 `.WASM` converter or a Stage 1 StageL Token-Dc converter compiled
 /// via the active StageL-to-WASM converter) on `input_tokens` under `shared_quota`.
 ///
+/// When `shared_quota` is `None` (direct host document transformation outside a supervisor
+/// session), a bounded converter-step [`SharedWasmTaskQuota`] is allocated so self-hosted
+/// Stage 0 / Stage 1 compiler transforms have sufficient compute, memory, and output budget.
+///
 /// # Errors
 /// Returns an error if dependency bundling, StageL-to-WASM compilation, or WASM execution fails.
 pub fn run_active_converter_step_on_dc_slice_with_quota(
@@ -4535,6 +4559,30 @@ pub fn run_active_converter_step_on_dc_slice_with_quota(
 ) -> Result<DcMstring> {
     use ctb_formats_dcdata::seed_graph::ActiveConverterBody;
     use ctb_storage_minimal::shorthand::DcShorthand;
+
+    const DEFAULT_CONVERTER_MAX_INSTRUCTIONS: u64 = 1_000_000_000;
+    const DEFAULT_CONVERTER_MAX_MEMORY_PAGES: usize = 2048;
+    const DEFAULT_CONVERTER_MAX_STEP_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
+    const DEFAULT_CONVERTER_MAX_SESSION_OUTPUT_BYTES: usize = 64 * 1024 * 1024;
+
+    // Reason for fallback: Direct host document transformations without an enclosing
+    // supervisor SharedWasmTaskQuota use a bounded compiler-step quota sufficient to
+    // compile and run self-hosted Stage 0 / Stage 1 transformations (`f1680`, `f1681`).
+    let shared_quota = Some(shared_quota.unwrap_or_else(|| {
+        SharedWasmTaskQuota::new(
+            DcWasmResourceLimits::default()
+                .with_max_instructions_per_step(
+                    DEFAULT_CONVERTER_MAX_INSTRUCTIONS,
+                )
+                .with_max_memory_pages(DEFAULT_CONVERTER_MAX_MEMORY_PAGES)
+                .with_max_step_output_bytes(
+                    DEFAULT_CONVERTER_MAX_STEP_OUTPUT_BYTES,
+                )
+                .with_max_session_output_bytes(
+                    DEFAULT_CONVERTER_MAX_SESSION_OUTPUT_BYTES,
+                ),
+        )
+    }));
 
     let wasm_dst_sh = DcShorthand::from_global_id(
         ctb_formats_dcdata::dc::DC_BEGIN_WASM_PROGRAM.to_u128(),
@@ -4624,8 +4672,39 @@ pub fn run_active_converter_step_on_dc_slice_with_quota(
                 resolver,
                 shared_quota,
             )
+            .with_context(|| {
+                format!(
+                    "WASM converter step {} ({} -> {}) failed",
+                    step.subject, step.src, step.dst
+                )
+            })
         }
         ActiveConverterBody::StageL(_) => {
+            #[derive(Clone, PartialEq, Eq, Hash)]
+            struct StageLConverterCacheKey {
+                most_recent: Option<u128>,
+                converter_subj: DcShorthand,
+                stagel_to_wasm_subj: u128,
+                stagel_to_wasm_len: usize,
+                bundled_entry: Vec<DcChar>,
+            }
+
+            #[derive(Clone)]
+            struct CachedStageLConverterWasm {
+                wasm_bytes: std::sync::Arc<Vec<u8>>,
+                compile_instructions: u64,
+                compile_output_bytes: usize,
+            }
+
+            static STAGEL_CONVERTER_CACHE: std::sync::OnceLock<
+                std::sync::Mutex<
+                    std::collections::HashMap<
+                        StageLConverterCacheKey,
+                        CachedStageLConverterWasm,
+                    >,
+                >,
+            > = std::sync::OnceLock::new();
+
             let converter_dc = DcChar::from_u128(step.subject.to_global_id()?);
             let entry_module_tokens =
                 ctb_formats_dcdata::stagel3::seed_linker::build_entry_module_for_graph_routine_dc(
@@ -4638,7 +4717,7 @@ pub fn run_active_converter_step_on_dc_slice_with_quota(
                     sg,
                     resolver,
                 )?;
-            let Some((_, stagel_to_wasm_tokens)) =
+            let Some((s2w_subj, stagel_to_wasm_tokens)) =
                 sg.resolve_active_converter_routine(stagel_src_sh, wasm_dst_sh)?
             else {
                 bail!(
@@ -4646,34 +4725,135 @@ pub fn run_active_converter_step_on_dc_slice_with_quota(
                     step.subject
                 );
             };
-            let raw_converter_wasm =
-                run_graph_wasm_tokens_on_dc_slice_with_quota(
-                    stagel_to_wasm_tokens,
-                    &bundled_converter_entry,
-                    resolver,
-                    shared_quota.clone(),
-                )?;
-            let raw_wasm_chars: Vec<DcChar> =
-                raw_converter_wasm.to_dc_string()?.chars().collect();
-            let raw_wasm_shorthands: Vec<DcShorthand> = raw_wasm_chars
-                .iter()
-                .map(|c| DcShorthand::from_global_id(c.to_u128()))
-                .collect();
-            let compiled_converter_wasm =
-                expand_graph_wasm_shorthands_to_dcmstring(
-                    &raw_wasm_shorthands,
-                    resolver,
-                )?;
+            let most_recent = sg.system_block_most_recent_node_id();
+            let cache_key = StageLConverterCacheKey {
+                most_recent,
+                converter_subj: step.subject,
+                stagel_to_wasm_subj: s2w_subj,
+                stagel_to_wasm_len: stagel_to_wasm_tokens.len(),
+                bundled_entry: bundled_converter_entry.clone(),
+            };
+            let cache_map = STAGEL_CONVERTER_CACHE
+                .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+            let maybe_cached_entry = cache_map
+                .lock()
+                .map_err(|_| anyhow!("STAGEL_CONVERTER_CACHE mutex poisoned"))?
+                .get(&cache_key)
+                .cloned();
+
+            let mut converter_wasm_bytes: Option<std::sync::Arc<Vec<u8>>> = None;
+            if let Some(cached) = maybe_cached_entry
+                && let Some(ref quota) = shared_quota
+            {
+                let charged = quota.with_lock(|st| {
+                    let next_out = st
+                        .cumulative_output_bytes
+                        .saturating_add(cached.compile_output_bytes);
+                    if st.remaining_compute_quota >= cached.compile_instructions
+                        && cached.compile_output_bytes
+                            <= st.active_limits.max_step_output_bytes
+                        && next_out <= st.max_session_output_bytes
+                        && st.active_limits.max_memory_pages >= 256
+                        && st.active_limits.physical_max_memory_pages >= 256
+                    {
+                        st.remaining_compute_quota = st
+                            .remaining_compute_quota
+                            .saturating_sub(cached.compile_instructions);
+                        st.total_instructions_executed = st
+                            .total_instructions_executed
+                            .saturating_add(cached.compile_instructions);
+                        st.cumulative_output_bytes = next_out;
+                        true
+                    } else {
+                        false
+                    }
+                })?;
+                if charged {
+                    converter_wasm_bytes = Some(cached.wasm_bytes);
+                }
+            }
+
+            let wasm_bytes = if let Some(bytes) = converter_wasm_bytes {
+                bytes
+            } else {
+                let before_snap = match shared_quota {
+                    Some(ref q) => Some(q.snapshot()?),
+                    None => None,
+                };
+                let raw_converter_wasm =
+                    run_graph_wasm_tokens_on_dc_slice_with_quota(
+                        stagel_to_wasm_tokens,
+                        &bundled_converter_entry,
+                        resolver,
+                        shared_quota.clone(),
+                    )
+                    .with_context(|| {
+                        format!(
+                            "StageL-to-WASM compilation of converter {} ({} -> {}) failed",
+                            step.subject, step.src, step.dst
+                        )
+                    })?;
+                let after_snap = match shared_quota {
+                    Some(ref q) => Some(q.snapshot()?),
+                    None => None,
+                };
+                let raw_wasm_chars: Vec<DcChar> =
+                    raw_converter_wasm.to_dc_string()?.chars().collect();
+                let raw_wasm_shorthands: Vec<DcShorthand> = raw_wasm_chars
+                    .iter()
+                    .map(|c| DcShorthand::from_global_id(c.to_u128()))
+                    .collect();
+                let compiled_converter_wasm =
+                    expand_graph_wasm_shorthands_to_dcmstring(
+                        &raw_wasm_shorthands,
+                        resolver,
+                    )?;
+                let assembled_bytes = std::sync::Arc::new(
+                    dcmstring_to_wasm_with_resolver(
+                        &compiled_converter_wasm,
+                        resolver,
+                    )?,
+                );
+                if let (Some(b), Some(a)) = (before_snap, after_snap) {
+                    let compile_instructions = a
+                        .total_instructions_executed
+                        .saturating_sub(b.total_instructions_executed);
+                    let compile_output_bytes = a
+                        .cumulative_output_bytes
+                        .saturating_sub(b.cumulative_output_bytes);
+                    cache_map
+                        .lock()
+                        .map_err(|_| {
+                            anyhow!("STAGEL_CONVERTER_CACHE mutex poisoned")
+                        })?
+                        .insert(
+                            cache_key,
+                            CachedStageLConverterWasm {
+                                wasm_bytes: assembled_bytes.clone(),
+                                compile_instructions,
+                                compile_output_bytes,
+                            },
+                        );
+                }
+                assembled_bytes
+            };
+
             let mut input_doc = DcMstring::new();
             for &tok in converter_input {
                 input_doc.push_char(tok);
             }
-            run_dc_wasm_pure_conversion_with_resolver_and_quota(
-                &compiled_converter_wasm,
+            run_wasm_bytes_pure_conversion_with_quota(
+                &wasm_bytes,
                 &input_doc,
-                resolver,
+                most_recent,
                 shared_quota,
             )
+            .with_context(|| {
+                format!(
+                    "Executing compiled StageL converter {} ({} -> {}) failed",
+                    step.subject, step.src, step.dst
+                )
+            })
         }
     }
 }

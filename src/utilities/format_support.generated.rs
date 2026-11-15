@@ -1942,6 +1942,9 @@ pub enum SupportedDcTransformation {
     /// StageL 3 Dcs to WASM
     #[value(name = "stagel3_to_wasm", alias = "stagel3towasm", alias = "StageL3ToWasm", alias = "f1680")]
     StageL3ToWasm,
+    /// StageR 3 Dcs to StageL 3 Dcs
+    #[value(name = "stager3_to_stagel3", alias = "stager3tostagel3", alias = "StageR3ToStageL3", alias = "f1681")]
+    StageR3ToStageL3,
     /// Unicode characters to equivalent short Dcs
     #[value(name = "unicode_to_short_dc", alias = "unicodetoshortdc", alias = "UnicodeToShortDc", alias = "f654")]
     UnicodeToShortDc,
@@ -1954,6 +1957,7 @@ impl SupportedDcTransformation {
         Self::CodeToText,
         Self::SemanticToText,
         Self::StageL3ToWasm,
+        Self::StageR3ToStageL3,
         Self::UnicodeToShortDc,
     ];
 
@@ -1963,6 +1967,7 @@ impl SupportedDcTransformation {
         FormatId::CodeToText,
         FormatId::SemanticToText,
         FormatId::StageL3ToWasm,
+        FormatId::StageR3ToStageL3,
         FormatId::UnicodeToShortDc,
     ];
 
@@ -1974,6 +1979,7 @@ impl SupportedDcTransformation {
             Self::CodeToText => "codetotext",
             Self::SemanticToText => "semantictotext",
             Self::StageL3ToWasm => "stagel3_to_wasm",
+            Self::StageR3ToStageL3 => "stager3_to_stagel3",
             Self::UnicodeToShortDc => "unicode_to_short_dc",
         }
     }
@@ -1986,6 +1992,7 @@ impl SupportedDcTransformation {
             Self::CodeToText => FormatId::CodeToText,
             Self::SemanticToText => FormatId::SemanticToText,
             Self::StageL3ToWasm => FormatId::StageL3ToWasm,
+            Self::StageR3ToStageL3 => FormatId::StageR3ToStageL3,
             Self::UnicodeToShortDc => FormatId::UnicodeToShortDc,
         }
     }
@@ -1998,6 +2005,7 @@ impl SupportedDcTransformation {
             FormatId::CodeToText => Some(Self::CodeToText),
             FormatId::SemanticToText => Some(Self::SemanticToText),
             FormatId::StageL3ToWasm => Some(Self::StageL3ToWasm),
+            FormatId::StageR3ToStageL3 => Some(Self::StageR3ToStageL3),
             FormatId::UnicodeToShortDc => Some(Self::UnicodeToShortDc),
             _ => None,
         }

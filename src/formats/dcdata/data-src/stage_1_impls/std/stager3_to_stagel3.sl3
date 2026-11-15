@@ -34,6 +34,7 @@ use std/bigint: bigInt intFromBase64Digits ::.
 : ---------------------------------------------------------------------------
 
 : Identifier or `@dc` atom reference (`isDc`, `dcAtom`, `identBytes`).
+: @dc l8589982979
 struct symRef :: b dcVal l/u8.
 
 : Syntactic StageL/StageR type tree:
@@ -41,48 +42,62 @@ struct symRef :: b dcVal l/u8.
 :         8=i128, 9=u128, 10=int, 11=rat, 12=dc, 13=dcs, 14=s, 15=error,
 :         16=l/T, 17=buf/T, 18=tup, 19=option/T, 20=result/T,
 :         21=struct(symRef), 22=nominal(symRef).
+: @dc l8589982980
 struct rawType :: u8 symRef l/rawType.
 
 : Canonical StageR/StageL type tree:
 : `kind`: 0..=20 same as `rawType`;
 :         21=stage1Struct(defIdx), 22=namedStruct(defIdx),
 :         23=brand(defIdx), 24=enum(defIdx).
+: @dc l8589982981
 struct rType :: u8 u32 l/rType.
 
 : `use` import item (`nsSegs`, `nsKey`, `target`, `aliasBytes` — empty if unaliased).
+: @dc l8589982982
 struct useItem :: l/l/dcVal l/u8 symRef l/u8.
 
 : Routine parameter (`ty`, `name`).
+: @dc l8589982983
 struct paramDecl :: rawType l/u8.
 
 : Named or positional struct field (`name` — empty on Stage 1 positional structs, `ty`).
+: @dc l8589982984
 struct fieldDecl :: l/u8 rawType.
 
 : Enum variant declaration (`name`, `hasPayload`, `payloadTy`).
+: @dc l8589982985
 struct variantDecl :: l/u8 b rawType.
 
 : Brand / module-opaque type declaration (`isPub`, `isOpaque`, `optDc`, `name`, `innerTy`).
+: @dc l8589982986
 struct rawBrand :: b b tup: b dcVal :: l/u8 rawType.
 
 : Named or Stage 1 positional struct declaration (`isPub`, `optDc`, `name`, `fields`).
+: @dc l8589982987
 struct rawStruct :: b tup: b dcVal :: l/u8 l/fieldDecl.
 
 : Algebraic enum declaration (`isPub`, `optDc`, `name`, `variants`).
+: @dc l8589982988
 struct rawEnum :: b tup: b dcVal :: l/u8 l/variantDecl.
 
 : Named struct field initializer (`fieldName`, `valExpr`).
+: @dc l8589982989
 struct fieldInit :: l/u8 exprNode.
 
 : Match case arm (`variantName`, `hasBind`, `bindTy`, `bindName`, `body`).
+: @dc l8589982990
 struct matchArm :: l/u8 b rawType l/u8 exprNode.
 
 : Inline routine test case (`inputs`, `expectedKind`: 0=void, 1=fault, 2=expr, `expectedExpr`).
+: @dc l8589982991
 struct testCase :: l/exprNode u8 exprNode.
 
 : Routine declaration (`isPub`, `optDc`, `retTy`, `name`, `params`, `tests`, `body`).
+: @dc l8589982992
 struct rawRoutine :: b tup: b dcVal :: rawType l/u8 l/paramDecl l/testCase exprNode.
 
 : Top-level constant declaration (`isPub`, `optDc`, `ty`, `name`, `valExpr`).
+: @dc l8589982993
 struct rawConst :: b tup: b dcVal :: rawType l/u8 exprNode.
 
 : Unified StageR 3 expression AST node:
@@ -106,6 +121,7 @@ struct rawConst :: b tup: b dcVal :: rawType l/u8 exprNode.
 :   35=ResultOk(types=[okTy], args=[val]), 36=ResultErr(types=[okTy], args=[err]),
 :   37=WrapNominal(types=[target], args=[inner]), 38=UnwrapNominal(args=[inner]),
 :   39=Match(aux=hasFallback, args=[scr]|[scr,fb], arms), 40=Propagate(args=[inner]).
+: @dc l8589982994
 struct exprNode ::
     u8
     u32
@@ -121,6 +137,7 @@ struct exprNode ::
 
 : Parsed module record (`isStageR`, `rawStart`, `rawEnd`, `hasNs`, `nsSegs`, `nsKey`,
 : `uses`, `s1Structs`, `namedStructs`, `brands`, `enums`, `consts`, `routines`).
+: @dc l8589982995
 struct parsedMod ::
     b
     u64
@@ -137,16 +154,25 @@ struct parsedMod ::
     l/rawRoutine.
 
 : Canonical definition entries across all modules in the compilation unit.
+: @dc l8589982996
 struct s1StructDef :: u32 b tup: b dcVal :: l/u8 l/rType.
+: @dc l8589982997
 struct namedFieldDef :: l/u8 rType.
+: @dc l8589982998
 struct namedStructDef :: u32 b tup: b dcVal :: l/u8 l/namedFieldDef.
+: @dc l8589982999
 struct brandDef :: u32 b b tup: b dcVal :: l/u8 rType.
+: @dc l8589983000
 struct enumVarDef :: l/u8 b rType u32.
+: @dc l8589983001
 struct enumDef :: u32 b tup: b dcVal :: l/u8 l/enumVarDef l/rType.
+: @dc l8589983002
 struct valDef :: u32 b tup: b dcVal :: l/u8 rType.
+: @dc l8589983003
 struct routDef :: u32 b tup: b dcVal :: l/u8 l/u8 rType l/rType.
 
 : Global read-only compilation environment across all modules.
+: @dc l8589983004
 struct compEnv ::
     l/b
     l/l/l/dcVal
@@ -160,82 +186,106 @@ struct compEnv ::
 
 : Resolved per-module `use` alias entry (`aliasBytes`, `kind`: 0=s1Struct, 1=namedStruct,
 : 2=brand, 3=enum, 4=val, 5=rout, `defIdx`).
+: @dc l8589983005
 struct aliasEntry :: l/u8 u8 u32.
 
 : Per-module scope (`modIdx`, `aliases`, `synthTypeImports`: `(kind, defIdx, synthAlias)`).
+: @dc l8589983006
 struct synthImport :: u8 u32 l/u8 l/l/dcVal l/u8.
+: @dc l8589983007
 struct modScope :: u32 l/aliasEntry l/synthImport.
 
 : Local lexical binding inside a routine (`name`, `ty`) and nested routine (`name`, `retTy`, `paramTys`).
+: @dc l8589983008
 struct localVar :: l/u8 rType.
+: @dc l8589983009
 struct nestedSig :: l/u8 rType l/rType.
+: @dc l8589983010
 struct fnCtx :: rType l/localVar l/nestedSig.
 
 : ---------------------------------------------------------------------------
 : 1. Foundational Constructors, @dc Constants, and Token Emission Helpers
 : ---------------------------------------------------------------------------
 
+: @dc l8589983013
 v/dcVal/dcZero
     dcNew u64:0 u64:0.
 
+: @dc l8589983014
 v/dcVal/dcLong u64/id
     dcNew /id u64:0.
 
+: @dc l8589983015
 v/symRef/emptySym
     structNew symRef: false dcZero b"" ::.
 
+: @dc l8589983016
 v/rawType/rawScalarType u8/kind
     structNew rawType: /kind emptySym l/rawType: :: ::.
 
+: @dc l8589983017
 v/rType/primType u8/kind
     structNew rType: /kind u32:0 l/rType: :: ::.
 
+: @dc l8589983018
 v/rType/unaryRType u8/kind rType/inner
     structNew rType: /kind u32:0 l/rType: /inner :: ::.
 
-v/exprNode/makeExpr
-    u8/kind u32/aux dcVal/dcAtom l/u8/bytes l/dcVal/dcsVal symRef/sym
-    l/rawType/types l/exprNode/args l/fieldInit/nfields l/matchArm/arms l/rawRoutine/nested
+: @dc l8589983019
+v/exprNode/makeExpr u8/kind u32/aux dcVal/dcAtom l/u8/bytes l/dcVal/dcsVal symRef/sym l/rawType/types l/exprNode/args l/fieldInit/nfields l/matchArm/arms l/rawRoutine/nested
     structNew exprNode: /kind /aux /dcAtom /bytes /dcsVal /sym /types /args /nfields /arms /nested ::.
 
+: @dc l8589983020
 v/exprNode/simpleExpr u8/kind u32/aux l/exprNode/args
     makeExpr /kind /aux dcZero b"" l/dcVal: :: emptySym l/rawType: :: /args l/fieldInit: :: l/matchArm: :: l/rawRoutine: ::.
 
+: @dc l8589983021
 v/exprNode/nopExpr
     simpleExpr u8:24 u32:0 l/exprNode: ::.
 
+: @dc l8589983022
 v/void/emitDc buf/dcVal/out dcVal/c
     bufPush /out /c.
 
+: @dc l8589983023
 v/void/emitShort buf/dcVal/out u32/sid
     bufPush /out dcShort /sid.
 
+: @dc l8589983024
 v/void/emitFormat buf/dcVal/out u32/fid
     bufPush /out dcFormat /fid.
 
+: @dc l8589983025
 v/void/emitBool buf/dcVal/out b/flag
     emitShort /out if /flag u32:517 u32:518.
 
+: @dc l8589983026
 v/void/emitAtom buf/dcVal/out dcVal/c
     bufExtend /out tokAtomDc /c.
 
+: @dc l8589983027
 v/void/emitOptAtom buf/dcVal/out tup: b dcVal ::/optDc
     bufExtend /out tokOptAtomDc field /optDc u32:0 field /optDc u32:1.
 
+: @dc l8589983028
 v/void/emitIdent buf/dcVal/out l/u8/name
     bufExtend /out tokIdent /name.
 
+: @dc l8589983029
 v/void/emitSymTarget buf/dcVal/out symRef/sym
     if field /sym u32:0
         emitAtom /out field /sym u32:1
         emitIdent /out field /sym u32:2.
 
+: @dc l8589983030
 v/void/emitDcNumU64 buf/dcVal/out u64/val
     bufExtend /out tokDcNumberU64 /val.
 
+: @dc l8589983031
 v/void/emitTypedU64 buf/dcVal/out u32/fmtId u64/val
     bufExtend /out tokTypedU64 /fmtId /val.
 
+: @dc l8589983032
 v/l/u8/u64ToAsciiDec u64/n
     if eq /n u64:0
         return b"0"
@@ -254,12 +304,14 @@ v/l/u8/u64ToAsciiDec u64/n
     ::.
     bufFreeze /out.
 
+: @dc l8589983033
 v/l/u8/freshTemp buf/u64/gensym
     const u64/id get /gensym u64:0.
     bufSet /gensym u64:0 add /id u64:1.
     concat b"__sr_g" u64ToAsciiDec /id.
 
 : Converts a `FilePath` segment list (`l/l/dcVal`) into a canonical `'/'`-joined byte key.
+: @dc l8589983034
 v/l/u8/joinFilePathKey l/l/dcVal/segs
     const buf/u8/out bufNew u8 u64:32.
     let u64/si u64:0.
@@ -282,6 +334,7 @@ v/l/u8/joinFilePathKey l/l/dcVal/segs
     ::.
     bufFreeze /out.
 
+: @dc l8589983035
 v/void/emitFilePath buf/dcVal/out l/l/dcVal/segs
     emitShort /out u32:511.
     emitFormat /out u32:229.
@@ -307,12 +360,14 @@ v/void/emitFilePath buf/dcVal/out l/l/dcVal/segs
 : 2. StageR 3 / StageL 3 Token-Dc Recursive-Descent Parser
 : ---------------------------------------------------------------------------
 
+: @dc l8589983036
 v/u64/expectShort l/dcVal/tokens u64/pos u32/expectedSid
     const u64/p skipComments /tokens /pos.
     if or ge /p len /tokens ne dcShortId get /tokens /p /expectedSid
         fault
         add /p u64:1.
 
+: @dc l8589983037
 v/tup: b u64 ::/readBoolTok l/dcVal/tokens u64/pos
     const u64/p skipComments /tokens /pos.
     if ge /p len /tokens
@@ -325,6 +380,7 @@ v/tup: b u64 ::/readBoolTok l/dcVal/tokens u64/pos
             tupNew: false add /p u64:1 ::
             fault.
 
+: @dc l8589983038
 v/tup: tup: b dcVal :: u64 ::/readOptAtomTok l/dcVal/tokens u64/pos
     const u64/p skipComments /tokens /pos.
     if ge /p len /tokens
@@ -338,6 +394,7 @@ v/tup: tup: b dcVal :: u64 ::/readOptAtomTok l/dcVal/tokens u64/pos
         fault
         tupNew: tupNew: true field /ar u32:1 :: field /ar u32:2 ::.
 
+: @dc l8589983039
 v/tup: l/u8 u64 ::/mustReadIdent l/dcVal/tokens u64/pos
     const u64/p skipComments /tokens /pos.
     const tup: b l/u8 u64 ::/ir readIdentBytes /tokens /p.
@@ -345,6 +402,7 @@ v/tup: l/u8 u64 ::/mustReadIdent l/dcVal/tokens u64/pos
         fault
         tupNew: field /ir u32:1 field /ir u32:2 ::.
 
+: @dc l8589983040
 v/tup: symRef u64 ::/readSymRef l/dcVal/tokens u64/pos
     const u64/p skipComments /tokens /pos.
     if ge /p len /tokens
@@ -362,6 +420,7 @@ v/tup: symRef u64 ::/readSymRef l/dcVal/tokens u64/pos
                 tupNew: structNew symRef: true field /ar u32:1 b"" :: field /ar u32:2 ::.
         ::.
 
+: @dc l8589983041
 v/tup: u64 u64 ::/readUntypedU64 l/dcVal/tokens u64/pos
     const u64/p skipComments /tokens /pos.
     const tup: b u32 b l/u8 u64 ::/nr readNumberRaw /tokens /p.
@@ -373,6 +432,7 @@ v/tup: u64 u64 ::/readUntypedU64 l/dcVal/tokens u64/pos
         fault
         tupNew: field field /dr u32:1 u32:0 field /nr u32:4 ::.
 
+: @dc l8589983042
 v/tup: l/l/dcVal u64 ::/readFilePath l/dcVal/tokens u64/pos
     let u64/p expectShort /tokens /pos u32:511.
     if or ge /p len /tokens ne dcFormatId get /tokens /p u32:229
@@ -421,6 +481,7 @@ v/tup: l/l/dcVal u64 ::/readFilePath l/dcVal/tokens u64/pos
         fault
         tupNew: bufFreeze /segs /p ::.
 
+: @dc l8589983043
 v/b/peekStartsType l/dcVal/tokens u64/pos
     const u64/p skipComments /tokens /pos.
     if ge /p len /tokens
@@ -438,6 +499,7 @@ v/b/peekStartsType l/dcVal/tokens u64/pos
                     or eq /sid u32:2577
                         and ge /sid u32:2672 le /sid u32:2679.
 
+: @dc l8589983044
 v/u64/skipGeneralOrStagelType l/dcVal/tokens u64/pos
     const u64/p skipComments /tokens /pos.
     if ge /p len /tokens
@@ -469,6 +531,7 @@ v/u64/skipGeneralOrStagelType l/dcVal/tokens u64/pos
     const tup: rawType u64 ::/tr readRawType /tokens /p.
     field /tr u32:1.
 
+: @dc l8589983045
 v/tup: rawType u64 ::/readRawType l/dcVal/tokens u64/pos
     const u64/p skipComments /tokens /pos.
     if ge /p len /tokens
@@ -566,6 +629,7 @@ v/tup: rawType u64 ::/readRawType l/dcVal/tokens u64/pos
         nop.
     fault.
 
+: @dc l8589983046
 v/u32/parseErrorTagKeyword l/u8/kw
     if eq /kw b"overflow"        return u32:0 nop.
     if eq /kw b"divisionByZero"  return u32:1 nop.
@@ -577,6 +641,7 @@ v/u32/parseErrorTagKeyword l/u8/kw
     if eq /kw b"unexpectedNone"  return u32:7 nop.
     fault.
 
+: @dc l8589983047
 v/b/isStageRUnarySid u32/sid
     or eq /sid u32:2524
         or and ge /sid u32:2529 le /sid u32:2532
@@ -587,6 +652,7 @@ v/b/isStageRUnarySid u32/sid
                             or eq /sid u32:2585
                                 and ge /sid u32:2610 le /sid u32:2613.
 
+: @dc l8589983048
 v/b/isStageRBinarySid u32/sid
     or and ge /sid u32:2518 le /sid u32:2523
         or and ge /sid u32:2527 le /sid u32:2528
@@ -600,10 +666,12 @@ v/b/isStageRBinarySid u32/sid
                                         or eq /sid u32:2609
                                             and ge /sid u32:2614 le /sid u32:2615.
 
+: @dc l8589983049
 v/b/isStageRTernarySid u32/sid
     or eq /sid u32:2564 eq /sid u32:2565.
 
 : Parses a single StageR 3 expression at `pos` -> `(exprNode, nextPos)`.
+: @dc l8589983050
 v/tup: exprNode u64 ::/readStageRExpr l/dcVal/tokens u64/pos
     const u64/p skipComments /tokens /pos.
     if ge /p len /tokens
@@ -1157,6 +1225,7 @@ v/tup: exprNode u64 ::/readStageRExpr l/dcVal/tokens u64/pos
     fault.
 
 : Parses a StageR 3 `Dc 2203 .. Dc 2204` routine declaration -> `(rawRoutine, nextPos)`.
+: @dc l8589983051
 v/tup: rawRoutine u64 ::/readStageRRoutine l/dcVal/tokens u64/pos
     let u64/cur expectShort /tokens /pos u32:2203.
     const tup: b u64 ::/pr readBoolTok /tokens /cur.
@@ -1257,6 +1326,7 @@ v/tup: rawRoutine u64 ::/readStageRRoutine l/dcVal/tokens u64/pos
 
 : Skips a single StageL 3 expression in a bundled Stage 1 module (`Dc 2192..2193`)
 : when scanning exported top-level constant initializers.
+: @dc l8589983052
 v/u64/skipStageLExpr l/dcVal/tokens u64/pos
     const u64/p skipComments /tokens /pos.
     if ge /p len /tokens
@@ -1466,6 +1536,7 @@ v/u64/skipStageLExpr l/dcVal/tokens u64/pos
         nop.
     fault.
 
+: @dc l8589983053
 v/u64/skipStageLRoutineFromOpen l/dcVal/tokens u64/pos
     let u64/cur expectShort /tokens /pos u32:2203.
     let u64/depth u64:1.
@@ -1487,6 +1558,7 @@ v/u64/skipStageLRoutineFromOpen l/dcVal/tokens u64/pos
     /cur.
 
 : Parses module header (`ns` + `use`s) shared by StageL (`Dc 2192`) and StageR (`Dc 2221`).
+: @dc l8589983054
 v/tup: b l/l/dcVal l/u8 l/useItem u64 ::/readModHeader l/dcVal/tokens u64/posAfterOpen
     let u64/cur skipComments /tokens /posAfterOpen.
     if ge /cur len /tokens fault nop.
@@ -1546,6 +1618,7 @@ v/tup: b l/l/dcVal l/u8 l/useItem u64 ::/readModHeader l/dcVal/tokens u64/posAft
     tupNew: /hasNs /nsSegs /nsKey bufFreeze /uses /cur ::.
 
 : Parses a StageL 3 (`Dc 2192..2193`) dependency module header & top-level signatures.
+: @dc l8589983055
 v/tup: parsedMod u64 ::/parseStage1Module l/dcVal/tokens u64/startPos
     const u64/afterOpen expectShort /tokens /startPos u32:2192.
     const tup: b l/l/dcVal l/u8 l/useItem u64 ::/hdr readModHeader /tokens /afterOpen.
@@ -1632,6 +1705,7 @@ v/tup: parsedMod u64 ::/parseStage1Module l/dcVal/tokens u64/startPos
     ::.
 
 : Parses a complete StageR 3 (`Dc 2221..2222`) module into `parsedMod`.
+: @dc l8589983056
 v/tup: parsedMod u64 ::/parseStageRModule l/dcVal/tokens u64/startPos
     const u64/afterOpen expectShort /tokens /startPos u32:2221.
     const tup: b l/l/dcVal l/u8 l/useItem u64 ::/hdr readModHeader /tokens /afterOpen.
@@ -1756,6 +1830,7 @@ v/tup: parsedMod u64 ::/parseStageRModule l/dcVal/tokens u64/startPos
 : 3. Symbol Registration, Type Canonicalization, & Static Type Inference
 : ---------------------------------------------------------------------------
 
+: @dc l8589983057
 v/l/dcVal/asciiToDcSeg l/u8/ascii
     const buf/dcVal/out bufNew dcVal len /ascii.
     foreach u8/ch /ascii do
@@ -1763,16 +1838,18 @@ v/l/dcVal/asciiToDcSeg l/u8/ascii
     ::.
     bufFreeze /out.
 
+: @dc l8589983058
 v/l/u8/stdPkgNsKey u8/pkgId
-    if eq /pkgId u8:0 return b"std/dctf" nop.
-    if eq /pkgId u8:1 return b"std/i128" nop.
-    if eq /pkgId u8:2 return b"std/u128" nop.
-    if eq /pkgId u8:3 return b"std/bigint" nop.
-    if eq /pkgId u8:4 return b"std/rat" nop.
-    if eq /pkgId u8:5 return b"std/dcmst" nop.
-    if eq /pkgId u8:6 return b"std/dcs" nop.
+    if eq /pkgId u8:0 return b"std//dctf" nop.
+    if eq /pkgId u8:1 return b"std//i128" nop.
+    if eq /pkgId u8:2 return b"std//u128" nop.
+    if eq /pkgId u8:3 return b"std//bigint" nop.
+    if eq /pkgId u8:4 return b"std//rat" nop.
+    if eq /pkgId u8:5 return b"std//dcmst" nop.
+    if eq /pkgId u8:6 return b"std//dcs" nop.
     fault.
 
+: @dc l8589983059
 v/l/l/dcVal/stdPkgNsSegs u8/pkgId
     if eq /pkgId u8:0 return l/l/dcVal: asciiToDcSeg b"std" asciiToDcSeg b"dctf" :: nop.
     if eq /pkgId u8:1 return l/l/dcVal: asciiToDcSeg b"std" asciiToDcSeg b"i128" :: nop.
@@ -1783,6 +1860,7 @@ v/l/l/dcVal/stdPkgNsSegs u8/pkgId
     if eq /pkgId u8:6 return l/l/dcVal: asciiToDcSeg b"std" asciiToDcSeg b"dcs" :: nop.
     fault.
 
+: @dc l8589983060
 v/b/usesHasUnaliasedDc l/useItem/uses dcVal/targetDc
     foreach useItem/u /uses do
         const symRef/ts field /u u32:2.
@@ -1792,8 +1870,8 @@ v/b/usesHasUnaliasedDc l/useItem/uses dcVal/targetDc
     ::.
     false.
 
-v/void/recordStdImport
-    buf/tup: u8 dcVal ::/stdImports l/u8/selfNsKey l/useItem/uses u8/pkgId dcVal/c
+: @dc l8589983061
+v/void/recordStdImport buf/tup: u8 dcVal ::/stdImports l/u8/selfNsKey l/useItem/uses u8/pkgId dcVal/c
     if eq /selfNsKey stdPkgNsKey /pkgId
         return
         nop.
@@ -1810,14 +1888,14 @@ v/void/recordStdImport
     ::.
     bufPush /stdImports tupNew: /pkgId /c ::.
 
-v/void/emitStdDc
-    buf/dcVal/out buf/tup: u8 dcVal ::/stdImports l/u8/selfNsKey l/useItem/uses u8/pkgId u64/longId
+: @dc l8589983062
+v/void/emitStdDc buf/dcVal/out buf/tup: u8 dcVal ::/stdImports l/u8/selfNsKey l/useItem/uses u8/pkgId u64/longId
     const dcVal/c dcLong /longId.
     recordStdImport /stdImports /selfNsKey /uses /pkgId /c.
     emitAtom /out /c.
 
-v/void/recordCrossDcImport
-    buf/tup: l/l/dcVal dcVal ::/crossDcs l/useItem/uses l/l/dcVal/nsSegs dcVal/c
+: @dc l8589983063
+v/void/recordCrossDcImport buf/tup: l/l/dcVal dcVal ::/crossDcs l/useItem/uses l/l/dcVal/nsSegs dcVal/c
     if usesHasUnaliasedDc /uses /c
         return
         nop.
@@ -1831,8 +1909,8 @@ v/void/recordCrossDcImport
     ::.
     bufPush /crossDcs tupNew: /nsSegs /c ::.
 
-v/l/u8/findOrAddSynthImport
-    buf/synthImport/synths u8/kind u32/defIdx l/l/dcVal/nsSegs l/u8/origName
+: @dc l8589983064
+v/l/u8/findOrAddSynthImport buf/synthImport/synths u8/kind u32/defIdx l/l/dcVal/nsSegs l/u8/origName
     let u64/i u64:0.
     while lt /i len /synths do
         const synthImport/cur get /synths /i.
@@ -1845,6 +1923,7 @@ v/l/u8/findOrAddSynthImport
     bufPush /synths structNew synthImport: /kind /defIdx /al /nsSegs /origName ::.
     /al.
 
+: @dc l8589983065
 v/tup: b l/u8 ::/findAliasForDef l/aliasEntry/aliases u8/kind u32/defIdx
     foreach aliasEntry/ae /aliases do
         if and eq field /ae u32:1 /kind eq field /ae u32:2 /defIdx
@@ -1853,6 +1932,7 @@ v/tup: b l/u8 ::/findAliasForDef l/aliasEntry/aliases u8/kind u32/defIdx
     ::.
     tupNew: false b"" ::.
 
+: @dc l8589983066
 v/tup: u32 b tup: b dcVal :: l/u8 ::/typeDefHeader compEnv/env u8/kind u32/defIdx
     const u64/idx conv /defIdx u64.
     if eq /kind u8:0
@@ -1881,9 +1961,8 @@ v/tup: u32 b tup: b dcVal :: l/u8 ::/typeDefHeader compEnv/env u8/kind u32/defId
         nop.
     fault.
 
-v/void/emitTypeDefSym
-    buf/dcVal/out compEnv/env modScope/mScope l/useItem/uses
-    buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths u8/kind u32/defIdx
+: @dc l8589983067
+v/void/emitTypeDefSym buf/dcVal/out compEnv/env modScope/mScope l/useItem/uses buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths u8/kind u32/defIdx
     const tup: u32 b tup: b dcVal :: l/u8 ::/hdr typeDefHeader /env /kind /defIdx.
     const u32/defMod field /hdr u32:0.
     const tup: b dcVal ::/optDc field /hdr u32:2.
@@ -1908,10 +1987,8 @@ v/void/emitTypeDefSym
         emitIdent /out findOrAddSynthImport /synths /kind /defIdx /nsSegs /origName.
 
 : Emits a canonical StageR/StageL `rType` as StageL 3 Token Dcs.
-v/void/emitLoweredType
-    buf/dcVal/out compEnv/env modScope/mScope l/u8/selfNsKey l/useItem/uses
-    buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths
-    rType/ty
+: @dc l8589983068
+v/void/emitLoweredType buf/dcVal/out compEnv/env modScope/mScope l/u8/selfNsKey l/useItem/uses buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths rType/ty
     const u8/k field /ty u32:0.
     if eq /k u8:0  do emitFormat /out u32:1425. return. :: nop.
     if eq /k u8:1  do emitFormat /out u32:1426. return. :: nop.
@@ -2035,10 +2112,8 @@ v/void/emitLoweredType
     fault.
 
 : Emits a 100% pure canonical StageL 3 zero/default value for any stored `rType`.
-v/void/emitDefaultVal
-    buf/dcVal/out compEnv/env modScope/mScope l/u8/selfNsKey l/useItem/uses
-    buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths
-    rType/ty
+: @dc l8589983069
+v/void/emitDefaultVal buf/dcVal/out compEnv/env modScope/mScope l/u8/selfNsKey l/useItem/uses buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths rType/ty
     const u8/k field /ty u32:0.
     if eq /k u8:2  do emitBool /out false. return. :: nop.
     if eq /k u8:3  do emitTypedU64 /out u32:203 u64:0. return. :: nop.
@@ -2212,6 +2287,7 @@ v/void/emitDefaultVal
     fault.
 
 : Resolves a `symRef` in module `modIdx` to a canonical type `(rTypeKind: 21..24, defIdx)`.
+: @dc l8589983070
 v/tup: u8 u32 ::/resolveTypeSym compEnv/env modScope/mScope b/isStageR symRef/sym
     const u32/modIdx field /mScope u32:0.
     if field /sym u32:0
@@ -2313,6 +2389,7 @@ v/tup: u8 u32 ::/resolveTypeSym compEnv/env modScope/mScope b/isStageR symRef/sy
             fault.
         ::.
 
+: @dc l8589983071
 v/rType/canonType compEnv/env modScope/mScope b/isStageR rawType/rt
     const u8/k field /rt u32:0.
     if le /k u8:15
@@ -2338,6 +2415,7 @@ v/rType/canonType compEnv/env modScope/mScope b/isStageR rawType/rt
     fault.
 
 : Checks whether two StageR types lower to identical StageL 3 parameter types (for overload disambiguation).
+: @dc l8589983072
 v/b/sameLoweredShape compEnv/env rType/a rType/b
     const u8/ka field /a u32:0.
     const u8/kb field /b u32:0.
@@ -2409,6 +2487,7 @@ v/b/sameLoweredShape compEnv/env rType/a rType/b
     ::.
     true.
 
+: @dc l8589983073
 v/b/sameLoweredParams compEnv/env l/rType/pa l/rType/pb
     if ne len /pa len /pb
         return false
@@ -2423,6 +2502,7 @@ v/b/sameLoweredParams compEnv/env l/rType/pa l/rType/pb
     true.
 
 : Checks unguarded value-type recursion across named structs, brands, and enums.
+: @dc l8589983074
 v/void/collectDirectTypeEdges rType/ty buf/u64/edges
     const u8/k field /ty u32:0.
     if or eq /k u8:18 or eq /k u8:19 eq /k u8:20
@@ -2440,12 +2520,14 @@ v/void/collectDirectTypeEdges rType/ty buf/u64/edges
         ::
         nop.
 
+: @dc l8589983075
 v/b/u64ListContains l/u64/xs u64/target
     foreach u64/x /xs do
         if eq /x /target return true nop.
     ::.
     false.
 
+: @dc l8589983076
 v/void/checkTypeNoCycleFrom compEnv/env u64/node l/u64/stack
     if u64ListContains /stack /node
         fault
@@ -2484,6 +2566,7 @@ v/void/checkTypeNoCycleFrom compEnv/env u64/node l/u64/stack
         checkTypeNoCycleFrom /env /child /nextStack.
     ::.
 
+: @dc l8589983077
 v/void/checkAllTypeCycles compEnv/env
     let u64/i u64:0.
     while lt /i len field /env u32:4 do
@@ -2502,6 +2585,7 @@ v/void/checkAllTypeCycles compEnv/env
     ::.
 
 : Builds the complete multi-module `compEnv` and per-module `modScope` list.
+: @dc l8589983078
 v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
     const u64/mCount len /mods.
     const buf/b/isSrBuf bufNew b /mCount.
@@ -2902,18 +2986,23 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
     ::.
 
 : Static StageR 3 type predicates & overload/value resolution helpers.
+: @dc l8589983079
 v/b/isFixedIntKind u8/k
     and ge /k u8:3 le /k u8:9.
 
+: @dc l8589983080
 v/b/isIntegerKind u8/k
     and ge /k u8:3 le /k u8:10.
 
+: @dc l8589983081
 v/b/isNumericKind u8/k
     and ge /k u8:3 le /k u8:11.
 
+: @dc l8589983082
 v/b/isSignedFixedKind u8/k
     or eq /k u8:4 or eq /k u8:6 eq /k u8:8.
 
+: @dc l8589983083
 v/b/isWideningConv rType/src rType/dst
     if eq /src /dst return true nop.
     const u8/sk field /src u32:0.
@@ -2928,15 +3017,18 @@ v/b/isWideningConv rType/src rType/dst
     if eq /sk u8:10 return eq /dk u8:11 nop.
     false.
 
+: @dc l8589983084
 v/b/rTypeCompat rType/actual rType/expected
     or eq field /actual u32:0 u8:1 eq /actual /expected.
 
+: @dc l8589983085
 v/rType/unifyBranchTypes rType/a rType/b
     if eq field /a u32:0 u8:1 return /b nop.
     if eq field /b u32:0 u8:1 return /a nop.
     if ne /a /b fault nop.
     /a.
 
+: @dc l8589983086
 v/rType/resolveValueRefType compEnv/env modScope/mScope fnCtx/fctx symRef/sym
     const u32/mIdx field /mScope u32:0.
     if field /sym u32:0
@@ -2973,6 +3065,7 @@ v/rType/resolveValueRefType compEnv/env modScope/mScope fnCtx/fctx symRef/sym
             fault.
         ::.
 
+: @dc l8589983087
 v/b/paramsMatchArgs l/rType/paramTys l/rType/argTys
     if ne len /paramTys len /argTys return false nop.
     let u64/i u64:0.
@@ -2985,6 +3078,7 @@ v/b/paramsMatchArgs l/rType/paramTys l/rType/argTys
     true.
 
 : Resolves a call `(sym, argTys)` -> `(isNested, nestedOrDefIdx, retTy)`.
+: @dc l8589983088
 v/tup: b u32 rType ::/resolveCallTarget compEnv/env modScope/mScope fnCtx/fctx symRef/sym l/rType/argTys
     const u32/mIdx field /mScope u32:0.
     if field /sym u32:0
@@ -3057,6 +3151,7 @@ v/tup: b u32 rType ::/resolveCallTarget compEnv/env modScope/mScope fnCtx/fctx s
             tupNew: false /matchedIdx /matchedRet ::.
         ::.
 
+: @dc l8589983089
 v/rType/typedIntFormatRType u32/fmtId
     if eq /fmtId u32:203 return primType u8:3 nop.
     if eq /fmtId u32:208 return primType u8:4 nop.
@@ -3069,6 +3164,7 @@ v/rType/typedIntFormatRType u32/fmtId
     fault.
 
 : Infers the canonical StageR `rType` of any `exprNode` in `(env, mScope, fctx)`.
+: @dc l8589983090
 v/rType/inferExprType compEnv/env modScope/mScope fnCtx/fctx exprNode/node
     const u8/k field /node u32:0.
     const u32/aux field /node u32:1.
@@ -3337,6 +3433,7 @@ v/rType/inferExprType compEnv/env modScope/mScope fnCtx/fctx exprNode/node
 : 4. StageR 3 -> StageL 3 Expression, Declaration, and Module Lowering
 : ---------------------------------------------------------------------------
 
+: @dc l8589983091
 v/u32/scalarFormatId u8/k
     if eq /k u8:3 return u32:203 nop.
     if eq /k u8:4 return u32:208 nop.
@@ -3345,12 +3442,14 @@ v/u32/scalarFormatId u8/k
     if eq /k u8:7 return u32:209 nop.
     fault.
 
+: @dc l8589983092
 v/u32/fixedBitWidth u8/k
     if eq /k u8:3 return u32:8 nop.
     if or eq /k u8:4 eq /k u8:5 return u32:32 nop.
     if or eq /k u8:6 eq /k u8:7 return u32:64 nop.
     fault.
 
+: @dc l8589983093
 v/void/emitSignedMinLit buf/dcVal/out u8/k
     if eq /k u8:4
         do
@@ -3366,9 +3465,11 @@ v/void/emitSignedMinLit buf/dcVal/out u8/k
         nop.
     fault.
 
+: @dc l8589983094
 v/void/emitSignedNegOneLit buf/dcVal/out u8/k
     bufExtend /out tokTypedNumberU128 scalarFormatId /k true u128New u64:1 u64:0.
 
+: @dc l8589983095
 v/void/emitResultOkScalar buf/dcVal/out u8/k l/u8/tmpVar
     emitShort /out u32:2215.
     emitDcNumU64 /out u64:3.
@@ -3381,6 +3482,7 @@ v/void/emitResultOkScalar buf/dcVal/out u8/k l/u8/tmpVar
     emitTypedU64 /out u32:203 u64:0.
     emitShort /out u32:2216.
 
+: @dc l8589983096
 v/void/emitResultErrScalar buf/dcVal/out u8/k u8/errTag
     emitShort /out u32:2215.
     emitDcNumU64 /out u64:3.
@@ -3391,40 +3493,29 @@ v/void/emitResultErrScalar buf/dcVal/out u8/k u8/errTag
     emitTypedU64 /out u32:203 conv /errTag u64.
     emitShort /out u32:2216.
 
+: @dc l8589983097
 v/void/emitLocalVarRef buf/dcVal/out l/u8/name
     emitShort /out u32:2202.
     emitShort /out u32:316.
     emitIdent /out /name.
 
-v/void/emitStdCall1
-    buf/dcVal/out buf/tup: u8 dcVal ::/stdImports l/u8/selfNsKey l/useItem/uses
-    u8/pkgId u64/longId
-    compEnv/env modScope/mScope fnCtx/fctx
-    buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym
-    exprNode/arg0
+: @dc l8589983098
+v/void/emitStdCall1 buf/dcVal/out buf/tup: u8 dcVal ::/stdImports l/u8/selfNsKey l/useItem/uses u8/pkgId u64/longId compEnv/env modScope/mScope fnCtx/fctx buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym exprNode/arg0
     emitShort /out u32:2211.
     emitStdDc /out /stdImports /selfNsKey /uses /pkgId /longId.
     lowerExpr /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /arg0.
     emitShort /out u32:2212.
 
-v/void/emitStdCall2
-    buf/dcVal/out buf/tup: u8 dcVal ::/stdImports l/u8/selfNsKey l/useItem/uses
-    u8/pkgId u64/longId
-    compEnv/env modScope/mScope fnCtx/fctx
-    buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym
-    exprNode/arg0 exprNode/arg1
+: @dc l8589983099
+v/void/emitStdCall2 buf/dcVal/out buf/tup: u8 dcVal ::/stdImports l/u8/selfNsKey l/useItem/uses u8/pkgId u64/longId compEnv/env modScope/mScope fnCtx/fctx buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym exprNode/arg0 exprNode/arg1
     emitShort /out u32:2211.
     emitStdDc /out /stdImports /selfNsKey /uses /pkgId /longId.
     lowerExpr /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /arg0.
     lowerExpr /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /arg1.
     emitShort /out u32:2212.
 
-v/void/emitStdCall3
-    buf/dcVal/out buf/tup: u8 dcVal ::/stdImports l/u8/selfNsKey l/useItem/uses
-    u8/pkgId u64/longId
-    compEnv/env modScope/mScope fnCtx/fctx
-    buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym
-    exprNode/arg0 exprNode/arg1 exprNode/arg2
+: @dc l8589983100
+v/void/emitStdCall3 buf/dcVal/out buf/tup: u8 dcVal ::/stdImports l/u8/selfNsKey l/useItem/uses u8/pkgId u64/longId compEnv/env modScope/mScope fnCtx/fctx buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym exprNode/arg0 exprNode/arg1 exprNode/arg2
     emitShort /out u32:2211.
     emitStdDc /out /stdImports /selfNsKey /uses /pkgId /longId.
     lowerExpr /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /arg0.
@@ -3432,6 +3523,7 @@ v/void/emitStdCall3
     lowerExpr /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /arg2.
     emitShort /out u32:2212.
 
+: @dc l8589983101
 v/b/isPureSimple exprNode/e
     const u8/k field /e u32:0.
     if le /k u8:5 return true nop.
@@ -3457,9 +3549,8 @@ v/b/isPureSimple exprNode/e
     false.
 
 : Emits pure StageL literal tokens for `exprNode` kind 1 (`TypedInt`).
-v/void/lowerTypedIntLit
-    buf/dcVal/out l/u8/selfNsKey l/useItem/uses buf/tup: u8 dcVal ::/stdImports
-    u32/aux l/u8/digits
+: @dc l8589983102
+v/void/lowerTypedIntLit buf/dcVal/out l/u8/selfNsKey l/useItem/uses buf/tup: u8 dcVal ::/stdImports u32/aux l/u8/digits
     const u32/fmtId bitAnd /aux u32:65535.
     const b/isNeg ne bitAnd /aux u32:65536 u32:0.
     if eq /fmtId u32:199
@@ -3542,11 +3633,8 @@ v/void/lowerTypedIntLit
     bufExtend /out tokTypedNumberU128 /fmtId /isNeg /mag.
 
 : Lowers StageR 3 `conv` (`Dc 2562`) across all 81 `(src, dst)` numeric pairs.
-v/void/lowerTotalConv
-    buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfNsKey l/useItem/uses
-    buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs
-    buf/synthImport/synths buf/u64/gensym
-    exprNode/srcExpr rType/dstTy
+: @dc l8589983103
+v/void/lowerTotalConv buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfNsKey l/useItem/uses buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym exprNode/srcExpr rType/dstTy
     const rType/srcTy inferExprType /env /mScope /fctx /srcExpr.
     const u8/sk field /srcTy u32:0.
     const u8/dk field /dstTy u32:0.
@@ -3746,11 +3834,8 @@ v/void/lowerTotalConv
     emitShort /out u32:2214.
 
 : Lowers StageR 3 unary operators (`exprNode` kind 25).
-v/void/lowerUnaryOp
-    buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfNsKey l/useItem/uses
-    buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs
-    buf/synthImport/synths buf/u64/gensym
-    u32/op exprNode/x
+: @dc l8589983104
+v/void/lowerUnaryOp buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfNsKey l/useItem/uses buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym u32/op exprNode/x
     const rType/xt inferExprType /env /mScope /fctx /x.
     const u8/xk field /xt u32:0.
     if eq /xk u8:1
@@ -3882,11 +3967,8 @@ v/void/lowerUnaryOp
     fault.
 
 : Lowers StageR 3 binary operators (`exprNode` kind 26).
-v/void/lowerBinaryOp
-    buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfNsKey l/useItem/uses
-    buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs
-    buf/synthImport/synths buf/u64/gensym
-    u32/op exprNode/a exprNode/b
+: @dc l8589983105
+v/void/lowerBinaryOp buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfNsKey l/useItem/uses buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym u32/op exprNode/a exprNode/b
     if or eq /op u32:2533 or eq /op u32:2534 or eq /op u32:2535 or eq /op u32:2536
         or eq /op u32:2546 and ge /op u32:2581 le /op u32:2583
         do
@@ -4497,11 +4579,8 @@ v/void/lowerBinaryOp
 
 
 : Lowers StageR 3 ternary operators (`exprNode` kind 27: `2564` `slice`, `2565` `bufSet`).
-v/void/lowerTernaryOp
-    buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfNsKey l/useItem/uses
-    buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs
-    buf/synthImport/synths buf/u64/gensym
-    u32/op exprNode/a exprNode/b exprNode/c
+: @dc l8589983106
+v/void/lowerTernaryOp buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfNsKey l/useItem/uses buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym u32/op exprNode/a exprNode/b exprNode/c
     const rType/ta inferExprType /env /mScope /fctx /a.
     const rType/tb inferExprType /env /mScope /fctx /b.
     const rType/tc inferExprType /env /mScope /fctx /c.
@@ -4618,10 +4697,10 @@ v/void/lowerTernaryOp
                     ::.
                 ::
                 do
-                    const l/u8/tb freshTemp /gensym.
+                    const l/u8/tbuf freshTemp /gensym.
                     emitShort /out u32:2199. emitShort /out u32:316.
                     emitLoweredType /out /env /mScope /selfNsKey /uses /stdImports /crossDcs /synths /ta.
-                    emitIdent /out /tb.
+                    emitIdent /out /tbuf.
                     lowerExpr /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /a.
                     emitShort /out u32:2199. emitShort /out u32:316. emitFormat /out u32:209. emitIdent /out /ti.
                     lowerExpr /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /b.
@@ -4631,10 +4710,10 @@ v/void/lowerTernaryOp
                     lowerExpr /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /c.
                     emitShort /out u32:2448.
                     emitShort /out u32:2537. emitLocalVarRef /out /ti.
-                    emitShort /out u32:2543. emitLocalVarRef /out /tb.
+                    emitShort /out u32:2543. emitLocalVarRef /out /tbuf.
                     do
                         emitShort /out u32:2213.
-                        emitShort /out u32:2584. emitLocalVarRef /out /tb. emitLocalVarRef /out /ti. emitLocalVarRef /out /tv.
+                        emitShort /out u32:2584. emitLocalVarRef /out /tbuf. emitLocalVarRef /out /ti. emitLocalVarRef /out /tv.
                         emitShort /out u32:2215. emitDcNumU64 /out u64:2. emitBool /out true. emitShort /out u32:312.
                         emitTypedU64 /out u32:203 u64:0. emitShort /out u32:2216.
                         emitShort /out u32:2214.
@@ -4651,6 +4730,7 @@ v/void/lowerTernaryOp
     fault.
 
 : Resolves a field name on a `namedStructDef` to its `0`-based declaration index.
+: @dc l8589983107
 v/u64/resolveNamedFieldIndex namedStructDef/nd l/u8/fname
     const l/namedFieldDef/nfs field /nd u32:4.
     let u64/i u64:0.
@@ -4663,6 +4743,7 @@ v/u64/resolveNamedFieldIndex namedStructDef/nd l/u8/fname
     fault.
 
 : Resolves an enum variant name on an `enumDef` to its `0`-based declaration index.
+: @dc l8589983108
 v/u64/resolveEnumVariantIndex enumDef/ed l/u8/vname
     const l/enumVarDef/evs field /ed u32:4.
     let u64/i u64:0.
@@ -4674,12 +4755,99 @@ v/u64/resolveEnumVariantIndex enumDef/ed l/u8/vname
     ::.
     fault.
 
+: Returns the ordered `enumVarDef` list for any StageR 3 `match` domain (`option/T`, `result/T`, `error`, `enum`).
+: @dc l8589984155
+v/l/enumVarDef/matchDomainVariants compEnv/env rType/st
+    const u8/sk field /st u32:0.
+    if eq /sk u8:19
+        do
+            const rType/inner get field /st u32:2 u64:0.
+            return l/enumVarDef:
+                structNew enumVarDef: b"none" false primType u8:0 u32:0 ::
+                structNew enumVarDef: b"some" true /inner u32:0 ::
+            ::.
+        ::
+        nop.
+    if eq /sk u8:20
+        do
+            const rType/okTy get field /st u32:2 u64:0.
+            const b/isVoid eq field /okTy u32:0 u8:0.
+            return l/enumVarDef:
+                structNew enumVarDef: b"ok" not /isVoid /okTy u32:0 ::
+                structNew enumVarDef: b"err" true primType u8:15 if /isVoid u32:0 u32:1 ::
+            ::.
+        ::
+        nop.
+    if eq /sk u8:15
+        return l/enumVarDef:
+            structNew enumVarDef: b"overflow"        false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"divisionByZero"  false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"outOfBounds"     false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"frozenBuffer"    false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"invalidEncoding" false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"invalidDc"       false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"parseFailure"    false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"unexpectedNone"  false primType u8:0 u32:0 ::
+        ::
+        nop.
+    if eq /sk u8:24
+        do
+            const enumDef/ed get field /env u32:6 conv field /st u32:1 u64.
+            return field /ed u32:4.
+        ::
+        nop.
+    fault.
+
+: Resolves a `case` variant name in `domainVars` to its `0`-based index.
+: @dc l8589984156
+v/u64/resolveMatchVariantIndex l/enumVarDef/domainVars l/u8/vname
+    let u64/i u64:0.
+    while lt /i len /domainVars do
+        if eq field get /domainVars /i u32:0 /vname
+            return /i
+            nop.
+        set /i add /i u64:1.
+    ::.
+    fault.
+
+: Emits the boolean branch condition testing whether `/tscr` has variant index `vi` in domain `stKind`.
+: @dc l8589984157
+v/void/emitMatchCaseCond buf/dcVal/out u8/stKind l/u8/tscr u64/vi
+    if eq /stKind u8:19
+        do
+            if eq /vi u64:0 emitShort /out u32:2524 nop.
+            emitShort /out u32:2547. emitLocalVarRef /out /tscr. emitDcNumU64 /out u64:0.
+            return.
+        ::
+        nop.
+    if eq /stKind u8:20
+        do
+            if eq /vi u64:1 emitShort /out u32:2524 nop.
+            emitShort /out u32:2547. emitLocalVarRef /out /tscr. emitDcNumU64 /out u64:0.
+            return.
+        ::
+        nop.
+    if eq /stKind u8:15
+        do
+            emitShort /out u32:2535.
+            emitLocalVarRef /out /tscr.
+            emitTypedU64 /out u32:203 /vi.
+            return.
+        ::
+        nop.
+    if eq /stKind u8:24
+        do
+            emitShort /out u32:2535.
+            emitShort /out u32:2547. emitLocalVarRef /out /tscr. emitDcNumU64 /out u64:0.
+            emitTypedU64 /out u32:207 /vi.
+            return.
+        ::
+        nop.
+    fault.
+
 : Emits the body of a single `match` arm, binding the payload local if present.
-v/void/emitMatchArmBody
-    buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfNsKey l/useItem/uses
-    buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs
-    buf/synthImport/synths buf/u64/gensym
-    l/u8/tscr enumVarDef/vDef matchArm/arm
+: @dc l8589983109
+v/void/emitMatchArmBody buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfNsKey l/useItem/uses buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym l/u8/tscr enumVarDef/vDef matchArm/arm
     if field /arm u32:1
         do
             if not field /vDef u32:1 fault nop.
@@ -4697,14 +4865,14 @@ v/void/emitMatchArmBody
             lowerExpr /out /env /mScope /armFctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym field /arm u32:4.
             emitShort /out u32:2214.
         ::
-        lowerExpr /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym field /arm u32:4.
+        do
+            if field /vDef u32:1 fault nop.
+            lowerExpr /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym field /arm u32:4.
+        ::.
 
 : Lowers any StageR 3 `exprNode` (`0..=40`) into canonical StageL 3 Token Dcs.
-v/void/lowerExpr
-    buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfNsKey l/useItem/uses
-    buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs
-    buf/synthImport/synths buf/u64/gensym
-    exprNode/node
+: @dc l8589983110
+v/void/lowerExpr buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfNsKey l/useItem/uses buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym exprNode/node
     const u8/k field /node u32:0.
     const u32/aux field /node u32:1.
     const symRef/sym field /node u32:5.
@@ -5319,14 +5487,13 @@ v/void/lowerExpr
                     return.
                 ::
                 nop.
-            if ne field /st u32:0 u8:24 fault nop.
-            const enumDef/ed get field /env u32:6 conv field /st u32:1 u64.
-            const l/enumVarDef/evars field /ed u32:4.
+            const u8/stKind field /st u32:0.
+            const l/enumVarDef/domainVars matchDomainVariants /env /st.
             const l/matchArm/arms field /node u32:9.
             const buf/u64/armVisBuf bufNew u64 len /arms.
             let u64/ai u64:0.
             while lt /ai len /arms do
-                const u64/vi resolveEnumVariantIndex /ed field get /arms /ai u32:0.
+                const u64/vi resolveMatchVariantIndex /domainVars field get /arms /ai u32:0.
                 let u64/aj u64:0.
                 while lt /aj /ai do
                     if eq get /armVisBuf /aj /vi fault nop.
@@ -5336,9 +5503,9 @@ v/void/lowerExpr
                 set /ai add /ai u64:1.
             ::.
             const l/u64/armVis bufFreeze /armVisBuf.
-            if and eq /aux u32:0 ne len /arms len /evars
-                fault
-                nop.
+            if eq /aux u32:1
+                if eq len /arms len /domainVars fault nop
+                if ne len /arms len /domainVars fault nop.
             const l/u8/tscr freshTemp /gensym.
             emitShort /out u32:2213.
             emitShort /out u32:2199. emitShort /out u32:316.
@@ -5355,10 +5522,8 @@ v/void/lowerExpr
                         while lt /ci len /arms do
                             const u64/vi get /armVis /ci.
                             emitShort /out u32:2448.
-                            emitShort /out u32:2535.
-                            emitShort /out u32:2547. emitLocalVarRef /out /tscr. emitDcNumU64 /out u64:0.
-                            emitTypedU64 /out u32:207 /vi.
-                            emitMatchArmBody /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /tscr get /evars /vi get /arms /ci.
+                            emitMatchCaseCond /out /stKind /tscr /vi.
+                            emitMatchArmBody /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /tscr get /domainVars /vi get /arms /ci.
                             set /ci add /ci u64:1.
                         ::.
                         lowerExpr /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym get /args u64:1.
@@ -5369,14 +5534,12 @@ v/void/lowerExpr
                         while lt /ci /lastArm do
                             const u64/vi get /armVis /ci.
                             emitShort /out u32:2448.
-                            emitShort /out u32:2535.
-                            emitShort /out u32:2547. emitLocalVarRef /out /tscr. emitDcNumU64 /out u64:0.
-                            emitTypedU64 /out u32:207 /vi.
-                            emitMatchArmBody /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /tscr get /evars /vi get /arms /ci.
+                            emitMatchCaseCond /out /stKind /tscr /vi.
+                            emitMatchArmBody /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /tscr get /domainVars /vi get /arms /ci.
                             set /ci add /ci u64:1.
                         ::.
                         const u64/lvi get /armVis /lastArm.
-                        emitMatchArmBody /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /tscr get /evars /lvi get /arms /lastArm.
+                        emitMatchArmBody /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /tscr get /domainVars /lvi get /arms /lastArm.
                     ::.
             emitShort /out u32:2214.
             return.
@@ -5494,12 +5657,8 @@ v/void/lowerExpr
     fault.
 
 : Lowers a top-level or nested StageR 3 routine declaration (`Dc 2203 .. Dc 2204`).
-v/void/lowerRoutine
-    buf/dcVal/out compEnv/env modScope/mScope l/nestedSig/outerNsigs
-    l/u8/selfNsKey l/useItem/uses
-    buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs
-    buf/synthImport/synths buf/u64/gensym
-    rawRoutine/rr l/u8/emitName
+: @dc l8589983111
+v/void/lowerRoutine buf/dcVal/out compEnv/env modScope/mScope l/nestedSig/outerNsigs l/u8/selfNsKey l/useItem/uses buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym rawRoutine/rr l/u8/emitName
     const rType/retTy canonType /env /mScope true field /rr u32:2.
     emitShort /out u32:2203.
     emitBool /out field /rr u32:0.
@@ -5542,8 +5701,8 @@ v/void/lowerRoutine
     emitShort /out u32:2204.
 
 : Lowers a complete StageR 3 module (`Dc 2221 .. Dc 2222`) into a StageL 3 module (`Dc 2192 .. Dc 2193`).
-v/void/lowerStageRModule
-    buf/dcVal/out compEnv/env modScope/mScope parsedMod/pm
+: @dc l8589983112
+v/void/lowerStageRModule buf/dcVal/out compEnv/env modScope/mScope parsedMod/pm
     const u32/mIdx field /mScope u32:0.
     const l/u8/selfNsKey field /pm u32:5.
     const l/useItem/uses field /pm u32:6.
@@ -5671,6 +5830,7 @@ v/void/lowerStageRModule
     emitShort /out u32:2193.
 
 : Parses a multi-module Token-Dc stream containing bundled Stage 1 (`Dc 2192`) and StageR 3 (`Dc 2221`) modules.
+: @dc l8589983113
 v/l/parsedMod/parseAllModules l/dcVal/tokens
     let u64/cur skipComments /tokens u64:0.
     if ge /cur len /tokens fault nop.
@@ -5695,6 +5855,7 @@ v/l/parsedMod/parseAllModules l/dcVal/tokens
 
 : Lowers a StageR 3 Token-Dc stream (`l/dcVal`, optionally preceded by bundled Stage 1 dependency modules)
 : into a canonical StageL 3 Token-Dc stream (`l/dcVal`).
+: @dc l8589983114
 v/l/dcVal/stager3ToStagel3Tokens l/dcVal/tokens
     const l/parsedMod/mods parseAllModules /tokens.
     let b/anyStageR false.

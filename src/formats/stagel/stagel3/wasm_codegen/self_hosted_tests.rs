@@ -638,4 +638,142 @@ v/l/u8/step l/u8/input
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_self_hosted_stager3_to_stagel3_and_wasm() -> Result<()> {
+        let sg = SeedGraphIndex::shared()?;
+        let f1681_dc = DcChar::from_u128(
+            ctb_utilities::format_id::FormatId::StageR3ToStageL3
+                .dc_id()
+                .unwrap(),
+        );
+        let entry_tokens =
+            ctb_formats_dcdata::stagel3::seed_linker::build_entry_module_for_graph_routine_dc(
+                f1681_dc, sg,
+            )?;
+        let dep_stream =
+            ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_dependencies(
+                &entry_tokens, sg,
+            )?;
+        // Split `dep_stream` into individual `[Dc 2192 .. Dc 2193]` modules so any
+        // WAT compiler trap pinpoints the exact module immediately.
+        let mut mod_ranges = Vec::new();
+        let mut start = None;
+        for (i, &tok) in dep_stream.iter().enumerate() {
+            if tok == ctb_formats_dcdata::dc::DC_BEGIN_MODULE {
+                start = Some(i);
+            } else if tok == ctb_formats_dcdata::dc::DC_END_MODULE
+                && let Some(s) = start.take()
+            {
+                mod_ranges.push((s, i + 1));
+            }
+        }
+        let resolver = default_syntax_resolver();
+        let run_wat_raw = |mod_tokens: &[DcChar]| -> Result<DcMstring> {
+            let full_tokens = bundle_dc_module_for_wasm_converter(
+                mod_tokens,
+                sg,
+                resolver.as_ref(),
+            )?;
+            let mut input_doc = DcMstring::new();
+            for tok in full_tokens {
+                input_doc.push_char(tok);
+            }
+            let limits = DcWasmResourceLimits {
+                max_instructions_per_step: 500_000_000,
+                max_memory_pages: 1024,
+                max_step_output_bytes: 32 * 1024 * 1024,
+                max_session_output_bytes: 32 * 1024 * 1024,
+                ..DcWasmResourceLimits::default()
+            };
+            let mut session = DcWasmSession::from_wasm_bytes_with_limits(
+                load_stagel3_to_wasm_bytes(),
+                &input_doc,
+                None,
+                limits,
+            )?;
+            match session.step()? {
+                WasmStepOutcome::Complete(doc) => Ok(doc),
+                other => bail!("Unexpected converter step outcome: {other:?}"),
+            }
+        };
+        println!("Total bundled modules for f1681: {}", mod_ranges.len());
+        match run_wat_raw(&entry_tokens) {
+            Ok(f1681_dc_wasm) => {
+                println!(
+                    "f1681 compiled via f1680_stagel3_to_wasm.wat! out len={}",
+                    f1681_dc_wasm.as_bytes().len()
+                );
+            }
+            Err(full_err) => {
+                let mut lo = 1usize;
+                let mut hi = mod_ranges.len();
+                while lo < hi {
+                    let mid = (lo + hi) / 2;
+                    let prefix_end = mod_ranges[mid - 1].1;
+                    if run_wat_raw(&dep_stream[..prefix_end]).is_ok() {
+                        lo = mid + 1;
+                    } else {
+                        hi = mid;
+                    }
+                }
+                let prev_end = if lo > 1 { mod_ranges[lo - 2].1 } else { 0 };
+                let (ms, me) = mod_ranges[lo - 1];
+                let bad_mod =
+                    ctb_formats_dcdata::stagel3::dc_tokens::decode_module_from_dc_tokens(
+                        &dep_stream[ms..me],
+                    )?;
+                let mut culprit_desc = String::from("<module header / structs / top vals>");
+                let mut stubbed = bad_mod.clone();
+                for it in &mut stubbed.items {
+                    if let ctb_formats_dcdata::stagel3::ast::TopDecl::Routine(r) = it {
+                        r.body = ctb_formats_dcdata::stagel3::ast::Expr::Fault { span: r.span };
+                    }
+                }
+                let mut base_cand = dep_stream[..prev_end].to_vec();
+                base_cand.extend(encode_module_to_dc_tokens(&stubbed)?);
+                if let Err(hdr_err) = run_wat_raw(&base_cand) {
+                    culprit_desc = format!("header/structs/vals ({hdr_err:#})");
+                } else {
+                    for idx in 0..bad_mod.items.len() {
+                        if !matches!(
+                            bad_mod.items[idx],
+                            ctb_formats_dcdata::stagel3::ast::TopDecl::Routine(_)
+                        ) {
+                            continue;
+                        }
+                        let mut one_real = stubbed.clone();
+                        one_real.items[idx] = bad_mod.items[idx].clone();
+                        let mut cand = dep_stream[..prev_end].to_vec();
+                        cand.extend(encode_module_to_dc_tokens(&one_real)?);
+                        if let Err(item_err) = run_wat_raw(&cand) {
+                            let single = ctb_formats_dcdata::stagel3::ast::Module {
+                                dialect: bad_mod.dialect,
+                                leading_comments: Vec::new(),
+                                namespace: bad_mod.namespace.clone(),
+                                uses: Vec::new(),
+                                items: vec![bad_mod.items[idx].clone()],
+                            };
+                            let single_toks = encode_module_to_dc_tokens(&single)?;
+                            let single_src =
+                                ctb_formats_dcdata::stagel3::dc_tokens::dc_tokens_to_sl3(
+                                    &single_toks,
+                                )?;
+                            culprit_desc = format!(
+                                "routine item #{idx}/{} ({item_err:#}):\n{single_src}",
+                                bad_mod.items.len()
+                            );
+                            break;
+                        }
+                    }
+                }
+                bail!(
+                    "f1680 trapped at bundled module #{lo}/{} (ns={:?}), {culprit_desc}\n(full err: {full_err:#})",
+                    mod_ranges.len(),
+                    bad_mod.namespace
+                );
+            }
+        }
+        Ok(())
+    }
 }

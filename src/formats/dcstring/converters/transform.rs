@@ -124,12 +124,21 @@ pub fn apply_dc_transformation(
         return Ok((wasm_doc, log));
     }
 
+    if transformation == SupportedDcTransformation::StageR3ToStageL3 {
+        let stagel_doc = crate::navigator::apply_graph_dc_transformation_format(
+            doc,
+            ctb_utilities::format_id::FormatId::StageR3ToStageL3,
+        )?;
+        return Ok((stagel_doc, log));
+    }
+
     for chunk in doc.chunks() {
         if let DcMixedChunk::Text(text) = chunk {
             let dclist = text.to_dclist();
             let transformed_dclist = match transformation {
                 SupportedDcTransformation::AddSystemGraphMostRecent
-                | SupportedDcTransformation::StageL3ToWasm => {
+                | SupportedDcTransformation::StageL3ToWasm
+                | SupportedDcTransformation::StageR3ToStageL3 => {
                     dclist
                 }
                 SupportedDcTransformation::UnicodeToShortDc => {
@@ -291,6 +300,88 @@ v/l/u8/step l/u8/input
         let out_u128s: Vec<u128> =
             out.to_dc_string()?.chars().map(DcChar::to_u128).collect();
         assert_eq!(out_u128s, vec![0x5B, 0x6F, 0x6B, 0x5D]);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_stager3_to_stagel3_and_wasm_document_transformations() -> Result<()> {
+        let sg = ctb_formats_dcdata::SeedGraphIndex::shared()?;
+        let sr3_src = r#"
+brand u32/tag.
+
+struct boxPair
+    tag/id.
+    i32/delta.
+
+enum op
+    keep.
+    i32/shift.
+
+v/result/i32/applyOp boxPair/bp op/act
+    const u32/raw unwrap field /bp id.
+    const i32/base conv? /raw i32.
+    const i32/sum add? /base field /bp delta.
+    match /act
+        case keep result/i32:ok /sum.
+        case shift i32/s add /sum /s.
+    ::.
+
+pub v/l/u8/step l/u8/input
+    const boxPair/bp structNew boxPair:
+        delta i32:-5
+        id wrap u32:40 tag
+    ::.
+    const result/i32/res applyOp /bp op:shift i32:7.
+    if isOk /res
+        do
+            const i32/v unwrapOr okOr get l/i32: i32:42 :: u64:0 error:unexpectedNone i32:0.
+            if and eq /res result/i32:ok i32:42 eq /v i32:42
+                concat b"<" concat /input b">"
+                b"bad"
+        ::
+        b"err".
+"#;
+        let sr_tokens =
+            ctb_formats_dcdata::stagel3::seed_linker::sr3_to_dc_tokens_with_seed_graph(
+                sr3_src, sg,
+            )?;
+        let mut stager_doc = DcMstring::new();
+        for tok in sr_tokens {
+            stager_doc.push_char(tok);
+        }
+
+        // 1. Standalone `f1681` (`StageR3ToStageL3`) transformation produces valid StageL 3 Token Dcs.
+        let (stagel_doc, log1) = apply_dc_transformation(
+            &stager_doc,
+            SupportedDcTransformation::StageR3ToStageL3,
+        )?;
+        assert!(!log1.has_warnings());
+        let stagel_tokens: Vec<DcChar> = stagel_doc.to_dc_string()?.chars().collect();
+        let _validated =
+            ctb_formats_dcdata::stagel3::seed_linker::validate_dc_tokens_with_seed_graph(
+                &stagel_tokens,
+                sg,
+            )?;
+
+        // 2. Chained `f1681 -> f1680` (`[StageR3ToStageL3, StageL3ToWasm]`) compiles and executes!
+        let (wasm_doc, log_chain) = apply_dc_transformations(
+            &stager_doc,
+            &[
+                SupportedDcTransformation::StageR3ToStageL3,
+                SupportedDcTransformation::StageL3ToWasm,
+            ],
+        )?;
+        assert!(!log_chain.has_warnings());
+
+        let mut input = DcMstring::new();
+        input.push_char(DcChar::from_u128(0x68));
+        input.push_char(DcChar::from_u128(0x69));
+        let out = crate::converters::wasm::run_dc_wasm_pure_conversion(
+            &wasm_doc, &input,
+        )?;
+        let out_u128s: Vec<u128> =
+            out.to_dc_string()?.chars().map(DcChar::to_u128).collect();
+        assert_eq!(out_u128s, vec![0x3C, 0x68, 0x69, 0x3E]);
         Ok(())
     }
 }
