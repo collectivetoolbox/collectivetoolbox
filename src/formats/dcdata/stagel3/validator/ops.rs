@@ -1065,6 +1065,28 @@ impl<'a> ModuleValidator<'a> {
     }
 
     /// Type-checks a unified unary operator expression across StageL 3 and StageR 3.
+    fn try_stagel_op_overload(
+        &mut self,
+        op_name: &str,
+        arg_tys: &[StageLType],
+        was_in_tail: bool,
+        span: Span,
+        builtin_err: anyhow::Error,
+    ) -> Result<StageLType> {
+        if self.dialect == StageDialect::StageL3
+            && self.routine_candidates.contains_key(op_name)
+        {
+            self.resolve_ident_overload_call(
+                op_name,
+                arg_tys,
+                was_in_tail,
+                span,
+            )
+        } else {
+            Err(builtin_err)
+        }
+    }
+
     fn check_unary(
         &mut self,
         op: UnaryOp,
@@ -1074,6 +1096,7 @@ impl<'a> ModuleValidator<'a> {
         ctx: &mut BodyCtx,
     ) -> Result<StageLType> {
         self.ensure_op_allowed(op.allowed_in(self.dialect), op.keyword(), span)?;
+        let was_in_tail = ctx.in_tail;
         match op {
             UnaryOp::Len => {
                 let ty = self.check_buf_target(operand, "len", false, state, ctx)?;
@@ -1127,11 +1150,23 @@ impl<'a> ModuleValidator<'a> {
                     return Ok(StageLType::Never);
                 }
                 if op == UnaryOp::Neg {
-                    ensure!(
-                        ty.is_signed_int(),
+                    if ty.is_signed_int() {
+                        return Ok(ty);
+                    }
+                    if self.dialect == StageDialect::StageL3
+                        && !ty.is_integer()
+                        && self.routine_candidates.contains_key(op.keyword())
+                    {
+                        return self.resolve_ident_overload_call(
+                            op.keyword(),
+                            &[ty],
+                            was_in_tail,
+                            span,
+                        );
+                    }
+                    bail!(
                         "'neg' requires a signed integer operand, found '{ty}' at {span}"
                     );
-                    return Ok(ty);
                 }
                 match &ty {
                     StageLType::I32 | StageLType::I64 | StageLType::I128 => {
@@ -1149,11 +1184,22 @@ impl<'a> ModuleValidator<'a> {
                     StageDialect::StageL3 => ty.is_integer(),
                     StageDialect::StageR3 => ty.is_stager_fixed_int(),
                 };
-                ensure!(
-                    ty == StageLType::Never || ok,
+                if ty == StageLType::Never || ok {
+                    return Ok(ty);
+                }
+                if self.dialect == StageDialect::StageL3
+                    && self.routine_candidates.contains_key(op.keyword())
+                {
+                    return self.resolve_ident_overload_call(
+                        op.keyword(),
+                        &[ty],
+                        was_in_tail,
+                        span,
+                    );
+                }
+                bail!(
                     "'bitNot' requires a fixed-width integer operand, found '{ty}' at {span}"
                 );
-                Ok(ty)
             }
             UnaryOp::Not => {
                 let ty = self.check_subexpr(operand, state, ctx)?;
@@ -1176,12 +1222,23 @@ impl<'a> ModuleValidator<'a> {
                     StageDialect::StageL3 => ty.is_integer(),
                     StageDialect::StageR3 => ty.is_stager_fixed_int(),
                 };
-                ensure!(
-                    ok,
+                if ok {
+                    return Ok(StageLType::U32);
+                }
+                if self.dialect == StageDialect::StageL3
+                    && self.routine_candidates.contains_key(op.keyword())
+                {
+                    return self.resolve_ident_overload_call(
+                        op.keyword(),
+                        &[ty],
+                        was_in_tail,
+                        span,
+                    );
+                }
+                bail!(
                     "'{}' requires a fixed-width integer operand, found '{ty}' at {span}",
                     op.keyword()
                 );
-                Ok(StageLType::U32)
             }
             UnaryOp::IsSome | UnaryOp::IsNone => {
                 let ty = self.check_subexpr(operand, state, ctx)?;
@@ -1282,6 +1339,33 @@ impl<'a> ModuleValidator<'a> {
     }
 
     /// Type-checks a unified binary operator expression across StageL 3 and StageR 3.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Shared StageL 3 built-in vs overloaded operator resolution helper"
+    )]
+    fn finish_stagel_binary_or_overload(
+        &mut self,
+        builtin_res: Result<StageLType>,
+        allow_fallback: bool,
+        op_name: &str,
+        lty: StageLType,
+        rty: StageLType,
+        was_in_tail: bool,
+        span: Span,
+    ) -> Result<StageLType> {
+        match builtin_res {
+            Ok(ty) => Ok(ty),
+            Err(err) if allow_fallback => self.try_stagel_op_overload(
+                op_name,
+                &[lty, rty],
+                was_in_tail,
+                span,
+                err,
+            ),
+            Err(err) => Err(err),
+        }
+    }
+
     fn check_binary(
         &mut self,
         op: BinaryOp,
@@ -1292,6 +1376,7 @@ impl<'a> ModuleValidator<'a> {
         ctx: &mut BodyCtx,
     ) -> Result<StageLType> {
         self.ensure_op_allowed(op.allowed_in(self.dialect), op.keyword(), span)?;
+        let was_in_tail = ctx.in_tail;
         match op {
             BinaryOp::And | BinaryOp::Or => {
                 self.check_short_circuit_logic(op, left, right, span, state, ctx)
@@ -1333,9 +1418,15 @@ impl<'a> ModuleValidator<'a> {
                 );
                 Ok(StageLType::Void)
             }
-            BinaryOp::Get | BinaryOp::TotalGet => {
-                self.check_get_binary(op, left, right, span, state, ctx)
-            }
+            BinaryOp::Get | BinaryOp::TotalGet => self.check_get_binary(
+                op,
+                left,
+                right,
+                was_in_tail,
+                span,
+                state,
+                ctx,
+            ),
             BinaryOp::Add
             | BinaryOp::Sub
             | BinaryOp::Mul
@@ -1343,13 +1434,24 @@ impl<'a> ModuleValidator<'a> {
             | BinaryOp::Rem => {
                 let (lty, rty) =
                     self.check_subexpr_pair(left, right, state, ctx)?;
-                Self::check_arith_binary(
+                let res = Self::check_arith_binary(
                     op.keyword(),
                     &lty,
                     &rty,
                     StageLType::is_integer,
                     "integer",
                     ArithResultWrap::Direct,
+                    span,
+                );
+                let allow_fallback = self.dialect == StageDialect::StageL3
+                    && !(lty.is_integer() && rty.is_integer());
+                self.finish_stagel_binary_or_overload(
+                    res,
+                    allow_fallback,
+                    op.keyword(),
+                    lty,
+                    rty,
+                    was_in_tail,
                     span,
                 )
             }
@@ -1410,7 +1512,25 @@ impl<'a> ModuleValidator<'a> {
                             "fixed-width integer",
                         ),
                     };
-                unify_matching_pair(op.keyword(), &lty, &rty, pred, desc, span)
+                let res = unify_matching_pair(
+                    op.keyword(),
+                    &lty,
+                    &rty,
+                    pred,
+                    desc,
+                    span,
+                );
+                let allow_fallback = self.dialect == StageDialect::StageL3
+                    && !(lty.is_integer() && rty.is_integer());
+                self.finish_stagel_binary_or_overload(
+                    res,
+                    allow_fallback,
+                    op.keyword(),
+                    lty,
+                    rty,
+                    was_in_tail,
+                    span,
+                )
             }
             BinaryOp::Shl
             | BinaryOp::Shr
@@ -1418,17 +1538,49 @@ impl<'a> ModuleValidator<'a> {
             | BinaryOp::TotalShr => {
                 let (lty, rty) =
                     self.check_subexpr_pair(left, right, state, ctx)?;
-                Self::check_shift_binary(op, lty, &rty, span)
+                let res = Self::check_shift_binary(op, lty.clone(), &rty, span);
+                let allow_fallback = self.dialect == StageDialect::StageL3
+                    && !lty.is_integer();
+                self.finish_stagel_binary_or_overload(
+                    res,
+                    allow_fallback,
+                    op.keyword(),
+                    lty,
+                    rty,
+                    was_in_tail,
+                    span,
+                )
             }
             BinaryOp::Rotl | BinaryOp::Rotr => {
                 let (lty, rty) =
                     self.check_subexpr_pair(left, right, state, ctx)?;
-                self.check_rot_binary(op, lty, &rty, span)
+                let res = self.check_rot_binary(op, lty.clone(), &rty, span);
+                let allow_fallback = self.dialect == StageDialect::StageL3
+                    && !lty.is_integer();
+                self.finish_stagel_binary_or_overload(
+                    res,
+                    allow_fallback,
+                    op.keyword(),
+                    lty,
+                    rty,
+                    was_in_tail,
+                    span,
+                )
             }
             BinaryOp::Eq | BinaryOp::Ne => {
                 let (lty, rty) =
                     self.check_subexpr_pair(left, right, state, ctx)?;
-                self.check_eq_binary(op, &lty, &rty, span)
+                let res = self.check_eq_binary(op, &lty, &rty, span);
+                let allow_fallback = self.dialect == StageDialect::StageL3;
+                self.finish_stagel_binary_or_overload(
+                    res,
+                    allow_fallback,
+                    op.keyword(),
+                    lty,
+                    rty,
+                    was_in_tail,
+                    span,
+                )
             }
             BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge => {
                 let (lty, rty) =
@@ -1442,21 +1594,34 @@ impl<'a> ModuleValidator<'a> {
                             (StageLType::is_stager_numeric, "numeric")
                         }
                     };
-                let joined = unify_matching_pair(
+                let res = unify_matching_pair(
                     op.keyword(),
                     &lty,
                     &rty,
                     pred,
                     desc,
                     span,
-                )?;
-                if joined == StageLType::Never
-                    && self.dialect == StageDialect::StageR3
-                {
-                    Ok(StageLType::Never)
-                } else {
-                    Ok(StageLType::B)
-                }
+                )
+                .map(|joined| {
+                    if joined == StageLType::Never
+                        && self.dialect == StageDialect::StageR3
+                    {
+                        StageLType::Never
+                    } else {
+                        StageLType::B
+                    }
+                });
+                let allow_fallback = self.dialect == StageDialect::StageL3
+                    && !(lty.is_integer() && rty.is_integer());
+                self.finish_stagel_binary_or_overload(
+                    res,
+                    allow_fallback,
+                    op.keyword(),
+                    lty,
+                    rty,
+                    was_in_tail,
+                    span,
+                )
             }
             BinaryOp::Concat => {
                 let (lty, rty) =
@@ -1616,11 +1781,16 @@ impl<'a> ModuleValidator<'a> {
     }
 
     /// Type-checks faulting StageL `get` and total StageR `get`.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Shared StageL/StageR get type checker"
+    )]
     fn check_get_binary(
         &mut self,
         op: BinaryOp,
         left: &Expr,
         right: &Expr,
+        was_in_tail: bool,
         span: Span,
         state: &mut FlowState,
         ctx: &mut BodyCtx,
@@ -1628,6 +1798,21 @@ impl<'a> ModuleValidator<'a> {
         let is_total = op == BinaryOp::TotalGet;
         let lty = self.check_buf_target(left, op.keyword(), false, state, ctx)?;
         let rty = self.check_subexpr(right, state, ctx)?;
+        if !is_total
+            && self.dialect == StageDialect::StageL3
+            && !matches!(
+                lty,
+                StageLType::List(_) | StageLType::Buf(_) | StageLType::Never
+            )
+            && self.routine_candidates.contains_key(op.keyword())
+        {
+            return self.resolve_ident_overload_call(
+                op.keyword(),
+                &[lty, rty],
+                was_in_tail,
+                span,
+            );
+        }
         let idx_span = if is_total { right.span() } else { span };
         ensure!(
             types_compatible(&rty, &StageLType::U64),
@@ -1871,12 +2056,30 @@ impl<'a> ModuleValidator<'a> {
         ctx: &mut BodyCtx,
     ) -> Result<StageLType> {
         self.ensure_op_allowed(op.allowed_in(self.dialect), op.keyword(), span)?;
+        let was_in_tail = ctx.in_tail;
         match op {
             TernaryOp::Slice | TernaryOp::TotalSlice => {
                 let is_total = op == TernaryOp::TotalSlice;
                 let seq_ty = self.check_subexpr(first, state, ctx)?;
                 let start_ty = self.check_subexpr(second, state, ctx)?;
                 let end_ty = self.check_subexpr(third, state, ctx)?;
+                if !is_total
+                    && self.dialect == StageDialect::StageL3
+                    && !matches!(
+                        seq_ty,
+                        StageLType::List(_)
+                            | StageLType::Buf(_)
+                            | StageLType::Never
+                    )
+                    && self.routine_candidates.contains_key(op.keyword())
+                {
+                    return self.resolve_ident_overload_call(
+                        op.keyword(),
+                        &[seq_ty, start_ty, end_ty],
+                        was_in_tail,
+                        span,
+                    );
+                }
                 let prefix = if is_total { "StageR 'slice'" } else { "'slice'" };
                 ensure!(
                     start_ty == StageLType::U64

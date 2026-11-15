@@ -35,16 +35,20 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
+use malachite::base::num::basic::traits::Zero;
+use malachite::base::num::conversion::traits::PowerOf2Digits;
 use malachite::base::num::logic::traits::SignificantBits;
-use malachite::{Integer, Rational};
+use malachite::{Integer, Natural, Rational};
 
 use super::super::ast::{
     BinaryOp, BlockItem, Expr, MatchArm, RoutineDecl, Span, StageDialect,
     StageLType, StageRErrorTag, StructTypeRef, SymbolTarget, TestCase,
     TestExpected, TopDecl, TopValueDecl,
 };
+use super::super::stager_strings::is_valid_dc_u128;
 use super::super::validator::{
     ImportedSymbol, RoutineKey, ValidatedModule, ValidatedWorkspace, ValueKey,
+    unbridge_stager_type_for_stage1,
 };
 use super::ops::{
     eval_binary, eval_bitcast, eval_conv, eval_ternary, eval_unary,
@@ -195,8 +199,12 @@ impl StageLWorkspaceVm {
         };
 
         for (mod_idx, vm) in ws.modules.iter().enumerate() {
-            let (runtime, pending_consts) =
-                build_module_runtime(&vm_state.ns_to_idx, mod_idx, vm)?;
+            let (runtime, pending_consts) = build_module_runtime(
+                &vm_state.ns_to_idx,
+                &vm_state.modules,
+                mod_idx,
+                vm,
+            )?;
             vm_state.modules.push(runtime);
             // Evaluate top-level constants in topological dependency order
             // (handling valid out-of-order pure references).
@@ -744,6 +752,45 @@ impl StageLWorkspaceVm {
             }
         }
         let callee = self.resolve_callee(mod_idx, target, span, frame)?;
+        let cross_stager_to_stage1 = match &callee {
+            CallableRoutine::Top {
+                module_idx: callee_mod_idx,
+                ..
+            } => {
+                let caller_is_sr = self
+                    .modules
+                    .get(mod_idx)
+                    .is_some_and(|rt| rt.dialect == StageDialect::StageR3);
+                let callee_is_s1 = self
+                    .modules
+                    .get(*callee_mod_idx)
+                    .is_some_and(|rt| rt.dialect == StageDialect::StageL3);
+                caller_is_sr && callee_is_s1
+            }
+            CallableRoutine::Nested(_) => false,
+        };
+        if cross_stager_to_stage1 {
+            let mut marshaled_args = Vec::with_capacity(evaluated_args.len());
+            for arg in evaluated_args {
+                marshaled_args.push(marshal_stager_val_to_stage1(arg)?);
+            }
+            return match self.invoke_trampoline(
+                callee,
+                marshaled_args,
+                depth.saturating_add(1),
+                quota,
+            )? {
+                RoutineOutcome::Returned(v) => {
+                    let stager_val = marshal_stage1_val_to_stager(v)?;
+                    if let Some(sig) = self.check_unmarshaled_limits(&stager_val)
+                    {
+                        return Ok(sig);
+                    }
+                    Ok(EvalSignal::Value(stager_val))
+                }
+                RoutineOutcome::Trapped(msg) => Ok(EvalSignal::Fault(msg)),
+            };
+        }
         if in_tail {
             Ok(EvalSignal::TailCall {
                 callee,
@@ -1489,12 +1536,19 @@ impl StageLWorkspaceVm {
                 .modules
                 .get(*target_mod_idx)
                 .context("Invalid resolved constant module idx")?;
-            return target_rt.constants.get(vkey).cloned().with_context(|| {
+            let raw = target_rt.constants.get(vkey).cloned().with_context(|| {
                 format!(
                     "Constant '{}/{}' not yet initialized or missing at runtime",
                     vkey.ty, vkey.name
                 )
-            });
+            })?;
+            return if mod_rt.dialect == StageDialect::StageR3
+                && target_rt.dialect == StageDialect::StageL3
+            {
+                marshal_stage1_val_to_stager(raw)
+            } else {
+                Ok(raw)
+            };
         }
         if let Some(expected_ty) = ty {
             let fallback_key = ValueKey {
@@ -1527,13 +1581,34 @@ impl StageLWorkspaceVm {
         }) = mod_rt.imports_by_dc.get(&dc)
         {
             let dep_rt = self.modules.get(*dep_idx).context("Invalid dep idx")?;
-            return dep_rt
+            let raw = dep_rt
                 .constants
                 .get(vkey)
                 .cloned()
-                .context("Missing imported Dc constant value");
+                .context("Missing imported Dc constant value")?;
+            return if mod_rt.dialect == StageDialect::StageR3
+                && dep_rt.dialect == StageDialect::StageL3
+            {
+                marshal_stage1_val_to_stager(raw)
+            } else {
+                Ok(raw)
+            };
         }
         bail!("Dc value reference '{dc}' not found at runtime")
+    }
+
+    fn check_unmarshaled_limits(&self, val: &Value) -> Option<EvalSignal> {
+        match val {
+            Value::Int(n) => self.check_int_limit(n, "Stage 1 unmarshaled"),
+            Value::Rat(r) => self.check_rat_limit(r, "Stage 1 unmarshaled"),
+            Value::List(xs) | Value::Tuple(xs) => xs
+                .iter()
+                .find_map(|elem| self.check_unmarshaled_limits(elem)),
+            Value::Struct { fields, .. } => fields
+                .iter()
+                .find_map(|field| self.check_unmarshaled_limits(field)),
+            _ => None,
+        }
     }
 
     fn resolve_callee(
@@ -1587,6 +1662,7 @@ impl StageLWorkspaceVm {
 
 fn build_module_runtime(
     ns_to_idx: &HashMap<String, usize>,
+    prev_modules: &[ModuleRuntime],
     mod_idx: usize,
     vm: &ValidatedModule,
 ) -> Result<(ModuleRuntime, Vec<(ValueKey, TopValueDecl)>)> {
@@ -1600,21 +1676,31 @@ fn build_module_runtime(
             Ok(mod_idx)
         }
     };
+    let is_cross_stager_to_stage1 = |target_idx: usize| -> bool {
+        vm.module.dialect == StageDialect::StageR3
+            && prev_modules
+                .get(target_idx)
+                .is_some_and(|rt| rt.dialect == StageDialect::StageL3)
+    };
 
     let mut resolved_values = HashMap::with_capacity(vm.resolved_values.len());
     for (&span_key, rv) in &vm.resolved_values {
-        resolved_values.insert(
-            span_key,
-            (resolve_ns(rv.namespace.as_ref())?, rv.value_key()),
-        );
+        let target_idx = resolve_ns(rv.namespace.as_ref())?;
+        let mut vkey = rv.value_key();
+        if is_cross_stager_to_stage1(target_idx) {
+            vkey.ty = unbridge_stager_type_for_stage1(&vkey.ty);
+        }
+        resolved_values.insert(span_key, (target_idx, vkey));
     }
 
     let mut resolved_calls = HashMap::with_capacity(vm.resolved_calls.len());
     for (&span_key, rc) in &vm.resolved_calls {
-        resolved_calls.insert(
-            span_key,
-            (resolve_ns(rc.namespace.as_ref())?, rc.routine_key()),
-        );
+        let target_idx = resolve_ns(rc.namespace.as_ref())?;
+        let mut rkey = rc.routine_key();
+        if is_cross_stager_to_stage1(target_idx) {
+            unbridge_routine_key_params(&mut rkey);
+        }
+        resolved_calls.insert(span_key, (target_idx, rkey));
     }
 
     let resolved_structs = vm
@@ -1640,11 +1726,16 @@ fn build_module_runtime(
                 let dep_idx = *ns_to_idx
                     .get(namespace)
                     .context("Missing imported dc namespace")?;
+                let effective_ty = if is_cross_stager_to_stage1(dep_idx) {
+                    unbridge_stager_type_for_stage1(ty)
+                } else {
+                    ty.clone()
+                };
                 ResolvedDcImportTarget::Value {
                     module_idx: dep_idx,
                     key: ValueKey {
                         name: original_name.clone(),
-                        ty: ty.clone(),
+                        ty: effective_ty,
                     },
                 }
             }
@@ -1656,12 +1747,16 @@ fn build_module_runtime(
                 let dep_idx = *ns_to_idx
                     .get(namespace)
                     .context("Missing imported dc namespace")?;
+                let mut rkey = RoutineKey {
+                    name: original_name.clone(),
+                    params: sig.params.clone(),
+                };
+                if is_cross_stager_to_stage1(dep_idx) {
+                    unbridge_routine_key_params(&mut rkey);
+                }
                 ResolvedDcImportTarget::Routine {
                     module_idx: dep_idx,
-                    key: RoutineKey {
-                        name: original_name.clone(),
-                        params: sig.params.clone(),
-                    },
+                    key: rkey,
                 }
             }
             ImportedSymbol::Struct { .. }
@@ -1884,5 +1979,180 @@ fn resolve_nominal_type_key(
         other => bail!(
             "Invalid 'wrap' target type '{other}' (expected nominal brand or opaque type) at {span}"
         ),
+    }
+}
+
+fn unbridge_routine_key_params(rkey: &mut RoutineKey) {
+    for p in &mut rkey.params {
+        *p = unbridge_stager_type_for_stage1(p);
+    }
+}
+
+fn split_u128_fields(bits: u128) -> Result<Rc<Vec<Value>>> {
+    let lo = u64::try_from(bits & u128::from(u64::MAX))?;
+    let hi = u64::try_from(bits.wrapping_shr(64u32))?;
+    Ok(Rc::new(vec![Value::U64(lo), Value::U64(hi)]))
+}
+
+fn join_u128_fields(fields: &[Value], type_name: &str) -> Result<u128> {
+    let [Value::U64(lo), Value::U64(hi)] = fields else {
+        bail!("Invalid Stage 1 carrier '{type_name}' fields: {fields:?}");
+    };
+    Ok(u128::from(*lo) | u128::from(*hi).wrapping_shl(64u32))
+}
+
+fn integer_to_stage1_bigint(n: &Integer) -> Value {
+    let (neg, limbs) = if *n == Integer::ZERO {
+        (false, Vec::new())
+    } else {
+        let neg = *n < Integer::ZERO;
+        let limbs = n
+            .unsigned_abs_ref()
+            .to_power_of_2_digits_asc(32u64)
+            .into_iter()
+            .map(Value::U32)
+            .collect();
+        (neg, limbs)
+    };
+    Value::Struct {
+        type_key: (Some("std/bigint".to_owned()), "bigInt".to_owned()),
+        fields: Rc::new(vec![Value::Bool(neg), Value::List(Rc::new(limbs))]),
+    }
+}
+
+fn stage1_bigint_to_integer(fields: &[Value]) -> Result<Integer> {
+    let [Value::Bool(neg), Value::List(limb_vals)] = fields else {
+        bail!("Invalid Stage 1 carrier 'bigInt' fields: {fields:?}");
+    };
+    let mut limbs = Vec::with_capacity(limb_vals.len());
+    for item in limb_vals.iter() {
+        let Value::U32(limb) = item else {
+            bail!("Invalid non-u32 limb in Stage 1 'bigInt': {item:?}");
+        };
+        limbs.push(*limb);
+    }
+    let nat = Natural::from_power_of_2_digits_asc(32u64, limbs.into_iter())
+        .context("Failed to decode Stage 1 'bigInt' limbs")?;
+    if nat == Natural::ZERO {
+        Ok(Integer::ZERO)
+    } else {
+        Ok(Integer::from_sign_and_abs(!*neg, nat))
+    }
+}
+
+fn marshal_stager_val_to_stage1(val: Value) -> Result<Value> {
+    match val {
+        Value::I128(v) => Ok(Value::Struct {
+            type_key: (Some("std/i128".to_owned()), "i128Val".to_owned()),
+            fields: split_u128_fields(u128::from_ne_bytes(v.to_ne_bytes()))?,
+        }),
+        Value::U128(bits) => Ok(Value::Struct {
+            type_key: (Some("std/u128".to_owned()), "u128Val".to_owned()),
+            fields: split_u128_fields(bits)?,
+        }),
+        Value::Dc(dc) => Ok(Value::Struct {
+            type_key: (Some("std/dctf".to_owned()), "dcVal".to_owned()),
+            fields: split_u128_fields(dc.to_u128())?,
+        }),
+        Value::Int(n) => Ok(integer_to_stage1_bigint(&n)),
+        Value::Rat(r) => {
+            let is_neg = r < Rational::ZERO;
+            let (num_nat, den_nat) = r.into_numerator_and_denominator();
+            let num_int = Integer::from_sign_and_abs(!is_neg, num_nat);
+            let den_int = Integer::from(den_nat);
+            Ok(Value::Struct {
+                type_key: (Some("std/rat".to_owned()), "ratVal".to_owned()),
+                fields: Rc::new(vec![
+                    integer_to_stage1_bigint(&num_int),
+                    integer_to_stage1_bigint(&den_int),
+                ]),
+            })
+        }
+        Value::List(xs) => {
+            let mut out = Vec::with_capacity(xs.len());
+            for elem in xs.iter() {
+                out.push(marshal_stager_val_to_stage1(elem.clone())?);
+            }
+            Ok(Value::List(Rc::new(out)))
+        }
+        Value::Tuple(xs) => {
+            let mut out = Vec::with_capacity(xs.len());
+            for elem in xs.iter() {
+                out.push(marshal_stager_val_to_stage1(elem.clone())?);
+            }
+            Ok(Value::Tuple(Rc::new(out)))
+        }
+        other => Ok(other),
+    }
+}
+
+fn marshal_stage1_val_to_stager(val: Value) -> Result<Value> {
+    match val {
+        Value::Struct { type_key, fields } => match (
+            type_key.0.as_deref(),
+            type_key.1.as_str(),
+        ) {
+            (Some("std/i128"), "i128Val") => {
+                let bits = join_u128_fields(&fields, "std/i128::i128Val")?;
+                Ok(Value::I128(i128::from_ne_bytes(bits.to_ne_bytes())))
+            }
+            (Some("std/u128"), "u128Val") => {
+                let bits = join_u128_fields(&fields, "std/u128::u128Val")?;
+                Ok(Value::U128(bits))
+            }
+            (Some("std/dctf"), "dcVal") => {
+                let bits = join_u128_fields(&fields, "std/dctf::dcVal")?;
+                ensure!(
+                    is_valid_dc_u128(bits),
+                    "Stage 1 'dcVal' {bits:#x} is not a valid Dc scalar"
+                );
+                Ok(Value::Dc(DcChar::from_u128(bits)))
+            }
+            (Some("std/bigint"), "bigInt") => {
+                Ok(Value::Int(stage1_bigint_to_integer(&fields)?))
+            }
+            (Some("std/rat"), "ratVal") => {
+                let [num_v, den_v] = fields.as_ref().as_slice() else {
+                    bail!("Invalid Stage 1 carrier 'ratVal' fields");
+                };
+                let Value::Int(num) =
+                    marshal_stage1_val_to_stager(num_v.clone())?
+                else {
+                    bail!("Invalid 'ratVal' numerator value");
+                };
+                let Value::Int(den) =
+                    marshal_stage1_val_to_stager(den_v.clone())?
+                else {
+                    bail!("Invalid 'ratVal' denominator value");
+                };
+                ensure!(den != Integer::ZERO, "Zero denominator in Stage 1 'ratVal'");
+                Ok(Value::Rat(Rational::from_integers(num, den)))
+            }
+            _ => {
+                let mut out = Vec::with_capacity(fields.len());
+                for field in fields.iter() {
+                    out.push(marshal_stage1_val_to_stager(field.clone())?);
+                }
+                Ok(Value::Struct {
+                    type_key,
+                    fields: Rc::new(out),
+                })
+            }
+        },
+        Value::List(xs) => {
+            let mut out = Vec::with_capacity(xs.len());
+            for elem in xs.iter() {
+                out.push(marshal_stage1_val_to_stager(elem.clone())?);
+            }
+            Ok(Value::List(Rc::new(out)))
+        }
+        Value::Tuple(xs) => {
+            let mut out = Vec::with_capacity(xs.len());
+            for elem in xs.iter() {
+                out.push(marshal_stage1_val_to_stager(elem.clone())?);
+            }
+            Ok(Value::Tuple(Rc::new(out)))
+        }
+        other => Ok(other),
     }
 }

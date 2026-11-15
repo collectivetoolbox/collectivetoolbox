@@ -40,7 +40,10 @@ pub use imports_and_decls::{
     validate_module_with_registry_and_dc_imports,
     validate_module_with_registry_and_dc_imports_and_options,
 };
-pub(crate) use types::is_stager_widening_conv;
+pub(crate) use types::{
+    bridge_stage1_type_for_stager, is_stager_widening_conv,
+    unbridge_stager_type_for_stage1,
+};
 pub use workspace::{
     parse_and_validate_stager_workspace, parse_and_validate_workspace,
     parse_and_validate_workspace_with_dialect,
@@ -51,7 +54,8 @@ pub(crate) use workspace::{
 };
 
 use super::ast::{
-    Module, RoutineDecl, Span, StageLType, StructTypeRef, TopValueDecl,
+    BlockItem, Expr, Module, RoutineDecl, Span, StageLType, StructTypeRef,
+    TopValueDecl,
 };
 use crate::DcChar;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -76,6 +80,8 @@ pub struct RoutineSig {
     pub is_pub: bool,
     /// Optional Dc anchor.
     pub dc_id: Option<DcChar>,
+    /// Whether the routine (or any Stage 1 routine it calls) can execute `fault`.
+    pub may_fault: bool,
 }
 
 /// Unique signature key for a top-level routine within a module (`name` + exact
@@ -631,6 +637,118 @@ impl ValidatedModule {
 pub struct ValidatedWorkspace {
     /// Modules in dependency-safe topological order.
     pub modules: Vec<ValidatedModule>,
+}
+
+/// Reports whether `expr` (including nested routine bodies) syntactically
+/// contains any [`Expr::Fault`] node.
+#[must_use]
+pub(crate) fn expr_syntactically_contains_fault(expr: &Expr) -> bool {
+    match expr {
+        Expr::Fault { .. } => true,
+        Expr::Bool { .. }
+        | Expr::Int { .. }
+        | Expr::Bytes { .. }
+        | Expr::ValueRef { .. }
+        | Expr::Break { .. }
+        | Expr::Continue { .. }
+        | Expr::Nop { .. }
+        | Expr::DctsString { .. }
+        | Expr::DcLit { .. }
+        | Expr::OptionNone { .. }
+        | Expr::ErrorTag { .. } => false,
+        Expr::List { elements, .. } | Expr::TupleNew { elements, .. } => {
+            elements.iter().any(expr_syntactically_contains_fault)
+        }
+        Expr::StructNew { fields, .. } => {
+            fields.iter().any(expr_syntactically_contains_fault)
+        }
+        Expr::NamedStructNew { fields, .. } => fields
+            .iter()
+            .any(|(_, val, _)| expr_syntactically_contains_fault(val)),
+        Expr::Field { base, .. }
+        | Expr::NamedField { base, .. }
+        | Expr::BufNew { capacity: base, .. }
+        | Expr::Unary { operand: base, .. }
+        | Expr::Conv { expr: base, .. }
+        | Expr::Bitcast { expr: base, .. }
+        | Expr::WrapNominal { expr: base, .. }
+        | Expr::UnwrapNominal { expr: base, .. }
+        | Expr::Propagate { expr: base, .. }
+        | Expr::Const { value: base, .. }
+        | Expr::Set { value: base, .. }
+        | Expr::OptionSome { value: base, .. }
+        | Expr::ResultOk { value: base, .. }
+        | Expr::ResultErr { error: base, .. } => {
+            expr_syntactically_contains_fault(base)
+        }
+        Expr::Let { init, .. } => {
+            init.as_deref().is_some_and(expr_syntactically_contains_fault)
+        }
+        Expr::Return { value, .. } => {
+            value.as_deref().is_some_and(expr_syntactically_contains_fault)
+        }
+        Expr::EnumVariant { payload, .. } => {
+            payload.as_deref().is_some_and(expr_syntactically_contains_fault)
+        }
+        Expr::With { base, value, .. }
+        | Expr::NamedWith { base, value, .. }
+        | Expr::Binary {
+            left: base,
+            right: value,
+            ..
+        }
+        | Expr::While {
+            cond: base,
+            body: value,
+            ..
+        }
+        | Expr::ForEach {
+            list: base,
+            body: value,
+            ..
+        } => {
+            expr_syntactically_contains_fault(base)
+                || expr_syntactically_contains_fault(value)
+        }
+        Expr::Ternary {
+            first,
+            second,
+            third,
+            ..
+        }
+        | Expr::If {
+            cond: first,
+            then_branch: second,
+            else_branch: third,
+            ..
+        } => {
+            expr_syntactically_contains_fault(first)
+                || expr_syntactically_contains_fault(second)
+                || expr_syntactically_contains_fault(third)
+        }
+        Expr::RoutineDecl(r) => expr_syntactically_contains_fault(&r.body),
+        Expr::Call { args, .. } => {
+            args.iter().any(expr_syntactically_contains_fault)
+        }
+        Expr::Block { stmts, .. } => stmts.iter().any(|item| match item {
+            BlockItem::Expr(sub) => expr_syntactically_contains_fault(sub),
+            BlockItem::Comment(_) => false,
+        }),
+        Expr::Match {
+            scrutinee,
+            arms,
+            fallback,
+            ..
+        } => {
+            expr_syntactically_contains_fault(scrutinee)
+                || arms
+                    .iter()
+                    .any(|a| expr_syntactically_contains_fault(&a.body))
+                || fallback
+                    .as_deref()
+                    .is_some_and(expr_syntactically_contains_fault)
+        }
+    }
 }
 
 #[cfg(test)]

@@ -761,67 +761,25 @@ impl<'a> ModuleValidator<'a> {
                     return Ok(verb.sig.return_type);
                 }
 
-                if let Some(cands) = self.routine_candidates.get(name).cloned()
-                {
-                    let Some(first_cand) = cands.first() else {
-                        bail!("Unknown routine '{name}' at {span}");
-                    };
-                    let expected_arity = first_cand.sig.params.len();
-                    ensure!(
-                        arg_tys.len() == expected_arity,
-                        "Routine '{name}' at {span} expects {expected_arity} argument(s), found {}",
-                        arg_tys.len()
+                if self.routine_candidates.contains_key(name) {
+                    return self.resolve_ident_overload_call(
+                        name, &arg_tys, was_in_tail, span,
                     );
-
-                    let matches: Vec<&ResolvedCallTarget> = cands
-                        .iter()
-                        .filter(|cand| {
-                            cand.sig
-                                .params
-                                .iter()
-                                .zip(&arg_tys)
-                                .all(|(p, a)| types_compatible(a, p))
-                        })
-                        .collect();
-
-                    if matches.is_empty() {
-                        let sigs_desc = cands
-                            .iter()
-                            .map(|c| {
-                                format!(
-                                    "({}) -> {}",
-                                    format_param_types(&c.sig.params),
-                                    c.sig.return_type
-                                )
-                            })
-                            .collect::<Vec<_>>()
-                            .join(" | ");
-                        bail!(
-                            "No matching overload for routine '{name}' at {span} with argument types ({}) (Call argument type mismatch; available signatures: {sigs_desc})",
-                            format_param_types(&arg_tys)
-                        );
-                    }
-                    if matches.len() > 1 {
-                        bail!(
-                            "Ambiguous call to overloaded routine '{name}' at {span} with argument types ({})",
-                            format_param_types(&arg_tys)
-                        );
-                    }
-                    let Some(winner) = matches.first().copied() else {
-                        bail!("Internal empty overload match for '{name}'");
-                    };
-                    self.resolved_calls
-                        .insert((span.line, span.col), winner.clone());
-                    if was_in_tail {
-                        self.tail_calls.insert((span.line, span.col));
-                    }
-                    return Ok(winner.sig.return_type.clone());
                 }
 
                 bail!("Unknown routine '{name}' at {span}");
             }
             SymbolTarget::Dc(dc) => {
                 if let Some(sig) = self.top_dc_routines.get(dc).cloned() {
+                    if self.forbid_stagel_internal && sig.may_fault {
+                        let cname = self
+                            .top_dc_names
+                            .get(dc)
+                            .map_or("routine", String::as_str);
+                        bail!(
+                            "Faulting routine '{cname}' cannot be called in total StageR/Stage 2 module at {span}"
+                        );
+                    }
                     ensure!(
                         arg_tys.len() == sig.params.len(),
                         "Routine Dc reference at {span} expects {} argument(s), found {}",
@@ -866,6 +824,11 @@ impl<'a> ModuleValidator<'a> {
                             {
                                 bail!(
                                     "StageL-internal routine '{original_name}' cannot be called in Stage 2/StageR module at {span}"
+                                );
+                            }
+                            if self.forbid_stagel_internal && sig.may_fault {
+                                bail!(
+                                    "Faulting routine '{original_name}' cannot be called in total StageR/Stage 2 module at {span}"
                                 );
                             }
                             let defs = self.type_defs();
@@ -922,6 +885,83 @@ impl<'a> ModuleValidator<'a> {
                 bail!("Unresolved Dc routine call at {span}");
             }
         }
+    }
+
+    /// Resolves a routine call or StageL 3 overloaded operator against
+    /// `self.routine_candidates`, enforcing `forbid_stagel_internal` /
+    /// `may_fault` totality and recording `resolved_calls` / `tail_calls`.
+    pub(super) fn resolve_ident_overload_call(
+        &mut self,
+        name: &str,
+        arg_tys: &[StageLType],
+        was_in_tail: bool,
+        span: Span,
+    ) -> Result<StageLType> {
+        let Some(cands) = self.routine_candidates.get(name).cloned() else {
+            bail!("Unknown routine '{name}' at {span}");
+        };
+        let Some(first_cand) = cands.first() else {
+            bail!("Unknown routine '{name}' at {span}");
+        };
+        let expected_arity = first_cand.sig.params.len();
+        ensure!(
+            arg_tys.len() == expected_arity,
+            "Routine '{name}' at {span} expects {expected_arity} argument(s), found {}",
+            arg_tys.len()
+        );
+
+        let matches: Vec<&ResolvedCallTarget> = cands
+            .iter()
+            .filter(|cand| {
+                cand.sig
+                    .params
+                    .iter()
+                    .zip(arg_tys)
+                    .all(|(p, a)| types_compatible(a, p))
+            })
+            .collect();
+
+        if matches.is_empty() {
+            let sigs_desc = cands
+                .iter()
+                .map(|c| {
+                    format!(
+                        "({}) -> {}",
+                        format_param_types(&c.sig.params),
+                        c.sig.return_type
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(" | ");
+            bail!(
+                "No matching overload for routine '{name}' at {span} with argument types ({}) (Call argument type mismatch; available signatures: {sigs_desc})",
+                format_param_types(arg_tys)
+            );
+        }
+        if matches.len() > 1 {
+            bail!(
+                "Ambiguous call to overloaded routine '{name}' at {span} with argument types ({})",
+                format_param_types(arg_tys)
+            );
+        }
+        let Some(winner) = matches.first().copied() else {
+            bail!("Internal empty overload match for '{name}'");
+        };
+        if self.forbid_stagel_internal
+            && (is_stagel_internal_name(&winner.routine_name)
+                || winner.sig.may_fault)
+        {
+            bail!(
+                "Faulting or StageL-internal routine '{}' cannot be called in total StageR/Stage 2 module at {span}",
+                winner.routine_name
+            );
+        }
+        self.resolved_calls
+            .insert((span.line, span.col), winner.clone());
+        if was_in_tail {
+            self.tail_calls.insert((span.line, span.col));
+        }
+        Ok(winner.sig.return_type.clone())
     }
 
     /// Validates a two-phase `do ... ::` lexical block, pre-declaring nested
@@ -1047,6 +1087,10 @@ impl<'a> ModuleValidator<'a> {
                                 params: param_tys,
                                 is_pub: false,
                                 dc_id: r.dc_id,
+                                may_fault: self.dialect == StageDialect::StageL3
+                                    && super::expr_syntactically_contains_fault(
+                                        &r.body,
+                                    ),
                             },
                         },
                     );

@@ -59,7 +59,8 @@ use super::validator::{
     BrandTypeDef, EnumDef, EnumVariantDef, ImportedSymbol, ModuleInput,
     NamedStructDef, NamespaceExports, RoutineSig, StructDef, ValidatedModule,
     ValidatedWorkspace, build_stager_import_context, dialect_for_source_path,
-    is_stage2_or_sr3_path, top_decl_uses_stager,
+    expr_syntactically_contains_fault, is_stage2_or_sr3_path,
+    top_decl_uses_stager,
     validate_module_with_registry_and_dc_imports_and_options, verify_psr4_path,
 };
 
@@ -241,6 +242,7 @@ fn sig_for_routine_decl(r: &RoutineDecl) -> RoutineSig {
         params: r.params.iter().map(|p| p.ty.clone()).collect(),
         is_pub: true,
         dc_id: r.dc_id,
+        may_fault: expr_syntactically_contains_fault(&r.body),
     }
 }
 
@@ -2041,6 +2043,7 @@ fn record_caller_prelim_exports(
                     params: r.params.iter().map(|p| p.ty.clone()).collect(),
                     is_pub: true,
                     dc_id: r.dc_id,
+                    may_fault: expr_syntactically_contains_fault(&r.body),
                 };
                 exp.routines
                     .entry(r.name.clone())
@@ -2386,14 +2389,19 @@ pub fn parse_sr3_module_with_seed_graph(
     )
 }
 
-/// Converts StageL 3 `.sl3` source (resolving external `use` and `dc/<shorthand>`
-/// routine arities against `seed_graph`) into canonical StageL Token Dcs.
+/// Converts StageL 3 `.sl3` source (validating, resolving `use` / `dc/<shorthand>`
+/// targets, and desugaring StageL 3 overloaded std operators into direct calls)
+/// into canonical StageL Token Dcs.
 pub fn sl3_to_dc_tokens_with_seed_graph(
     source: &str,
     seed_graph: &SeedGraphIndex,
 ) -> Result<Vec<DcChar>> {
-    let module = parse_module_with_seed_graph(source, seed_graph)?;
-    encode_module_to_dc_tokens(&module)
+    let ws = parse_and_validate_module_with_seed_graph(source, seed_graph)?;
+    let module = ws
+        .modules
+        .last()
+        .context("Missing validated caller module during StageL 3 encoding")?;
+    encode_module_to_dc_tokens(&module.module)
 }
 
 /// Converts StageR 3 `.sr3` source (resolving external `use` and `dc/<shorthand>`
@@ -3485,6 +3493,7 @@ pub v/result/b/checkDcAndStrings
                         params: vec![StageLType::U64],
                         is_pub: true,
                         dc_id: None,
+                        may_fault: false,
                     }],
                 );
                 import_ctx.insert(String::from("bad/opq"), exp);

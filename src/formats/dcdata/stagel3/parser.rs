@@ -119,8 +119,56 @@ const BUILTIN_HEAD_WORDS: &[&str] = &[
     "slice", "bufSet",
 ];
 
+const OVERLOADABLE_STD_VERBS: &[&str] = &[
+    // Unary
+    "neg",
+    "bitNot",
+    "clz",
+    "ctz",
+    "popcnt",
+    "byteLen",
+    "dcFromU128",
+    "u128FromDc",
+    "dcsFromS",
+    "sFromDcs",
+    // Binary
+    "add",
+    "sub",
+    "mul",
+    "div",
+    "rem",
+    "mod",
+    "truncRem",
+    "wrapAdd",
+    "wrapSub",
+    "wrapMul",
+    "bitAnd",
+    "bitOr",
+    "bitXor",
+    "shl",
+    "shr",
+    "rotl",
+    "rotr",
+    "eq",
+    "ne",
+    "lt",
+    "le",
+    "gt",
+    "ge",
+    "get",
+    "makeRat",
+    "explode",
+    "implode",
+    // Ternary
+    "slice",
+];
+
 fn contains_ascii_ci(table: &[&str], word: &str) -> bool {
     table.iter().any(|entry| entry.eq_ignore_ascii_case(word))
+}
+
+fn is_overloadable_std_verb(name: &str) -> bool {
+    contains_ascii_ci(OVERLOADABLE_STD_VERBS, name)
 }
 
 pub(super) fn is_valid_ident(name: &str) -> bool {
@@ -167,15 +215,15 @@ pub(super) fn check_type_decl_ident(
 
 /// Validates a routine declaration name (`v/RET/name`), rejecting built-in
 /// head keywords and core verbs unified across StageL 3 and StageR 3
-/// (`StageL 3 ⊂ StageR 3`), except `std/bytes::{explode, implode}` in StageL 3
-/// Stage 1 bootstrap definitions.
+/// (`StageL 3 ⊂ StageR 3`), except overloadable operator/standard-library
+/// verbs in StageL 3 `std/*` modules.
 pub(super) fn check_routine_decl_ident(
     name: &str,
     span: Span,
-    allow_std_bytes_builtins: bool,
+    allow_std_builtin_overloads: bool,
 ) -> Result<()> {
     check_valid_ident(name, span, "routine")?;
-    if allow_std_bytes_builtins && matches!(name, "explode" | "implode") {
+    if allow_std_builtin_overloads && is_overloadable_std_verb(name) {
         return Ok(());
     }
     ensure!(
@@ -187,7 +235,7 @@ pub(super) fn check_routine_decl_ident(
 
 pub(super) struct TypeParseCtx<'a> {
     pub(super) dialect: StageDialect,
-    pub(super) allow_std_bytes_builtins: bool,
+    pub(super) allow_std_builtin_overloads: bool,
     pub(super) types_by_name: &'a HashMap<String, StageRTypeKind>,
     pub(super) types_by_dc: &'a HashMap<DcChar, StageRTypeKind>,
 }
@@ -203,7 +251,7 @@ fn parse_module_with_context(
     let tokens = tokenize_with_dialect(source, dialect)?;
     let mut parser = Parser {
         dialect,
-        allow_std_bytes_builtins: false,
+        allow_std_builtin_overloads: false,
         tokens,
         pos: 0,
         verb_scopes: vec![verb_scope],
@@ -407,7 +455,7 @@ struct PendingComments {
 
 struct Parser {
     dialect: StageDialect,
-    allow_std_bytes_builtins: bool,
+    allow_std_builtin_overloads: bool,
     tokens: Vec<LexToken>,
     pos: usize,
     verb_scopes: Vec<HashMap<String, usize>>,
@@ -420,7 +468,7 @@ impl Parser {
     fn type_ctx(&self) -> TypeParseCtx<'_> {
         TypeParseCtx {
             dialect: self.dialect,
-            allow_std_bytes_builtins: self.allow_std_bytes_builtins,
+            allow_std_builtin_overloads: self.allow_std_builtin_overloads,
             types_by_name: &self.stager_types_by_name,
             types_by_dc: &self.stager_types_by_dc,
         }
@@ -430,70 +478,59 @@ impl Parser {
         &mut self,
         ctx_desc: &str,
     ) -> Result<(StageLType, LexToken)> {
-        let ctx = TypeParseCtx {
-            dialect: self.dialect,
-            allow_std_bytes_builtins: self.allow_std_bytes_builtins,
-            types_by_name: &self.stager_types_by_name,
-            types_by_dc: &self.stager_types_by_dc,
-        };
-        parse_type_from_tokens_with_ctx(
+        let mut pos = self.pos;
+        let ctx = self.type_ctx();
+        let res = parse_type_from_tokens_with_ctx(
             &self.tokens,
-            &mut self.pos,
+            &mut pos,
             ctx_desc,
             &ctx,
-        )
+        );
+        self.pos = pos;
+        res
     }
 
     fn parse_typed_name_from_tokens(
         &mut self,
         ctx_desc: &str,
     ) -> Result<(StageLType, String, Span)> {
-        let ctx = TypeParseCtx {
-            dialect: self.dialect,
-            allow_std_bytes_builtins: self.allow_std_bytes_builtins,
-            types_by_name: &self.stager_types_by_name,
-            types_by_dc: &self.stager_types_by_dc,
-        };
-        parse_typed_name_from_tokens_with_ctx(
+        let mut pos = self.pos;
+        let ctx = self.type_ctx();
+        let res = parse_typed_name_from_tokens_with_ctx(
             &self.tokens,
-            &mut self.pos,
+            &mut pos,
             ctx_desc,
             &ctx,
-        )
+        );
+        self.pos = pos;
+        res
     }
 
     fn parse_optional_typed_name_from_tokens(
         &mut self,
         ctx_desc: &str,
     ) -> Result<(Option<StageLType>, String, Span)> {
-        let ctx = TypeParseCtx {
-            dialect: self.dialect,
-            allow_std_bytes_builtins: self.allow_std_bytes_builtins,
-            types_by_name: &self.stager_types_by_name,
-            types_by_dc: &self.stager_types_by_dc,
-        };
-        parse_optional_typed_name_from_tokens_with_ctx(
+        let mut pos = self.pos;
+        let ctx = self.type_ctx();
+        let res = parse_optional_typed_name_from_tokens_with_ctx(
             &self.tokens,
-            &mut self.pos,
+            &mut pos,
             ctx_desc,
             &ctx,
-        )
+        );
+        self.pos = pos;
+        res
     }
 
     fn parse_routine_sig_from_tokens(
         &mut self,
     ) -> Result<(StageLType, String, Span)> {
-        let ctx = TypeParseCtx {
-            dialect: self.dialect,
-            allow_std_bytes_builtins: self.allow_std_bytes_builtins,
-            types_by_name: &self.stager_types_by_name,
-            types_by_dc: &self.stager_types_by_dc,
-        };
-        parse_routine_sig_from_tokens_with_ctx(
-            &self.tokens,
-            &mut self.pos,
-            &ctx,
-        )
+        let mut pos = self.pos;
+        let ctx = self.type_ctx();
+        let res =
+            parse_routine_sig_from_tokens_with_ctx(&self.tokens, &mut pos, &ctx);
+        self.pos = pos;
+        res
     }
 
     fn peek_at(&self, idx: usize) -> Option<&LexToken> {
@@ -838,7 +875,7 @@ mod tests {
         let sr3_dcs = HashMap::new();
         let sr3_ctx = TypeParseCtx {
             dialect: StageDialect::StageR3,
-            allow_std_bytes_builtins: false,
+            allow_std_builtin_overloads: false,
             types_by_name: &sr3_names,
             types_by_dc: &sr3_dcs,
         };

@@ -29,23 +29,24 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::super::ast::{
-    BrandTypeDecl, EnumDecl, ImportTarget, Module, NamedStructDecl,
-    PositionalStructDecl, RoutineDecl, Span, StageDialect, StageLType,
-    StructTypeRef, TopDecl, TopValueDecl, UseImportItem, format_dc_shorthand,
+    BlockItem, BrandTypeDecl, EnumDecl, Expr, ImportTarget, Module,
+    NamedStructDecl, PositionalStructDecl, RoutineDecl, Span, StageDialect,
+    StageLType, StructTypeRef, SymbolTarget, TestExpected, TopDecl,
+    TopValueDecl, UseImportItem, format_dc_shorthand,
 };
 use super::consts_and_flow::{
     AssignState, BindingEntry, NestedVerbSummary, VerbTarget,
 };
 use super::types::{
-    BufPolicy, TypeDefs, TypeEnv, canonicalize_type, check_pub_dc_shorthand,
-    check_stager_value_type_shape, check_type_well_formed,
-    check_unguarded_type_cycles,
+    BufPolicy, TypeDefs, TypeEnv, bridge_stage1_type_for_stager,
+    canonicalize_type, check_pub_dc_shorthand, check_stager_value_type_shape,
+    check_type_well_formed, check_unguarded_type_cycles,
 };
 use super::workspace::is_stagel_internal_name;
 use super::{
     BrandTypeDef, EnumDef, EnumVariantDef, ImportedSymbol, NamedStructDef,
-    NamespaceExports, ResolvedCallTarget, ResolvedValueTarget, RoutineSig,
-    StructDef, ValidatedModule,
+    NamespaceExports, ResolvedCallTarget, ResolvedValueTarget, RoutineKey,
+    RoutineSig, StructDef, ValidatedModule, expr_syntactically_contains_fault,
 };
 use crate::DcChar;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -313,12 +314,22 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
     validator.validate_top_values_acyclic(&top_value_order)?;
 
     // Pass 5: Validate inline tests and bodies for all top-level routines.
-    for r in top_routine_order {
+    for r in &top_routine_order {
         validator.validate_top_routine(r)?;
     }
 
+    if dialect == StageDialect::StageL3 {
+        validator.propagate_may_fault(&top_routine_order, &mut exports)?;
+    }
+
+    let validated_module = if dialect == StageDialect::StageL3 {
+        desugar_overloaded_ops_in_module(module, &validator.resolved_calls)
+    } else {
+        module.clone()
+    };
+
     Ok(ValidatedModule {
-        module: module.clone(),
+        module: validated_module,
         namespace_key,
         imports,
         dc_imports: validator.dc_imports,
@@ -734,6 +745,7 @@ impl ModuleSymbolReg {
                     span,
                 )
             })?;
+            bridge_import_symbol_if_stager(self.dialect, &mut sym)?;
             dc_imports.insert(dc, sym);
         }
 
@@ -768,53 +780,53 @@ impl ModuleSymbolReg {
         item: &UseImportItem,
         dc_imports: &mut HashMap<DcChar, ImportedSymbol>,
     ) -> Result<Vec<ImportedSymbol>> {
-        match &item.target {
+        let mut syms = match &item.target {
             ImportTarget::Name(name) => {
                 if let Some((ty, dc_id)) = dep_exp.values.get(name) {
-                    Ok(vec![ImportedSymbol::Value {
+                    vec![ImportedSymbol::Value {
                         namespace: target_ns.to_owned(),
                         original_name: name.clone(),
                         ty: ty.clone(),
                         dc_id: *dc_id,
-                    }])
+                    }]
                 } else if let Some(sig_list) = dep_exp.routines.get(name) {
-                    Ok(sig_list
+                    sig_list
                         .iter()
                         .map(|sig| ImportedSymbol::Routine {
                             namespace: target_ns.to_owned(),
                             original_name: name.clone(),
                             sig: sig.clone(),
                         })
-                        .collect())
+                        .collect()
                 } else if let Some(bdef) = dep_exp.brand_types.get(name) {
-                    Ok(vec![ImportedSymbol::BrandType {
+                    vec![ImportedSymbol::BrandType {
                         namespace: target_ns.to_owned(),
                         original_name: name.clone(),
                         is_opaque: bdef.is_opaque,
                         inner_ty: bdef.inner_ty.clone(),
                         dc_id: bdef.dc_id,
-                    }])
+                    }]
                 } else if let Some(nsdef) = dep_exp.named_structs.get(name) {
-                    Ok(vec![ImportedSymbol::NamedStruct {
+                    vec![ImportedSymbol::NamedStruct {
                         namespace: target_ns.to_owned(),
                         original_name: name.clone(),
                         fields: nsdef.fields.clone(),
                         dc_id: nsdef.dc_id,
-                    }])
+                    }]
                 } else if let Some(edef) = dep_exp.enums.get(name) {
-                    Ok(vec![ImportedSymbol::Enum {
+                    vec![ImportedSymbol::Enum {
                         namespace: target_ns.to_owned(),
                         original_name: name.clone(),
                         variants: edef.variants.clone(),
                         dc_id: edef.dc_id,
-                    }])
+                    }]
                 } else if let Some(sdef) = dep_exp.structs.get(name) {
-                    Ok(vec![ImportedSymbol::Struct {
+                    vec![ImportedSymbol::Struct {
                         namespace: target_ns.to_owned(),
                         original_name: name.clone(),
                         fields: sdef.fields.clone(),
                         dc_id: sdef.dc_id,
-                    }])
+                    }]
                 } else {
                     bail!(
                         "Namespace '{target_ns}' has no exported 'pub' symbol named '{name}' (at {})",
@@ -823,7 +835,7 @@ impl ModuleSymbolReg {
                 }
             }
             ImportTarget::Dc(dc) => {
-                let single =
+                let mut single =
                     dep_exp.by_dc.get(dc).cloned().with_context(|| {
                         format!(
                             "Namespace '{target_ns}' has no exported 'pub dc/{}' (at {})",
@@ -831,6 +843,7 @@ impl ModuleSymbolReg {
                             item.span
                         )
                     })?;
+                bridge_import_symbol_if_stager(self.dialect, &mut single)?;
                 if item.alias.is_none() {
                     dc_imports.insert(*dc, single.clone());
                     match &single {
@@ -868,9 +881,13 @@ impl ModuleSymbolReg {
                         | ImportedSymbol::Routine { .. } => {}
                     }
                 }
-                Ok(vec![single])
+                return Ok(vec![single]);
             }
+        };
+        for sym in &mut syms {
+            bridge_import_symbol_if_stager(self.dialect, sym)?;
         }
+        Ok(syms)
     }
 
     fn check_imported_type_for_dialect(
@@ -1831,6 +1848,8 @@ impl ModuleSymbolReg {
                         params: param_tys,
                         is_pub: r.is_pub,
                         dc_id: r.dc_id,
+                        may_fault: self.dialect == StageDialect::StageL3
+                            && expr_syntactically_contains_fault(&r.body),
                     };
                     if let Some(dc) = r.dc_id {
                         self.top_dc_routines.insert(dc, sig.clone());
@@ -1904,4 +1923,478 @@ fn type_references_stagel_internal(ty: &StageLType) -> bool {
         }
         _ => false,
     }
+}
+
+fn bridge_import_symbol_if_stager(
+    dialect: StageDialect,
+    sym: &mut ImportedSymbol,
+) -> Result<()> {
+    if dialect == StageDialect::StageR3
+        && matches!(
+            sym,
+            ImportedSymbol::Value { .. } | ImportedSymbol::Routine { .. }
+        )
+    {
+        sym.try_map_types(|ty| Ok(bridge_stage1_type_for_stager(ty)))?;
+    }
+    Ok(())
+}
+
+impl<'a> ModuleValidator<'a> {
+    /// Propagates Stage 1 `may_fault` transitively across routines in this
+    /// module and updates `exports`, `top_dc_routines`, and `resolved_calls`.
+    pub(super) fn propagate_may_fault(
+        &mut self,
+        top_routines: &[&RoutineDecl],
+        exports: &mut NamespaceExports,
+    ) -> Result<()> {
+        let mut faulting: HashSet<RoutineKey> = HashSet::new();
+        let mut local_edges: Vec<(RoutineKey, Vec<RoutineKey>)> =
+            Vec::with_capacity(top_routines.len());
+
+        for &r in top_routines {
+            let mut params = Vec::with_capacity(r.params.len());
+            for p in &r.params {
+                params.push(self.canonicalize_type(&p.ty, p.span)?);
+            }
+            let key = RoutineKey {
+                name: r.name.clone(),
+                params,
+            };
+            let mut spans = Vec::new();
+            collect_expr_call_spans(&r.body, &mut spans);
+            let mut direct_fault = expr_syntactically_contains_fault(&r.body);
+            let mut callees = Vec::new();
+            for sp in spans {
+                if let Some(rc) = self.resolved_calls.get(&sp) {
+                    if rc.sig.may_fault {
+                        direct_fault = true;
+                    }
+                    if rc.namespace.is_none() {
+                        callees.push(rc.routine_key());
+                    }
+                }
+            }
+            if direct_fault {
+                faulting.insert(key.clone());
+            }
+            local_edges.push((key, callees));
+        }
+
+        loop {
+            let mut changed = false;
+            for (caller_key, callees) in &local_edges {
+                if !faulting.contains(caller_key)
+                    && callees.iter().any(|callee| faulting.contains(callee))
+                {
+                    faulting.insert(caller_key.clone());
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+
+        for (name, sigs) in &mut exports.routines {
+            for sig in sigs {
+                let key = RoutineKey {
+                    name: name.clone(),
+                    params: sig.params.clone(),
+                };
+                if faulting.contains(&key) {
+                    sig.may_fault = true;
+                }
+            }
+        }
+        for sym in exports.by_dc.values_mut() {
+            if let ImportedSymbol::Routine {
+                original_name, sig, ..
+            } = sym
+            {
+                let key = RoutineKey {
+                    name: original_name.clone(),
+                    params: sig.params.clone(),
+                };
+                if faulting.contains(&key) {
+                    sig.may_fault = true;
+                }
+            }
+        }
+        for (&dc, sig) in &mut self.top_dc_routines {
+            if let Some(orig_name) = self.top_dc_names.get(&dc) {
+                let key = RoutineKey {
+                    name: orig_name.clone(),
+                    params: sig.params.clone(),
+                };
+                if faulting.contains(&key) {
+                    sig.may_fault = true;
+                }
+            }
+        }
+        for rc in self.resolved_calls.values_mut() {
+            if rc.namespace.is_none() && faulting.contains(&rc.routine_key()) {
+                rc.sig.may_fault = true;
+            }
+        }
+        Ok(())
+    }
+}
+
+fn collect_expr_call_spans(expr: &Expr, out: &mut Vec<(usize, usize)>) {
+    match expr {
+        Expr::Bool { .. }
+        | Expr::Int { .. }
+        | Expr::Bytes { .. }
+        | Expr::ValueRef { .. }
+        | Expr::Break { .. }
+        | Expr::Continue { .. }
+        | Expr::Fault { .. }
+        | Expr::Nop { .. }
+        | Expr::DctsString { .. }
+        | Expr::DcLit { .. }
+        | Expr::OptionNone { .. }
+        | Expr::ErrorTag { .. } => {}
+        Expr::List { elements, .. } | Expr::TupleNew { elements, .. } => {
+            for e in elements {
+                collect_expr_call_spans(e, out);
+            }
+        }
+        Expr::StructNew { fields, .. } => {
+            for f in fields {
+                collect_expr_call_spans(f, out);
+            }
+        }
+        Expr::NamedStructNew { fields, .. } => {
+            for (_, v, _) in fields {
+                collect_expr_call_spans(v, out);
+            }
+        }
+        Expr::Field { base, .. }
+        | Expr::NamedField { base, .. }
+        | Expr::BufNew { capacity: base, .. }
+        | Expr::Conv { expr: base, .. }
+        | Expr::Bitcast { expr: base, .. }
+        | Expr::WrapNominal { expr: base, .. }
+        | Expr::UnwrapNominal { expr: base, .. }
+        | Expr::Propagate { expr: base, .. }
+        | Expr::Const { value: base, .. }
+        | Expr::Set { value: base, .. }
+        | Expr::OptionSome { value: base, .. }
+        | Expr::ResultOk { value: base, .. }
+        | Expr::ResultErr { error: base, .. } => {
+            collect_expr_call_spans(base, out);
+        }
+        Expr::Let { init, .. } => {
+            if let Some(e) = init {
+                collect_expr_call_spans(e, out);
+            }
+        }
+        Expr::Return { value, .. } => {
+            if let Some(e) = value {
+                collect_expr_call_spans(e, out);
+            }
+        }
+        Expr::EnumVariant { payload, .. } => {
+            if let Some(e) = payload {
+                collect_expr_call_spans(e, out);
+            }
+        }
+        Expr::With { base, value, .. }
+        | Expr::NamedWith { base, value, .. }
+        | Expr::While {
+            cond: base,
+            body: value,
+            ..
+        }
+        | Expr::ForEach {
+            list: base,
+            body: value,
+            ..
+        } => {
+            collect_expr_call_spans(base, out);
+            collect_expr_call_spans(value, out);
+        }
+        Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            collect_expr_call_spans(cond, out);
+            collect_expr_call_spans(then_branch, out);
+            collect_expr_call_spans(else_branch, out);
+        }
+        Expr::Unary { operand, span, .. } => {
+            out.push((span.line, span.col));
+            collect_expr_call_spans(operand, out);
+        }
+        Expr::Binary {
+            left, right, span, ..
+        } => {
+            out.push((span.line, span.col));
+            collect_expr_call_spans(left, out);
+            collect_expr_call_spans(right, out);
+        }
+        Expr::Ternary {
+            first,
+            second,
+            third,
+            span,
+            ..
+        } => {
+            out.push((span.line, span.col));
+            collect_expr_call_spans(first, out);
+            collect_expr_call_spans(second, out);
+            collect_expr_call_spans(third, out);
+        }
+        Expr::Call { args, span, .. } => {
+            out.push((span.line, span.col));
+            for a in args {
+                collect_expr_call_spans(a, out);
+            }
+        }
+        Expr::RoutineDecl(r) => collect_expr_call_spans(&r.body, out),
+        Expr::Block { stmts, .. } => {
+            for item in stmts {
+                if let BlockItem::Expr(sub) = item {
+                    collect_expr_call_spans(sub, out);
+                }
+            }
+        }
+        Expr::Match {
+            scrutinee,
+            arms,
+            fallback,
+            ..
+        } => {
+            collect_expr_call_spans(scrutinee, out);
+            for a in arms {
+                collect_expr_call_spans(&a.body, out);
+            }
+            if let Some(fb) = fallback {
+                collect_expr_call_spans(fb, out);
+            }
+        }
+    }
+}
+
+fn desugar_expr_in_place(
+    expr: &mut Expr,
+    resolved_calls: &HashMap<(usize, usize), ResolvedCallTarget>,
+) {
+    match expr {
+        Expr::Bool { .. }
+        | Expr::Int { .. }
+        | Expr::Bytes { .. }
+        | Expr::ValueRef { .. }
+        | Expr::Break { .. }
+        | Expr::Continue { .. }
+        | Expr::Fault { .. }
+        | Expr::Nop { .. }
+        | Expr::DctsString { .. }
+        | Expr::DcLit { .. }
+        | Expr::OptionNone { .. }
+        | Expr::ErrorTag { .. } => {}
+        Expr::List { elements, .. } | Expr::TupleNew { elements, .. } => {
+            for e in elements {
+                desugar_expr_in_place(e, resolved_calls);
+            }
+        }
+        Expr::StructNew { fields, .. } => {
+            for f in fields {
+                desugar_expr_in_place(f, resolved_calls);
+            }
+        }
+        Expr::NamedStructNew { fields, .. } => {
+            for (_, v, _) in fields {
+                desugar_expr_in_place(v, resolved_calls);
+            }
+        }
+        Expr::Field { base, .. }
+        | Expr::NamedField { base, .. }
+        | Expr::BufNew { capacity: base, .. }
+        | Expr::Conv { expr: base, .. }
+        | Expr::Bitcast { expr: base, .. }
+        | Expr::WrapNominal { expr: base, .. }
+        | Expr::UnwrapNominal { expr: base, .. }
+        | Expr::Propagate { expr: base, .. }
+        | Expr::Const { value: base, .. }
+        | Expr::Set { value: base, .. }
+        | Expr::OptionSome { value: base, .. }
+        | Expr::ResultOk { value: base, .. }
+        | Expr::ResultErr { error: base, .. } => {
+            desugar_expr_in_place(base, resolved_calls);
+        }
+        Expr::Let { init, .. } => {
+            if let Some(e) = init {
+                desugar_expr_in_place(e, resolved_calls);
+            }
+        }
+        Expr::Return { value, .. } => {
+            if let Some(e) = value {
+                desugar_expr_in_place(e, resolved_calls);
+            }
+        }
+        Expr::EnumVariant { payload, .. } => {
+            if let Some(e) = payload {
+                desugar_expr_in_place(e, resolved_calls);
+            }
+        }
+        Expr::With { base, value, .. }
+        | Expr::NamedWith { base, value, .. }
+        | Expr::While {
+            cond: base,
+            body: value,
+            ..
+        }
+        | Expr::ForEach {
+            list: base,
+            body: value,
+            ..
+        } => {
+            desugar_expr_in_place(base, resolved_calls);
+            desugar_expr_in_place(value, resolved_calls);
+        }
+        Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            desugar_expr_in_place(cond, resolved_calls);
+            desugar_expr_in_place(then_branch, resolved_calls);
+            desugar_expr_in_place(else_branch, resolved_calls);
+        }
+        Expr::Unary { operand, .. } => {
+            desugar_expr_in_place(operand, resolved_calls);
+        }
+        Expr::Binary { left, right, .. } => {
+            desugar_expr_in_place(left, resolved_calls);
+            desugar_expr_in_place(right, resolved_calls);
+        }
+        Expr::Ternary {
+            first,
+            second,
+            third,
+            ..
+        } => {
+            desugar_expr_in_place(first, resolved_calls);
+            desugar_expr_in_place(second, resolved_calls);
+            desugar_expr_in_place(third, resolved_calls);
+        }
+        Expr::Call { args, .. } => {
+            for a in args {
+                desugar_expr_in_place(a, resolved_calls);
+            }
+        }
+        Expr::RoutineDecl(r) => {
+            desugar_routine_in_place(r, resolved_calls);
+        }
+        Expr::Block { stmts, .. } => {
+            for item in stmts {
+                if let BlockItem::Expr(sub) = item {
+                    desugar_expr_in_place(sub, resolved_calls);
+                }
+            }
+        }
+        Expr::Match {
+            scrutinee,
+            arms,
+            fallback,
+            ..
+        } => {
+            desugar_expr_in_place(scrutinee, resolved_calls);
+            for a in arms {
+                desugar_expr_in_place(&mut a.body, resolved_calls);
+            }
+            if let Some(fb) = fallback {
+                desugar_expr_in_place(fb, resolved_calls);
+            }
+        }
+    }
+
+    let op_span = expr.span();
+    if !resolved_calls.contains_key(&(op_span.line, op_span.col)) {
+        return;
+    }
+    if !matches!(
+        expr,
+        Expr::Unary { .. } | Expr::Binary { .. } | Expr::Ternary { .. }
+    ) {
+        return;
+    }
+    let taken = std::mem::replace(expr, Expr::Nop { span: op_span });
+    *expr = match taken {
+        Expr::Unary { op, operand, span } => Expr::Call {
+            target: SymbolTarget::Ident(op.keyword().to_owned()),
+            args: vec![*operand],
+            span,
+        },
+        Expr::Binary {
+            op,
+            left,
+            right,
+            span,
+        } => Expr::Call {
+            target: SymbolTarget::Ident(op.keyword().to_owned()),
+            args: vec![*left, *right],
+            span,
+        },
+        Expr::Ternary {
+            op,
+            first,
+            second,
+            third,
+            span,
+        } => Expr::Call {
+            target: SymbolTarget::Ident(op.keyword().to_owned()),
+            args: vec![*first, *second, *third],
+            span,
+        },
+        other => other,
+    };
+}
+
+fn desugar_routine_in_place(
+    r: &mut RoutineDecl,
+    resolved_calls: &HashMap<(usize, usize), ResolvedCallTarget>,
+) {
+    for tb in &mut r.tests {
+        for tc in &mut tb.cases {
+            for inp in &mut tc.inputs {
+                desugar_expr_in_place(inp, resolved_calls);
+            }
+            if let TestExpected::Expr(exp) = &mut tc.expected {
+                desugar_expr_in_place(exp, resolved_calls);
+            }
+        }
+    }
+    desugar_expr_in_place(&mut r.body, resolved_calls);
+}
+
+fn desugar_overloaded_ops_in_module(
+    module: &Module,
+    resolved_calls: &HashMap<(usize, usize), ResolvedCallTarget>,
+) -> Module {
+    let mut out = module.clone();
+    if resolved_calls.is_empty() {
+        return out;
+    }
+    for item in &mut out.items {
+        match item {
+            TopDecl::Value(v) => {
+                desugar_expr_in_place(&mut v.value, resolved_calls);
+            }
+            TopDecl::Routine(r) => {
+                desugar_routine_in_place(r, resolved_calls);
+            }
+            TopDecl::Struct(_)
+            | TopDecl::BrandType(_)
+            | TopDecl::NamedStruct(_)
+            | TopDecl::Enum(_)
+            | TopDecl::Comment(_) => {}
+        }
+    }
+    out
 }

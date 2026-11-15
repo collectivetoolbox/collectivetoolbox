@@ -550,8 +550,15 @@ impl<'a> ModuleValidator<'a> {
             };
             let mut state = FlowState::new();
             let mut ctx = BodyCtx::new(canon_ty.clone(), false);
+            let calls_before = self.resolved_calls.len();
             let actual_ty =
                 self.check_expr(&v.value, &mut state, &mut ctx)?;
+            ensure!(
+                self.resolved_calls.len() == calls_before,
+                "Routine/overloaded operator calls are not allowed in constant expression for '{}' at {}",
+                v.name,
+                v.span
+            );
             ensure!(
                 types_compatible(&actual_ty, &canon_ty),
                 "Constant '{}' at {} has declared type '{}' but initializer has type '{}'",
@@ -838,8 +845,15 @@ impl<'a> ModuleValidator<'a> {
                     self.check_const_purity(arg)?;
                     let mut state = FlowState::new();
                     let mut ctx = BodyCtx::new(param_ty.clone(), false);
+                    let calls_before = self.resolved_calls.len();
                     let arg_ty =
                         self.check_expr(arg, &mut state, &mut ctx)?;
+                    ensure!(
+                        self.resolved_calls.len() == calls_before,
+                        "Routine/overloaded operator calls are not allowed in constant test input for '{}' at {}",
+                        r.name,
+                        tc.span
+                    );
                     ensure!(
                         types_compatible(&arg_ty, param_ty),
                         "Test input in routine '{}' at {} has type '{}', expected '{}'",
@@ -860,11 +874,18 @@ impl<'a> ModuleValidator<'a> {
                         self.check_const_purity(expected_expr)?;
                         let mut state = FlowState::new();
                         let mut ctx = BodyCtx::new(canon_ret.clone(), false);
+                        let calls_before = self.resolved_calls.len();
                         let exp_ty = self.check_expr(
                             expected_expr,
                             &mut state,
                             &mut ctx,
                         )?;
+                        ensure!(
+                            self.resolved_calls.len() == calls_before,
+                            "Routine/overloaded operator calls are not allowed in constant test output for '{}' at {}",
+                            r.name,
+                            tc.span
+                        );
                         ensure!(
                             types_compatible(&exp_ty, &canon_ret),
                             "Test expected output in routine '{}' at {} has type '{}', expected '{}'",

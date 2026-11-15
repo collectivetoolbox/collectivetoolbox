@@ -997,3 +997,57 @@ where
         }
     }
 }
+
+/// Maps well-known Stage 1 carrier structs (`std/i128::i128Val`, `std/u128::u128Val`,
+/// `std/bigint::bigInt`, `std/rat::ratVal`, `std/dctf::dcVal`) to native StageR 3
+/// primitive types (`i128`, `u128`, `int`, `rat`, `dc`), recursing in `l/T` and `tup`.
+#[must_use]
+pub(crate) fn bridge_stage1_type_for_stager(ty: &StageLType) -> StageLType {
+    match ty {
+        StageLType::Struct(StructTypeRef::Canonical {
+            namespace: Some(ns),
+            name,
+        }) => match (ns.as_str(), name.as_str()) {
+            ("std/i128", "i128Val") => StageLType::I128,
+            ("std/u128", "u128Val") => StageLType::U128,
+            ("std/bigint", "bigInt") => StageLType::Int,
+            ("std/rat", "ratVal") => StageLType::Rat,
+            ("std/dctf", "dcVal") => StageLType::Dc,
+            _ => ty.clone(),
+        },
+        StageLType::List(inner) => {
+            StageLType::List(Box::new(bridge_stage1_type_for_stager(inner)))
+        }
+        StageLType::Tuple(elems) => StageLType::Tuple(
+            elems.iter().map(bridge_stage1_type_for_stager).collect(),
+        ),
+        _ => ty.clone(),
+    }
+}
+
+/// Inverse of [`bridge_stage1_type_for_stager`]: maps StageR 3 primitive types
+/// backed by Stage 1 carriers (`i128`, `u128`, `int`, `rat`, `dc`) back to
+/// canonical Stage 1 struct types, recursing in `l/T` and `tup`.
+#[must_use]
+pub(crate) fn unbridge_stager_type_for_stage1(ty: &StageLType) -> StageLType {
+    let stage1_struct = |ns: &str, name: &str| {
+        StageLType::Struct(StructTypeRef::Canonical {
+            namespace: Some(ns.to_owned()),
+            name: name.to_owned(),
+        })
+    };
+    match ty {
+        StageLType::I128 => stage1_struct("std/i128", "i128Val"),
+        StageLType::U128 => stage1_struct("std/u128", "u128Val"),
+        StageLType::Int => stage1_struct("std/bigint", "bigInt"),
+        StageLType::Rat => stage1_struct("std/rat", "ratVal"),
+        StageLType::Dc => stage1_struct("std/dctf", "dcVal"),
+        StageLType::List(inner) => {
+            StageLType::List(Box::new(unbridge_stager_type_for_stage1(inner)))
+        }
+        StageLType::Tuple(elems) => StageLType::Tuple(
+            elems.iter().map(unbridge_stager_type_for_stage1).collect(),
+        ),
+        _ => ty.clone(),
+    }
+}

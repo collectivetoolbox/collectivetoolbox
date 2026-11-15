@@ -316,6 +316,22 @@ fn record_enum_variants_for_ctx(
     ctx.enum_variants.insert(key, map);
 }
 
+fn record_imported_verb_arity(
+    verb_arities: &mut HashMap<String, usize>,
+    name: &str,
+    arity: usize,
+) -> Result<()> {
+    if let Some(&prev_arity) = verb_arities.get(name) {
+        ensure!(
+            prev_arity == arity,
+            "Conflicting parameter count for imported routine '{name}': expected {prev_arity}, found {arity}"
+        );
+    } else {
+        verb_arities.insert(name.to_owned(), arity);
+    }
+    Ok(())
+}
+
 /// Scans `source` header `use` clauses plus `extra_dc_imports` to build the
 /// parser [`StageRImportContext`] (imported verb arities, StageR type kinds,
 /// and enum variant payload arities).
@@ -427,31 +443,17 @@ pub(crate) fn build_stager_import_context(
                             ..
                         } => {
                             let new_arity = sig.params.len();
-                            if let Some(&prev_arity) =
-                                ctx.verb_arities.get(local_name)
-                            {
-                                ensure!(
-                                    prev_arity == new_arity,
-                                    "Conflicting parameter count for imported routine '{local_name}': expected {prev_arity}, found {new_arity}"
-                                );
-                            } else {
-                                ctx.verb_arities
-                                    .insert(local_name.to_owned(), new_arity);
-                            }
+                            record_imported_verb_arity(
+                                &mut ctx.verb_arities,
+                                local_name,
+                                new_arity,
+                            )?;
                             if !has_alias {
-                                if let Some(&prev_arity) =
-                                    ctx.verb_arities.get(original_name.as_str())
-                                {
-                                    ensure!(
-                                        prev_arity == new_arity,
-                                        "Conflicting parameter count for imported routine '{original_name}': expected {prev_arity}, found {new_arity}"
-                                    );
-                                } else {
-                                    ctx.verb_arities.insert(
-                                        original_name.clone(),
-                                        new_arity,
-                                    );
-                                }
+                                record_imported_verb_arity(
+                                    &mut ctx.verb_arities,
+                                    original_name,
+                                    new_arity,
+                                )?;
                             }
                         }
                         ImportedSymbol::NamedStruct {
@@ -532,22 +534,16 @@ pub(crate) fn build_stager_import_context(
                         item_w
                     };
                     if let Some(sigs) = exports.routines.get(item_w) {
-                        let first_sig = sigs
-                            .first()
-                            .context("Empty routine export overload list")?;
-                        if let Some(&prev_arity) =
-                            ctx.verb_arities.get(local_name)
-                        {
-                            ensure!(
-                                prev_arity == first_sig.params.len(),
-                                "Conflicting parameter count for imported routine '{local_name}': expected {prev_arity}, found {}",
-                                first_sig.params.len()
-                            );
-                        } else {
-                            ctx.verb_arities.insert(
-                                local_name.to_owned(),
-                                first_sig.params.len(),
-                            );
+                        ensure!(
+                            !sigs.is_empty(),
+                            "Empty routine export overload list"
+                        );
+                        for sig in sigs {
+                            record_imported_verb_arity(
+                                &mut ctx.verb_arities,
+                                local_name,
+                                sig.params.len(),
+                            )?;
                         }
                     } else if exports.named_structs.contains_key(item_w) {
                         ctx.type_kinds_by_name.insert(

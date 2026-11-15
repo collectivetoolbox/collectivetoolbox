@@ -1282,6 +1282,7 @@ impl WorkspaceRoutineIndex {
                             params,
                             is_pub: r.is_pub,
                             dc_id: r.dc_id,
+                            may_fault: false,
                         };
                         let meta = TopRoutineMeta {
                             mod_idx,
@@ -3244,6 +3245,7 @@ impl<'a> ModuleEmitter<'a> {
                 params: r.params.iter().map(|p| self.canon_type(&p.ty)).collect(),
                 is_pub: false,
                 dc_id: None,
+                may_fault: false,
             };
             frame.routines.insert(
                 r.name.clone(),

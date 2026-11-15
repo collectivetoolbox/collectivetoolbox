@@ -290,7 +290,7 @@ fn parse_attached_tup_suffix_name(
     close_tok: &LexToken,
     ty: &StageLType,
     is_routine: bool,
-    allow_std_bytes_builtins: bool,
+    allow_std_builtin_overloads: bool,
 ) -> Result<String> {
     let subject = if is_routine {
         format!("routine return type '{ty}'")
@@ -345,7 +345,7 @@ fn parse_attached_tup_suffix_name(
         check_routine_decl_ident(
             name,
             name_tok.span,
-            allow_std_bytes_builtins,
+            allow_std_builtin_overloads,
         )?;
     } else {
         ensure!(
@@ -469,7 +469,7 @@ pub(super) fn parse_routine_sig_token_with_ctx(
     let Some((&name, prefix)) = segs.split_last() else {
         bail!("Invalid routine signature '{word}' at {span}");
     };
-    check_routine_decl_ident(name, span, ctx.allow_std_bytes_builtins)?;
+    check_routine_decl_ident(name, span, ctx.allow_std_builtin_overloads)?;
     let ret_segs = prefix.get(1..).with_context(|| {
         format!("Missing return type in routine signature '{word}' at {span}")
     })?;
@@ -511,7 +511,7 @@ pub(super) fn parse_routine_sig_from_tokens_with_ctx(
             &close_tok,
             &return_type,
             true,
-            ctx.allow_std_bytes_builtins,
+            ctx.allow_std_builtin_overloads,
         )?;
         return Ok((return_type, name, sig_tok.span));
     }

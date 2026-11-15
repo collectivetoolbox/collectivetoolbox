@@ -176,15 +176,11 @@ impl Parser {
             self.pos = self.pos.saturating_add(1);
             let parsed_ns =
                 parse_namespace_segments(&raw_path, path_tok.span)?;
-            self.allow_std_bytes_builtins =
+            self.allow_std_builtin_overloads =
                 self.dialect == StageDialect::StageL3
-                    && parsed_ns.len() == 2
                     && parsed_ns
                         .first()
-                        .is_some_and(|s| s.eq_ignore_ascii_case("std"))
-                    && parsed_ns
-                        .get(1)
-                        .is_some_and(|s| s.eq_ignore_ascii_case("bytes"));
+                        .is_some_and(|s| s.eq_ignore_ascii_case("std"));
             namespace = Some(parsed_ns);
             self.expect_dot("after 'ns' declaration")?;
 

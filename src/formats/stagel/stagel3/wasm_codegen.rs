@@ -492,6 +492,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                             params,
                             is_pub: r.is_pub,
                             dc_id: r.dc_id,
+                            may_fault: false,
                         };
                         let entry = TopRoutineEntry { func_idx, sig };
                         top_routines_by_key
@@ -2159,6 +2160,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 params: canon_params,
                 is_pub: false,
                 dc_id: nr.dc_id,
+                may_fault: false,
             };
             let entry = NestedRoutineEntry {
                 func_idx: fn_idx,
@@ -3544,6 +3546,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                                     params: canon_params,
                                     is_pub: false,
                                     dc_id: r.dc_id,
+                                    may_fault: false,
                                 },
                                 captures: Vec::new(),
                             },
