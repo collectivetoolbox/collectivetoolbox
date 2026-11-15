@@ -1136,8 +1136,8 @@ v/tup: exprNode u64 ::/readStageRExpr l/dcVal/tokens u64/pos
     if or eq /sid u32:2235 or eq /sid u32:2236 or eq /sid u32:2237 eq /sid u32:2551
         do
             let u64/cur /next.
-            let rawType/tArg rawScalarType u8:0.
-            let exprNode/eArg nopExpr.
+            let rawType/tArg.
+            let exprNode/eArg.
             if eq /sid u32:2551
                 do
                     const tup: exprNode u64 ::/er readStageRExpr /tokens /cur.
@@ -5915,8 +5915,8 @@ v/l/dcVal/stager3ToStagel3Tokens l/dcVal/tokens
 : StageR 3 Token-Dc stream into a DcTF-encoded StageL 3 Token-Dc stream.
 pub dc/f1681 v/l/u8/stager3ToStagel3 l/u8/input
     test
-        in b"/xf4/x90/xa2/xad/xf4/x90/x84/xbc/xf4/x90/xa2/x9b/xf4/x90/x88/x85/xf4/x90/x84/xbc/xf8/x88/xa0/x96/x91/xf4/x90/x84/x84/xf4/x90/x84/x86/xf4/x90/x84/x8a/xf4/x90/x84/x87/x66/xf4/x90/x84/x85/xf4/x90/xa6/x97/xf4/x90/xa2/x9c/xf4/x90/xa2/xae"
-        out b"/xf4/x90/xa2/x90/xf4/x90/x84/xbc/xf4/x90/xa2/x9b/xf4/x90/x88/x85/xf4/x90/x84/xbc/xf8/x88/xa0/x96/x91/xf4/x90/x84/x84/xf4/x90/x84/x86/xf4/x90/x84/x8a/xf4/x90/x84/x87/x66/xf4/x90/x84/x85/xf4/x90/xa6/x97/xf4/x90/xa2/x9c/xf4/x90/xa2/x91".
+        in b"/xf4/x90/xa2/xad/xf4/x90/x84/xbc/xf4/x90/xa2/x9b/xf4/x90/x88/x86/xf4/x90/x84/xbc/xf8/x88/xa0/x96/x91/xf4/x90/x84/x8e/x66/xf4/x90/x84/x8f/xf4/x90/xa6/x97/xf4/x90/xa2/x9c/xf4/x90/xa2/xae"
+        out b"/xf4/x90/xa2/x90/xf4/x90/x84/xbc/xf4/x90/xa2/x9b/xf4/x90/x88/x86/xf4/x90/x84/xbc/xf8/x88/xa0/x96/x91/xf4/x90/x84/x8e/x66/xf4/x90/x84/x8f/xf4/x90/xa6/x97/xf4/x90/xa2/x9c/xf4/x90/xa2/x91".
     const tup: b l/dcVal ::/dec decodeDcStream /input.
     if not field /dec u32:0
         fault

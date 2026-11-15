@@ -192,15 +192,13 @@ pub v/u64/lenDctf dcVal/c
                                     do
                                         const u32/lz u128Clz dcToU128Raw /c.
                                         const u32/bits sub u32:128 /lz.
-                                        const u32/remBits sub /bits u32:38.
-                                        const u32/k if eq /remBits u32:0 u32:0 div add /remBits u32:5 u32:6.
+                                        const u32/k if le /bits u32:38 u32:0 div add sub /bits u32:38 u32:5 u32:6.
                                         add u64:8 conv /k u64.
                                     ::
         do
             const u32/lz u128Clz dcToU128Raw /c.
             const u32/bits sub u32:128 /lz.
-            const u32/remBits sub /bits u32:38.
-            const u32/k if eq /remBits u32:0 u32:0 div add /remBits u32:5 u32:6.
+            const u32/k if le /bits u32:38 u32:0 div add sub /bits u32:38 u32:5 u32:6.
             add u64:8 conv /k u64.
         ::.
 
@@ -259,8 +257,7 @@ v/void/encodeDctfPush buf/u8/out dcVal/c
     const u128Val/u dcToU128Raw /c.
     const u32/lz u128Clz /u.
     const u32/bits sub u32:128 /lz.
-    const u32/remBits sub /bits u32:38.
-    const u32/k if eq /remBits u32:0 u32:0 div add /remBits u32:5 u32:6.
+    const u32/k if le /bits u32:38 u32:0 div add sub /bits u32:38 u32:5 u32:6.
     const u32/contCount add /k u32:6.
     const u32/topShift mul /contCount u32:6.
     const u8/top2 if lt /topShift u32:128

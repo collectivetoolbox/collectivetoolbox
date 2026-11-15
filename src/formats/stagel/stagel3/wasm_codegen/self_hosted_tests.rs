@@ -686,14 +686,9 @@ v/l/u8/step l/u8/input
             "Expected valid WASM magic from f1680 compiling f1681"
         );
 
-        let run_f1681_wasm = |sr3_tokens: &[DcChar]| -> Result<DcMstring> {
-            let bundled_sr3 = bundle_dc_module_for_wasm_converter(
-                sr3_tokens,
-                sg,
-                resolver.as_ref(),
-            )?;
+        let run_f1681_wasm_raw = |sr3_tokens: &[DcChar]| -> Result<DcMstring> {
             let mut sr3_doc = DcMstring::new();
-            for tok in bundled_sr3 {
+            for &tok in sr3_tokens {
                 sr3_doc.push_char(tok);
             }
             let mut s = DcWasmSession::from_wasm_bytes_with_limits(
@@ -758,8 +753,13 @@ pub v/l/u8/step l/u8/input
             ctb_formats_dcdata::stagel3::seed_linker::sr3_to_dc_tokens_with_seed_graph(
                 sr3_prog, sg,
             )?;
-        let lowered_sl3_doc = run_f1681_wasm(&sr3_tokens)?;
-        let lowered_sl3_tokens: Vec<DcChar> = lowered_sl3_doc.chars().collect();
+        let bundled_sr3 =
+            ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_dependencies(
+                &sr3_tokens, sg,
+            )?;
+        let lowered_sl3_doc = run_f1681_wasm_raw(&bundled_sr3)?;
+        let lowered_sl3_tokens: Vec<DcChar> =
+            lowered_sl3_doc.to_dc_string()?.chars().collect();
         let target_dc_wasm =
             compile_dc_tokens_via_wat_compiler(&lowered_sl3_tokens, sg)?;
         let out_doc =
@@ -767,19 +767,16 @@ pub v/l/u8/step l/u8/input
         assert_eq!(out_doc, ascii_dcmstring("OK:42"));
 
         // 3. Negative check: non-exhaustive StageR `enum` `match` traps cleanly inside WASM `f1681`.
-        let bad_sr3_tokens =
-            ctb_formats_dcdata::stagel3::seed_linker::sr3_to_dc_tokens_with_seed_graph(
-                concat!(
-                    "ns app/bad_match.\n",
-                    "enum pair\n    a.\n    b.\n\n",
-                    "pub v/l/u8/step l/u8/input\n",
-                    "    const i32/_x match pair:a\n        case a i32:1.\n    ::.\n",
-                    "    /input.\n",
-                ),
-                sg,
-            )?;
+        let bad_sr3_mod = crate::stagel3::parser::parse_sr3_module(concat!(
+            "ns app/bad_match.\n",
+            "enum pair\n    a.\n    b.\n\n",
+            "pub v/l/u8/step l/u8/input\n",
+            "    const i32/_x match pair:a\n        case a i32:1.\n    ::.\n",
+            "    /input.\n",
+        ))?;
+        let bad_sr3_tokens = encode_module_to_dc_tokens(&bad_sr3_mod)?;
         assert!(
-            run_f1681_wasm(&bad_sr3_tokens).is_err(),
+            run_f1681_wasm_raw(&bad_sr3_tokens).is_err(),
             "Expected non-exhaustive StageR match to trap inside WASM f1681"
         );
 

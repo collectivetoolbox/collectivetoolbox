@@ -691,7 +691,7 @@ impl WorkspaceTrampolineRegistry {
                 writeln!(out, "fn sl_trampoline_never(call: SlTailNever) -> ! {{")?;
                 writeln!(out, "    match call {{")?;
                 for v in &self.never_variants {
-                    emit_variant_dispatch_arm(out, "SlTailNever", v, false, "        ")?;
+                    emit_variant_dispatch_arm(out, "SlTailNever", v, false, false, "        ")?;
                 }
                 writeln!(out, "    }}")?;
                 writeln!(out, "}}")?;
@@ -704,6 +704,7 @@ impl WorkspaceTrampolineRegistry {
                         out,
                         "SlTailNever",
                         v,
+                        false,
                         false,
                         "            ",
                     )?;
@@ -765,6 +766,7 @@ impl WorkspaceTrampolineRegistry {
                         &enum_name,
                         v,
                         !v.callee_is_step,
+                        is_unit,
                         "                ",
                     )?;
                 }
@@ -828,13 +830,16 @@ fn emit_variant_dispatch_arm(
     enum_name: &str,
     v: &TailVariantInfo,
     wrap_done: bool,
+    is_unit: bool,
     pad: &str,
 ) -> Result<()> {
     let arity = v.field_rust_types.len();
     let arg_names: Vec<String> = (0..arity).map(|i| format!("a{i}")).collect();
     let joined = arg_names.join(", ");
     let raw_call = format!("{}({joined})", v.trampoline_call_path);
-    let rhs = if wrap_done {
+    let rhs = if wrap_done && is_unit {
+        format!("{{ {raw_call}; sl3_rt::SlStep::Done(()) }}")
+    } else if wrap_done {
         format!("sl3_rt::SlStep::Done({raw_call})")
     } else {
         raw_call
@@ -2502,14 +2507,41 @@ impl<'a> ModuleEmitter<'a> {
                 else_branch,
                 ..
             } => {
+                if matches!(unwrap_single_expr_block(else_branch), Expr::Nop { .. }) {
+                    let (cond_exprs, leaf_then) =
+                        collect_collapsible_nop_if_chain(cond, then_branch);
+                    if cond_exprs.len() > 1 {
+                        let mut cond_parts = Vec::with_capacity(cond_exprs.len());
+                        for ce in cond_exprs {
+                            let (cc, cty) = self.emit_expr(ce, indent_level)?;
+                            if cty == StageLType::Never {
+                                return Ok((
+                                    prefix_prior_exprs(&cond_parts, &cc),
+                                    StageLType::Never,
+                                ));
+                            }
+                            cond_parts.push(format!("({})", strip_matched_outer_parens(&cc)));
+                        }
+                        let (then_block, _) =
+                            self.emit_braced_tail_step_branch(leaf_then, indent_level)?;
+                        let else_block =
+                            self.emit_braced_tail_step_branch(else_branch, indent_level)?.0;
+                        let joined = cond_parts.join(" && ");
+                        return Ok((
+                            format_if_expr(&joined, &then_block, &else_block, indent_level),
+                            StageLType::Void,
+                        ));
+                    }
+                }
                 let (cond_code, cond_ty) = self.emit_expr(cond, indent_level)?;
                 if cond_ty == StageLType::Never {
                     return Ok((cond_code, StageLType::Never));
                 }
                 let (then_block, then_ty) =
                     self.emit_braced_tail_step_branch(then_branch, indent_level)?;
-                let (else_code, else_ty) = if matches!(else_branch.as_ref(), Expr::If { .. }) {
-                    self.emit_tail_step_expr(else_branch, indent_level)?
+                let unwrapped_else = unwrap_single_expr_block(else_branch);
+                let (else_code, else_ty) = if matches!(unwrapped_else, Expr::If { .. }) {
+                    self.emit_tail_step_expr(unwrapped_else, indent_level)?
                 } else {
                     self.emit_braced_tail_step_branch(else_branch, indent_level)?
                 };
@@ -2811,14 +2843,39 @@ impl<'a> ModuleEmitter<'a> {
                 else_branch,
                 ..
             } => {
+                if matches!(unwrap_single_expr_block(else_branch), Expr::Nop { .. }) {
+                    let (cond_exprs, leaf_then) =
+                        collect_collapsible_nop_if_chain(cond, then_branch);
+                    if cond_exprs.len() > 1 {
+                        let mut cond_parts = Vec::with_capacity(cond_exprs.len());
+                        for ce in cond_exprs {
+                            let (cc, cty) = self.emit_expr(ce, indent_level)?;
+                            if cty == StageLType::Never {
+                                return Ok((
+                                    prefix_prior_exprs(&cond_parts, &cc),
+                                    StageLType::Never,
+                                ));
+                            }
+                            cond_parts.push(format!("({})", strip_matched_outer_parens(&cc)));
+                        }
+                        let (then_block, _) =
+                            self.emit_braced_branch(leaf_then, false, false, indent_level)?;
+                        let joined = cond_parts.join(" && ");
+                        return Ok((
+                            format!("if {joined} {then_block}"),
+                            StageLType::Void,
+                        ));
+                    }
+                }
                 let (cond_code, cond_ty) = self.emit_expr(cond, indent_level)?;
                 if cond_ty == StageLType::Never {
                     return Ok((cond_code, StageLType::Never));
                 }
                 let (then_block, then_ty) =
                     self.emit_braced_branch(then_branch, false, false, indent_level)?;
-                let (else_code, else_ty) = if matches!(else_branch.as_ref(), Expr::If { .. }) {
-                    self.emit_expr(else_branch, indent_level)?
+                let unwrapped_else = unwrap_single_expr_block(else_branch);
+                let (else_code, else_ty) = if matches!(unwrapped_else, Expr::If { .. }) {
+                    self.emit_expr(unwrapped_else, indent_level)?
                 } else {
                     self.emit_braced_branch(else_branch, false, false, indent_level)?
                 };
@@ -2835,6 +2892,16 @@ impl<'a> ModuleEmitter<'a> {
                 ))
             }
             Expr::While { cond, body, .. } => {
+                if matches!(cond.as_ref(), Expr::Bool { value: true, .. }) {
+                    let (body_block, _) =
+                        self.emit_braced_branch(body, true, false, indent_level)?;
+                    let loop_ty = if expr_has_unshielded_break(body) {
+                        StageLType::Void
+                    } else {
+                        StageLType::Never
+                    };
+                    return Ok((format!("loop {body_block}"), loop_ty));
+                }
                 let (cond_code, cond_ty) = self.emit_expr(cond, indent_level)?;
                 if cond_ty == StageLType::Never {
                     return Ok((cond_code, StageLType::Never));
@@ -3482,6 +3549,13 @@ impl<'a> ModuleEmitter<'a> {
         right: &Expr,
         indent_level: usize,
     ) -> Result<(String, StageLType)> {
+        if matches!(op, BinaryOp::And | BinaryOp::Or)
+            && let Some(range_res) =
+                self.try_emit_range_contains(op, left, right, indent_level)?
+        {
+            return Ok(range_res);
+        }
+
         let (l_code, l_ty) = self.emit_expr(left, indent_level)?;
         if l_ty == StageLType::Never {
             return Ok((l_code, StageLType::Never));
@@ -3735,14 +3809,39 @@ impl<'a> ModuleEmitter<'a> {
         else {
             bail!("Internal error: emit_direct_fn_tail_if requires Expr::If");
         };
+        if matches!(unwrap_single_expr_block(else_branch), Expr::Nop { .. }) {
+            let (cond_exprs, leaf_then) =
+                collect_collapsible_nop_if_chain(cond, then_branch);
+            if cond_exprs.len() > 1 {
+                let mut cond_parts = Vec::with_capacity(cond_exprs.len());
+                for ce in cond_exprs {
+                    let (cc, cty) = self.emit_expr(ce, indent_level)?;
+                    if cty == StageLType::Never {
+                        return Ok((
+                            prefix_prior_exprs(&cond_parts, &cc),
+                            StageLType::Never,
+                        ));
+                    }
+                    cond_parts.push(format!("({})", strip_matched_outer_parens(&cc)));
+                }
+                let (then_block, _) =
+                    self.emit_braced_branch(leaf_then, expect_void, true, indent_level)?;
+                let joined = cond_parts.join(" && ");
+                return Ok((
+                    format!("if {joined} {then_block}"),
+                    StageLType::Void,
+                ));
+            }
+        }
         let (cond_code, cond_ty) = self.emit_expr(cond, indent_level)?;
         if cond_ty == StageLType::Never {
             return Ok((cond_code, StageLType::Never));
         }
         let (then_block, then_ty) =
             self.emit_braced_branch(then_branch, expect_void, true, indent_level)?;
-        let (else_code, else_ty) = if matches!(else_branch.as_ref(), Expr::If { .. }) {
-            self.emit_direct_fn_tail_if(else_branch, expect_void, indent_level)?
+        let unwrapped_else = unwrap_single_expr_block(else_branch);
+        let (else_code, else_ty) = if matches!(unwrapped_else, Expr::If { .. }) {
+            self.emit_direct_fn_tail_if(unwrapped_else, expect_void, indent_level)?
         } else {
             self.emit_braced_branch(else_branch, expect_void, true, indent_level)?
         };
@@ -3757,6 +3856,227 @@ impl<'a> ModuleEmitter<'a> {
             format_if_expr(cond_clean, &then_block, &else_code, indent_level),
             res_ty,
         ))
+    }
+
+    fn try_emit_range_contains(
+        &mut self,
+        op: BinaryOp,
+        left: &Expr,
+        right: &Expr,
+        indent_level: usize,
+    ) -> Result<Option<(String, StageLType)>> {
+        let (want_lo_op, want_hi_op, negate, sym) = match op {
+            BinaryOp::And => (BinaryOp::Ge, BinaryOp::Le, false, "&&"),
+            BinaryOp::Or => (BinaryOp::Lt, BinaryOp::Gt, true, "||"),
+            _ => return Ok(None),
+        };
+        let Expr::Binary {
+            op: l_op,
+            left: l_x,
+            right: l_lo,
+            ..
+        } = left
+        else {
+            return Ok(None);
+        };
+        if *l_op != want_lo_op {
+            return Ok(None);
+        }
+        let Expr::Int { value: lo_lit, .. } = l_lo.as_ref() else {
+            return Ok(None);
+        };
+
+        let (r_x, hi_lit, trailing_rhs) = match right {
+            Expr::Binary {
+                op: r_op,
+                left: rx,
+                right: r_hi,
+                ..
+            } if *r_op == want_hi_op => {
+                let Expr::Int { value: hl, .. } = r_hi.as_ref() else {
+                    return Ok(None);
+                };
+                (rx.as_ref(), hl, None)
+            }
+            Expr::Binary {
+                op: chain_op,
+                left: mid,
+                right: rest,
+                ..
+            } if *chain_op == op => {
+                let Expr::Binary {
+                    op: m_op,
+                    left: rx,
+                    right: r_hi,
+                    ..
+                } = mid.as_ref()
+                else {
+                    return Ok(None);
+                };
+                if *m_op != want_hi_op {
+                    return Ok(None);
+                }
+                let Expr::Int { value: hl, .. } = r_hi.as_ref() else {
+                    return Ok(None);
+                };
+                (rx.as_ref(), hl, Some(rest.as_ref()))
+            }
+            _ => return Ok(None),
+        };
+
+        if !same_pure_scalar_expr(l_x, r_x) || !typed_int_lit_strictly_lt(lo_lit, hi_lit) {
+            return Ok(None);
+        }
+
+        let (x_code, x_ty) = self.emit_expr(l_x, indent_level)?;
+        if x_ty == StageLType::Never {
+            return Ok(Some((x_code, StageLType::Never)));
+        }
+        let xc = strip_matched_outer_parens(&x_code);
+        let lo_c = emit_int_lit(lo_lit)?;
+        let hi_c = emit_int_lit(hi_lit)?;
+        let contains_expr = if negate {
+            format!("!({lo_c}..={hi_c}).contains(&{xc})")
+        } else {
+            format!("({lo_c}..={hi_c}).contains(&{xc})")
+        };
+
+        if let Some(rest_expr) = trailing_rhs {
+            let (rest_code, _) = self.emit_expr(rest_expr, indent_level)?;
+            let rc = strip_matched_outer_parens(&rest_code);
+            Ok(Some((
+                format!("(({contains_expr}) {sym} ({rc}))"),
+                StageLType::B,
+            )))
+        } else {
+            Ok(Some((contains_expr, StageLType::B)))
+        }
+    }
+}
+
+fn unwrap_single_expr_block(mut expr: &Expr) -> &Expr {
+    while let Expr::Block { stmts, .. } = expr {
+        let mut only_expr: Option<&Expr> = None;
+        let mut count = 0usize;
+        for item in stmts {
+            if let BlockItem::Expr(e) = item {
+                only_expr = Some(e);
+                count = count.saturating_add(1);
+            }
+        }
+        if count == 1
+            && let Some(inner) = only_expr
+            && !matches!(
+                inner,
+                Expr::Let { .. } | Expr::Const { .. } | Expr::RoutineDecl(_)
+            )
+        {
+            expr = inner;
+        } else {
+            break;
+        }
+    }
+    expr
+}
+
+fn collect_collapsible_nop_if_chain<'a>(
+    first_cond: &'a Expr,
+    first_then: &'a Expr,
+) -> (Vec<&'a Expr>, &'a Expr) {
+    let mut conds = vec![first_cond];
+    let mut cur_then = first_then;
+    while let Expr::If {
+        cond,
+        then_branch,
+        else_branch,
+        ..
+    } = unwrap_single_expr_block(cur_then)
+    {
+        if !matches!(unwrap_single_expr_block(else_branch), Expr::Nop { .. }) {
+            break;
+        }
+        conds.push(cond);
+        cur_then = then_branch;
+    }
+    (conds, cur_then)
+}
+
+fn same_pure_scalar_expr(a: &Expr, b: &Expr) -> bool {
+    match (a, b) {
+        (Expr::ValueRef { target: ta, .. }, Expr::ValueRef { target: tb, .. }) => ta == tb,
+        (
+            Expr::Field {
+                base: ba,
+                index: ia,
+                ..
+            },
+            Expr::Field {
+                base: bb,
+                index: ib,
+                ..
+            },
+        ) => ia == ib && same_pure_scalar_expr(ba, bb),
+        _ => false,
+    }
+}
+
+fn expr_has_unshielded_break(expr: &Expr) -> bool {
+    match expr {
+        Expr::Break { .. } => true,
+        Expr::While { .. } | Expr::ForEach { .. } | Expr::RoutineDecl(_) => false,
+        Expr::Block { stmts, .. } => stmts
+            .iter()
+            .any(|item| matches!(item, BlockItem::Expr(e) if expr_has_unshielded_break(e))),
+        Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_has_unshielded_break(cond)
+                || expr_has_unshielded_break(then_branch)
+                || expr_has_unshielded_break(else_branch)
+        }
+        Expr::Let { init, .. } => init.as_deref().is_some_and(expr_has_unshielded_break),
+        Expr::Const { value, .. } | Expr::Set { value, .. } => expr_has_unshielded_break(value),
+        Expr::Return { value, .. } => value.as_deref().is_some_and(expr_has_unshielded_break),
+        Expr::Call { args, .. }
+        | Expr::List { elements: args, .. }
+        | Expr::TupleNew { elements: args, .. }
+        | Expr::StructNew { fields: args, .. } => args.iter().any(expr_has_unshielded_break),
+        Expr::Field { base, .. }
+        | Expr::BufNew { capacity: base, .. }
+        | Expr::Unary { operand: base, .. }
+        | Expr::Conv { expr: base, .. }
+        | Expr::Bitcast { expr: base, .. } => expr_has_unshielded_break(base),
+        Expr::With { base, value, .. }
+        | Expr::Binary {
+            left: base,
+            right: value,
+            ..
+        } => expr_has_unshielded_break(base) || expr_has_unshielded_break(value),
+        Expr::Ternary {
+            first,
+            second,
+            third,
+            ..
+        } => {
+            expr_has_unshielded_break(first)
+                || expr_has_unshielded_break(second)
+                || expr_has_unshielded_break(third)
+        }
+        _ => false,
+    }
+}
+
+fn typed_int_lit_strictly_lt(a: &TypedIntLit, b: &TypedIntLit) -> bool {
+    match (a, b) {
+        (TypedIntLit::U8(x), TypedIntLit::U8(y)) => x < y,
+        (TypedIntLit::I32(x), TypedIntLit::I32(y)) => x < y,
+        (TypedIntLit::U32(x), TypedIntLit::U32(y)) => x < y,
+        (TypedIntLit::I64(x), TypedIntLit::I64(y)) => x < y,
+        (TypedIntLit::U64(x), TypedIntLit::U64(y)) => x < y,
+        _ => false,
     }
 }
 

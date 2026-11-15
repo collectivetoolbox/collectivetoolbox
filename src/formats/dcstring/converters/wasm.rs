@@ -2618,9 +2618,11 @@ fn spawn_session_worker(
     let (init_tx, init_rx) =
         std::sync::mpsc::channel::<Result<WorkerInitSuccess>>();
 
+    const SESSION_WORKER_STACK_BYTES: usize = 16 * 1024 * 1024;
+
     std::thread::Builder::new()
         .name("ctb-wasm-session".to_owned())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(SESSION_WORKER_STACK_BYTES)
         .spawn(move || {
             let allow_suspend = std::rc::Rc::new(std::cell::Cell::new(false));
             let shutdown_requested =

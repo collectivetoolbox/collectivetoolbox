@@ -59,7 +59,7 @@ v/tup: u64 u64 ::/measureBinaryFrame l/dcVal/chars u64/start
         ::
         nop.
     const u64/decodedLen sub mul shr /b64Len u32:2 u64:3 /padding.
-    let u64/frameBytes u64:0.
+    let u64/frameBytes.
     if eq /firstB64 /innerStart
         set /frameBytes add u64:21 /decodedLen
         do

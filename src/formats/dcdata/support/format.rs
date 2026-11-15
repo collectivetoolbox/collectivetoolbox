@@ -480,19 +480,31 @@ pub fn validate_formats_category_file(
                     .and_then(|idx| decomp.get(idx.saturating_add(1)..))
                     .unwrap_or(decomp)
                     .trim();
-                let first_tok = payload.split_whitespace().next().unwrap_or("");
-                if matches!(
-                    first_tok,
-                    "1927"
-                        | "2192"
-                        | "2217"
-                        | "2221"
-                        | "2223"
-                        | "2225"
-                        | "2227"
-                        | "2229"
-                        | "2233"
-                ) {
+                let Some(first_tok) = payload.split_whitespace().next() else {
+                    continue;
+                };
+                let is_exec_decomp = first_tok
+                    .parse::<crate::DcShorthand>()
+                    .ok()
+                    .and_then(|sh| sh.to_global_id().ok())
+                    .is_some_and(|gid| {
+                        use crate::syntax::DcRole;
+                        [
+                            DcRole::BeginWasmProgram,
+                            DcRole::BeginModule,
+                            DcRole::BeginStagerModule,
+                            DcRole::BeginRoutineDecl,
+                            DcRole::DeclareConst,
+                            DcRole::DeclarePub,
+                            DcRole::BeginPositionalStructDecl,
+                            DcRole::DeclareBrandType,
+                            DcRole::BeginNamedStructDecl,
+                            DcRole::BeginEnumDecl,
+                        ]
+                        .into_iter()
+                        .any(|role| role.matches_canonical(gid))
+                    });
+                if is_exec_decomp {
                     report.add_error(
                         file_path,
                         Some(line_no),
