@@ -228,8 +228,10 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .v86-build-cache
-          key: v86-build-${{ steps.get-week.outputs.week_key }}
-          lookup-only: true
+          key: v86-build-${{ steps.get-week.outputs.week_key }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            v86-build-${{ steps.get-week.outputs.week_key }}-
+          enableCrossOsArchive: true
 
       - name: Decide if v86 build should run
         id: decide
@@ -237,8 +239,8 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "Manual trigger requested. Running v86 initrd build."
             echo "should_run=true" >> "$GITHUB_OUTPUT"
-          elif [[ "${{ steps.cache-check.outputs.cache-hit }}" == "true" ]]; then
-            echo "v86 initrd build already completed this week (${{ steps.get-week.outputs.week_key }}). Skipping."
+          elif [[ -f .v86-build-cache/stamp ]]; then
+            echo "v86 initrd build already completed this week (${{ steps.get-week.outputs.week_key }}, commit $(cat .v86-build-cache/stamp)). Skipping."
             echo "should_run=false" >> "$GITHUB_OUTPUT"
           else
             echo "First push of the week (${{ steps.get-week.outputs.week_key }}). Running v86 initrd build."
@@ -250,22 +252,80 @@ jobs:
     needs: check-weekly-v86
     if: needs.check-weekly-v86.outputs.should_run == 'true'
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest
-      env:
-        RUSTUP_HOME: /root/.rustup
-        CARGO_HOME: /root/.cargo
+    timeout-minutes: 150
+    concurrency:
+      group: verify-initrd-${{ needs.check-weekly-v86.outputs.week_key }}
+      cancel-in-progress: false
 
     steps:
+      - name: Recheck weekly v86 cache after queue
+        id: recheck-cache
+        if: github.event_name == 'push'
+        uses: actions/cache/restore@v4
+        with:
+          path: .v86-build-cache
+          key: v86-build-${{ needs.check-weekly-v86.outputs.week_key }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            v86-build-${{ needs.check-weekly-v86.outputs.week_key }}-
+          enableCrossOsArchive: true
+
+      - name: Determine whether initrd build is still needed
+        id: should-build
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && -f .v86-build-cache/stamp ]]; then
+            echo "Weekly v86 cache populated while waiting in queue (${{ needs.check-weekly-v86.outputs.week_key }}, commit $(cat .v86-build-cache/stamp)). Skipping redundant rebuild."
+            echo "run_build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_build=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -d .v86-build-cache ]]; then
+            rm -r .v86-build-cache
+          fi
+
+      - name: Free unused host runner disk space
+        if: steps.should-build.outputs.run_build == 'true'
+        run: |
+          df -h /
+          for sdk_dir in \
+            /usr/share/dotnet \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /usr/local/share/boost \
+            /opt/hostedtoolcache/CodeQL; do
+            if [[ -d "$sdk_dir" ]]; then
+              echo "Removing unused runner directory: $sdk_dir"
+              sudo find "$sdk_dir" -depth -delete
+            fi
+          done
+          df -h /
+
       - name: Checkout repository
+        if: steps.should-build.outputs.run_build == 'true'
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Build and verify Guix POSIX initrd
-        run: ./scripts/ci-test-initrd
+        if: steps.should-build.outputs.run_build == 'true'
+        run: |
+          docker pull ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest
+          docker run --rm --init --shm-size=2g \
+            -e INSIDE_CONTAINER=true \
+            -e CI=true \
+            -e GITHUB_ACTIONS=true \
+            -e RUSTUP_HOME=/root/.rustup \
+            -e CARGO_HOME=/root/.cargo \
+            -v "$GITHUB_WORKSPACE:/workspaces/ctoolbox" \
+            -w /workspaces/ctoolbox \
+            ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest \
+            bash -c 'git config --global --add safe.directory "*" && exec ./scripts/ci-test-initrd'
+
+      - name: Restore workspace ownership
+        if: always() && steps.should-build.outputs.run_build == 'true'
+        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
 
       - name: Upload verified initrd artifact
+        if: steps.should-build.outputs.run_build == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: guix-posix-initrd
@@ -273,16 +333,17 @@ jobs:
           retention-days: 14
 
       - name: Record weekly v86 build stamp
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && steps.should-build.outputs.run_build == 'true'
         run: |
           mkdir -p .v86-build-cache
           echo "${{ github.sha }}" > .v86-build-cache/stamp
 
       - name: Save weekly v86 build cache
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && steps.should-build.outputs.run_build == 'true'
         uses: actions/cache/save@v4
         with:
           path: .v86-build-cache
-          key: v86-build-${{ needs.check-weekly-v86.outputs.week_key }}
+          key: v86-build-${{ needs.check-weekly-v86.outputs.week_key }}-${{ github.run_id }}-${{ github.run_attempt }}
+          enableCrossOsArchive: true
 
 

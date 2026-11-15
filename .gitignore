@@ -35,3 +35,6 @@
 
 # Temporary csc state files
 /csc_state_*
+
+# Weekly v86 initrd CI cache marker
+/.v86-build-cache
