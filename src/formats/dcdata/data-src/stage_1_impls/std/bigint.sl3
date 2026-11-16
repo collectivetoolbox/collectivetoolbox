@@ -18,8 +18,8 @@
 
 : Stage 1 arbitrary-precision signed integer (`bigInt`) arithmetic, GCD, and conversion primitives.
 ns std/bigint.
-use std/u128: u128Val errOverflow errDivisionByZero u128Zero u128New u128ToU64 u128ToU32 u128ToU8 ::.
-use std/i128: i128Val i128Zero i128Min i128IsNeg i128AbsU128 i128FromU128 i128Neg i128ToI64 i128ToI32 ::.
+use std/u128: u128Val errOverflow errDivisionByZero u128Zero u128New tryToU64 as u128ToU64 tryToU32 as u128ToU32 tryToU8 as u128ToU8 ::.
+use std/i128: i128Val i128Zero i128Min isNeg as i128IsNeg absU128 as i128AbsU128 tryFromU128 as i128FromU128 tryNeg as i128Neg tryToI64 as i128ToI64 tryToI32 as i128ToI32 ::.
 
 : Canonical arbitrary-precision signed integer:
 : slot 0 = `isNeg` (`false` when `>= 0`, `true` when `< 0`),
@@ -50,9 +50,9 @@ v/l/u32/normLimbs l/u32/raw
         /raw
         slice /raw u64:0 /n.
 
-: Builds a canonical `bigInt` from `neg` and `raw` little-endian `u32` limbs.
+: Builds a canonical `bigInt` from `isNeg` and `raw` little-endian `u32` limbs.
 : @dc l8589982091
-pub v/bigInt/makeBigInt b/neg l/u32/raw
+pub v/bigInt/makeBigInt b/isNeg l/u32/raw
     test
         in true l/u32: u32:0 u32:0 ::
         out structNew bigInt: false l/u32: :: ::.
@@ -61,11 +61,11 @@ pub v/bigInt/makeBigInt b/neg l/u32/raw
     const l/u32/limbs normLimbs /raw.
     if eq len /limbs u64:0
         /intZero
-        structNew bigInt: /neg /limbs ::.
+        structNew bigInt: /isNeg /limbs ::.
 
 : Returns true iff `x == 0`.
 : @dc l8589982092
-pub v/b/intIsZero bigInt/x
+pub v/b/isZero bigInt/x
     test
         in structNew bigInt: false l/u32: :: ::
         out true.
@@ -75,7 +75,7 @@ pub v/b/intIsZero bigInt/x
 
 : Infallible widening `u64 -> bigInt`.
 : @dc l8589982093
-pub v/bigInt/intFromU64 u64/x
+pub v/bigInt/from u64/x
     test
         in u64:0
         out structNew bigInt: false l/u32: :: ::.
@@ -93,7 +93,7 @@ pub v/bigInt/intFromU64 u64/x
 
 : Infallible widening `u32 -> bigInt`.
 : @dc l8589982094
-pub v/bigInt/intFromU32 u32/x
+pub v/bigInt/from u32/x
     test
         in u32:42
         out structNew bigInt: false l/u32: u32:42 :: ::.
@@ -103,15 +103,15 @@ pub v/bigInt/intFromU32 u32/x
 
 : Infallible widening `u8 -> bigInt`.
 : @dc l8589982095
-pub v/bigInt/intFromU8 u8/x
+pub v/bigInt/from u8/x
     test
         in u8:255
         out structNew bigInt: false l/u32: u32:255 :: ::.
-    intFromU32 conv /x u32.
+    from conv /x u32.
 
 : Infallible widening `u128Val -> bigInt`.
 : @dc l8589982096
-pub v/bigInt/intFromU128 u128Val/x
+pub v/bigInt/from u128Val/x
     test
         in structNew u128Val: u64:0 u64:1 ::
         out structNew bigInt: false l/u32: u32:0 u32:0 u32:1 :: ::.
@@ -126,35 +126,35 @@ pub v/bigInt/intFromU128 u128Val/x
 
 : Infallible widening `i128Val -> bigInt`.
 : @dc l8589982097
-pub v/bigInt/intFromI128 i128Val/x
+pub v/bigInt/from i128Val/x
     test
         in structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
         out structNew bigInt: true l/u32: u32:1 :: ::.
     const u128Val/mag i128AbsU128 /x.
-    const bigInt/pos intFromU128 /mag.
+    const bigInt/pos from /mag.
     makeBigInt i128IsNeg /x field /pos u32:1.
 
 : Infallible widening `i64 -> bigInt`.
 : @dc l8589982098
-pub v/bigInt/intFromI64 i64/x
+pub v/bigInt/from i64/x
     test
         in i64:-9223372036854775808
         out structNew bigInt: true l/u32: u32:0 u32:2147483648 :: ::.
     if lt /x i64:0
         do
             const u64/mag wrapSub u64:0 bitcast /x u64.
-            const bigInt/pos intFromU64 /mag.
+            const bigInt/pos from /mag.
             makeBigInt true field /pos u32:1.
         ::
-        intFromU64 conv /x u64.
+        from conv /x u64.
 
 : Infallible widening `i32 -> bigInt`.
 : @dc l8589982099
-pub v/bigInt/intFromI32 i32/x
+pub v/bigInt/from i32/x
     test
         in i32:-42
         out structNew bigInt: true l/u32: u32:42 :: ::.
-    intFromI64 conv /x i64.
+    from conv /x i64.
 
 : Extracts unsigned `u128Val` magnitude if `len limbs <= 4` (`(ok, u128Val)`).
 : @dc l8589982100
@@ -171,7 +171,7 @@ v/tup: b u128Val ::/limbsToU128 l/u32/limbs
 
 : Checked narrowing `bigInt -> result/u128` (`tup: b u128Val u8 ::`).
 : @dc l8589982101
-pub v/tup: b u128Val u8 ::/intToU128 bigInt/x
+pub v/tup: b u128Val u8 ::/tryToU128 bigInt/x
     test
         in structNew bigInt: true l/u32: u32:1 :: ::
         out tupNew: false structNew u128Val: u64:0 u64:0 :: u8:0 ::.
@@ -187,7 +187,7 @@ pub v/tup: b u128Val u8 ::/intToU128 bigInt/x
 
 : Checked narrowing `bigInt -> result/i128` (`tup: b i128Val u8 ::`).
 : @dc l8589982102
-pub v/tup: b i128Val u8 ::/intToI128 bigInt/x
+pub v/tup: b i128Val u8 ::/tryToI128 bigInt/x
     test
         in structNew bigInt: true l/u32: u32:0 u32:0 u32:0 u32:2147483648 :: ::
         out tupNew: true structNew i128Val: u64:0 u64:9223372036854775808 :: u8:0 ::.
@@ -211,45 +211,45 @@ pub v/tup: b i128Val u8 ::/intToI128 bigInt/x
 
 : Checked narrowing `bigInt -> result/u64`.
 : @dc l8589982103
-pub v/tup: b u64 u8 ::/intToU64 bigInt/x
-    const tup: b u128Val u8 ::/u intToU128 /x.
+pub v/tup: b u64 u8 ::/tryToU64 bigInt/x
+    const tup: b u128Val u8 ::/u tryToU128 /x.
     if not field /u u32:0
         tupNew: false u64:0 /errOverflow ::
         u128ToU64 field /u u32:1.
 
 : Checked narrowing `bigInt -> result/u32`.
 : @dc l8589982104
-pub v/tup: b u32 u8 ::/intToU32 bigInt/x
-    const tup: b u128Val u8 ::/u intToU128 /x.
+pub v/tup: b u32 u8 ::/tryToU32 bigInt/x
+    const tup: b u128Val u8 ::/u tryToU128 /x.
     if not field /u u32:0
         tupNew: false u32:0 /errOverflow ::
         u128ToU32 field /u u32:1.
 
 : Checked narrowing `bigInt -> result/u8`.
 : @dc l8589982105
-pub v/tup: b u8 u8 ::/intToU8 bigInt/x
+pub v/tup: b u8 u8 ::/tryToU8 bigInt/x
     test
         in structNew bigInt: false l/u32: u32:255 :: ::
         out tupNew: true u8:255 u8:0 ::.
         in structNew bigInt: false l/u32: u32:256 :: ::
         out tupNew: false u8:0 u8:0 ::.
-    const tup: b u128Val u8 ::/u intToU128 /x.
+    const tup: b u128Val u8 ::/u tryToU128 /x.
     if not field /u u32:0
         tupNew: false u8:0 /errOverflow ::
         u128ToU8 field /u u32:1.
 
 : Checked narrowing `bigInt -> result/i64`.
 : @dc l8589982106
-pub v/tup: b i64 u8 ::/intToI64 bigInt/x
-    const tup: b i128Val u8 ::/s intToI128 /x.
+pub v/tup: b i64 u8 ::/tryToI64 bigInt/x
+    const tup: b i128Val u8 ::/s tryToI128 /x.
     if not field /s u32:0
         tupNew: false i64:0 /errOverflow ::
         i128ToI64 field /s u32:1.
 
 : Checked narrowing `bigInt -> result/i32`.
 : @dc l8589982107
-pub v/tup: b i32 u8 ::/intToI32 bigInt/x
-    const tup: b i128Val u8 ::/s intToI128 /x.
+pub v/tup: b i32 u8 ::/tryToI32 bigInt/x
+    const tup: b i128Val u8 ::/s tryToI128 /x.
     if not field /s u32:0
         tupNew: false i32:0 /errOverflow ::
         i128ToI32 field /s u32:1.
@@ -306,7 +306,7 @@ v/i32/cmpMag l/u32/a l/u32/b
 
 : Signed comparison (`-1`, `0`, `1`) on canonical `bigInt`.
 : @dc l8589982110
-pub v/i32/intCmp bigInt/a bigInt/b
+pub v/i32/cmp bigInt/a bigInt/b
     test
         in structNew bigInt: true l/u32: u32:2 :: :: structNew bigInt: false l/u32: u32:1 :: ::
         out i32:-1.
@@ -323,49 +323,49 @@ pub v/i32/intCmp bigInt/a bigInt/b
 
 : Equality `a == b`.
 : @dc l8589982111
-pub v/b/intEq bigInt/a bigInt/b
+pub v/b/eq bigInt/a bigInt/b
     eq /a /b.
 
 : Inequality `a != b`.
 : @dc l8589982112
-pub v/b/intNe bigInt/a bigInt/b
+pub v/b/ne bigInt/a bigInt/b
     ne /a /b.
 
 : Signed `<` on `bigInt`.
 : @dc l8589982113
-pub v/b/intLt bigInt/a bigInt/b
-    lt intCmp /a /b i32:0.
+pub v/b/lt bigInt/a bigInt/b
+    lt cmp /a /b i32:0.
 
 : Signed `<=` on `bigInt`.
 : @dc l8589982114
-pub v/b/intLe bigInt/a bigInt/b
-    le intCmp /a /b i32:0.
+pub v/b/le bigInt/a bigInt/b
+    le cmp /a /b i32:0.
 
 : Signed `>` on `bigInt`.
 : @dc l8589982115
-pub v/b/intGt bigInt/a bigInt/b
-    gt intCmp /a /b i32:0.
+pub v/b/gt bigInt/a bigInt/b
+    gt cmp /a /b i32:0.
 
 : Signed `>=` on `bigInt`.
 : @dc l8589982116
-pub v/b/intGe bigInt/a bigInt/b
-    ge intCmp /a /b i32:0.
+pub v/b/ge bigInt/a bigInt/b
+    ge cmp /a /b i32:0.
 
 : Infallible negation on `bigInt`.
 : @dc l8589982117
-pub v/bigInt/intNeg bigInt/a
+pub v/bigInt/neg bigInt/a
     test
         in structNew bigInt: false l/u32: :: ::
         out structNew bigInt: false l/u32: :: ::.
         in structNew bigInt: false l/u32: u32:9 :: ::
         out structNew bigInt: true l/u32: u32:9 :: ::.
-    if intIsZero /a
+    if isZero /a
         /intZero
         structNew bigInt: not field /a u32:0 field /a u32:1 ::.
 
 : Infallible absolute value `|a|` on `bigInt`.
 : @dc l8589982118
-pub v/bigInt/intAbs bigInt/a
+pub v/bigInt/abs bigInt/a
     structNew bigInt: false field /a u32:1 ::.
 
 : Unsigned magnitude addition.
@@ -444,7 +444,7 @@ v/l/u32/mulMag l/u32/a l/u32/b
 
 : Infallible addition `a + b` on `bigInt`.
 : @dc l8589982122
-pub v/bigInt/intAdd bigInt/a bigInt/b
+pub v/bigInt/add bigInt/a bigInt/b
     test
         in structNew bigInt: false l/u32: u32:4294967295 :: :: structNew bigInt: false l/u32: u32:2 :: ::
         out structNew bigInt: false l/u32: u32:1 u32:1 :: ::.
@@ -467,12 +467,12 @@ pub v/bigInt/intAdd bigInt/a bigInt/b
 
 : Infallible subtraction `a - b` on `bigInt`.
 : @dc l8589982123
-pub v/bigInt/intSub bigInt/a bigInt/b
-    intAdd /a intNeg /b.
+pub v/bigInt/sub bigInt/a bigInt/b
+    add /a neg /b.
 
 : Infallible multiplication `a * b` on `bigInt`.
 : @dc l8589982124
-pub v/bigInt/intMul bigInt/a bigInt/b
+pub v/bigInt/mul bigInt/a bigInt/b
     test
         in structNew bigInt: true l/u32: u32:6 :: :: structNew bigInt: false l/u32: u32:7 :: ::
         out structNew bigInt: true l/u32: u32:42 :: ::.
@@ -573,13 +573,13 @@ v/tup: l/u32 l/u32 ::/divModMag l/u32/a l/u32/b
 
 : Total truncating `div` on `bigInt` (`tup: b bigInt u8 ::`).
 : @dc l8589982127
-pub v/tup: b bigInt u8 ::/intDiv bigInt/a bigInt/b
+pub v/tup: b bigInt u8 ::/tryDiv bigInt/a bigInt/b
     test
         in structNew bigInt: true l/u32: u32:7 :: :: structNew bigInt: false l/u32: u32:3 :: ::
         out tupNew: true structNew bigInt: true l/u32: u32:2 :: :: u8:0 ::.
         in structNew bigInt: false l/u32: u32:5 :: :: structNew bigInt: false l/u32: :: ::
         out tupNew: false structNew bigInt: false l/u32: :: :: u8:1 ::.
-    if intIsZero /b
+    if isZero /b
         return tupNew: false /intZero /errDivisionByZero ::
         nop.
     const tup: l/u32 l/u32 ::/dm divModMag field /a u32:1 field /b u32:1.
@@ -587,11 +587,11 @@ pub v/tup: b bigInt u8 ::/intDiv bigInt/a bigInt/b
 
 : Total `truncRem` on `bigInt` (`tup: b bigInt u8 ::`).
 : @dc l8589982128
-pub v/tup: b bigInt u8 ::/intTruncRem bigInt/a bigInt/b
+pub v/tup: b bigInt u8 ::/tryTruncRem bigInt/a bigInt/b
     test
         in structNew bigInt: true l/u32: u32:7 :: :: structNew bigInt: false l/u32: u32:3 :: ::
         out tupNew: true structNew bigInt: true l/u32: u32:1 :: :: u8:0 ::.
-    if intIsZero /b
+    if isZero /b
         return tupNew: false /intZero /errDivisionByZero ::
         nop.
     const tup: l/u32 l/u32 ::/dm divModMag field /a u32:1 field /b u32:1.
@@ -599,24 +599,24 @@ pub v/tup: b bigInt u8 ::/intTruncRem bigInt/a bigInt/b
 
 : Total Euclidean `mod` (`0 <= r < |b|`) on `bigInt` (`tup: b bigInt u8 ::`).
 : @dc l8589982129
-pub v/tup: b bigInt u8 ::/intMod bigInt/a bigInt/b
+pub v/tup: b bigInt u8 ::/tryMod bigInt/a bigInt/b
     test
         in structNew bigInt: true l/u32: u32:7 :: :: structNew bigInt: false l/u32: u32:3 :: ::
         out tupNew: true structNew bigInt: false l/u32: u32:2 :: :: u8:0 ::.
         in structNew bigInt: true l/u32: u32:7 :: :: structNew bigInt: true l/u32: u32:3 :: ::
         out tupNew: true structNew bigInt: false l/u32: u32:2 :: :: u8:0 ::.
-    const tup: b bigInt u8 ::/trRes intTruncRem /a /b.
+    const tup: b bigInt u8 ::/trRes tryTruncRem /a /b.
     if not field /trRes u32:0
         return /trRes
         nop.
     const bigInt/tr field /trRes u32:1.
     if field /tr u32:0
-        tupNew: true intAdd /tr intAbs /b u8:0 ::
+        tupNew: true add /tr abs /b u8:0 ::
         tupNew: true /tr u8:0 ::.
 
 : Unsigned Euclidean greatest common divisor `gcd(|a|, |b|) >= 0` (`gcd(0, 0) == 0`).
 : @dc l8589982130
-pub v/bigInt/intGcd bigInt/a bigInt/b
+pub v/bigInt/gcd bigInt/a bigInt/b
     test
         in structNew bigInt: true l/u32: u32:6 :: :: structNew bigInt: true l/u32: u32:4 :: ::
         out structNew bigInt: false l/u32: u32:2 :: ::.
@@ -637,11 +637,93 @@ v/b/checkMultiLimbBigInt
     test
         in.
         out true.
-    const bigInt/p1 intMul intFromU64 u64:18446744073709551615 intFromU64 u64:18446744073709551615.
-    const bigInt/p2 intMul /p1 intFromI64 i64:-1000000007.
-    const tup: b bigInt u8 ::/q intDiv /p2 /p1.
-    const tup: b bigInt u8 ::/r intMod /p2 intFromU64 u64:97.
+    const bigInt/p1 mul from u64:18446744073709551615 from u64:18446744073709551615.
+    const bigInt/p2 mul /p1 from i64:-1000000007.
+    const tup: b bigInt u8 ::/q tryDiv /p2 /p1.
+    const tup: b bigInt u8 ::/r tryMod /p2 from u64:97.
     and field /q u32:0
-        and eq field /q u32:1 intFromI64 i64:-1000000007
+        and eq field /q u32:1 from i64:-1000000007
             and field /r u32:0
-                ge intCmp field /r u32:1 /intZero i32:0.
+                ge cmp field /r u32:1 /intZero i32:0.
+
+: Predicate returning true iff `add a b` succeeds (always `true` for arbitrary-precision `bigInt`).
+: @dc l8589984698
+pub v/b/canAdd bigInt/a bigInt/b
+    true.
+
+: Predicate returning true iff `sub a b` succeeds (always `true` for arbitrary-precision `bigInt`).
+: @dc l8589984699
+pub v/b/canSub bigInt/a bigInt/b
+    true.
+
+: Predicate returning true iff `mul a b` succeeds (always `true` for arbitrary-precision `bigInt`).
+: @dc l8589984700
+pub v/b/canMul bigInt/a bigInt/b
+    true.
+
+: Predicate returning true iff `neg a` succeeds (always `true` for arbitrary-precision `bigInt`).
+: @dc l8589984701
+pub v/b/canNeg bigInt/a
+    true.
+
+: Predicate returning true iff `div`/`rem`/`truncRem`/`mod` succeeds (`b != 0`).
+: @dc l8589984702
+pub v/b/canDiv bigInt/a bigInt/b
+    test
+        in structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: :: ::
+        out false.
+        in structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:2 :: ::
+        out true.
+    not isZero /b.
+
+: Checked StageL `div` on `bigInt`, faulting on division by zero.
+: @dc l8589984703
+pub v/bigInt/div bigInt/a bigInt/b
+    test
+        in structNew bigInt: true l/u32: u32:7 :: :: structNew bigInt: false l/u32: u32:3 :: ::
+        out structNew bigInt: true l/u32: u32:2 :: ::.
+        in structNew bigInt: false l/u32: u32:5 :: :: structNew bigInt: false l/u32: :: ::
+        out fault.
+    const tup: b bigInt u8 ::/r tryDiv /a /b.
+    if not field /r u32:0
+        fault
+        field /r u32:1.
+
+: Checked StageL `rem` on `bigInt`, faulting on division by zero.
+: @dc l8589984704
+pub v/bigInt/rem bigInt/a bigInt/b
+    test
+        in structNew bigInt: true l/u32: u32:7 :: :: structNew bigInt: false l/u32: u32:3 :: ::
+        out structNew bigInt: true l/u32: u32:1 :: ::.
+        in structNew bigInt: false l/u32: u32:5 :: :: structNew bigInt: false l/u32: :: ::
+        out fault.
+    const tup: b bigInt u8 ::/r tryTruncRem /a /b.
+    if not field /r u32:0
+        fault
+        field /r u32:1.
+
+: Checked StageL `truncRem` on `bigInt`, faulting on division by zero.
+: @dc l8589984705
+pub v/bigInt/truncRem bigInt/a bigInt/b
+    test
+        in structNew bigInt: true l/u32: u32:7 :: :: structNew bigInt: false l/u32: u32:3 :: ::
+        out structNew bigInt: true l/u32: u32:1 :: ::.
+        in structNew bigInt: false l/u32: u32:5 :: :: structNew bigInt: false l/u32: :: ::
+        out fault.
+    const tup: b bigInt u8 ::/r tryTruncRem /a /b.
+    if not field /r u32:0
+        fault
+        field /r u32:1.
+
+: Checked StageL `mod` on `bigInt`, faulting on division by zero.
+: @dc l8589984706
+pub v/bigInt/mod bigInt/a bigInt/b
+    test
+        in structNew bigInt: true l/u32: u32:7 :: :: structNew bigInt: false l/u32: u32:3 :: ::
+        out structNew bigInt: false l/u32: u32:2 :: ::.
+        in structNew bigInt: false l/u32: u32:5 :: :: structNew bigInt: false l/u32: :: ::
+        out fault.
+    const tup: b bigInt u8 ::/r tryMod /a /b.
+    if not field /r u32:0
+        fault
+        field /r u32:1.

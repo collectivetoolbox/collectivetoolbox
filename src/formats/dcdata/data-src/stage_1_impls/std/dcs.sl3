@@ -23,7 +23,7 @@ use std/dctf: dcVal dcNew dcFromU128Raw dcToU128Raw dcIsValid ::.
 
 : Total `dcFromU128` conversion (`u128Val -> tup: b dcVal u8 ::`), rejecting UTF-16 surrogates (`0xD800..=0xDFFF`).
 : @dc l8589982141
-pub v/tup: b dcVal u8 ::/dcTryFromU128 u128Val/raw
+pub v/tup: b dcVal u8 ::/tryDcFromU128 u128Val/raw
     test
         in structNew u128Val: u64:256 u64:0 ::
         out tupNew: true structNew dcVal: u64:256 u64:0 :: u8:0 ::.
@@ -36,7 +36,7 @@ pub v/tup: b dcVal u8 ::/dcTryFromU128 u128Val/raw
 
 : Infallible `u128FromDc` projection (`dcVal -> u128Val`).
 : @dc l8589982142
-pub v/u128Val/dcToU128 dcVal/c
+pub v/u128Val/u128FromDc dcVal/c
     test
         in structNew dcVal: u64:1114368 u64:0 ::
         out structNew u128Val: u64:1114368 u64:0 ::.
@@ -44,7 +44,7 @@ pub v/u128Val/dcToU128 dcVal/c
 
 : Total `get` on `dcs` (`(l/dcVal, u64) -> tup: b dcVal ::`).
 : @dc l8589982143
-pub v/tup: b dcVal ::/dcsGet l/dcVal/seq u64/idx
+pub v/tup: b dcVal ::/tryGet l/dcVal/seq u64/idx
     test
         in l/dcVal: structNew dcVal: u64:65 u64:0 :: structNew dcVal: u64:66 u64:0 :: :: u64:1
         out tupNew: true structNew dcVal: u64:66 u64:0 :: ::.
@@ -56,7 +56,7 @@ pub v/tup: b dcVal ::/dcsGet l/dcVal/seq u64/idx
 
 : Total `slice` on `dcs` (`(l/dcVal, u64, u64) -> tup: b l/dcVal ::`).
 : @dc l8589982144
-pub v/tup: b l/dcVal ::/dcsSlice l/dcVal/seq u64/start u64/end
+pub v/tup: b l/dcVal ::/trySlice l/dcVal/seq u64/start u64/end
     test
         in l/dcVal: structNew dcVal: u64:65 u64:0 :: structNew dcVal: u64:66 u64:0 :: structNew dcVal: u64:67 u64:0 :: :: u64:1 u64:3
         out tupNew: true l/dcVal: structNew dcVal: u64:66 u64:0 :: structNew dcVal: u64:67 u64:0 :: :: ::.
@@ -68,7 +68,7 @@ pub v/tup: b l/dcVal ::/dcsSlice l/dcVal/seq u64/start u64/end
 
 : Splits `input` around non-overlapping occurrences of `sep` (`explode` on `dcs`).
 : @dc l8589982145
-pub v/l/l/dcVal/dcsExplode l/dcVal/sep l/dcVal/input
+pub v/l/l/dcVal/explode l/dcVal/sep l/dcVal/input
     test
         in l/dcVal: structNew dcVal: u64:58 u64:0 :: :: l/dcVal: structNew dcVal: u64:97 u64:0 :: structNew dcVal: u64:58 u64:0 :: structNew dcVal: u64:98 u64:0 :: structNew dcVal: u64:58 u64:0 :: ::
         out l/l/dcVal: l/dcVal: structNew dcVal: u64:97 u64:0 :: :: l/dcVal: structNew dcVal: u64:98 u64:0 :: :: l/dcVal: :: ::.
@@ -130,7 +130,7 @@ pub v/l/l/dcVal/dcsExplode l/dcVal/sep l/dcVal/input
 
 : Concatenates `parts` interspersed with `sep` (`implode` on `dcs`).
 : @dc l8589982146
-pub v/l/dcVal/dcsImplode l/dcVal/sep l/l/dcVal/parts
+pub v/l/dcVal/implode l/dcVal/sep l/l/dcVal/parts
     test
         in l/dcVal: structNew dcVal: u64:58 u64:0 :: :: l/l/dcVal: l/dcVal: structNew dcVal: u64:97 u64:0 :: :: l/dcVal: structNew dcVal: u64:98 u64:0 :: :: l/dcVal: :: ::
         out l/dcVal: structNew dcVal: u64:97 u64:0 :: structNew dcVal: u64:58 u64:0 :: structNew dcVal: u64:98 u64:0 :: structNew dcVal: u64:58 u64:0 :: ::.
@@ -153,3 +153,16 @@ pub v/l/dcVal/dcsImplode l/dcVal/sep l/l/dcVal/parts
         set /idx add /idx u64:1.
     ::.
     bufFreeze /out.
+
+: Checked StageL `dcFromU128` conversion (`u128Val -> dcVal`), faulting on UTF-16 surrogates (`0xD800..=0xDFFF`).
+: @dc l8589984708
+pub v/dcVal/dcFromU128 u128Val/raw
+    test
+        in structNew u128Val: u64:256 u64:0 ::
+        out structNew dcVal: u64:256 u64:0 ::.
+        in structNew u128Val: u64:55296 u64:0 ::
+        out fault.
+    const tup: b dcVal u8 ::/r tryDcFromU128 /raw.
+    if not field /r u32:0
+        fault
+        field /r u32:1.

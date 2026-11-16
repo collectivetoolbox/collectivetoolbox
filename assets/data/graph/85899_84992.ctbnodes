@@ -1,0 +1,100 @@
+l8589984992: u6c u65 # "le"
+l8589984993: u67 u74 # "gt"
+l8589984994: u67 u65 # "ge"
+l8589984995: u77 u72 u61 u70 u41 u64 u64 # "wrapAdd"
+l8589984996: u77 u72 u61 u70 u53 u75 u62 # "wrapSub"
+l8589984997: u77 u72 u61 u70 u4d u75 u6c # "wrapMul"
+l8589984998: u77 u72 u61 u70 u4e u65 u67 # "wrapNeg"
+l8589984999: u61 u62 u73 u55 u31 u32 u38 # "absU128"
+l8589985000: u74 u72 u79 u4e u65 u67 # "tryNeg"
+l8589985001: u74 u72 u79 u41 u64 u64 # "tryAdd"
+l8589985002: u74 u72 u79 u53 u75 u62 # "trySub"
+l8589985003: u74 u72 u79 u4d u75 u6c # "tryMul"
+l8589985004: u74 u72 u79 u44 u69 u76 # "tryDiv"
+l8589985005: u74 u72 u79 u54 u72 u75 u6e u63 u52 u65 u6d # "tryTruncRem"
+l8589985006: u74 u72 u79 u4d u6f u64 # "tryMod"
+l8589985007: u62 u69 u74 u41 u6e u64 # "bitAnd"
+l8589985008: u62 u69 u74 u4f u72 # "bitOr"
+l8589985009: u62 u69 u74 u58 u6f u72 # "bitXor"
+l8589985010: u62 u69 u74 u4e u6f u74 # "bitNot"
+l8589985011: u74 u72 u79 u53 u68 u6c # "tryShl"
+l8589985012: u74 u72 u79 u53 u68 u72 # "tryShr"
+l8589985013: u63 u6c u7a # "clz"
+l8589985014: u63 u74 u7a # "ctz"
+l8589985015: u70 u6f u70 u63 u6e u74 # "popcnt"
+l8589985016: u74 u72 u79 u46 u72 u6f u6d u49 u36 u34 # "tryFromI64"
+l8589985017: u74 u72 u79 u46 u72 u6f u6d u49 u33 u32 # "tryFromI32"
+l8589985018: u72 u6f u74 u6c # "rotl"
+l8589985019: u72 u6f u74 u72 # "rotr"
+l8589985020: u69 u73 u5a u65 u72 u6f # "isZero"
+l8589985021: u74 u72 u79 u54 u6f u49 u31 u32 u38 # "tryToI128"
+l8589985022: u63 u6d u70 # "cmp"
+l8589985023: u61 u62 u73 # "abs"
+l8589985024: u6d u75 u6c # "mul"
+l8589985025: u67 u63 u64 # "gcd"
+l8589985026: u62 u79 u74 u65 u4c u65 u6e # "byteLen"
+l8589985027: u74 u72 u79 u44 u63 u73 u46 u72 u6f u6d u53 # "tryDcsFromS"
+l8589985028: u73 u46 u72 u6f u6d u44 u63 u73 # "sFromDcs"
+l8589985029: u74 u72 u79 u44 u63 u46 u72 u6f u6d u55 u31 u32 u38 # "tryDcFromU128"
+l8589985030: u75 u31 u32 u38 u46 u72 u6f u6d u44 u63 # "u128FromDc"
+l8589985031: u74 u72 u79 u47 u65 u74 # "tryGet"
+l8589985032: u74 u72 u79 u53 u6c u69 u63 u65 # "trySlice"
+l8589985033: u74 u72 u79 u4d u61 u6b u65 u52 u61 u74 # "tryMakeRat"
+l8589985034: u74 u72 u79 u54 u6f u49 u6e u74 # "tryToInt"
+l8589985035: u63 u61 u6e u4e u65 u67 # "canNeg"
+l8589985036: u64 u69 u76 # "div"
+l8589985037: u74 u72 u75 u6e u63 u52 u65 u6d # "truncRem"
+l8589985038: u64 u63 u73 u46 u72 u6f u6d u53 # "dcsFromS"
+l8589985039: u64 u63 u46 u72 u6f u6d u55 u31 u32 u38 # "dcFromU128"
+l8589985040: u73 u68 u6c # "shl"
+l8589985041: u73 u68 u72 # "shr"
+l8589985042: u75 u31 u32 u38 u4d u69 u6e # "u128Min"
+l8589985043: u6d u61 u6b u65 u52 u61 u74 # "makeRat"
+l8589985044: 610 l8589981028 l8589984980 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "fromBits")
+l8589985045: 591 l8589985044 l8589981029 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "fromBits"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128FromBits"))
+l8589985046: 610 l8589981030 l8589984981 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "toBits")
+l8589985047: 591 l8589985046 l8589981031 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "toBits"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128ToBits"))
+l8589985048: 610 l8589981032 l8589981316 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "isNeg")
+l8589985049: 591 l8589985048 l8589981033 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "isNeg"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128IsNeg"))
+l8589985050: 610 l8589981034 l8589984982 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "from")
+l8589985051: 591 l8589985050 l8589981035 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "from"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128FromI64"))
+l8589985052: 610 l8589981036 l8589984982 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "from")
+l8589985053: 591 l8589985052 l8589981037 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "from"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128FromI32"))
+l8589985054: 610 l8589981038 l8589984982 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "from")
+l8589985055: 591 l8589985054 l8589981039 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "from"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128FromU64"))
+l8589985056: 610 l8589981040 l8589984982 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "from")
+l8589985057: 591 l8589985056 l8589981041 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "from"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128FromU32"))
+l8589985058: 610 l8589981042 l8589984982 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "from")
+l8589985059: 591 l8589985058 l8589981043 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "from"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128FromU8"))
+l8589985060: 610 l8589981044 l8589984983 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "tryFromU128")
+l8589985061: 591 l8589985060 l8589981045 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "tryFromU128"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128FromU128"))
+l8589985062: 610 l8589981046 l8589984984 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "tryToU128")
+l8589985063: 591 l8589985062 l8589981047 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "tryToU128"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128ToU128"))
+l8589985064: 610 l8589981048 l8589984985 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "tryToI64")
+l8589985065: 591 l8589985064 l8589981049 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "tryToI64"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128ToI64"))
+l8589985066: 610 l8589981050 l8589984986 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "tryToI32")
+l8589985067: 591 l8589985066 l8589981051 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "tryToI32"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128ToI32"))
+l8589985068: 610 l8589981052 l8589984987 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "tryToU64")
+l8589985069: 591 l8589985068 l8589981053 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "tryToU64"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128ToU64"))
+l8589985070: 610 l8589981054 l8589984988 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "tryToU32")
+l8589985071: 591 l8589985070 l8589981055 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "tryToU32"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128ToU32"))
+l8589985072: 610 l8589981056 l8589984989 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "tryToU8")
+l8589985073: 591 l8589985072 l8589981057 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "tryToU8"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128ToU8"))
+l8589985074: 610 l8589981058 l8589984990 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "eq")
+l8589985075: 591 l8589985074 l8589981059 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "eq"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128Eq"))
+l8589985076: 610 l8589981060 l8589984991 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "ne")
+l8589985077: 591 l8589985076 l8589981061 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "ne"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128Ne"))
+l8589985078: 610 l8589981062 l8589983683 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "lt")
+l8589985079: 591 l8589985078 l8589981063 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "lt"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128Lt"))
+l8589985080: 610 l8589981064 l8589984992 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "le")
+l8589985081: 591 l8589985080 l8589981065 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "le"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128Le"))
+l8589985082: 610 l8589981066 l8589984993 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "gt")
+l8589985083: 591 l8589985082 l8589981067 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "gt"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128Gt"))
+l8589985084: 610 l8589981068 l8589984994 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "ge")
+l8589985085: 591 l8589985084 l8589981069 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "ge"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128Ge"))
+l8589985086: 610 l8589981070 l8589984995 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "wrapAdd")
+l8589985087: 591 l8589985086 l8589981071 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "wrapAdd"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128WrapAdd"))
+l8589985088: 610 l8589981072 l8589984996 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "wrapSub")
+l8589985089: 591 l8589985088 l8589981073 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "wrapSub"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128WrapSub"))
+l8589985090: 610 l8589981074 l8589984997 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "wrapMul")
+l8589985091: 591 l8589985090 l8589981075 # Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "wrapMul"), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "i128WrapMul"))

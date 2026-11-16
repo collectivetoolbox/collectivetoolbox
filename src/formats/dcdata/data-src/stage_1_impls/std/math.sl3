@@ -18,6 +18,41 @@
 
 : Stage 1 integer bounds, StageL-internal Euclidean modulus, and non-trapping overflow/division predicates.
 ns std/math.
+use std/u128:
+    u128Val u128Zero as u128ConstZero u128Max as u128ConstMax
+    eq as u128Eq ne as u128Ne lt as u128Lt le as u128Le gt as u128Gt ge as u128Ge
+    wrapAdd as u128WrapAdd wrapSub as u128WrapSub wrapMul as u128WrapMul
+    canAdd as u128CanAdd canSub as u128CanSub canMul as u128CanMul canDiv as u128CanDiv
+    bitAnd as u128BitAnd bitOr as u128BitOr bitXor as u128BitXor bitNot as u128BitNot
+    rotl as u128Rotl rotr as u128Rotr clz as u128Clz ctz as u128Ctz popcnt as u128Popcnt
+    tryAdd as u128TryAdd trySub as u128TrySub tryMul as u128TryMul
+    tryDiv as u128TryDiv tryMod as u128TryMod tryShl as u128TryShl tryShr as u128TryShr
+::.
+use std/i128:
+    i128Val i128Zero i128Min as i128ConstMin i128Max as i128ConstMax
+    eq as i128Eq ne as i128Ne lt as i128Lt le as i128Le gt as i128Gt ge as i128Ge
+    wrapAdd as i128WrapAdd wrapSub as i128WrapSub wrapMul as i128WrapMul wrapNeg as i128WrapNeg
+    canAdd as i128CanAdd canSub as i128CanSub canMul as i128CanMul canDiv as i128CanDiv canNeg as i128CanNeg
+    bitAnd as i128BitAnd bitOr as i128BitOr bitXor as i128BitXor bitNot as i128BitNot
+    clz as i128Clz ctz as i128Ctz popcnt as i128Popcnt
+    tryNeg as i128TryNeg tryAdd as i128TryAdd trySub as i128TrySub tryMul as i128TryMul
+    tryDiv as i128TryDiv tryTruncRem as i128TryTruncRem tryMod as i128TryMod
+    tryShl as i128TryShl tryShr as i128TryShr
+::.
+use std/bigint:
+    bigInt
+    eq as bigIntEq ne as bigIntNe lt as bigIntLt le as bigIntLe gt as bigIntGt ge as bigIntGe
+    neg as bigIntNeg add as bigIntAdd sub as bigIntSub mul as bigIntMul
+    canAdd as bigIntCanAdd canSub as bigIntCanSub canMul as bigIntCanMul canDiv as bigIntCanDiv canNeg as bigIntCanNeg
+    tryDiv as bigIntTryDiv tryTruncRem as bigIntTryTruncRem tryMod as bigIntTryMod
+::.
+use std/rat:
+    ratVal
+    eq as ratEq ne as ratNe lt as ratLt le as ratLe gt as ratGt ge as ratGe
+    neg as ratNeg add as ratAdd sub as ratSub mul as ratMul
+    canAdd as ratCanAdd canSub as ratCanSub canMul as ratCanMul canDiv as ratCanDiv canNeg as ratCanNeg
+    tryDiv as ratTryDiv
+::.
 
 : Minimum unsigned 8-bit integer (0).
 : @dc l8589978541
@@ -509,3 +544,1294 @@ pub v/b/canDiv u64/lhs u64/rhs
         in u64:0 u64:0
         out false.
     ne /rhs u64:0.
+
+: Minimum unsigned 128-bit integer (`0`).
+: @dc l8589984720
+pub u128Val/u128Min /u128ConstZero.
+
+: Maximum unsigned 128-bit integer (`2^128 - 1`).
+: @dc l8589984721
+pub u128Val/u128Max /u128ConstMax.
+
+: Minimum signed 128-bit integer (`-2^127`).
+: @dc l8589984722
+pub i128Val/i128Min /i128ConstMin.
+
+: Maximum signed 128-bit integer (`2^127 - 1`).
+: @dc l8589984723
+pub i128Val/i128Max /i128ConstMax.
+
+: ---------------------------------------------------------------------------
+: Total negation predicates (`canNeg`) and extended `can*` overloads
+: ---------------------------------------------------------------------------
+
+: Returns true iff `-a` does not overflow signed 32-bit bounds (`a != i32Min`).
+: @dc l8589984724
+pub v/b/canNeg i32/a
+    test
+        in i32:5
+        out true.
+        in i32:-2147483648
+        out false.
+    ne /a /i32Min.
+
+: Returns true iff `-a` does not overflow signed 64-bit bounds (`a != i64Min`).
+: @dc l8589984725
+pub v/b/canNeg i64/a
+    test
+        in i64:5
+        out true.
+        in i64:-9223372036854775808
+        out false.
+    ne /a /i64Min.
+
+: Returns true iff `-a` does not overflow signed 128-bit bounds (`a != i128Min`).
+: @dc l8589984726
+pub v/b/canNeg i128Val/a
+    i128CanNeg /a.
+
+: Returns true iff `-a` succeeds (always `true` for arbitrary-precision `bigInt`).
+: @dc l8589984727
+pub v/b/canNeg bigInt/a
+    bigIntCanNeg /a.
+
+: Returns true iff `-a` succeeds (always `true` for exact `ratVal`).
+: @dc l8589984728
+pub v/b/canNeg ratVal/a
+    ratCanNeg /a.
+
+: Predicate returning true iff signed `a + b` does not overflow `i128Val`.
+: @dc l8589984729
+pub v/b/canAdd i128Val/a i128Val/b
+    i128CanAdd /a /b.
+
+: Predicate returning true iff signed `a - b` does not overflow `i128Val`.
+: @dc l8589984730
+pub v/b/canSub i128Val/a i128Val/b
+    i128CanSub /a /b.
+
+: Predicate returning true iff signed `a * b` does not overflow `i128Val`.
+: @dc l8589984731
+pub v/b/canMul i128Val/a i128Val/b
+    i128CanMul /a /b.
+
+: Predicate returning true iff signed `div a b` succeeds on `i128Val`.
+: @dc l8589984732
+pub v/b/canDiv i128Val/a i128Val/b
+    i128CanDiv /a /b.
+
+: Predicate returning true iff `a + b` does not overflow `u128Val`.
+: @dc l8589984733
+pub v/b/canAdd u128Val/a u128Val/b
+    u128CanAdd /a /b.
+
+: Predicate returning true iff `a - b` does not underflow `u128Val`.
+: @dc l8589984734
+pub v/b/canSub u128Val/a u128Val/b
+    u128CanSub /a /b.
+
+: Predicate returning true iff `a * b` does not overflow `u128Val`.
+: @dc l8589984735
+pub v/b/canMul u128Val/a u128Val/b
+    u128CanMul /a /b.
+
+: Predicate returning true iff `div a b` succeeds on `u128Val` (`b != 0`).
+: @dc l8589984736
+pub v/b/canDiv u128Val/a u128Val/b
+    u128CanDiv /a /b.
+
+: Predicate returning true iff `a + b` succeeds on `bigInt` (`true`).
+: @dc l8589984737
+pub v/b/canAdd bigInt/a bigInt/b
+    bigIntCanAdd /a /b.
+
+: Predicate returning true iff `a - b` succeeds on `bigInt` (`true`).
+: @dc l8589984738
+pub v/b/canSub bigInt/a bigInt/b
+    bigIntCanSub /a /b.
+
+: Predicate returning true iff `a * b` succeeds on `bigInt` (`true`).
+: @dc l8589984739
+pub v/b/canMul bigInt/a bigInt/b
+    bigIntCanMul /a /b.
+
+: Predicate returning true iff `div a b` succeeds on `bigInt` (`b != 0`).
+: @dc l8589984740
+pub v/b/canDiv bigInt/a bigInt/b
+    bigIntCanDiv /a /b.
+
+: Predicate returning true iff `a + b` succeeds on `ratVal` (`true`).
+: @dc l8589984741
+pub v/b/canAdd ratVal/a ratVal/b
+    ratCanAdd /a /b.
+
+: Predicate returning true iff `a - b` succeeds on `ratVal` (`true`).
+: @dc l8589984742
+pub v/b/canSub ratVal/a ratVal/b
+    ratCanSub /a /b.
+
+: Predicate returning true iff `a * b` succeeds on `ratVal` (`true`).
+: @dc l8589984743
+pub v/b/canMul ratVal/a ratVal/b
+    ratCanMul /a /b.
+
+: Predicate returning true iff `div a b` succeeds on `ratVal` (`b != 0`).
+: @dc l8589984744
+pub v/b/canDiv ratVal/a ratVal/b
+    ratCanDiv /a /b.
+
+: ---------------------------------------------------------------------------
+: Total relational comparisons (`eq`, `ne`, `lt`, `le`, `gt`, `ge`)
+: ---------------------------------------------------------------------------
+
+: @dc l8589984745
+pub v/b/eq u8/a u8/b
+    eq /a /b.
+: @dc l8589984746
+pub v/b/ne u8/a u8/b
+    ne /a /b.
+: @dc l8589984747
+pub v/b/lt u8/a u8/b
+    lt /a /b.
+: @dc l8589984748
+pub v/b/le u8/a u8/b
+    le /a /b.
+: @dc l8589984749
+pub v/b/gt u8/a u8/b
+    gt /a /b.
+: @dc l8589984750
+pub v/b/ge u8/a u8/b
+    ge /a /b.
+
+: @dc l8589984751
+pub v/b/eq i32/a i32/b
+    eq /a /b.
+: @dc l8589984752
+pub v/b/ne i32/a i32/b
+    ne /a /b.
+: @dc l8589984753
+pub v/b/lt i32/a i32/b
+    lt /a /b.
+: @dc l8589984754
+pub v/b/le i32/a i32/b
+    le /a /b.
+: @dc l8589984755
+pub v/b/gt i32/a i32/b
+    gt /a /b.
+: @dc l8589984756
+pub v/b/ge i32/a i32/b
+    ge /a /b.
+
+: @dc l8589984757
+pub v/b/eq u32/a u32/b
+    eq /a /b.
+: @dc l8589984758
+pub v/b/ne u32/a u32/b
+    ne /a /b.
+: @dc l8589984759
+pub v/b/lt u32/a u32/b
+    lt /a /b.
+: @dc l8589984760
+pub v/b/le u32/a u32/b
+    le /a /b.
+: @dc l8589984761
+pub v/b/gt u32/a u32/b
+    gt /a /b.
+: @dc l8589984762
+pub v/b/ge u32/a u32/b
+    ge /a /b.
+
+: @dc l8589984763
+pub v/b/eq i64/a i64/b
+    eq /a /b.
+: @dc l8589984764
+pub v/b/ne i64/a i64/b
+    ne /a /b.
+: @dc l8589984765
+pub v/b/lt i64/a i64/b
+    lt /a /b.
+: @dc l8589984766
+pub v/b/le i64/a i64/b
+    le /a /b.
+: @dc l8589984767
+pub v/b/gt i64/a i64/b
+    gt /a /b.
+: @dc l8589984768
+pub v/b/ge i64/a i64/b
+    ge /a /b.
+
+: @dc l8589984769
+pub v/b/eq u64/a u64/b
+    eq /a /b.
+: @dc l8589984770
+pub v/b/ne u64/a u64/b
+    ne /a /b.
+: @dc l8589984771
+pub v/b/lt u64/a u64/b
+    lt /a /b.
+: @dc l8589984772
+pub v/b/le u64/a u64/b
+    le /a /b.
+: @dc l8589984773
+pub v/b/gt u64/a u64/b
+    gt /a /b.
+: @dc l8589984774
+pub v/b/ge u64/a u64/b
+    ge /a /b.
+
+: @dc l8589984775
+pub v/b/eq i128Val/a i128Val/b
+    i128Eq /a /b.
+: @dc l8589984776
+pub v/b/ne i128Val/a i128Val/b
+    i128Ne /a /b.
+: @dc l8589984777
+pub v/b/lt i128Val/a i128Val/b
+    i128Lt /a /b.
+: @dc l8589984778
+pub v/b/le i128Val/a i128Val/b
+    i128Le /a /b.
+: @dc l8589984779
+pub v/b/gt i128Val/a i128Val/b
+    i128Gt /a /b.
+: @dc l8589984780
+pub v/b/ge i128Val/a i128Val/b
+    i128Ge /a /b.
+
+: @dc l8589984781
+pub v/b/eq u128Val/a u128Val/b
+    u128Eq /a /b.
+: @dc l8589984782
+pub v/b/ne u128Val/a u128Val/b
+    u128Ne /a /b.
+: @dc l8589984783
+pub v/b/lt u128Val/a u128Val/b
+    u128Lt /a /b.
+: @dc l8589984784
+pub v/b/le u128Val/a u128Val/b
+    u128Le /a /b.
+: @dc l8589984785
+pub v/b/gt u128Val/a u128Val/b
+    u128Gt /a /b.
+: @dc l8589984786
+pub v/b/ge u128Val/a u128Val/b
+    u128Ge /a /b.
+
+: @dc l8589984787
+pub v/b/eq bigInt/a bigInt/b
+    bigIntEq /a /b.
+: @dc l8589984788
+pub v/b/ne bigInt/a bigInt/b
+    bigIntNe /a /b.
+: @dc l8589984789
+pub v/b/lt bigInt/a bigInt/b
+    bigIntLt /a /b.
+: @dc l8589984790
+pub v/b/le bigInt/a bigInt/b
+    bigIntLe /a /b.
+: @dc l8589984791
+pub v/b/gt bigInt/a bigInt/b
+    bigIntGt /a /b.
+: @dc l8589984792
+pub v/b/ge bigInt/a bigInt/b
+    bigIntGe /a /b.
+
+: @dc l8589984793
+pub v/b/eq ratVal/a ratVal/b
+    ratEq /a /b.
+: @dc l8589984794
+pub v/b/ne ratVal/a ratVal/b
+    ratNe /a /b.
+: @dc l8589984795
+pub v/b/lt ratVal/a ratVal/b
+    ratLt /a /b.
+: @dc l8589984796
+pub v/b/le ratVal/a ratVal/b
+    ratLe /a /b.
+: @dc l8589984797
+pub v/b/gt ratVal/a ratVal/b
+    ratGt /a /b.
+: @dc l8589984798
+pub v/b/ge ratVal/a ratVal/b
+    ratGe /a /b.
+
+: ---------------------------------------------------------------------------
+: Total wrapping arithmetic (`wrapAdd`, `wrapSub`, `wrapMul`, signed `wrapNeg`)
+: ---------------------------------------------------------------------------
+
+: @dc l8589984799
+pub v/u8/wrapAdd u8/a u8/b
+    wrapAdd /a /b.
+: @dc l8589984800
+pub v/u8/wrapSub u8/a u8/b
+    wrapSub /a /b.
+: @dc l8589984801
+pub v/u8/wrapMul u8/a u8/b
+    wrapMul /a /b.
+
+: @dc l8589984802
+pub v/i32/wrapAdd i32/a i32/b
+    wrapAdd /a /b.
+: @dc l8589984803
+pub v/i32/wrapSub i32/a i32/b
+    wrapSub /a /b.
+: @dc l8589984804
+pub v/i32/wrapMul i32/a i32/b
+    wrapMul /a /b.
+: @dc l8589984805
+pub v/i32/wrapNeg i32/a
+    test
+        in i32:-2147483648
+        out i32:-2147483648.
+    wrapSub i32:0 /a.
+
+: @dc l8589984806
+pub v/u32/wrapAdd u32/a u32/b
+    wrapAdd /a /b.
+: @dc l8589984807
+pub v/u32/wrapSub u32/a u32/b
+    wrapSub /a /b.
+: @dc l8589984808
+pub v/u32/wrapMul u32/a u32/b
+    wrapMul /a /b.
+
+: @dc l8589984809
+pub v/i64/wrapAdd i64/a i64/b
+    wrapAdd /a /b.
+: @dc l8589984810
+pub v/i64/wrapSub i64/a i64/b
+    wrapSub /a /b.
+: @dc l8589984811
+pub v/i64/wrapMul i64/a i64/b
+    wrapMul /a /b.
+: @dc l8589984812
+pub v/i64/wrapNeg i64/a
+    test
+        in i64:-9223372036854775808
+        out i64:-9223372036854775808.
+    wrapSub i64:0 /a.
+
+: @dc l8589984813
+pub v/u64/wrapAdd u64/a u64/b
+    wrapAdd /a /b.
+: @dc l8589984814
+pub v/u64/wrapSub u64/a u64/b
+    wrapSub /a /b.
+: @dc l8589984815
+pub v/u64/wrapMul u64/a u64/b
+    wrapMul /a /b.
+
+: @dc l8589984816
+pub v/i128Val/wrapAdd i128Val/a i128Val/b
+    i128WrapAdd /a /b.
+: @dc l8589984817
+pub v/i128Val/wrapSub i128Val/a i128Val/b
+    i128WrapSub /a /b.
+: @dc l8589984818
+pub v/i128Val/wrapMul i128Val/a i128Val/b
+    i128WrapMul /a /b.
+: @dc l8589984819
+pub v/i128Val/wrapNeg i128Val/a
+    i128WrapNeg /a.
+
+: @dc l8589984820
+pub v/u128Val/wrapAdd u128Val/a u128Val/b
+    u128WrapAdd /a /b.
+: @dc l8589984821
+pub v/u128Val/wrapSub u128Val/a u128Val/b
+    u128WrapSub /a /b.
+: @dc l8589984822
+pub v/u128Val/wrapMul u128Val/a u128Val/b
+    u128WrapMul /a /b.
+
+: ---------------------------------------------------------------------------
+: Total bitwise & bit-count operations (and unsigned-only `rotl` / `rotr`)
+: ---------------------------------------------------------------------------
+
+: @dc l8589984823
+pub v/u8/bitAnd u8/a u8/b
+    bitAnd /a /b.
+: @dc l8589984824
+pub v/u8/bitOr u8/a u8/b
+    bitOr /a /b.
+: @dc l8589984825
+pub v/u8/bitXor u8/a u8/b
+    bitXor /a /b.
+: @dc l8589984826
+pub v/u8/bitNot u8/a
+    bitNot /a.
+: @dc l8589984827
+pub v/u8/rotl u8/a u32/cnt
+    rotl /a /cnt.
+: @dc l8589984828
+pub v/u8/rotr u8/a u32/cnt
+    rotr /a /cnt.
+: @dc l8589984829
+pub v/u32/clz u8/a
+    test
+        in u8:1
+        out u32:7.
+    clz /a.
+: @dc l8589984830
+pub v/u32/ctz u8/a
+    ctz /a.
+: @dc l8589984831
+pub v/u32/popcnt u8/a
+    popcnt /a.
+
+: @dc l8589984832
+pub v/i32/bitAnd i32/a i32/b
+    bitAnd /a /b.
+: @dc l8589984833
+pub v/i32/bitOr i32/a i32/b
+    bitOr /a /b.
+: @dc l8589984834
+pub v/i32/bitXor i32/a i32/b
+    bitXor /a /b.
+: @dc l8589984835
+pub v/i32/bitNot i32/a
+    bitNot /a.
+: @dc l8589984836
+pub v/u32/clz i32/a
+    clz /a.
+: @dc l8589984837
+pub v/u32/ctz i32/a
+    ctz /a.
+: @dc l8589984838
+pub v/u32/popcnt i32/a
+    popcnt /a.
+
+: @dc l8589984839
+pub v/u32/bitAnd u32/a u32/b
+    bitAnd /a /b.
+: @dc l8589984840
+pub v/u32/bitOr u32/a u32/b
+    bitOr /a /b.
+: @dc l8589984841
+pub v/u32/bitXor u32/a u32/b
+    bitXor /a /b.
+: @dc l8589984842
+pub v/u32/bitNot u32/a
+    bitNot /a.
+: @dc l8589984843
+pub v/u32/rotl u32/a u32/cnt
+    rotl /a /cnt.
+: @dc l8589984844
+pub v/u32/rotr u32/a u32/cnt
+    rotr /a /cnt.
+: @dc l8589984845
+pub v/u32/clz u32/a
+    clz /a.
+: @dc l8589984846
+pub v/u32/ctz u32/a
+    ctz /a.
+: @dc l8589984847
+pub v/u32/popcnt u32/a
+    popcnt /a.
+
+: @dc l8589984848
+pub v/i64/bitAnd i64/a i64/b
+    bitAnd /a /b.
+: @dc l8589984849
+pub v/i64/bitOr i64/a i64/b
+    bitOr /a /b.
+: @dc l8589984850
+pub v/i64/bitXor i64/a i64/b
+    bitXor /a /b.
+: @dc l8589984851
+pub v/i64/bitNot i64/a
+    bitNot /a.
+: @dc l8589984852
+pub v/u32/clz i64/a
+    clz /a.
+: @dc l8589984853
+pub v/u32/ctz i64/a
+    ctz /a.
+: @dc l8589984854
+pub v/u32/popcnt i64/a
+    popcnt /a.
+
+: @dc l8589984855
+pub v/u64/bitAnd u64/a u64/b
+    bitAnd /a /b.
+: @dc l8589984856
+pub v/u64/bitOr u64/a u64/b
+    bitOr /a /b.
+: @dc l8589984857
+pub v/u64/bitXor u64/a u64/b
+    bitXor /a /b.
+: @dc l8589984858
+pub v/u64/bitNot u64/a
+    bitNot /a.
+: @dc l8589984859
+pub v/u64/rotl u64/a u32/cnt
+    rotl /a /cnt.
+: @dc l8589984860
+pub v/u64/rotr u64/a u32/cnt
+    rotr /a /cnt.
+: @dc l8589984861
+pub v/u32/clz u64/a
+    clz /a.
+: @dc l8589984862
+pub v/u32/ctz u64/a
+    ctz /a.
+: @dc l8589984863
+pub v/u32/popcnt u64/a
+    popcnt /a.
+
+: @dc l8589984864
+pub v/i128Val/bitAnd i128Val/a i128Val/b
+    i128BitAnd /a /b.
+: @dc l8589984865
+pub v/i128Val/bitOr i128Val/a i128Val/b
+    i128BitOr /a /b.
+: @dc l8589984866
+pub v/i128Val/bitXor i128Val/a i128Val/b
+    i128BitXor /a /b.
+: @dc l8589984867
+pub v/i128Val/bitNot i128Val/a
+    i128BitNot /a.
+: @dc l8589984868
+pub v/u32/clz i128Val/a
+    i128Clz /a.
+: @dc l8589984869
+pub v/u32/ctz i128Val/a
+    i128Ctz /a.
+: @dc l8589984870
+pub v/u32/popcnt i128Val/a
+    i128Popcnt /a.
+
+: @dc l8589984871
+pub v/u128Val/bitAnd u128Val/a u128Val/b
+    u128BitAnd /a /b.
+: @dc l8589984872
+pub v/u128Val/bitOr u128Val/a u128Val/b
+    u128BitOr /a /b.
+: @dc l8589984873
+pub v/u128Val/bitXor u128Val/a u128Val/b
+    u128BitXor /a /b.
+: @dc l8589984874
+pub v/u128Val/bitNot u128Val/a
+    u128BitNot /a.
+: @dc l8589984875
+pub v/u128Val/rotl u128Val/a u32/cnt
+    u128Rotl /a /cnt.
+: @dc l8589984876
+pub v/u128Val/rotr u128Val/a u32/cnt
+    u128Rotr /a /cnt.
+: @dc l8589984877
+pub v/u32/clz u128Val/a
+    u128Clz /a.
+: @dc l8589984878
+pub v/u32/ctz u128Val/a
+    u128Ctz /a.
+: @dc l8589984879
+pub v/u32/popcnt u128Val/a
+    u128Popcnt /a.
+
+: ---------------------------------------------------------------------------
+: Total `bigInt` & `ratVal` arithmetic (`add`, `sub`, `mul`, `neg`)
+: ---------------------------------------------------------------------------
+
+: @dc l8589984880
+pub v/bigInt/add bigInt/a bigInt/b
+    test
+        in structNew bigInt: false l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:4 :: ::
+        out structNew bigInt: false l/u32: u32:7 :: ::.
+    bigIntAdd /a /b.
+
+: @dc l8589984881
+pub v/bigInt/sub bigInt/a bigInt/b
+    test
+        in structNew bigInt: false l/u32: u32:10 :: :: structNew bigInt: false l/u32: u32:3 :: ::
+        out structNew bigInt: false l/u32: u32:7 :: ::.
+    bigIntSub /a /b.
+
+: @dc l8589984882
+pub v/bigInt/mul bigInt/a bigInt/b
+    test
+        in structNew bigInt: false l/u32: u32:6 :: :: structNew bigInt: true l/u32: u32:7 :: ::
+        out structNew bigInt: true l/u32: u32:42 :: ::.
+    bigIntMul /a /b.
+
+: @dc l8589984883
+pub v/bigInt/neg bigInt/a
+    test
+        in structNew bigInt: false l/u32: u32:5 :: ::
+        out structNew bigInt: true l/u32: u32:5 :: ::.
+    bigIntNeg /a.
+
+: @dc l8589984884
+pub v/ratVal/add ratVal/a ratVal/b
+    test
+        in structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:6 :: :: :: structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:3 :: :: ::
+        out structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:2 :: :: ::.
+    ratAdd /a /b.
+
+: @dc l8589984885
+pub v/ratVal/sub ratVal/a ratVal/b
+    test
+        in structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:2 :: :: :: structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:3 :: :: ::
+        out structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:6 :: :: ::.
+    ratSub /a /b.
+
+: @dc l8589984886
+pub v/ratVal/mul ratVal/a ratVal/b
+    test
+        in structNew ratVal: structNew bigInt: true l/u32: u32:2 :: :: structNew bigInt: false l/u32: u32:3 :: :: :: structNew ratVal: structNew bigInt: false l/u32: u32:9 :: :: structNew bigInt: false l/u32: u32:4 :: :: ::
+        out structNew ratVal: structNew bigInt: true l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:2 :: :: ::.
+    ratMul /a /b.
+
+: @dc l8589984887
+pub v/ratVal/neg ratVal/a
+    test
+        in structNew ratVal: structNew bigInt: false l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:4 :: :: ::
+        out structNew ratVal: structNew bigInt: true l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:4 :: :: ::.
+    ratNeg /a.
+
+: ---------------------------------------------------------------------------
+: Checked StageL arithmetic & shift overloads (explicit `fault`, StageL-only)
+: ---------------------------------------------------------------------------
+
+: @dc l8589984888
+pub v/u8/add u8/lhs u8/rhs
+    test
+        in u8:10 u8:32
+        out u8:42.
+        in u8:255 u8:1
+        out fault.
+    if not canAdd /lhs /rhs fault add /lhs /rhs.
+
+: @dc l8589984889
+pub v/u8/sub u8/lhs u8/rhs
+    test
+        in u8:42 u8:10
+        out u8:32.
+        in u8:0 u8:1
+        out fault.
+    if not canSub /lhs /rhs fault sub /lhs /rhs.
+
+: @dc l8589984890
+pub v/u8/mul u8/lhs u8/rhs
+    test
+        in u8:6 u8:7
+        out u8:42.
+        in u8:16 u8:16
+        out fault.
+    if not canMul /lhs /rhs fault mul /lhs /rhs.
+
+: @dc l8589984891
+pub v/u8/div u8/lhs u8/rhs
+    test
+        in u8:43 u8:5
+        out u8:8.
+        in u8:1 u8:0
+        out fault.
+    if not canDiv /lhs /rhs fault div /lhs /rhs.
+
+: @dc l8589984892
+pub v/u8/rem u8/lhs u8/rhs
+    test
+        in u8:43 u8:5
+        out u8:3.
+        in u8:1 u8:0
+        out fault.
+    if not canDiv /lhs /rhs fault rem /lhs /rhs.
+
+: @dc l8589984893
+pub v/u8/truncRem u8/lhs u8/rhs
+    test
+        in u8:43 u8:5
+        out u8:3.
+        in u8:1 u8:0
+        out fault.
+    if eq /rhs u8:0 fault rem /lhs /rhs.
+
+: @dc l8589984894
+pub v/u8/mod u8/lhs u8/rhs
+    test
+        in u8:43 u8:5
+        out u8:3.
+        in u8:1 u8:0
+        out fault.
+    if eq /rhs u8:0 fault modStageLInternal /lhs /rhs.
+
+: @dc l8589984895
+pub v/u8/shl u8/lhs u32/cnt
+    test
+        in u8:1 u32:7
+        out u8:128.
+        in u8:1 u32:8
+        out fault.
+    if ge /cnt u32:8 fault shl /lhs /cnt.
+
+: @dc l8589984896
+pub v/u8/shr u8/lhs u32/cnt
+    test
+        in u8:128 u32:7
+        out u8:1.
+        in u8:1 u32:8
+        out fault.
+    if ge /cnt u32:8 fault shr /lhs /cnt.
+
+: @dc l8589984897
+pub v/i32/neg i32/a
+    test
+        in i32:5
+        out i32:-5.
+        in i32:-2147483648
+        out fault.
+    if not canNeg /a fault neg /a.
+
+: @dc l8589984898
+pub v/i32/add i32/lhs i32/rhs
+    test
+        in i32:10 i32:-3
+        out i32:7.
+        in i32:2147483647 i32:1
+        out fault.
+    if not canAdd /lhs /rhs fault add /lhs /rhs.
+
+: @dc l8589984899
+pub v/i32/sub i32/lhs i32/rhs
+    test
+        in i32:10 i32:3
+        out i32:7.
+        in i32:-2147483648 i32:1
+        out fault.
+    if not canSub /lhs /rhs fault sub /lhs /rhs.
+
+: @dc l8589984900
+pub v/i32/mul i32/lhs i32/rhs
+    test
+        in i32:-6 i32:-7
+        out i32:42.
+        in i32:-2147483648 i32:-1
+        out fault.
+    if not canMul /lhs /rhs fault mul /lhs /rhs.
+
+: @dc l8589984901
+pub v/i32/div i32/lhs i32/rhs
+    test
+        in i32:-7 i32:3
+        out i32:-2.
+        in i32:-2147483648 i32:-1
+        out fault.
+        in i32:1 i32:0
+        out fault.
+    if not canDiv /lhs /rhs fault div /lhs /rhs.
+
+: @dc l8589984902
+pub v/i32/rem i32/lhs i32/rhs
+    test
+        in i32:-7 i32:3
+        out i32:-1.
+        in i32:-2147483648 i32:-1
+        out fault.
+        in i32:1 i32:0
+        out fault.
+    if not canDiv /lhs /rhs fault rem /lhs /rhs.
+
+: @dc l8589984903
+pub v/i32/truncRem i32/lhs i32/rhs
+    test
+        in i32:-7 i32:3
+        out i32:-1.
+        in i32:-2147483648 i32:-1
+        out i32:0.
+        in i32:1 i32:0
+        out fault.
+    if eq /rhs i32:0
+        fault
+        if and eq /lhs /i32Min eq /rhs i32:-1
+            i32:0
+            rem /lhs /rhs.
+
+: @dc l8589984904
+pub v/i32/mod i32/lhs i32/rhs
+    test
+        in i32:-7 i32:3
+        out i32:2.
+        in i32:-2147483648 i32:-1
+        out i32:0.
+        in i32:1 i32:0
+        out fault.
+    if eq /rhs i32:0 fault modStageLInternal /lhs /rhs.
+
+: @dc l8589984905
+pub v/i32/shl i32/lhs u32/cnt
+    test
+        in i32:1 u32:30
+        out i32:1073741824.
+        in i32:1 u32:32
+        out fault.
+    if ge /cnt u32:32 fault shl /lhs /cnt.
+
+: @dc l8589984906
+pub v/i32/shr i32/lhs u32/cnt
+    test
+        in i32:-8 u32:2
+        out i32:-2.
+        in i32:1 u32:32
+        out fault.
+    if ge /cnt u32:32 fault shr /lhs /cnt.
+
+: @dc l8589984907
+pub v/u32/add u32/lhs u32/rhs
+    test
+        in u32:10 u32:32
+        out u32:42.
+        in u32:4294967295 u32:1
+        out fault.
+    if not canAdd /lhs /rhs fault add /lhs /rhs.
+
+: @dc l8589984908
+pub v/u32/sub u32/lhs u32/rhs
+    test
+        in u32:42 u32:10
+        out u32:32.
+        in u32:0 u32:1
+        out fault.
+    if not canSub /lhs /rhs fault sub /lhs /rhs.
+
+: @dc l8589984909
+pub v/u32/mul u32/lhs u32/rhs
+    test
+        in u32:6 u32:7
+        out u32:42.
+        in u32:65536 u32:65536
+        out fault.
+    if not canMul /lhs /rhs fault mul /lhs /rhs.
+
+: @dc l8589984910
+pub v/u32/div u32/lhs u32/rhs
+    test
+        in u32:43 u32:5
+        out u32:8.
+        in u32:1 u32:0
+        out fault.
+    if not canDiv /lhs /rhs fault div /lhs /rhs.
+
+: @dc l8589984911
+pub v/u32/rem u32/lhs u32/rhs
+    test
+        in u32:43 u32:5
+        out u32:3.
+        in u32:1 u32:0
+        out fault.
+    if not canDiv /lhs /rhs fault rem /lhs /rhs.
+
+: @dc l8589984912
+pub v/u32/truncRem u32/lhs u32/rhs
+    test
+        in u32:43 u32:5
+        out u32:3.
+        in u32:1 u32:0
+        out fault.
+    if eq /rhs u32:0 fault rem /lhs /rhs.
+
+: @dc l8589984913
+pub v/u32/mod u32/lhs u32/rhs
+    test
+        in u32:43 u32:5
+        out u32:3.
+        in u32:1 u32:0
+        out fault.
+    if eq /rhs u32:0 fault modStageLInternal /lhs /rhs.
+
+: @dc l8589984914
+pub v/u32/shl u32/lhs u32/cnt
+    test
+        in u32:1 u32:31
+        out u32:2147483648.
+        in u32:1 u32:32
+        out fault.
+    if ge /cnt u32:32 fault shl /lhs /cnt.
+
+: @dc l8589984915
+pub v/u32/shr u32/lhs u32/cnt
+    test
+        in u32:2147483648 u32:31
+        out u32:1.
+        in u32:1 u32:32
+        out fault.
+    if ge /cnt u32:32 fault shr /lhs /cnt.
+
+: @dc l8589984916
+pub v/i64/neg i64/a
+    test
+        in i64:5
+        out i64:-5.
+        in i64:-9223372036854775808
+        out fault.
+    if not canNeg /a fault neg /a.
+
+: @dc l8589984917
+pub v/i64/add i64/lhs i64/rhs
+    test
+        in i64:10 i64:-3
+        out i64:7.
+        in i64:9223372036854775807 i64:1
+        out fault.
+    if not canAdd /lhs /rhs fault add /lhs /rhs.
+
+: @dc l8589984918
+pub v/i64/sub i64/lhs i64/rhs
+    test
+        in i64:10 i64:3
+        out i64:7.
+        in i64:-9223372036854775808 i64:1
+        out fault.
+    if not canSub /lhs /rhs fault sub /lhs /rhs.
+
+: @dc l8589984919
+pub v/i64/mul i64/lhs i64/rhs
+    test
+        in i64:-6 i64:-7
+        out i64:42.
+        in i64:-9223372036854775808 i64:-1
+        out fault.
+    if not canMul /lhs /rhs fault mul /lhs /rhs.
+
+: @dc l8589984920
+pub v/i64/div i64/lhs i64/rhs
+    test
+        in i64:-7 i64:3
+        out i64:-2.
+        in i64:-9223372036854775808 i64:-1
+        out fault.
+        in i64:1 i64:0
+        out fault.
+    if not canDiv /lhs /rhs fault div /lhs /rhs.
+
+: @dc l8589984921
+pub v/i64/rem i64/lhs i64/rhs
+    test
+        in i64:-7 i64:3
+        out i64:-1.
+        in i64:-9223372036854775808 i64:-1
+        out fault.
+        in i64:1 i64:0
+        out fault.
+    if not canDiv /lhs /rhs fault rem /lhs /rhs.
+
+: @dc l8589984922
+pub v/i64/truncRem i64/lhs i64/rhs
+    test
+        in i64:-7 i64:3
+        out i64:-1.
+        in i64:-9223372036854775808 i64:-1
+        out i64:0.
+        in i64:1 i64:0
+        out fault.
+    if eq /rhs i64:0
+        fault
+        if and eq /lhs /i64Min eq /rhs i64:-1
+            i64:0
+            rem /lhs /rhs.
+
+: @dc l8589984923
+pub v/i64/mod i64/lhs i64/rhs
+    test
+        in i64:-7 i64:3
+        out i64:2.
+        in i64:-9223372036854775808 i64:-1
+        out i64:0.
+        in i64:1 i64:0
+        out fault.
+    if eq /rhs i64:0 fault modStageLInternal /lhs /rhs.
+
+: @dc l8589984924
+pub v/i64/shl i64/lhs u32/cnt
+    test
+        in i64:1 u32:62
+        out i64:4611686018427387904.
+        in i64:1 u32:64
+        out fault.
+    if ge /cnt u32:64 fault shl /lhs /cnt.
+
+: @dc l8589984925
+pub v/i64/shr i64/lhs u32/cnt
+    test
+        in i64:-8 u32:2
+        out i64:-2.
+        in i64:1 u32:64
+        out fault.
+    if ge /cnt u32:64 fault shr /lhs /cnt.
+
+: @dc l8589984926
+pub v/u64/add u64/lhs u64/rhs
+    test
+        in u64:10 u64:32
+        out u64:42.
+        in u64:18446744073709551615 u64:1
+        out fault.
+    if not canAdd /lhs /rhs fault add /lhs /rhs.
+
+: @dc l8589984927
+pub v/u64/sub u64/lhs u64/rhs
+    test
+        in u64:42 u64:10
+        out u64:32.
+        in u64:0 u64:1
+        out fault.
+    if not canSub /lhs /rhs fault sub /lhs /rhs.
+
+: @dc l8589984928
+pub v/u64/mul u64/lhs u64/rhs
+    test
+        in u64:6 u64:7
+        out u64:42.
+        in u64:4294967296 u64:4294967296
+        out fault.
+    if not canMul /lhs /rhs fault mul /lhs /rhs.
+
+: @dc l8589984929
+pub v/u64/div u64/lhs u64/rhs
+    test
+        in u64:43 u64:5
+        out u64:8.
+        in u64:1 u64:0
+        out fault.
+    if not canDiv /lhs /rhs fault div /lhs /rhs.
+
+: @dc l8589984930
+pub v/u64/rem u64/lhs u64/rhs
+    test
+        in u64:43 u64:5
+        out u64:3.
+        in u64:1 u64:0
+        out fault.
+    if not canDiv /lhs /rhs fault rem /lhs /rhs.
+
+: @dc l8589984931
+pub v/u64/truncRem u64/lhs u64/rhs
+    test
+        in u64:43 u64:5
+        out u64:3.
+        in u64:1 u64:0
+        out fault.
+    if eq /rhs u64:0 fault rem /lhs /rhs.
+
+: @dc l8589984932
+pub v/u64/mod u64/lhs u64/rhs
+    test
+        in u64:43 u64:5
+        out u64:3.
+        in u64:1 u64:0
+        out fault.
+    if eq /rhs u64:0 fault modStageLInternal /lhs /rhs.
+
+: @dc l8589984933
+pub v/u64/shl u64/lhs u32/cnt
+    test
+        in u64:1 u32:63
+        out u64:9223372036854775808.
+        in u64:1 u32:64
+        out fault.
+    if ge /cnt u32:64 fault shl /lhs /cnt.
+
+: @dc l8589984934
+pub v/u64/shr u64/lhs u32/cnt
+    test
+        in u64:9223372036854775808 u32:63
+        out u64:1.
+        in u64:1 u32:64
+        out fault.
+    if ge /cnt u32:64 fault shr /lhs /cnt.
+
+: @dc l8589984935
+pub v/i128Val/neg i128Val/a
+    test
+        in structNew i128Val: u64:5 u64:0 ::
+        out structNew i128Val: u64:18446744073709551611 u64:18446744073709551615 ::.
+        in structNew i128Val: u64:0 u64:9223372036854775808 ::
+        out fault.
+    const tup: b i128Val u8 ::/r i128TryNeg /a.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984936
+pub v/i128Val/add i128Val/a i128Val/b
+    test
+        in structNew i128Val: u64:10 u64:0 :: structNew i128Val: u64:18446744073709551613 u64:18446744073709551615 ::
+        out structNew i128Val: u64:7 u64:0 ::.
+        in structNew i128Val: u64:18446744073709551615 u64:9223372036854775807 :: structNew i128Val: u64:1 u64:0 ::
+        out fault.
+    const tup: b i128Val u8 ::/r i128TryAdd /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984937
+pub v/i128Val/sub i128Val/a i128Val/b
+    const tup: b i128Val u8 ::/r i128TrySub /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984938
+pub v/i128Val/mul i128Val/a i128Val/b
+    const tup: b i128Val u8 ::/r i128TryMul /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984939
+pub v/i128Val/div i128Val/a i128Val/b
+    test
+        in structNew i128Val: u64:18446744073709551609 u64:18446744073709551615 :: structNew i128Val: u64:3 u64:0 ::
+        out structNew i128Val: u64:18446744073709551614 u64:18446744073709551615 ::.
+        in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
+        out fault.
+    const tup: b i128Val u8 ::/r i128TryDiv /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984940
+pub v/i128Val/rem i128Val/a i128Val/b
+    test
+        in structNew i128Val: u64:18446744073709551609 u64:18446744073709551615 :: structNew i128Val: u64:3 u64:0 ::
+        out structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::.
+        in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
+        out fault.
+    if not i128CanDiv /a /b fault field i128TryTruncRem /a /b u32:1.
+
+: @dc l8589984941
+pub v/i128Val/truncRem i128Val/a i128Val/b
+    test
+        in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
+        out structNew i128Val: u64:0 u64:0 ::.
+        in structNew i128Val: u64:1 u64:0 :: structNew i128Val: u64:0 u64:0 ::
+        out fault.
+    const tup: b i128Val u8 ::/r i128TryTruncRem /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984942
+pub v/i128Val/mod i128Val/a i128Val/b
+    test
+        in structNew i128Val: u64:18446744073709551609 u64:18446744073709551615 :: structNew i128Val: u64:3 u64:0 ::
+        out structNew i128Val: u64:2 u64:0 ::.
+        in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
+        out structNew i128Val: u64:0 u64:0 ::.
+        in structNew i128Val: u64:1 u64:0 :: structNew i128Val: u64:0 u64:0 ::
+        out fault.
+    const tup: b i128Val u8 ::/r i128TryMod /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984943
+pub v/i128Val/shl i128Val/a u32/cnt
+    test
+        in structNew i128Val: u64:1 u64:0 :: u32:127
+        out structNew i128Val: u64:0 u64:9223372036854775808 ::.
+        in structNew i128Val: u64:1 u64:0 :: u32:128
+        out fault.
+    const tup: b i128Val u8 ::/r i128TryShl /a /cnt.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984944
+pub v/i128Val/shr i128Val/a u32/cnt
+    test
+        in structNew i128Val: u64:0 u64:9223372036854775808 :: u32:127
+        out structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::.
+        in structNew i128Val: u64:0 u64:9223372036854775808 :: u32:128
+        out fault.
+    const tup: b i128Val u8 ::/r i128TryShr /a /cnt.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984945
+pub v/u128Val/add u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:10 u64:0 :: structNew u128Val: u64:32 u64:0 ::
+        out structNew u128Val: u64:42 u64:0 ::.
+        in structNew u128Val: u64:18446744073709551615 u64:18446744073709551615 :: structNew u128Val: u64:1 u64:0 ::
+        out fault.
+    const tup: b u128Val u8 ::/r u128TryAdd /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984946
+pub v/u128Val/sub u128Val/a u128Val/b
+    const tup: b u128Val u8 ::/r u128TrySub /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984947
+pub v/u128Val/mul u128Val/a u128Val/b
+    const tup: b u128Val u8 ::/r u128TryMul /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984948
+pub v/u128Val/div u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:43 u64:0 :: structNew u128Val: u64:5 u64:0 ::
+        out structNew u128Val: u64:8 u64:0 ::.
+        in structNew u128Val: u64:1 u64:0 :: structNew u128Val: u64:0 u64:0 ::
+        out fault.
+    const tup: b u128Val u8 ::/r u128TryDiv /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984949
+pub v/u128Val/rem u128Val/a u128Val/b
+    const tup: b u128Val u8 ::/r u128TryMod /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984950
+pub v/u128Val/truncRem u128Val/a u128Val/b
+    const tup: b u128Val u8 ::/r u128TryMod /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984951
+pub v/u128Val/mod u128Val/a u128Val/b
+    test
+        in structNew u128Val: u64:43 u64:0 :: structNew u128Val: u64:5 u64:0 ::
+        out structNew u128Val: u64:3 u64:0 ::.
+        in structNew u128Val: u64:1 u64:0 :: structNew u128Val: u64:0 u64:0 ::
+        out fault.
+    const tup: b u128Val u8 ::/r u128TryMod /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984952
+pub v/u128Val/shl u128Val/a u32/cnt
+    test
+        in structNew u128Val: u64:3 u64:0 :: u32:64
+        out structNew u128Val: u64:0 u64:3 ::.
+        in structNew u128Val: u64:1 u64:0 :: u32:128
+        out fault.
+    const tup: b u128Val u8 ::/r u128TryShl /a /cnt.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984953
+pub v/u128Val/shr u128Val/a u32/cnt
+    const tup: b u128Val u8 ::/r u128TryShr /a /cnt.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984954
+pub v/bigInt/div bigInt/a bigInt/b
+    test
+        in structNew bigInt: true l/u32: u32:7 :: :: structNew bigInt: false l/u32: u32:3 :: ::
+        out structNew bigInt: true l/u32: u32:2 :: ::.
+        in structNew bigInt: false l/u32: u32:5 :: :: structNew bigInt: false l/u32: :: ::
+        out fault.
+    const tup: b bigInt u8 ::/r bigIntTryDiv /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984955
+pub v/bigInt/rem bigInt/a bigInt/b
+    const tup: b bigInt u8 ::/r bigIntTryTruncRem /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984956
+pub v/bigInt/truncRem bigInt/a bigInt/b
+    const tup: b bigInt u8 ::/r bigIntTryTruncRem /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984957
+pub v/bigInt/mod bigInt/a bigInt/b
+    test
+        in structNew bigInt: true l/u32: u32:7 :: :: structNew bigInt: false l/u32: u32:3 :: ::
+        out structNew bigInt: false l/u32: u32:2 :: ::.
+        in structNew bigInt: false l/u32: u32:5 :: :: structNew bigInt: false l/u32: :: ::
+        out fault.
+    const tup: b bigInt u8 ::/r bigIntTryMod /a /b.
+    if not field /r u32:0 fault field /r u32:1.
+
+: @dc l8589984958
+pub v/ratVal/div ratVal/a ratVal/b
+    test
+        in structNew ratVal: structNew bigInt: false l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:4 :: :: :: structNew ratVal: structNew bigInt: false l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:2 :: :: ::
+        out structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:2 :: :: ::.
+        in structNew ratVal: structNew bigInt: false l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:4 :: :: :: structNew ratVal: structNew bigInt: false l/u32: :: :: structNew bigInt: false l/u32: u32:1 :: :: ::
+        out fault.
+    const tup: b ratVal u8 ::/r ratTryDiv /a /b.
+    if not field /r u32:0 fault field /r u32:1.

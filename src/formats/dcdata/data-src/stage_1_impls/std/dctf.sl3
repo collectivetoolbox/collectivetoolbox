@@ -18,7 +18,7 @@
 
 : Stage 1 canonical `DcTF` (`f641`) wire codec and high-level Token-Dc stream reader/builder helpers.
 ns std/dctf.
-use std/u128: u128Val u128Zero u128New u128FromU64 u128Lt u128Ge u128BitOr u128ShlRaw u128ShrRaw u128Clz ::.
+use std/u128: u128Val u128Zero u128New from as u128FromU64 lt as u128Lt ge as u128Ge bitOr as u128BitOr u128ShlRaw u128ShrRaw clz as u128Clz ::.
 
 : 128-bit Document Character scalar: slot 0 = `lo` (`u64`), slot 1 = `hi` (`u64`).
 : @dc l8589980641

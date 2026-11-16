@@ -26,7 +26,7 @@ use std/dctf:
     readAtomDc readIdentBytes readEscapedLiteral readNumberRaw digitsToU128 readBinaryBytes
     tokAtomDc tokOptAtomDc tokIdent tokEscapedLiteral tokDcNumberU64 tokTypedU64 tokTypedNumberU128 tokBinaryBytes
 ::.
-use std/u128: u128Val u128New u128Le ::.
+use std/u128: u128Val u128New le as u128Le ::.
 use std/bigint: bigInt intFromBase64Digits ::.
 
 : ---------------------------------------------------------------------------
@@ -1557,6 +1557,155 @@ v/u64/skipStageLRoutineFromOpen l/dcVal/tokens u64/pos
     ::.
     /cur.
 
+: Scans a StageL 3 routine tail starting right after its `Dc 2205` param list through
+: its matching `Dc 2204`, recording direct `fault` (`Dc 2454`) and `Dc 2211` call targets
+: outside `Dc 2206 .. Dc 2207` test blocks (`aux = 1` if direct `fault`, `args` = `symRef` nodes).
+: @dc l8589984966
+v/tup: exprNode u64 ::/scanStageLRoutineTail l/dcVal/tokens u64/posAfterParams
+    let u64/cur /posAfterParams.
+    let u64/depth u64:1.
+    let u64/testDepth u64:0.
+    let b/hasFault false.
+    const buf/exprNode/calls bufNew exprNode u64:8.
+    while gt /depth u64:0 do
+        set /cur skipComments /tokens /cur.
+        if ge /cur len /tokens fault nop.
+        const u32/sid dcShortId get /tokens /cur.
+        if eq /sid u32:255
+            set /cur add /cur u64:2
+            if eq /sid u32:270
+                do
+                    const tup: l/u8 u64 ::/ir mustReadIdent /tokens /cur.
+                    set /cur field /ir u32:1.
+                ::
+                if eq /sid u32:260
+                    do
+                        const tup: b dcVal l/dcVal u64 ::/lit readEscapedLiteral /tokens /cur.
+                        if not field /lit u32:0 fault nop.
+                        set /cur field /lit u32:3.
+                    ::
+                    if eq /sid u32:203
+                        do
+                            const tup: b l/u8 u64 ::/br readBinaryBytes /tokens /cur.
+                            if not field /br u32:0 fault nop.
+                            set /cur field /br u32:2.
+                        ::
+                        if eq /sid u32:6
+                            do
+                                const tup: b u32 b l/u8 u64 ::/nr readNumberRaw /tokens /cur.
+                                if not field /nr u32:0 fault nop.
+                                set /cur field /nr u32:4.
+                            ::
+                            if eq /sid u32:2206
+                                do
+                                    set /testDepth add /testDepth u64:1.
+                                    set /cur add /cur u64:1.
+                                ::
+                                if eq /sid u32:2207
+                                    do
+                                        if eq /testDepth u64:0 fault nop.
+                                        set /testDepth sub /testDepth u64:1.
+                                        set /cur add /cur u64:1.
+                                    ::
+                                    if eq /sid u32:2203
+                                        do
+                                            set /depth add /depth u64:1.
+                                            set /cur add /cur u64:1.
+                                        ::
+                                        if eq /sid u32:2204
+                                            do
+                                                set /depth sub /depth u64:1.
+                                                set /cur add /cur u64:1.
+                                            ::
+                                            do
+                                                if eq /testDepth u64:0
+                                                    do
+                                                        if eq /sid u32:2454
+                                                            do
+                                                                set /hasFault true.
+                                                                set /cur add /cur u64:1.
+                                                            ::
+                                                            if eq /sid u32:2211
+                                                                do
+                                                                    const tup: symRef u64 ::/sr readSymRef /tokens add /cur u64:1.
+                                                                    bufPush /calls makeExpr u8:16 u32:0 dcZero b"" l/dcVal: :: field /sr u32:0 l/rawType: :: l/exprNode: :: l/fieldInit: :: l/matchArm: :: l/rawRoutine: ::.
+                                                                    set /cur field /sr u32:1.
+                                                                ::
+                                                                set /cur add /cur u64:1.
+                                                    ::
+                                                    set /cur add /cur u64:1.
+                                            ::.
+    ::.
+    const u32/faultAux if /hasFault u32:1 u32:0.
+    const exprNode/scanSummary makeExpr u8:0 /faultAux dcZero b"" l/dcVal: :: emptySym l/rawType: :: bufFreeze /calls l/fieldInit: :: l/matchArm: :: l/rawRoutine: ::.
+    tupNew: /scanSummary /cur ::.
+
+: Bridges Stage 1 carrier structs (`std/i128:i128Val`, `std/u128:u128Val`, `std/bigint:bigInt`,
+: `std/rat:ratVal`, `std/dctf:dcVal`) to StageR 3 scalar primitives, recursing in `l/T` and `tup`.
+: @dc l8589984967
+v/rType/bridgeS1TypeForSr l/l/u8/nsKeysList l/s1StructDef/s1List rType/ty
+    const u8/k field /ty u32:0.
+    if eq /k u8:21
+        do
+            const s1StructDef/sd get /s1List conv field /ty u32:1 u64.
+            const l/u8/nsKey get /nsKeysList conv field /sd u32:0 u64.
+            const l/u8/sname field /sd u32:3.
+            if and eq /nsKey b"std//i128" eq /sname b"i128Val"
+                return primType u8:8
+                nop.
+            if and eq /nsKey b"std//u128" eq /sname b"u128Val"
+                return primType u8:9
+                nop.
+            if and eq /nsKey b"std//bigint" eq /sname b"bigInt"
+                return primType u8:10
+                nop.
+            if and eq /nsKey b"std//rat" eq /sname b"ratVal"
+                return primType u8:11
+                nop.
+            if and eq /nsKey b"std//dctf" eq /sname b"dcVal"
+                return primType u8:12
+                nop.
+            return /ty.
+        ::
+        nop.
+    if eq /k u8:16
+        return structNew rType: u8:16 u32:0 l/rType: bridgeS1TypeForSr /nsKeysList /s1List get field /ty u32:2 u64:0 :: ::
+        nop.
+    if eq /k u8:18
+        do
+            const l/rType/subs field /ty u32:2.
+            const buf/rType/mapped bufNew rType len /subs.
+            foreach rType/sub /subs do
+                bufPush /mapped bridgeS1TypeForSr /nsKeysList /s1List /sub.
+            ::.
+            return structNew rType: u8:18 u32:0 bufFreeze /mapped ::.
+        ::
+        nop.
+    /ty.
+
+: Returns true iff `name` ends with ASCII case-insensitive `"StageLInternal"`.
+: @dc l8589984968
+v/b/endsWithStageLInternal l/u8/name
+    const l/u8/suf b"stagelinternal".
+    const u64/slen len /suf.
+    const u64/nlen len /name.
+    if lt /nlen /slen
+        return false
+        nop.
+    const u64/off sub /nlen /slen.
+    let u64/i u64:0.
+    while lt /i /slen do
+        let u8/b get /name add /off /i.
+        if and ge /b u8:65 le /b u8:90
+            set /b add /b u8:32
+            nop.
+        if ne /b get /suf /i
+            return false
+            nop.
+        set /i add /i u64:1.
+    ::.
+    true.
+
 : Parses module header (`ns` + `use`s) shared by StageL (`Dc 2192`) and StageR (`Dc 2221`).
 : @dc l8589983054
 v/tup: b l/l/dcVal l/u8 l/useItem u64 ::/readModHeader l/dcVal/tokens u64/posAfterOpen
@@ -1691,8 +1840,9 @@ v/tup: parsedMod u64 ::/parseStage1Module l/dcVal/tokens u64/startPos
                                     ::
                                     set /pdone true.
                             ::.
-                            set /cur skipStageLRoutineFromOpen /tokens /cur.
-                            bufPush /routs structNew rawRoutine: field /pr u32:0 field /odr u32:0 field /rtr u32:0 field /nr u32:0 bufFreeze /params l/testCase: :: nopExpr ::.
+                            const tup: exprNode u64 ::/scanRes scanStageLRoutineTail /tokens /pcur.
+                            set /cur field /scanRes u32:1.
+                            bufPush /routs structNew rawRoutine: field /pr u32:0 field /odr u32:0 field /rtr u32:0 field /nr u32:0 bufFreeze /params l/testCase: :: field /scanRes u32:0 ::.
                         ::
                         fault.
     ::.
@@ -2869,6 +3019,8 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
     : Register top-level constants and routines (with StageL overload disambiguation).
     const buf/valDef/vFull bufNew valDef u64:16.
     const buf/routDef/rFull bufNew routDef u64:32.
+    const buf/b/s1Fault bufNew b u64:32.
+    const buf/l/exprNode/s1Calls bufNew l/exprNode u64:32.
 
     set /mi u64:0.
     while lt /mi /mCount do
@@ -2878,8 +3030,9 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
         const modScope/tScope structNew modScope: /mIdx get /typeAliasLists /mi l/synthImport: :: ::.
 
         foreach rawConst/rc field /pm u32:11 do
-            const rType/cty canonType /typedEnv /tScope /isSr field /rc u32:2.
-            if and /isSr eq field /cty u32:0 u8:17 fault nop.
+            const rType/rawCty canonType /typedEnv /tScope /isSr field /rc u32:2.
+            if and /isSr eq field /rawCty u32:0 u8:17 fault nop.
+            const rType/cty if /isSr /rawCty bridgeS1TypeForSr /nsKeysList /s1List /rawCty.
             bufPush /vFull structNew valDef: /mIdx field /rc u32:0 field /rc u32:1 field /rc u32:3 /cty ::.
         ::.
 
@@ -2887,12 +3040,14 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
         const l/rawRoutine/rrouts field /pm u32:12.
         while lt /ri len /rrouts do
             const rawRoutine/rr get /rrouts /ri.
-            const rType/retTy canonType /typedEnv /tScope /isSr field /rr u32:2.
-            if and /isSr eq field /retTy u32:0 u8:17 fault nop.
+            const rType/rawRet canonType /typedEnv /tScope /isSr field /rr u32:2.
+            if and /isSr eq field /rawRet u32:0 u8:17 fault nop.
+            const rType/retTy if /isSr /rawRet bridgeS1TypeForSr /nsKeysList /s1List /rawRet.
             const buf/rType/ptys bufNew rType len field /rr u32:4.
             foreach paramDecl/pd field /rr u32:4 do
-                const rType/pty canonType /typedEnv /tScope /isSr field /pd u32:0.
-                if and /isSr eq field /pty u32:0 u8:17 fault nop.
+                const rType/rawPty canonType /typedEnv /tScope /isSr field /pd u32:0.
+                if and /isSr eq field /rawPty u32:0 u8:17 fault nop.
+                const rType/pty if /isSr /rawPty bridgeS1TypeForSr /nsKeysList /s1List /rawPty.
                 bufPush /ptys /pty.
             ::.
             const l/rType/pList bufFreeze /ptys.
@@ -2917,13 +3072,135 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
             bufPush /rFull structNew routDef:
                 /mIdx field /rr u32:0 field /rr u32:1 /origName /emitName /retTy /pList
             ::.
+            const exprNode/rBody field /rr u32:6.
+            const b/initFault if /isSr false or ne field /rBody u32:1 u32:0 endsWithStageLInternal /origName.
+            bufPush /s1Fault /initFault.
+            bufPush /s1Calls if /isSr l/exprNode: :: field /rBody u32:7.
             set /ri add /ri u64:1.
         ::.
         set /mi add /mi u64:1.
     ::.
 
     const l/valDef/vList bufFreeze /vFull.
-    const l/routDef/rList bufFreeze /rFull.
+    const l/routDef/rRawList bufFreeze /rFull.
+    const u64/rCount len /rRawList.
+    let b/mfChanged true.
+    while /mfChanged do
+        set /mfChanged false.
+        let u64/rci u64:0.
+        while lt /rci /rCount do
+            const routDef/caller get /rRawList /rci.
+            const u32/cMod field /caller u32:0.
+            if and not get /isSrList conv /cMod u64 not get /s1Fault /rci
+                do
+                    const parsedMod/cpm get /mods conv /cMod u64.
+                    const l/exprNode/calls get /s1Calls /rci.
+                    let b/hitsFault false.
+                    foreach exprNode/ce /calls do
+                        const symRef/csym field /ce u32:5.
+                        if field /csym u32:0
+                            do
+                                const dcVal/tdc field /csym u32:1.
+                                let u64/rk1 u64:0.
+                                while lt /rk1 /rCount do
+                                    const routDef/cand1 get /rRawList /rk1.
+                                    const tup: b dcVal ::/cod1 field /cand1 u32:2.
+                                    if and not get /isSrList conv field /cand1 u32:0 u64 and field /cod1 u32:0 eq field /cod1 u32:1 /tdc
+                                        if get /s1Fault /rk1 set /hitsFault true nop
+                                        nop.
+                                    set /rk1 add /rk1 u64:1.
+                                ::.
+                            ::
+                            do
+                                const l/u8/cname field /csym u32:2.
+                                let u64/rk2 u64:0.
+                                while lt /rk2 /rCount do
+                                    const routDef/cand2 get /rRawList /rk2.
+                                    if and eq field /cand2 u32:0 /cMod eq field /cand2 u32:3 /cname
+                                        if get /s1Fault /rk2 set /hitsFault true nop
+                                        nop.
+                                    set /rk2 add /rk2 u64:1.
+                                ::.
+                                foreach useItem/ui field /cpm u32:6 do
+                                    const l/u8/depKey field /ui u32:1.
+                                    let b/foundDep false.
+                                    let u32/depMod u32:0.
+                                    let u64/di u64:0.
+                                    while lt /di conv /cMod u64 do
+                                        const parsedMod/dpm get /mods /di.
+                                        if and field /dpm u32:3 eq field /dpm u32:5 /depKey
+                                            do
+                                                set /foundDep true.
+                                                set /depMod conv /di u32.
+                                            ::
+                                            nop.
+                                        set /di add /di u64:1.
+                                    ::.
+                                    if /foundDep
+                                        do
+                                            const symRef/ts field /ui u32:2.
+                                            const l/u8/alRaw field /ui u32:3.
+                                            if field /ts u32:0
+                                                do
+                                                    if and gt len /alRaw u64:0 eq /alRaw /cname
+                                                        do
+                                                            const dcVal/tdc2 field /ts u32:1.
+                                                            let u64/rk3 u64:0.
+                                                            while lt /rk3 /rCount do
+                                                                const routDef/cand3 get /rRawList /rk3.
+                                                                const tup: b dcVal ::/cod3 field /cand3 u32:2.
+                                                                if and eq field /cand3 u32:0 /depMod and field /cand3 u32:1 and field /cod3 u32:0 eq field /cod3 u32:1 /tdc2
+                                                                    if get /s1Fault /rk3 set /hitsFault true nop
+                                                                    nop.
+                                                                set /rk3 add /rk3 u64:1.
+                                                            ::.
+                                                        ::
+                                                        nop.
+                                                ::
+                                                do
+                                                    const l/u8/orig field /ts u32:2.
+                                                    const l/u8/localName if eq len /alRaw u64:0 /orig /alRaw.
+                                                    if eq /localName /cname
+                                                        do
+                                                            let u64/rk4 u64:0.
+                                                            while lt /rk4 /rCount do
+                                                                const routDef/cand4 get /rRawList /rk4.
+                                                                if and eq field /cand4 u32:0 /depMod and field /cand4 u32:1 eq field /cand4 u32:3 /orig
+                                                                    if get /s1Fault /rk4 set /hitsFault true nop
+                                                                    nop.
+                                                                set /rk4 add /rk4 u64:1.
+                                                            ::.
+                                                        ::
+                                                        nop.
+                                                ::.
+                                        ::
+                                        nop.
+                                ::.
+                            ::.
+                    ::.
+                    if /hitsFault
+                        do
+                            bufSet /s1Fault /rci true.
+                            set /mfChanged true.
+                        ::
+                        nop.
+                ::
+                nop.
+            set /rci add /rci u64:1.
+        ::.
+    ::.
+
+    const buf/routDef/rFinal bufNew routDef /rCount.
+    let u64/rfi u64:0.
+    while lt /rfi /rCount do
+        const routDef/curRd get /rRawList /rfi.
+        const l/u8/finalEmit if and not get /isSrList conv field /curRd u32:0 u64 get /s1Fault /rfi b"" field /curRd u32:4.
+        bufPush /rFinal structNew routDef:
+            field /curRd u32:0 field /curRd u32:1 field /curRd u32:2 field /curRd u32:3 /finalEmit field /curRd u32:5 field /curRd u32:6
+        ::.
+        set /rfi add /rfi u64:1.
+    ::.
+    const l/routDef/rList bufFreeze /rFinal.
 
     : Build complete per-module `modScope` with type + value + routine aliases.
     const buf/modScope/scopesBuf bufNew modScope /mCount.
@@ -3119,6 +3396,7 @@ v/tup: b u32 rType ::/resolveCallTarget compEnv/env modScope/mScope fnCtx/fctx s
                 const tup: b dcVal ::/od field /rd u32:2.
                 if and field /od u32:0 eq field /od u32:1 /tdc
                     do
+                        if eq len field /rd u32:4 u64:0 fault nop.
                         if not paramsMatchArgs field /rd u32:6 /argTys fault nop.
                         return tupNew: false conv /i u32 field /rd u32:5 ::.
                     ::
@@ -3176,6 +3454,7 @@ v/tup: b u32 rType ::/resolveCallTarget compEnv/env modScope/mScope fnCtx/fctx s
                     nop.
             ::.
             if ne /matchCount u32:1 fault nop.
+            if eq len field get /rs conv /matchedIdx u64 u32:4 u64:0 fault nop.
             tupNew: false /matchedIdx /matchedRet ::.
         ::.
 
@@ -5065,11 +5344,19 @@ v/void/lowerExpr buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfN
                     const l/u8/origName field /rd u32:3.
                     const l/u8/emitName field /rd u32:4.
                     if field /sym u32:0
-                        emitAtom /out field /sym u32:1
+                        do
+                            if ne /defMod field /mScope u32:0
+                                recordCrossDcImport /crossDcs /uses get field /env u32:1 conv /defMod u64 field /sym u32:1
+                                nop.
+                            emitAtom /out field /sym u32:1.
+                        ::
                         if eq /defMod field /mScope u32:0
                             emitIdent /out /emitName
                             if field /optDc u32:0
-                                emitAtom /out field /optDc u32:1
+                                do
+                                    recordCrossDcImport /crossDcs /uses get field /env u32:1 conv /defMod u64 field /optDc u32:1.
+                                    emitAtom /out field /optDc u32:1.
+                                ::
                                 if eq /emitName /origName
                                     emitIdent /out field /sym u32:2
                                     do

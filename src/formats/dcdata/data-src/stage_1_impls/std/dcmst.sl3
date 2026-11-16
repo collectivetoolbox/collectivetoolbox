@@ -21,7 +21,7 @@
 ns std/dcmst.
 use std/u128: errInvalidEncoding ::.
 use std/dctf: dcVal dcShort dcShortId dcIsValid lenDctf ::.
-use std/dcs: dcsImplode ::.
+use std/dcs: implode as dcsImplode ::.
 
 : Returns true iff `c` is a Base64 encapsulation digit (`Dc 127..=190`) or padding (`Dc 195`).
 : @dc l8589982132
@@ -76,7 +76,7 @@ v/tup: u64 u64 ::/measureBinaryFrame l/dcVal/chars u64/start
 
 : Computes `byteLen` of a validated mixed-mode `s` (`DcMst`) `l/dcVal` sequence.
 : @dc l8589982134
-pub v/u64/dcmstByteLen l/dcVal/chars
+pub v/u64/byteLen l/dcVal/chars
     test
         in l/dcVal: ::
         out u64:0.
@@ -117,7 +117,7 @@ pub v/u64/dcmstByteLen l/dcVal/chars
 : Total `dcsFromS` conversion (`l/dcVal -> tup: b l/dcVal u8 ::`), returning `errInvalidEncoding` (`u8:4`)
 : when unescaped binary encapsulation markers (`Dc 203`/`Dc 204`), trailing escapes, or surrogates appear.
 : @dc l8589982135
-pub v/tup: b l/dcVal u8 ::/dcmstToDcs l/dcVal/chars
+pub v/tup: b l/dcVal u8 ::/tryDcsFromS l/dcVal/chars
     test
         in l/dcVal: structNew dcVal: u64:104 u64:0 :: structNew dcVal: u64:1114367 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: ::
         out tupNew: true l/dcVal: structNew dcVal: u64:104 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: :: u8:0 ::.
@@ -156,7 +156,7 @@ pub v/tup: b l/dcVal u8 ::/dcmstToDcs l/dcVal/chars
 
 : Infallible `sFromDcs` widening (`l/dcVal -> l/dcVal`), escaping `Dc 255`, `Dc 203`, and `Dc 204` with `Dc 255`.
 : @dc l8589982136
-pub v/l/dcVal/dcmstFromDcs l/dcVal/chars
+pub v/l/dcVal/sFromDcs l/dcVal/chars
     test
         in l/dcVal: structNew dcVal: u64:97 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: structNew dcVal: u64:1114367 u64:0 :: ::
         out l/dcVal: structNew dcVal: u64:97 u64:0 :: structNew dcVal: u64:1114367 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: structNew dcVal: u64:1114367 u64:0 :: structNew dcVal: u64:1114367 u64:0 :: ::.
@@ -219,7 +219,7 @@ v/l/dcVal/flattenUnits l/l/dcVal/units u64/start u64/end
 : Splits `input` around non-overlapping occurrences of `sep` (`explode` on `s`), never splitting inside
 : a `Dc 255` escape pair or `Dc 203..Dc 204` binary encapsulation frame.
 : @dc l8589982139
-pub v/l/l/dcVal/dcmstExplode l/dcVal/sep l/dcVal/input
+pub v/l/l/dcVal/explode l/dcVal/sep l/dcVal/input
     test
         in l/dcVal: :: l/dcVal: structNew dcVal: u64:97 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114316 u64:0 :: ::
         out l/l/dcVal: l/dcVal: structNew dcVal: u64:97 u64:0 :: :: l/dcVal: structNew dcVal: u64:1114315 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114316 u64:0 :: :: ::.
@@ -268,5 +268,19 @@ pub v/l/l/dcVal/dcmstExplode l/dcVal/sep l/dcVal/input
 
 : Concatenates `parts` interspersed with `sep` (`implode` on `s`).
 : @dc l8589982140
-pub v/l/dcVal/dcmstImplode l/dcVal/sep l/l/dcVal/parts
+pub v/l/dcVal/implode l/dcVal/sep l/l/dcVal/parts
     dcsImplode /sep /parts.
+
+: Checked StageL `dcsFromS` conversion (`l/dcVal -> l/dcVal`), faulting when unescaped binary
+: encapsulation markers (`Dc 203`/`Dc 204`), trailing escapes, or surrogates appear.
+: @dc l8589984707
+pub v/l/dcVal/dcsFromS l/dcVal/chars
+    test
+        in l/dcVal: structNew dcVal: u64:104 u64:0 :: structNew dcVal: u64:1114367 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: ::
+        out l/dcVal: structNew dcVal: u64:104 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: ::.
+        in l/dcVal: structNew dcVal: u64:1114315 u64:0 :: ::
+        out fault.
+    const tup: b l/dcVal u8 ::/r tryDcsFromS /chars.
+    if not field /r u32:0
+        fault
+        field /r u32:1.

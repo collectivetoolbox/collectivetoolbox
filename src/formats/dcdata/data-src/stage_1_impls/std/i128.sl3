@@ -18,7 +18,7 @@
 
 : Stage 1 128-bit signed two's-complement integer (`i128Val`) primitives.
 ns std/i128.
-use std/u128: u128Val errOverflow errDivisionByZero u128Zero u128New u128Le u128WrapAdd u128WrapSub u128WrapMul u128CanMul u128DivMod u128ShlRaw u128Clz u128Ctz u128Popcnt ::.
+use std/u128: u128Val errOverflow errDivisionByZero u128Zero u128New le as u128Le wrapAdd as u128WrapAdd wrapSub as u128WrapSub wrapMul as u128WrapMul canMul as u128CanMul u128DivMod u128ShlRaw clz as u128Clz ctz as u128Ctz popcnt as u128Popcnt ::.
 
 : Two-limb little-endian two's-complement 128-bit signed integer: slot 0 = `lo` (`u64`), slot 1 = `hi` (`u64`).
 : @dc l8589980642
@@ -54,7 +54,7 @@ pub v/i128Val/i128New u64/lo u64/hi
 
 : Lossless 128-bit bitcast `u128Val -> i128Val`.
 : @dc l8589980690
-pub v/i128Val/i128FromBits u128Val/x
+pub v/i128Val/fromBits u128Val/x
     test
         in structNew u128Val: u64:18446744073709551615 u64:18446744073709551615 ::
         out structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::.
@@ -62,7 +62,7 @@ pub v/i128Val/i128FromBits u128Val/x
 
 : Lossless 128-bit bitcast `i128Val -> u128Val`.
 : @dc l8589980691
-pub v/u128Val/i128ToBits i128Val/x
+pub v/u128Val/toBits i128Val/x
     test
         in structNew i128Val: u64:5 u64:0 ::
         out structNew u128Val: u64:5 u64:0 ::.
@@ -70,7 +70,7 @@ pub v/u128Val/i128ToBits i128Val/x
 
 : Returns true iff `a < 0`.
 : @dc l8589980692
-pub v/b/i128IsNeg i128Val/a
+pub v/b/isNeg i128Val/a
     test
         in structNew i128Val: u64:0 u64:9223372036854775808 ::
         out true.
@@ -80,7 +80,7 @@ pub v/b/i128IsNeg i128Val/a
 
 : Infallible widening `i64 -> i128Val`.
 : @dc l8589980693
-pub v/i128Val/i128FromI64 i64/x
+pub v/i128Val/from i64/x
     test
         in i64:-5
         out structNew i128Val: u64:18446744073709551611 u64:18446744073709551615 ::.
@@ -92,15 +92,15 @@ pub v/i128Val/i128FromI64 i64/x
 
 : Infallible widening `i32 -> i128Val`.
 : @dc l8589980694
-pub v/i128Val/i128FromI32 i32/x
+pub v/i128Val/from i32/x
     test
         in i32:-1
         out structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::.
-    i128FromI64 conv /x i64.
+    from conv /x i64.
 
 : Infallible widening `u64 -> i128Val`.
 : @dc l8589980695
-pub v/i128Val/i128FromU64 u64/x
+pub v/i128Val/from u64/x
     test
         in u64:18446744073709551615
         out structNew i128Val: u64:18446744073709551615 u64:0 ::.
@@ -108,7 +108,7 @@ pub v/i128Val/i128FromU64 u64/x
 
 : Infallible widening `u32 -> i128Val`.
 : @dc l8589980696
-pub v/i128Val/i128FromU32 u32/x
+pub v/i128Val/from u32/x
     test
         in u32:42
         out structNew i128Val: u64:42 u64:0 ::.
@@ -116,7 +116,7 @@ pub v/i128Val/i128FromU32 u32/x
 
 : Infallible widening `u8 -> i128Val`.
 : @dc l8589980697
-pub v/i128Val/i128FromU8 u8/x
+pub v/i128Val/from u8/x
     test
         in u8:255
         out structNew i128Val: u64:255 u64:0 ::.
@@ -124,31 +124,31 @@ pub v/i128Val/i128FromU8 u8/x
 
 : Checked conversion `u128Val -> result/i128` (`tup: b i128Val u8 ::`).
 : @dc l8589980698
-pub v/tup: b i128Val u8 ::/i128FromU128 u128Val/x
+pub v/tup: b i128Val u8 ::/tryFromU128 u128Val/x
     test
         in structNew u128Val: u64:18446744073709551615 u64:9223372036854775807 ::
         out tupNew: true structNew i128Val: u64:18446744073709551615 u64:9223372036854775807 :: u8:0 ::.
         in structNew u128Val: u64:0 u64:9223372036854775808 ::
         out tupNew: false structNew i128Val: u64:0 u64:0 :: u8:0 ::.
     if ge bitcast field /x u32:1 i64 i64:0
-        tupNew: true i128FromBits /x u8:0 ::
+        tupNew: true fromBits /x u8:0 ::
         tupNew: false /i128Zero /errOverflow ::.
 
 : Checked conversion `i128Val -> result/u128` (`tup: b u128Val u8 ::`).
 : @dc l8589980699
-pub v/tup: b u128Val u8 ::/i128ToU128 i128Val/x
+pub v/tup: b u128Val u8 ::/tryToU128 i128Val/x
     test
         in structNew i128Val: u64:5 u64:0 ::
         out tupNew: true structNew u128Val: u64:5 u64:0 :: u8:0 ::.
         in structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
         out tupNew: false structNew u128Val: u64:0 u64:0 :: u8:0 ::.
-    if i128IsNeg /x
+    if isNeg /x
         tupNew: false /u128Zero /errOverflow ::
-        tupNew: true i128ToBits /x u8:0 ::.
+        tupNew: true toBits /x u8:0 ::.
 
 : Checked narrowing `i128Val -> result/i64` (`tup: b i64 u8 ::`).
 : @dc l8589980700
-pub v/tup: b i64 u8 ::/i128ToI64 i128Val/x
+pub v/tup: b i64 u8 ::/tryToI64 i128Val/x
     test
         in structNew i128Val: u64:9223372036854775808 u64:18446744073709551615 ::
         out tupNew: true i64:-9223372036854775808 u8:0 ::.
@@ -162,13 +162,13 @@ pub v/tup: b i64 u8 ::/i128ToI64 i128Val/x
 
 : Checked narrowing `i128Val -> result/i32` (`tup: b i32 u8 ::`).
 : @dc l8589980701
-pub v/tup: b i32 u8 ::/i128ToI32 i128Val/x
+pub v/tup: b i32 u8 ::/tryToI32 i128Val/x
     test
         in structNew i128Val: u64:18446744071562067968 u64:18446744073709551615 ::
         out tupNew: true i32:-2147483648 u8:0 ::.
         in structNew i128Val: u64:2147483648 u64:0 ::
         out tupNew: false i32:0 u8:0 ::.
-    const tup: b i64 u8 ::/asI64 i128ToI64 /x.
+    const tup: b i64 u8 ::/asI64 tryToI64 /x.
     if not field /asI64 u32:0
         return tupNew: false i32:0 /errOverflow ::
         nop.
@@ -179,7 +179,7 @@ pub v/tup: b i32 u8 ::/i128ToI32 i128Val/x
 
 : Checked narrowing `i128Val -> result/u64` (`tup: b u64 u8 ::`).
 : @dc l8589980702
-pub v/tup: b u64 u8 ::/i128ToU64 i128Val/x
+pub v/tup: b u64 u8 ::/tryToU64 i128Val/x
     test
         in structNew i128Val: u64:18446744073709551615 u64:0 ::
         out tupNew: true u64:18446744073709551615 u8:0 ::.
@@ -191,7 +191,7 @@ pub v/tup: b u64 u8 ::/i128ToU64 i128Val/x
 
 : Checked narrowing `i128Val -> result/u32` (`tup: b u32 u8 ::`).
 : @dc l8589980703
-pub v/tup: b u32 u8 ::/i128ToU32 i128Val/x
+pub v/tup: b u32 u8 ::/tryToU32 i128Val/x
     test
         in structNew i128Val: u64:4294967295 u64:0 ::
         out tupNew: true u32:4294967295 u8:0 ::.
@@ -203,7 +203,7 @@ pub v/tup: b u32 u8 ::/i128ToU32 i128Val/x
 
 : Checked narrowing `i128Val -> result/u8` (`tup: b u8 u8 ::`).
 : @dc l8589980704
-pub v/tup: b u8 u8 ::/i128ToU8 i128Val/x
+pub v/tup: b u8 u8 ::/tryToU8 i128Val/x
     test
         in structNew i128Val: u64:255 u64:0 ::
         out tupNew: true u8:255 u8:0 ::.
@@ -215,7 +215,7 @@ pub v/tup: b u8 u8 ::/i128ToU8 i128Val/x
 
 : Equality `a == b`.
 : @dc l8589980705
-pub v/b/i128Eq i128Val/a i128Val/b
+pub v/b/eq i128Val/a i128Val/b
     test
         in structNew i128Val: u64:5 u64:0 :: structNew i128Val: u64:5 u64:0 ::
         out true.
@@ -223,7 +223,7 @@ pub v/b/i128Eq i128Val/a i128Val/b
 
 : Inequality `a != b`.
 : @dc l8589980706
-pub v/b/i128Ne i128Val/a i128Val/b
+pub v/b/ne i128Val/a i128Val/b
     test
         in structNew i128Val: u64:5 u64:0 :: structNew i128Val: u64:6 u64:0 ::
         out true.
@@ -231,7 +231,7 @@ pub v/b/i128Ne i128Val/a i128Val/b
 
 : Signed `<` on `i128Val`.
 : @dc l8589980707
-pub v/b/i128Lt i128Val/a i128Val/b
+pub v/b/lt i128Val/a i128Val/b
     test
         in structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 :: structNew i128Val: u64:0 u64:0 ::
         out true.
@@ -245,72 +245,72 @@ pub v/b/i128Lt i128Val/a i128Val/b
 
 : Signed `<=` on `i128Val`.
 : @dc l8589980708
-pub v/b/i128Le i128Val/a i128Val/b
+pub v/b/le i128Val/a i128Val/b
     test
         in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:0 u64:9223372036854775808 ::
         out true.
-    not i128Lt /b /a.
+    not lt /b /a.
 
 : Signed `>` on `i128Val`.
 : @dc l8589980709
-pub v/b/i128Gt i128Val/a i128Val/b
+pub v/b/gt i128Val/a i128Val/b
     test
         in structNew i128Val: u64:0 u64:0 :: structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
         out true.
-    i128Lt /b /a.
+    lt /b /a.
 
 : Signed `>=` on `i128Val`.
 : @dc l8589980710
-pub v/b/i128Ge i128Val/a i128Val/b
+pub v/b/ge i128Val/a i128Val/b
     test
         in structNew i128Val: u64:0 u64:0 :: structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
         out true.
-    not i128Lt /a /b.
+    not lt /a /b.
 
 : Wrapping `2^128` addition.
 : @dc l8589980711
-pub v/i128Val/i128WrapAdd i128Val/a i128Val/b
+pub v/i128Val/wrapAdd i128Val/a i128Val/b
     test
         in structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 :: structNew i128Val: u64:1 u64:0 ::
         out structNew i128Val: u64:0 u64:0 ::.
-    i128FromBits u128WrapAdd i128ToBits /a i128ToBits /b.
+    fromBits u128WrapAdd toBits /a toBits /b.
 
 : Wrapping `2^128` subtraction.
 : @dc l8589980712
-pub v/i128Val/i128WrapSub i128Val/a i128Val/b
+pub v/i128Val/wrapSub i128Val/a i128Val/b
     test
         in structNew i128Val: u64:0 u64:0 :: structNew i128Val: u64:1 u64:0 ::
         out structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::.
-    i128FromBits u128WrapSub i128ToBits /a i128ToBits /b.
+    fromBits u128WrapSub toBits /a toBits /b.
 
 : Wrapping `2^128` multiplication.
 : @dc l8589980713
-pub v/i128Val/i128WrapMul i128Val/a i128Val/b
+pub v/i128Val/wrapMul i128Val/a i128Val/b
     test
         in structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 :: structNew i128Val: u64:7 u64:0 ::
         out structNew i128Val: u64:18446744073709551609 u64:18446744073709551615 ::.
-    i128FromBits u128WrapMul i128ToBits /a i128ToBits /b.
+    fromBits u128WrapMul toBits /a toBits /b.
 
 : Wrapping `2^128` negation.
 : @dc l8589980714
-v/i128Val/i128WrapNeg i128Val/a
-    i128WrapSub /i128Zero /a.
+pub v/i128Val/wrapNeg i128Val/a
+    wrapSub /i128Zero /a.
 
 : Exact unsigned magnitude `|a|` in `0..=2^127` (`u128Val`).
 : @dc l8589980715
-pub v/u128Val/i128AbsU128 i128Val/a
+pub v/u128Val/absU128 i128Val/a
     test
         in structNew i128Val: u64:0 u64:9223372036854775808 ::
         out structNew u128Val: u64:0 u64:9223372036854775808 ::.
         in structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
         out structNew u128Val: u64:1 u64:0 ::.
-    if i128IsNeg /a
-        u128WrapSub /u128Zero i128ToBits /a
-        i128ToBits /a.
+    if isNeg /a
+        u128WrapSub /u128Zero toBits /a
+        toBits /a.
 
 : Total StageR 3 `neg` on `i128Val` (`tup: b i128Val u8 ::`).
 : @dc l8589980716
-pub v/tup: b i128Val u8 ::/i128Neg i128Val/a
+pub v/tup: b i128Val u8 ::/tryNeg i128Val/a
     test
         in structNew i128Val: u64:5 u64:0 ::
         out tupNew: true structNew i128Val: u64:18446744073709551611 u64:18446744073709551615 :: u8:0 ::.
@@ -318,11 +318,11 @@ pub v/tup: b i128Val u8 ::/i128Neg i128Val/a
         out tupNew: false structNew i128Val: u64:0 u64:0 :: u8:0 ::.
     if eq /a /i128Min
         tupNew: false /i128Zero /errOverflow ::
-        tupNew: true i128WrapNeg /a u8:0 ::.
+        tupNew: true wrapNeg /a u8:0 ::.
 
 : Predicate returning true iff signed `a + b` does not overflow `i128`.
 : @dc l8589980717
-pub v/b/i128CanAdd i128Val/a i128Val/b
+pub v/b/canAdd i128Val/a i128Val/b
     test
         in structNew i128Val: u64:18446744073709551615 u64:9223372036854775807 :: structNew i128Val: u64:1 u64:0 ::
         out false.
@@ -330,7 +330,7 @@ pub v/b/i128CanAdd i128Val/a i128Val/b
         out false.
         in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:18446744073709551615 u64:9223372036854775807 ::
         out true.
-    const i128Val/sum i128WrapAdd /a /b.
+    const i128Val/sum wrapAdd /a /b.
     const i64/shi bitcast field /sum u32:1 i64.
     const i64/ahi bitcast field /a u32:1 i64.
     const i64/bhi bitcast field /b u32:1 i64.
@@ -338,13 +338,13 @@ pub v/b/i128CanAdd i128Val/a i128Val/b
 
 : Predicate returning true iff signed `a - b` does not overflow `i128`.
 : @dc l8589980718
-pub v/b/i128CanSub i128Val/a i128Val/b
+pub v/b/canSub i128Val/a i128Val/b
     test
         in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:1 u64:0 ::
         out false.
         in structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 :: structNew i128Val: u64:0 u64:9223372036854775808 ::
         out true.
-    const i128Val/diff i128WrapSub /a /b.
+    const i128Val/diff wrapSub /a /b.
     const i64/dhi bitcast field /diff u32:1 i64.
     const i64/ahi bitcast field /a u32:1 i64.
     const i64/bhi bitcast field /b u32:1 i64.
@@ -352,7 +352,7 @@ pub v/b/i128CanSub i128Val/a i128Val/b
 
 : Predicate returning true iff signed `a * b` does not overflow `i128`.
 : @dc l8589980719
-pub v/b/i128CanMul i128Val/a i128Val/b
+pub v/b/canMul i128Val/a i128Val/b
     test
         in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:1 u64:0 ::
         out true.
@@ -363,19 +363,19 @@ pub v/b/i128CanMul i128Val/a i128Val/b
     if or eq /a /i128Zero eq /b /i128Zero
         return true
         nop.
-    const u128Val/magA i128AbsU128 /a.
-    const u128Val/magB i128AbsU128 /b.
+    const u128Val/magA absU128 /a.
+    const u128Val/magB absU128 /b.
     if not u128CanMul /magA /magB
         return false
         nop.
     const u128Val/prodMag u128WrapMul /magA /magB.
-    if ne i128IsNeg /a i128IsNeg /b
+    if ne isNeg /a isNeg /b
         u128Le /prodMag u128New u64:0 u64:9223372036854775808
         u128Le /prodMag u128New u64:18446744073709551615 u64:9223372036854775807.
 
 : Predicate returning true iff signed `div a b` will not fail (`b != 0` and `!(a == i128Min && b == -1)`).
 : @dc l8589980720
-pub v/b/i128CanDiv i128Val/a i128Val/b
+pub v/b/canDiv i128Val/a i128Val/b
     test
         in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
         out false.
@@ -383,41 +383,41 @@ pub v/b/i128CanDiv i128Val/a i128Val/b
 
 : Total StageR 3 `add` on `i128Val` (`tup: b i128Val u8 ::`).
 : @dc l8589980721
-pub v/tup: b i128Val u8 ::/i128Add i128Val/a i128Val/b
+pub v/tup: b i128Val u8 ::/tryAdd i128Val/a i128Val/b
     test
         in structNew i128Val: u64:10 u64:0 :: structNew i128Val: u64:18446744073709551613 u64:18446744073709551615 ::
         out tupNew: true structNew i128Val: u64:7 u64:0 :: u8:0 ::.
         in structNew i128Val: u64:18446744073709551615 u64:9223372036854775807 :: structNew i128Val: u64:1 u64:0 ::
         out tupNew: false structNew i128Val: u64:0 u64:0 :: u8:0 ::.
-    if i128CanAdd /a /b
-        tupNew: true i128WrapAdd /a /b u8:0 ::
+    if canAdd /a /b
+        tupNew: true wrapAdd /a /b u8:0 ::
         tupNew: false /i128Zero /errOverflow ::.
 
 : Total StageR 3 `sub` on `i128Val` (`tup: b i128Val u8 ::`).
 : @dc l8589980722
-pub v/tup: b i128Val u8 ::/i128Sub i128Val/a i128Val/b
+pub v/tup: b i128Val u8 ::/trySub i128Val/a i128Val/b
     test
         in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:1 u64:0 ::
         out tupNew: false structNew i128Val: u64:0 u64:0 :: u8:0 ::.
-    if i128CanSub /a /b
-        tupNew: true i128WrapSub /a /b u8:0 ::
+    if canSub /a /b
+        tupNew: true wrapSub /a /b u8:0 ::
         tupNew: false /i128Zero /errOverflow ::.
 
 : Total StageR 3 `mul` on `i128Val` (`tup: b i128Val u8 ::`).
 : @dc l8589980723
-pub v/tup: b i128Val u8 ::/i128Mul i128Val/a i128Val/b
+pub v/tup: b i128Val u8 ::/tryMul i128Val/a i128Val/b
     test
         in structNew i128Val: u64:18446744073709551610 u64:18446744073709551615 :: structNew i128Val: u64:18446744073709551609 u64:18446744073709551615 ::
         out tupNew: true structNew i128Val: u64:42 u64:0 :: u8:0 ::.
         in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
         out tupNew: false structNew i128Val: u64:0 u64:0 :: u8:0 ::.
-    if i128CanMul /a /b
-        tupNew: true i128WrapMul /a /b u8:0 ::
+    if canMul /a /b
+        tupNew: true wrapMul /a /b u8:0 ::
         tupNew: false /i128Zero /errOverflow ::.
 
 : Total StageR 3 truncating `div` on `i128Val` (`tup: b i128Val u8 ::`).
 : @dc l8589980724
-pub v/tup: b i128Val u8 ::/i128Div i128Val/a i128Val/b
+pub v/tup: b i128Val u8 ::/tryDiv i128Val/a i128Val/b
     test
         in structNew i128Val: u64:18446744073709551609 u64:18446744073709551615 :: structNew i128Val: u64:3 u64:0 ::
         out tupNew: true structNew i128Val: u64:18446744073709551614 u64:18446744073709551615 :: u8:0 ::.
@@ -431,14 +431,14 @@ pub v/tup: b i128Val u8 ::/i128Div i128Val/a i128Val/b
     if and eq /a /i128Min eq /b /i128NegOne
         return tupNew: false /i128Zero /errOverflow ::
         nop.
-    const tup: b u128Val u128Val u8 ::/dm u128DivMod i128AbsU128 /a i128AbsU128 /b.
-    const i128Val/qPos i128FromBits field /dm u32:1.
-    const i128Val/q if ne i128IsNeg /a i128IsNeg /b i128WrapNeg /qPos /qPos.
+    const tup: b u128Val u128Val u8 ::/dm u128DivMod absU128 /a absU128 /b.
+    const i128Val/qPos fromBits field /dm u32:1.
+    const i128Val/q if ne isNeg /a isNeg /b wrapNeg /qPos /qPos.
     tupNew: true /q u8:0 ::.
 
 : Total StageR 3 `truncRem` on `i128Val` (`tup: b i128Val u8 ::`; `truncRem i128Min -1 == ok 0`).
 : @dc l8589980725
-pub v/tup: b i128Val u8 ::/i128TruncRem i128Val/a i128Val/b
+pub v/tup: b i128Val u8 ::/tryTruncRem i128Val/a i128Val/b
     test
         in structNew i128Val: u64:18446744073709551609 u64:18446744073709551615 :: structNew i128Val: u64:3 u64:0 ::
         out tupNew: true structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 :: u8:0 ::.
@@ -452,14 +452,14 @@ pub v/tup: b i128Val u8 ::/i128TruncRem i128Val/a i128Val/b
     if and eq /a /i128Min eq /b /i128NegOne
         return tupNew: true /i128Zero u8:0 ::
         nop.
-    const tup: b u128Val u128Val u8 ::/dm u128DivMod i128AbsU128 /a i128AbsU128 /b.
-    const i128Val/rPos i128FromBits field /dm u32:2.
-    const i128Val/r if i128IsNeg /a i128WrapNeg /rPos /rPos.
+    const tup: b u128Val u128Val u8 ::/dm u128DivMod absU128 /a absU128 /b.
+    const i128Val/rPos fromBits field /dm u32:2.
+    const i128Val/r if isNeg /a wrapNeg /rPos /rPos.
     tupNew: true /r u8:0 ::.
 
 : Total StageR 3 Euclidean `mod` on `i128Val` (`0 <= mod a b < |b|`; `mod i128Min -1 == ok 0`).
 : @dc l8589980726
-pub v/tup: b i128Val u8 ::/i128Mod i128Val/a i128Val/b
+pub v/tup: b i128Val u8 ::/tryMod i128Val/a i128Val/b
     test
         in structNew i128Val: u64:18446744073709551609 u64:18446744073709551615 :: structNew i128Val: u64:3 u64:0 ::
         out tupNew: true structNew i128Val: u64:2 u64:0 :: u8:0 ::.
@@ -469,20 +469,20 @@ pub v/tup: b i128Val u8 ::/i128Mod i128Val/a i128Val/b
         out tupNew: true structNew i128Val: u64:0 u64:0 :: u8:0 ::.
         in structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 :: structNew i128Val: u64:0 u64:9223372036854775808 ::
         out tupNew: true structNew i128Val: u64:18446744073709551615 u64:9223372036854775807 :: u8:0 ::.
-    const tup: b i128Val u8 ::/trRes i128TruncRem /a /b.
+    const tup: b i128Val u8 ::/trRes tryTruncRem /a /b.
     if not field /trRes u32:0
         return /trRes
         nop.
     const i128Val/tr field /trRes u32:1.
-    if not i128IsNeg /tr
+    if not isNeg /tr
         tupNew: true /tr u8:0 ::
-        if not i128IsNeg /b
-            tupNew: true i128WrapAdd /tr /b u8:0 ::
-            tupNew: true i128WrapSub /tr /b u8:0 ::.
+        if not isNeg /b
+            tupNew: true wrapAdd /tr /b u8:0 ::
+            tupNew: true wrapSub /tr /b u8:0 ::.
 
 : Bitwise AND on `i128Val`.
 : @dc l8589980727
-pub v/i128Val/i128BitAnd i128Val/a i128Val/b
+pub v/i128Val/bitAnd i128Val/a i128Val/b
     test
         in structNew i128Val: u64:15 u64:3 :: structNew i128Val: u64:7 u64:1 ::
         out structNew i128Val: u64:7 u64:1 ::.
@@ -490,7 +490,7 @@ pub v/i128Val/i128BitAnd i128Val/a i128Val/b
 
 : Bitwise OR on `i128Val`.
 : @dc l8589980728
-pub v/i128Val/i128BitOr i128Val/a i128Val/b
+pub v/i128Val/bitOr i128Val/a i128Val/b
     test
         in structNew i128Val: u64:1 u64:2 :: structNew i128Val: u64:4 u64:8 ::
         out structNew i128Val: u64:5 u64:10 ::.
@@ -498,7 +498,7 @@ pub v/i128Val/i128BitOr i128Val/a i128Val/b
 
 : Bitwise XOR on `i128Val`.
 : @dc l8589980729
-pub v/i128Val/i128BitXor i128Val/a i128Val/b
+pub v/i128Val/bitXor i128Val/a i128Val/b
     test
         in structNew i128Val: u64:5 u64:10 :: structNew i128Val: u64:3 u64:12 ::
         out structNew i128Val: u64:6 u64:6 ::.
@@ -506,7 +506,7 @@ pub v/i128Val/i128BitXor i128Val/a i128Val/b
 
 : Bitwise NOT on `i128Val`.
 : @dc l8589980730
-pub v/i128Val/i128BitNot i128Val/a
+pub v/i128Val/bitNot i128Val/a
     test
         in structNew i128Val: u64:0 u64:0 ::
         out structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::.
@@ -514,7 +514,7 @@ pub v/i128Val/i128BitNot i128Val/a
 
 : Total StageR 3 `shl` on `i128Val` (`tup: b i128Val u8 ::`, returning `errOverflow` when `cnt >= 128`).
 : @dc l8589980731
-pub v/tup: b i128Val u8 ::/i128Shl i128Val/a u32/cnt
+pub v/tup: b i128Val u8 ::/tryShl i128Val/a u32/cnt
     test
         in structNew i128Val: u64:1 u64:0 :: u32:127
         out tupNew: true structNew i128Val: u64:0 u64:9223372036854775808 :: u8:0 ::.
@@ -522,11 +522,11 @@ pub v/tup: b i128Val u8 ::/i128Shl i128Val/a u32/cnt
         out tupNew: false structNew i128Val: u64:0 u64:0 :: u8:0 ::.
     if ge /cnt u32:128
         tupNew: false /i128Zero /errOverflow ::
-        tupNew: true i128FromBits u128ShlRaw i128ToBits /a /cnt u8:0 ::.
+        tupNew: true fromBits u128ShlRaw toBits /a /cnt u8:0 ::.
 
 : Total StageR 3 arithmetic sign-extending `shr` on `i128Val` (`tup: b i128Val u8 ::`, returning `errOverflow` when `cnt >= 128`).
 : @dc l8589980732
-pub v/tup: b i128Val u8 ::/i128Shr i128Val/a u32/cnt
+pub v/tup: b i128Val u8 ::/tryShr i128Val/a u32/cnt
     test
         in structNew i128Val: u64:0 u64:9223372036854775808 :: u32:127
         out tupNew: true structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 :: u8:0 ::.
@@ -552,24 +552,169 @@ pub v/tup: b i128Val u8 ::/i128Shr i128Val/a u32/cnt
 
 : Count leading zeros (`0..=128`).
 : @dc l8589980733
-pub v/u32/i128Clz i128Val/a
+pub v/u32/clz i128Val/a
     test
         in structNew i128Val: u64:0 u64:9223372036854775808 ::
         out u32:0.
-    u128Clz i128ToBits /a.
+    u128Clz toBits /a.
 
 : Count trailing zeros (`0..=128`).
 : @dc l8589980734
-pub v/u32/i128Ctz i128Val/a
+pub v/u32/ctz i128Val/a
     test
         in structNew i128Val: u64:0 u64:9223372036854775808 ::
         out u32:127.
-    u128Ctz i128ToBits /a.
+    u128Ctz toBits /a.
 
 : Population count (`0..=128`).
 : @dc l8589980735
-pub v/u32/i128Popcnt i128Val/a
+pub v/u32/popcnt i128Val/a
     test
         in structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
         out u32:128.
-    u128Popcnt i128ToBits /a.
+    u128Popcnt toBits /a.
+
+: Predicate returning true iff `-a` does not overflow `i128` (`a != i128Min`).
+: @dc l8589984709
+pub v/b/canNeg i128Val/a
+    test
+        in structNew i128Val: u64:0 u64:0 ::
+        out true.
+        in structNew i128Val: u64:0 u64:9223372036854775808 ::
+        out false.
+    ne /a /i128Min.
+
+: Checked StageL `neg` on `i128Val`, faulting on `i128Min` overflow.
+: @dc l8589984710
+pub v/i128Val/neg i128Val/a
+    test
+        in structNew i128Val: u64:5 u64:0 ::
+        out structNew i128Val: u64:18446744073709551611 u64:18446744073709551615 ::.
+        in structNew i128Val: u64:0 u64:9223372036854775808 ::
+        out fault.
+    const tup: b i128Val u8 ::/r tryNeg /a.
+    if not field /r u32:0
+        fault
+        field /r u32:1.
+
+: Checked StageL `add` on `i128Val`, faulting on overflow.
+: @dc l8589984711
+pub v/i128Val/add i128Val/a i128Val/b
+    test
+        in structNew i128Val: u64:10 u64:0 :: structNew i128Val: u64:18446744073709551613 u64:18446744073709551615 ::
+        out structNew i128Val: u64:7 u64:0 ::.
+        in structNew i128Val: u64:18446744073709551615 u64:9223372036854775807 :: structNew i128Val: u64:1 u64:0 ::
+        out fault.
+    const tup: b i128Val u8 ::/r tryAdd /a /b.
+    if not field /r u32:0
+        fault
+        field /r u32:1.
+
+: Checked StageL `sub` on `i128Val`, faulting on overflow.
+: @dc l8589984712
+pub v/i128Val/sub i128Val/a i128Val/b
+    test
+        in structNew i128Val: u64:10 u64:0 :: structNew i128Val: u64:3 u64:0 ::
+        out structNew i128Val: u64:7 u64:0 ::.
+        in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:1 u64:0 ::
+        out fault.
+    const tup: b i128Val u8 ::/r trySub /a /b.
+    if not field /r u32:0
+        fault
+        field /r u32:1.
+
+: Checked StageL `mul` on `i128Val`, faulting on overflow.
+: @dc l8589984713
+pub v/i128Val/mul i128Val/a i128Val/b
+    test
+        in structNew i128Val: u64:18446744073709551610 u64:18446744073709551615 :: structNew i128Val: u64:18446744073709551609 u64:18446744073709551615 ::
+        out structNew i128Val: u64:42 u64:0 ::.
+        in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
+        out fault.
+    const tup: b i128Val u8 ::/r tryMul /a /b.
+    if not field /r u32:0
+        fault
+        field /r u32:1.
+
+: Checked StageL `div` on `i128Val`, faulting on division by zero or `i128Min / -1`.
+: @dc l8589984714
+pub v/i128Val/div i128Val/a i128Val/b
+    test
+        in structNew i128Val: u64:18446744073709551609 u64:18446744073709551615 :: structNew i128Val: u64:3 u64:0 ::
+        out structNew i128Val: u64:18446744073709551614 u64:18446744073709551615 ::.
+        in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
+        out fault.
+        in structNew i128Val: u64:1 u64:0 :: structNew i128Val: u64:0 u64:0 ::
+        out fault.
+    const tup: b i128Val u8 ::/r tryDiv /a /b.
+    if not field /r u32:0
+        fault
+        field /r u32:1.
+
+: Checked StageL `rem` on `i128Val`, faulting on division by zero or `i128Min % -1`.
+: @dc l8589984715
+pub v/i128Val/rem i128Val/a i128Val/b
+    test
+        in structNew i128Val: u64:18446744073709551609 u64:18446744073709551615 :: structNew i128Val: u64:3 u64:0 ::
+        out structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::.
+        in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
+        out fault.
+        in structNew i128Val: u64:1 u64:0 :: structNew i128Val: u64:0 u64:0 ::
+        out fault.
+    if not canDiv /a /b
+        fault
+        field tryTruncRem /a /b u32:1.
+
+: Checked StageL `truncRem` on `i128Val`, faulting on division by zero (`truncRem i128Min -1 == 0`).
+: @dc l8589984716
+pub v/i128Val/truncRem i128Val/a i128Val/b
+    test
+        in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
+        out structNew i128Val: u64:0 u64:0 ::.
+        in structNew i128Val: u64:1 u64:0 :: structNew i128Val: u64:0 u64:0 ::
+        out fault.
+    const tup: b i128Val u8 ::/r tryTruncRem /a /b.
+    if not field /r u32:0
+        fault
+        field /r u32:1.
+
+: Checked StageL `mod` on `i128Val`, faulting on division by zero (`mod i128Min -1 == 0`).
+: @dc l8589984717
+pub v/i128Val/mod i128Val/a i128Val/b
+    test
+        in structNew i128Val: u64:18446744073709551609 u64:18446744073709551615 :: structNew i128Val: u64:3 u64:0 ::
+        out structNew i128Val: u64:2 u64:0 ::.
+        in structNew i128Val: u64:0 u64:9223372036854775808 :: structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::
+        out structNew i128Val: u64:0 u64:0 ::.
+        in structNew i128Val: u64:1 u64:0 :: structNew i128Val: u64:0 u64:0 ::
+        out fault.
+    const tup: b i128Val u8 ::/r tryMod /a /b.
+    if not field /r u32:0
+        fault
+        field /r u32:1.
+
+: Checked StageL `shl` on `i128Val`, faulting when `cnt >= 128`.
+: @dc l8589984718
+pub v/i128Val/shl i128Val/a u32/cnt
+    test
+        in structNew i128Val: u64:1 u64:0 :: u32:127
+        out structNew i128Val: u64:0 u64:9223372036854775808 ::.
+        in structNew i128Val: u64:1 u64:0 :: u32:128
+        out fault.
+    const tup: b i128Val u8 ::/r tryShl /a /cnt.
+    if not field /r u32:0
+        fault
+        field /r u32:1.
+
+: Checked StageL arithmetic `shr` on `i128Val`, faulting when `cnt >= 128`.
+: @dc l8589984719
+pub v/i128Val/shr i128Val/a u32/cnt
+    test
+        in structNew i128Val: u64:0 u64:9223372036854775808 :: u32:127
+        out structNew i128Val: u64:18446744073709551615 u64:18446744073709551615 ::.
+        in structNew i128Val: u64:0 u64:9223372036854775808 :: u32:128
+        out fault.
+    const tup: b i128Val u8 ::/r tryShr /a /cnt.
+    if not field /r u32:0
+        fault
+        field /r u32:1.
