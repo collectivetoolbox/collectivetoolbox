@@ -45,6 +45,7 @@ pub u8/errFrozenBuffer u8:3.
 pub u8/errInvalidEncoding u8:4.
 
 : StageR 3 `error:numberOutsideDcRange` tag (`5`).
+: @dc l8589987644
 pub u8/errNumberOutsideDcRange u8:5.
 
 : StageR 3 `error:parseFailure` tag (`6`).
@@ -56,12 +57,15 @@ pub u8/errParseFailure u8:6.
 pub u8/errUnexpectedNone u8:7.
 
 : StageR 3 `error:numberOutsideShortDcRange` tag (`8`).
+: @dc l8589987645
 pub u8/errNumberOutsideShortDcRange u8:8.
 
 : StageR 3 `error:numberOutsideFormatRange` tag (`9`).
+: @dc l8589987646
 pub u8/errNumberOutsideFormatRange u8:9.
 
 : StageR 3 `error:numberOutsideUnicodeRange` tag (`10`).
+: @dc l8589987647
 pub u8/errNumberOutsideUnicodeRange u8:10.
 
 : Constant `0` (`u128:0`).

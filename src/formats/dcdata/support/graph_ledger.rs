@@ -1255,7 +1255,9 @@ impl LedgerBuilder {
         tokens: &[DcShorthand],
     ) -> Result<Vec<DcShorthand>> {
         if decode_string_value_tokens(tokens).is_some()
-            || !tokens.iter().any(|t| matches!(t, DcShorthand::Unicode(_)))
+            || !tokens.iter().any(|t| {
+                matches!(*t, DcShorthand::Unicode(cp) if char::from_u32(cp).is_some())
+            })
         {
             return Ok(tokens.to_vec());
         }
@@ -1263,15 +1265,18 @@ impl LedgerBuilder {
         let mut out = Vec::with_capacity(tokens.len());
         let mut idx = 0usize;
         while let Some(&tok) = tokens.get(idx) {
-            if matches!(tok, DcShorthand::Unicode(_)) {
-                let run_start = idx;
+            // Only compact runs of valid UTF-8 Unicode scalars; unpaired surrogates
+            // (`0xD800..=0xDFFF`) remain inline `Unicode` Dcs without dropping trailing tokens.
+            if matches!(tok, DcShorthand::Unicode(cp) if char::from_u32(cp).is_some())
+            {
+                let mut run_end = idx;
                 while matches!(
-                    tokens.get(idx),
-                    Some(DcShorthand::Unicode(_))
+                    tokens.get(run_end),
+                    Some(&DcShorthand::Unicode(cp)) if char::from_u32(cp).is_some()
                 ) {
-                    idx = idx.saturating_add(1);
+                    run_end = run_end.saturating_add(1);
                 }
-                if let Some(run_slice) = tokens.get(run_start..idx)
+                if let Some(run_slice) = tokens.get(idx..run_end)
                     && let Some(decoded) = decode_string_value_tokens(run_slice)
                 {
                     let str_node_id = self.get_or_insert_value_node(
@@ -1279,6 +1284,7 @@ impl LedgerBuilder {
                         format_string_summary(&decoded),
                     )?;
                     out.push(DcShorthand::Long(str_node_id));
+                    idx = run_end;
                     continue;
                 }
             }
@@ -5652,6 +5658,40 @@ mod tests {
         )?;
         assert_eq!(re_stats.nodes_appended, 0);
         assert_eq!(re_stats.nodes_retracted, 0);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_intern_embedded_string_runs_preserves_surrogates_and_trailing_tokens()
+    -> Result<()> {
+        let mut builder = LedgerBuilder::from_existing(
+            Vec::new(),
+            &HashSet::new(),
+            HashMap::new(),
+        );
+
+        let isolated_surrogate = vec![
+            DcShorthand::Short(260),
+            DcShorthand::Unicode(0xD800),
+            DcShorthand::Short(261),
+        ];
+        let interned_isolated = builder
+            .intern_embedded_string_runs_in_value_node(&isolated_surrogate)?;
+        assert_eq!(interned_isolated, isolated_surrogate);
+
+        let mixed = vec![
+            DcShorthand::Short(260),
+            DcShorthand::Unicode(0x41),
+            DcShorthand::Unicode(0xD800),
+            DcShorthand::Unicode(0x42),
+            DcShorthand::Short(261),
+        ];
+        let interned_mixed =
+            builder.intern_embedded_string_runs_in_value_node(&mixed)?;
+        let index =
+            crate::seed_graph::SeedGraphIndex::from_nodes(builder.nodes);
+        let expanded = index.expand_interned_unicode_runs(&interned_mixed);
+        assert_eq!(expanded, mixed);
         Ok(())
     }
 }

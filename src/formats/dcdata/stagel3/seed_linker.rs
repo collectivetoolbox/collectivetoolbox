@@ -1067,6 +1067,7 @@ struct CallerSpec {
     module: Module,
     forbid_stagel_internal: bool,
     stage_rank: Option<u8>,
+    ordered_stream: bool,
     input_index: usize,
 }
 
@@ -1087,6 +1088,7 @@ pub fn link_parsed_modules_with_seed_graph(
                 module,
                 forbid_stagel_internal,
                 stage_rank: None,
+                ordered_stream: false,
                 input_index,
             }
         })
@@ -1751,6 +1753,82 @@ fn coalesce_synthetic_sccs(
     clippy::too_many_lines,
     reason = "Assembles reconstructed multi-stratum graph namespaces, transitive Dc helpers, SCC condensation, and topological ordering"
 )]
+struct SynthLoadState<'a> {
+    seed_graph: &'a SeedGraphIndex,
+    dc_owners: &'a mut HashMap<DcChar, GraphDcOwner>,
+    next_synth_decl_line: &'a mut usize,
+    caller_ns_strata: &'a HashMap<String, Vec<(Option<u8>, StageDialect, bool)>>,
+    synth_ns_modules: &'a mut BTreeMap<String, Vec<Module>>,
+    local_dcs: &'a mut HashSet<DcChar>,
+}
+
+fn ensure_external_namespace_loaded(
+    state: &mut SynthLoadState<'_>,
+    ns_segs: &[String],
+    caller_label: &str,
+    need_stager: bool,
+    mut dc_worklist: Option<&mut VecDeque<(DcChar, bool)>>,
+) -> Result<()> {
+    let ns_key = ns_segs.join("/");
+    if state.caller_ns_strata.contains_key(&ns_key) {
+        return Ok(());
+    }
+    if let Some(existing_mods) = state.synth_ns_modules.get(&ns_key) {
+        if !need_stager
+            || existing_mods
+                .iter()
+                .any(|m| m.dialect == StageDialect::StageR3)
+        {
+            return Ok(());
+        }
+        let (mut ext_mods, _) =
+            reconstruct_external_namespace_modules_with_line(
+                state.seed_graph,
+                ns_segs,
+                caller_label,
+                true,
+                state.dc_owners,
+                state.next_synth_decl_line,
+            )?;
+        ext_mods.retain(|m| m.dialect == StageDialect::StageR3);
+        for ext_mod in &ext_mods {
+            collect_locally_defined_dcs(ext_mod, state.local_dcs);
+            if let Some(ref mut q) = dc_worklist {
+                let mut ext_refs = Vec::new();
+                collect_dc_refs_in_module(ext_mod, &mut ext_refs);
+                for r_dc in ext_refs {
+                    q.push_back((r_dc, true));
+                }
+            }
+        }
+        if let Some(slot) = state.synth_ns_modules.get_mut(&ns_key) {
+            slot.extend(ext_mods);
+        }
+        return Ok(());
+    }
+    let (ext_mods, _) = reconstruct_external_namespace_modules_with_line(
+        state.seed_graph,
+        ns_segs,
+        caller_label,
+        need_stager,
+        state.dc_owners,
+        state.next_synth_decl_line,
+    )?;
+    for ext_mod in &ext_mods {
+        collect_locally_defined_dcs(ext_mod, state.local_dcs);
+        if let Some(ref mut q) = dc_worklist {
+            let is_sr = ext_mod.dialect == StageDialect::StageR3;
+            let mut ext_refs = Vec::new();
+            collect_dc_refs_in_module(ext_mod, &mut ext_refs);
+            for r_dc in ext_refs {
+                q.push_back((r_dc, is_sr));
+            }
+        }
+    }
+    state.synth_ns_modules.insert(ns_key, ext_mods);
+    Ok(())
+}
+
 fn assemble_topo_sorted_modules_with_seed_graph(
     caller_modules: Vec<CallerSpec>,
     seed_graph: &SeedGraphIndex,
@@ -1759,26 +1837,36 @@ fn assemble_topo_sorted_modules_with_seed_graph(
         .iter()
         .any(|c| c.module.dialect == StageDialect::StageR3);
     let mut dc_owners: HashMap<DcChar, GraphDcOwner> = HashMap::new();
-    let mut caller_ns_strata: HashMap<String, Vec<(Option<u8>, StageDialect)>> =
-        HashMap::new();
+    let mut caller_ns_strata: HashMap<
+        String,
+        Vec<(Option<u8>, StageDialect, bool)>,
+    > = HashMap::new();
     let mut local_dcs: HashSet<DcChar> = HashSet::new();
 
     for cs in &caller_modules {
         if let Some(segs) = &cs.module.namespace {
             let key = segs.join("/");
             let strata = caller_ns_strata.entry(key.clone()).or_default();
-            for &(prev_rank, prev_dialect) in strata.iter() {
-                ensure!(
-                    can_overlay_namespace(
-                        prev_rank,
-                        prev_dialect,
-                        cs.stage_rank,
-                        cs.module.dialect,
-                    ),
-                    "Duplicate namespace declaration '{key}'"
-                );
+            for &(prev_rank, prev_dialect, prev_ordered) in strata.iter() {
+                if cs.ordered_stream && prev_ordered {
+                    ensure!(
+                        !(prev_dialect == StageDialect::StageR3
+                            && cs.module.dialect == StageDialect::StageL3),
+                        "StageL 3 module cannot overlay StageR 3 module in '{key}'"
+                    );
+                } else {
+                    ensure!(
+                        can_overlay_namespace(
+                            prev_rank,
+                            prev_dialect,
+                            cs.stage_rank,
+                            cs.module.dialect,
+                        ),
+                        "Duplicate namespace declaration '{key}'"
+                    );
+                }
             }
-            strata.push((cs.stage_rank, cs.module.dialect));
+            strata.push((cs.stage_rank, cs.module.dialect, cs.ordered_stream));
         }
         collect_locally_defined_dcs(&cs.module, &mut local_dcs);
     }
@@ -1786,6 +1874,14 @@ fn assemble_topo_sorted_modules_with_seed_graph(
     // 1. Reconstruct any external `use <ns>:` namespaces from `seed_graph`.
     let mut next_synth_decl_line: usize = 100_000;
     let mut synth_ns_modules: BTreeMap<String, Vec<Module>> = BTreeMap::new();
+    let mut load_state = SynthLoadState {
+        seed_graph,
+        dc_owners: &mut dc_owners,
+        next_synth_decl_line: &mut next_synth_decl_line,
+        caller_ns_strata: &caller_ns_strata,
+        synth_ns_modules: &mut synth_ns_modules,
+        local_dcs: &mut local_dcs,
+    };
     for cs in &caller_modules {
         // Reason for fallback: Anonymous caller modules format as '<anonymous>' in diagnostics.
         let caller_label = cs
@@ -1793,41 +1889,33 @@ fn assemble_topo_sorted_modules_with_seed_graph(
             .namespace
             .as_ref()
             .map_or_else(|| String::from("<anonymous>"), |s| s.join("/"));
+        let need_stager =
+            allow_stager_deps && cs.module.dialect == StageDialect::StageR3;
         for u in &cs.module.uses {
-            let target_key = u.path.join("/");
-            if caller_ns_strata.contains_key(&target_key)
-                || synth_ns_modules.contains_key(&target_key)
-            {
-                continue;
-            }
-            let (ext_mods, _) =
-                reconstruct_external_namespace_modules_with_line(
-                    seed_graph,
-                    &u.path,
-                    &caller_label,
-                    allow_stager_deps,
-                    &mut dc_owners,
-                    &mut next_synth_decl_line,
-                )?;
-            for ext_mod in &ext_mods {
-                collect_locally_defined_dcs(ext_mod, &mut local_dcs);
-            }
-            synth_ns_modules.insert(target_key, ext_mods);
+            ensure_external_namespace_loaded(
+                &mut load_state,
+                &u.path,
+                &caller_label,
+                need_stager,
+                None,
+            )?;
         }
     }
 
     // 2. Transitively resolve all `SymbolTarget::Dc` / `ImportTarget::Dc` helpers from `seed_graph`.
-    let mut dc_worklist: VecDeque<DcChar> = VecDeque::new();
-    let mut initial_refs = Vec::new();
-    for m in synth_ns_modules
+    let mut dc_worklist: VecDeque<(DcChar, bool)> = VecDeque::new();
+    for m in load_state
+        .synth_ns_modules
         .values()
         .flatten()
         .chain(caller_modules.iter().map(|cs| &cs.module))
     {
+        let from_sr = m.dialect == StageDialect::StageR3;
+        let mut initial_refs = Vec::new();
         collect_dc_refs_in_module(m, &mut initial_refs);
-    }
-    for dc in initial_refs {
-        dc_worklist.push_back(dc);
+        for dc in initial_refs {
+            dc_worklist.push_back((dc, from_sr));
+        }
     }
 
     let mut synth_helper_modules: BTreeMap<String, (Module, bool)> =
@@ -1835,48 +1923,37 @@ fn assemble_topo_sorted_modules_with_seed_graph(
     let mut orig_private_dcs: HashSet<DcChar> = HashSet::new();
     let mut checked_missing_dcs: HashSet<DcChar> = HashSet::new();
 
-    while let Some(dc) = dc_worklist.pop_front() {
-        if local_dcs.contains(&dc)
-            || dc_owners.contains_key(&dc)
-            || checked_missing_dcs.contains(&dc)
+    while let Some((dc, from_stager)) = dc_worklist.pop_front() {
+        if load_state.local_dcs.contains(&dc)
+            || load_state.dc_owners.contains_key(&dc)
+            || (!from_stager && checked_missing_dcs.contains(&dc))
         {
             continue;
         }
         let sh = DcShorthand::from_global_id(dc.to_u128());
         if let Some(ns_segs) = seed_graph.resolve_stagel_entity_namespace(sh)? {
-            let ns_key = ns_segs.join("/");
-            if !caller_ns_strata.contains_key(&ns_key)
-                && !synth_ns_modules.contains_key(&ns_key)
+            ensure_external_namespace_loaded(
+                &mut load_state,
+                &ns_segs,
+                "<direct dc import>",
+                from_stager && allow_stager_deps,
+                Some(&mut dc_worklist),
+            )?;
+            if load_state.local_dcs.contains(&dc)
+                || load_state.dc_owners.contains_key(&dc)
             {
-                let (ext_mods, _) =
-                    reconstruct_external_namespace_modules_with_line(
-                        seed_graph,
-                        &ns_segs,
-                        "<direct dc import>",
-                        allow_stager_deps,
-                        &mut dc_owners,
-                        &mut next_synth_decl_line,
-                    )?;
-                for ext_mod in &ext_mods {
-                    let mut ext_refs = Vec::new();
-                    collect_dc_refs_in_module(ext_mod, &mut ext_refs);
-                    for r_dc in ext_refs {
-                        dc_worklist.push_back(r_dc);
-                    }
-                    collect_locally_defined_dcs(ext_mod, &mut local_dcs);
-                }
-                synth_ns_modules.insert(ns_key, ext_mods);
-            }
-            if local_dcs.contains(&dc) || dc_owners.contains_key(&dc) {
                 continue;
             }
         }
-        let decl_line = next_synth_decl_line;
-        next_synth_decl_line = next_synth_decl_line.saturating_add(1);
+        let decl_line = *load_state.next_synth_decl_line;
+        *load_state.next_synth_decl_line =
+            load_state.next_synth_decl_line.saturating_add(1);
         let Some((_, entry)) =
             decode_graph_stagel_entry_at_line(seed_graph, sh, decl_line)?
         else {
-            checked_missing_dcs.insert(dc);
+            if !from_stager {
+                checked_missing_dcs.insert(dc);
+            }
             continue;
         };
 
@@ -1889,7 +1966,7 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                 }
                 let (prepared_decl, orig_name, kind) =
                     prepare_graph_top_decl(raw_decl, None, dc)?;
-                dc_owners.insert(
+                load_state.dc_owners.insert(
                     dc,
                     GraphDcOwner {
                         namespace_key: synth_ns_seg.clone(),
@@ -1918,7 +1995,7 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                 let ns_key = if let Some(existing_ns) = &m.namespace {
                     let joined = existing_ns.join("/");
                     if caller_ns_strata.contains_key(&joined)
-                        || synth_ns_modules.contains_key(&joined)
+                        || load_state.synth_ns_modules.contains_key(&joined)
                         || synth_helper_modules.contains_key(&joined)
                     {
                         m.namespace = Some(vec![synth_ns_seg.clone()]);
@@ -1944,7 +2021,7 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                     if let Some(owner) =
                         claim_graph_item_owner(item, dc, &ns_key, false)
                     {
-                        dc_owners.insert(dc, owner);
+                        load_state.dc_owners.insert(dc, owner);
                         matched = true;
                     }
                 }
@@ -1954,7 +2031,7 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                         if let Some(owner) =
                             claim_graph_item_owner(item, dc, &ns_key, true)
                         {
-                            dc_owners.insert(dc, owner);
+                            load_state.dc_owners.insert(dc, owner);
                             matched = true;
                             break;
                         }
@@ -1964,44 +2041,28 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                     matched,
                     "StageL/StageR Token-Dc module on {sh} contains no declaration"
                 );
+                let mod_need_stager =
+                    allow_stager_deps && m.dialect == StageDialect::StageR3;
                 // If this graph module itself has external `use` declarations, resolve them too.
                 for u in &m.uses {
-                    let u_key = u.path.join("/");
-                    if !caller_ns_strata.contains_key(&u_key)
-                        && !synth_ns_modules.contains_key(&u_key)
-                    {
-                        let (ext_mods, _) =
-                            reconstruct_external_namespace_modules_with_line(
-                                seed_graph,
-                                &u.path,
-                                &ns_key,
-                                allow_stager_deps,
-                                &mut dc_owners,
-                                &mut next_synth_decl_line,
-                            )?;
-                        for ext_mod in &ext_mods {
-                            let mut ext_refs = Vec::new();
-                            collect_dc_refs_in_module(ext_mod, &mut ext_refs);
-                            for r_dc in ext_refs {
-                                dc_worklist.push_back(r_dc);
-                            }
-                            collect_locally_defined_dcs(
-                                ext_mod,
-                                &mut local_dcs,
-                            );
-                        }
-                        synth_ns_modules.insert(u_key, ext_mods);
-                    }
+                    ensure_external_namespace_loaded(
+                        &mut load_state,
+                        &u.path,
+                        &ns_key,
+                        mod_need_stager,
+                        Some(&mut dc_worklist),
+                    )?;
                 }
                 (m, ns_key, any_pub)
             }
         };
 
-        collect_locally_defined_dcs(&synth_mod, &mut local_dcs);
+        collect_locally_defined_dcs(&synth_mod, load_state.local_dcs);
+        let synth_is_sr = synth_mod.dialect == StageDialect::StageR3;
         let mut nested_refs = Vec::new();
         collect_dc_refs_in_module(&synth_mod, &mut nested_refs);
         for nested_dc in nested_refs {
-            dc_worklist.push_back(nested_dc);
+            dc_worklist.push_back((nested_dc, synth_is_sr));
         }
         synth_helper_modules.insert(key, (synth_mod, is_pub_anchor));
     }
@@ -2676,6 +2737,7 @@ fn parse_and_validate_workspace_with_seed_graph_and_dialect(
             module: parsed,
             forbid_stagel_internal: forbid,
             stage_rank,
+            ordered_stream: false,
             input_index: idx,
         });
     }
@@ -2839,7 +2901,22 @@ pub fn validate_dc_tokens_with_seed_graph(
     seed_graph: &SeedGraphIndex,
 ) -> Result<ValidatedWorkspace> {
     let modules = decode_modules_from_dc_tokens(tokens)?;
-    link_parsed_modules_with_seed_graph(modules, seed_graph)
+    let tagged = modules
+        .into_iter()
+        .enumerate()
+        .map(|(input_index, module)| {
+            let forbid_stagel_internal =
+                module.dialect == StageDialect::StageR3;
+            CallerSpec {
+                module,
+                forbid_stagel_internal,
+                stage_rank: None,
+                ordered_stream: true,
+                input_index,
+            }
+        })
+        .collect();
+    link_parsed_modules_with_seed_graph_and_flags(tagged, seed_graph)
 }
 
 /// Parses, links against `seed_graph`, and executes inline `test` blocks on a
@@ -2964,6 +3041,7 @@ pub fn bundle_dc_module_dependencies(
                 module,
                 forbid_stagel_internal: false,
                 stage_rank: None,
+                ordered_stream: true,
                 input_index,
             })
             .collect();

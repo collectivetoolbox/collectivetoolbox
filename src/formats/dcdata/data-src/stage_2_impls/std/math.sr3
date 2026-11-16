@@ -1,0 +1,430 @@
+: SPDX-License-Identifier: AGPL-3.0-or-later
+:
+: This file is part of Collective Toolbox, a database and document workspace and utilities.
+: Copyright (C) 2026 Collective Toolbox Developers
+: Contact: info@collectivetoolbox.com
+:
+: This program is free software: you can redistribute it and/or modify it under
+: the terms of the GNU Affero General Public License as published by the Free
+: Software Foundation, either version 3 of the License, or (at your option) any
+: later version.
+:
+: This program is distributed in the hope that it will be useful, but WITHOUT ANY
+: WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+: A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+:
+: You should have received a copy of the GNU Affero General Public License along
+: with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+: StageR 3 standard-library overlay for `std/math` (`stage_1_impls/std/math.sl3`).
+ns std/math.
+
+: Returns the smaller of two `u8` values.
+: @dc l8589987674
+pub v/u8/min u8/a u8/b
+    test
+        in u8:3 u8:7
+        out u8:3.
+        in u8:9 u8:2
+        out u8:2.
+    if le /a /b /a /b.
+
+: Returns the smaller of two `i32` values.
+: @dc l8589987675
+pub v/i32/min i32/a i32/b
+    test
+        in i32:-5 i32:3
+        out i32:-5.
+        in i32:4 i32:4
+        out i32:4.
+    if le /a /b /a /b.
+
+: Returns the smaller of two `u32` values.
+: @dc l8589987676
+pub v/u32/min u32/a u32/b
+    test
+        in u32:10 u32:4
+        out u32:4.
+    if le /a /b /a /b.
+
+: Returns the smaller of two `i64` values.
+: @dc l8589987677
+pub v/i64/min i64/a i64/b
+    test
+        in i64:-100 i64:-200
+        out i64:-200.
+    if le /a /b /a /b.
+
+: Returns the smaller of two `u64` values.
+: @dc l8589987678
+pub v/u64/min u64/a u64/b
+    test
+        in u64:8 u64:15
+        out u64:8.
+    if le /a /b /a /b.
+
+: Returns the smaller of two `i128` values.
+: @dc l8589987679
+pub v/i128/min i128/a i128/b
+    test
+        in i128:-100000000000000000000 i128:1
+        out i128:-100000000000000000000.
+    if le /a /b /a /b.
+
+: Returns the smaller of two `u128` values.
+: @dc l8589987680
+pub v/u128/min u128/a u128/b
+    test
+        in u128:42 u128:99
+        out u128:42.
+    if le /a /b /a /b.
+
+: Returns the smaller of two arbitrary-precision `int` values.
+: @dc l8589987681
+pub v/int/min int/a int/b
+    test
+        in int:-999999999999999999999 int:0
+        out int:-999999999999999999999.
+    if le /a /b /a /b.
+
+: Returns the smaller of two `rat` values.
+: @dc l8589987682
+pub v/rat/min rat/a rat/b
+    test
+        in conv int:1 rat conv int:2 rat
+        out conv int:1 rat.
+    if le /a /b /a /b.
+
+: Returns the larger of two `u8` values.
+: @dc l8589987683
+pub v/u8/max u8/a u8/b
+    test
+        in u8:3 u8:7
+        out u8:7.
+    if ge /a /b /a /b.
+
+: Returns the larger of two `i32` values.
+: @dc l8589987684
+pub v/i32/max i32/a i32/b
+    test
+        in i32:-5 i32:3
+        out i32:3.
+    if ge /a /b /a /b.
+
+: Returns the larger of two `u32` values.
+: @dc l8589987685
+pub v/u32/max u32/a u32/b
+    test
+        in u32:10 u32:4
+        out u32:10.
+    if ge /a /b /a /b.
+
+: Returns the larger of two `i64` values.
+: @dc l8589987686
+pub v/i64/max i64/a i64/b
+    test
+        in i64:-100 i64:-200
+        out i64:-100.
+    if ge /a /b /a /b.
+
+: Returns the larger of two `u64` values.
+: @dc l8589987687
+pub v/u64/max u64/a u64/b
+    test
+        in u64:8 u64:15
+        out u64:15.
+    if ge /a /b /a /b.
+
+: Returns the larger of two `i128` values.
+: @dc l8589987688
+pub v/i128/max i128/a i128/b
+    test
+        in i128:-1 i128:100000000000000000000
+        out i128:100000000000000000000.
+    if ge /a /b /a /b.
+
+: Returns the larger of two `u128` values.
+: @dc l8589987689
+pub v/u128/max u128/a u128/b
+    test
+        in u128:42 u128:99
+        out u128:99.
+    if ge /a /b /a /b.
+
+: Returns the larger of two arbitrary-precision `int` values.
+: @dc l8589987690
+pub v/int/max int/a int/b
+    test
+        in int:-5 int:999999999999999999999
+        out int:999999999999999999999.
+    if ge /a /b /a /b.
+
+: Returns the larger of two `rat` values.
+: @dc l8589987691
+pub v/rat/max rat/a rat/b
+    test
+        in conv int:1 rat conv int:2 rat
+        out conv int:2 rat.
+    if ge /a /b /a /b.
+
+: Returns `-1`, `0`, or `1` encoding the sign of an `i32`.
+: @dc l8589987692
+pub v/i32/signum i32/x
+    test
+        in i32:-42
+        out i32:-1.
+        in i32:0
+        out i32:0.
+        in i32:17
+        out i32:1.
+    if lt /x i32:0
+        i32:-1
+        if gt /x i32:0 i32:1 i32:0.
+
+: Returns `-1`, `0`, or `1` encoding the sign of an `i64`.
+: @dc l8589987693
+pub v/i64/signum i64/x
+    test
+        in i64:-9
+        out i64:-1.
+        in i64:0
+        out i64:0.
+        in i64:9
+        out i64:1.
+    if lt /x i64:0
+        i64:-1
+        if gt /x i64:0 i64:1 i64:0.
+
+: Returns `-1`, `0`, or `1` encoding the sign of an `i128`.
+: @dc l8589987694
+pub v/i128/signum i128/x
+    test
+        in i128:-123456789012345678901
+        out i128:-1.
+        in i128:0
+        out i128:0.
+        in i128:123456789012345678901
+        out i128:1.
+    if lt /x i128:0
+        i128:-1
+        if gt /x i128:0 i128:1 i128:0.
+
+: Returns `-1`, `0`, or `1` encoding the sign of an arbitrary-precision `int`.
+: @dc l8589987695
+pub v/int/signum int/x
+    test
+        in int:-5
+        out int:-1.
+        in int:0
+        out int:0.
+        in int:5
+        out int:1.
+    if lt /x int:0
+        int:-1
+        if gt /x int:0 int:1 int:0.
+
+: Returns `-1`, `0`, or `1` encoding the sign of a `rat`.
+: @dc l8589987696
+pub v/rat/signum rat/x
+    test
+        in conv int:-3 rat
+        out conv int:-1 rat.
+        in conv int:0 rat
+        out conv int:0 rat.
+        in conv int:3 rat
+        out conv int:1 rat.
+    const rat/zero conv int:0 rat.
+    if lt /x /zero
+        conv int:-1 rat
+        if gt /x /zero conv int:1 rat /zero.
+
+: Checked absolute value of an `i32` (`error:overflow` on `i32::MIN`).
+: @dc l8589987697
+pub v/result/i32/abs i32/x
+    test
+        in i32:-42
+        out result/i32:ok i32:42.
+        in i32:7
+        out result/i32:ok i32:7.
+        in i32:-2147483648
+        out result/i32:err error:overflow.
+    if lt /x i32:0 neg /x result/i32:ok /x.
+
+: Checked absolute value of an `i64` (`error:overflow` on `i64::MIN`).
+: @dc l8589987698
+pub v/result/i64/abs i64/x
+    test
+        in i64:-99
+        out result/i64:ok i64:99.
+        in i64:0
+        out result/i64:ok i64:0.
+        in i64:-9223372036854775808
+        out result/i64:err error:overflow.
+    if lt /x i64:0 neg /x result/i64:ok /x.
+
+: Checked absolute value of an `i128` (`error:overflow` on `i128::MIN`).
+: @dc l8589987699
+pub v/result/i128/abs i128/x
+    test
+        in i128:-123456789012345678901
+        out result/i128:ok i128:123456789012345678901.
+        in i128:1
+        out result/i128:ok i128:1.
+        in i128:-170141183460469231731687303715884105728
+        out result/i128:err error:overflow.
+    if lt /x i128:0 neg /x result/i128:ok /x.
+
+: Total absolute value of an arbitrary-precision `int`.
+: @dc l8589987700
+pub v/int/abs int/x
+    test
+        in int:-123456789012345678901234567890
+        out int:123456789012345678901234567890.
+        in int:0
+        out int:0.
+    if lt /x int:0 neg /x /x.
+
+: Total absolute value of a `rat`.
+: @dc l8589987701
+pub v/rat/abs rat/x
+    test
+        in conv int:-7 rat
+        out conv int:7 rat.
+        in conv int:0 rat
+        out conv int:0 rat.
+    if lt /x conv int:0 rat neg /x /x.
+
+: Euclidean greatest common divisor of two `u32` values (`gcd 0 0 == 0`).
+: @dc l8589987702
+pub v/u32/gcd u32/a u32/b
+    test
+        in u32:48 u32:18
+        out u32:6.
+        in u32:0 u32:0
+        out u32:0.
+        in u32:0 u32:15
+        out u32:15.
+    let u32/curA /a.
+    let u32/curB /b.
+    while ne /curB u32:0 do
+        : `/curB` is non-zero by the loop condition, so `mod` cannot divide by zero.
+        const u32/r unwrapOr mod /curA /curB u32:0.
+        set /curA /curB.
+        set /curB /r.
+    ::.
+    /curA.
+
+: Euclidean greatest common divisor of two `u64` values (`gcd 0 0 == 0`).
+: @dc l8589987703
+pub v/u64/gcd u64/a u64/b
+    test
+        in u64:1071 u64:462
+        out u64:21.
+        in u64:0 u64:0
+        out u64:0.
+    let u64/curA /a.
+    let u64/curB /b.
+    while ne /curB u64:0 do
+        : `/curB` is non-zero by the loop condition, so `mod` cannot divide by zero.
+        const u64/r unwrapOr mod /curA /curB u64:0.
+        set /curA /curB.
+        set /curB /r.
+    ::.
+    /curA.
+
+: Euclidean greatest common divisor of two `u128` values (`gcd 0 0 == 0`).
+: @dc l8589987704
+pub v/u128/gcd u128/a u128/b
+    test
+        in u128:120000000000000000000 u128:90000000000000000000
+        out u128:30000000000000000000.
+        in u128:0 u128:0
+        out u128:0.
+    let u128/curA /a.
+    let u128/curB /b.
+    while ne /curB u128:0 do
+        : `/curB` is non-zero by the loop condition, so `mod` cannot divide by zero.
+        const u128/r unwrapOr mod /curA /curB u128:0.
+        set /curA /curB.
+        set /curB /r.
+    ::.
+    /curA.
+
+: Non-negative Euclidean greatest common divisor of two `int` values.
+: @dc l8589987705
+pub v/int/gcd int/a int/b
+    test
+        in int:-12 int:18
+        out int:6.
+        in int:0 int:0
+        out int:0.
+    let int/curA abs /a.
+    let int/curB abs /b.
+    while ne /curB int:0 do
+        : `/curB` is non-zero by the loop condition, so `mod` cannot divide by zero.
+        const int/r unwrapOr mod /curA /curB int:0.
+        set /curA /curB.
+        set /curB /r.
+    ::.
+    /curA.
+
+: Checked least common multiple of two `u32` values (`error:overflow` on overflow).
+: @dc l8589987706
+pub v/result/u32/lcm u32/a u32/b
+    test
+        in u32:12 u32:18
+        out result/u32:ok u32:36.
+        in u32:0 u32:7
+        out result/u32:ok u32:0.
+        in u32:100000 u32:100001
+        out result/u32:err error:overflow.
+    if or eq /a u32:0 eq /b u32:0
+        result/u32:ok u32:0
+        mul div? /a gcd /a /b /b.
+
+: Checked least common multiple of two `u64` values (`error:overflow` on overflow).
+: @dc l8589987707
+pub v/result/u64/lcm u64/a u64/b
+    test
+        in u64:21 u64:6
+        out result/u64:ok u64:42.
+        in u64:0 u64:9
+        out result/u64:ok u64:0.
+        in u64:5000000000 u64:5000000001
+        out result/u64:err error:overflow.
+    if or eq /a u64:0 eq /b u64:0
+        result/u64:ok u64:0
+        mul div? /a gcd /a /b /b.
+
+: Checked least common multiple of two `u128` values (`error:overflow` on overflow).
+: @dc l8589987708
+pub v/result/u128/lcm u128/a u128/b
+    test
+        in u128:120000000000000000000 u128:90000000000000000000
+        out result/u128:ok u128:360000000000000000000.
+        in u128:0 u128:5
+        out result/u128:ok u128:0.
+        in u128:100000000000000000000 u128:100000000000000000001
+        out result/u128:err error:overflow.
+    if or eq /a u128:0 eq /b u128:0
+        result/u128:ok u128:0
+        mul div? /a gcd /a /b /b.
+
+: Non-negative least common multiple of two arbitrary-precision `int` values.
+: @dc l8589987709
+pub v/int/lcm int/a int/b
+    test
+        in int:-12 int:18
+        out int:36.
+        in int:0 int:9
+        out int:0.
+    if or eq /a int:0 eq /b int:0
+        int:0
+        do
+            const int/absA abs /a.
+            const int/absB abs /b.
+            const int/g gcd /absA /absB.
+            : Both `/a` and `/b` are non-zero here, so `gcd` is strictly positive.
+            const int/q unwrapOr div /absA /g int:0.
+            mul /q /absB.
+        ::.

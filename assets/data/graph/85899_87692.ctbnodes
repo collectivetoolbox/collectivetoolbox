@@ -1,0 +1,100 @@
+l8589987692: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987693: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987694: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987695: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987696: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987697: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987698: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987699: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987700: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987701: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987702: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987703: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987704: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987705: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987706: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987707: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987708: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987709: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8589987710: 638 584 639 635 310 640 l8589987644 312 l8589987645 312 l8589987646 312 l8589987647 312 l8589987648 312 l8589987649 312 l8589987650 312 l8589987651 312 l8589987652 312 l8589987653 312 l8589987654 312 l8589987655 312 l8589987656 312 l8589987657 312 l8589987658 312 l8589987659 312 l8589987660 312 l8589987661 312 l8589987662 312 l8589987663 312 l8589987664 312 l8589987665 312 l8589987666 312 l8589987667 312 l8589987668 312 l8589987669 312 l8589987670 312 l8589987671 312 l8589987672 312 l8589987673 312 l8589987674 312 l8589987675 312 l8589987676 312 l8589987677 312 l8589987678 312 l8589987679 312 l8589987680 312 l8589987681 312 l8589987682 312 l8589987683 312 l8589987684 312 l8589987685 312 l8589987686 312 l8589987687 312 l8589987688 312 l8589987689 312 l8589987690 312 l8589987691 312 l8589987692 312 l8589987693 312 l8589987694 312 l8589987695 312 l8589987696 312 l8589987697 312 l8589987698 312 l8589987699 312 l8589987700 312 l8589987701 312 l8589987702 312 l8589987703 312 l8589987704 312 l8589987705 312 l8589987706 312 l8589987707 312 l8589987708 312 l8589987709 311 # Distribute statement over each element (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589987644..l8589987709 (66 elements)])
+l8589987711: 610 l8589987710 636 # Has value (Distribute statement over each element (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589987644..l8589987709 (66 elements)]), Collective Toolbox Dc CSV seed database)
+l8589987712: u43 u6f u6e u73 u74 u72 u75 u63 u74 u73 u20 u61 u20 u64 u63 u20 u44 u6f u63 u75 u6d u65 u6e u74 u20 u43 u68 u61 u72 u61 u63 u74 u65 u72 u20 u64 u69 u72 u65 u63 u74 u6c u79 u20 u66 u72 u6f u6d u20 u69 u74 u73 u20 u72 u61 u77 u20 u31 u32 u38 u2d u62 u69 u74 u20 u6e u75 u6d u65 u72 u69 u63 u20 u69 u64 u65 u6e u74 u69 u66 u69 u65 u72 u20 u28 u69 u6e u66 u61 u6c u6c u69 u62 u6c u65 u20 u75 u31 u32 u38 u20 u2d u3e u20 u64 u63 u3b u20 u61 u6c u6c u20 u30 u2e u2e u3d u32 u5e u31 u32 u38 u2d u31 u20 u76 u61 u6c u75 u65 u73 u2c u20 u69 u6e u63 u6c u75 u64 u69 u6e u67 u20 u55 u54 u46 u2d u31 u36 u20 u73 u75 u72 u72 u6f u67 u61 u74 u65 u20 u63 u6f u64 u65 u70 u6f u69 u6e u74 u73 u2c u20 u61 u72 u65 u20 u76 u61 u6c u69 u64 u20 u44 u6f u63 u75 u6d u65 u6e u74 u20 u43 u68 u61 u72 u61 u63 u74 u65 u72 u73 u29 u2e # "Constructs a dc Document Character directly from its raw 128-bit numeric identifier (infallible u128 -> dc; all 0..=2^128-1 values, including UTF-16 surrogate codepoints, are valid Document Characters)."
+l8589987713: u66 u6f u72 u6d u61 u74 u49 u64 # "formatId"
+l8589987714: u64 u63 u4b u69 u6e u64 # "dcKind"
+l8589987715: u65 u72 u72 u4e u75 u6d u62 u65 u72 u4f u75 u74 u73 u69 u64 u65 u44 u63 u52 u61 u6e u67 u65 # "errNumberOutsideDcRange"
+l8589987716: u65 u72 u72 u4e u75 u6d u62 u65 u72 u4f u75 u74 u73 u69 u64 u65 u53 u68 u6f u72 u74 u44 u63 u52 u61 u6e u67 u65 # "errNumberOutsideShortDcRange"
+l8589987717: u65 u72 u72 u4e u75 u6d u62 u65 u72 u4f u75 u74 u73 u69 u64 u65 u46 u6f u72 u6d u61 u74 u52 u61 u6e u67 u65 # "errNumberOutsideFormatRange"
+l8589987718: u65 u72 u72 u4e u75 u6d u62 u65 u72 u4f u75 u74 u73 u69 u64 u65 u55 u6e u69 u63 u6f u64 u65 u52 u61 u6e u67 u65 # "errNumberOutsideUnicodeRange"
+l8589987719: u63 u6c u61 u73 u73 u69 u66 u79 u44 u63 # "classifyDc"
+l8589987720: u64 u63 u49 u73 u55 u6e u69 u63 u6f u64 u65 # "dcIsUnicode"
+l8589987721: u64 u63 u46 u72 u6f u6d u49 u6e u74 # "dcFromInt"
+l8589987722: u64 u63 u46 u72 u6f u6d u55 u6e u69 u63 u6f u64 u65 # "dcFromUnicode"
+l8589987723: u64 u63 u46 u72 u6f u6d u53 u68 u6f u72 u74 # "dcFromShort"
+l8589987724: u64 u63 u46 u72 u6f u6d u46 u6f u72 u6d u61 u74 # "dcFromFormat"
+l8589987725: u66 u6f u72 u6d u61 u74 u49 u64 u46 u72 u6f u6d u53 u68 u6f u72 u74 u68 u61 u6e u64 # "formatIdFromShorthand"
+l8589987726: u66 u6f u72 u6d u61 u74 u49 u64 u53 u68 u6f u72 u74 u68 u61 u6e u64 # "formatIdShorthand"
+l8589987727: u70 u61 u72 u73 u65 u44 u63 u53 u68 u6f u72 u74 u68 u61 u6e u64 # "parseDcShorthand"
+l8589987728: u66 u6f u72 u6d u61 u74 u44 u63 u53 u68 u6f u72 u74 u68 u61 u6e u64 # "formatDcShorthand"
+l8589987729: u64 u63 u73 u53 u69 u6e u67 u6c u65 u74 u6f u6e # "dcsSingleton"
+l8589987730: u64 u63 u73 u46 u72 u6f u6d u4c u69 u73 u74 # "dcsFromList"
+l8589987731: u64 u63 u73 u54 u6f u4c u69 u73 u74 # "dcsToList"
+l8589987732: u65 u6e u63 u6f u64 u65 u44 u63 u73 u44 u63 u74 u66 # "encodeDcsDctf"
+l8589987733: u64 u65 u63 u6f u64 u65 u44 u63 u73 u44 u63 u74 u66 # "decodeDcsDctf"
+l8589987734: u6d u69 u6e # "min"
+l8589987735: u6d u61 u78 # "max"
+l8589987736: u73 u69 u67 u6e u75 u6d # "signum"
+l8589987737: u6c u63 u6d # "lcm"
+l8589987738: 610 l8589980021 l8589987712 # Has value (Has a (Convert u128 to Document Character, Description), "Constructs a dc Document Character directly from its raw 128-bit numeric identifier (infallible u128 -> dc; all 0..=2^128-1 values, including UTF-16 surrogate codepoints, are valid Document Characters).")
+l8589987739: 591 l8589987738 l8589980022 # Supersedes (Has value (Has a (Convert u128 to Document Character, Description), "Constructs a dc Document Character directly from its raw 128-bit numeric identifier (infallible u128 -> dc; all 0..=2^128-1 values, including UTF-16 surrogate codepoints, are valid Document Characters)."), Has value (Has a (Convert u128 to Document Character, Description), "Validates a raw u128 scalar value as a legal Document Character, returning result/dc (err invalidDc on unpaired surrogates or invalid codepoints)."))
+l8589987740: 584 l8589987638 574 # Has a (Is an instance of (Enclosing document, 2679), Programmatic identifier)
+l8589987741: 610 l8589987740 l8589987713 # Has value (Has a (Is an instance of (Enclosing document, 2679), Programmatic identifier), "formatId")
+l8589987742: 584 l8589987639 574 # Has a (Is an instance of (Enclosing document, 2679), Programmatic identifier)
+l8589987743: 610 l8589987742 l8589987714 # Has value (Has a (Is an instance of (Enclosing document, 2679), Programmatic identifier), "dcKind")
+l8589987744: 584 l8589987644 574 # Has a (Is an instance of (Enclosing document, f203), Programmatic identifier)
+l8589987745: 610 l8589987744 l8589987715 # Has value (Has a (Is an instance of (Enclosing document, f203), Programmatic identifier), "errNumberOutsideDcRange")
+l8589987746: 584 l8589987645 574 # Has a (Is an instance of (Enclosing document, f203), Programmatic identifier)
+l8589987747: 610 l8589987746 l8589987716 # Has value (Has a (Is an instance of (Enclosing document, f203), Programmatic identifier), "errNumberOutsideShortDcRange")
+l8589987748: 584 l8589987646 574 # Has a (Is an instance of (Enclosing document, f203), Programmatic identifier)
+l8589987749: 610 l8589987748 l8589987717 # Has value (Has a (Is an instance of (Enclosing document, f203), Programmatic identifier), "errNumberOutsideFormatRange")
+l8589987750: 584 l8589987647 574 # Has a (Is an instance of (Enclosing document, f203), Programmatic identifier)
+l8589987751: 610 l8589987750 l8589987718 # Has value (Has a (Is an instance of (Enclosing document, f203), Programmatic identifier), "errNumberOutsideUnicodeRange")
+l8589987752: 584 l8589987648 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987753: 610 l8589987752 l8589987719 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "classifyDc")
+l8589987754: 584 l8589987649 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987755: 610 l8589987754 l8589987720 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "dcIsUnicode")
+l8589987756: 584 l8589987650 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987757: 610 l8589987756 l8589980806 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "dcUnicode")
+l8589987758: 584 l8589987651 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987759: 610 l8589987758 l8589980804 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "dcShort")
+l8589987760: 584 l8589987652 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987761: 610 l8589987760 l8589980805 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "dcFormat")
+l8589987762: 584 l8589987653 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987763: 610 l8589987762 l8589983241 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "dcLong")
+l8589987764: 584 l8589987654 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987765: 610 l8589987764 l8589987721 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "dcFromInt")
+l8589987766: 584 l8589987655 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987767: 610 l8589987766 l8589987722 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "dcFromUnicode")
+l8589987768: 584 l8589987656 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987769: 610 l8589987768 l8589987723 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "dcFromShort")
+l8589987770: 584 l8589987657 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987771: 610 l8589987770 l8589987724 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "dcFromFormat")
+l8589987772: 584 l8589987664 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987773: 610 l8589987772 l8589987725 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "formatIdFromShorthand")
+l8589987774: 584 l8589987665 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987775: 610 l8589987774 l8589987726 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "formatIdShorthand")
+l8589987776: 584 l8589987667 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987777: 610 l8589987776 l8589987727 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "parseDcShorthand")
+l8589987778: 584 l8589987668 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987779: 610 l8589987778 l8589987728 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "formatDcShorthand")
+l8589987780: 584 l8589987669 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987781: 610 l8589987780 l8589987729 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "dcsSingleton")
+l8589987782: 584 l8589987670 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987783: 610 l8589987782 l8589987730 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "dcsFromList")
+l8589987784: 584 l8589987671 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987785: 610 l8589987784 l8589987731 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "dcsToList")
+l8589987786: 584 l8589987672 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987787: 610 l8589987786 l8589987732 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "encodeDcsDctf")
+l8589987788: 584 l8589987673 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987789: 610 l8589987788 l8589987733 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "decodeDcsDctf")
+l8589987790: 584 l8589987674 574 # Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier)
+l8589987791: 610 l8589987790 l8589987734 # Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Programmatic identifier), "min")

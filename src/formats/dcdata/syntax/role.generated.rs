@@ -682,7 +682,7 @@ pub enum DcRole {
     ConvertDcStringToWasm,
     /// Constructs a canonical reduced rational rat from numerator int and denominator int, returning result/rat (err divisionByZero when denominator is 0). (`2609`).
     MakeRatOp,
-    /// Validates a raw u128 scalar value as a legal Document Character, returning result/dc (err invalidDc on unpaired surrogates or invalid codepoints). (`2610`).
+    /// Constructs a dc Document Character directly from its raw 128-bit numeric identifier (infallible u128 -> dc; all 0..=2^128-1 values, including UTF-16 surrogate codepoints, are valid Document Characters). (`2610`).
     DcFromU128Op,
     /// Extracts the raw 128-bit numeric identifier of a dc value as an infallible u128. (`2611`).
     U128FromDcOp,

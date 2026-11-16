@@ -1,0 +1,528 @@
+: SPDX-License-Identifier: AGPL-3.0-or-later
+:
+: This file is part of Collective Toolbox, a database and document workspace and utilities.
+: Copyright (C) 2026 Collective Toolbox Developers
+: Contact: info@collectivetoolbox.com
+:
+: This program is free software: you can redistribute it and/or modify it under
+: the terms of the GNU Affero General Public License as published by the Free
+: Software Foundation, either version 3 of the License, or (at your option) any
+: later version.
+:
+: This program is distributed in the hope that it will be useful, but WITHOUT ANY
+: WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+: A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+:
+: You should have received a copy of the GNU Affero General Public License along
+: with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+: StageR 3 standard-library overlay for `std/dcs` (`stage_1_impls/std/dcs.sl3`).
+: Every 0..=2^128-1 scalar (including 0xD800..=0xDFFF surrogates, like WTF-8)
+: is a valid Document Character across `dc`, `dcs`, `s`, and `DcTF`.
+ns std/dcs.
+use std/dctf: encodeDcStream decodeDcStream ::.
+
+: Opaque validated Format ID (`0..=1_114_111`, never exposed as a bare integer outside `std/dcs`).
+: @dc l8589987638
+pub type u32/formatId.
+
+: Canonical Document Character region classification matching `DcShorthand`.
+: @dc l8589987639
+pub enum dcKind
+    u32/unicode.
+    u32/short.
+    formatId/format.
+    u128/long.
+
+: @dc l8589987640
+enum decParse
+    badSyntax.
+    overflowed.
+    u128/okVal.
+
+: @dc l8589987641
+enum hexU32Parse
+    badSyntax.
+    overflowed.
+    u32/okVal.
+
+: Classifies a `dc` scalar into Unicode, Short Dc, Format Dc, or Long Dc.
+: @dc l8589987648
+pub v/dcKind/classifyDc dc/ch
+    test
+        in dc:u41
+        out dcKind:unicode u32:65.
+        in dc:ud800
+        out dcKind:unicode u32:55296.
+        in dc:256
+        out dcKind:short u32:256.
+        in dc:f657
+        out dcKind:format wrap u32:657 formatId.
+        in dc:l8589934592
+        out dcKind:long u128:8589934592.
+    const u128/gid u128FromDc /ch.
+    if le /gid u128:1114111
+        : Guarded `gid <= 1_114_111` fits losslessly in `u32`.
+        dcKind:unicode unwrapOr conv /gid u32 u32:0
+        if le /gid u128:2228223
+            do
+                : Guarded `1_114_112 <= gid <= 2_228_223` yields offset `0..=1_114_111`.
+                const u128/off unwrapOr sub /gid u128:1114112 u128:0.
+                dcKind:short unwrapOr conv /off u32 u32:0.
+            ::
+            if le /gid u128:3342335
+                do
+                    : Guarded `2_228_224 <= gid <= 3_342_335` yields offset `0..=1_114_111`.
+                    const u128/off unwrapOr sub /gid u128:2228224 u128:0.
+                    dcKind:format wrap unwrapOr conv /off u32 u32:0 formatId.
+                ::
+                dcKind:long /gid.
+
+: Returns `true` when `ch` lies in the Unicode region (`0..=0x10FFFF`, including surrogates).
+: @dc l8589987649
+pub v/b/dcIsUnicode dc/ch
+    test
+        in dc:u41
+        out true.
+        in dc:ud800
+        out true.
+        in dc:256
+        out false.
+    le u128FromDc /ch u128:1114111.
+
+: Returns `some` Unicode code point when `ch` is in `0..=0x10FFFF` (including surrogates).
+: @dc l8589987650
+pub v/option/u32/dcUnicode dc/ch
+    test
+        in dc:ud800
+        out option/u32:some u32:55296.
+        in dc:256
+        out option/u32:none.
+    match classifyDc /ch
+        case unicode u32/cp option/u32:some /cp.
+        else option/u32:none.
+    ::.
+
+: Returns `some` short Dc ID (`0..=1_114_111`) when `ch` is a short Dc.
+: @dc l8589987651
+pub v/option/u32/dcShort dc/ch
+    test
+        in dc:256
+        out option/u32:some u32:256.
+        in dc:u41
+        out option/u32:none.
+    match classifyDc /ch
+        case short u32/sid option/u32:some /sid.
+        else option/u32:none.
+    ::.
+
+: Returns `some` opaque `formatId` when `ch` is in the Format Dc region.
+: @dc l8589987652
+pub v/option/formatId/dcFormat dc/ch
+    test
+        in dc:f657
+        out option/formatId:some wrap u32:657 formatId.
+        in dc:256
+        out option/formatId:none.
+    match classifyDc /ch
+        case format formatId/fid option/formatId:some /fid.
+        else option/formatId:none.
+    ::.
+
+: Returns `some` 128-bit graph ID when `ch` lies in the long Dc region (`> 3_342_335`).
+: @dc l8589987653
+pub v/option/u128/dcLong dc/ch
+    test
+        in dc:l8589934592
+        out option/u128:some u128:8589934592.
+        in dc:f657
+        out option/u128:none.
+    match classifyDc /ch
+        case long u128/gid option/u128:some /gid.
+        else option/u128:none.
+    ::.
+
+: Validates an arbitrary-precision `int` as a `dc` (`0..=2^128 - 1`).
+: @dc l8589987654
+pub v/result/dc/dcFromInt int/num
+    test
+        in int:55296
+        out result/dc:ok dc:ud800.
+        in int:-1
+        out result/dc:err error:numberOutsideDcRange.
+        in int:340282366920938463463374607431768211456
+        out result/dc:err error:numberOutsideDcRange.
+    match conv /num u128
+        case ok u128/raw result/dc:ok dcFromU128 /raw.
+        case err error/ignoredErr result/dc:err error:numberOutsideDcRange.
+    ::.
+
+: Validates a `u32` code point in the Unicode region (`0..=0x10FFFF`, including surrogates).
+: @dc l8589987655
+pub v/result/dc/dcFromUnicode u32/cp
+    test
+        in u32:55296
+        out result/dc:ok dc:ud800.
+        in u32:1114111
+        out result/dc:ok dc:u10ffff.
+        in u32:1114112
+        out result/dc:err error:numberOutsideUnicodeRange.
+    if gt /cp u32:1114111
+        result/dc:err error:numberOutsideUnicodeRange
+        result/dc:ok dcFromU128 conv /cp u128.
+
+: Validates a short Dc number (`0..=1_114_111`).
+: @dc l8589987656
+pub v/result/dc/dcFromShort u32/id
+    test
+        in u32:256
+        out result/dc:ok dc:256.
+        in u32:1114112
+        out result/dc:err error:numberOutsideShortDcRange.
+    if gt /id u32:1114111
+        result/dc:err error:numberOutsideShortDcRange
+        result/dc:ok dcFromU128 add? u128:1114112 conv /id u128.
+
+: Converts an opaque `formatId` into its Format Dc (`FORMAT_REGION_START + id`).
+: @dc l8589987657
+pub v/dc/dcFromFormat formatId/fid
+    test
+        in wrap u32:657 formatId
+        out dc:f657.
+    : Validated `formatId` is `<= 1_114_111`, so adding `2_228_224` cannot overflow `u128`.
+    dcFromU128 unwrapOr add u128:2228224 conv unwrap /fid u128 u128:0.
+
+: @dc l8589987658
+v/decParse/parseAsciiDecDcs dcs/chars u64/start
+    const u64/total len /chars.
+    if ge /start /total
+        return decParse:badSyntax
+        nop.
+    let u64/checkIdx /start.
+    while lt /checkIdx /total do
+        match get /chars /checkIdx
+            case none return decParse:badSyntax.
+            case some dc/ch do
+                const u128/code u128FromDc /ch.
+                if or lt /code u128:48 gt /code u128:57
+                    return decParse:badSyntax
+                    nop.
+            ::.
+        ::.
+        : `checkIdx < total <= u64::MAX` guarantees `checkIdx + 1` cannot overflow.
+        set /checkIdx unwrapOr add /checkIdx u64:1 /total.
+    ::.
+    let u128/acc u128:0.
+    let u64/idx /start.
+    while lt /idx /total do
+        match get /chars /idx
+            case none return decParse:badSyntax.
+            case some dc/ch do
+                const u128/dig unwrapOr sub u128FromDc /ch u128:48 u128:0.
+                const result/u128/scaled mul /acc u128:10.
+                match /scaled
+                    case err error/ignoredErr return decParse:overflowed.
+                    case ok u128/nextMul do
+                        match add /nextMul /dig
+                            case err error/ignoredErr return decParse:overflowed.
+                            case ok u128/nextVal set /acc /nextVal.
+                        ::.
+                    ::.
+                ::.
+            ::.
+        ::.
+        : `idx < total <= u64::MAX` guarantees `idx + 1` cannot overflow.
+        set /idx unwrapOr add /idx u64:1 /total.
+    ::.
+    decParse:okVal /acc.
+
+: @dc l8589987659
+v/hexU32Parse/parseLowerHexU32Dcs dcs/chars u64/start
+    const u64/total len /chars.
+    if ge /start /total
+        return hexU32Parse:badSyntax
+        nop.
+    let u64/checkIdx /start.
+    while lt /checkIdx /total do
+        match get /chars /checkIdx
+            case none return hexU32Parse:badSyntax.
+            case some dc/ch do
+                const u128/code u128FromDc /ch.
+                const b/isDec and ge /code u128:48 le /code u128:57.
+                const b/isLowHex and ge /code u128:97 le /code u128:102.
+                if not or /isDec /isLowHex
+                    return hexU32Parse:badSyntax
+                    nop.
+            ::.
+        ::.
+        : `checkIdx < total <= u64::MAX` guarantees `checkIdx + 1` cannot overflow.
+        set /checkIdx unwrapOr add /checkIdx u64:1 /total.
+    ::.
+    let u32/acc u32:0.
+    let u64/idx /start.
+    while lt /idx /total do
+        match get /chars /idx
+            case none return hexU32Parse:badSyntax.
+            case some dc/ch do
+                const u128/code u128FromDc /ch.
+                : Digit character was already validated to `'0'..'9'` or `'a'..'f'`.
+                const u32/dig
+                    if le /code u128:57
+                        unwrapOr conv unwrapOr sub /code u128:48 u128:0 u32 u32:0
+                        unwrapOr conv unwrapOr sub /code u128:87 u128:0 u32 u32:0.
+                match mul /acc u32:16
+                    case err error/ignoredErr return hexU32Parse:overflowed.
+                    case ok u32/shifted do
+                        match add /shifted /dig
+                            case err error/ignoredErr return hexU32Parse:overflowed.
+                            case ok u32/nextVal set /acc /nextVal.
+                        ::.
+                    ::.
+                ::.
+            ::.
+        ::.
+        : `idx < total <= u64::MAX` guarantees `idx + 1` cannot overflow.
+        set /idx unwrapOr add /idx u64:1 /total.
+    ::.
+    hexU32Parse:okVal /acc.
+
+: @dc l8589987660
+v/l/dc/reverseDcList l/dc/xs
+    const u64/n len /xs.
+    let buf/dc/out bufNew dc /n.
+    let u64/ri /n.
+    while gt /ri u64:0 do
+        : `ri > 0` guarantees subtraction cannot underflow and `ri - 1 < n`.
+        set /ri unwrapOr sub /ri u64:1 u64:0.
+        bufPush /out unwrapOr get /xs /ri dcFromU128 u128:48.
+    ::.
+    bufFreeze /out.
+
+: @dc l8589987661
+v/l/dc/u128ToDecDcs u128/val
+    if eq /val u128:0
+        return l/dc: dcFromU128 u128:48 ::
+        nop.
+    let buf/dc/rev bufNew dc u64:40.
+    let u128/cur /val.
+    while gt /cur u128:0 do
+        : Divisor `u128:10` is non-zero; `48 + rem` cannot overflow `u128`.
+        const u128/remVal unwrapOr mod /cur u128:10 u128:0.
+        bufPush /rev dcFromU128 unwrapOr add u128:48 /remVal u128:48.
+        set /cur unwrapOr div /cur u128:10 u128:0.
+    ::.
+    reverseDcList bufFreeze /rev.
+
+: @dc l8589987662
+v/l/dc/u32ToLowerHexDcs u32/val
+    if eq /val u32:0
+        return l/dc: dcFromU128 u128:48 ::
+        nop.
+    let buf/dc/rev bufNew dc u64:8.
+    let u32/cur /val.
+    while gt /cur u32:0 do
+        const u32/nib bitAnd /cur u32:15.
+        : `nib` is masked to `0..=15`, so `48 + nib <= 57` and `87 + nib <= 102` cannot overflow.
+        const u32/cp
+            if lt /nib u32:10
+                unwrapOr add u32:48 /nib u32:48
+                unwrapOr add u32:87 /nib u32:97.
+        bufPush /rev dcFromU128 conv /cp u128.
+        set /cur unwrapOr div /cur u32:16 u32:0.
+    ::.
+    reverseDcList bufFreeze /rev.
+
+: @dc l8589987663
+v/result/formatId/parseFormatIdDcs dcs/chars
+    const option/dc/first get /chars u64:0.
+    match /first
+        case none result/formatId:err error:parseFailure.
+        case some dc/fc do
+            if ne u128FromDc /fc u128:102
+                result/formatId:err error:parseFailure
+                match parseAsciiDecDcs /chars u64:1
+                    case badSyntax result/formatId:err error:parseFailure.
+                    case overflowed result/formatId:err error:numberOutsideFormatRange.
+                    case okVal u128/rawId
+                        if gt /rawId u128:1114111
+                            result/formatId:err error:numberOutsideFormatRange
+                            : `rawId <= 1_114_111` fits losslessly in `u32`.
+                            result/formatId:ok wrap unwrapOr conv /rawId u32 u32:0 formatId.
+                ::.
+        ::.
+    ::.
+
+: Parses a canonical `"f<decimal>"` format shorthand into an opaque `formatId`.
+: @dc l8589987664
+pub v/result/formatId/formatIdFromShorthand s/txt
+    test
+        in "f657"
+        out result/formatId:ok wrap u32:657 formatId.
+        in "f0"
+        out result/formatId:ok wrap u32:0 formatId.
+        in "f1114112"
+        out result/formatId:err error:numberOutsideFormatRange.
+        in "F657"
+        out result/formatId:err error:parseFailure.
+        in "f"
+        out result/formatId:err error:parseFailure.
+        in ""
+        out result/formatId:err error:parseFailure.
+    match dcsFromS /txt
+        case err error/ignoredErr result/formatId:err error:parseFailure.
+        case ok dcs/chars parseFormatIdDcs /chars.
+    ::.
+
+: Formats an opaque `formatId` as `"f<decimal>"`.
+: @dc l8589987665
+pub v/s/formatIdShorthand formatId/fid
+    test
+        in wrap u32:657 formatId
+        out "f657".
+        in wrap u32:0 formatId
+        out "f0".
+    const l/dc/prefix l/dc: dc:u66 ::.
+    const l/dc/digits u128ToDecDcs conv unwrap /fid u128.
+    sFromDcs conv concat /prefix /digits dcs.
+
+: @dc l8589987666
+v/result/dc/parseDcDcs dcs/chars
+    match get /chars u64:0
+        case none result/dc:err error:parseFailure.
+        case some dc/fc do
+            const u128/headCode u128FromDc /fc.
+            if eq /headCode u128:102
+                match parseAsciiDecDcs /chars u64:1
+                    case badSyntax result/dc:err error:parseFailure.
+                    case overflowed result/dc:err error:numberOutsideFormatRange.
+                    case okVal u128/rawFmt
+                        if gt /rawFmt u128:1114111
+                            result/dc:err error:numberOutsideFormatRange
+                            result/dc:ok dcFromU128 add? u128:2228224 /rawFmt.
+                ::
+                if eq /headCode u128:117
+                    match parseLowerHexU32Dcs /chars u64:1
+                        case badSyntax result/dc:err error:parseFailure.
+                        case overflowed result/dc:err error:numberOutsideUnicodeRange.
+                        case okVal u32/cp
+                            if gt /cp u32:1114111
+                                result/dc:err error:numberOutsideUnicodeRange
+                                result/dc:ok dcFromU128 conv /cp u128.
+                    ::
+                    if eq /headCode u128:108
+                        match parseAsciiDecDcs /chars u64:1
+                            case badSyntax result/dc:err error:parseFailure.
+                            case overflowed result/dc:err error:numberOutsideDcRange.
+                            case okVal u128/rawLong result/dc:ok dcFromU128 /rawLong.
+                        ::
+                        match parseAsciiDecDcs /chars u64:0
+                            case badSyntax result/dc:err error:parseFailure.
+                            case overflowed result/dc:err error:numberOutsideShortDcRange.
+                            case okVal u128/rawShort
+                                if gt /rawShort u128:1114111
+                                    result/dc:err error:numberOutsideShortDcRange
+                                    result/dc:ok dcFromU128 add? u128:1114112 /rawShort.
+                        ::.
+        ::.
+    ::.
+
+: Parses a canonical Dc shorthand (`"<N>"`, `"u<hex>"`, `"f<N>"`, `"l<N>"`) into a `dc`.
+: @dc l8589987667
+pub v/result/dc/parseDcShorthand s/txt
+    test
+        in "256"
+        out result/dc:ok dc:256.
+        in "f657"
+        out result/dc:ok dc:f657.
+        in "ud800"
+        out result/dc:ok dc:ud800.
+        in "u0020"
+        out result/dc:ok dc:u20.
+        in "l8589934592"
+        out result/dc:ok dc:l8589934592.
+        in "1114112"
+        out result/dc:err error:numberOutsideShortDcRange.
+        in "f1114112"
+        out result/dc:err error:numberOutsideFormatRange.
+        in "u110000"
+        out result/dc:err error:numberOutsideUnicodeRange.
+        in "l340282366920938463463374607431768211456"
+        out result/dc:err error:numberOutsideDcRange.
+        in "U41"
+        out result/dc:err error:parseFailure.
+        in "u4A"
+        out result/dc:err error:parseFailure.
+        in "L42"
+        out result/dc:err error:parseFailure.
+        in ""
+        out result/dc:err error:parseFailure.
+    match dcsFromS /txt
+        case err error/ignoredErr result/dc:err error:parseFailure.
+        case ok dcs/chars parseDcDcs /chars.
+    ::.
+
+: Formats any `dc` into its canonical Dc shorthand (`"<N>"`, `"u<hex>"`, `"f<N>"`, `"l<N>"`).
+: @dc l8589987668
+pub v/s/formatDcShorthand dc/ch
+    test
+        in dc:256
+        out "256".
+        in dc:ud800
+        out "ud800".
+        in dc:f657
+        out "f657".
+        in dc:l8589934592
+        out "l8589934592".
+    const l/dc/tokens
+        match classifyDc /ch
+            case unicode u32/cp concat l/dc: dc:u75 :: u32ToLowerHexDcs /cp.
+            case short u32/sid u128ToDecDcs conv /sid u128.
+            case format formatId/fid concat l/dc: dc:u66 :: u128ToDecDcs conv unwrap /fid u128.
+            case long u128/gid concat l/dc: dc:u6c :: u128ToDecDcs /gid.
+        ::.
+    sFromDcs conv /tokens dcs.
+
+: Constructs a single-character `dcs` from a `dc` scalar.
+: @dc l8589987669
+pub v/dcs/dcsSingleton dc/ch
+    test
+        in dc:ud800
+        out conv l/dc: dc:ud800 :: dcs.
+    conv l/dc: /ch :: dcs.
+
+: Converts an `l/dc` sequence into `dcs` at zero runtime cost.
+: @dc l8589987670
+pub v/dcs/dcsFromList l/dc/xs
+    test
+        in l/dc: dc:u41 dc:ud800 dc:256 ::
+        out conv l/dc: dc:u41 dc:ud800 dc:256 :: dcs.
+    conv /xs dcs.
+
+: Converts `dcs` into `l/dc` at zero runtime cost.
+: @dc l8589987671
+pub v/l/dc/dcsToList dcs/val
+    test
+        in conv l/dc: dc:u41 dc:ud800 dc:256 :: dcs
+        out l/dc: dc:u41 dc:ud800 dc:256 ::.
+    conv /val l/dc.
+
+: Encodes a `dcs` stream into DcTF (`f641`) bytes via `std/dctf`.
+: @dc l8589987672
+pub v/l/u8/encodeDcsDctf dcs/val
+    test
+        in conv l/dc: dc:u41 dc:ud800 dc:256 dc:f657 :: dcs
+        out l/u8: u8:65 u8:237 u8:160 u8:128 u8:244 u8:144 u8:132 u8:128 u8:248 u8:136 u8:160 u8:138 u8:145 ::.
+    encodeDcStream conv /val l/dc.
+
+: Decodes DcTF (`f641`) bytes into `dcs` (`error:invalidEncoding` on malformed DcTF).
+: @dc l8589987673
+pub v/result/dcs/decodeDcsDctf l/u8/bytes
+    test
+        in l/u8: u8:65 u8:237 u8:160 u8:128 u8:244 u8:144 u8:132 u8:128 u8:248 u8:136 u8:160 u8:138 u8:145 ::
+        out result/dcs:ok conv l/dc: dc:u41 dc:ud800 dc:256 dc:f657 :: dcs.
+        in l/u8: u8:255 ::
+        out result/dcs:err error:invalidEncoding.
+    const tup: b l/dc ::/dec decodeDcStream /bytes.
+    if field /dec u32:0
+        result/dcs:ok conv field /dec u32:1 dcs
+        result/dcs:err error:invalidEncoding.

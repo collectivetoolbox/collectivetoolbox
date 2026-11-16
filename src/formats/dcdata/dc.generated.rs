@@ -680,7 +680,7 @@ pub const DC_STAGEL_BUF_FREEZE: DcChar = DcChar::from_short(2585);
 pub const DC_CONVERT_DC_STRING_TO_WASM: DcChar = DcChar::from_short(2608);
 /// Constructs a canonical reduced rational rat from numerator int and denominator int, returning result/rat (err divisionByZero when denominator is 0). (Dc 2609).
 pub const DC_MAKE_RAT_OP: DcChar = DcChar::from_short(2609);
-/// Validates a raw u128 scalar value as a legal Document Character, returning result/dc (err invalidDc on unpaired surrogates or invalid codepoints). (Dc 2610).
+/// Constructs a dc Document Character directly from its raw 128-bit numeric identifier (infallible u128 -> dc; all 0..=2^128-1 values, including UTF-16 surrogate codepoints, are valid Document Characters). (Dc 2610).
 pub const DC_DC_FROM_U128_OP: DcChar = DcChar::from_short(2610);
 /// Extracts the raw 128-bit numeric identifier of a dc value as an infallible u128. (Dc 2611).
 pub const DC_U128_FROM_DC_OP: DcChar = DcChar::from_short(2611);
