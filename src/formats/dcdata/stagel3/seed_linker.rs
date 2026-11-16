@@ -455,6 +455,41 @@ fn collect_dc_refs_in_type(ty: &StageLType, out: &mut Vec<DcChar>) {
     }
 }
 
+fn collect_dc_refs_in_top_decl_sig(decl: &TopDecl, out: &mut Vec<DcChar>) {
+    match decl {
+        TopDecl::Comment(_) => {}
+        TopDecl::BrandType(b) => {
+            collect_dc_refs_in_type(&b.inner_ty, out);
+        }
+        TopDecl::NamedStruct(NamedStructDecl { fields, .. }) => {
+            for f in fields {
+                collect_dc_refs_in_type(&f.ty, out);
+            }
+        }
+        TopDecl::Enum(EnumDecl { variants, .. }) => {
+            for v in variants {
+                if let Some(p) = &v.payload {
+                    collect_dc_refs_in_type(p, out);
+                }
+            }
+        }
+        TopDecl::Struct(PositionalStructDecl { fields, .. }) => {
+            for f in fields {
+                collect_dc_refs_in_type(f, out);
+            }
+        }
+        TopDecl::Value(TopValueDecl { ty, .. }) => {
+            collect_dc_refs_in_type(ty, out);
+        }
+        TopDecl::Routine(r) => {
+            collect_dc_refs_in_type(&r.return_type, out);
+            for p in &r.params {
+                collect_dc_refs_in_type(&p.ty, out);
+            }
+        }
+    }
+}
+
 fn collect_dc_refs_in_module(module: &Module, out: &mut Vec<DcChar>) {
     for u in &module.uses {
         for item in &u.items {
@@ -464,37 +499,17 @@ fn collect_dc_refs_in_module(module: &Module, out: &mut Vec<DcChar>) {
         }
     }
     for decl in &module.items {
+        collect_dc_refs_in_top_decl_sig(decl, out);
         match decl {
-            TopDecl::Comment(_) => {}
-            TopDecl::BrandType(b) => {
-                collect_dc_refs_in_type(&b.inner_ty, out);
-            }
-            TopDecl::NamedStruct(NamedStructDecl { fields, .. }) => {
-                for f in fields {
-                    collect_dc_refs_in_type(&f.ty, out);
-                }
-            }
-            TopDecl::Enum(EnumDecl { variants, .. }) => {
-                for v in variants {
-                    if let Some(p) = &v.payload {
-                        collect_dc_refs_in_type(p, out);
-                    }
-                }
-            }
-            TopDecl::Struct(PositionalStructDecl { fields, .. }) => {
-                for f in fields {
-                    collect_dc_refs_in_type(f, out);
-                }
-            }
-            TopDecl::Value(TopValueDecl { ty, value, .. }) => {
-                collect_dc_refs_in_type(ty, out);
+            TopDecl::Comment(_)
+            | TopDecl::BrandType(_)
+            | TopDecl::NamedStruct(_)
+            | TopDecl::Enum(_)
+            | TopDecl::Struct(_) => {}
+            TopDecl::Value(TopValueDecl { value, .. }) => {
                 collect_dc_refs_in_expr(value, out);
             }
             TopDecl::Routine(r) => {
-                collect_dc_refs_in_type(&r.return_type, out);
-                for p in &r.params {
-                    collect_dc_refs_in_type(&p.ty, out);
-                }
                 for tb in &r.tests {
                     for tc in &tb.cases {
                         for arg in &tc.inputs {
@@ -1861,6 +1876,19 @@ fn assemble_topo_sorted_modules_with_seed_graph(
         }
     }
 
+    let mut local_dc_to_mod_idx: HashMap<DcChar, usize> = HashMap::new();
+    let mut local_dc_sig_refs: HashMap<DcChar, Vec<DcChar>> = HashMap::new();
+    for (m_idx, m) in all_modules.iter().enumerate() {
+        for item in &m.items {
+            if let Some(dc) = top_decl_dc_id(item) {
+                local_dc_to_mod_idx.insert(dc, m_idx);
+                let mut sig_refs = Vec::new();
+                collect_dc_refs_in_top_decl_sig(item, &mut sig_refs);
+                local_dc_sig_refs.insert(dc, sig_refs);
+            }
+        }
+    }
+
     let mut deps: Vec<Vec<usize>> = Vec::with_capacity(all_modules.len());
     let mut module_extra_dc_imports: Vec<HashMap<DcChar, ImportedSymbol>> =
         Vec::with_capacity(all_modules.len());
@@ -1913,6 +1941,15 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                     d.push(dep_idx);
                 }
                 extra_dc_map.insert(dc, owner.to_imported_symbol(dc));
+            } else if let Some(&dep_idx) = local_dc_to_mod_idx.get(&dc) {
+                if let Some(sig_refs) = local_dc_sig_refs.get(&dc) {
+                    for &s_dc in sig_refs {
+                        ref_queue.push_back(s_dc);
+                    }
+                }
+                if dep_idx != idx && !d.contains(&dep_idx) {
+                    d.push(dep_idx);
+                }
             }
         }
         deps.push(d);
@@ -1935,6 +1972,7 @@ fn link_parsed_modules_with_seed_graph_and_flags(
     let assembled =
         assemble_topo_sorted_modules_with_seed_graph(caller_modules, seed_graph)?;
     let mut ns_exports: HashMap<String, NamespaceExports> = HashMap::new();
+    let mut validated_by_dc: HashMap<DcChar, ImportedSymbol> = HashMap::new();
     let mut validated_modules =
         Vec::with_capacity(assembled.all_modules.len());
 
@@ -1947,6 +1985,19 @@ fn link_parsed_modules_with_seed_graph_and_flags(
             .module_extra_dc_imports
             .get(idx)
             .context("Invalid module extra dc_imports index")?;
+        let mut mod_local_dcs = HashSet::new();
+        collect_locally_defined_dcs(m, &mut mod_local_dcs);
+        let mut refs = Vec::new();
+        collect_dc_refs_in_module(m, &mut refs);
+        let mut merged_extra_dc = extra_dc.clone();
+        for dc in refs {
+            if !mod_local_dcs.contains(&dc)
+                && !merged_extra_dc.contains_key(&dc)
+                && let Some(sym) = validated_by_dc.get(&dc)
+            {
+                merged_extra_dc.insert(dc, sym.clone());
+            }
+        }
         let forbid_stagel_internal = assembled
             .all_forbid_flags
             .get(idx)
@@ -1955,11 +2006,17 @@ fn link_parsed_modules_with_seed_graph_and_flags(
         let vm = validate_module_with_registry_and_dc_imports_and_options(
             m,
             &ns_exports,
-            extra_dc,
+            &merged_extra_dc,
             forbid_stagel_internal,
         )?;
-        if let Some(ref key) = vm.namespace_key {
-            ns_exports.insert(key.clone(), vm.exports.clone());
+        // Reason for fallback: anonymous caller modules still contribute transitive struct/nominal definitions to `ns_exports` without colliding with `use` paths.
+        let export_key = vm
+            .namespace_key
+            .clone()
+            .unwrap_or_else(|| format!("$anon_caller_{idx}"));
+        ns_exports.insert(export_key, vm.exports.clone());
+        for (&dc, sym) in &vm.exports.by_dc {
+            validated_by_dc.insert(dc, sym.clone());
         }
         validated_modules.push(vm);
     }
@@ -2923,6 +2980,105 @@ pub v/u8/bad
         Ok(())
     }
 
+    struct Stager3VmCompiler {
+        vm: super::super::eval::StageLWorkspaceVm,
+        mod_idx: usize,
+        eval_cfg: super::super::eval::EvalConfig,
+    }
+
+    impl Stager3VmCompiler {
+        fn new(seed_graph: &SeedGraphIndex) -> Result<Self> {
+            use super::super::eval::{EvalConfig, StageLWorkspaceVm};
+
+            let compiler_src = std::fs::read_to_string(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/data-src/stage_1_impls/std/stager3_to_stagel3.sl3"
+            ))?;
+            let compiler_ws = parse_and_validate_module_with_seed_graph(
+                &compiler_src,
+                seed_graph,
+            )?;
+            let mod_idx = compiler_ws
+                .modules
+                .iter()
+                .position(|m| {
+                    m.exports.routines.contains_key("stager3ToStagel3")
+                })
+                .context("Expected stager3ToStagel3 module in workspace")?;
+            let eval_cfg = EvalConfig {
+                compute_quota: 50_000_000,
+                max_call_depth: 50,
+                max_bigint_bits: 1_048_576,
+                max_seq_elems: 4_194_304,
+            };
+            let vm = StageLWorkspaceVm::from_validated_workspace(
+                &compiler_ws,
+                eval_cfg,
+            )?;
+            Ok(Self {
+                vm,
+                mod_idx,
+                eval_cfg,
+            })
+        }
+
+        fn run_raw(
+            &self,
+            in_tokens: &[DcChar],
+        ) -> Result<super::super::eval::RoutineOutcome> {
+            use std::rc::Rc;
+
+            use super::super::eval::Value;
+
+            let mut in_bytes = Vec::with_capacity(in_tokens.len() * 4);
+            for t in in_tokens {
+                in_bytes.extend_from_slice(&ctb_formats_dctf::encode_dctf(t.0));
+            }
+            let arg = Value::List(Rc::new(
+                in_bytes.into_iter().map(Value::U8).collect(),
+            ));
+            self.vm
+                .call_routine(self.mod_idx, "stager3ToStagel3", vec![arg])
+        }
+
+        fn decode_tokens(bytes: &[u8]) -> Result<Vec<DcChar>> {
+            let mut out = Vec::new();
+            let mut pos = 0usize;
+            while pos < bytes.len() {
+                let (cp, used) = ctb_formats_dctf::decode_dctf_buf(&bytes[pos..])
+                    .with_context(|| format!("Invalid DcTF at byte {pos}"))?;
+                out.push(DcChar(cp));
+                pos += used;
+            }
+            Ok(out)
+        }
+
+        fn compile_tokens(&self, in_tokens: &[DcChar]) -> Result<Vec<DcChar>> {
+            use super::super::eval::{RoutineOutcome, Value};
+
+            let out = self.run_raw(in_tokens)?;
+            let out_val = match out {
+                RoutineOutcome::Returned(v) => v,
+                RoutineOutcome::Trapped(msg) => {
+                    bail!("stager3ToStagel3 trapped: {msg}");
+                }
+            };
+            let Value::List(out_list) = out_val else {
+                bail!(
+                    "Expected List(u8) from stager3ToStagel3, got {out_val:?}"
+                );
+            };
+            let out_bytes: Vec<u8> = out_list
+                .iter()
+                .map(|v| match v {
+                    Value::U8(b) => Ok(*b),
+                    other => bail!("Expected U8 element, got {other:?}"),
+                })
+                .collect::<Result<_>>()?;
+            Self::decode_tokens(&out_bytes)
+        }
+    }
+
     #[crate::ctb_test]
     fn test_stager3_to_stagel3_vm_parity_suite() -> Result<()> {
         let handle = std::thread::Builder::new()
@@ -2933,72 +3089,15 @@ pub v/u8/bad
 
                 use super::super::dc_tokens::encode_module_to_dc_tokens;
                 use super::super::eval::{
-                    EvalConfig, RoutineOutcome, StageLWorkspaceVm, Value,
+                    RoutineOutcome, StageLWorkspaceVm, Value,
                 };
                 use super::super::parser::parse_sr3_module;
 
                 let seed_graph = SeedGraphIndex::shared()?;
-                let compiler_src = std::fs::read_to_string(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/data-src/stage_1_impls/std/stager3_to_stagel3.sl3"
-                ))?;
-                let compiler_ws = parse_and_validate_module_with_seed_graph(
-                    &compiler_src,
-                    &seed_graph,
-                )?;
-                let compiler_mod_idx = compiler_ws
-                    .modules
-                    .iter()
-                    .position(|m| {
-                        m.exports.routines.contains_key("stager3ToStagel3")
-                    })
-                    .context("Expected stager3ToStagel3 module in workspace")?;
-                let eval_cfg = EvalConfig {
-                    compute_quota: 50_000_000,
-                    max_call_depth: 50,
-                    max_bigint_bits: 1_048_576,
-                    max_seq_elems: 4_194_304,
-                };
-                let compiler_vm = StageLWorkspaceVm::from_validated_workspace(
-                    &compiler_ws,
-                    eval_cfg,
-                )?;
-
-                let encode_tokens = |tokens: &[DcChar]| -> Vec<u8> {
-                    let mut out = Vec::with_capacity(tokens.len() * 4);
-                    for t in tokens {
-                        out.extend_from_slice(&ctb_formats_dctf::encode_dctf(
-                            t.0,
-                        ));
-                    }
-                    out
-                };
-                let decode_tokens = |bytes: &[u8]| -> Result<Vec<DcChar>> {
-                    let mut out = Vec::new();
-                    let mut pos = 0usize;
-                    while pos < bytes.len() {
-                        let (cp, used) =
-                            ctb_formats_dctf::decode_dctf_buf(&bytes[pos..])
-                                .with_context(|| {
-                                    format!("Invalid DcTF at byte {pos}")
-                                })?;
-                        out.push(DcChar(cp));
-                        pos += used;
-                    }
-                    Ok(out)
-                };
+                let compiler = Stager3VmCompiler::new(&seed_graph)?;
+                let eval_cfg = compiler.eval_cfg;
                 let run_compiler =
-                    |in_tokens: &[DcChar]| -> Result<RoutineOutcome> {
-                        let in_bytes = encode_tokens(in_tokens);
-                        let arg = Value::List(Rc::new(
-                            in_bytes.into_iter().map(Value::U8).collect(),
-                        ));
-                        compiler_vm.call_routine(
-                            compiler_mod_idx,
-                            "stager3ToStagel3",
-                            vec![arg],
-                        )
-                    };
+                    |in_tokens: &[DcChar]| compiler.run_raw(in_tokens);
 
                 let verify_workspace = |label: &str,
                                         inputs: &[ModuleInput<'_>],
@@ -3021,33 +3120,18 @@ pub v/u8/bad
                         format!("[{label}] StageR inline tests failed")
                     })?;
 
-                    let mut bundled_tokens = Vec::new();
+                    let mut raw_tokens = Vec::new();
                     for vm in &sr3_ws.modules {
-                        bundled_tokens
+                        raw_tokens
                             .extend(encode_module_to_dc_tokens(&vm.module)?);
                     }
-                    let out = run_compiler(&bundled_tokens)?;
-                    let out_val = match out {
-                        RoutineOutcome::Returned(v) => v,
-                        RoutineOutcome::Trapped(msg) => {
-                            bail!("[{label}] stager3ToStagel3 trapped: {msg}");
-                        }
-                    };
-                    let Value::List(out_list) = out_val else {
-                        bail!(
-                            "[{label}] Expected List(u8) from stager3ToStagel3, got {out_val:?}"
-                        );
-                    };
-                    let out_bytes: Vec<u8> = out_list
-                        .iter()
-                        .map(|v| match v {
-                            Value::U8(b) => Ok(*b),
-                            other => {
-                                bail!("Expected U8 element, got {other:?}")
-                            }
-                        })
-                        .collect::<Result<_>>()?;
-                    let sl3_tokens = decode_tokens(&out_bytes)?;
+                    let bundled_tokens =
+                        bundle_dc_module_dependencies(&raw_tokens, &seed_graph)?;
+                    let sl3_tokens = compiler
+                        .compile_tokens(&bundled_tokens)
+                        .with_context(|| {
+                            format!("[{label}] running stager3ToStagel3")
+                        })?;
                     let sl3_ws = validate_dc_tokens_with_seed_graph(
                         &sl3_tokens,
                         &seed_graph,
@@ -3537,5 +3621,183 @@ pub v/result/b/checkDcAndStrings
         handle
             .join()
             .map_err(|_| anyhow::anyhow!("sr3_to_sl3_parity thread panicked"))?
+    }
+
+    #[crate::ctb_test]
+    fn test_stager3_std_math_overloads_carrier_bridging_and_may_fault()
+    -> Result<()> {
+        let handle = std::thread::Builder::new()
+            .name(String::from("sr3_std_overloads"))
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| -> Result<()> {
+                use super::super::eval::{RoutineOutcome, StageLWorkspaceVm};
+
+                let seed_graph = SeedGraphIndex::shared()?;
+                let compiler = Stager3VmCompiler::new(&seed_graph)?;
+                let eval_cfg = compiler.eval_cfg;
+
+                // 1. StageR 3 importing unified `std/math`, `std/u128`, `std/i128`, `std/bigint`
+                //    overloads + StageR built-in `add` + aliased total `add as totalAdd`.
+                let sr3_src = r#"ns demo/std_math_sr.
+use std/math: add sub mul neg canAdd canSub canMul canDiv canNeg wrapAdd wrapNeg bitAnd rotl clz eq lt i128Min u128Max ::.
+use std/math: add as totalAdd ::.
+use std/u128: from as u128From ::.
+use std/i128: from as i128From ::.
+use std/bigint: abs gcd ::.
+
+pub v/result/b/checkStdMath
+    test
+        in.
+        out result/b:ok true.
+    const i128/negMin /i128Min.
+    const u128/uMax /u128Max.
+    const b/okCan and canAdd int:5 int:7
+        and not canAdd /negMin i128:-1
+        and not canAdd /uMax u128:1
+        and not canNeg /negMin
+        and canNeg int:-5
+        canDiv makeRat? int:1 int:2 makeRat? int:3 int:4.
+    const b/okWrap and eq wrapNeg /negMin /negMin eq wrapAdd u8:250 u8:10 u8:4.
+    const b/okBit and eq bitAnd i128:15 i128:7 i128:7
+        and eq rotl u128:1 u32:64 u128:18446744073709551616
+        eq clz u128:1 u32:127.
+    const b/okTotal and eq totalAdd int:5 int:7 int:12
+        eq totalAdd makeRat? int:1 int:2 makeRat? int:1 int:3 makeRat? int:5 int:6.
+    const b/okConv and eq u128From u64:42 u128:42
+        and eq i128From i32:-7 i128:-7
+        and eq gcd int:-12 int:18 int:6
+        eq abs int:-9 int:9.
+    const i128/biSum add? i128:5 i128:7.
+    const b/okRel and lt /negMin i128:0 and eq /biSum i128:12 eq eq i32:3 i32:3 true.
+    result/b:ok and /okCan and /okWrap and /okBit and /okTotal and /okConv /okRel.
+"#;
+                let sr3_ws = parse_and_validate_stager_workspace_with_seed_graph(
+                    &[ModuleInput {
+                        source_path: Some("demo/std_math_sr.sr3"),
+                        source: sr3_src,
+                    }],
+                    &seed_graph,
+                )?;
+                let sr3_vm = StageLWorkspaceVm::from_validated_workspace(
+                    &sr3_ws,
+                    eval_cfg,
+                )?;
+                assert_eq!(sr3_vm.run_all_tests(&sr3_ws)?.ensure_all_passed()?, 1);
+
+                let sr3_tokens =
+                    sr3_to_dc_tokens_with_seed_graph(sr3_src, &seed_graph)?;
+                let bundled_sr3 =
+                    bundle_dc_module_dependencies(&sr3_tokens, &seed_graph)?;
+                let sl3_tokens = compiler.compile_tokens(&bundled_sr3)?;
+                let sl3_ws =
+                    validate_dc_tokens_with_seed_graph(&sl3_tokens, &seed_graph)?;
+                let sl3_vm = StageLWorkspaceVm::from_validated_workspace(
+                    &sl3_ws,
+                    eval_cfg,
+                )?;
+                assert_eq!(sl3_vm.run_all_tests(&sl3_ws)?.ensure_all_passed()?, 1);
+
+                // 2. Negative totality tests in BOTH host validator AND self-hosted `stager3ToStagel3`:
+                for (label, bad_src) in [
+                    (
+                        "StageL faulting add(i32, i32) via alias",
+                        "ns bad/sl_add_i32.\nuse std/math: add as slAdd ::.\npub v/i32/boom\n    slAdd i32:1 i32:2.\n",
+                    ),
+                    (
+                        "StageL faulting add(i128, i128) via alias",
+                        "ns bad/sl_add_i128.\nuse std/math: add as slAdd ::.\npub v/i128/boom\n    slAdd i128:1 i128:2.\n",
+                    ),
+                    (
+                        "StageL faulting dcFromU128(u128) via alias",
+                        "ns bad/sl_dc.\nuse std/dcs: dcFromU128 as slDc ::.\npub v/dc/boom\n    slDc u128:65.\n",
+                    ),
+                ] {
+                    assert!(
+                        parse_and_validate_sr3_module_with_seed_graph(
+                            bad_src,
+                            &seed_graph,
+                        )
+                        .is_err(),
+                        "[{label}] Host validator must reject StageL-faulting call in StageR 3"
+                    );
+                    let bad_tokens =
+                        sr3_to_dc_tokens_with_seed_graph(bad_src, &seed_graph)?;
+                    let bundled_bad =
+                        bundle_dc_module_dependencies(&bad_tokens, &seed_graph)?;
+                    assert!(
+                        matches!(
+                            compiler.run_raw(&bundled_bad)?,
+                            RoutineOutcome::Trapped(_)
+                        ),
+                        "[{label}] Self-hosted stager3ToStagel3 must trap on StageL-faulting call"
+                    );
+                }
+
+                // 3. Stage 2 `impls/` module must also reject StageL-faulting stdlib routines.
+                assert!(
+                    parse_and_validate_workspace_with_seed_graph(
+                        &[ModuleInput {
+                            source_path: Some("impls/app/bad_fault.sl3"),
+                            source: concat!(
+                                "use std/u128: u128Val u128One add ::.\n",
+                                "pub v/u128Val/boom :: add /u128One /u128One.\n",
+                            ),
+                        }],
+                        &seed_graph,
+                    )
+                    .is_err(),
+                    "Stage 2 impls/ must reject faulting std/u128::add"
+                );
+
+                // 4. StageL 3 direct overloaded operator syntax across `std/{u128,i128,bigint,rat,dcs,dcmst,math}`.
+                let sl3_src = r#"ns demo/std_math_sl3.
+use std/u128: u128Val u128New from as u128From ::.
+use std/i128: i128Val from as i128From ::.
+use std/bigint: bigInt from as intFrom abs ::.
+use std/rat: ratVal from as ratFrom makeRat ::.
+use std/dctf: dcVal ::.
+use std/dcs: dcFromU128 u128FromDc explode as dcsExplode implode as dcsImplode ::.
+use std/dcmst: byteLen dcsFromS sFromDcs explode as sExplode implode as sImplode ::.
+use std/math: add sub mul div rem mod truncRem wrapAdd wrapNeg bitAnd rotl shl clz lt neg ::.
+
+pub v/b/checkStageLOverloads
+    test
+        in.
+        out true.
+    const u128Val/ua add u128From u64:10 u128From u64:32.
+    const u128Val/ur rem div u128From u64:43 u128From u64:5 u128From u64:3.
+    const u128Val/ub rotl shl u128From u64:1 u32:2 u32:62.
+    const i128Val/ia neg sub i128From i32:10 i128From i32:17.
+    const i128Val/im mod truncRem /ia i128From i32:5 i128From i32:4.
+    const bigInt/bi mul intFrom i32:-6 intFrom i32:7.
+    const bigInt/bq add div /bi intFrom i32:2 intFrom i32:100.
+    const ratVal/ra makeRat intFrom i32:6 intFrom i32:4.
+    const ratVal/rb div sub mul /ra ratFrom i32:2 ratFrom i32:1 ratFrom i32:2.
+    const dcVal/ch dcFromU128 u128From u64:65.
+    const l/dcVal/colon l/dcVal: dcFromU128 u128From u64:58 ::.
+    const l/dcVal/joined dcsImplode /colon dcsExplode /colon l/dcVal: /ch /ch ::.
+    const l/dcVal/pure dcsFromS sFromDcs /joined.
+    and eq /ua u128From u64:42
+        and eq /ur u128From u64:2
+            and eq /ub u128New u64:0 u64:1
+                and eq clz /ua u32:122
+                    and eq wrapNeg i128From i32:5 i128From i32:-5
+                        and lt /im i128From i32:4
+                            and eq abs /bi intFrom i32:42
+                                and eq /bq intFrom i32:79
+                                    and eq /rb ratFrom i32:1
+                                        and eq u128FromDc /ch u128From u64:65
+                                            and eq byteLen sImplode /colon sExplode /colon /pure len /pure
+                                                eq bitAnd u128From u64:15 u128From u64:6 u128From u64:6.
+"#;
+                let sl3_rep =
+                    eval_sl3_inline_tests_with_seed_graph(sl3_src, &seed_graph)?;
+                assert_eq!(sl3_rep.ensure_all_passed()?, 1);
+                Ok(())
+            })
+            .context("Failed to spawn sr3_std_overloads thread")?;
+        handle
+            .join()
+            .map_err(|_| anyhow::anyhow!("sr3_std_overloads thread panicked"))?
     }
 }

@@ -315,7 +315,8 @@ v/l/u8/step l/u8/mode
         let src = r#"
 use std/assert: assertStageLInternal ::.
 use std/bytes: explode implode ::.
-use std/math: u8Min u8Max i32Min i32Max u32Min u32Max i64Min i64Max u64Min u64Max modStageLInternal canAdd canSub canMul canDiv ::.
+use std/u128: u128Val u128New ::.
+use std/math: u8Min u8Max i32Min i32Max u32Min u32Max i64Min i64Max u64Min u64Max u128Max modStageLInternal canAdd canSub canMul canDiv canNeg wrapNeg add rotl clz ::.
 
 : Out-of-order intra-module top-level constants
 const i32/derivedConst add /baseConst i32:22.
@@ -330,10 +331,15 @@ v/l/u8/step l/u8/input
         assertStageLInternal eq dc/l8589978243 i32:-1 /i32Min /i32Max.
         assertStageLInternal and not canAdd /i32Max i32:1 not canSub /i32Min i32:1.
         assertStageLInternal and not canMul /i32Min i32:-1 not canDiv /i32Min i32:-1.
+        assertStageLInternal and not canNeg /i32Min eq wrapNeg /i32Min /i32Min.
         assertStageLInternal eq modStageLInternal /i64Min i64:-1 i64:0.
         assertStageLInternal and eq /u8Min u8:0 eq modStageLInternal /u8Max u8:10 u8:5.
         assertStageLInternal and eq /u32Min u32:0 eq modStageLInternal /u32Max u32:10 u32:5.
         assertStageLInternal and eq /u64Min u64:0 eq modStageLInternal /u64Max u64:10 u64:5.
+        assertStageLInternal not canAdd /u128Max u128New u64:1 u64:0.
+        assertStageLInternal eq add u128New u64:10 u64:0 u128New u64:32 u64:0 u128New u64:42 u64:0.
+        assertStageLInternal eq rotl u128New u64:1 u64:0 u32:64 u128New u64:0 u64:1.
+        assertStageLInternal eq clz u128New u64:1 u64:0 u32:127.
 
         let l/l/u8/pieces explode b"," /input.
         let buf/l/u8/mapped bufNew l/u8 len /pieces.
@@ -704,8 +710,10 @@ v/l/u8/step l/u8/input
         };
 
         // 2. End-to-end StageR 3 -> `f1681` (WASM) -> `f1680` (WASM) -> `tinywasm` execution,
-        //    including 5,000-depth constant-stack tail-recursive `match`, `int`/`rat`, `dcs`/`s`, and `?`.
+        //    including 5,000-depth constant-stack tail-recursive `match`, `use std/math:`, `int`/`rat`, `dcs`/`s`, and `?`.
         let sr3_prog = r#"ns app/e2e_stager.
+use std/math: canAdd canNeg wrapNeg bitAnd rotl i128Min u128Max ::.
+use std/bigint: gcd ::.
 
 brand u64/countTag.
 
@@ -742,7 +750,15 @@ v/result/b/verifyAll
     const int/two conv? mul /r makeRat? int:4 int:1 int.
     const dcs/pure dcsFromS? "x:y".
     const s/joined implode "-" explode ":" sFromDcs /pure.
-    result/b:ok and eq /ts u64:5000 and eq /two int:2 eq /joined "x-y".
+    const b/okMath and canAdd int:1 int:2
+        and not canAdd /i128Min i128:-1
+        and not canAdd /u128Max u128:1
+        and not canNeg /i128Min
+        and eq wrapNeg /i128Min /i128Min
+        and eq bitAnd i128:15 i128:7 i128:7
+        and eq rotl u128:1 u32:64 u128:18446744073709551616
+        eq gcd int:-12 int:18 int:6.
+    result/b:ok and /okMath and eq /ts u64:5000 and eq /two int:2 eq /joined "x-y".
 
 pub v/l/u8/step l/u8/input
     if unwrapOr verifyAll false
@@ -766,7 +782,8 @@ pub v/l/u8/step l/u8/input
             run_target_with_high_quota(&target_dc_wasm, &ascii_dcmstring("42"))?;
         assert_eq!(out_doc, ascii_dcmstring("OK:42"));
 
-        // 3. Negative check: non-exhaustive StageR `enum` `match` traps cleanly inside WASM `f1681`.
+        // 3. Negative checks:
+        //    (a) Non-exhaustive StageR `enum` `match` traps cleanly inside WASM `f1681`.
         let bad_sr3_mod = crate::stagel3::parser::parse_sr3_module(concat!(
             "ns app/bad_match.\n",
             "enum pair\n    a.\n    b.\n\n",
@@ -778,6 +795,28 @@ pub v/l/u8/step l/u8/input
         assert!(
             run_f1681_wasm_raw(&bad_sr3_tokens).is_err(),
             "Expected non-exhaustive StageR match to trap inside WASM f1681"
+        );
+
+        //    (b) StageL-faulting Stage 1 import (`std/math::add(i32, i32)`) traps inside WASM `f1681`.
+        let fault_sr3_tokens =
+            ctb_formats_dcdata::stagel3::seed_linker::sr3_to_dc_tokens_with_seed_graph(
+                concat!(
+                    "ns app/bad_fault.\n",
+                    "use std/math: add as slAdd ::.\n",
+                    "pub v/l/u8/step l/u8/input\n",
+                    "    const i32/_boom slAdd i32:1 i32:2.\n",
+                    "    /input.\n",
+                ),
+                sg,
+            )?;
+        let fault_bundled =
+            ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_dependencies(
+                &fault_sr3_tokens,
+                sg,
+            )?;
+        assert!(
+            run_f1681_wasm_raw(&fault_bundled).is_err(),
+            "Expected StageL-faulting import in StageR 3 to trap inside WASM f1681"
         );
 
         Ok(())

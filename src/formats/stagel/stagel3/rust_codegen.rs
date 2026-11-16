@@ -5928,7 +5928,7 @@ pub v/u32/guard_or_abort u32/val
         // without needing `as` import aliases across integer types.
         let linked_client_sl3 = r#"
 use std/bytes: explode implode ::.
-use std/math: u8Min u8Max i32Min i64Min u32Min u32Max u64Min u64Max modStageLInternal canAdd canSub canMul canDiv ::.
+use std/math: u8Min u8Max i32Min i64Min u32Min u32Max u64Min u64Max modStageLInternal canAdd canSub canMul canDiv canNeg wrapNeg bitAnd rotl clz ::.
 
 v/u32/stepCount u32/steps u32/acc
     if eq /steps u32:0
@@ -5959,6 +5959,9 @@ v/b/checkLinkedMath
     dc/l8589978237 and not canMul /i32Min i32:-1 not canMul /i64Min i64:-1.
     dc/l8589978237 and not canSub /i32Min i32:1 not canDiv /i64Min i64:-1.
     dc/l8589978237 and not canAdd /u8Max u8:1 not canAdd /u64Max u64:1.
+    dc/l8589978237 and not canNeg /i32Min and not canNeg /i64Min eq wrapNeg /i32Min /i32Min.
+    let u64/maskBits u64:15.
+    dc/l8589978237 and eq bitAnd /maskBits u64:6 u64:6 and eq rotl u8:1 u32:7 u8:128 eq clz u8:1 u32:7.
     dc/l8589978237 and eq stepCount u32:5 u32:0 u32:5 eq stepCount u64:5 u64:0 u64:5.
     dc/l8589978237 eq implode b"-" explode b"" b"abc" b"a-b-c".
     true.

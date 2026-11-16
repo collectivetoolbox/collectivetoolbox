@@ -804,7 +804,7 @@ v/u32/bufSetOobAndExplicitFault b/triggerFault u64/idx
         let client_src = r#"
 use std/assert: assertStageLInternal ::.
 use std/bytes: explode implode ::.
-use std/math: u8Min u8Max i32Min i32Max u32Min u32Max i64Min i64Max u64Min u64Max modStageLInternal canAdd canSub canMul canDiv ::.
+use std/math: u8Min u8Max i32Min i32Max u32Min u32Max i64Min i64Max u64Min u64Max modStageLInternal canAdd canSub canMul canDiv canNeg wrapNeg bitAnd rotl clz ::.
 
 v/l/u8/rejoinNormalize l/u8/raw
     test csvRoundtrip
@@ -847,6 +847,9 @@ v/b/exerciseAllStdMath
     assertStageLInternal and not canAdd /u8Max u8:1 and not canSub /u8Min u8:1 and not canMul u8:16 u8:16 not canDiv u8:1 u8:0.
     assertStageLInternal and not canAdd /u32Max u32:1 and not canSub /u32Min u32:1 and not canMul u32:65536 u32:65536 not canDiv u32:1 u32:0.
     assertStageLInternal and not canAdd /u64Max u64:1 and not canSub /u64Min u64:1 and not canMul u64:4294967296 u64:4294967296 not canDiv u64:1 u64:0.
+    assertStageLInternal and not canNeg /i32Min and canNeg /i32Max eq wrapNeg /i32Min /i32Min.
+    assertStageLInternal and not canNeg /i64Min and canNeg /i64Max eq wrapNeg /i64Min /i64Min.
+    assertStageLInternal and eq bitAnd u32:15 u32:6 u32:6 and eq rotl u8:1 u32:7 u8:128 eq clz u8:1 u32:7.
     true.
 "#;
         let shared_idx = SeedGraphIndex::shared()?;
