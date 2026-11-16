@@ -12,6 +12,17 @@ Any valid Dc encoding remains editable through source-range replacement,
 regardless of whether its Dc sequence satisfies a recognized syntax rule.
 Untouched bytes, including malformed syntax and unknown Dcs, remain verbatim.
 
+## Document Character Domain and Surrogate Code Points
+
+Every 128-bit unsigned scalar `0..=2^128 - 1` is a valid Document Character
+across `DcChar`, `DcTF` (`f641`), `DcUtf` (`f89`), `DcMM` (`f642` v1 / `f643` v2),
+`DcStr`/`DcString`, `DcMstr`/`DcMstring`, `DcText`, `Dcts` (`f461`), and
+StageL/StageR `dc`/`dcs`/`s`. This explicitly includes the UTF-16 surrogate
+region `0xD800..=0xDFFF` inside the Unicode region `0..=0x10FFFF` (analogous to
+WTF-8): surrogates carry no special validity restriction in Dc formats or string
+APIs and are validated only at UTF-8 (`char` / `&str`) or UTF-16 conversion
+boundaries.
+
 ## Decoding and Inspection
 
 Both borrowed string types provide:
