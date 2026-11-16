@@ -31,6 +31,7 @@ use crate::utilities::*;
 use super::super::ast::{
     BinaryOp, BlockItem, Expr, MatchArm, RoutineDecl, Span, StageDialect,
     StageLType, StageRErrorTag, StructTypeRef, SymbolTarget,
+    format_dc_shorthand,
 };
 use super::consts_and_flow::{
     BindingEntry, BindingKind, BodyCtx, BufState, FlowState, NestedVerbSummary,
@@ -771,13 +772,19 @@ impl<'a> ModuleValidator<'a> {
             }
             SymbolTarget::Dc(dc) => {
                 if let Some(sig) = self.top_dc_routines.get(dc).cloned() {
+                    let orig_name = self
+                        .top_dc_names
+                        .get(dc)
+                        .cloned()
+                        .with_context(|| {
+                            format!(
+                                "Internal error: missing top-level routine name for 'dc/{}' at {span}",
+                                format_dc_shorthand(*dc)
+                            )
+                        })?;
                     if self.forbid_stagel_internal && sig.may_fault {
-                        let cname = self
-                            .top_dc_names
-                            .get(dc)
-                            .map_or("routine", String::as_str);
                         bail!(
-                            "Faulting routine '{cname}' cannot be called in total StageR/Stage 2 module at {span}"
+                            "Faulting routine '{orig_name}' cannot be called in total StageR/Stage 2 module at {span}"
                         );
                     }
                     ensure!(
@@ -795,17 +802,14 @@ impl<'a> ModuleValidator<'a> {
                             "Call argument type mismatch at argument {arg_pos} of Dc call at {span}: expected '{pty}', found '{aty}'"
                         );
                     }
-                    if let Some(orig_name) = self.top_dc_names.get(dc).cloned()
-                    {
-                        self.resolved_calls.insert(
-                            (span.line, span.col),
-                            ResolvedCallTarget {
-                                namespace: None,
-                                routine_name: orig_name,
-                                sig: sig.clone(),
-                            },
-                        );
-                    }
+                    self.resolved_calls.insert(
+                        (span.line, span.col),
+                        ResolvedCallTarget {
+                            namespace: None,
+                            routine_name: orig_name,
+                            sig: sig.clone(),
+                        },
+                    );
                     if was_in_tail {
                         self.tail_calls.insert((span.line, span.col));
                     }

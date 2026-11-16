@@ -2044,7 +2044,7 @@ fn marshal_stager_val_to_stage1(val: Value) -> Result<Value> {
     match val {
         Value::I128(v) => Ok(Value::Struct {
             type_key: (Some("std/i128".to_owned()), "i128Val".to_owned()),
-            fields: split_u128_fields(u128::from_ne_bytes(v.to_ne_bytes()))?,
+            fields: split_u128_fields(u128::from_le_bytes(v.to_le_bytes()))?,
         }),
         Value::U128(bits) => Ok(Value::Struct {
             type_key: (Some("std/u128".to_owned()), "u128Val".to_owned()),
@@ -2094,7 +2094,7 @@ fn marshal_stage1_val_to_stager(val: Value) -> Result<Value> {
         ) {
             (Some("std/i128"), "i128Val") => {
                 let bits = join_u128_fields(&fields, "std/i128::i128Val")?;
-                Ok(Value::I128(i128::from_ne_bytes(bits.to_ne_bytes())))
+                Ok(Value::I128(i128::from_le_bytes(bits.to_le_bytes())))
             }
             (Some("std/u128"), "u128Val") => {
                 let bits = join_u128_fields(&fields, "std/u128::u128Val")?;
