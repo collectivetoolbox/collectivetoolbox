@@ -830,10 +830,10 @@ pub v/result/i32/exerciseOps i32/a i32/rhs
     const dcs/k dcsFromS? "k".
     const inlinePair/ip structNew inlinePair: label sFromDcs /k key /k ::.
     const u64/blen byteLen field /ip label.
-    const result/dc/rd dcFromU128 u128FromDc /ATOM_CONST.
+    const dc/rd dcFromU128 u128FromDc /ATOM_CONST.
     const option/dc/missing option/dc:none.
     const option/dc/present option/dc:some /FMT_CONST.
-    const b/chk1 and isSome /present isNone /missing.
+    const b/chk1 and eq /rd /ATOM_CONST and isSome /present isNone /missing.
     const choice/c choice:empty.
     const choice/c2 choice:pt /p2.
     const result/rat/r makeRat int:123456789012345678901234567890 int:-4.
@@ -858,7 +858,7 @@ pub v/result/i32/exerciseOps i32/a i32/rhs
             case divisionByZero i32:2.
             case outOfBounds i32:3.
             case invalidEncoding i32:4.
-            case invalidDc i32:5.
+            case numberOutsideDcRange i32:5.
             case unexpectedNone i32:6.
             case frozenBuffer i32:7.
             else i32:8.

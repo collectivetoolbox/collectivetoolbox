@@ -43,8 +43,8 @@ use super::super::ast::{
     BinaryOp, Span, StageLType, StageRErrorTag, TernaryOp, UnaryOp,
 };
 use super::super::stager_strings::{
-    dcs_from_s, explode_slice, implode_slices, is_valid_dc_u128,
-    s_atomic_units, s_from_dcs, validate_and_measure_s_byte_len,
+    dcs_from_s, explode_slice, implode_slices, s_atomic_units, s_from_dcs,
+    validate_and_measure_s_byte_len,
 };
 use super::super::validator::is_stager_widening_conv;
 use super::vm::{EvalSignal, StageLWorkspaceVm};
@@ -261,11 +261,7 @@ pub(super) fn eval_unary(
             let Value::U128(raw) = val else {
                 bail!("'dcFromU128' expected 'u128', got {val:?} at {span}");
             };
-            if is_valid_dc_u128(raw) {
-                Ok(ok_res(Value::Dc(DcChar::from_u128(raw))))
-            } else {
-                Ok(err_res(StageRErrorTag::InvalidDc))
-            }
+            Ok(EvalSignal::Value(Value::Dc(DcChar::from_u128(raw))))
         }
         UnaryOp::U128FromDc => {
             let Value::Dc(dc) = val else {
@@ -1221,6 +1217,30 @@ pub(super) fn eval_conv(
                 "conv out of range converting {n} to {target_ty}"
             )),
         });
+    }
+
+    match (&val, target_ty) {
+        (Value::List(items), StageLType::Dcs) => {
+            let mut chars = Vec::with_capacity(items.len());
+            for elem in items.iter() {
+                let Value::Dc(dc) = elem else {
+                    bail!("StageR 'conv' from 'l/dc' to 'dcs' encountered non-dc element {elem:?} at {span}");
+                };
+                chars.push(*dc);
+            }
+            return Ok(EvalSignal::Value(Value::Dcs(Rc::new(chars))));
+        }
+        (Value::Dcs(chars), StageLType::List(inner))
+            if **inner == StageLType::Dc =>
+        {
+            let elems: Vec<Value> =
+                chars.iter().copied().map(Value::Dc).collect();
+            return Ok(EvalSignal::Value(Value::List(Rc::new(elems))));
+        }
+        (Value::Dcs(_), StageLType::Dcs) => {
+            return Ok(EvalSignal::Value(val));
+        }
+        _ => {}
     }
 
     let src_ty = numeric_value_type(&val, span)?;

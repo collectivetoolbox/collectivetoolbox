@@ -762,8 +762,10 @@ v/u32/bufSetOobAndExplicitFault b/triggerFault u64/idx
         use ctb_formats_dcdata::stagel_dc_alloc::discover_stagel_namespace_files;
         use std::path::Path;
 
-        // 1. Run all inline `test` suites across every `stage_1_impls/std/**/*.sl3`
-        // file in both the reference evaluator and the Dc-WASM compiler/runtime.
+        // 1. Run all inline `test` suites across all discovered staged stdlib files
+        // in the StageR/StageL reference evaluator, and across `.sl3` modules in
+        // the StageL Dc-WASM compiler/runtime. (`.sr3` modules execute via `f1681` +
+        // `f1680` in `self_hosted_tests.rs`.)
         let data_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../dcdata/data-src");
         let std_files = discover_stagel_namespace_files(&data_dir)?;
@@ -784,14 +786,25 @@ v/u32/bufSetOobAndExplicitFault b/triggerFault u64/idx
         let eval_std_passed = eval_std_rep.ensure_all_passed()?;
         ensure!(
             eval_std_passed >= 100,
-            "Expected >= 100 Stage 1 stdlib inline test cases, ran {eval_std_passed}"
+            "Expected >= 100 Stage 1/2 stdlib inline test cases, ran {eval_std_passed}"
         );
+        let s1_inputs: Vec<ModuleInput<'_>> = std_files
+            .iter()
+            .filter(|f| f.psr4_rel_path.ends_with(".sl3"))
+            .map(|f| ModuleInput {
+                source_path: Some(f.repo_rel_path.as_str()),
+                source: f.source.as_str(),
+            })
+            .collect();
+        let s1_ws = parse_and_validate_workspace(&s1_inputs)?;
+        let s1_eval_passed =
+            run_validated_workspace_inline_tests(&s1_ws)?.ensure_all_passed()?;
         let wasm_std_rep =
-            run_workspace_inline_tests_wasm(&std_ws, WasmTestConfig::default())?;
+            run_workspace_inline_tests_wasm(&s1_ws, WasmTestConfig::default())?;
         let wasm_std_passed = wasm_std_rep.ensure_all_passed()?;
         ensure!(
-            wasm_std_passed == eval_std_passed,
-            "WASM Stage 1 stdlib test count ({wasm_std_passed}) != eval ({eval_std_passed})"
+            wasm_std_passed == s1_eval_passed,
+            "WASM Stage 1 stdlib test count ({wasm_std_passed}) != Stage 1 eval ({s1_eval_passed})"
         );
 
         // 2. Standalone `.sl3` AND encoded `Dc 2192..2193` Token-Dc module linking

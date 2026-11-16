@@ -41,13 +41,6 @@ const RAW_BINARY_HEADER_BYTES: u64 = 21;
 /// type byte (1) + 128-bit payload length (16) + 128-bit metadata length (16).
 const TYPED_BINARY_HEADER_BYTES: u64 = 37;
 
-/// Returns `true` iff `gid` is a valid Document Character scalar outside the
-/// unpaired UTF-16 surrogate range `0xD800..=0xDFFF`.
-#[must_use]
-pub const fn is_valid_dc_u128(gid: u128) -> bool {
-    gid < 0xD800 || gid > 0xDFFF
-}
-
 fn is_b64_digit_or_pad(ch: DcChar) -> bool {
     ch == DC_BASE64_PADDING
         || (ch.to_u128() >= DC_BASE64_START.to_u128()
@@ -95,11 +88,6 @@ fn parse_binary_frame(chars: &[DcChar], start: usize) -> Result<(usize, u64)> {
             found_end = true;
             break;
         }
-        anyhow::ensure!(
-            is_valid_dc_u128(ch.to_u128()),
-            "Surrogate Dc {} inside binary encapsulation frame",
-            ch
-        );
         inner.push(ch);
     }
     anyhow::ensure!(
@@ -141,21 +129,11 @@ pub fn validate_and_measure_s_byte_len(chars: &[DcChar]) -> Result<u64> {
     let mut idx = 0usize;
     let mut total = 0u64;
     while let Some(&ch) = chars.get(idx) {
-        anyhow::ensure!(
-            is_valid_dc_u128(ch.to_u128()),
-            "Invalid surrogate Dc {} in mixed-mode string",
-            ch
-        );
         if ch == DC_ESCAPE {
             let next_idx = idx.saturating_add(1);
             let escaped = *chars
                 .get(next_idx)
                 .context("Trailing Dc 255 escape at end of mixed-mode string")?;
-            anyhow::ensure!(
-                is_valid_dc_u128(escaped.to_u128()),
-                "Invalid surrogate Dc {} after Dc 255 escape",
-                escaped
-            );
             let esc_len = u64::try_from(len_dctf(DC_ESCAPE.to_u128()))
                 .context("len_dctf overflow")?;
             let val_len = u64::try_from(len_dctf(escaped.to_u128()))
@@ -189,17 +167,11 @@ pub fn dcs_from_s(chars: &[DcChar]) -> std::result::Result<Vec<DcChar>, ()> {
     let mut out = Vec::with_capacity(chars.len());
     let mut idx = 0usize;
     while let Some(&ch) = chars.get(idx) {
-        if !is_valid_dc_u128(ch.to_u128()) {
-            return Err(());
-        }
         if ch == DC_ESCAPE {
             let next_idx = idx.saturating_add(1);
             let Some(&escaped) = chars.get(next_idx) else {
                 return Err(());
             };
-            if !is_valid_dc_u128(escaped.to_u128()) {
-                return Err(());
-            }
             out.push(escaped);
             idx = idx.saturating_add(2);
             continue;
@@ -239,11 +211,6 @@ pub fn s_atomic_units(chars: &[DcChar]) -> Result<Vec<Vec<DcChar>>> {
     let mut units = Vec::new();
     let mut idx = 0usize;
     while let Some(&ch) = chars.get(idx) {
-        anyhow::ensure!(
-            is_valid_dc_u128(ch.to_u128()),
-            "Invalid surrogate Dc {} in mixed-mode string",
-            ch
-        );
         if ch == DC_ESCAPE {
             let next_idx = idx.saturating_add(1);
             let escaped = *chars

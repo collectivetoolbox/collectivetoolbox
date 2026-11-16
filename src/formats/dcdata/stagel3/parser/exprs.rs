@@ -582,11 +582,6 @@ impl Parser {
                 "Empty Dc shorthand in 'dc:' literal at {span}"
             );
             let dc = parse_dc_shorthand(suffix)?;
-            let gid = dc.to_u128();
-            ensure!(
-                !(0xD800..=0xDFFF).contains(&gid),
-                "Invalid surrogate Document Character U+{gid:04X} in '{word}' at {span}"
-            );
             return Ok(Some(Expr::DcLit { value: dc, span }));
         }
         if prefix == "error" {

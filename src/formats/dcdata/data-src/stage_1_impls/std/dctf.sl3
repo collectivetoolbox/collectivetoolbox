@@ -52,20 +52,6 @@ pub v/u128Val/dcToU128Raw dcVal/c
         out structNew u128Val: u64:97 u64:0 ::.
     u128New field /c u32:0 field /c u32:1.
 
-: Returns true iff `c` is outside the UTF-16 surrogate range `0xD800..=0xDFFF`.
-: @dc l8589980650
-pub v/b/dcIsValid dcVal/c
-    test
-        in structNew dcVal: u64:55295 u64:0 ::
-        out true.
-        in structNew dcVal: u64:55296 u64:0 ::
-        out false.
-        in structNew dcVal: u64:57343 u64:0 ::
-        out false.
-        in structNew dcVal: u64:57344 u64:0 ::
-        out true.
-    not and eq field /c u32:1 u64:0 and ge field /c u32:0 u64:55296 le field /c u32:0 u64:57343.
-
 : Constructs a Short Document Character (`1_114_112 + id`).
 : @dc l8589980651
 pub v/dcVal/dcShort u32/id

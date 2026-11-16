@@ -2714,24 +2714,35 @@ pub fn parse_dcsh_impl_tokens(src: &str) -> Result<Vec<DcShorthand>> {
 }
 
 /// Stage classification for implementation files under `src/formats/dcdata/data-src/`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ImplStage {
     /// `stage_0_impls/`: Most basic language syntax Dcs and execution kernel implemented in `.wat`.
     Stage0,
-    /// `stage_1_impls/`: Higher-level implementations implementing the full VSO language.
+    /// `stage_1_impls/`: Bootstrap StageL 3 standard library and StageR 3 compiler (`.sl3`/`.dcsh`).
     Stage1,
-    /// `impls/` ("stage 2"): General implementations of the remaining Dcs (such as `Dc 256` `lang.say`).
+    /// `stage_2_impls/`: Core StageR 3 libraries and overlays (`.sr3`/`.sl3`/`.dcsh`).
     Stage2,
+    /// `impls/`: General implementations of remaining Dcs (`.sr3`/`.sl3`/`.dcsh`).
+    Impls,
 }
 
 impl ImplStage {
+    /// All implementation stages in bootstrap order.
+    pub const ALL: [Self; 4] =
+        [Self::Stage0, Self::Stage1, Self::Stage2, Self::Impls];
+
+    /// Higher-level VSO / StageR stages above `stage_0_impls/` in bootstrap order.
+    pub const NAMESPACE_STAGES: [Self; 3] =
+        [Self::Stage1, Self::Stage2, Self::Impls];
+
     /// Relative directory name inside `src/formats/dcdata/data-src/`.
     #[must_use]
     pub const fn dir_name(self) -> &'static str {
         match self {
             Self::Stage0 => "stage_0_impls",
             Self::Stage1 => "stage_1_impls",
-            Self::Stage2 => "impls",
+            Self::Stage2 => "stage_2_impls",
+            Self::Impls => "impls",
         }
     }
 }
@@ -2758,7 +2769,7 @@ pub(crate) struct StagedHeaderDirectives {
 }
 
 /// One compiled Dc, Format, or standalone converter Routine implementation loaded from
-/// `stage_0_impls/`, `stage_1_impls/`, or `impls/`.
+/// `stage_0_impls/`, `stage_1_impls/`, `stage_2_impls/`, or `impls/`.
 #[derive(Debug, Clone)]
 pub struct StagedDcImpl {
     /// Stage folder from which this implementation was loaded.
@@ -2924,7 +2935,7 @@ pub(crate) fn parse_staged_header_directives(
 }
 
 /// Loads and compiles all staged implementation files under `data_dir`
-/// (`stage_0_impls/`, `stage_1_impls/`, `impls/`).
+/// (`stage_0_impls/`, `stage_1_impls/`, `stage_2_impls/`, `impls/`).
 ///
 /// # Errors
 /// Returns an error if any implementation file fails to parse or if two files target the same
@@ -2936,7 +2947,8 @@ pub fn load_staged_dc_impls(
 }
 
 /// Loads and compiles all staged implementation files under `data_dir`, invoking `source_compiler`
-/// when higher-stage `.sl3` (`stage_1_impls/`, `impls/`) or `.sr3` (`impls/`) files are present.
+/// when higher-stage `.sl3` (`stage_1_impls/`+) or `.sr3` (`stage_2_impls/`, `impls/`) files
+/// are present.
 ///
 /// # Errors
 /// Returns an error if stage extension constraints are violated, required lower-stage language
@@ -3004,7 +3016,7 @@ pub fn load_staged_dc_impls_with_compiler(
         }
     }
 
-    for stage in [ImplStage::Stage0, ImplStage::Stage1, ImplStage::Stage2] {
+    for stage in ImplStage::ALL {
         let dir_path = data_dir.join(stage.dir_name());
         if !dir_path.exists() {
             continue;
@@ -3051,10 +3063,11 @@ pub fn load_staged_dc_impls_with_compiler(
                         path.display()
                     );
                 }
-                ImplStage::Stage2 => {
+                ImplStage::Stage2 | ImplStage::Impls => {
                     if ext == "wat" {
                         bail!(
-                            "impls file '{}' cannot be a .wat file (.wat is restricted to stage_0_impls/)",
+                            "{} file '{}' cannot be a .wat file (.wat is restricted to stage_0_impls/)",
+                            stage.dir_name(),
                             path.display()
                         );
                     }
@@ -3386,11 +3399,13 @@ mod tests {
         let tmp = tempfile::tempdir()?;
         let s0 = tmp.path().join("stage_0_impls");
         let s1 = tmp.path().join("stage_1_impls");
-        let s2 = tmp.path().join("impls");
+        let s2 = tmp.path().join("stage_2_impls");
+        let imp = tmp.path().join("impls");
         let fmt_dir = tmp.path().join("categories/formats");
         std::fs::create_dir_all(&s0)?;
         std::fs::create_dir_all(&s1)?;
         std::fs::create_dir_all(&s2)?;
+        std::fs::create_dir_all(&imp)?;
         std::fs::create_dir_all(&fmt_dir)?;
 
         std::fs::write(
@@ -3430,9 +3445,10 @@ mod tests {
         std::fs::remove_file(s0.join("f656_stagel3.wat"))?;
 
         // Adding `f1680_stagel3_to_wasm.wat` in stage_0_impls unlocks `.sl3` in stage_1_impls,
-        // and `f1681_stager3_to_stagel3.sl3` in stage_1_impls unlocks `.sr3` in impls/.
+        // and `f1681_stager3_to_stagel3.sl3` in stage_1_impls unlocks `.sr3` in stage_2_impls/ and impls/.
         std::fs::write(s0.join("f1680_stagel3_to_wasm.wat"), minimal_wat)?;
-        std::fs::write(s2.join("256_say.sr3"), "v/void/say :: do ::.\n")?;
+        std::fs::write(s2.join("258_stage2.sr3"), "v/void/stageTwo :: do ::.\n")?;
+        std::fs::write(imp.join("256_say.sr3"), "v/void/say :: do ::.\n")?;
 
         let (loaded, _raw) = load_staged_dc_impls_with_compiler(
             tmp.path(),
@@ -3440,12 +3456,15 @@ mod tests {
                 Ok(vec![DcShorthand::Short(1927), DcShorthand::Short(1928)])
             }),
         )?;
-        assert_eq!(loaded.len(), 3);
+        assert_eq!(loaded.len(), 4);
         assert_eq!(loaded[0].target.to_string(), "f1680");
         assert_eq!(loaded[0].decomp_tag, "semantic");
         assert_eq!(loaded[1].target.to_string(), "f1681");
         assert_eq!(loaded[1].decomp_tag, "equiv");
-        assert_eq!(loaded[2].target, DcShorthand::Short(256));
+        assert_eq!(loaded[2].stage, ImplStage::Stage2);
+        assert_eq!(loaded[2].target, DcShorthand::Short(258));
+        assert_eq!(loaded[3].stage, ImplStage::Impls);
+        assert_eq!(loaded[3].target, DcShorthand::Short(256));
 
         // `.sr3` is rejected in stage_1_impls/.
         std::fs::write(s1.join("257_bad.sr3"), "v/void/bad :: do ::.\n")?;

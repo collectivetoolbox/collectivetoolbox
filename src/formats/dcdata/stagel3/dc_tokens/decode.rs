@@ -34,7 +34,6 @@ use super::super::ast::{
     TestBlock, TestCase, TestExpected, TopDecl, TopValueDecl, TypedIntLit,
     UseImport, UseImportItem, BrandTypeDecl, EnumDecl, EnumVariantDecl,
 };
-use super::super::stager_strings::is_valid_dc_u128;
 use super::{
     BINARY_OPS, TERNARY_OPS, UNARY_OPS, dc_chars_to_dcts_string,
     format_dc_char_opt, lookup_dc_op,
@@ -1249,12 +1248,6 @@ impl Decoder<'_> {
                 "Expected escaped char inside string literal",
                 "Unclosed Dc 260 string literal (missing Dc 261)",
             )?;
-            for &ch in &value {
-                ensure!(
-                    is_valid_dc_u128(ch.to_u128()),
-                    "Surrogate Document Character {ch} inside string literal"
-                );
-            }
             let raw_dcts = dc_chars_to_dcts_string(&value);
             return Ok(Expr::DctsString {
                 raw_dcts,
@@ -1269,10 +1262,6 @@ impl Decoder<'_> {
             } else {
                 first
             };
-            ensure!(
-                is_valid_dc_u128(value.to_u128()),
-                "Surrogate Document Character {value} inside 'dc:' literal"
-            );
             self.expect_role(
                 DcRole::EndLiteral,
                 "Expected Dc 261 EndLiteral after 'dc:' literal",

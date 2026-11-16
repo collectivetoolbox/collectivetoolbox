@@ -84,12 +84,13 @@ pub struct StagelAllocStats {
     pub files_updated: usize,
 }
 
-/// One discovered `.sl3` PSR-4 namespace file under `stage_1_impls/` or `impls/`.
+/// One discovered `.sl3` / `.sr3` PSR-4 namespace file under `stage_1_impls/`,
+/// `stage_2_impls/`, or `impls/`.
 #[derive(Debug, Clone)]
 pub struct DiscoveredStagelFile {
-    /// Stage (`Stage1` or `Stage2`).
+    /// Stage (`Stage1`, `Stage2`, or `Impls`).
     pub stage: ImplStage,
-    /// Absolute filesystem path to the `.sl3` file.
+    /// Absolute filesystem path to the `.sl3` / `.sr3` file.
     pub disk_path: PathBuf,
     /// Repository-relative path (`src/formats/dcdata/data-src/<stage>/<subpath>.sl3`).
     pub repo_rel_path: String,
@@ -148,11 +149,12 @@ fn collect_subdir_files_recursive(
                     path.display()
                 );
             }
-            ImplStage::Stage2 => {
+            ImplStage::Stage2 | ImplStage::Impls => {
                 ensure!(
                     ext == "sl3" || ext == "sr3",
-                    "Unsupported file extension '.{ext}' in {}: expected .sl3 or .sr3 namespace modules in impls/",
-                    path.display()
+                    "Unsupported file extension '.{ext}' in {}: expected .sl3 or .sr3 namespace modules in {}/",
+                    path.display(),
+                    stage.dir_name()
                 );
             }
         }
@@ -192,13 +194,14 @@ fn collect_subdir_files_recursive(
     Ok(())
 }
 
-/// Discovers all PSR-4 StageL 3 namespace files under subdirectories of
-/// `data_src_dir/stage_1_impls/` and `data_src_dir/impls/`.
+/// Discovers all PSR-4 StageL 3 / StageR 3 namespace files under
+/// subdirectories of `data_src_dir/stage_1_impls/`,
+/// `data_src_dir/stage_2_impls/`, and `data_src_dir/impls/`.
 pub fn discover_stagel_namespace_files(
     data_src_dir: &Path,
 ) -> Result<Vec<DiscoveredStagelFile>> {
     let mut files = Vec::new();
-    for stage in [ImplStage::Stage1, ImplStage::Stage2] {
+    for stage in ImplStage::NAMESPACE_STAGES {
         let stage_root = data_src_dir.join(stage.dir_name());
         if !stage_root.exists() {
             continue;
@@ -229,17 +232,19 @@ pub fn discover_stagel_namespace_files(
 
 fn parse_validate_and_test_stagel_files(
     files: &[DiscoveredStagelFile],
-) -> Result<(ValidatedWorkspace, HashMap<String, usize>)> {
+) -> Result<ValidatedWorkspace> {
     if files.is_empty() {
-        return Ok((
-            ValidatedWorkspace {
-                modules: Vec::new(),
-            },
-            HashMap::new(),
-        ));
+        return Ok(ValidatedWorkspace {
+            modules: Vec::new(),
+        });
     }
 
-    for f in files {
+    let mut seen_stage_ns: HashMap<(ImplStage, String), usize> =
+        HashMap::with_capacity(files.len());
+    let mut ns_stages: HashMap<String, Vec<usize>> =
+        HashMap::with_capacity(files.len());
+
+    for (file_idx, f) in files.iter().enumerate() {
         if f.stage == ImplStage::Stage1 {
             ensure!(
                 f.psr4_rel_path.ends_with(".sl3"),
@@ -247,6 +252,31 @@ fn parse_validate_and_test_stagel_files(
                 f.repo_rel_path
             );
         }
+        let expected_ns = f
+            .psr4_rel_path
+            .strip_suffix(".sl3")
+            .or_else(|| f.psr4_rel_path.strip_suffix(".sr3"))
+            .with_context(|| {
+                format!(
+                    "Expected .sl3 or .sr3 suffix on '{}'",
+                    f.repo_rel_path
+                )
+            })?
+            .to_owned();
+        if let Some(prev_idx) =
+            seen_stage_ns.insert((f.stage, expected_ns.clone()), file_idx)
+        {
+            let prev_path = files
+                .get(prev_idx)
+                .map_or("", |pf| pf.repo_rel_path.as_str());
+            bail!(
+                "Duplicate namespace '{expected_ns}' within stage '{}' ({} and {})",
+                f.stage.dir_name(),
+                prev_path,
+                f.repo_rel_path
+            );
+        }
+        ns_stages.entry(expected_ns).or_default().push(file_idx);
     }
 
     let inputs: Vec<ModuleInput<'_>> = files
@@ -258,49 +288,37 @@ fn parse_validate_and_test_stagel_files(
         .collect();
     let workspace = parse_and_validate_workspace(&inputs)?;
 
-    let mut ns_to_file_idx = HashMap::with_capacity(files.len());
-    for (file_idx, f) in files.iter().enumerate() {
-        let expected_ns = f
-            .psr4_rel_path
-            .strip_suffix(".sl3")
-            .or_else(|| f.psr4_rel_path.strip_suffix(".sr3"))
-            .with_context(|| {
-                format!(
-                    "Expected .sl3 or .sr3 suffix on '{}'",
-                    f.repo_rel_path
-                )
-            })?;
-        ns_to_file_idx.insert(expected_ns.to_owned(), file_idx);
-    }
-
     for vm in &workspace.modules {
-        let Some(ns_key) = &vm.namespace_key else {
+        let Some(_ns_key) = &vm.namespace_key else {
             bail!(
                 "StageL file in namespace subdirectory must declare 'ns <path>.'"
             );
         };
-        let &file_idx = ns_to_file_idx.get(ns_key).with_context(|| {
-            format!("Internal namespace lookup failed for '{ns_key}'")
-        })?;
-        let file_meta = files.get(file_idx).context("Invalid file index")?;
+        let file_meta =
+            files.get(vm.input_index).context("Invalid module file index")?;
         if file_meta.stage == ImplStage::Stage1 {
             ensure!(
                 vm.module.dialect == StageDialect::StageL3,
                 "Stage 1 module '{}' cannot use StageR 3 dialect",
                 file_meta.repo_rel_path
             );
-            for u in &vm.module.uses {
-                let target_ns = u.path.join("/");
-                if let Some(&dep_idx) = ns_to_file_idx.get(&target_ns)
-                    && let Some(dep_file) = files.get(dep_idx)
-                {
-                    ensure!(
-                        dep_file.stage == ImplStage::Stage1,
-                        "Stage 1 module '{}' cannot import Stage 2 module '{}'",
-                        file_meta.repo_rel_path,
-                        dep_file.repo_rel_path
-                    );
-                }
+        }
+        for u in &vm.module.uses {
+            let target_ns = u.path.join("/");
+            if let Some(dep_indices) = ns_stages.get(&target_ns) {
+                let has_visible_dep = dep_indices.iter().any(|&dep_idx| {
+                    files.get(dep_idx).is_some_and(|dep_file| {
+                        dep_file.stage <= file_meta.stage
+                            && (dep_idx != vm.input_index)
+                    })
+                });
+                ensure!(
+                    has_visible_dep,
+                    "Stage '{}' module '{}' cannot import higher-stage namespace '{}'",
+                    file_meta.stage.dir_name(),
+                    file_meta.repo_rel_path,
+                    target_ns
+                );
             }
         }
     }
@@ -308,7 +326,7 @@ fn parse_validate_and_test_stagel_files(
     run_validated_workspace_inline_tests(&workspace).context(
         "Inline contract test failed in staged StageL 3 namespace library",
     )?;
-    Ok((workspace, ns_to_file_idx))
+    Ok(workspace)
 }
 
 fn build_workspace_type_dcs(
@@ -482,18 +500,13 @@ struct UnassignedDeclSite {
 fn collect_unassigned_and_validate_assigned_dcs(
     workspace: &ValidatedWorkspace,
     files: &[DiscoveredStagelFile],
-    ns_to_file_idx: &HashMap<String, usize>,
     only_structs: bool,
 ) -> Result<Vec<UnassignedDeclSite>> {
     // Process files in deterministic `files` order so allocated IDs follow
     // lexicographical file order and top-to-bottom declaration order.
     let mut vm_by_file_idx: BTreeMap<usize, &ValidatedModule> = BTreeMap::new();
     for vm in &workspace.modules {
-        if let Some(ns_key) = &vm.namespace_key
-            && let Some(&fidx) = ns_to_file_idx.get(ns_key)
-        {
-            vm_by_file_idx.insert(fidx, vm);
-        }
+        vm_by_file_idx.insert(vm.input_index, vm);
     }
 
     let (struct_dcs, nominal_dcs) = build_workspace_type_dcs(workspace);
@@ -657,7 +670,7 @@ fn discover_standalone_converter_files(
     data_src_dir: &Path,
 ) -> Result<Vec<DiscoveredStandaloneConverterFile>> {
     let mut out = Vec::new();
-    for stage in [ImplStage::Stage0, ImplStage::Stage1, ImplStage::Stage2] {
+    for stage in ImplStage::ALL {
         let dir_path = data_src_dir.join(stage.dir_name());
         if !dir_path.exists() {
             continue;
@@ -844,12 +857,10 @@ pub fn check_stagel_files_need_no_dc_updates(repo_root: &Path) -> Result<()> {
         }
     }
     let files = discover_stagel_namespace_files(&data_dir)?;
-    let (workspace, ns_to_file_idx) =
-        parse_validate_and_test_stagel_files(&files)?;
+    let workspace = parse_validate_and_test_stagel_files(&files)?;
     let unassigned = collect_unassigned_and_validate_assigned_dcs(
         &workspace,
         &files,
-        &ns_to_file_idx,
         false,
     )?;
     if let Some(first) = unassigned.first() {
@@ -883,12 +894,10 @@ pub fn assign_and_update_stagel_dc_ids(
     // Allocate positional `struct` entities first so any unassigned `TopDecl::Value`
     // whose type references a new struct encodes `[303 l<struct_id>]` in its entity class.
     for only_structs in [true, false] {
-        let (workspace, ns_to_file_idx) =
-            parse_validate_and_test_stagel_files(&files)?;
+        let workspace = parse_validate_and_test_stagel_files(&files)?;
         let unassigned = collect_unassigned_and_validate_assigned_dcs(
             &workspace,
             &files,
-            &ns_to_file_idx,
             only_structs,
         )?;
         if unassigned.is_empty() {
@@ -918,12 +927,10 @@ pub fn assign_and_update_stagel_dc_ids(
                 fmeta.source = preview;
                 fmeta.raw_bytes = fmeta.source.as_bytes().to_vec();
             }
-            let (dry_ws, dry_map) =
-                parse_validate_and_test_stagel_files(&dry_files)?;
+            let dry_ws = parse_validate_and_test_stagel_files(&dry_files)?;
             let dry_rem = collect_unassigned_and_validate_assigned_dcs(
                 &dry_ws,
                 &dry_files,
-                &dry_map,
                 only_structs,
             )?;
             ensure!(
@@ -970,12 +977,10 @@ pub fn assign_and_update_stagel_dc_ids(
             }
             touched_file_indices.insert(fidx);
         }
-        let (revalidated_ws, revalidated_map) =
-            parse_validate_and_test_stagel_files(&files)?;
+        let revalidated_ws = parse_validate_and_test_stagel_files(&files)?;
         let remaining = collect_unassigned_and_validate_assigned_dcs(
             &revalidated_ws,
             &files,
-            &revalidated_map,
             only_structs,
         )?;
         ensure!(
@@ -1018,12 +1023,10 @@ pub fn assign_stagel_dc_ids_in_memory(
     let mut touched_file_indices = BTreeSet::new();
 
     for only_structs in [true, false] {
-        let (workspace, ns_to_file_idx) =
-            parse_validate_and_test_stagel_files(files)?;
+        let workspace = parse_validate_and_test_stagel_files(files)?;
         let unassigned = collect_unassigned_and_validate_assigned_dcs(
             &workspace,
             files,
-            &ns_to_file_idx,
             only_structs,
         )?;
         if unassigned.is_empty() {
@@ -1736,12 +1739,10 @@ pub(crate) fn compile_stagel_files_into_desired_state(
     if files.is_empty() {
         return Ok(());
     }
-    let (workspace, ns_to_file_idx) =
-        parse_validate_and_test_stagel_files(files)?;
+    let workspace = parse_validate_and_test_stagel_files(files)?;
     let unassigned = collect_unassigned_and_validate_assigned_dcs(
         &workspace,
         files,
-        &ns_to_file_idx,
         false,
     )?;
     if let Some(first) = unassigned.first() {
@@ -2353,25 +2354,23 @@ pub fn validate_stagel_and_system_graph_in_repo_with_options(
         }
     };
 
-    let (workspace, ns_to_file_idx) =
-        match parse_validate_and_test_stagel_files(&files) {
-            Ok(pair) => pair,
-            Err(err) => {
-                report.add_error(
-                    &data_src_dir.display().to_string(),
-                    None,
-                    Some("StageL"),
-                    format!("StageL namespace validation or inline test failed: {err:#}"),
-                    Some("Fix syntax, type, PSR-4 path, or inline test errors in .sl3 files"),
-                );
-                return;
-            }
-        };
+    let workspace = match parse_validate_and_test_stagel_files(&files) {
+        Ok(ws) => ws,
+        Err(err) => {
+            report.add_error(
+                &data_src_dir.display().to_string(),
+                None,
+                Some("StageL"),
+                format!("StageL namespace validation or inline test failed: {err:#}"),
+                Some("Fix syntax, type, PSR-4 path, or inline test errors in .sl3 files"),
+            );
+            return;
+        }
+    };
 
     match collect_unassigned_and_validate_assigned_dcs(
         &workspace,
         &files,
-        &ns_to_file_idx,
         false,
     ) {
         Ok(unassigned) => {
@@ -2479,9 +2478,7 @@ pub fn validate_stagel_and_system_graph_in_repo_with_options(
     for vm in &workspace.modules {
         // Reason for fallback: validated namespace modules always set namespace_key.
         let ns_key = vm.namespace_key.as_deref().unwrap_or("");
-        let fmeta_opt = ns_to_file_idx
-            .get(ns_key)
-            .and_then(|&idx| files.get(idx));
+        let fmeta_opt = files.get(vm.input_index);
         // Reason for fallback: defaults to data_src_dir path when file entry is absent.
         let file_label = fmeta_opt.map_or("stage_1_impls", |f| f.repo_rel_path.as_str());
         for item in &vm.module.items {

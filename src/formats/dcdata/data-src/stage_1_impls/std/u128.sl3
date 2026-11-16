@@ -17,7 +17,7 @@
 : with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 : Stage 1 128-bit unsigned integer (`u128Val`) arithmetic, bitwise, shift, and conversion primitives
-: plus canonical StageR 3 diagnostic `error` tag constants (`u8:0`..`u8:7`).
+: plus canonical StageR 3 diagnostic `error` tag constants (`u8:0`..`u8:10`).
 ns std/u128.
 
 : Two-limb little-endian 128-bit unsigned integer: slot 0 = `lo` (`u64`), slot 1 = `hi` (`u64`).
@@ -44,9 +44,8 @@ pub u8/errFrozenBuffer u8:3.
 : @dc l8589980740
 pub u8/errInvalidEncoding u8:4.
 
-: StageR 3 `error:invalidDc` tag (`5`).
-: @dc l8589980741
-pub u8/errInvalidDc u8:5.
+: StageR 3 `error:numberOutsideDcRange` tag (`5`).
+pub u8/errNumberOutsideDcRange u8:5.
 
 : StageR 3 `error:parseFailure` tag (`6`).
 : @dc l8589980742
@@ -55,6 +54,15 @@ pub u8/errParseFailure u8:6.
 : StageR 3 `error:unexpectedNone` tag (`7`).
 : @dc l8589980743
 pub u8/errUnexpectedNone u8:7.
+
+: StageR 3 `error:numberOutsideShortDcRange` tag (`8`).
+pub u8/errNumberOutsideShortDcRange u8:8.
+
+: StageR 3 `error:numberOutsideFormatRange` tag (`9`).
+pub u8/errNumberOutsideFormatRange u8:9.
+
+: StageR 3 `error:numberOutsideUnicodeRange` tag (`10`).
+pub u8/errNumberOutsideUnicodeRange u8:10.
 
 : Constant `0` (`u128:0`).
 : @dc l8589980745

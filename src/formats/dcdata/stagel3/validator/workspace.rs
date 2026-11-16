@@ -65,31 +65,64 @@ pub fn parse_and_validate_stager_workspace(
     parse_and_validate_workspace_with_dialect(inputs, StageDialect::StageR3)
 }
 
+/// Returns the explicit bootstrap stage rank (`1` for `stage_1_impls/`,
+/// `2` for `stage_2_impls/`, `3` for `impls/`) when `source_path` resides in a
+/// staged implementation directory.
+#[must_use]
+pub(crate) fn stage_rank_for_source_path(source_path: Option<&str>) -> Option<u8> {
+    let norm = source_path?.replace('\\', "/");
+    for seg in norm.split('/') {
+        match seg {
+            "stage_1_impls" => return Some(1),
+            "stage_2_impls" => return Some(2),
+            "impls" => return Some(3),
+            _ => {}
+        }
+    }
+    None
+}
+
+pub(crate) fn can_overlay_namespace(
+    prev_rank: Option<u8>,
+    prev_dialect: StageDialect,
+    cur_rank: Option<u8>,
+    cur_dialect: StageDialect,
+) -> bool {
+    match (prev_rank, cur_rank) {
+        (Some(pr), Some(cr)) => pr != cr,
+        _ => prev_dialect != cur_dialect,
+    }
+}
+
 /// Validates a collection of `.sl3` / `.sr3` source files using
 /// `default_dialect` for any input without a `.sl3`/`.sli3`/`.sr3`/`.sri3`
 /// file extension.
+#[allow(
+    clippy::too_many_lines,
+    reason = "Orchestrates staged PSR-4 verification, multi-stratum DAG resolution, topological sorting, and workspace validation"
+)]
 pub fn parse_and_validate_workspace_with_dialect(
     inputs: &[ModuleInput<'_>],
     default_dialect: StageDialect,
 ) -> Result<ValidatedWorkspace> {
     let mut dialects = Vec::with_capacity(inputs.len());
+    let mut stage_ranks = Vec::with_capacity(inputs.len());
     let mut headers = Vec::with_capacity(inputs.len());
-    let mut ns_to_idx: HashMap<String, usize> = HashMap::new();
+    let mut ns_strata: HashMap<String, Vec<usize>> = HashMap::new();
 
     for (idx, inp) in inputs.iter().enumerate() {
         let dialect = dialect_for_source_path(inp.source_path, default_dialect);
+        let rank = stage_rank_for_source_path(inp.source_path);
         if let Some(src_path) = inp.source_path
             && dialect == StageDialect::StageR3
-            && src_path
-                .replace('\\', "/")
-                .split('/')
-                .any(|seg| seg == "stage_1_impls")
+            && rank == Some(1)
         {
             bail!(
                 "Stage 1 ('stage_1_impls/') only allows StageL 3 (.sl3/.sli3) modules, not StageR 3 ('{src_path}')"
             );
         }
         dialects.push(dialect);
+        stage_ranks.push(rank);
         let (ns_opt, uses) =
             scan_module_header_paths_with_dialect(inp.source, dialect)?;
         let ns_key = ns_opt.as_ref().map(|segs| segs.join("/"));
@@ -97,67 +130,166 @@ pub fn parse_and_validate_workspace_with_dialect(
             verify_psr4_path(src_path, key)?;
         }
         if let Some(ref key) = ns_key {
-            ensure!(
-                !ns_to_idx.contains_key(key),
-                "Duplicate namespace declaration '{key}'"
-            );
-            ns_to_idx.insert(key.clone(), idx);
+            let strata = ns_strata.entry(key.clone()).or_default();
+            for &prev_idx in strata.iter() {
+                let prev_rank = *stage_ranks
+                    .get(prev_idx)
+                    .context("Missing prior stage rank")?;
+                let prev_dialect = *dialects
+                    .get(prev_idx)
+                    .context("Missing prior dialect")?;
+                ensure!(
+                    can_overlay_namespace(prev_rank, prev_dialect, rank, dialect),
+                    "Duplicate namespace declaration '{key}'"
+                );
+            }
+            strata.push(idx);
         }
         headers.push((ns_key, uses));
     }
 
-    // Build dependency edges (module -> prerequisite module indices) and
-    // topologically sort with cycle reporting.
+    for strata in ns_strata.values_mut() {
+        strata.sort_by_key(|&i| {
+            let r = stage_ranks.get(i).copied().flatten().unwrap_or(u8::MAX); // Reason for fallback: unranked caller modules order after explicit stages.
+            let d = match dialects.get(i).copied() {
+                Some(StageDialect::StageL3) | None => 0u8,
+                Some(StageDialect::StageR3) => 1u8,
+            };
+            (r, d, i)
+        });
+    }
+
+    let order_stage = |idx: usize| -> u8 {
+        // Reason for fallback: modules outside stage directories validate after explicit staged layers.
+        stage_ranks.get(idx).copied().flatten().unwrap_or(u8::MAX)
+    };
+
+    // Build dependency edges (module -> prerequisite module indices) per stage
+    // barrier, enforcing downward stage visibility and multi-stratum acyclic order.
     let mut deps: Vec<Vec<usize>> = Vec::with_capacity(inputs.len());
     for (idx, (ns_key, uses)) in headers.iter().enumerate() {
+        let caller_stage = order_stage(idx);
+        // Reason for fallback: Anonymous modules format as '<anonymous>' in diagnostics.
+        let caller_ns = ns_key.as_deref().unwrap_or("<anonymous>");
         let mut d = Vec::new();
         for u in uses {
             let target_key = u.join("/");
-            let Some(&dep_idx) = ns_to_idx.get(&target_key) else {
-                // Reason for fallback: Anonymous modules format as '<anonymous>' in diagnostics.
-                let caller_ns = ns_key.as_deref().unwrap_or("<anonymous>");
+            let Some(cand_strata) = ns_strata.get(&target_key) else {
                 bail!(
                     "Unresolved 'use {target_key}:' import in module {caller_ns}"
                 );
             };
-            ensure!(
-                dep_idx != idx,
-                "Module '{target_key}' cannot import itself"
-            );
-            if !d.contains(&dep_idx) {
-                d.push(dep_idx);
+            let is_same_ns = ns_key.as_deref() == Some(target_key.as_str());
+            let self_stratum_pos = if is_same_ns {
+                cand_strata.iter().position(|&s| s == idx)
+            } else {
+                None
+            };
+            let mut visible_deps = Vec::new();
+            for (pos, &dep_idx) in cand_strata.iter().enumerate() {
+                if let Some(self_pos) = self_stratum_pos
+                    && pos >= self_pos
+                {
+                    continue;
+                }
+                if order_stage(dep_idx) > caller_stage {
+                    continue;
+                }
+                visible_deps.push(dep_idx);
             }
+            if visible_deps.is_empty() {
+                if is_same_ns {
+                    bail!("Module '{target_key}' cannot import itself");
+                }
+                bail!(
+                    "Module '{caller_ns}' cannot import higher-stage namespace '{target_key}'"
+                );
+            }
+            for dep_idx in visible_deps {
+                if dep_idx != idx && !d.contains(&dep_idx) {
+                    d.push(dep_idx);
+                }
+            }
+        }
+        // Within the same stage (e.g. unranked StageL3 + StageR3 sharing a namespace),
+        // also ensure consecutive strata of the same namespace validate in order.
+        if let Some(key) = ns_key
+            && let Some(strata) = ns_strata.get(key)
+            && let Some(pos) = strata.iter().position(|&s| s == idx)
+            && pos > 0
+            && let Some(&prev_idx) = strata.get(pos.saturating_sub(1))
+            && !d.contains(&prev_idx)
+        {
+            d.push(prev_idx);
         }
         deps.push(d);
     }
 
-    let order = topo_sort_modules(&headers, &deps)?;
+    let mut stage_buckets: Vec<u8> =
+        (0..inputs.len()).map(order_stage).collect();
+    stage_buckets.sort_unstable();
+    stage_buckets.dedup();
+
     let mut ns_exports: HashMap<String, NamespaceExports> = HashMap::new();
     let mut validated_modules = Vec::with_capacity(inputs.len());
 
-    for idx in order {
-        let inp = inputs.get(idx).context("Invalid topological index")?;
-        let &dialect = dialects.get(idx).context("Invalid dialect index")?;
-        let _ = headers.get(idx).context("Invalid header index")?;
-        // First collect imported verb arities and StageR type kinds from `use`
-        // headers (resolving against already-compiled dependency namespaces).
-        let (parsed, _) = parse_with_resolved_use_arities_and_dialect(
-            inp.source,
-            dialect,
-            &ns_exports,
-        )?;
-        let forbid_stagel_internal = dialect == StageDialect::StageR3
-            || inp.source_path.is_some_and(is_stage2_or_sr3_path);
-        let vm = validate_module_with_registry_and_dc_imports_and_options(
-            &parsed,
-            &ns_exports,
-            &HashMap::new(),
-            forbid_stagel_internal,
-        )?;
-        if let Some(ref key) = vm.namespace_key {
-            ns_exports.insert(key.clone(), vm.exports.clone());
+    for stage_val in stage_buckets {
+        let bucket_indices: Vec<usize> = (0..inputs.len())
+            .filter(|&i| order_stage(i) == stage_val)
+            .collect();
+        let mut global_to_local: HashMap<usize, usize> =
+            HashMap::with_capacity(bucket_indices.len());
+        let mut local_headers = Vec::with_capacity(bucket_indices.len());
+        for (local_i, &global_i) in bucket_indices.iter().enumerate() {
+            global_to_local.insert(global_i, local_i);
+            local_headers.push(
+                headers
+                    .get(global_i)
+                    .cloned()
+                    .context("Missing local header")?,
+            );
         }
-        validated_modules.push(vm);
+        let mut local_deps = Vec::with_capacity(bucket_indices.len());
+        for &global_i in &bucket_indices {
+            let g_deps = deps.get(global_i).context("Missing global deps")?;
+            let l_deps: Vec<usize> = g_deps
+                .iter()
+                .filter_map(|g_dep| global_to_local.get(g_dep).copied())
+                .collect();
+            local_deps.push(l_deps);
+        }
+        let local_order = topo_sort_modules(&local_headers, &local_deps)?;
+        for local_i in local_order {
+            let idx = *bucket_indices
+                .get(local_i)
+                .context("Invalid bucket topological index")?;
+            let inp = inputs.get(idx).context("Invalid topological index")?;
+            let &dialect =
+                dialects.get(idx).context("Invalid dialect index")?;
+            let (parsed, _) = parse_with_resolved_use_arities_and_dialect(
+                inp.source,
+                dialect,
+                &ns_exports,
+            )?;
+            let forbid_stagel_internal = dialect == StageDialect::StageR3
+                || inp.source_path.is_some_and(is_stage2_or_sr3_path);
+            let mut vm =
+                validate_module_with_registry_and_dc_imports_and_options(
+                    &parsed,
+                    &ns_exports,
+                    &HashMap::new(),
+                    forbid_stagel_internal,
+                )?;
+            vm.input_index = idx;
+            if let Some(ref key) = vm.namespace_key {
+                if let Some(existing) = ns_exports.get_mut(key) {
+                    existing.merge_overlay(vm.exports.clone(), key)?;
+                } else {
+                    ns_exports.insert(key.clone(), vm.exports.clone());
+                }
+            }
+            validated_modules.push(vm);
+        }
     }
 
     Ok(ValidatedWorkspace {
@@ -187,11 +319,12 @@ pub(crate) fn dialect_for_source_path(
     }
 }
 
-/// Returns `true` when `source_path` designates a Stage 2 (`impls/`) or
-/// StageR 3 (`.sr3`/`.sri3`) source file.
+/// Returns `true` when `source_path` designates a Stage 2 (`stage_2_impls/`),
+/// general (`impls/`), or StageR 3 (`.sr3`/`.sri3`) source file.
 pub(crate) fn is_stage2_or_sr3_path(source_path: &str) -> bool {
     let norm = source_path.replace('\\', "/");
-    norm.split('/').any(|seg| seg == "impls")
+    norm.split('/')
+        .any(|seg| seg == "stage_2_impls" || seg == "impls")
         || norm.ends_with(".sr3")
         || norm.ends_with(".sri3")
 }

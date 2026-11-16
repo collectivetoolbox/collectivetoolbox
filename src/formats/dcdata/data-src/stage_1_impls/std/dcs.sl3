@@ -18,21 +18,8 @@
 
 : Stage 1 pure Document Character (`dc` / `dcVal`) and sequence (`dcs` / `l/dcVal`) runtime helpers.
 ns std/dcs.
-use std/u128: u128Val errInvalidDc ::.
-use std/dctf: dcVal dcNew dcFromU128Raw dcToU128Raw dcIsValid ::.
-
-: Total `dcFromU128` conversion (`u128Val -> tup: b dcVal u8 ::`), rejecting UTF-16 surrogates (`0xD800..=0xDFFF`).
-: @dc l8589982141
-pub v/tup: b dcVal u8 ::/tryDcFromU128 u128Val/raw
-    test
-        in structNew u128Val: u64:256 u64:0 ::
-        out tupNew: true structNew dcVal: u64:256 u64:0 :: u8:0 ::.
-        in structNew u128Val: u64:55296 u64:0 ::
-        out tupNew: false structNew dcVal: u64:0 u64:0 :: u8:5 ::.
-    const dcVal/c dcFromU128Raw /raw.
-    if dcIsValid /c
-        tupNew: true /c u8:0 ::
-        tupNew: false dcNew u64:0 u64:0 /errInvalidDc ::.
+use std/u128: u128Val ::.
+use std/dctf: dcVal dcNew dcFromU128Raw dcToU128Raw ::.
 
 : Infallible `u128FromDc` projection (`dcVal -> u128Val`).
 : @dc l8589982142
@@ -154,15 +141,12 @@ pub v/l/dcVal/implode l/dcVal/sep l/l/dcVal/parts
     ::.
     bufFreeze /out.
 
-: Checked StageL `dcFromU128` conversion (`u128Val -> dcVal`), faulting on UTF-16 surrogates (`0xD800..=0xDFFF`).
+: Infallible `dcFromU128` conversion (`u128Val -> dcVal`, `Dc 2610`; all `0..=2^128-1` scalars including surrogates are valid).
 : @dc l8589984708
 pub v/dcVal/dcFromU128 u128Val/raw
     test
         in structNew u128Val: u64:256 u64:0 ::
         out structNew dcVal: u64:256 u64:0 ::.
         in structNew u128Val: u64:55296 u64:0 ::
-        out fault.
-    const tup: b dcVal u8 ::/r tryDcFromU128 /raw.
-    if not field /r u32:0
-        fault
-        field /r u32:1.
+        out structNew dcVal: u64:55296 u64:0 ::.
+    dcFromU128Raw /raw.

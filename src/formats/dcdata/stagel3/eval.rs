@@ -840,10 +840,11 @@ pub v/result/b/checkDcAndStrings
     test checks dcFromU128 dcsFromS sFromDcs byteLen and explode implode
         in.
         out result/b:ok true
-    const dc/cu100 dcFromU128? u128:256.
-    const dc/c256 dcFromU128? u128:1114368.
-    const b/okDc and eq /cu100 dc:u100 and eq /c256 dc:256 eq u128FromDc /c256 u128:1114368.
-    const b/badSurrogate eq dcFromU128 u128:55296 result/dc:err error:invalidDc.
+    const dc/cu100 dcFromU128 u128:256.
+    const dc/c256 dcFromU128 u128:1114368.
+    const dc/csur dcFromU128 u128:55296.
+    const b/okDc and eq /cu100 dc:u100 and eq /c256 dc:256 and eq u128FromDc /c256 u128:1114368 eq u128FromDc /csur u128:55296.
+    const b/okSurrLit and eq /csur dc:ud800 eq len dcsFromS? "@ud800@" u64:1.
 
     const dcs/pure dcsFromS? "hi @256@".
     const b/okLen and eq len /pure u64:4 eq get /pure u64:3 option/dc:some dc:256.
@@ -876,7 +877,7 @@ pub v/result/b/checkDcAndStrings
     const l/i32/frozen bufFreeze /mbuf.
     const b/okFrozen and eq get /frozen u64:0 option/i32:some i32:11 eq get /frozen u64:1 option/i32:some i32:99.
 
-    result/b:ok and /okDc and /badSurrogate and /okLen and /okOob and /okRound and /binRejected and gt /blen u64:24 and /okBinSplit and /okIntList and /okSet0 and /okMatchSet and /badSet /okFrozen.
+    result/b:ok and /okDc and /okSurrLit and /okLen and /okOob and /okRound and /binRejected and gt /blen u64:24 and /okBinSplit and /okIntList and /okSet0 and /okMatchSet and /badSet /okFrozen.
 "#;
         let report = run_sr3_module_inline_tests(src)?;
         assert_eq!(report.ensure_all_passed()?, 1);

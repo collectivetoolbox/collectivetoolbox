@@ -123,11 +123,11 @@ pub fn dclist_to_dcts(dclist: &[u128]) -> Vec<u8> {
 /// Parses strict Dcts text (`&[u8]`) into a sequence of [`DcChar`]s.
 ///
 /// Unlike lenient display converters, every `@...@` token must either be `@@`
-/// (literal `'@'`) or a valid [`crate::DcShorthand`] encoding a scalar Document
-/// Character outside the surrogate range `0xD800..=0xDFFF` (or `L<id>` local
-/// graph reference expanded to `Dc 296` followed by a `DcNumber`). Unclosed
-/// `@` delimiters, malformed shorthands, surrogates, and invalid UTF-8 return
-/// an error.
+/// (literal `'@'`) or a valid [`crate::DcShorthand`] (or `L<id>` local graph
+/// reference expanded to `Dc 296` followed by a `DcNumber`). All 128-bit
+/// Document Characters—including surrogate codepoints `0xD800..=0xDFFF`—are
+/// valid. Unclosed `@` delimiters, malformed shorthands, and invalid UTF-8
+/// return an error.
 pub fn parse_dcts_strict_to_dc_chars(bytes: &[u8]) -> Result<Vec<DcChar>> {
     let text = std::str::from_utf8(bytes)
         .map_err(|err| anyhow::anyhow!("Invalid UTF-8 in Dcts string: {err}"))?;
@@ -166,10 +166,6 @@ pub fn parse_dcts_strict_to_dc_chars(bytes: &[u8]) -> Result<Vec<DcChar>> {
             }
             other => {
                 let gid = other.to_global_id()?;
-                anyhow::ensure!(
-                    !(0xD800..=0xDFFF).contains(&gid),
-                    "Invalid surrogate Document Character U+{gid:04X} in Dcts string"
-                );
                 out.push(DcChar(gid));
             }
         }
@@ -245,5 +241,16 @@ mod tests {
             },
         );
         assert_eq!(escaped, "@ua@@u0@@u9@");
+        // Surrogate-range Unicode Dcs (`0xD800..=0xDFFF`) are valid Document Characters (like WTF-8).
+        let parsed = parse_dcts_strict_to_dc_chars(b"a@ud800@@256@")
+            .expect("parse surrogate and short Dc in strict Dcts");
+        assert_eq!(
+            parsed,
+            vec![
+                DcChar::from(b'a'),
+                DcChar::from_u128(0xD800),
+                DcChar::from_u128(SHORT_DC_REGION_START.saturating_add(256)),
+            ]
+        );
     }
 }

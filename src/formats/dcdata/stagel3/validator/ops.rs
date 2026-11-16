@@ -1276,7 +1276,7 @@ impl<'a> ModuleValidator<'a> {
             UnaryOp::DcFromU128 => self.check_unary_exact(
                 operand,
                 &StageLType::U128,
-                StageLType::Result(Box::new(StageLType::Dc)),
+                StageLType::Dc,
                 "dcFromU128",
                 span,
                 state,
@@ -2188,6 +2188,26 @@ impl<'a> ModuleValidator<'a> {
             false,
             span,
         )?;
+        let dst_is_dc_seq = match &dst_ty {
+            StageLType::Dcs => true,
+            StageLType::List(inner) => **inner == StageLType::Dc,
+            _ => false,
+        };
+        if total && dst_is_dc_seq {
+            if src_ty == StageLType::Never {
+                return Ok(StageLType::Never);
+            }
+            let src_is_dc_seq = match &src_ty {
+                StageLType::Dcs => true,
+                StageLType::List(inner) => **inner == StageLType::Dc,
+                _ => false,
+            };
+            ensure!(
+                src_is_dc_seq,
+                "StageR 'conv' to '{dst_ty}' requires 'dcs' or 'l/dc' source operand, found '{src_ty}' at {span}"
+            );
+            return Ok(dst_ty);
+        }
         let (pred, role_label, kind): (fn(&StageLType) -> bool, &str, &str) =
             if total {
                 (StageLType::is_stager_numeric, "StageR 'conv'", "numeric")

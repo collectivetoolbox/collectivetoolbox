@@ -366,7 +366,7 @@ struct WorkspaceWasmCompiler<'a> {
     shadow_rt: Option<ShadowRuntime>,
     init_flag_global: Option<u32>,
     init_func_idx: Option<u32>,
-    ns_to_mod: HashMap<String, usize>,
+    ns_to_mods: HashMap<String, Vec<usize>>,
     top_routines_by_key: HashMap<(usize, RoutineKey), TopRoutineEntry>,
     top_routines_by_dc: HashMap<(usize, DcChar), TopRoutineEntry>,
     top_consts_by_key: HashMap<(usize, ValueKey), TopConstEntry>,
@@ -413,7 +413,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             (None, None)
         };
 
-        let mut ns_to_mod = HashMap::new();
+        let mut ns_to_mods: HashMap<String, Vec<usize>> = HashMap::new();
         let mut top_routines_by_key = HashMap::new();
         let mut top_routines_by_dc = HashMap::new();
         let mut top_consts_by_key = HashMap::new();
@@ -429,7 +429,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
 
         for (mod_idx, vm) in workspace.modules.iter().enumerate() {
             let mod_prefix = if let Some(ns) = &vm.namespace_key {
-                ns_to_mod.insert(ns.clone(), mod_idx);
+                ns_to_mods.entry(ns.clone()).or_default().push(mod_idx);
                 format!("m{mod_idx}_{}", sanitize_ident(ns))
             } else {
                 format!("m{mod_idx}")
@@ -518,7 +518,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             shadow_rt,
             init_flag_global,
             init_func_idx,
-            ns_to_mod,
+            ns_to_mods,
             top_routines_by_key,
             top_routines_by_dc,
             top_consts_by_key,
@@ -1800,23 +1800,34 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 if let Some(rv) =
                     vm.resolved_values.get(&(span.line, span.col))
                 {
-                    let target_mod_idx = if let Some(namespace) = &rv.namespace {
-                        *self
-                            .ns_to_mod
+                    let c = if let Some(namespace) = &rv.namespace {
+                        let cand_indices = self
+                            .ns_to_mods
                             .get(namespace)
-                            .with_context(|| format!("Unknown namespace '{namespace}'"))?
+                            .with_context(|| format!("Unknown namespace '{namespace}'"))?;
+                        let vkey = rv.value_key();
+                        cand_indices
+                            .iter()
+                            .filter(|&&idx| idx < fctx.mod_idx)
+                            .find_map(|&idx| {
+                                self.top_consts_by_key.get(&(idx, vkey.clone()))
+                            })
+                            .with_context(|| {
+                                format!(
+                                    "Missing resolved constant '{}/{}' during WASM compilation",
+                                    rv.ty, rv.original_name
+                                )
+                            })?
                     } else {
-                        fctx.mod_idx
+                        self.top_consts_by_key
+                            .get(&(fctx.mod_idx, rv.value_key()))
+                            .with_context(|| {
+                                format!(
+                                    "Missing resolved constant '{}/{}' during WASM compilation",
+                                    rv.ty, rv.original_name
+                                )
+                            })?
                     };
-                    let c = self
-                        .top_consts_by_key
-                        .get(&(target_mod_idx, rv.value_key()))
-                        .with_context(|| {
-                            format!(
-                                "Missing resolved constant '{}/{}' during WASM compilation",
-                                rv.ty, rv.original_name
-                            )
-                        })?;
                     fctx.fb.global_get(c.global_idx)?;
                     return Ok(c.ty.clone());
                 }
@@ -1841,21 +1852,24 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                     ..
                 }) = vm.dc_imports.get(dc)
                 {
-                    let &dep_idx = self
-                        .ns_to_mod
+                    let cand_indices = self
+                        .ns_to_mods
                         .get(namespace)
                         .with_context(|| format!("Unknown namespace '{namespace}'"))?;
-                    let c = self
-                        .top_consts_by_dc
-                        .get(&(dep_idx, *dc))
-                        .or_else(|| {
-                            self.top_consts_by_key.get(&(
-                                dep_idx,
-                                ValueKey {
-                                    name: original_name.clone(),
-                                    ty: ty.clone(),
-                                },
-                            ))
+                    let vkey = ValueKey {
+                        name: original_name.clone(),
+                        ty: ty.clone(),
+                    };
+                    let c = cand_indices
+                        .iter()
+                        .filter(|&&idx| idx < fctx.mod_idx)
+                        .find_map(|&idx| {
+                            self.top_consts_by_dc
+                                .get(&(idx, *dc))
+                                .or_else(|| {
+                                    self.top_consts_by_key
+                                        .get(&(idx, vkey.clone()))
+                                })
                         })
                         .with_context(|| {
                             format!("Missing imported Dc value '{namespace}::{original_name}'")
@@ -2431,23 +2445,35 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                     .get(fctx.mod_idx)
                     .context("Invalid module index")?;
                 if let Some(rc) = vm.resolved_calls.get(&(span.line, span.col)) {
-                    let target_mod_idx = if let Some(namespace) = &rc.namespace {
-                        *self
-                            .ns_to_mod
+                    let tr = if let Some(namespace) = &rc.namespace {
+                        let cand_indices = self
+                            .ns_to_mods
                             .get(namespace)
-                            .with_context(|| format!("Unknown namespace '{namespace}'"))?
+                            .with_context(|| format!("Unknown namespace '{namespace}'"))?;
+                        let rkey = rc.routine_key();
+                        cand_indices
+                            .iter()
+                            .filter(|&&idx| idx < fctx.mod_idx)
+                            .find_map(|&idx| {
+                                self.top_routines_by_key
+                                    .get(&(idx, rkey.clone()))
+                            })
+                            .with_context(|| {
+                                format!(
+                                    "Unknown resolved routine '{}' during WASM compilation",
+                                    rc.routine_name
+                                )
+                            })?
                     } else {
-                        fctx.mod_idx
+                        self.top_routines_by_key
+                            .get(&(fctx.mod_idx, rc.routine_key()))
+                            .with_context(|| {
+                                format!(
+                                    "Unknown resolved routine '{}' during WASM compilation",
+                                    rc.routine_name
+                                )
+                            })?
                     };
-                    let tr = self
-                        .top_routines_by_key
-                        .get(&(target_mod_idx, rc.routine_key()))
-                        .with_context(|| {
-                            format!(
-                                "Unknown resolved routine '{}' during WASM compilation",
-                                rc.routine_name
-                            )
-                        })?;
                     return Ok(ResolvedCallee::Top(tr.clone()));
                 }
                 bail!("Unknown routine '{name}' at {span} during WASM compilation")
@@ -2469,21 +2495,24 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                     sig,
                 }) = vm.dc_imports.get(dc)
                 {
-                    let &dep_idx = self
-                        .ns_to_mod
+                    let cand_indices = self
+                        .ns_to_mods
                         .get(namespace)
                         .with_context(|| format!("Unknown namespace '{namespace}'"))?;
-                    let tr = self
-                        .top_routines_by_dc
-                        .get(&(dep_idx, *dc))
-                        .or_else(|| {
-                            self.top_routines_by_key.get(&(
-                                dep_idx,
-                                RoutineKey {
-                                    name: original_name.clone(),
-                                    params: sig.params.clone(),
-                                },
-                            ))
+                    let rkey = RoutineKey {
+                        name: original_name.clone(),
+                        params: sig.params.clone(),
+                    };
+                    let tr = cand_indices
+                        .iter()
+                        .filter(|&&idx| idx < fctx.mod_idx)
+                        .find_map(|&idx| {
+                            self.top_routines_by_dc
+                                .get(&(idx, *dc))
+                                .or_else(|| {
+                                    self.top_routines_by_key
+                                        .get(&(idx, rkey.clone()))
+                                })
                         })
                         .with_context(|| {
                             format!("Unknown imported Dc routine '{namespace}::{original_name}'")

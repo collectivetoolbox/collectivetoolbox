@@ -21,7 +21,7 @@
 : `Dc 2192`..`Dc 2193` dependency modules) into canonical StageL 3 Token Dcs.
 ns std/stager3_to_stagel3.
 use std/dctf:
-    dcVal dcNew dcShort dcFormat dcIsShort dcShortId dcIsFormat dcFormatId dcIsValid
+    dcVal dcNew dcShort dcFormat dcIsShort dcShortId dcIsFormat dcFormatId
     decodeDcStream encodeDcStream skipComments
     readAtomDc readIdentBytes readEscapedLiteral readNumberRaw digitsToU128 readBinaryBytes
     tokAtomDc tokOptAtomDc tokIdent tokEscapedLiteral tokDcNumberU64 tokTypedU64 tokTypedNumberU128 tokBinaryBytes
@@ -631,14 +631,17 @@ v/tup: rawType u64 ::/readRawType l/dcVal/tokens u64/pos
 
 : @dc l8589983046
 v/u32/parseErrorTagKeyword l/u8/kw
-    if eq /kw b"overflow"        return u32:0 nop.
-    if eq /kw b"divisionByZero"  return u32:1 nop.
-    if eq /kw b"outOfBounds"     return u32:2 nop.
-    if eq /kw b"frozenBuffer"    return u32:3 nop.
-    if eq /kw b"invalidEncoding" return u32:4 nop.
-    if eq /kw b"invalidDc"       return u32:5 nop.
-    if eq /kw b"parseFailure"    return u32:6 nop.
-    if eq /kw b"unexpectedNone"  return u32:7 nop.
+    if eq /kw b"overflow"                  return u32:0 nop.
+    if eq /kw b"divisionByZero"            return u32:1 nop.
+    if eq /kw b"outOfBounds"               return u32:2 nop.
+    if eq /kw b"frozenBuffer"              return u32:3 nop.
+    if eq /kw b"invalidEncoding"           return u32:4 nop.
+    if eq /kw b"numberOutsideDcRange"      return u32:5 nop.
+    if eq /kw b"parseFailure"              return u32:6 nop.
+    if eq /kw b"unexpectedNone"            return u32:7 nop.
+    if eq /kw b"numberOutsideShortDcRange" return u32:8 nop.
+    if eq /kw b"numberOutsideFormatRange"  return u32:9 nop.
+    if eq /kw b"numberOutsideUnicodeRange" return u32:10 nop.
     fault.
 
 : @dc l8589983047
@@ -721,11 +724,6 @@ v/tup: exprNode u64 ::/readStageRExpr l/dcVal/tokens u64/pos
                 nop.
             const u32/tsid dcShortId field /lit u32:1.
             const l/dcVal/pay field /lit u32:2.
-            foreach dcVal/ch /pay do
-                if not dcIsValid /ch
-                    fault
-                    nop.
-            ::.
             if eq /tsid u32:264
                 return tupNew:
                     makeExpr u8:3 u32:0 dcZero b"" /pay emptySym l/rawType: :: l/exprNode: :: l/fieldInit: :: l/matchArm: :: l/rawRoutine: ::
@@ -2022,9 +2020,6 @@ v/b/usesHasUnaliasedDc l/useItem/uses dcVal/targetDc
 
 : @dc l8589983061
 v/void/recordStdImport buf/tup: u8 dcVal ::/stdImports l/u8/selfNsKey l/useItem/uses u8/pkgId dcVal/c
-    if eq /selfNsKey stdPkgNsKey /pkgId
-        return
-        nop.
     if usesHasUnaliasedDc /uses /c
         return
         nop.
@@ -2757,7 +2752,7 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
                 let u64/prev u64:0.
                 while lt /prev /mi do
                     const parsedMod/ppm get /mods /prev.
-                    if and field /ppm u32:3 eq field /ppm u32:5 field /pm u32:5
+                    if and field /ppm u32:3 and eq field /ppm u32:5 field /pm u32:5 and field /ppm u32:0 not field /pm u32:0
                         fault
                         nop.
                     set /prev add /prev u64:1.
@@ -2818,106 +2813,102 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
         foreach useItem/ui field /pm u32:6 do
             const l/u8/depKey field /ui u32:1.
             let b/foundDep false.
-            let u32/depMod u32:0.
+            const symRef/ts field /ui u32:2.
+            const l/u8/alRaw field /ui u32:3.
             let u64/di u64:0.
             while lt /di /mi do
                 const parsedMod/dpm get /mods /di.
                 if and field /dpm u32:3 eq field /dpm u32:5 /depKey
                     do
                         set /foundDep true.
-                        set /depMod conv /di u32.
+                        const u32/depMod conv /di u32.
+                        if field /ts u32:0
+                            do
+                                if gt len /alRaw u64:0
+                                    do
+                                        const dcVal/tdc field /ts u32:1.
+                                        let u64/k u64:0.
+                                        while lt /k len /s1StubList do
+                                            const s1StructDef/d get /s1StubList /k.
+                                            const tup: b dcVal ::/od field /d u32:2.
+                                            if and eq field /d u32:0 /depMod and field /d u32:1 and field /od u32:0 eq field /od u32:1 /tdc
+                                                bufPush /als structNew aliasEntry: /alRaw u8:0 conv /k u32 ::
+                                                nop.
+                                            set /k add /k u64:1.
+                                        ::.
+                                        set /k u64:0.
+                                        while lt /k len /nsStubList do
+                                            const namedStructDef/d get /nsStubList /k.
+                                            const tup: b dcVal ::/od field /d u32:2.
+                                            if and eq field /d u32:0 /depMod and field /d u32:1 and field /od u32:0 eq field /od u32:1 /tdc
+                                                bufPush /als structNew aliasEntry: /alRaw u8:1 conv /k u32 ::
+                                                nop.
+                                            set /k add /k u64:1.
+                                        ::.
+                                        set /k u64:0.
+                                        while lt /k len /bStubList do
+                                            const brandDef/d get /bStubList /k.
+                                            const tup: b dcVal ::/od field /d u32:3.
+                                            if and eq field /d u32:0 /depMod and field /d u32:1 and field /od u32:0 eq field /od u32:1 /tdc
+                                                bufPush /als structNew aliasEntry: /alRaw u8:2 conv /k u32 ::
+                                                nop.
+                                            set /k add /k u64:1.
+                                        ::.
+                                        set /k u64:0.
+                                        while lt /k len /eStubList do
+                                            const enumDef/d get /eStubList /k.
+                                            const tup: b dcVal ::/od field /d u32:2.
+                                            if and eq field /d u32:0 /depMod and field /d u32:1 and field /od u32:0 eq field /od u32:1 /tdc
+                                                bufPush /als structNew aliasEntry: /alRaw u8:3 conv /k u32 ::
+                                                nop.
+                                            set /k add /k u64:1.
+                                        ::.
+                                    ::
+                                    nop.
+                            ::
+                            do
+                                const l/u8/orig field /ts u32:2.
+                                const l/u8/localName if eq len /alRaw u64:0 /orig /alRaw.
+                                let u64/k u64:0.
+                                while lt /k len /s1StubList do
+                                    const s1StructDef/d get /s1StubList /k.
+                                    if and eq field /d u32:0 /depMod and field /d u32:1 eq field /d u32:3 /orig
+                                        bufPush /als structNew aliasEntry: /localName u8:0 conv /k u32 ::
+                                        nop.
+                                    set /k add /k u64:1.
+                                ::.
+                                set /k u64:0.
+                                while lt /k len /nsStubList do
+                                    const namedStructDef/d get /nsStubList /k.
+                                    if and eq field /d u32:0 /depMod and field /d u32:1 eq field /d u32:3 /orig
+                                        bufPush /als structNew aliasEntry: /localName u8:1 conv /k u32 ::
+                                        nop.
+                                    set /k add /k u64:1.
+                                ::.
+                                set /k u64:0.
+                                while lt /k len /bStubList do
+                                    const brandDef/d get /bStubList /k.
+                                    if and eq field /d u32:0 /depMod and field /d u32:1 eq field /d u32:4 /orig
+                                        bufPush /als structNew aliasEntry: /localName u8:2 conv /k u32 ::
+                                        nop.
+                                    set /k add /k u64:1.
+                                ::.
+                                set /k u64:0.
+                                while lt /k len /eStubList do
+                                    const enumDef/d get /eStubList /k.
+                                    if and eq field /d u32:0 /depMod and field /d u32:1 eq field /d u32:3 /orig
+                                        bufPush /als structNew aliasEntry: /localName u8:3 conv /k u32 ::
+                                        nop.
+                                    set /k add /k u64:1.
+                                ::.
+                            ::.
                     ::
                     nop.
                 set /di add /di u64:1.
             ::.
-            if /foundDep
-                do
-                    const symRef/ts field /ui u32:2.
-                    const l/u8/alRaw field /ui u32:3.
-                    if field /ts u32:0
-                        do
-                            if gt len /alRaw u64:0
-                                do
-                                    const dcVal/tdc field /ts u32:1.
-                                    let u64/k u64:0.
-                                    while lt /k len /s1StubList do
-                                        const s1StructDef/d get /s1StubList /k.
-                                        const tup: b dcVal ::/od field /d u32:2.
-                                        if and eq field /d u32:0 /depMod and field /d u32:1 and field /od u32:0 eq field /od u32:1 /tdc
-                                            bufPush /als structNew aliasEntry: /alRaw u8:0 conv /k u32 ::
-                                            nop.
-                                        set /k add /k u64:1.
-                                    ::.
-                                    set /k u64:0.
-                                    while lt /k len /nsStubList do
-                                        const namedStructDef/d get /nsStubList /k.
-                                        const tup: b dcVal ::/od field /d u32:2.
-                                        if and eq field /d u32:0 /depMod and field /d u32:1 and field /od u32:0 eq field /od u32:1 /tdc
-                                            bufPush /als structNew aliasEntry: /alRaw u8:1 conv /k u32 ::
-                                            nop.
-                                        set /k add /k u64:1.
-                                    ::.
-                                    set /k u64:0.
-                                    while lt /k len /bStubList do
-                                        const brandDef/d get /bStubList /k.
-                                        const tup: b dcVal ::/od field /d u32:3.
-                                        if and eq field /d u32:0 /depMod and field /d u32:1 and field /od u32:0 eq field /od u32:1 /tdc
-                                            bufPush /als structNew aliasEntry: /alRaw u8:2 conv /k u32 ::
-                                            nop.
-                                        set /k add /k u64:1.
-                                    ::.
-                                    set /k u64:0.
-                                    while lt /k len /eStubList do
-                                        const enumDef/d get /eStubList /k.
-                                        const tup: b dcVal ::/od field /d u32:2.
-                                        if and eq field /d u32:0 /depMod and field /d u32:1 and field /od u32:0 eq field /od u32:1 /tdc
-                                            bufPush /als structNew aliasEntry: /alRaw u8:3 conv /k u32 ::
-                                            nop.
-                                        set /k add /k u64:1.
-                                    ::.
-                                ::
-                                nop.
-                        ::
-                        do
-                            const l/u8/orig field /ts u32:2.
-                            const l/u8/localName if eq len /alRaw u64:0 /orig /alRaw.
-                            let u64/k u64:0.
-                            while lt /k len /s1StubList do
-                                const s1StructDef/d get /s1StubList /k.
-                                if and eq field /d u32:0 /depMod and field /d u32:1 eq field /d u32:3 /orig
-                                    bufPush /als structNew aliasEntry: /localName u8:0 conv /k u32 ::
-                                    nop.
-                                set /k add /k u64:1.
-                            ::.
-                            set /k u64:0.
-                            while lt /k len /nsStubList do
-                                const namedStructDef/d get /nsStubList /k.
-                                if and eq field /d u32:0 /depMod and field /d u32:1 eq field /d u32:3 /orig
-                                    bufPush /als structNew aliasEntry: /localName u8:1 conv /k u32 ::
-                                    nop.
-                                set /k add /k u64:1.
-                            ::.
-                            set /k u64:0.
-                            while lt /k len /bStubList do
-                                const brandDef/d get /bStubList /k.
-                                if and eq field /d u32:0 /depMod and field /d u32:1 eq field /d u32:4 /orig
-                                    bufPush /als structNew aliasEntry: /localName u8:2 conv /k u32 ::
-                                    nop.
-                                set /k add /k u64:1.
-                            ::.
-                            set /k u64:0.
-                            while lt /k len /eStubList do
-                                const enumDef/d get /eStubList /k.
-                                if and eq field /d u32:0 /depMod and field /d u32:1 eq field /d u32:3 /orig
-                                    bufPush /als structNew aliasEntry: /localName u8:3 conv /k u32 ::
-                                    nop.
-                                set /k add /k u64:1.
-                            ::.
-                        ::.
-                ::
-                if field /pm u32:0
-                    fault
-                    nop.
+            if and not /foundDep field /pm u32:0
+                fault
+                nop.
         ::.
         bufPush /typeAliasesPerMod bufFreeze /als.
         set /mi add /mi u64:1.
@@ -3016,6 +3007,43 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
     ::.
     checkAllTypeCycles /typedEnv.
 
+    : Reject duplicate `pub` type names across namespace strata.
+    const buf/tup: u32 l/u8 ::/pubTypeBuf bufNew tup: u32 l/u8 :: u64:32.
+    foreach s1StructDef/d /s1List do
+        if and field /d u32:1 field get /mods conv field /d u32:0 u64 u32:3
+            bufPush /pubTypeBuf tupNew: field /d u32:0 field /d u32:3 ::
+            nop.
+    ::.
+    foreach namedStructDef/d /nsList do
+        if and field /d u32:1 field get /mods conv field /d u32:0 u64 u32:3
+            bufPush /pubTypeBuf tupNew: field /d u32:0 field /d u32:3 ::
+            nop.
+    ::.
+    foreach brandDef/d /bList do
+        if and field /d u32:1 field get /mods conv field /d u32:0 u64 u32:3
+            bufPush /pubTypeBuf tupNew: field /d u32:0 field /d u32:4 ::
+            nop.
+    ::.
+    foreach enumDef/d /eList do
+        if and field /d u32:1 field get /mods conv field /d u32:0 u64 u32:3
+            bufPush /pubTypeBuf tupNew: field /d u32:0 field /d u32:3 ::
+            nop.
+    ::.
+    const l/tup: u32 l/u8 ::/pubTypeList bufFreeze /pubTypeBuf.
+    let u64/pti u64:0.
+    while lt /pti len /pubTypeList do
+        const tup: u32 l/u8 ::/ta get /pubTypeList /pti.
+        let u64/ptj u64:0.
+        while lt /ptj /pti do
+            const tup: u32 l/u8 ::/tb get /pubTypeList /ptj.
+            if and ne field /ta u32:0 field /tb u32:0 and eq get /nsKeysList conv field /ta u32:0 u64 get /nsKeysList conv field /tb u32:0 u64 eq field /ta u32:1 field /tb u32:1
+                fault
+                nop.
+            set /ptj add /ptj u64:1.
+        ::.
+        set /pti add /pti u64:1.
+    ::.
+
     : Register top-level constants and routines (with StageL overload disambiguation).
     const buf/valDef/vFull bufNew valDef u64:16.
     const buf/routDef/rFull bufNew routDef u64:32.
@@ -3030,6 +3058,18 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
         const modScope/tScope structNew modScope: /mIdx get /typeAliasLists /mi l/synthImport: :: ::.
 
         foreach rawConst/rc field /pm u32:11 do
+            if and field /rc u32:0 field /pm u32:3
+                do
+                    let u64/vk u64:0.
+                    while lt /vk len /vFull do
+                        const valDef/pvd get /vFull /vk.
+                        if and ne field /pvd u32:0 /mIdx and field /pvd u32:1 and field get /mods conv field /pvd u32:0 u64 u32:3 and eq get /nsKeysList conv field /pvd u32:0 u64 field /pm u32:5 eq field /pvd u32:3 field /rc u32:3
+                            fault
+                            nop.
+                        set /vk add /vk u64:1.
+                    ::.
+                ::
+                nop.
             const rType/rawCty canonType /typedEnv /tScope /isSr field /rc u32:2.
             if and /isSr eq field /rawCty u32:0 u8:17 fault nop.
             const rType/cty if /isSr /rawCty bridgeS1TypeForSr /nsKeysList /s1List /rawCty.
@@ -3053,22 +3093,27 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
             const l/rType/pList bufFreeze /ptys.
             const l/u8/origName field /rr u32:3.
             let l/u8/emitName /origName.
-            if /isSr
-                do
-                    let u64/rk u64:0.
-                    while lt /rk len /rFull do
-                        const routDef/prev get /rFull /rk.
-                        if and eq field /prev u32:0 /mIdx eq field /prev u32:3 /origName
+            let u64/rk u64:0.
+            while lt /rk len /rFull do
+                const routDef/prev get /rFull /rk.
+                if eq field /prev u32:3 /origName
+                    do
+                        const u32/prevMod field /prev u32:0.
+                        const b/sameMod eq /prevMod /mIdx.
+                        const b/sameOverlayNs and not /sameMod and field /pm u32:3 and field get /mods conv /prevMod u64 u32:3 and eq get /nsKeysList conv /prevMod u64 field /pm u32:5 and field /rr u32:0 field /prev u32:1.
+                        if /sameOverlayNs
                             do
-                                if sameLoweredParams /typedEnv field /prev u32:6 /pList
-                                    set /emitName concat b"__sr_ovl_" concat u64ToAsciiDec /ri concat b"_" /origName
-                                    nop.
+                                if ne len field /prev u32:6 len /pList fault nop.
+                                if eq field /prev u32:6 /pList fault nop.
                             ::
                             nop.
-                        set /rk add /rk u64:1.
-                    ::.
-                ::
-                nop.
+                        if and /isSr and or /sameMod /sameOverlayNs sameLoweredParams /typedEnv field /prev u32:6 /pList
+                            set /emitName concat b"__sr_ovl_" concat u64ToAsciiDec conv /mIdx u64 concat b"_" concat u64ToAsciiDec /ri concat b"_" /origName
+                            nop.
+                    ::
+                    nop.
+                set /rk add /rk u64:1.
+            ::.
             bufPush /rFull structNew routDef:
                 /mIdx field /rr u32:0 field /rr u32:1 /origName /emitName /retTy /pList
             ::.
@@ -3123,58 +3168,51 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
                                 ::.
                                 foreach useItem/ui field /cpm u32:6 do
                                     const l/u8/depKey field /ui u32:1.
-                                    let b/foundDep false.
-                                    let u32/depMod u32:0.
+                                    const symRef/ts field /ui u32:2.
+                                    const l/u8/alRaw field /ui u32:3.
                                     let u64/di u64:0.
                                     while lt /di conv /cMod u64 do
                                         const parsedMod/dpm get /mods /di.
                                         if and field /dpm u32:3 eq field /dpm u32:5 /depKey
                                             do
-                                                set /foundDep true.
-                                                set /depMod conv /di u32.
+                                                const u32/depMod conv /di u32.
+                                                if field /ts u32:0
+                                                    do
+                                                        if and gt len /alRaw u64:0 eq /alRaw /cname
+                                                            do
+                                                                const dcVal/tdc2 field /ts u32:1.
+                                                                let u64/rk3 u64:0.
+                                                                while lt /rk3 /rCount do
+                                                                    const routDef/cand3 get /rRawList /rk3.
+                                                                    const tup: b dcVal ::/cod3 field /cand3 u32:2.
+                                                                    if and eq field /cand3 u32:0 /depMod and field /cand3 u32:1 and field /cod3 u32:0 eq field /cod3 u32:1 /tdc2
+                                                                        if get /s1Fault /rk3 set /hitsFault true nop
+                                                                        nop.
+                                                                    set /rk3 add /rk3 u64:1.
+                                                                ::.
+                                                            ::
+                                                            nop.
+                                                    ::
+                                                    do
+                                                        const l/u8/orig field /ts u32:2.
+                                                        const l/u8/localName if eq len /alRaw u64:0 /orig /alRaw.
+                                                        if eq /localName /cname
+                                                            do
+                                                                let u64/rk4 u64:0.
+                                                                while lt /rk4 /rCount do
+                                                                    const routDef/cand4 get /rRawList /rk4.
+                                                                    if and eq field /cand4 u32:0 /depMod and field /cand4 u32:1 eq field /cand4 u32:3 /orig
+                                                                        if get /s1Fault /rk4 set /hitsFault true nop
+                                                                        nop.
+                                                                    set /rk4 add /rk4 u64:1.
+                                                                ::.
+                                                            ::
+                                                            nop.
+                                                    ::.
                                             ::
                                             nop.
                                         set /di add /di u64:1.
                                     ::.
-                                    if /foundDep
-                                        do
-                                            const symRef/ts field /ui u32:2.
-                                            const l/u8/alRaw field /ui u32:3.
-                                            if field /ts u32:0
-                                                do
-                                                    if and gt len /alRaw u64:0 eq /alRaw /cname
-                                                        do
-                                                            const dcVal/tdc2 field /ts u32:1.
-                                                            let u64/rk3 u64:0.
-                                                            while lt /rk3 /rCount do
-                                                                const routDef/cand3 get /rRawList /rk3.
-                                                                const tup: b dcVal ::/cod3 field /cand3 u32:2.
-                                                                if and eq field /cand3 u32:0 /depMod and field /cand3 u32:1 and field /cod3 u32:0 eq field /cod3 u32:1 /tdc2
-                                                                    if get /s1Fault /rk3 set /hitsFault true nop
-                                                                    nop.
-                                                                set /rk3 add /rk3 u64:1.
-                                                            ::.
-                                                        ::
-                                                        nop.
-                                                ::
-                                                do
-                                                    const l/u8/orig field /ts u32:2.
-                                                    const l/u8/localName if eq len /alRaw u64:0 /orig /alRaw.
-                                                    if eq /localName /cname
-                                                        do
-                                                            let u64/rk4 u64:0.
-                                                            while lt /rk4 /rCount do
-                                                                const routDef/cand4 get /rRawList /rk4.
-                                                                if and eq field /cand4 u32:0 /depMod and field /cand4 u32:1 eq field /cand4 u32:3 /orig
-                                                                    if get /s1Fault /rk4 set /hitsFault true nop
-                                                                    nop.
-                                                                set /rk4 add /rk4 u64:1.
-                                                            ::.
-                                                        ::
-                                                        nop.
-                                                ::.
-                                        ::
-                                        nop.
                                 ::.
                             ::.
                     ::.
@@ -3213,71 +3251,64 @@ v/tup: compEnv l/modScope ::/buildCompEnv l/parsedMod/mods
 
         foreach useItem/ui field /pm u32:6 do
             const l/u8/depKey field /ui u32:1.
-            let b/foundDep false.
-            let u32/depMod u32:0.
+            const symRef/ts field /ui u32:2.
+            const l/u8/alRaw field /ui u32:3.
             let u64/di u64:0.
             while lt /di /mi do
                 const parsedMod/dpm get /mods /di.
                 if and field /dpm u32:3 eq field /dpm u32:5 /depKey
                     do
-                        set /foundDep true.
-                        set /depMod conv /di u32.
+                        const u32/depMod conv /di u32.
+                        if field /ts u32:0
+                            do
+                                const dcVal/tdc field /ts u32:1.
+                                if gt len /alRaw u64:0
+                                    do
+                                        let u64/k u64:0.
+                                        while lt /k len /vList do
+                                            const valDef/vd get /vList /k.
+                                            const tup: b dcVal ::/od field /vd u32:2.
+                                            if and eq field /vd u32:0 /depMod and field /vd u32:1 and field /od u32:0 eq field /od u32:1 /tdc
+                                                bufPush /als structNew aliasEntry: /alRaw u8:4 conv /k u32 ::
+                                                nop.
+                                            set /k add /k u64:1.
+                                        ::.
+                                        set /k u64:0.
+                                        while lt /k len /rList do
+                                            const routDef/rd get /rList /k.
+                                            const tup: b dcVal ::/od field /rd u32:2.
+                                            if and eq field /rd u32:0 /depMod and field /rd u32:1 and field /od u32:0 eq field /od u32:1 /tdc
+                                                bufPush /als structNew aliasEntry: /alRaw u8:5 conv /k u32 ::
+                                                nop.
+                                            set /k add /k u64:1.
+                                        ::.
+                                    ::
+                                    nop.
+                            ::
+                            do
+                                const l/u8/orig field /ts u32:2.
+                                const l/u8/localName if eq len /alRaw u64:0 /orig /alRaw.
+                                let u64/k u64:0.
+                                while lt /k len /vList do
+                                    const valDef/vd get /vList /k.
+                                    if and eq field /vd u32:0 /depMod and field /vd u32:1 eq field /vd u32:3 /orig
+                                        bufPush /als structNew aliasEntry: /localName u8:4 conv /k u32 ::
+                                        nop.
+                                    set /k add /k u64:1.
+                                ::.
+                                set /k u64:0.
+                                while lt /k len /rList do
+                                    const routDef/rd get /rList /k.
+                                    if and eq field /rd u32:0 /depMod and field /rd u32:1 eq field /rd u32:3 /orig
+                                        bufPush /als structNew aliasEntry: /localName u8:5 conv /k u32 ::
+                                        nop.
+                                    set /k add /k u64:1.
+                                ::.
+                            ::.
                     ::
                     nop.
                 set /di add /di u64:1.
             ::.
-            if /foundDep
-                do
-                    const symRef/ts field /ui u32:2.
-                    const l/u8/alRaw field /ui u32:3.
-                    if field /ts u32:0
-                        do
-                            const dcVal/tdc field /ts u32:1.
-                            if gt len /alRaw u64:0
-                                do
-                                    let u64/k u64:0.
-                                    while lt /k len /vList do
-                                        const valDef/vd get /vList /k.
-                                        const tup: b dcVal ::/od field /vd u32:2.
-                                        if and eq field /vd u32:0 /depMod and field /vd u32:1 and field /od u32:0 eq field /od u32:1 /tdc
-                                            bufPush /als structNew aliasEntry: /alRaw u8:4 conv /k u32 ::
-                                            nop.
-                                        set /k add /k u64:1.
-                                    ::.
-                                    set /k u64:0.
-                                    while lt /k len /rList do
-                                        const routDef/rd get /rList /k.
-                                        const tup: b dcVal ::/od field /rd u32:2.
-                                        if and eq field /rd u32:0 /depMod and field /rd u32:1 and field /od u32:0 eq field /od u32:1 /tdc
-                                            bufPush /als structNew aliasEntry: /alRaw u8:5 conv /k u32 ::
-                                            nop.
-                                        set /k add /k u64:1.
-                                    ::.
-                                ::
-                                nop.
-                        ::
-                        do
-                            const l/u8/orig field /ts u32:2.
-                            const l/u8/localName if eq len /alRaw u64:0 /orig /alRaw.
-                            let u64/k u64:0.
-                            while lt /k len /vList do
-                                const valDef/vd get /vList /k.
-                                if and eq field /vd u32:0 /depMod and field /vd u32:1 eq field /vd u32:3 /orig
-                                    bufPush /als structNew aliasEntry: /localName u8:4 conv /k u32 ::
-                                    nop.
-                                set /k add /k u64:1.
-                            ::.
-                            set /k u64:0.
-                            while lt /k len /rList do
-                                const routDef/rd get /rList /k.
-                                if and eq field /rd u32:0 /depMod and field /rd u32:1 eq field /rd u32:3 /orig
-                                    bufPush /als structNew aliasEntry: /localName u8:5 conv /k u32 ::
-                                    nop.
-                                set /k add /k u64:1.
-                            ::.
-                        ::.
-                ::
-                nop.
         ::.
         bufPush /scopesBuf structNew modScope: /mIdx bufFreeze /als l/synthImport: :: ::.
         set /mi add /mi u64:1.
@@ -3312,6 +3343,26 @@ v/b/isWideningConv rType/src rType/dst
     if eq /src /dst return true nop.
     const u8/sk field /src u32:0.
     const u8/dk field /dst u32:0.
+    if and eq /sk u8:13 eq /dk u8:16
+        do
+            if eq len field /dst u32:2 u64:1
+                if eq field get field /dst u32:2 u64:0 u32:0 u8:12
+                    return true
+                    nop
+                nop.
+            return false.
+        ::
+        nop.
+    if and eq /sk u8:16 eq /dk u8:13
+        do
+            if eq len field /src u32:2 u64:1
+                if eq field get field /src u32:2 u64:0 u32:0 u8:12
+                    return true
+                    nop
+                nop.
+            return false.
+        ::
+        nop.
     if not and isNumericKind /sk isNumericKind /dk return false nop.
     if eq /sk u8:3  return and ge /dk u8:4 le /dk u8:11 nop.
     if eq /sk u8:4  return or eq /dk u8:6 or eq /dk u8:8 or eq /dk u8:10 eq /dk u8:11 nop.
@@ -3592,7 +3643,7 @@ v/rType/inferExprType compEnv/env modScope/mScope fnCtx/fctx exprNode/node
                 nop.
             if and ge /aux u32:2566 le /aux u32:2569 return primType u8:2 nop.
             if eq /aux u32:2585 return unaryRType u8:16 get field /xt u32:2 u64:0 nop.
-            if eq /aux u32:2610 return unaryRType u8:20 primType u8:12 nop.
+            if eq /aux u32:2610 return primType u8:12 nop.
             if eq /aux u32:2611 return primType u8:9 nop.
             if eq /aux u32:2612 return unaryRType u8:20 primType u8:13 nop.
             if eq /aux u32:2613 return primType u8:14 nop.
@@ -3945,7 +3996,7 @@ v/void/lowerTotalConv buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/
     const rType/srcTy inferExprType /env /mScope /fctx /srcExpr.
     const u8/sk field /srcTy u32:0.
     const u8/dk field /dstTy u32:0.
-    if or eq /sk u8:1 eq /sk /dk
+    if or eq /sk u8:1 or eq /sk /dk or and eq /sk u8:13 and eq /dk u8:16 isWideningConv /srcTy /dstTy and eq /sk u8:16 and eq /dk u8:13 isWideningConv /srcTy /dstTy
         do
             lowerExpr /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /srcExpr.
             return.
@@ -4249,7 +4300,7 @@ v/void/lowerUnaryOp buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/se
         nop.
     if eq /op u32:2610
         do
-            emitStdCall1 /out /stdImports /selfNsKey /uses u8:6 u64:8589982141 /env /mScope /fctx /crossDcs /synths /gensym /x.
+            emitStdCall1 /out /stdImports /selfNsKey /uses u8:6 u64:8589984708 /env /mScope /fctx /crossDcs /synths /gensym /x.
             return.
         ::
         nop.
@@ -5087,14 +5138,17 @@ v/l/enumVarDef/matchDomainVariants compEnv/env rType/st
         nop.
     if eq /sk u8:15
         return l/enumVarDef:
-            structNew enumVarDef: b"overflow"        false primType u8:0 u32:0 ::
-            structNew enumVarDef: b"divisionByZero"  false primType u8:0 u32:0 ::
-            structNew enumVarDef: b"outOfBounds"     false primType u8:0 u32:0 ::
-            structNew enumVarDef: b"frozenBuffer"    false primType u8:0 u32:0 ::
-            structNew enumVarDef: b"invalidEncoding" false primType u8:0 u32:0 ::
-            structNew enumVarDef: b"invalidDc"       false primType u8:0 u32:0 ::
-            structNew enumVarDef: b"parseFailure"    false primType u8:0 u32:0 ::
-            structNew enumVarDef: b"unexpectedNone"  false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"overflow"                  false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"divisionByZero"            false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"outOfBounds"               false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"frozenBuffer"              false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"invalidEncoding"           false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"numberOutsideDcRange"      false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"parseFailure"              false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"unexpectedNone"            false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"numberOutsideShortDcRange" false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"numberOutsideFormatRange"  false primType u8:0 u32:0 ::
+            structNew enumVarDef: b"numberOutsideUnicodeRange" false primType u8:0 u32:0 ::
         ::
         nop.
     if eq /sk u8:24

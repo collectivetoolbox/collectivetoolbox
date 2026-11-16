@@ -2262,6 +2262,20 @@
       (return))
     (unreachable))
 
+  (func $mod_has_ns (param $dmod i32) (param $ns_p i32) (param $ns_l i32) (result i32)
+    (local $m i32)
+    (when (i32.eqz $ns_l) (return 0))
+    (set $m (call $buf_get_i32 $modules_buf $dmod))
+    (call $slice_eq (i32.load $m) (i32.load offset=4 $m) $ns_p $ns_l))
+
+  (func $mods_share_ns (param $m1_idx i32) (param $m2_idx i32) (result i32)
+    (local $m1 i32)
+    (local $m2 i32)
+    (set $m1 (call $buf_get_i32 $modules_buf $m1_idx))
+    (when (i32.eqz (i32.load offset=4 $m1)) (return 0))
+    (set $m2 (call $buf_get_i32 $modules_buf $m2_idx))
+    (call $slice_eq (i32.load $m1) (i32.load offset=4 $m1) (i32.load $m2) (i32.load offset=4 $m2)))
+
   (func $find_ns_mod (param $ns_p i32) (param $ns_l i32) (result i32)
     (local $cnt i32)
     (local $i   i32)
@@ -2351,13 +2365,18 @@
         (br_if $done (i32.ge_u $i $cnt))
         (set $u (call $buf_get_i32 $ub $i))
         (when (call $slice_eq (i32.load offset=20 $u) (i32.load offset=24 $u) $n_p $n_l)
-          (set $dmod (call $find_ns_mod (i32.load $u) (i32.load offset=4 $u)))
-          (when (i32.lt_s $dmod 0) (unreachable))
-          (set $sidx
-            (if (result i32) (i32.load offset=8 $u)
-              (then (call $find_mod_struct_by_dc $dmod 1 (i32.load offset=12 $u) (i32.load offset=16 $u)))
-              (else (call $find_mod_struct_by_name $dmod 1 (i32.load offset=12 $u) (i32.load offset=16 $u)))))
-          (when (i32.ge_s $sidx 0) (return $sidx)))
+          (set $dmod 0)
+          (block $dm_done
+            (loop $dm_lp
+              (br_if $dm_done (i32.ge_u $dmod $mod_idx))
+              (when (call $mod_has_ns $dmod (i32.load $u) (i32.load offset=4 $u))
+                (set $sidx
+                  (if (result i32) (i32.load offset=8 $u)
+                    (then (call $find_mod_struct_by_dc $dmod 1 (i32.load offset=12 $u) (i32.load offset=16 $u)))
+                    (else (call $find_mod_struct_by_name $dmod 1 (i32.load offset=12 $u) (i32.load offset=16 $u)))))
+                (when (i32.ge_s $sidx 0) (return $sidx)))
+              (set $dmod (i32.add $dmod 1))
+              (br $dm_lp))))
         (set $i (i32.add $i 1))
         (br $lp)))
     (i32.const -1))
@@ -2384,10 +2403,15 @@
           (i32.and
             (i32.load offset=8 $u)
             (call $slice_eq (i32.load offset=12 $u) (i32.load offset=16 $u) $dc_p $dc_l))
-          (set $dmod (call $find_ns_mod (i32.load $u) (i32.load offset=4 $u)))
-          (when (i32.lt_s $dmod 0) (unreachable))
-          (set $sidx (call $find_mod_struct_by_dc $dmod 1 $dc_p $dc_l))
-          (when (i32.ge_s $sidx 0) (return $sidx)))
+          (set $dmod 0)
+          (block $dm2_done
+            (loop $dm2_lp
+              (br_if $dm2_done (i32.ge_u $dmod $mod_idx))
+              (when (call $mod_has_ns $dmod (i32.load $u) (i32.load offset=4 $u))
+                (set $sidx (call $find_mod_struct_by_dc $dmod 1 $dc_p $dc_l))
+                (when (i32.ge_s $sidx 0) (return $sidx)))
+              (set $dmod (i32.add $dmod 1))
+              (br $dm2_lp))))
         (set $i (i32.add $i 1))
         (br $lp)))
     (set $dmod 0)
@@ -2742,26 +2766,21 @@
     (local $pty      i32)
     (local $name_cnt i32)
     (local $fn_buf   i32)
+    (local $found_exp i32)
+    (local $vb2      i32)
+    (local $vcnt2    i32)
+    (local $rb2      i32)
+    (local $rcnt2    i32)
 
     (set $mcnt (call $buf_count_i32 $modules_buf))
     (when (i32.eqz $mcnt) (unreachable))
 
-    ;; 1. Verify unique namespaces and valid module-level `use` targets
+    ;; 1. Verify valid module-level `use` targets across all prior strata `0..$mi`
     (set $mi 0)
     (block $m1_done
       (loop $m1_lp
         (br_if $m1_done (i32.ge_u $mi $mcnt))
         (set $m (call $buf_get_i32 $modules_buf $mi))
-        (when (i32.gt_u (i32.load offset=4 $m) 0)
-          (set $mj (i32.add $mi 1))
-          (block $dup_ns_done
-            (loop $dup_ns_lp
-              (br_if $dup_ns_done (i32.ge_u $mj $mcnt))
-              (set $m2 (call $buf_get_i32 $modules_buf $mj))
-              (when (call $slice_eq (i32.load $m) (i32.load offset=4 $m) (i32.load $m2) (i32.load offset=4 $m2))
-                (unreachable))
-              (set $mj (i32.add $mj 1))
-              (br $dup_ns_lp))))
         (set $ub (i32.load offset=8 $m))
         (set $ucnt (call $buf_count_i32 $ub))
         (set $ui 0)
@@ -2769,15 +2788,24 @@
           (loop $u_lp
             (br_if $u_done (i32.ge_u $ui $ucnt))
             (set $u (call $buf_get_i32 $ub $ui))
-            (set $dmod (call $find_ns_mod (i32.load $u) (i32.load offset=4 $u)))
-            (when (i32.or (i32.lt_s $dmod 0) (i32.eq $dmod $mi)) (unreachable))
-            (when (i32.eqz (call $module_exports_use_item $dmod $u)) (unreachable))
+            (set $found_exp 0)
+            (set $dmod 0)
+            (block $dm_chk_done
+              (loop $dm_chk_lp
+                (br_if $dm_chk_done (i32.ge_u $dmod $mi))
+                (when (call $mod_has_ns $dmod (i32.load $u) (i32.load offset=4 $u))
+                  (when (call $module_exports_use_item $dmod $u)
+                    (set $found_exp 1)
+                    (br $dm_chk_done)))
+                (set $dmod (i32.add $dmod 1))
+                (br $dm_chk_lp)))
+            (when (i32.eqz $found_exp) (unreachable))
             (set $ui (i32.add $ui 1))
             (br $u_lp)))
         (set $mi (i32.add $mi 1))
         (br $m1_lp)))
 
-    ;; 2. Canonicalize all `StructDef` fields & check duplicates
+    ;; 2. Canonicalize all `StructDef` fields & check intra-module and cross-stratum `pub` duplicates
     (set $scnt (call $buf_count_i32 $all_structs))
     (set $si 0)
     (block $s1_done
@@ -2789,7 +2817,12 @@
           (loop $sdup_lp
             (br_if $sdup_done (i32.ge_u $sj $scnt))
             (set $sdef2 (call $buf_get_i32 $all_structs $sj))
-            (when (i32.eq (i32.load $sdef) (i32.load $sdef2))
+            (when
+              (i32.or
+                (i32.eq (i32.load $sdef) (i32.load $sdef2))
+                (i32.and
+                  (i32.and (i32.load offset=4 $sdef) (i32.load offset=4 $sdef2))
+                  (call $mods_share_ns (i32.load $sdef) (i32.load $sdef2))))
               (when
                 (call $slice_eq
                   (i32.load offset=16 $sdef) (i32.load offset=20 $sdef)
@@ -2962,7 +2995,83 @@
             (br $rb_lp)))
 
         (set $mi (i32.add $mi 1))
-        (br $m2_lp))))
+        (br $m2_lp)))
+
+    ;; 4b. Verify cross-stratum `pub` uniqueness for modules sharing a namespace
+    (set $mi 0)
+    (block $cs1_done
+      (loop $cs1_lp
+        (br_if $cs1_done (i32.ge_u $mi $mcnt))
+        (set $m (call $buf_get_i32 $modules_buf $mi))
+        (when (i32.gt_u (i32.load offset=4 $m) 0)
+          (set $mj (i32.add $mi 1))
+          (block $cs2_done
+            (loop $cs2_lp
+              (br_if $cs2_done (i32.ge_u $mj $mcnt))
+              (when (call $mods_share_ns $mi $mj)
+                (set $m2 (call $buf_get_i32 $modules_buf $mj))
+                (set $vb (i32.load offset=16 $m))
+                (set $vcnt (call $buf_count_i32 $vb))
+                (set $vb2 (i32.load offset=16 $m2))
+                (set $vcnt2 (call $buf_count_i32 $vb2))
+                (set $vi 0)
+                (block $cv1_done
+                  (loop $cv1_lp
+                    (br_if $cv1_done (i32.ge_u $vi $vcnt))
+                    (set $tv (call $buf_get_i32 $vb $vi))
+                    (when (i32.load $tv)
+                      (set $vj 0)
+                      (block $cv2_done
+                        (loop $cv2_lp
+                          (br_if $cv2_done (i32.ge_u $vj $vcnt2))
+                          (set $tv2 (call $buf_get_i32 $vb2 $vj))
+                          (when
+                            (i32.and
+                              (i32.load $tv2)
+                              (call $slice_eq
+                                (i32.load offset=16 $tv) (i32.load offset=20 $tv)
+                                (i32.load offset=16 $tv2) (i32.load offset=20 $tv2)))
+                            (unreachable))
+                          (set $vj (i32.add $vj 1))
+                          (br $cv2_lp))))
+                    (set $vi (i32.add $vi 1))
+                    (br $cv1_lp)))
+                (set $rb (i32.load offset=20 $m))
+                (set $rcnt (call $buf_count_i32 $rb))
+                (set $rb2 (i32.load offset=20 $m2))
+                (set $rcnt2 (call $buf_count_i32 $rb2))
+                (set $ri 0)
+                (block $cr1_done
+                  (loop $cr1_lp
+                    (br_if $cr1_done (i32.ge_u $ri $rcnt))
+                    (set $r (call $buf_get_i32 $rb $ri))
+                    (when (i32.load $r)
+                      (set $rj 0)
+                      (block $cr2_done
+                        (loop $cr2_lp
+                          (br_if $cr2_done (i32.ge_u $rj $rcnt2))
+                          (set $r2 (call $buf_get_i32 $rb2 $rj))
+                          (when
+                            (i32.and
+                              (i32.load $r2)
+                              (call $slice_eq
+                                (i32.load offset=16 $r) (i32.load offset=20 $r)
+                                (i32.load offset=16 $r2) (i32.load offset=20 $r2)))
+                            (when
+                              (i32.or
+                                (i32.ne
+                                  (call $buf_count_i32 (i32.load offset=24 $r))
+                                  (call $buf_count_i32 (i32.load offset=24 $r2)))
+                                (call $routine_params_eq $r $r2))
+                              (unreachable)))
+                          (set $rj (i32.add $rj 1))
+                          (br $cr2_lp))))
+                    (set $ri (i32.add $ri 1))
+                    (br $cr1_lp))))
+              (set $mj (i32.add $mj 1))
+              (br $cs2_lp))))
+        (set $mi (i32.add $mi 1))
+        (br $cs1_lp))))
 
   ;; Resolves a top-level constant in `$dmod` matching `($req_pub, $opt_ty_plus1, $is_dc, $p, $l)`.
   ;; Returns `TopVal*` (`0` if none, traps if ambiguous >1).
@@ -3029,21 +3138,33 @@
               (i32.and
                 (i32.load offset=8 $u)
                 (call $slice_eq (i32.load offset=12 $u) (i32.load offset=16 $u) $p $l))
-              (set $dmod (call $find_ns_mod (i32.load $u) (i32.load offset=4 $u)))
-              (set $cand (call $find_mod_top_val $dmod 1 $opt_ty_plus1 1 $p $l))
-              (when $cand
-                (when (i32.and $tv (i32.ne $tv $cand)) (unreachable))
-                (set $tv $cand))))
+              (set $dmod 0)
+              (block $vd1_done
+                (loop $vd1_lp
+                  (br_if $vd1_done (i32.ge_u $dmod $mod_idx))
+                  (when (call $mod_has_ns $dmod (i32.load $u) (i32.load offset=4 $u))
+                    (set $cand (call $find_mod_top_val $dmod 1 $opt_ty_plus1 1 $p $l))
+                    (when $cand
+                      (when (i32.and $tv (i32.ne $tv $cand)) (unreachable))
+                      (set $tv $cand)))
+                  (set $dmod (i32.add $dmod 1))
+                  (br $vd1_lp)))))
           (else
             (when (call $slice_eq (i32.load offset=20 $u) (i32.load offset=24 $u) $p $l)
-              (set $dmod (call $find_ns_mod (i32.load $u) (i32.load offset=4 $u)))
-              (set $cand
-                (call $find_mod_top_val
-                  $dmod 1 $opt_ty_plus1
-                  (i32.load offset=8 $u) (i32.load offset=12 $u) (i32.load offset=16 $u)))
-              (when $cand
-                (when (i32.and $tv (i32.ne $tv $cand)) (unreachable))
-                (set $tv $cand)))))
+              (set $dmod 0)
+              (block $vd2_done
+                (loop $vd2_lp
+                  (br_if $vd2_done (i32.ge_u $dmod $mod_idx))
+                  (when (call $mod_has_ns $dmod (i32.load $u) (i32.load offset=4 $u))
+                    (set $cand
+                      (call $find_mod_top_val
+                        $dmod 1 $opt_ty_plus1
+                        (i32.load offset=8 $u) (i32.load offset=12 $u) (i32.load offset=16 $u)))
+                    (when $cand
+                      (when (i32.and $tv (i32.ne $tv $cand)) (unreachable))
+                      (set $tv $cand)))
+                  (set $dmod (i32.add $dmod 1))
+                  (br $vd2_lp))))))
         (set $i (i32.add $i 1))
         (br $lp)))
     (when (i32.and $is_dc (i32.eqz $tv))
@@ -3140,22 +3261,34 @@
               (i32.and
                 (i32.load offset=8 $u)
                 (call $slice_eq (i32.load offset=12 $u) (i32.load offset=16 $u) $p $l))
-              (set $dmod (call $find_ns_mod (i32.load $u) (i32.load offset=4 $u)))
-              (set $cand (call $find_mod_top_rout $dmod 1 1 $p $l $arity $arg_tys_ptr))
-              (when $cand
-                (when (i32.and $r (i32.ne $r $cand)) (unreachable))
-                (set $r $cand))))
+              (set $dmod 0)
+              (block $rd1_done
+                (loop $rd1_lp
+                  (br_if $rd1_done (i32.ge_u $dmod $mod_idx))
+                  (when (call $mod_has_ns $dmod (i32.load $u) (i32.load offset=4 $u))
+                    (set $cand (call $find_mod_top_rout $dmod 1 1 $p $l $arity $arg_tys_ptr))
+                    (when $cand
+                      (when (i32.and $r (i32.ne $r $cand)) (unreachable))
+                      (set $r $cand)))
+                  (set $dmod (i32.add $dmod 1))
+                  (br $rd1_lp)))))
           (else
             (when (call $slice_eq (i32.load offset=20 $u) (i32.load offset=24 $u) $p $l)
-              (set $dmod (call $find_ns_mod (i32.load $u) (i32.load offset=4 $u)))
-              (set $cand
-                (call $find_mod_top_rout
-                  $dmod 1
-                  (i32.load offset=8 $u) (i32.load offset=12 $u) (i32.load offset=16 $u)
-                  $arity $arg_tys_ptr))
-              (when $cand
-                (when (i32.and $r (i32.ne $r $cand)) (unreachable))
-                (set $r $cand)))))
+              (set $dmod 0)
+              (block $rd2_done
+                (loop $rd2_lp
+                  (br_if $rd2_done (i32.ge_u $dmod $mod_idx))
+                  (when (call $mod_has_ns $dmod (i32.load $u) (i32.load offset=4 $u))
+                    (set $cand
+                      (call $find_mod_top_rout
+                        $dmod 1
+                        (i32.load offset=8 $u) (i32.load offset=12 $u) (i32.load offset=16 $u)
+                        $arity $arg_tys_ptr))
+                    (when $cand
+                      (when (i32.and $r (i32.ne $r $cand)) (unreachable))
+                      (set $r $cand)))
+                  (set $dmod (i32.add $dmod 1))
+                  (br $rd2_lp))))))
         (set $i (i32.add $i 1))
         (br $lp)))
     (when (i32.and $is_dc (i32.eqz $r))

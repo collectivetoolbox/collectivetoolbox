@@ -49,8 +49,9 @@ pub use workspace::{
     parse_and_validate_workspace_with_dialect,
 };
 pub(crate) use workspace::{
-    build_stager_import_context, dialect_for_source_path,
-    is_stage2_or_sr3_path, top_decl_uses_stager, verify_psr4_path,
+    build_stager_import_context, can_overlay_namespace,
+    dialect_for_source_path, is_stage2_or_sr3_path, stage_rank_for_source_path,
+    top_decl_uses_stager, verify_psr4_path,
 };
 
 use super::ast::{
@@ -287,6 +288,120 @@ pub struct NamespaceExports {
     pub by_dc: HashMap<DcChar, ImportedSymbol>,
 }
 
+impl NamespaceExports {
+    fn has_type_name(&self, name: &str) -> bool {
+        self.structs.contains_key(name)
+            || self.brand_types.contains_key(name)
+            || self.named_structs.contains_key(name)
+            || self.enums.contains_key(name)
+    }
+
+    fn has_any_export(&self, name: &str) -> bool {
+        self.has_type_name(name)
+            || self.values.contains_key(name)
+            || self.routines.contains_key(name)
+    }
+
+    /// Merges a higher-stage overlay module's `pub` exports into `self` for
+    /// the same namespace (`ns_key`), rejecting cross-stratum collisions across
+    /// types, constants, routine arities, and routine parameter signatures
+    /// (both raw and StageR-bridged).
+    pub fn merge_overlay(
+        &mut self,
+        newer: Self,
+        ns_key: &str,
+    ) -> Result<()> {
+        for (name, def) in newer.structs {
+            ensure!(
+                !self.has_any_export(&name),
+                "Duplicate or conflicting 'pub' struct '{name}' across strata of namespace '{ns_key}'"
+            );
+            self.structs.insert(name, def);
+        }
+        for (name, def) in newer.brand_types {
+            ensure!(
+                !self.has_any_export(&name),
+                "Duplicate or conflicting 'pub' type/brand '{name}' across strata of namespace '{ns_key}'"
+            );
+            self.brand_types.insert(name, def);
+        }
+        for (name, def) in newer.named_structs {
+            ensure!(
+                !self.has_any_export(&name),
+                "Duplicate or conflicting 'pub' struct '{name}' across strata of namespace '{ns_key}'"
+            );
+            self.named_structs.insert(name, def);
+        }
+        for (name, def) in newer.enums {
+            ensure!(
+                !self.has_any_export(&name),
+                "Duplicate or conflicting 'pub' enum '{name}' across strata of namespace '{ns_key}'"
+            );
+            self.enums.insert(name, def);
+        }
+        for (name, val) in newer.values {
+            ensure!(
+                !self.has_any_export(&name),
+                "Duplicate or conflicting 'pub' constant '{name}' across strata of namespace '{ns_key}'"
+            );
+            self.values.insert(name, val);
+        }
+        for (name, sigs) in newer.routines {
+            ensure!(
+                !self.has_type_name(&name) && !self.values.contains_key(&name),
+                "Conflicting 'pub' routine '{name}' across strata of namespace '{ns_key}': collides with a type or constant"
+            );
+            let target_sigs = self.routines.entry(name.clone()).or_default();
+            for sig in sigs {
+                let bridged_params: Vec<StageLType> = sig
+                    .params
+                    .iter()
+                    .map(bridge_stage1_type_for_stager)
+                    .collect();
+                for existing in target_sigs.iter() {
+                    ensure!(
+                        existing.params.len() == sig.params.len(),
+                        "Conflicting parameter count for overloaded 'pub' routine '{name}' across strata of namespace '{ns_key}': expected {}, found {}",
+                        existing.params.len(),
+                        sig.params.len()
+                    );
+                    let existing_bridged: Vec<StageLType> = existing
+                        .params
+                        .iter()
+                        .map(bridge_stage1_type_for_stager)
+                        .collect();
+                    ensure!(
+                        existing.params != sig.params
+                            && existing_bridged != bridged_params,
+                        "Duplicate overload signature for 'pub' routine '{name}' across strata of namespace '{ns_key}'"
+                    );
+                }
+                target_sigs.push(sig);
+            }
+        }
+        for (k, d) in newer.all_structs {
+            self.all_structs.entry(k).or_insert(d);
+        }
+        for (k, d) in newer.all_brand_types {
+            self.all_brand_types.entry(k).or_insert(d);
+        }
+        for (k, d) in newer.all_named_structs {
+            self.all_named_structs.entry(k).or_insert(d);
+        }
+        for (k, d) in newer.all_enums {
+            self.all_enums.entry(k).or_insert(d);
+        }
+        for (dc, sym) in newer.by_dc {
+            ensure!(
+                !self.by_dc.contains_key(&dc),
+                "Duplicate 'pub' Dc binding across strata of namespace '{ns_key}'"
+            );
+            self.by_dc.insert(dc, sym);
+        }
+        Ok(())
+    }
+}
+
 /// Resolved imported symbol entry inside a dependent module.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ImportedSymbol {
@@ -442,6 +557,9 @@ impl ImportedSymbol {
 /// Metadata collected for a validated single module.
 #[derive(Debug, Clone)]
 pub struct ValidatedModule {
+    /// Index of this module in the caller's input slice (`0` for standalone
+    /// validation).
+    pub input_index: usize,
     /// Parsed AST.
     pub module: Module,
     /// Namespace key if `ns` was declared.
@@ -1429,10 +1547,13 @@ v/i32/allArms color/c option/i32/opt error/e result/void/rv
             case divisionByZero i32:2.
             case outOfBounds i32:3.
             case invalidEncoding i32:4.
-            case invalidDc i32:5.
+            case numberOutsideDcRange i32:5.
             case unexpectedNone i32:6.
             case frozenBuffer i32:7.
             case parseFailure i32:8.
+            case numberOutsideShortDcRange i32:9.
+            case numberOutsideFormatRange i32:10.
+            case numberOutsideUnicodeRange i32:11.
         ::.
     wrapAdd /assigned wrapAdd /optVal wrapAdd /rvVal /errVal.
 "#;

@@ -1501,16 +1501,7 @@ impl<'a> ModuleValidator<'a> {
         match domain {
             MatchDomain::Option(_) => vec!["none", "some"],
             MatchDomain::Result(_) => vec!["ok", "err"],
-            MatchDomain::Error => vec![
-                "overflow",
-                "divisionByZero",
-                "outOfBounds",
-                "frozenBuffer",
-                "invalidEncoding",
-                "invalidDc",
-                "parseFailure",
-                "unexpectedNone",
-            ],
+            MatchDomain::Error => StageRErrorTag::all_keywords().to_vec(),
             MatchDomain::Enum { def } => {
                 def.variants.iter().map(|v| v.name.as_str()).collect()
             }

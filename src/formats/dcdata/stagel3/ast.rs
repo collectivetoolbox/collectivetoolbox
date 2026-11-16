@@ -691,14 +691,20 @@ pub enum StageRErrorTag {
     OutOfBounds,
     /// Mutation or duplicate freeze of a frozen `buf/T` (`frozenBuffer`).
     FrozenBuffer,
-    /// Mixed-mode `s` -> `dcs` conversion failed due to binary run (`invalidEncoding`).
+    /// Mixed-mode `s` -> `dcs` conversion failed due to binary run or invalid UTF-8/DcTF (`invalidEncoding`).
     InvalidEncoding,
-    /// Surrogate or invalid Document Character in `dcFromU128` (`invalidDc`).
-    InvalidDc,
+    /// Integer value outside the 128-bit Document Character range `< 0` or `> 2^128 - 1` (`numberOutsideDcRange`).
+    NumberOutsideDcRange,
     /// Textual parse failure (`parseFailure`).
     ParseFailure,
     /// Propagating `option/T:none` inside a `result/R` routine (`unexpectedNone`).
     UnexpectedNone,
+    /// Integer value outside the Short Dc ID range `< 0` or `> 1_114_111` (`numberOutsideShortDcRange`).
+    NumberOutsideShortDcRange,
+    /// Integer value outside the Format Dc ID range `< 0` or `> 1_114_111` (`numberOutsideFormatRange`).
+    NumberOutsideFormatRange,
+    /// Integer value outside the Unicode codepoint range `< 0` or `> 0x10FFFF` (`numberOutsideUnicodeRange`).
+    NumberOutsideUnicodeRange,
 }
 
 impl StageRErrorTag {
@@ -711,9 +717,12 @@ impl StageRErrorTag {
             Self::OutOfBounds => "outOfBounds",
             Self::FrozenBuffer => "frozenBuffer",
             Self::InvalidEncoding => "invalidEncoding",
-            Self::InvalidDc => "invalidDc",
+            Self::NumberOutsideDcRange => "numberOutsideDcRange",
             Self::ParseFailure => "parseFailure",
             Self::UnexpectedNone => "unexpectedNone",
+            Self::NumberOutsideShortDcRange => "numberOutsideShortDcRange",
+            Self::NumberOutsideFormatRange => "numberOutsideFormatRange",
+            Self::NumberOutsideUnicodeRange => "numberOutsideUnicodeRange",
         }
     }
 
@@ -726,9 +735,16 @@ impl StageRErrorTag {
             "outOfBounds" => Some(Self::OutOfBounds),
             "frozenBuffer" => Some(Self::FrozenBuffer),
             "invalidEncoding" => Some(Self::InvalidEncoding),
-            "invalidDc" => Some(Self::InvalidDc),
+            "numberOutsideDcRange" => Some(Self::NumberOutsideDcRange),
             "parseFailure" => Some(Self::ParseFailure),
             "unexpectedNone" => Some(Self::UnexpectedNone),
+            "numberOutsideShortDcRange" => {
+                Some(Self::NumberOutsideShortDcRange)
+            }
+            "numberOutsideFormatRange" => Some(Self::NumberOutsideFormatRange),
+            "numberOutsideUnicodeRange" => {
+                Some(Self::NumberOutsideUnicodeRange)
+            }
             _ => None,
         }
     }
@@ -742,9 +758,12 @@ impl StageRErrorTag {
             "outOfBounds",
             "frozenBuffer",
             "invalidEncoding",
-            "invalidDc",
+            "numberOutsideDcRange",
             "parseFailure",
             "unexpectedNone",
+            "numberOutsideShortDcRange",
+            "numberOutsideFormatRange",
+            "numberOutsideUnicodeRange",
         ]
     }
 }
@@ -780,7 +799,7 @@ pub enum UnaryOp {
     IsErr,
     /// Mixed-mode `s` payload byte length (`byteLen`, `Dc 2572`, StageR 3 only).
     ByteLen,
-    /// Fallible `u128 -> result/dc` validation (`dcFromU128`, `Dc 2610`, StageR 3 only).
+    /// Infallible `u128 -> dc` construction (`dcFromU128`, `Dc 2610`, StageR 3 only).
     DcFromU128,
     /// Infallible `dc -> u128` extraction (`u128FromDc`, `Dc 2611`, StageR 3 only).
     U128FromDc,

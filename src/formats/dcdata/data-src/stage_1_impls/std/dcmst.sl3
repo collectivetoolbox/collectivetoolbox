@@ -20,7 +20,7 @@
 : `byteLen`, `dcsFromS`, `sFromDcs`, and atomic-unit-preserving `explode` / `implode`.
 ns std/dcmst.
 use std/u128: errInvalidEncoding ::.
-use std/dctf: dcVal dcShort dcShortId dcIsValid lenDctf ::.
+use std/dctf: dcVal dcShort dcShortId lenDctf ::.
 use std/dcs: implode as dcsImplode ::.
 
 : Returns true iff `c` is a Base64 encapsulation digit (`Dc 127..=190`) or padding (`Dc 195`).
@@ -115,12 +115,14 @@ pub v/u64/byteLen l/dcVal/chars
     /total.
 
 : Total `dcsFromS` conversion (`l/dcVal -> tup: b l/dcVal u8 ::`), returning `errInvalidEncoding` (`u8:4`)
-: when unescaped binary encapsulation markers (`Dc 203`/`Dc 204`), trailing escapes, or surrogates appear.
+: when unescaped binary encapsulation markers (`Dc 203`/`Dc 204`) or trailing escapes appear.
 : @dc l8589982135
 pub v/tup: b l/dcVal u8 ::/tryDcsFromS l/dcVal/chars
     test
         in l/dcVal: structNew dcVal: u64:104 u64:0 :: structNew dcVal: u64:1114367 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: ::
         out tupNew: true l/dcVal: structNew dcVal: u64:104 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: :: u8:0 ::.
+        in l/dcVal: structNew dcVal: u64:55296 u64:0 :: ::
+        out tupNew: true l/dcVal: structNew dcVal: u64:55296 u64:0 :: :: u8:0 ::.
         in l/dcVal: structNew dcVal: u64:1114315 u64:0 :: structNew dcVal: u64:1114316 u64:0 :: ::
         out tupNew: false l/dcVal: :: u8:4 ::.
     const u64/clen len /chars.
@@ -128,9 +130,6 @@ pub v/tup: b l/dcVal u8 ::/tryDcsFromS l/dcVal/chars
     let u64/idx u64:0.
     while lt /idx /clen do
         const dcVal/ch get /chars /idx.
-        if not dcIsValid /ch
-            return tupNew: false l/dcVal: :: /errInvalidEncoding ::
-            nop.
         const u32/sid dcShortId /ch.
         if eq /sid u32:255
             do
@@ -139,9 +138,6 @@ pub v/tup: b l/dcVal u8 ::/tryDcsFromS l/dcVal/chars
                     return tupNew: false l/dcVal: :: /errInvalidEncoding ::
                     nop.
                 const dcVal/esc get /chars /nextIdx.
-                if not dcIsValid /esc
-                    return tupNew: false l/dcVal: :: /errInvalidEncoding ::
-                    nop.
                 bufPush /out /esc.
                 set /idx add /idx u64:2.
             ::

@@ -58,9 +58,9 @@ use super::parser::{
 use super::validator::{
     BrandTypeDef, EnumDef, EnumVariantDef, ImportedSymbol, ModuleInput,
     NamedStructDef, NamespaceExports, RoutineSig, StructDef, ValidatedModule,
-    ValidatedWorkspace, build_stager_import_context, dialect_for_source_path,
-    expr_syntactically_contains_fault, is_stage2_or_sr3_path,
-    top_decl_uses_stager,
+    ValidatedWorkspace, build_stager_import_context, can_overlay_namespace,
+    dialect_for_source_path, expr_syntactically_contains_fault,
+    is_stage2_or_sr3_path, stage_rank_for_source_path, top_decl_uses_stager,
     validate_module_with_registry_and_dc_imports_and_options, verify_psr4_path,
 };
 
@@ -788,29 +788,36 @@ fn collect_locally_defined_dcs(module: &Module, out: &mut HashSet<DcChar>) {
     }
 }
 
-fn reconstruct_external_namespace_module(
+fn reconstruct_external_namespace_modules(
     seed_graph: &SeedGraphIndex,
     ns_segs: &[String],
     caller_ns_for_diag: &str,
+    allow_stager_deps: bool,
     dc_owners: &mut HashMap<DcChar, GraphDcOwner>,
-) -> Result<(Module, NamespaceExports)> {
+) -> Result<(Vec<Module>, NamespaceExports)> {
     let mut line_counter = 1usize;
-    reconstruct_external_namespace_module_with_line(
+    reconstruct_external_namespace_modules_with_line(
         seed_graph,
         ns_segs,
         caller_ns_for_diag,
+        allow_stager_deps,
         dc_owners,
         &mut line_counter,
     )
 }
 
-fn reconstruct_external_namespace_module_with_line(
+#[allow(
+    clippy::too_many_lines,
+    reason = "Reconstructs graph-exported declarations and splits mixed StageL/StageR namespaces into dialect strata"
+)]
+fn reconstruct_external_namespace_modules_with_line(
     seed_graph: &SeedGraphIndex,
     ns_segs: &[String],
     caller_ns_for_diag: &str,
+    allow_stager_deps: bool,
     dc_owners: &mut HashMap<DcChar, GraphDcOwner>,
     next_decl_line: &mut usize,
-) -> Result<(Module, NamespaceExports)> {
+) -> Result<(Vec<Module>, NamespaceExports)> {
     let ns_key = ns_segs.join("/");
     let exports_map = seed_graph.resolve_stagel_namespace_exports(ns_segs)?;
     if exports_map.is_empty() {
@@ -819,8 +826,11 @@ fn reconstruct_external_namespace_module_with_line(
         );
     }
 
-    let mut items = Vec::with_capacity(exports_map.len());
+    let mut sl3_items = Vec::new();
+    let mut sr3_items = Vec::new();
     let mut prelim_exports = NamespaceExports::default();
+    let mut any_skipped_stager = false;
+
     for (export_name, target_sh_list) in exports_map {
         for target_sh in target_sh_list {
             let decl_line = *next_decl_line;
@@ -846,6 +856,11 @@ fn reconstruct_external_namespace_module_with_line(
             };
             let (prepared_decl, orig_name, kind) =
                 prepare_graph_top_decl(raw_decl, Some(&export_name), target_dc)?;
+            let is_stager_item = top_decl_uses_stager(&prepared_decl);
+            if is_stager_item && !allow_stager_deps {
+                any_skipped_stager = true;
+                continue;
+            }
             let owner = GraphDcOwner {
                 namespace_key: ns_key.clone(),
                 original_name: orig_name.clone(),
@@ -945,23 +960,40 @@ fn reconstruct_external_namespace_module_with_line(
                 .by_dc
                 .insert(target_dc, owner.to_imported_symbol(target_dc));
             dc_owners.insert(target_dc, owner);
-            items.push(prepared_decl);
+            if is_stager_item {
+                sr3_items.push(prepared_decl);
+            } else {
+                sl3_items.push(prepared_decl);
+            }
         }
     }
 
-    let dialect = if items.iter().any(top_decl_uses_stager) {
-        StageDialect::StageR3
-    } else {
-        StageDialect::StageL3
-    };
-    let module = Module {
-        dialect,
-        leading_comments: Vec::new(),
-        namespace: Some(ns_segs.to_vec()),
-        uses: Vec::new(),
-        items,
-    };
-    Ok((module, prelim_exports))
+    if sl3_items.is_empty() && sr3_items.is_empty() && any_skipped_stager {
+        bail!(
+            "Namespace '{ns_key}' imported by {caller_ns_for_diag} only exports StageR 3 items, which cannot be used by a StageL 3 caller"
+        );
+    }
+
+    let mut modules = Vec::new();
+    if !sl3_items.is_empty() {
+        modules.push(Module {
+            dialect: StageDialect::StageL3,
+            leading_comments: Vec::new(),
+            namespace: Some(ns_segs.to_vec()),
+            uses: Vec::new(),
+            items: sl3_items,
+        });
+    }
+    if !sr3_items.is_empty() {
+        modules.push(Module {
+            dialect: StageDialect::StageR3,
+            leading_comments: Vec::new(),
+            namespace: Some(ns_segs.to_vec()),
+            uses: Vec::new(),
+            items: sr3_items,
+        });
+    }
+    Ok((modules, prelim_exports))
 }
 
 fn topo_sort_all_modules(
@@ -1030,6 +1062,14 @@ fn topo_sort_all_modules(
     Ok(order)
 }
 
+#[derive(Debug, Clone)]
+struct CallerSpec {
+    module: Module,
+    forbid_stagel_internal: bool,
+    stage_rank: Option<u8>,
+    input_index: usize,
+}
+
 /// Links pre-parsed StageL/StageR `Module`s against external namespaces and
 /// transitive `dc/<shorthand>` Token-Dc helpers in `seed_graph`, returning a
 /// topologically ordered [`ValidatedWorkspace`].
@@ -1039,9 +1079,16 @@ pub fn link_parsed_modules_with_seed_graph(
 ) -> Result<ValidatedWorkspace> {
     let tagged = caller_modules
         .into_iter()
-        .map(|m| {
-            let forbid = m.dialect == StageDialect::StageR3;
-            (m, forbid)
+        .enumerate()
+        .map(|(input_index, module)| {
+            let forbid_stagel_internal =
+                module.dialect == StageDialect::StageR3;
+            CallerSpec {
+                module,
+                forbid_stagel_internal,
+                stage_rank: None,
+                input_index,
+            }
         })
         .collect();
     link_parsed_modules_with_seed_graph_and_flags(tagged, seed_graph)
@@ -1135,6 +1182,7 @@ fn claim_graph_item_owner(
 struct AssembledGraphModules {
     all_modules: Vec<Module>,
     all_forbid_flags: Vec<bool>,
+    all_input_indices: Vec<usize>,
     module_extra_dc_imports: Vec<HashMap<DcChar, ImportedSymbol>>,
     order: Vec<usize>,
 }
@@ -1257,24 +1305,58 @@ fn order_merged_module_items(items: impl IntoIterator<Item = TopDecl>) -> Vec<To
 fn compute_synth_module_deps(
     modules: &[(String, bool, bool, Module)],
     dc_owners: &HashMap<DcChar, GraphDcOwner>,
+    local_dc_to_idx: &HashMap<DcChar, usize>,
 ) -> Vec<Vec<usize>> {
-    let mut ns_to_idx: HashMap<String, usize> =
+    let mut ns_to_indices: HashMap<String, Vec<usize>> =
         HashMap::with_capacity(modules.len());
     for (idx, (k, _, _, _)) in modules.iter().enumerate() {
-        ns_to_idx.insert(k.clone(), idx);
+        ns_to_indices.entry(k.clone()).or_default().push(idx);
     }
     let mut synth_deps: Vec<Vec<usize>> = Vec::with_capacity(modules.len());
-    for (idx, (_, _, _, m)) in modules.iter().enumerate() {
+    for (idx, (self_k, _, _, m)) in modules.iter().enumerate() {
         let mut mod_local_dcs = HashSet::new();
         collect_locally_defined_dcs(m, &mut mod_local_dcs);
         let mut d = Vec::new();
+        if let Some(strata) = ns_to_indices.get(self_k)
+            && let Some(pos) = strata.iter().position(|&s| s == idx)
+            && pos > 0
+            && let Some(&prev_idx) = strata.get(pos.saturating_sub(1))
+            && !d.contains(&prev_idx)
+        {
+            d.push(prev_idx);
+        }
         for u in &m.uses {
             let u_key = u.path.join("/");
-            if let Some(&dep_idx) = ns_to_idx.get(&u_key)
-                && dep_idx != idx
-                && !d.contains(&dep_idx)
-            {
-                d.push(dep_idx);
+            if let Some(cand_indices) = ns_to_indices.get(&u_key) {
+                for &dep_idx in cand_indices {
+                    if dep_idx == idx {
+                        continue;
+                    }
+                    if u_key == *self_k
+                        && let Some(self_pos) =
+                            cand_indices.iter().position(|&s| s == idx)
+                        && let Some(dep_pos) =
+                            cand_indices.iter().position(|&s| s == dep_idx)
+                        && dep_pos >= self_pos
+                    {
+                        continue;
+                    }
+                    if m.dialect == StageDialect::StageL3
+                        && modules
+                            .get(dep_idx)
+                            .is_some_and(|dm| dm.3.dialect == StageDialect::StageR3)
+                        && cand_indices.iter().any(|&ci| {
+                            modules
+                                .get(ci)
+                                .is_some_and(|dm| dm.3.dialect == StageDialect::StageL3)
+                        })
+                    {
+                        continue;
+                    }
+                    if !d.contains(&dep_idx) {
+                        d.push(dep_idx);
+                    }
+                }
             }
         }
         let mut refs = Vec::new();
@@ -1291,12 +1373,24 @@ fn compute_synth_module_deps(
                 for s_dc in sig_refs {
                     ref_queue.push_back(s_dc);
                 }
-                if let Some(&dep_idx) = ns_to_idx.get(&owner.namespace_key)
-                    && dep_idx != idx
-                    && !d.contains(&dep_idx)
+                if let Some(&dep_idx) = local_dc_to_idx.get(&dc) {
+                    if dep_idx != idx && !d.contains(&dep_idx) {
+                        d.push(dep_idx);
+                    }
+                } else if let Some(cand_indices) =
+                    ns_to_indices.get(&owner.namespace_key)
                 {
-                    d.push(dep_idx);
+                    for &dep_idx in cand_indices {
+                        if dep_idx != idx && !d.contains(&dep_idx) {
+                            d.push(dep_idx);
+                        }
+                    }
                 }
+            } else if let Some(&dep_idx) = local_dc_to_idx.get(&dc)
+                && dep_idx != idx
+                && !d.contains(&dep_idx)
+            {
+                d.push(dep_idx);
             }
         }
         synth_deps.push(d);
@@ -1310,14 +1404,13 @@ fn compute_synth_module_deps(
 )]
 fn coalesce_synthetic_sccs(
     synth_helper_modules: BTreeMap<String, (Module, bool)>,
-    synth_ns_modules: BTreeMap<String, Module>,
+    synth_ns_modules: BTreeMap<String, Vec<Module>>,
     orig_private_dcs: &HashSet<DcChar>,
-    caller_modules: &[(Module, bool)],
+    caller_modules: &[CallerSpec],
     dc_owners: &mut HashMap<DcChar, GraphDcOwner>,
 ) -> Result<Vec<Module>> {
-    let total = synth_helper_modules
-        .len()
-        .saturating_add(synth_ns_modules.len());
+    let ns_total: usize = synth_ns_modules.values().map(Vec::len).sum();
+    let total = synth_helper_modules.len().saturating_add(ns_total);
     if total == 0 {
         return Ok(Vec::new());
     }
@@ -1328,27 +1421,42 @@ fn coalesce_synthetic_sccs(
     for (k, (m, is_pub_anchor)) in synth_helper_modules {
         raw_synth.push((k, false, is_pub_anchor, m));
     }
-    for (k, m) in synth_ns_modules {
-        raw_synth.push((k, true, true, m));
+    for (k, mods) in synth_ns_modules {
+        for m in mods {
+            raw_synth.push((k.clone(), true, true, m));
+        }
+    }
+
+    let mut raw_local_dc_to_idx: HashMap<DcChar, usize> = HashMap::new();
+    for (idx, (_, _, _, m)) in raw_synth.iter().enumerate() {
+        let mut dcs = HashSet::new();
+        collect_locally_defined_dcs(m, &mut dcs);
+        for dc in dcs {
+            raw_local_dc_to_idx.insert(dc, idx);
+        }
     }
 
     // Phase 1: Absorb non-`pub` `$graph_dc_*` helpers (`!is_anchor`) that are not directly
     // or transitively reached from `caller_modules` (without crossing an anchor) and belong
-    // to a unique synthetic anchor module (reconstructing file-private helpers in place).
-    let phase1_deps = compute_synth_module_deps(&raw_synth, dc_owners);
-    let mut ns_to_idx: HashMap<String, usize> =
+    // to a unique synthetic anchor module of matching dialect.
+    let phase1_deps = compute_synth_module_deps(
+        &raw_synth,
+        dc_owners,
+        &raw_local_dc_to_idx,
+    );
+    let mut ns_to_indices: HashMap<String, Vec<usize>> =
         HashMap::with_capacity(raw_synth.len());
     for (idx, (k, _, _, _)) in raw_synth.iter().enumerate() {
-        ns_to_idx.insert(k.clone(), idx);
+        ns_to_indices.entry(k.clone()).or_default().push(idx);
     }
 
     let mut reached_by_caller = vec![false; raw_synth.len()];
     {
         let mut caller_refs = Vec::new();
         let mut caller_local_dcs = HashSet::new();
-        for (cm, _) in caller_modules {
-            collect_locally_defined_dcs(cm, &mut caller_local_dcs);
-            collect_dc_refs_in_module(cm, &mut caller_refs);
+        for cs in caller_modules {
+            collect_locally_defined_dcs(&cs.module, &mut caller_local_dcs);
+            collect_dc_refs_in_module(&cs.module, &mut caller_refs);
         }
         let mut dc_q: VecDeque<DcChar> = caller_refs.into_iter().collect();
         let mut seen_dc = HashSet::new();
@@ -1363,7 +1471,7 @@ fn coalesce_synthetic_sccs(
                 for s_dc in sig_refs {
                     dc_q.push_back(s_dc);
                 }
-                if let Some(&h_idx) = ns_to_idx.get(&owner.namespace_key)
+                if let Some(&h_idx) = raw_local_dc_to_idx.get(&dc)
                     && let Some((_, _, is_anchor, _)) = raw_synth.get(h_idx)
                     && !*is_anchor
                     && let Some(flag) = reached_by_caller.get_mut(h_idx)
@@ -1371,6 +1479,19 @@ fn coalesce_synthetic_sccs(
                 {
                     *flag = true;
                     helper_q.push_back(h_idx);
+                } else if let Some(cand_indices) =
+                    ns_to_indices.get(&owner.namespace_key)
+                {
+                    for &h_idx in cand_indices {
+                        if let Some((_, _, is_anchor, _)) = raw_synth.get(h_idx)
+                            && !*is_anchor
+                            && let Some(flag) = reached_by_caller.get_mut(h_idx)
+                            && !*flag
+                        {
+                            *flag = true;
+                            helper_q.push_back(h_idx);
+                        }
+                    }
                 }
             }
         }
@@ -1423,7 +1544,7 @@ fn coalesce_synthetic_sccs(
 
     let mut absorbed_into: Vec<Option<usize>> = vec![None; raw_synth.len()];
     for h_idx in 0..raw_synth.len() {
-        let Some((_, _, false, _)) = raw_synth.get(h_idx) else {
+        let Some((_, _, false, helper_mod)) = raw_synth.get(h_idx) else {
             continue;
         };
         let by_caller = reached_by_caller.get(h_idx).copied().unwrap_or(false); // Reason for fallback: h_idx is bounded by raw_synth.len() == reached_by_caller.len()
@@ -1433,6 +1554,8 @@ fn coalesce_synthetic_sccs(
         if let Some(owners) = anchor_owners.get(h_idx)
             && owners.len() == 1
             && let Some(&sole_anchor) = owners.iter().next()
+            && let Some((_, _, _, anchor_mod)) = raw_synth.get(sole_anchor)
+            && anchor_mod.dialect == helper_mod.dialect
             && let Some(slot) = absorbed_into.get_mut(h_idx)
         {
             *slot = Some(sole_anchor);
@@ -1484,7 +1607,16 @@ fn coalesce_synthetic_sccs(
         phase1_slots.into_iter().flatten().collect();
 
     // Phase 2: Condense any remaining synthetic SCCs (`<= 1` real namespace per SCC).
-    let synth_deps = compute_synth_module_deps(&post_absorb, dc_owners);
+    let mut post_dc_to_idx: HashMap<DcChar, usize> = HashMap::new();
+    for (idx, (_, _, _, m)) in post_absorb.iter().enumerate() {
+        let mut dcs = HashSet::new();
+        collect_locally_defined_dcs(m, &mut dcs);
+        for dc in dcs {
+            post_dc_to_idx.insert(dc, idx);
+        }
+    }
+    let synth_deps =
+        compute_synth_module_deps(&post_absorb, dc_owners, &post_dc_to_idx);
     let sccs = tarjan_sccs(post_absorb.len(), &synth_deps)?;
     let mut slots: Vec<Option<(String, bool, bool, Module)>> =
         post_absorb.into_iter().map(Some).collect();
@@ -1571,7 +1703,7 @@ fn coalesce_synthetic_sccs(
     // Phase 3: Restore `is_pub = false` on any originally file-private `@dc` helper
     // that has no external references outside its owning module (or carries `buf/T`).
     let mut externally_referenced_dcs: HashSet<DcChar> = HashSet::new();
-    for m in merged.iter().chain(caller_modules.iter().map(|(cm, _)| cm)) {
+    for m in merged.iter().chain(caller_modules.iter().map(|cs| &cs.module)) {
         let mut mod_local_dcs = HashSet::new();
         collect_locally_defined_dcs(m, &mut mod_local_dcs);
         let mut refs = Vec::new();
@@ -1615,50 +1747,72 @@ fn coalesce_synthetic_sccs(
     Ok(merged)
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "Assembles reconstructed multi-stratum graph namespaces, transitive Dc helpers, SCC condensation, and topological ordering"
+)]
 fn assemble_topo_sorted_modules_with_seed_graph(
-    caller_modules: Vec<(Module, bool)>,
+    caller_modules: Vec<CallerSpec>,
     seed_graph: &SeedGraphIndex,
 ) -> Result<AssembledGraphModules> {
+    let allow_stager_deps = caller_modules
+        .iter()
+        .any(|c| c.module.dialect == StageDialect::StageR3);
     let mut dc_owners: HashMap<DcChar, GraphDcOwner> = HashMap::new();
-    let mut caller_ns_set: HashSet<String> = HashSet::new();
+    let mut caller_ns_strata: HashMap<String, Vec<(Option<u8>, StageDialect)>> =
+        HashMap::new();
     let mut local_dcs: HashSet<DcChar> = HashSet::new();
 
-    for (m, _) in &caller_modules {
-        if let Some(segs) = &m.namespace {
+    for cs in &caller_modules {
+        if let Some(segs) = &cs.module.namespace {
             let key = segs.join("/");
-            ensure!(
-                caller_ns_set.insert(key.clone()),
-                "Duplicate namespace declaration '{key}'"
-            );
+            let strata = caller_ns_strata.entry(key.clone()).or_default();
+            for &(prev_rank, prev_dialect) in strata.iter() {
+                ensure!(
+                    can_overlay_namespace(
+                        prev_rank,
+                        prev_dialect,
+                        cs.stage_rank,
+                        cs.module.dialect,
+                    ),
+                    "Duplicate namespace declaration '{key}'"
+                );
+            }
+            strata.push((cs.stage_rank, cs.module.dialect));
         }
-        collect_locally_defined_dcs(m, &mut local_dcs);
+        collect_locally_defined_dcs(&cs.module, &mut local_dcs);
     }
 
     // 1. Reconstruct any external `use <ns>:` namespaces from `seed_graph`.
     let mut next_synth_decl_line: usize = 100_000;
-    let mut synth_ns_modules: BTreeMap<String, Module> = BTreeMap::new();
-    for (m, _) in &caller_modules {
+    let mut synth_ns_modules: BTreeMap<String, Vec<Module>> = BTreeMap::new();
+    for cs in &caller_modules {
         // Reason for fallback: Anonymous caller modules format as '<anonymous>' in diagnostics.
-        let caller_label = m
+        let caller_label = cs
+            .module
             .namespace
             .as_ref()
             .map_or_else(|| String::from("<anonymous>"), |s| s.join("/"));
-        for u in &m.uses {
+        for u in &cs.module.uses {
             let target_key = u.path.join("/");
-            if caller_ns_set.contains(&target_key)
+            if caller_ns_strata.contains_key(&target_key)
                 || synth_ns_modules.contains_key(&target_key)
             {
                 continue;
             }
-            let (ext_mod, _) = reconstruct_external_namespace_module_with_line(
-                seed_graph,
-                &u.path,
-                &caller_label,
-                &mut dc_owners,
-                &mut next_synth_decl_line,
-            )?;
-            collect_locally_defined_dcs(&ext_mod, &mut local_dcs);
-            synth_ns_modules.insert(target_key, ext_mod);
+            let (ext_mods, _) =
+                reconstruct_external_namespace_modules_with_line(
+                    seed_graph,
+                    &u.path,
+                    &caller_label,
+                    allow_stager_deps,
+                    &mut dc_owners,
+                    &mut next_synth_decl_line,
+                )?;
+            for ext_mod in &ext_mods {
+                collect_locally_defined_dcs(ext_mod, &mut local_dcs);
+            }
+            synth_ns_modules.insert(target_key, ext_mods);
         }
     }
 
@@ -1667,7 +1821,8 @@ fn assemble_topo_sorted_modules_with_seed_graph(
     let mut initial_refs = Vec::new();
     for m in synth_ns_modules
         .values()
-        .chain(caller_modules.iter().map(|(m, _)| m))
+        .flatten()
+        .chain(caller_modules.iter().map(|cs| &cs.module))
     {
         collect_dc_refs_in_module(m, &mut initial_refs);
     }
@@ -1690,24 +1845,27 @@ fn assemble_topo_sorted_modules_with_seed_graph(
         let sh = DcShorthand::from_global_id(dc.to_u128());
         if let Some(ns_segs) = seed_graph.resolve_stagel_entity_namespace(sh)? {
             let ns_key = ns_segs.join("/");
-            if !caller_ns_set.contains(&ns_key)
+            if !caller_ns_strata.contains_key(&ns_key)
                 && !synth_ns_modules.contains_key(&ns_key)
             {
-                let (ext_mod, _) =
-                    reconstruct_external_namespace_module_with_line(
+                let (ext_mods, _) =
+                    reconstruct_external_namespace_modules_with_line(
                         seed_graph,
                         &ns_segs,
                         "<direct dc import>",
+                        allow_stager_deps,
                         &mut dc_owners,
                         &mut next_synth_decl_line,
                     )?;
-                let mut ext_refs = Vec::new();
-                collect_dc_refs_in_module(&ext_mod, &mut ext_refs);
-                for r_dc in ext_refs {
-                    dc_worklist.push_back(r_dc);
+                for ext_mod in &ext_mods {
+                    let mut ext_refs = Vec::new();
+                    collect_dc_refs_in_module(ext_mod, &mut ext_refs);
+                    for r_dc in ext_refs {
+                        dc_worklist.push_back(r_dc);
+                    }
+                    collect_locally_defined_dcs(ext_mod, &mut local_dcs);
                 }
-                collect_locally_defined_dcs(&ext_mod, &mut local_dcs);
-                synth_ns_modules.insert(ns_key, ext_mod);
+                synth_ns_modules.insert(ns_key, ext_mods);
             }
             if local_dcs.contains(&dc) || dc_owners.contains_key(&dc) {
                 continue;
@@ -1759,7 +1917,7 @@ fn assemble_topo_sorted_modules_with_seed_graph(
             EitherDeclOrModule::Module(mut m) => {
                 let ns_key = if let Some(existing_ns) = &m.namespace {
                     let joined = existing_ns.join("/");
-                    if caller_ns_set.contains(&joined)
+                    if caller_ns_strata.contains_key(&joined)
                         || synth_ns_modules.contains_key(&joined)
                         || synth_helper_modules.contains_key(&joined)
                     {
@@ -1809,24 +1967,30 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                 // If this graph module itself has external `use` declarations, resolve them too.
                 for u in &m.uses {
                     let u_key = u.path.join("/");
-                    if !caller_ns_set.contains(&u_key)
+                    if !caller_ns_strata.contains_key(&u_key)
                         && !synth_ns_modules.contains_key(&u_key)
                     {
-                        let (ext_mod, _) =
-                            reconstruct_external_namespace_module_with_line(
+                        let (ext_mods, _) =
+                            reconstruct_external_namespace_modules_with_line(
                                 seed_graph,
                                 &u.path,
                                 &ns_key,
+                                allow_stager_deps,
                                 &mut dc_owners,
                                 &mut next_synth_decl_line,
                             )?;
-                        let mut ext_refs = Vec::new();
-                        collect_dc_refs_in_module(&ext_mod, &mut ext_refs);
-                        for r_dc in ext_refs {
-                            dc_worklist.push_back(r_dc);
+                        for ext_mod in &ext_mods {
+                            let mut ext_refs = Vec::new();
+                            collect_dc_refs_in_module(ext_mod, &mut ext_refs);
+                            for r_dc in ext_refs {
+                                dc_worklist.push_back(r_dc);
+                            }
+                            collect_locally_defined_dcs(
+                                ext_mod,
+                                &mut local_dcs,
+                            );
                         }
-                        collect_locally_defined_dcs(&ext_mod, &mut local_dcs);
-                        synth_ns_modules.insert(u_key, ext_mod);
+                        synth_ns_modules.insert(u_key, ext_mods);
                     }
                 }
                 (m, ns_key, any_pub)
@@ -1855,25 +2019,46 @@ fn assemble_topo_sorted_modules_with_seed_graph(
     let total_cap = merged_synth.len().saturating_add(caller_modules.len());
     let mut all_modules: Vec<Module> = Vec::with_capacity(total_cap);
     let mut all_forbid_flags: Vec<bool> = Vec::with_capacity(total_cap);
+    let mut all_stage_ranks: Vec<Option<u8>> = Vec::with_capacity(total_cap);
+    let mut all_input_indices: Vec<usize> = Vec::with_capacity(total_cap);
     for m in merged_synth {
         all_modules.push(m);
         all_forbid_flags.push(false);
+        all_stage_ranks.push(None);
+        all_input_indices.push(0);
     }
-    for (m, forbid_flag) in caller_modules {
-        all_modules.push(m);
-        all_forbid_flags.push(forbid_flag);
+    for cs in caller_modules {
+        all_modules.push(cs.module);
+        all_forbid_flags.push(cs.forbid_stagel_internal);
+        all_stage_ranks.push(cs.stage_rank);
+        all_input_indices.push(cs.input_index);
     }
 
-    let mut ns_to_idx: HashMap<String, usize> = HashMap::new();
+    let mut ns_to_indices: HashMap<String, Vec<usize>> = HashMap::new();
     let mut labels: Vec<String> = Vec::with_capacity(all_modules.len());
     for (idx, m) in all_modules.iter().enumerate() {
         if let Some(segs) = &m.namespace {
             let key = segs.join("/");
-            ns_to_idx.insert(key.clone(), idx);
+            ns_to_indices.entry(key.clone()).or_default().push(idx);
             labels.push(key);
         } else {
             labels.push(format!("<anonymous#{idx}>"));
         }
+    }
+    for strata in ns_to_indices.values_mut() {
+        strata.sort_by_key(|&i| {
+            // Reason for fallback: unranked modules order after explicit staged layers.
+            let r = all_stage_ranks
+                .get(i)
+                .copied()
+                .flatten()
+                .unwrap_or(u8::MAX);
+            let d = match all_modules.get(i).map(|m| m.dialect) {
+                Some(StageDialect::StageL3) | None => 0u8,
+                Some(StageDialect::StageR3) => 1u8,
+            };
+            (r, d, i)
+        });
     }
 
     let mut local_dc_to_mod_idx: HashMap<DcChar, usize> = HashMap::new();
@@ -1899,20 +2084,76 @@ fn assemble_topo_sorted_modules_with_seed_graph(
         collect_locally_defined_dcs(m, &mut mod_local_dcs);
 
         let mut d = Vec::new();
+        if let Some(ref key) = self_ns
+            && let Some(strata) = ns_to_indices.get(key)
+            && let Some(pos) = strata.iter().position(|&s| s == idx)
+            && pos > 0
+            && let Some(&prev_idx) = strata.get(pos.saturating_sub(1))
+            && !d.contains(&prev_idx)
+        {
+            d.push(prev_idx);
+        }
+
         for u in &m.uses {
             let target_key = u.path.join("/");
-            let Some(&dep_idx) = ns_to_idx.get(&target_key) else {
+            let Some(cand_strata) = ns_to_indices.get(&target_key) else {
                 let caller_lbl = labels
                     .get(idx)
                     .context("Missing caller module label")?;
                 bail!("Unresolved 'use {target_key}:' import in module {caller_lbl}");
             };
+            let is_same_ns = self_ns.as_deref() == Some(target_key.as_str());
+            let self_stratum_pos = if is_same_ns {
+                cand_strata.iter().position(|&s| s == idx)
+            } else {
+                None
+            };
+            let caller_rank = all_stage_ranks
+                .get(idx)
+                .copied()
+                .flatten()
+                .unwrap_or(u8::MAX);
+            let has_sl3_stratum = cand_strata.iter().any(|&ci| {
+                all_modules
+                    .get(ci)
+                    .is_some_and(|cm| cm.dialect == StageDialect::StageL3)
+            });
+            let mut visible_deps = Vec::new();
+            for (pos, &dep_idx) in cand_strata.iter().enumerate() {
+                if let Some(self_pos) = self_stratum_pos
+                    && pos >= self_pos
+                {
+                    continue;
+                }
+                let dep_rank = all_stage_ranks
+                    .get(dep_idx)
+                    .copied()
+                    .flatten()
+                    .unwrap_or(u8::MAX);
+                if dep_rank != u8::MAX
+                    && caller_rank != u8::MAX
+                    && dep_rank > caller_rank
+                {
+                    continue;
+                }
+                if m.dialect == StageDialect::StageL3
+                    && has_sl3_stratum
+                    && all_modules
+                        .get(dep_idx)
+                        .is_some_and(|dm| dm.dialect == StageDialect::StageR3)
+                {
+                    continue;
+                }
+                visible_deps.push(dep_idx);
+            }
             ensure!(
-                dep_idx != idx,
+                !visible_deps.is_empty(),
                 "Module '{target_key}' cannot import itself"
             );
-            if !d.contains(&dep_idx) {
-                d.push(dep_idx);
+            for dep_idx in visible_deps {
+                if dep_idx != idx && !d.contains(&dep_idx) {
+                    d.push(dep_idx);
+                }
             }
         }
 
@@ -1931,14 +2172,18 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                 for s_dc in sig_refs {
                     ref_queue.push_back(s_dc);
                 }
-                if self_ns.as_deref() == Some(owner.namespace_key.as_str()) {
-                    continue;
-                }
-                if let Some(&dep_idx) = ns_to_idx.get(&owner.namespace_key)
-                    && dep_idx != idx
-                    && !d.contains(&dep_idx)
+                if let Some(&dep_idx) = local_dc_to_mod_idx.get(&dc) {
+                    if dep_idx != idx && !d.contains(&dep_idx) {
+                        d.push(dep_idx);
+                    }
+                } else if let Some(cand_indices) =
+                    ns_to_indices.get(&owner.namespace_key)
                 {
-                    d.push(dep_idx);
+                    for &dep_idx in cand_indices {
+                        if dep_idx != idx && !d.contains(&dep_idx) {
+                            d.push(dep_idx);
+                        }
+                    }
                 }
                 extra_dc_map.insert(dc, owner.to_imported_symbol(dc));
             } else if let Some(&dep_idx) = local_dc_to_mod_idx.get(&dc) {
@@ -1960,13 +2205,14 @@ fn assemble_topo_sorted_modules_with_seed_graph(
     Ok(AssembledGraphModules {
         all_modules,
         all_forbid_flags,
+        all_input_indices,
         module_extra_dc_imports,
         order,
     })
 }
 
 fn link_parsed_modules_with_seed_graph_and_flags(
-    caller_modules: Vec<(Module, bool)>,
+    caller_modules: Vec<CallerSpec>,
     seed_graph: &SeedGraphIndex,
 ) -> Result<ValidatedWorkspace> {
     let assembled =
@@ -2003,18 +2249,28 @@ fn link_parsed_modules_with_seed_graph_and_flags(
             .get(idx)
             .copied()
             .context("Invalid module forbid_stagel_internal index")?;
-        let vm = validate_module_with_registry_and_dc_imports_and_options(
-            m,
-            &ns_exports,
-            &merged_extra_dc,
-            forbid_stagel_internal,
-        )?;
+        let mut vm =
+            validate_module_with_registry_and_dc_imports_and_options(
+                m,
+                &ns_exports,
+                &merged_extra_dc,
+                forbid_stagel_internal,
+            )?;
+        vm.input_index = assembled
+            .all_input_indices
+            .get(idx)
+            .copied()
+            .context("Invalid module input_index")?;
         // Reason for fallback: anonymous caller modules still contribute transitive struct/nominal definitions to `ns_exports` without colliding with `use` paths.
         let export_key = vm
             .namespace_key
             .clone()
             .unwrap_or_else(|| format!("$anon_caller_{idx}"));
-        ns_exports.insert(export_key, vm.exports.clone());
+        if let Some(existing) = ns_exports.get_mut(&export_key) {
+            existing.merge_overlay(vm.exports.clone(), &export_key)?;
+        } else {
+            ns_exports.insert(export_key, vm.exports.clone());
+        }
         for (&dc, sym) in &vm.exports.by_dc {
             validated_by_dc.insert(dc, sym.clone());
         }
@@ -2246,19 +2502,29 @@ fn record_caller_prelim_exports(
             _ => {}
         }
     }
-    pre_ns_exports.insert(ns_key, exp);
+    if let Some(existing) = pre_ns_exports.get_mut(&ns_key) {
+        let _ = existing.merge_overlay(exp, &ns_key);
+    } else {
+        pre_ns_exports.insert(ns_key, exp);
+    }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "Orchestrates pre-scan reconstruction, multi-stratum DAG resolution, parsing, and linking against SeedGraphIndex"
+)]
 fn parse_and_validate_workspace_with_seed_graph_and_dialect(
     inputs: &[ModuleInput<'_>],
     seed_graph: &SeedGraphIndex,
     default_dialect: StageDialect,
 ) -> Result<ValidatedWorkspace> {
     let mut headers = Vec::with_capacity(inputs.len());
-    let mut caller_ns_to_idx: HashMap<String, usize> = HashMap::new();
+    let mut caller_ns_strata: HashMap<String, Vec<usize>> = HashMap::new();
+    let mut stage_ranks = Vec::with_capacity(inputs.len());
 
     for (idx, inp) in inputs.iter().enumerate() {
         let dialect = dialect_for_source_path(inp.source_path, default_dialect);
+        let rank = stage_rank_for_source_path(inp.source_path);
         let (ns_opt, uses) =
             scan_module_header_paths_with_dialect(inp.source, dialect)?;
         let ns_key = ns_opt.as_ref().map(|segs| segs.join("/"));
@@ -2266,17 +2532,43 @@ fn parse_and_validate_workspace_with_seed_graph_and_dialect(
             verify_psr4_path(src_path, key)?;
         }
         if let Some(ref key) = ns_key {
-            ensure!(
-                !caller_ns_to_idx.contains_key(key),
-                "Duplicate namespace declaration '{key}'"
-            );
-            caller_ns_to_idx.insert(key.clone(), idx);
+            let strata = caller_ns_strata.entry(key.clone()).or_default();
+            for &prev_idx in strata.iter() {
+                let prev_rank = *stage_ranks
+                    .get(prev_idx)
+                    .context("Missing prior stage rank")?;
+                let prev_dialect = headers
+                    .get(prev_idx)
+                    .map(|(d, _, _)| *d)
+                    .context("Missing prior dialect")?;
+                ensure!(
+                    can_overlay_namespace(prev_rank, prev_dialect, rank, dialect),
+                    "Duplicate namespace declaration '{key}'"
+                );
+            }
+            strata.push(idx);
         }
+        stage_ranks.push(rank);
         headers.push((dialect, ns_key, uses));
+    }
+
+    for strata in caller_ns_strata.values_mut() {
+        strata.sort_by_key(|&i| {
+            // Reason for fallback: unranked caller modules order after explicit staged layers.
+            let r = stage_ranks.get(i).copied().flatten().unwrap_or(u8::MAX);
+            let d = match headers.get(i).map(|(dl, _, _)| *dl) {
+                Some(StageDialect::StageL3) | None => 0u8,
+                Some(StageDialect::StageR3) => 1u8,
+            };
+            (r, d, i)
+        });
     }
 
     // Pre-populate `ns_exports` for external `seed_graph` namespaces so caller
     // `use <ns>: ... ::.` headers have exact verb arities and nominal/struct kinds before parsing.
+    let any_stager = headers
+        .iter()
+        .any(|(d, _, _)| *d == StageDialect::StageR3);
     let mut pre_ns_exports: HashMap<String, NamespaceExports> = HashMap::new();
     let mut dummy_owners: HashMap<DcChar, GraphDcOwner> = HashMap::new();
     for (_dialect, ns_key, uses) in &headers {
@@ -2284,15 +2576,16 @@ fn parse_and_validate_workspace_with_seed_graph_and_dialect(
         let caller_label = ns_key.as_deref().unwrap_or("<anonymous>");
         for u in uses {
             let target_key = u.join("/");
-            if caller_ns_to_idx.contains_key(&target_key)
+            if caller_ns_strata.contains_key(&target_key)
                 || pre_ns_exports.contains_key(&target_key)
             {
                 continue;
             }
-            let (_, ext_exports) = reconstruct_external_namespace_module(
+            let (_, ext_exports) = reconstruct_external_namespace_modules(
                 seed_graph,
                 u,
                 caller_label,
+                any_stager,
                 &mut dummy_owners,
             )?;
             pre_ns_exports.insert(target_key, ext_exports);
@@ -2310,16 +2603,40 @@ fn parse_and_validate_workspace_with_seed_graph_and_dialect(
             .unwrap_or_else(|| format!("<anonymous#{idx}>"));
         caller_labels.push(label);
         let mut d = Vec::new();
+        if let Some(key) = ns_key
+            && let Some(strata) = caller_ns_strata.get(key)
+            && let Some(pos) = strata.iter().position(|&s| s == idx)
+            && pos > 0
+            && let Some(&prev_idx) = strata.get(pos.saturating_sub(1))
+            && !d.contains(&prev_idx)
+        {
+            d.push(prev_idx);
+        }
         for u in uses {
             let target_key = u.join("/");
-            if let Some(&dep_idx) = caller_ns_to_idx.get(&target_key) {
+            if let Some(cand_strata) = caller_ns_strata.get(&target_key) {
+                let is_same_ns = ns_key.as_deref() == Some(target_key.as_str());
+                let self_pos = if is_same_ns {
+                    cand_strata.iter().position(|&s| s == idx)
+                } else {
+                    None
+                };
+                let mut added = false;
+                for (pos, &dep_idx) in cand_strata.iter().enumerate() {
+                    if let Some(sp) = self_pos
+                        && pos >= sp
+                    {
+                        continue;
+                    }
+                    if dep_idx != idx && !d.contains(&dep_idx) {
+                        d.push(dep_idx);
+                    }
+                    added = true;
+                }
                 ensure!(
-                    dep_idx != idx,
+                    added,
                     "Module '{target_key}' cannot import itself"
                 );
-                if !d.contains(&dep_idx) {
-                    d.push(dep_idx);
-                }
             }
         }
         caller_deps.push(d);
@@ -2354,7 +2671,13 @@ fn parse_and_validate_workspace_with_seed_graph_and_dialect(
                 .get(idx)
                 .and_then(|inp| inp.source_path)
                 .is_some_and(is_stage2_or_sr3_path);
-        ordered_callers.push((parsed, forbid));
+        let stage_rank = stage_ranks.get(idx).copied().flatten();
+        ordered_callers.push(CallerSpec {
+            module: parsed,
+            forbid_stagel_internal: forbid,
+            stage_rank,
+            input_index: idx,
+        });
     }
 
     link_parsed_modules_with_seed_graph_and_flags(ordered_callers, seed_graph)
@@ -2404,10 +2727,11 @@ fn parse_module_with_seed_graph_and_dialect(
         if pre_ns_exports.contains_key(&target_key) {
             continue;
         }
-        let (_, ext_exports) = reconstruct_external_namespace_module(
+        let (_, ext_exports) = reconstruct_external_namespace_modules(
             seed_graph,
             u,
             caller_label,
+            dialect == StageDialect::StageR3,
             &mut dummy_owners,
         )?;
         pre_ns_exports.insert(target_key, ext_exports);
@@ -2633,8 +2957,16 @@ pub fn bundle_dc_module_dependencies(
     let mut module_stream: Vec<DcChar> = Vec::new();
     if let Ok(caller_mods) = decode_modules_from_dc_tokens(entry_tokens) {
         let single_caller = caller_mods.len() == 1;
-        let tagged: Vec<(Module, bool)> =
-            caller_mods.into_iter().map(|m| (m, false)).collect();
+        let tagged: Vec<CallerSpec> = caller_mods
+            .into_iter()
+            .enumerate()
+            .map(|(input_index, module)| CallerSpec {
+                module,
+                forbid_stagel_internal: false,
+                stage_rank: None,
+                input_index,
+            })
+            .collect();
         let assembled =
             assemble_topo_sorted_modules_with_seed_graph(tagged, seed_graph)?;
         let entry_idx = assembled.all_modules.len().saturating_sub(1);
@@ -3473,10 +3805,11 @@ pub v/result/b/checkDcAndStrings
     test
         in.
         out result/b:ok true.
-    const dc/cu100 dcFromU128? u128:256.
-    const dc/c256 dcFromU128? u128:1114368.
-    const b/okDc and eq /cu100 dc:u100 and eq /c256 dc:256 eq u128FromDc /c256 u128:1114368.
-    const b/badSurrogate eq dcFromU128 u128:55296 result/dc:err error:invalidDc.
+    const dc/cu100 dcFromU128 u128:256.
+    const dc/c256 dcFromU128 u128:1114368.
+    const dc/csur dcFromU128 u128:55296.
+    const b/okDc and eq /cu100 dc:u100 and eq /c256 dc:256 and eq u128FromDc /c256 u128:1114368 eq u128FromDc /csur u128:55296.
+    const b/okSurrLit and eq /csur dc:ud800 eq len dcsFromS? "@ud800@" u64:1.
 
     const dcs/pure dcsFromS? "hi @256@".
     const b/okLen and eq len /pure u64:4 eq get /pure u64:3 option/dc:some dc:256.
@@ -3505,7 +3838,7 @@ pub v/result/b/checkDcAndStrings
     const l/l/i32/charsSplit explode l/i32: :: l/i32: i32:7 i32:8 ::.
     const b/okListSplit and eq /ljoined l/i32: i32:1 i32:9 i32:2 i32:3 :: eq len /charsSplit u64:2.
 
-    result/b:ok and /okDc and /badSurrogate and /okLen and /okOob and /okRound and /okDcsSplit and /binRejected and gt /blen u64:24 and /okBinSplit /okListSplit.
+    result/b:ok and /okDc and /okSurrLit and /okLen and /okOob and /okRound and /okDcsSplit and /binRejected and gt /blen u64:24 and /okBinSplit /okListSplit.
 "#;
                 verify_workspace(
                     "dc_and_strings",
@@ -3708,8 +4041,8 @@ pub v/result/b/checkStdMath
                         "ns bad/sl_add_i128.\nuse std/math: add as slAdd ::.\npub v/i128/boom\n    slAdd i128:1 i128:2.\n",
                     ),
                     (
-                        "StageL faulting dcFromU128(u128) via alias",
-                        "ns bad/sl_dc.\nuse std/dcs: dcFromU128 as slDc ::.\npub v/dc/boom\n    slDc u128:65.\n",
+                        "StageL faulting dcsFromS(s) via alias",
+                        "ns bad/sl_dc.\nuse std/dcmst: dcsFromS as slDcsFromS ::.\npub v/dcs/boom\n    conv slDcsFromS \"x\" dcs.\n",
                     ),
                 ] {
                     assert!(

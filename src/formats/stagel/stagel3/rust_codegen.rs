@@ -1150,7 +1150,7 @@ fn collect_large_tuples_in_expr(
 
 struct WorkspaceRoutineIndex {
     mod_idents: Vec<String>,
-    ns_to_mod_idx: HashMap<String, usize>,
+    ns_to_mod_indices: HashMap<String, Vec<usize>>,
     by_key: HashMap<(usize, RoutineKey), TopRoutineMeta>,
     by_dc: HashMap<(usize, DcChar), TopRoutineMeta>,
     const_idents_by_key: HashMap<(usize, ValueKey), (String, StageLType)>,
@@ -1162,7 +1162,8 @@ struct WorkspaceRoutineIndex {
 impl WorkspaceRoutineIndex {
     fn build(workspace: &ValidatedWorkspace) -> Self {
         let mut mod_idents = Vec::with_capacity(workspace.modules.len());
-        let mut ns_to_mod_idx = HashMap::new();
+        let mut ns_to_mod_indices: HashMap<String, Vec<usize>> =
+            HashMap::new();
         let mut by_key = HashMap::new();
         let mut by_dc = HashMap::new();
         let mut const_idents_by_key = HashMap::new();
@@ -1191,7 +1192,10 @@ impl WorkspaceRoutineIndex {
 
         for (mod_idx, vm) in workspace.modules.iter().enumerate() {
             let mod_ident = if let Some(ns) = &vm.namespace_key {
-                ns_to_mod_idx.insert(ns.clone(), mod_idx);
+                ns_to_mod_indices
+                    .entry(ns.clone())
+                    .or_default()
+                    .push(mod_idx);
                 format!("sl_mod_{mod_idx}_{}", sanitize_ident(ns))
             } else {
                 format!("sl_mod_anon_{mod_idx}")
@@ -1318,7 +1322,7 @@ impl WorkspaceRoutineIndex {
 
         Self {
             mod_idents,
-            ns_to_mod_idx,
+            ns_to_mod_indices,
             by_key,
             by_dc,
             const_idents_by_key,
@@ -1404,18 +1408,6 @@ impl WorkspaceRoutineIndex {
                 format!("{rt_prefix}SlUnsupportedStageRType")
             }
         }
-    }
-
-    fn mod_ident_by_ns(&self, namespace: &str) -> Result<&str> {
-        let &idx = self
-            .ns_to_mod_idx
-            .get(namespace)
-            .with_context(|| format!("Unknown module namespace '{namespace}'"))?;
-        let ident = self
-            .mod_idents
-            .get(idx)
-            .context("Internal module index out of bounds")?;
-        Ok(ident.as_str())
     }
 }
 
@@ -2099,17 +2091,19 @@ impl<'a> ModuleEmitter<'a> {
                     let rkey = rc.routine_key();
                     let (meta, is_cross_module) =
                         if let Some(namespace) = &rc.namespace {
-                            let &target_mod_idx = self
+                            let cand_indices = self
                                 .ws_index
-                                .ns_to_mod_idx
+                                .ns_to_mod_indices
                                 .get(namespace)
                                 .with_context(|| {
                                     format!("Unknown module namespace '{namespace}'")
                                 })?;
-                            let m = self
-                                .ws_index
-                                .by_key
-                                .get(&(target_mod_idx, rkey))
+                            let m = cand_indices
+                                .iter()
+                                .filter(|&&idx| idx < self.mod_idx)
+                                .find_map(|&idx| {
+                                    self.ws_index.by_key.get(&(idx, rkey.clone()))
+                                })
                                 .with_context(|| {
                                     format!(
                                         "Unknown imported routine '{namespace}::{}'",
@@ -2177,23 +2171,25 @@ impl<'a> ModuleEmitter<'a> {
                     sig,
                 }) = self.validated.dc_imports.get(dc)
                 {
-                    let &target_mod_idx = self
+                    let cand_indices = self
                         .ws_index
-                        .ns_to_mod_idx
+                        .ns_to_mod_indices
                         .get(namespace)
                         .with_context(|| format!("Unknown module namespace '{namespace}'"))?;
-                    let meta = self
-                        .ws_index
-                        .by_dc
-                        .get(&(target_mod_idx, *dc))
-                        .or_else(|| {
-                            self.ws_index.by_key.get(&(
-                                target_mod_idx,
-                                RoutineKey {
-                                    name: original_name.clone(),
-                                    params: sig.params.clone(),
-                                },
-                            ))
+                    let rkey = RoutineKey {
+                        name: original_name.clone(),
+                        params: sig.params.clone(),
+                    };
+                    let meta = cand_indices
+                        .iter()
+                        .filter(|&&idx| idx < self.mod_idx)
+                        .find_map(|&idx| {
+                            self.ws_index
+                                .by_dc
+                                .get(&(idx, *dc))
+                                .or_else(|| {
+                                    self.ws_index.by_key.get(&(idx, rkey.clone()))
+                                })
                         })
                         .with_context(|| {
                             format!("Unknown imported Dc routine '{namespace}::{original_name}'")
@@ -2237,24 +2233,33 @@ impl<'a> ModuleEmitter<'a> {
                     {
                         let vkey = rv.value_key();
                         if let Some(namespace) = &rv.namespace {
-                            let &target_mod_idx = self
+                            let cand_indices = self
                                 .ws_index
-                                .ns_to_mod_idx
+                                .ns_to_mod_indices
                                 .get(namespace)
                                 .with_context(|| {
                                     format!("Unknown module namespace '{namespace}'")
                                 })?;
-                            let mod_ident = self.ws_index.mod_ident_by_ns(namespace)?;
-                            let (rname, ty) = self
-                                .ws_index
-                                .const_idents_by_key
-                                .get(&(target_mod_idx, vkey))
+                            let (target_mod_idx, (rname, ty)) = cand_indices
+                                .iter()
+                                .filter(|&&idx| idx < self.mod_idx)
+                                .find_map(|&idx| {
+                                    self.ws_index
+                                        .const_idents_by_key
+                                        .get(&(idx, vkey.clone()))
+                                        .map(|val| (idx, val))
+                                })
                                 .with_context(|| {
                                     format!(
                                         "Unknown imported constant '{namespace}::{}'",
                                         rv.original_name
                                     )
                                 })?;
+                            let mod_ident = self
+                                .ws_index
+                                .mod_idents
+                                .get(target_mod_idx)
+                                .context("Internal module index out of bounds")?;
                             return Ok(Some((
                                 format!("super::{mod_ident}::{rname}"),
                                 ty.clone(),
@@ -2287,32 +2292,41 @@ impl<'a> ModuleEmitter<'a> {
                         ..
                     }) = self.validated.dc_imports.get(dc)
                     {
-                        let &target_mod_idx = self
+                        let cand_indices = self
                             .ws_index
-                            .ns_to_mod_idx
+                            .ns_to_mod_indices
                             .get(namespace)
                             .with_context(|| {
                                 format!("Unknown module namespace '{namespace}'")
                             })?;
-                        let mod_ident = self.ws_index.mod_ident_by_ns(namespace)?;
-                        let (rname, _) = self
-                            .ws_index
-                            .const_idents_by_dc
-                            .get(&(target_mod_idx, *dc))
-                            .or_else(|| {
-                                self.ws_index.const_idents_by_key.get(&(
-                                    target_mod_idx,
-                                    ValueKey {
-                                        name: original_name.clone(),
-                                        ty: ty.clone(),
-                                    },
-                                ))
+                        let vkey = ValueKey {
+                            name: original_name.clone(),
+                            ty: ty.clone(),
+                        };
+                        let (target_mod_idx, (rname, _)) = cand_indices
+                            .iter()
+                            .filter(|&&idx| idx < self.mod_idx)
+                            .find_map(|&idx| {
+                                self.ws_index
+                                    .const_idents_by_dc
+                                    .get(&(idx, *dc))
+                                    .or_else(|| {
+                                        self.ws_index
+                                            .const_idents_by_key
+                                            .get(&(idx, vkey.clone()))
+                                    })
+                                    .map(|val| (idx, val))
                             })
                             .with_context(|| {
                                 format!(
                                     "Unknown imported Dc constant '{namespace}::{original_name}'"
                                 )
                             })?;
+                        let mod_ident = self
+                            .ws_index
+                            .mod_idents
+                            .get(target_mod_idx)
+                            .context("Internal module index out of bounds")?;
                         return Ok(Some((
                             format!("super::{mod_ident}::{rname}"),
                             ty.clone(),
@@ -5907,6 +5921,7 @@ pub v/u32/guard_or_abort u32/val
             discover_stagel_namespace_files(&data_dir).expect("discover stdlib");
         let inputs: Vec<ModuleInput<'_>> = std_files
             .iter()
+            .filter(|f| f.psr4_rel_path.ends_with(".sl3"))
             .map(|f| ModuleInput {
                 source_path: Some(f.repo_rel_path.as_str()),
                 source: f.source.as_str(),

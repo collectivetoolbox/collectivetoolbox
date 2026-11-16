@@ -329,6 +329,7 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
     };
 
     Ok(ValidatedModule {
+        input_index: 0,
         module: validated_module,
         namespace_key,
         imports,

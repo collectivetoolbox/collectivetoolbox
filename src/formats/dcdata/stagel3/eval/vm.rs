@@ -45,7 +45,6 @@ use super::super::ast::{
     StageLType, StageRErrorTag, StructTypeRef, SymbolTarget, TestCase,
     TestExpected, TopDecl, TopValueDecl,
 };
-use super::super::stager_strings::is_valid_dc_u128;
 use super::super::validator::{
     ImportedSymbol, RoutineKey, ValidatedModule, ValidatedWorkspace, ValueKey,
     unbridge_stager_type_for_stage1,
@@ -174,7 +173,7 @@ pub(super) struct ModuleRuntime {
 pub struct StageLWorkspaceVm {
     pub(super) modules: Vec<ModuleRuntime>,
     #[allow(dead_code, reason = "Retained for namespace lookup diagnostics")]
-    ns_to_idx: HashMap<String, usize>,
+    ns_to_indices: HashMap<String, Vec<usize>>,
     pub(super) config: EvalConfig,
 }
 
@@ -185,22 +184,22 @@ impl StageLWorkspaceVm {
         ws: &ValidatedWorkspace,
         config: EvalConfig,
     ) -> Result<Self> {
-        let mut ns_to_idx = HashMap::new();
+        let mut ns_to_indices: HashMap<String, Vec<usize>> = HashMap::new();
         for (idx, vm) in ws.modules.iter().enumerate() {
             if let Some(ref key) = vm.namespace_key {
-                ns_to_idx.insert(key.clone(), idx);
+                ns_to_indices.entry(key.clone()).or_default().push(idx);
             }
         }
 
         let mut vm_state = Self {
             modules: Vec::with_capacity(ws.modules.len()),
-            ns_to_idx,
+            ns_to_indices,
             config,
         };
 
         for (mod_idx, vm) in ws.modules.iter().enumerate() {
             let (runtime, pending_consts) = build_module_runtime(
-                &vm_state.ns_to_idx,
+                &vm_state.ns_to_indices,
                 &vm_state.modules,
                 mod_idx,
                 vm,
@@ -1660,47 +1659,93 @@ impl StageLWorkspaceVm {
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "Resolves multi-stratum constant, call, struct, and Dc imports into ModuleRuntime"
+)]
 fn build_module_runtime(
-    ns_to_idx: &HashMap<String, usize>,
+    ns_to_indices: &HashMap<String, Vec<usize>>,
     prev_modules: &[ModuleRuntime],
     mod_idx: usize,
     vm: &ValidatedModule,
 ) -> Result<(ModuleRuntime, Vec<(ValueKey, TopValueDecl)>)> {
-    let resolve_ns = |ns: Option<&String>| -> Result<usize> {
-        if let Some(ns_name) = ns {
-            ns_to_idx
-                .get(ns_name)
-                .copied()
-                .with_context(|| format!("Missing compiled namespace '{ns_name}'"))
-        } else {
-            Ok(mod_idx)
-        }
-    };
     let is_cross_stager_to_stage1 = |target_idx: usize| -> bool {
         vm.module.dialect == StageDialect::StageR3
             && prev_modules
                 .get(target_idx)
                 .is_some_and(|rt| rt.dialect == StageDialect::StageL3)
     };
+    let prior_strata = |ns_name: &str| -> Result<&[usize]> {
+        let candidates = ns_to_indices
+            .get(ns_name)
+            .with_context(|| format!("Missing compiled namespace '{ns_name}'"))?;
+        Ok(candidates.as_slice())
+    };
 
     let mut resolved_values = HashMap::with_capacity(vm.resolved_values.len());
     for (&span_key, rv) in &vm.resolved_values {
-        let target_idx = resolve_ns(rv.namespace.as_ref())?;
-        let mut vkey = rv.value_key();
-        if is_cross_stager_to_stage1(target_idx) {
-            vkey.ty = unbridge_stager_type_for_stage1(&vkey.ty);
+        let base_vkey = rv.value_key();
+        if let Some(ns_name) = &rv.namespace {
+            let mut resolved_pair = None;
+            for &cand_idx in prior_strata(ns_name)? {
+                if cand_idx >= mod_idx {
+                    continue;
+                }
+                let mut eff_vkey = base_vkey.clone();
+                if is_cross_stager_to_stage1(cand_idx) {
+                    eff_vkey.ty = unbridge_stager_type_for_stage1(&eff_vkey.ty);
+                }
+                if prev_modules
+                    .get(cand_idx)
+                    .is_some_and(|rt| rt.constants.contains_key(&eff_vkey))
+                {
+                    resolved_pair = Some((cand_idx, eff_vkey));
+                    break;
+                }
+            }
+            let pair = resolved_pair.with_context(|| {
+                format!(
+                    "Missing resolved constant '{ns_name}::{}' across compiled strata",
+                    rv.original_name
+                )
+            })?;
+            resolved_values.insert(span_key, pair);
+        } else {
+            resolved_values.insert(span_key, (mod_idx, base_vkey));
         }
-        resolved_values.insert(span_key, (target_idx, vkey));
     }
 
     let mut resolved_calls = HashMap::with_capacity(vm.resolved_calls.len());
     for (&span_key, rc) in &vm.resolved_calls {
-        let target_idx = resolve_ns(rc.namespace.as_ref())?;
-        let mut rkey = rc.routine_key();
-        if is_cross_stager_to_stage1(target_idx) {
-            unbridge_routine_key_params(&mut rkey);
+        let base_rkey = rc.routine_key();
+        if let Some(ns_name) = &rc.namespace {
+            let mut resolved_pair = None;
+            for &cand_idx in prior_strata(ns_name)? {
+                if cand_idx >= mod_idx {
+                    continue;
+                }
+                let mut eff_rkey = base_rkey.clone();
+                if is_cross_stager_to_stage1(cand_idx) {
+                    unbridge_routine_key_params(&mut eff_rkey);
+                }
+                if prev_modules
+                    .get(cand_idx)
+                    .is_some_and(|rt| rt.routines.contains_key(&eff_rkey))
+                {
+                    resolved_pair = Some((cand_idx, eff_rkey));
+                    break;
+                }
+            }
+            let pair = resolved_pair.with_context(|| {
+                format!(
+                    "Missing resolved routine '{ns_name}::{}' across compiled strata",
+                    rc.routine_name
+                )
+            })?;
+            resolved_calls.insert(span_key, pair);
+        } else {
+            resolved_calls.insert(span_key, (mod_idx, base_rkey));
         }
-        resolved_calls.insert(span_key, (target_idx, rkey));
     }
 
     let resolved_structs = vm
@@ -1723,41 +1768,71 @@ fn build_module_runtime(
                 ty,
                 ..
             } => {
-                let dep_idx = *ns_to_idx
-                    .get(namespace)
-                    .context("Missing imported dc namespace")?;
-                let effective_ty = if is_cross_stager_to_stage1(dep_idx) {
-                    unbridge_stager_type_for_stage1(ty)
-                } else {
-                    ty.clone()
-                };
-                ResolvedDcImportTarget::Value {
-                    module_idx: dep_idx,
-                    key: ValueKey {
+                let mut resolved_target = None;
+                for &cand_idx in prior_strata(namespace)? {
+                    if cand_idx >= mod_idx {
+                        continue;
+                    }
+                    let effective_ty = if is_cross_stager_to_stage1(cand_idx) {
+                        unbridge_stager_type_for_stage1(ty)
+                    } else {
+                        ty.clone()
+                    };
+                    let eff_key = ValueKey {
                         name: original_name.clone(),
                         ty: effective_ty,
-                    },
+                    };
+                    if prev_modules.get(cand_idx).is_some_and(|rt| {
+                        rt.dc_constants.contains_key(dc)
+                            || rt.constants.contains_key(&eff_key)
+                    }) {
+                        resolved_target = Some(ResolvedDcImportTarget::Value {
+                            module_idx: cand_idx,
+                            key: eff_key,
+                        });
+                        break;
+                    }
                 }
+                resolved_target.with_context(|| {
+                    format!(
+                        "Missing imported Dc constant '{namespace}::{original_name}'"
+                    )
+                })?
             }
             ImportedSymbol::Routine {
                 namespace,
                 original_name,
                 sig,
             } => {
-                let dep_idx = *ns_to_idx
-                    .get(namespace)
-                    .context("Missing imported dc namespace")?;
-                let mut rkey = RoutineKey {
-                    name: original_name.clone(),
-                    params: sig.params.clone(),
-                };
-                if is_cross_stager_to_stage1(dep_idx) {
-                    unbridge_routine_key_params(&mut rkey);
+                let mut resolved_target = None;
+                for &cand_idx in prior_strata(namespace)? {
+                    if cand_idx >= mod_idx {
+                        continue;
+                    }
+                    let mut rkey = RoutineKey {
+                        name: original_name.clone(),
+                        params: sig.params.clone(),
+                    };
+                    if is_cross_stager_to_stage1(cand_idx) {
+                        unbridge_routine_key_params(&mut rkey);
+                    }
+                    if prev_modules.get(cand_idx).is_some_and(|rt| {
+                        rt.dc_routines.contains_key(dc)
+                            || rt.routines.contains_key(&rkey)
+                    }) {
+                        resolved_target =
+                            Some(ResolvedDcImportTarget::Routine {
+                                module_idx: cand_idx,
+                                key: rkey,
+                            });
+                        break;
+                    }
                 }
-                ResolvedDcImportTarget::Routine {
-                    module_idx: dep_idx,
-                    key: rkey,
-                }
+                resolved_target.with_context(|| {
+                    format!(
+                        "Missing imported Dc routine '{namespace}::{original_name}'"
+                    )
+                })?
             }
             ImportedSymbol::Struct { .. }
             | ImportedSymbol::BrandType { .. }
@@ -2102,10 +2177,6 @@ fn marshal_stage1_val_to_stager(val: Value) -> Result<Value> {
             }
             (Some("std/dctf"), "dcVal") => {
                 let bits = join_u128_fields(&fields, "std/dctf::dcVal")?;
-                ensure!(
-                    is_valid_dc_u128(bits),
-                    "Stage 1 'dcVal' {bits:#x} is not a valid Dc scalar"
-                );
                 Ok(Value::Dc(DcChar::from_u128(bits)))
             }
             (Some("std/bigint"), "bigInt") => {

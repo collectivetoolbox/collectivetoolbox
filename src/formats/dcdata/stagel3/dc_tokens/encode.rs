@@ -32,7 +32,6 @@ use super::super::ast::{
     StageLType, StructTypeRef, SymbolTarget, TestCase, TestExpected, TopDecl,
     TypedIntLit,
 };
-use super::super::stager_strings::is_valid_dc_u128;
 use super::{
     BINARY_OPS, TERNARY_OPS, UNARY_OPS, format_dc_char_opt, lookup_op_dc,
 };
@@ -781,12 +780,6 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
             push_stagel_type(out, target_ty)?;
         }
         Expr::DctsString { value, .. } => {
-            for &ch in value {
-                ensure!(
-                    is_valid_dc_u128(ch.to_u128()),
-                    "Surrogate Document Character {ch} in Dcts string literal"
-                );
-            }
             push_escaped_literal_frame(
                 out,
                 DC_TYPE_STRING,
@@ -794,10 +787,6 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
             );
         }
         Expr::DcLit { value, .. } => {
-            ensure!(
-                is_valid_dc_u128(value.to_u128()),
-                "Surrogate Document Character {value} in standalone 'dc:' literal"
-            );
             push_escaped_literal_frame(
                 out,
                 DC_TYPE_ATOM_DC,

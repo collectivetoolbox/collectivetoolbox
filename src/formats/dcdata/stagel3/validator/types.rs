@@ -956,6 +956,16 @@ pub(crate) fn is_stager_widening_conv(
             StageLType::Int | StageLType::Rat,
         ) => true,
         (StageLType::Int, StageLType::Rat) => true,
+        (StageLType::List(inner), StageLType::Dcs)
+            if **inner == StageLType::Dc =>
+        {
+            true
+        }
+        (StageLType::Dcs, StageLType::List(inner))
+            if **inner == StageLType::Dc =>
+        {
+            true
+        }
         _ => false,
     }
 }
