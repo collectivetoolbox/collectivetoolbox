@@ -5176,14 +5176,14 @@ v/u64/resolveMatchVariantIndex l/enumVarDef/domainVars l/u8/vname
 v/void/emitMatchCaseCond buf/dcVal/out u8/stKind l/u8/tscr u64/vi
     if eq /stKind u8:19
         do
-            if eq /vi u64:0 emitShort /out u32:2524 nop.
+            if eq /vi u64:0 emitShort /out u32:2532 nop.
             emitShort /out u32:2547. emitLocalVarRef /out /tscr. emitDcNumU64 /out u64:0.
             return.
         ::
         nop.
     if eq /stKind u8:20
         do
-            if eq /vi u64:1 emitShort /out u32:2524 nop.
+            if eq /vi u64:1 emitShort /out u32:2532 nop.
             emitShort /out u32:2547. emitLocalVarRef /out /tscr. emitDcNumU64 /out u64:0.
             return.
         ::

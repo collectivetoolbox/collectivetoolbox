@@ -4211,4 +4211,224 @@ pub v/b/checkStageLOverloads
             .join()
             .map_err(|_| anyhow::anyhow!("sr3_std_overloads thread panicked"))?
     }
+
+    #[crate::ctb_test]
+    fn test_stage2_overlays_surrogate_dcs_and_range_errors() -> Result<()> {
+        let handle = std::thread::Builder::new()
+            .stack_size(8 * 1024 * 1024)
+            .spawn(move || -> Result<()> {
+                use super::super::eval::{
+                    EvalConfig, RoutineOutcome, StageLWorkspaceVm,
+                };
+                let sg = SeedGraphIndex::shared()?;
+                let compiler = Stager3VmCompiler::new(&sg)?;
+
+                // 1. Mixed Stage 1 + Stage 2 overlays (`use std/math:` & `use std/dcs:`),
+                //    surrogate `0xD800` roundtrip through `dc`/`dcs`/`s`/`DcTF`, and all 4 `numberOutside*Range` errors
+                //    in BOTH Host VM and self-hosted `stager3ToStagel3` -> lowered StageL 3 VM.
+                let clean_mix_src = r#"ns app/stage2_mix.
+use std/math: canAdd wrapAdd bitAnd rotl min max signum abs gcd lcm ::.
+use std/dcs: dcFromU128 u128FromDc classifyDc dcKind dcIsUnicode dcUnicode dcShort dcFormat dcLong formatId dcFromInt dcFromUnicode dcFromShort dcFromFormat formatIdFromShorthand formatIdShorthand parseDcShorthand formatDcShorthand dcsSingleton dcsFromList dcsToList encodeDcsDctf decodeDcsDctf ::.
+
+v/u32/errCode error/e
+    match /e
+        case numberOutsideDcRange u32:1.
+        case numberOutsideShortDcRange u32:2.
+        case numberOutsideFormatRange u32:3.
+        case numberOutsideUnicodeRange u32:4.
+        else u32:0.
+    ::.
+
+pub v/b/verifyAll
+    test
+        in.
+        out true.
+    const b/okMath and canAdd u64:1 u64:2
+        and eq wrapAdd u32:4294967295 u32:1 u32:0
+        and eq bitAnd i128:15 i128:6 i128:6
+        and eq rotl u64:1 u32:4 u64:16
+        and eq min i32:-5 i32:3 i32:-5
+        and eq max u128:4 u128:9 u128:9
+        and eq signum i64:-7 i64:-1
+        and eq gcd int:-12 int:18 int:6
+        and eq lcm int:-12 int:18 int:36
+        eq abs i32:-42 result/i32:ok i32:42.
+
+    const dc/surr1 dcFromU128 u128:55296.
+    const dc/surr2 dc:ud800.
+    const dc/surrParsed unwrapOr parseDcShorthand "ud800" dc:u0.
+    const dcs/surrS unwrapOr dcsFromS "@ud800@" dcsSingleton dc:u0.
+    const dcs/seq dcsFromList l/dc: /surr1 dc:256 dc:f657 ::.
+    const l/u8/enc encodeDcsDctf /seq.
+    const b/okSurrDctf
+        match decodeDcsDctf /enc
+            case ok dcs/dec eq /dec /seq.
+            case err error/ignoredErr false.
+        ::.
+    const b/okKind
+        match classifyDc /surr2
+            case unicode u32/cp eq /cp u32:55296.
+            else false.
+        ::.
+    const b/okFmt
+        match formatIdFromShorthand "f657"
+            case ok formatId/fid and eq formatIdShorthand /fid "f657" eq dcFromFormat /fid dc:f657.
+            case err error/ignoredErr false.
+        ::.
+    const b/okOpts and eq dcUnicode /surr1 option/u32:some u32:55296
+        and eq dcShort dc:256 option/u32:some u32:256
+        and isSome dcFormat dc:f657
+        and eq dcLong dc:l8589934592 option/u128:some u128:8589934592
+        dcIsUnicode /surr1.
+
+    const b/okErr1 match dcFromInt int:-1 case err error/e eq errCode /e u32:1. else false. ::.
+    const b/okErr2 match dcFromShort u32:1114112 case err error/e eq errCode /e u32:2. else false. ::.
+    const b/okErr3 match formatIdFromShorthand "f1114112" case err error/e eq errCode /e u32:3. else false. ::.
+    const b/okErr4 match dcFromUnicode u32:1114112 case err error/e eq errCode /e u32:4. else false. ::.
+
+    and /okMath
+        and eq /surr1 /surr2
+            and eq /surrParsed /surr1
+                and eq /surrS dcsSingleton /surr1
+                    and eq u128FromDc /surr1 u128:55296
+                        and eq len dcsToList /seq u64:3
+                            and eq formatDcShorthand /surr1 "ud800"
+                                and /okSurrDctf
+                                    and /okKind
+                                        and /okFmt
+                                            and /okOpts
+                                                and /okErr1
+                                                    and /okErr2
+                                                        and /okErr3
+                                                            /okErr4.
+"#;
+                let sr3_rep =
+                    eval_sr3_inline_tests_with_seed_graph(clean_mix_src, &sg)?;
+                assert_eq!(sr3_rep.ensure_all_passed()?, 1);
+
+                let sr3_tokens =
+                    sr3_to_dc_tokens_with_seed_graph(clean_mix_src, &sg)?;
+                let bundled_sr3 =
+                    bundle_dc_module_dependencies(&sr3_tokens, &sg)?;
+                let lowered_sl3 = compiler.compile_tokens(&bundled_sr3)?;
+                let sl3_ws =
+                    validate_dc_tokens_with_seed_graph(&lowered_sl3, &sg)?;
+                let sl3_vm = StageLWorkspaceVm::from_validated_workspace(
+                    &sl3_ws,
+                    crate::stagel3::eval::EvalConfig::default(),
+                )?;
+                let sl3_rep = sl3_vm.run_all_tests(&sl3_ws)?;
+                assert_eq!(sl3_rep.ensure_all_passed()?, 1);
+
+                // 2. Pure `.sl3` caller bundled for `f1680` pulls ONLY StageL 3 modules (no Stage 2 `.sr3`).
+                let pure_sl3_src = concat!(
+                    "ns app/pure_sl3.\n",
+                    "use std/u128: u128New ::.\n",
+                    "use std/dctf: dcNew ::.\n",
+                    "use std/math: canAdd ::.\n",
+                    "use std/dcs: dcFromU128 ::.\n",
+                    "pub v/b/ok :: and canAdd u64:1 u64:2 eq dcFromU128 u128New u64:55296 u64:0 dcNew u64:55296 u64:0.\n",
+                );
+                let pure_tokens =
+                    sl3_to_dc_tokens_with_seed_graph(pure_sl3_src, &sg)?;
+                let pure_bundled =
+                    bundle_dc_module_dependencies(&pure_tokens, &sg)?;
+                let pure_mods = decode_modules_from_dc_tokens(&pure_bundled)?;
+                assert!(
+                    pure_mods
+                        .iter()
+                        .all(|m| m.dialect == StageDialect::StageL3),
+                    "Pure StageL 3 bundle must not pull StageR 3 strata"
+                );
+
+                // 3. Negative: Stage 1 module cannot import Stage 2-only exports, and same-stage duplicate `ns` fails.
+                assert!(
+                    parse_and_validate_workspace_with_seed_graph(
+                        &[ModuleInput {
+                            source_path: Some("stage_1_impls/app/s1_bad_ovl.sl3"),
+                            source: "ns app/s1_bad_ovl.\nuse std/math: gcd ::.\npub v/u32/f :: gcd u32:4 u32:6.\n",
+                        }],
+                        &sg,
+                    )
+                    .is_err(),
+                    "Stage 1 must not import Stage 2 std/math::gcd"
+                );
+                assert!(
+                    parse_and_validate_workspace_with_seed_graph(
+                        &[
+                            ModuleInput {
+                                source_path: Some("stage_1_impls/app/dupns.sl3"),
+                                source: "ns app/dupns.\npub v/u32/a :: u32:1.\n",
+                            },
+                            ModuleInput {
+                                source_path: Some("stage_1_impls/app/dupns.sl3"),
+                                source: "ns app/dupns.\npub v/u32/b :: u32:2.\n",
+                            },
+                        ],
+                        &sg,
+                    )
+                    .is_err(),
+                    "Duplicate same-stage namespace must be rejected"
+                );
+
+                // 4. Negative: cross-stratum `pub` collisions rejected by both Host validator and self-hosted `f1681`.
+                for (label, s1_col, s2_col) in [
+                    (
+                        "pub type",
+                        "ns app/colmod.\npub struct item :: u32.\n",
+                        "ns app/colmod.\npub type u32/item.\n",
+                    ),
+                    (
+                        "pub const",
+                        "ns app/colmod.\npub u32/VAL u32:1.\n",
+                        "ns app/colmod.\npub u32/VAL u32:2.\n",
+                    ),
+                    (
+                        "same-param routine",
+                        "ns app/colmod.\npub v/u32/op u32/x :: /x.\n",
+                        "ns app/colmod.\npub v/u32/op u32/x :: /x.\n",
+                    ),
+                    (
+                        "differing-arity routine",
+                        "ns app/colmod.\npub v/u32/op u32/x :: /x.\n",
+                        "ns app/colmod.\npub v/u32/op u32/x u32/y :: /x.\n",
+                    ),
+                ] {
+                    assert!(
+                        parse_and_validate_workspace_with_seed_graph(
+                            &[
+                                ModuleInput {
+                                    source_path: Some("stage_1_impls/app/colmod.sl3"),
+                                    source: s1_col,
+                                },
+                                ModuleInput {
+                                    source_path: Some("stage_2_impls/app/colmod.sr3"),
+                                    source: s2_col,
+                                },
+                            ],
+                            &sg,
+                        )
+                        .is_err(),
+                        "[{label}] Host validator must reject cross-stratum pub collision"
+                    );
+                    let m1 = super::super::parser::parse_module(s1_col)?;
+                    let m2 = super::super::parser::parse_sr3_module(s2_col)?;
+                    let mut raw_col = encode_module_to_dc_tokens(&m1)?;
+                    raw_col.extend(encode_module_to_dc_tokens(&m2)?);
+                    assert!(
+                        matches!(
+                            compiler.run_raw(&raw_col)?,
+                            RoutineOutcome::Trapped(_)
+                        ),
+                        "[{label}] Self-hosted stager3ToStagel3 must trap on cross-stratum pub collision"
+                    );
+                }
+
+                Ok(())
+            })
+            .context("Failed to spawn stage2 overlay test thread")?;
+        handle
+            .join()
+            .map_err(|_| anyhow::anyhow!("stage2 overlay test thread panicked"))?
+    }
 }

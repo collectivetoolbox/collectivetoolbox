@@ -819,6 +819,167 @@ pub v/l/u8/step l/u8/input
             "Expected StageL-faulting import in StageR 3 to trap inside WASM f1681"
         );
 
+        // 4. End-to-end Stage 2 overlays (`std/math` + `std/dcs`), surrogate `0xD800` DcTF roundtrip,
+        //    and all 4 `numberOutside*Range` errors through WASM `f1681` -> WASM `f1680` -> `tinywasm`.
+        let sr3_stage2_prog = r#"ns app/e2e_stage2_dcs.
+use std/math: canAdd min max signum abs gcd lcm ::.
+use std/dcs: dcFromU128 u128FromDc classifyDc dcKind dcIsUnicode dcUnicode dcShort dcFormat dcLong formatId dcFromInt dcFromUnicode dcFromShort dcFromFormat formatIdFromShorthand formatIdShorthand parseDcShorthand formatDcShorthand dcsSingleton dcsFromList dcsToList encodeDcsDctf decodeDcsDctf ::.
+
+v/u32/errCode error/e
+    match /e
+        case numberOutsideDcRange u32:1.
+        case numberOutsideShortDcRange u32:2.
+        case numberOutsideFormatRange u32:3.
+        case numberOutsideUnicodeRange u32:4.
+        else u32:0.
+    ::.
+
+v/b/checkStage2AndSurr
+    const b/okMath and canAdd u64:1 u64:2
+        and eq min i32:-5 i32:3 i32:-5
+        and eq max u64:4 u64:9 u64:9
+        and eq signum i64:-7 i64:-1
+        and eq gcd int:-12 int:18 int:6
+        and eq lcm int:-12 int:18 int:36
+        eq abs i32:-2147483648 result/i32:err error:overflow.
+    const dc/s1 dcFromU128 u128:55296.
+    const dc/s2 dc:ud800.
+    const dc/sp unwrapOr parseDcShorthand "ud800" dc:u0.
+    const dcs/seq dcsFromList l/dc: /s1 dc:256 dc:f657 ::.
+    const b/okDctf
+        match decodeDcsDctf encodeDcsDctf /seq
+            case ok dcs/dec eq /dec /seq.
+            case err error/ignoredErr false.
+        ::.
+    const b/okKind
+        match classifyDc /s2
+            case unicode u32/cp eq /cp u32:55296.
+            else false.
+        ::.
+    const b/okFmt
+        match formatIdFromShorthand "f657"
+            case ok formatId/fid and eq formatIdShorthand /fid "f657" eq dcFromFormat /fid dc:f657.
+            case err error/ignoredErr false.
+        ::.
+    const b/okOpts and eq dcUnicode /s1 option/u32:some u32:55296
+        and eq dcShort dc:256 option/u32:some u32:256
+        and isSome dcFormat dc:f657
+        and eq dcLong dc:l8589934592 option/u128:some u128:8589934592
+        and eq len dcsToList dcsSingleton /s1 u64:1
+        dcIsUnicode /s1.
+    const b/okErrs and match dcFromInt int:-1 case err error/e eq errCode /e u32:1. else false. ::
+        and match dcFromShort u32:1114112 case err error/e eq errCode /e u32:2. else false. ::
+        and match formatIdFromShorthand "f1114112" case err error/e eq errCode /e u32:3. else false. ::
+        match dcFromUnicode u32:1114112 case err error/e eq errCode /e u32:4. else false. ::.
+    and /okMath
+        and eq /s1 /s2
+            and eq /sp /s1
+                and eq u128FromDc /s1 u128:55296
+                    and eq formatDcShorthand /s1 "ud800"
+                        and /okKind
+                            and /okOpts
+                                and /okDctf
+                                    and /okFmt
+                                        /okErrs.
+
+pub v/l/u8/step l/u8/input
+    if checkStage2AndSurr
+        concat b"OVL:" /input
+        b"FAIL".
+"#;
+        let s2_tokens =
+            ctb_formats_dcdata::stagel3::seed_linker::sr3_to_dc_tokens_with_seed_graph(
+                sr3_stage2_prog,
+                sg,
+            )?;
+        let s2_bundled =
+            ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_dependencies(
+                &s2_tokens,
+                sg,
+            )?;
+        let s2_lowered_doc = run_f1681_wasm_raw(&s2_bundled)?;
+        let s2_lowered_tokens: Vec<DcChar> =
+            s2_lowered_doc.to_dc_string()?.chars().collect();
+        let s2_target_wasm =
+            compile_dc_tokens_via_wat_compiler(&s2_lowered_tokens, sg)?;
+        let s2_out =
+            run_target_with_high_quota(&s2_target_wasm, &ascii_dcmstring("99"))?;
+        assert_eq!(s2_out, ascii_dcmstring("OVL:99"));
+
+        // 5. Pure `.sl3` bundle for `f1680` must exclude Stage 2 `.sr3` strata, and
+        //    cross-stratum `pub` collisions must trap inside BOTH WASM `f1681` and WASM `f1680`.
+        let pure_sl3_toks =
+            ctb_formats_dcdata::stagel3::seed_linker::sl3_to_dc_tokens_with_seed_graph(
+                concat!(
+                    "ns app/pure_sl3.\n",
+                    "use std/math: canAdd ::.\n",
+                    "use std/dcs: dcFromU128 ::.\n",
+                    "pub v/l/u8/step l/u8/input :: /input.\n",
+                ),
+                sg,
+            )?;
+        let pure_dep_bundle =
+            ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_dependencies(
+                &pure_sl3_toks,
+                sg,
+            )?;
+        let pure_bundle_mods =
+            ctb_formats_dcdata::stagel3::dc_tokens::decode_modules_from_dc_tokens(
+                &pure_dep_bundle,
+            )?;
+        assert!(
+            pure_bundle_mods
+                .iter()
+                .all(|m| m.dialect == ctb_formats_dcdata::stagel3::ast::StageDialect::StageL3),
+            "Pure StageL 3 bundle for f1680 must exclude StageR 3 modules"
+        );
+        let pure_target_wasm = compile_dc_tokens_via_wat_compiler(&pure_sl3_toks, sg)?;
+        let pure_out =
+            run_target_with_high_quota(&pure_target_wasm, &ascii_dcmstring("ok"))?;
+        assert_eq!(pure_out, ascii_dcmstring("ok"));
+
+        for (label, s1_col, s2_col) in [
+            (
+                "same-param routine",
+                "ns app/wcol.\npub v/u32/f u32/x :: /x.\n",
+                "ns app/wcol.\npub v/u32/f u32/x :: /x.\n",
+            ),
+            (
+                "differing-arity routine",
+                "ns app/wcol.\npub v/u32/f u32/x :: /x.\n",
+                "ns app/wcol.\npub v/u32/f u32/x u32/y :: /x.\n",
+            ),
+            (
+                "pub const",
+                "ns app/wcol.\npub u32/K u32:1.\n",
+                "ns app/wcol.\npub u32/K u32:2.\n",
+            ),
+            (
+                "pub type",
+                "ns app/wcol.\npub struct item :: u32.\n",
+                "ns app/wcol.\npub type u32/item.\n",
+            ),
+        ] {
+            let m1 = parse_module(s1_col)?;
+            let m2_sr = ctb_formats_dcdata::stagel3::parser::parse_sr3_module(s2_col)?;
+            let mut sr_col_tokens = encode_module_to_dc_tokens(&m1)?;
+            sr_col_tokens.extend(encode_module_to_dc_tokens(&m2_sr)?);
+            assert!(
+                run_f1681_wasm_raw(&sr_col_tokens).is_err(),
+                "[{label}] WASM f1681 must trap on cross-stratum pub collision"
+            );
+
+            // Lower `s2_col` as pure StageL 3 to confirm WASM `f1680` also traps directly on cross-stratum `pub` collisions.
+            let m2_sl_src = s2_col.replace("pub type u32/item.\n", "pub struct item :: u32.\n");
+            let m2_sl = parse_module(&m2_sl_src)?;
+            let mut sl_col_tokens = encode_module_to_dc_tokens(&m1)?;
+            sl_col_tokens.extend(encode_module_to_dc_tokens(&m2_sl)?);
+            assert!(
+                compile_dc_tokens_via_wat_compiler(&sl_col_tokens, sg).is_err(),
+                "[{label}] WASM f1680 must trap on cross-stratum pub collision"
+            );
+        }
+
         Ok(())
     }
 }

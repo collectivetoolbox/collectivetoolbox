@@ -3095,4 +3095,100 @@ pub v/result/u64/runCheck
         );
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_stage2_multi_stratum_reconcile_and_cross_stratum_collisions()
+    -> Result<()> {
+        let scripts = BTreeSet::new();
+        let mut ok_files = vec![
+            make_mem_file(
+                ImplStage::Stage1,
+                "std/ovl.sl3",
+                concat!(
+                    "ns std/ovl.\n",
+                    "pub v/u32/addOne u32/x :: add /x u32:1.\n",
+                ),
+            ),
+            make_mem_file(
+                ImplStage::Stage2,
+                "std/ovl.sr3",
+                concat!(
+                    "ns std/ovl.\n",
+                    "use std/ovl: addOne ::.\n",
+                    "pub type u32/opaqueTag.\n",
+                    "pub enum mode :: fast safe.\n",
+                    "pub v/result/u32/safeAddOne u32/x\n",
+                    "    test\n",
+                    "        in u32:4\n",
+                    "        out result/u32:ok u32:5.\n",
+                    "    result/u32:ok addOne /x.\n",
+                ),
+            ),
+            make_mem_file(
+                ImplStage::Stage2,
+                "app/useovl.sr3",
+                concat!(
+                    "ns app/useovl.\n",
+                    "use std/ovl: addOne safeAddOne opaqueTag mode ::.\n",
+                    "pub v/b/checkOvl\n",
+                    "    test\n",
+                    "        in.\n",
+                    "        out true.\n",
+                    "    const u32/a addOne u32:2.\n",
+                    "    const u32/b unwrapOr safeAddOne u32:2 u32:0.\n",
+                    "    eq /a /b.\n",
+                ),
+            ),
+        ];
+
+        let (nodes1, alloc1, _) = reconcile_stagel_and_csv_in_memory(
+            Vec::new(),
+            &mut ok_files,
+            &[],
+            &[],
+            &scripts,
+            None,
+        )?;
+        assert_eq!(alloc1.entities_allocated, 5);
+        assert_eq!(alloc1.files_updated, 3);
+
+        let (nodes2, alloc2, stats2) = reconcile_stagel_and_csv_in_memory(
+            nodes1.clone(),
+            &mut ok_files,
+            &[],
+            &[],
+            &scripts,
+            None,
+        )?;
+        assert_eq!(alloc2.entities_allocated, 0);
+        assert_eq!(stats2.nodes_appended, 0);
+        assert_eq!(nodes1, nodes2);
+
+        // Negative: cross-stratum `pub` collision must be rejected by ledger reconciliation.
+        let mut col_files = vec![
+            make_mem_file(
+                ImplStage::Stage1,
+                "std/dup.sl3",
+                "ns std/dup.\npub v/u32/f u32/x :: /x.\n",
+            ),
+            make_mem_file(
+                ImplStage::Stage2,
+                "std/dup.sr3",
+                "ns std/dup.\npub v/u32/f u32/x :: /x.\n",
+            ),
+        ];
+        assert!(
+            reconcile_stagel_and_csv_in_memory(
+                Vec::new(),
+                &mut col_files,
+                &[],
+                &[],
+                &scripts,
+                None,
+            )
+            .is_err(),
+            "Ledger reconciliation must reject cross-stratum pub routine collisions"
+        );
+        Ok(())
+    }
 }

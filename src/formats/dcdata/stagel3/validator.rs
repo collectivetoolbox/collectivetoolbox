@@ -1971,4 +1971,139 @@ v/option/l/u8/subList :: slice l/u8: u8:1 u8:2 :: u64:0 u64:1.
         validate_sr3(valid_src)?;
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_multi_stage_overlay_acceptance_and_collision_rejection()
+    -> Result<()> {
+        // 1. Positive: Stage 2 overlay supplements Stage 1 exports, accesses earlier stratum via `use`,
+        // supports `dcs <-> l/dc` `conv`, infallible `dcFromU128`, and all 4 `numberOutside*Range` errors.
+        let s1_src = concat!(
+            "ns std/mxs.\n",
+            "pub struct box :: i32.\n",
+            "pub v/i32/baseInc i32/x :: add /x i32:1.\n",
+        );
+        let s2_src = concat!(
+            "ns std/mxs.\n",
+            "use std/mxs: box baseInc ::.\n",
+            "pub type u32/tag.\n",
+            "pub enum kind :: small large.\n",
+            "pub i32/STEP i32:2.\n",
+            "pub v/i32/over i32/x :: unwrapOr add baseInc /x /STEP i32:0.\n",
+            "pub v/u32/over u32/x :: /x.\n",
+            "pub v/dcs/toDcs l/dc/xs :: conv /xs dcs.\n",
+            "pub v/l/dc/toList dcs/xs :: conv /xs l/dc.\n",
+            "pub v/dc/mkSurr :: dcFromU128 u128:55296.\n",
+        );
+        let clean_caller = concat!(
+            "ns app/caller.\n",
+            "use std/mxs: baseInc STEP over toDcs toList mkSurr ::.\n",
+            "pub v/i32/run\n",
+            "    const dc/surr mkSurr.\n",
+            "    const dcs/chars toDcs l/dc: /surr dc:ud800 ::.\n",
+            "    const l/dc/back toList /chars.\n",
+            "    const error/e1 error:numberOutsideDcRange.\n",
+            "    const error/e2 error:numberOutsideShortDcRange.\n",
+            "    const error/e3 error:numberOutsideFormatRange.\n",
+            "    const error/e4 error:numberOutsideUnicodeRange.\n",
+            "    const i32/o1 over baseInc i32:3.\n",
+            "    const u32/o2 over u32:9.\n",
+            "    const b/chk and eq len /back u64:2 and eq /o2 u32:9 and ne /e1 /e2 ne /e3 /e4.\n",
+            "    if /chk /o1 /STEP.\n",
+        );
+        parse_and_validate_workspace(&[
+            ModuleInput {
+                source_path: Some("stage_1_impls/std/mxs.sl3"),
+                source: s1_src,
+            },
+            ModuleInput {
+                source_path: Some("stage_2_impls/std/mxs.sr3"),
+                source: s2_src,
+            },
+            ModuleInput {
+                source_path: Some("app/caller.sr3"),
+                source: clean_caller,
+            },
+        ])?;
+
+        // 2. Negative: same-stage duplicate namespace rejected.
+        assert!(
+            parse_and_validate_workspace(&[
+                ModuleInput {
+                    source_path: Some("stage_1_impls/std/dup.sl3"),
+                    source: "ns std/dup.\npub v/u32/a :: u32:1.\n",
+                },
+                ModuleInput {
+                    source_path: Some("stage_1_impls/std/dup.sl3"),
+                    source: "ns std/dup.\npub v/u32/b :: u32:2.\n",
+                },
+            ])
+            .is_err(),
+            "Same-stage duplicate namespace must be rejected"
+        );
+
+        // 3. Negative: Stage 1 module cannot import Stage 2-only exports.
+        assert!(
+            parse_and_validate_workspace(&[
+                ModuleInput {
+                    source_path: Some("stage_1_impls/std/mxs.sl3"),
+                    source: s1_src,
+                },
+                ModuleInput {
+                    source_path: Some("stage_2_impls/std/mxs.sr3"),
+                    source: s2_src,
+                },
+                ModuleInput {
+                    source_path: Some("stage_1_impls/std/s1bad.sl3"),
+                    source: "ns std/s1bad.\nuse std/mxs: mkSurr ::.\npub v/dcVal/bad :: mkSurr.\n",
+                },
+            ])
+            .is_err(),
+            "Stage 1 must not be allowed to import Stage 2 stratum exports"
+        );
+
+        // 4. Negative: cross-stratum `pub` collisions (type, const, same-param routine, differing-arity routine, @dc).
+        for (label, col_s1, col_s2) in [
+            (
+                "pub type",
+                "ns std/col.\npub struct item :: i32.\n",
+                "ns std/col.\npub type u32/item.\n",
+            ),
+            (
+                "pub const",
+                "ns std/col.\npub i32/C i32:1.\n",
+                "ns std/col.\npub i32/C i32:2.\n",
+            ),
+            (
+                "same-param routine",
+                "ns std/col.\npub v/u32/f u32/x :: /x.\n",
+                "ns std/col.\npub v/u32/f u32/x :: /x.\n",
+            ),
+            (
+                "differing-arity routine",
+                "ns std/col.\npub v/u32/f u32/x :: /x.\n",
+                "ns std/col.\npub v/u32/f u32/x u32/y :: /x.\n",
+            ),
+            (
+                "duplicate pub @dc",
+                "ns std/col.\n: @dc l8589999001\npub v/u32/f1 u32/x :: /x.\n",
+                "ns std/col.\n: @dc l8589999001\npub v/u32/f2 u32/x :: /x.\n",
+            ),
+        ] {
+            let res = parse_and_validate_workspace(&[
+                ModuleInput {
+                    source_path: Some("stage_1_impls/std/col.sl3"),
+                    source: col_s1,
+                },
+                ModuleInput {
+                    source_path: Some("stage_2_impls/std/col.sr3"),
+                    source: col_s2,
+                },
+            ]);
+            assert!(
+                res.is_err(),
+                "Cross-stratum '{label}' collision must be rejected"
+            );
+        }
+        Ok(())
+    }
 }
