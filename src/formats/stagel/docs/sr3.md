@@ -62,16 +62,16 @@ StageR 3 builds on top of [StageL 3 (`sl3.md`)](./sl3.md) while enforcing **stri
 
 ---
 
-## 4. Nominal User-Defined Types (`brand` / `type`, `struct`, `enum`) & Shallow `match`
+## 4. Nominal User-Defined Types (`brand` / `type`, Named-Field `struct`, `enum`) & Shallow `match`
 
-StageR 3 supports monomorphic nominal user-defined value types so `.sr3` codecs, AST passes, and standard-library modules do not fall back to untyped `u64` IDs, magic integer tags, or positional lists, and so target backends can emit native target types.
+While StageL 3 ([`sl3.md`](./sl3.md)) already provides nominal positional `struct`s (`Dc 2217 "Begin positional struct declaration"`..`Dc 2218 "End positional struct declaration"`), StageR 3 replaces positional field indexing in `.sr3` declarations with named-field `struct`s (`Dc 2224 "Begin named struct declaration"`..`Dc 2225 "End named struct declaration"`) and adds `brand` / `type` wrappers and `enum`s with shallow exhaustive `match`. Together these give monomorphic nominal user-defined value types so `.sr3` codecs, AST passes, and standard-library modules do not fall back to untyped `u64` IDs, magic integer tags, or positional lists, and so target backends can emit native target types.
 
 ### 4.1 Module Declarations, `use` Resolution, and `: @dc` / `pub dc/<shorthand>` Anchors
-- **Top-level scope & visibility**: Nominal types (`brand`, `type`, `struct`, `enum`) are declared at module top level only—file-private by default, or exported with `pub` and imported explicitly via `use path/to/mod: typeName ::.` (`Dc 2195 "Begin use import"`).
+- **Top-level scope & visibility**: Nominal types (`brand`, `type`, named-field `struct`, `enum`) are declared at module top level only—file-private by default, or exported with `pub` and imported explicitly via `use path/to/mod: typeName ::.` (`Dc 2195 "Begin use import"`).
 - **Slash-segmented type references**: Nominal type names are single identifiers (`nodeId`, `point`, `token`) that slot directly into StageL/StageR `/` type paths (`point/p`, `l/point/pts`, `option/nodeId/id`, `v/point/origin` in `Dc 2203 "Begin routine declaration"`) and normalize into `.sri3` (`f660`) with zero changes to the 32-character normalizer.
 - **Graph identity & ontology binding**:
   - Module-defined algorithmic types carry auto-assigned `: @dc l<id>` System-block directive comments (revised across edits via `Dc 591 "Supersedes"` while historical snapshots pinned via `Dc 641 "Global graph system block most recent node ID at time of document creation"` resolve the layout active at their pin).
-  - `pub dc/<shorthand>` on a `brand`, `type`, `struct`, or `enum` binds the StageR nominal type directly to an existing Format Dc (`f<N>`) or Semantic `Dc 565 "Type"` node rather than creating a duplicate ontology entry.
+  - `pub dc/<shorthand>` on a `brand`, `type`, named-field `struct`, or `enum` binds the StageR nominal type directly to an existing Format Dc (`f<N>`) or Semantic `Dc 565 "Type"` node rather than creating a duplicate ontology entry.
 
 ### 4.2 Branded Types & Opaque Newtypes (`brand` vs. `type`)
 - **Transparent brand (`[pub [dc/<shorthand>]] brand BASE_TYPE/name.`)**:
@@ -88,6 +88,7 @@ StageR 3 supports monomorphic nominal user-defined value types so `.sr3` codecs,
   - `field EXPR fieldName` (fixed arity 2) projects `fieldName` from a `struct` expression.
   - `with EXPR fieldName NEW_EXPR` (fixed arity 3) evaluates `EXPR` then `NEW_EXPR` and returns a new `struct` value with `fieldName` replaced.
 - **Type invariants**: Fields cannot have type `void` (`f1425`), `never` (`f1426`), or—on `pub` structs or any struct used inside `l/T`—local-only `buf/T` (`Dc 2577 "StageL buffer type"`). Unguarded zero-indirection value cycles (`struct A` directly containing `A`) are compile-time errors. Structural `eq` / `ne` is defined iff all field types support `eq`.
+- **Cross-dialect `struct` interop**: `.sr3` `struct` declarations always define named fields (`Dc 2224 "Begin named struct declaration"`..`Dc 2225 "End named struct declaration"`, lowered to StageL 3 positional `struct`s by `f1681`, while positional `field EXPR u32:IDX` and `with EXPR u32:IDX NEW_EXPR` remain available in `.sr3` on `tup: ... ::`). Stage 1 carrier `pub struct`s (`std/i128:i128Val`, `std/u128:u128Val`, `std/bigint:bigInt`, `std/rat:ratVal`, `std/dctf:dcVal`) bridge transparently to `i128`, `u128`, `int`, `rat`, and `dc`, whereas other StageL 3 positional `pub struct`s imported via `use` into `.sr3` are treated as opaque nominal types (passable, storable, returnable, and `eq`/`ne`-comparable when all slots support `eq`, while construction and slot access stay in StageL 3).
 
 ### 4.4 Enums (`enum`) & Shallow Exhaustive `match`
 - **Declaration**: `[pub [dc/<shorthand>]] enum name` declares a tagged union of one or more uniquely named variants, each with `0` payload (`variantName`) or `1` concrete payload type (`PAYLOAD_TYPE/variantName`; multi-field variant payloads wrap a `struct`).

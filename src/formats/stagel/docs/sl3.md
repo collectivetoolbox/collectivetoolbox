@@ -10,8 +10,8 @@
 
 The language stack is split into three distinct languages (separate from the bootstrap directory numbers):
 
-1. **StageL 3 (`f656`, `.sl3`)**: Small, strictly typed, expression-oriented Polish-prefix core language. Supports named nested verbs with shared lexical capture and mandatory constant-stack tail calls, but **not** first-class function values.
-2. **StageR 3 (`f657`, `.sr3`)**: Implemented using StageL 3; extends StageL 3 with 128-bit and arbitrary-precision numbers (`i128`, `u128`, `int`, `rat`), Document Character and string types (`dc`, `dcs`, `s`), zero-copy `view`/`cursor` handles, `option/T`, `result/T`, monomorphic nominal value types (`brand` / `type`, `struct`, `enum`) with shallow exhaustive `match`, and bare `"..."` Dcts literals. See [`sr3.md`](./sr3.md).
+1. **StageL 3 (`f656`, `.sl3`)**: Small, strictly typed, expression-oriented Polish-prefix core language. Supports anonymous `n`-ary tuples (`tup: ... ::`), nominal positional `struct`s (`struct NAME :: T_0 ... T_{n-1}.`, `Dc 2217 "Begin positional struct declaration"`..`Dc 2218 "End positional struct declaration"`), named nested verbs with shared lexical capture, and mandatory constant-stack tail calls, but **not** first-class function values.
+2. **StageR 3 (`f657`, `.sr3`)**: Implemented using StageL 3; extends StageL 3 with 128-bit and arbitrary-precision numbers (`i128`, `u128`, `int`, `rat`), Document Character and string types (`dc`, `dcs`, `s`), zero-copy `view`/`cursor` handles, `option/T`, `result/T`, additional monomorphic nominal value types (`brand` / `type`, named-field `struct`, and `enum`) with shallow exhaustive `match`, and bare `"..."` Dcts literals. See [`sr3.md`](./sr3.md).
 3. **EM3 (`f658`, `.em3` / compact `f661`, `.emc`)**: Full VSO semantic and programming language built on StageR 3, adding speakable/compact profiles and **first-class functions** (anonymous verbs, passed callbacks, returned/escaping closures).
 
 ### Tokenized Dc Graph Representation vs. Seed ASCII Source (`.WASM` Restriction)
@@ -92,7 +92,7 @@ StageL 3 and StageR 3 support two file layouts under `stage_1_impls/`, `stage_2_
      use std/bytes/slice: startsWith endsWith ::.
      use std/ascii/char: isDigit as isAsciiDigit ::.
      ```
-   - `use` imports explicitly named `pub` verbs and `pub` constant values from other namespaces (wildcard `*` imports are disallowed so pass-1 signature collection always knows every verb's fixed arity, and `use` dependencies must form an acyclic DAG).
+   - `use` imports explicitly named `pub` types (`pub struct` in StageL 3; `pub brand`, `pub type`, `pub struct`, and `pub enum` in StageR 3), `pub` verbs, and `pub` constant values from other namespaces (wildcard `*` imports are disallowed so pass-1 signature collection always knows every verb's fixed arity, and `use` dependencies must form an acyclic DAG).
    - **Multi-stage namespace overlaying**: Across the ordered stage directories (`stage_0_impls/` < `stage_1_impls/` < `stage_2_impls/` < `impls/`), a file in a higher stage may declare the same `ns path/to/mod.` as a lower-stage file to supplement that namespace (e.g. `stage_2_impls/std/math.sr3` overlaying `stage_1_impls/std/math.sl3`). Every higher-stage stratum has direct module-local access to definitions declared in lower strata of the same namespace, while cross-stratum `pub` export collisions (duplicate constants, types, or routines with identical parameter signatures) are compile-time errors, and lower stages may never `use` symbols defined in higher stages.
 
 ### 4.2 Unified Top-Level `const` / `pub` Model & Auto-Assigned `: @dc` Annotations
@@ -100,20 +100,21 @@ At file top level, all declarations are immutable (`let` and `set` are local-blo
 - **Bare top-level `v/RETURN/name ...` is an implicit private routine (`Dc 2203` with `false`)**: Declares a file-private verb (do **not** write redundant `const v/...`).
 - **Top-level `[pub [dc/<shorthand>]] struct NAME :: TYPE_0 ... TYPE_{n-1}.` (`Dc 2217 "Begin positional struct declaration"`..`Dc 2218 "End positional struct declaration"`)**: Declares a module-private or exported positional `struct` with one or more non-`void`, non-`never` slot types. Unguarded zero-indirection value cycles across positional `struct`s and `tup: ... ::` slots are rejected at compile time, while recursion guarded behind `l/T` (`struct tree :: point l/tree.`) is valid. Transitive `buf/T` containment is tracked across tuples and positional `struct`s so `buf`-containing composites remain local-only (forbidden on `pub struct`, `pub`/`const` top-level values, `pub` routine signatures, captured variables, tail-call parameters, and `l/T` elements).
 - **`const TYPE/name EXPR.` (`Dc 2199`)**: Declares a file-private constant value/data/list (evaluated as a pure constant expression).
-- **`pub` is the exported declaration form (`Dc 2200` for values, `Dc 2203` with `true` for routines)**:
+- **`pub` is the exported declaration form (`Dc 2200` for values, `Dc 2203` with `true` for routines, `Dc 2217` with `true` for positional `struct`s)**:
   - `pub v/RETURN/name ...` exports a verb from the file's `ns` module.
   - `pub TYPE/name EXPR.` exports a reusable constant value/data/list (referenced via `Dc 2202 "Typed value reference"` `/name` or `TYPE/name`, which never collides with 0-arg verb calls `Dc 2211 "Begin routine call"`..`Dc 2212 "End routine call"`).
-  - `pub dc/<shorthand> v/...` or `pub dc/<shorthand> TYPE/name EXPR.` binds an exported namespace item as the implementation of an already-allocated Core Short Dc or Format Dc from `categories/*.csv`.
+  - `pub [dc/<shorthand>] struct NAME :: TYPE_0 ... TYPE_{n-1}.` exports a positional `struct` from the file's `ns` module (or binds it to an existing Dc when `dc/<shorthand>` is given).
+  - `pub dc/<shorthand> v/...`, `pub dc/<shorthand> TYPE/name EXPR.`, or `pub dc/<shorthand> struct ...` binds an exported namespace item as the implementation/definition of an already-allocated Core Short Dc or Format Dc from `categories/*.csv`.
 
 | Declaration Scope & Form | Visibility | Graph Node Allocation |
 | :--- | :--- | :--- |
 | **Nested `const v/RET/name ...`** (inside a verb or `do ... ::` block) | Enclosing block | **No separate Dc** (compiled inside enclosing verb's Dc; shares lexical frame) |
-| **Top-level `v/...` or `const TYPE/name ...`** | File-private | **Dedicated System-region Dc (`l<id>`)** (`Dc 586 "Is an instance of"` `Dc 615 "Enclosing document"` `<type>` + `Dc 611 "Canonical decomposition"`) |
-| **Top-level `pub v/...` or `pub TYPE/name ...`** | Exported from `ns` | **Dedicated System-region Dc (`l<id>`)** + `Dc 584 "Has a"` `Dc 574 "Programmatic identifier"` qualified by `Dc 646 "In context of"` namespace filepath |
+| **Top-level `v/...`, `const TYPE/name ...`, or `struct NAME :: ...`** | File-private | **Dedicated System-region Dc (`l<id>`)** (`Dc 586 "Is an instance of"` `Dc 615 "Enclosing document"` `<type>` for values/routines or `Dc 2673 "Built-in type identifier: Struct"` for structs, plus `Dc 611 "Canonical decomposition"`) |
+| **Top-level `pub v/...`, `pub TYPE/name ...`, or `pub struct NAME :: ...`** | Exported from `ns` | **Dedicated System-region Dc (`l<id>`)** + `Dc 584 "Has a"` `Dc 574 "Programmatic identifier"` qualified by `Dc 646 "In context of"` namespace filepath |
 | **Top-level `pub dc/<id> ...`** (or `<id>_*.sl3` root file) | Exported / Global Dc | **Attaches `Dc 611 "Canonical decomposition"` to pre-assigned Short/Format Dc `<id>`** |
 
 #### Auto-Assigned `: @dc <shorthand>` Directive Comments
-Just as leaving Column 1 (`Dc`) blank in `categories/*.csv` causes the generator to assign and write back the permanent ID, top-level verbs and constants in `.sl3` / `.sr3` seed files without an ID receive an auto-assigned System-block `l<id>` written onto a dedicated comment line immediately before the declaration:
+Just as leaving Column 1 (`Dc`) blank in `categories/*.csv` causes the generator to assign and write back the permanent ID, top-level types (`struct`, `brand`, `type`, `enum`), verbs, and constants in `.sl3` / `.sr3` seed files without an ID receive an auto-assigned System-block `l<id>` written onto a dedicated comment line immediately before the declaration:
 ```text
 : @dc l8590012345
 pub l/u8/dcmmMagic b"DcMM/0".
@@ -146,9 +147,9 @@ v/RETURN/name TYPE/param1 TYPE/param2 ...
   - Explicit types remain mandatory on all new binding declarations (`let`, `const`, `pub`, routine parameters, and `foreach` element bindings).
 - **`*StageLInternal` stage-boundary gating**:
   - Identifiers ending in `StageLInternal` (case-insensitively, e.g. `modStageLInternal`, `assertStageLInternal`) are Stage 1 bootstrap/StageL-only helpers permitted in `stage_1_impls/` and prohibited from being declared, `use`-imported (including with `as` or `dc/`), or called in `stage_2_impls/`, `impls/`, or `.sr3` files.
-- **Namespace-scoped identifier validation (`StageL 3 ⊂ StageR 3`)**:
+- **Namespace-scoped identifier validation across StageL 3 and StageR 3**:
   - Any valid `[A-Za-z_][A-Za-z0-9_]*` identifier is permitted for `/`-prefixed bindings, named struct fields, enum variants, and `use`-imported items (so words such as `in`, `out`, `s`, `b`, `len`, `type`, or `error` remain usable in delimited contexts without a global reserved-word table).
-  - Type declarations (`struct`, `brand`, `type`, `enum`) reject the built-in type keywords (`BUILTIN_TYPE_WORDS`, checked ASCII case-insensitively), and routine declarations (`v/RETURN/name`) reject the built-in head forms and core verbs (`BUILTIN_HEAD_WORDS`, checked ASCII case-insensitively). Both tables are unified across StageL 3 and StageR 3 so every valid StageL 3 user declaration remains valid in StageR 3 (preserving the narrow StageL 3 bootstrap exception for `std/bytes::{explode, implode}`).
+  - Type declarations (`struct`, `brand`, `type`, `enum`) reject the built-in type keywords (`BUILTIN_TYPE_WORDS`, checked ASCII case-insensitively), and routine declarations (`v/RETURN/name`) reject the built-in head forms and core verbs (`BUILTIN_HEAD_WORDS`, checked ASCII case-insensitively). Both tables are unified across StageL 3 and StageR 3 so every valid identifier on a StageL 3 declaration remains valid in StageR 3 (preserving the narrow StageL 3 bootstrap exception for `std/bytes::{explode, implode}`), while `struct` declaration and field/slot syntax differs by dialect (positional `struct NAME :: T_0 ... .` in `.sl3` vs. named-field `struct name` in `.sr3`).
 
 Inside a verb or `do ... ::` block:
 1. **`let TYPE/name [EXPR]`** — Declares a new **mutable** local variable in the current block and returns `void` (unit).
