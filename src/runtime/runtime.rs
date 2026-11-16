@@ -4774,11 +4774,13 @@ mod tests {
 
     fn admit_high_budget_execution_kernel() -> Result<SystemSupervisorAdmission> {
         let mut limits = DcWasmResourceLimits::default();
-        limits.max_instructions_per_step = 100_000_000;
-        SystemSupervisorAdmission::admit_execution_kernel(
-            limits,
-            DcWasmWatchdogLimits::default(),
-        )
+        limits.max_instructions_per_step = 1_000_000_000;
+        limits.max_memory_pages = 1024;
+        limits.max_step_output_bytes = 32 * 1024 * 1024;
+        limits.max_session_output_bytes = 64 * 1024 * 1024;
+        let watchdog = DcWasmWatchdogLimits::default()
+            .with_hard_max_instructions_per_step(1_000_000_000);
+        SystemSupervisorAdmission::admit_execution_kernel(limits, watchdog)
     }
 
     #[crate::ctb_test]
@@ -4831,6 +4833,11 @@ v/l/u8/step l/u8/input
                 &std_in,
                 &shared_res,
             )?;
+        assert!(
+            !trace_std_pinned.result.broke_out_early,
+            "unexpected early interruption on pinned std execution: {:?}",
+            trace_std_pinned.events
+        );
         assert_eq!(
             trace_std_pinned.result.output.to_dc_string()?.to_string(),
             "one:two:three!ok"
@@ -4844,6 +4851,11 @@ v/l/u8/step l/u8/input
                 &std_in,
                 &shared_res,
             )?;
+        assert!(
+            !trace_std_unpinned.result.broke_out_early,
+            "unexpected early interruption on unpinned std execution: {:?}",
+            trace_std_unpinned.events
+        );
         assert_eq!(
             trace_std_unpinned.result.output.to_dc_string()?.to_string(),
             "one:two:three!ok"
@@ -5169,15 +5181,7 @@ v/l/u8/step l/u8/inp
         let shared_res = DatasetRuleResolver::from_seed_graph(shared_sg)?;
         let head_pin = shared_sg.system_block_most_recent_node_id().unwrap();
 
-        let mut limits = DcWasmResourceLimits::default();
-        limits.max_instructions_per_step = 1_000_000_000;
-        limits.max_memory_pages = 1024;
-        limits.max_step_output_bytes = 32 * 1024 * 1024;
-        limits.max_session_output_bytes = 64 * 1024 * 1024;
-        let watchdog = DcWasmWatchdogLimits::default()
-            .with_hard_max_instructions_per_step(1_000_000_000);
-        let stager_adm =
-            SystemSupervisorAdmission::admit_execution_kernel(limits, watchdog)?;
+        let stager_adm = admit_high_budget_execution_kernel()?;
 
         let sr3_src = r#"ns app/kernel_stager.
 
