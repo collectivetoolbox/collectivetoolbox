@@ -675,6 +675,8 @@ Supported transformations (--transform):
     add_system_graph_most_recent (AddSystemGraphMostRecent): Add global graph system block most recent
     codetotext (CodeToText): Programmatic Dcs to text
     semantictotext (SemanticToText): Semantic Dcs to text
+    stagel3_to_wasm (StageL3ToWasm): StageL 3 Dcs to WASM
+    stager3_to_stagel3 (StageR3ToStageL3): StageR 3 Dcs to StageL 3 Dcs
     unicode_to_short_dc (UnicodeToShortDc): Unicode characters to equivalent short Dcs
 
 Examples:
