@@ -266,9 +266,10 @@ fn parse_validate_and_test_stagel_files(
         if let Some(prev_idx) =
             seen_stage_ns.insert((f.stage, expected_ns.clone()), file_idx)
         {
-            let prev_path = files
+            let prev_path = &files
                 .get(prev_idx)
-                .map_or("", |pf| pf.repo_rel_path.as_str());
+                .context("Missing previous file metadata for duplicate namespace")?
+                .repo_rel_path;
             bail!(
                 "Duplicate namespace '{expected_ns}' within stage '{}' ({} and {})",
                 f.stage.dir_name(),

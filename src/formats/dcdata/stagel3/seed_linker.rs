@@ -2169,11 +2169,9 @@ fn assemble_topo_sorted_modules_with_seed_graph(
             } else {
                 None
             };
-            let caller_rank = all_stage_ranks
+            let caller_rank = *all_stage_ranks
                 .get(idx)
-                .copied()
-                .flatten()
-                .unwrap_or(u8::MAX);
+                .context("Missing caller module stage rank")?;
             let has_sl3_stratum = cand_strata.iter().any(|&ci| {
                 all_modules
                     .get(ci)
@@ -2186,14 +2184,11 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                 {
                     continue;
                 }
-                let dep_rank = all_stage_ranks
+                let dep_rank = *all_stage_ranks
                     .get(dep_idx)
-                    .copied()
-                    .flatten()
-                    .unwrap_or(u8::MAX);
-                if dep_rank != u8::MAX
-                    && caller_rank != u8::MAX
-                    && dep_rank > caller_rank
+                    .context("Missing dependency module stage rank")?;
+                if let (Some(dr), Some(cr)) = (dep_rank, caller_rank)
+                    && dr > cr
                 {
                     continue;
                 }
