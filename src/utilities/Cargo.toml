@@ -69,9 +69,6 @@ rand_08 = { package = "rand", version = "0.8" }
 rand_core_06 = { package = "rand_core", version = "0.6" }
 float-cmp = "0.10.0"
 
-[target.'cfg(unix)'.dependencies]
-fork = "0.6.0"
-
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-sys = { version = "0.61.2", features = [
     "Win32_UI_Shell",

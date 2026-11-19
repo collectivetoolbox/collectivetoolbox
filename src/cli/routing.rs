@@ -36,7 +36,7 @@ use ctb_utilities::json::maybe_value::MaybeOption;
 use std::path::PathBuf;
 
 use crate::utilities::{
-    fork, get_this_executable, upgrade_in_place,
+    get_this_executable, spawn_detached, upgrade_in_place,
     wait_for_ctoolbox_exit_and_clean_up,
 };
 use crate::{StringInput, generate_help_bytes};
@@ -873,10 +873,10 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         }
         Command::WaitRestart { pid, port } => {
             wait_for_ctoolbox_exit_and_clean_up(*pid);
-            fork(
+            spawn_detached(
                 &get_this_executable()?,
-                vec!["--ctoolbox-ipc-port", &port.to_string().as_str()],
-            );
+                ["--ctoolbox-ipc-port", port.to_string().as_str()],
+            )?;
             Ok(ToolResult::immediate_ok(Vec::new()))
         }
         Command::WaitUpgrade {
@@ -887,10 +887,10 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         } => {
             wait_for_ctoolbox_exit_and_clean_up(*pid);
             upgrade_in_place(temp_path, target_path)?;
-            fork(
+            spawn_detached(
                 target_path,
-                vec!["--ctoolbox-ipc-port", &port.to_string().as_str()],
-            );
+                ["--ctoolbox-ipc-port", port.to_string().as_str()],
+            )?;
             Ok(ToolResult::immediate_ok(Vec::new()))
         }
         Command::Base2Base { args, base_args } => {

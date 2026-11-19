@@ -23,17 +23,16 @@ use core::panic;
 
 // Allow proc-macro expansions to refer to this crate as `::ctb_utilities`.
 extern crate self as ctb_utilities;
-#[cfg(unix)]
-use fork::{Fork, daemon};
 use passwords::PasswordGenerator;
 use serde::Serialize;
 use std::backtrace::Backtrace;
 use std::collections::HashMap;
+use std::env;
+use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
 use std::future::Future;
-use std::path::PathBuf;
-use std::process::Command;
-use std::{env, fs};
+use std::path::{Path, PathBuf};
+use std::process::{Child, Command, Stdio};
 use sysinfo::{Pid, Process, System};
 use unicode_segmentation::UnicodeSegmentation;
 // FIXME: TryRngCore is the fallible variant of RngCore, which says it's not meant to be used by end-users directly. The alternative suggested in the docs, rand::Rng, doesn't seem to provide fill_bytes/try_fill_bytes. How on earth am I supposed to get random bytes then?!
@@ -596,30 +595,69 @@ pub async fn tokio_usleep(microseconds: u64) {
     tokio::time::sleep(std::time::Duration::from_micros(microseconds)).await;
 }
 
-pub fn upgrade_in_place(
-    temp_path: &PathBuf,
-    target_path: &PathBuf,
-) -> Result<()> {
-    fs::copy(temp_path, target_path)
-        .with_context(|| "Failed to copy new executable over old one")?;
-    Ok(())
+/// Replaces `target_path` with `temp_path` while preserving safety when
+/// `target_path` is currently executing.
+pub fn upgrade_in_place(temp_path: &Path, target_path: &Path) -> Result<()> {
+    files::replace_executable_file(temp_path, target_path)
+        .with_context(|| "Failed to replace executable in place")
 }
 
-pub fn fork(path: &PathBuf, args: Vec<&str>) {
-    #[cfg(unix)]
-    {
-        if let Ok(Fork::Child) = daemon(false, false) {
-            if let Err(_e) = Command::new(path).args(args).output() {
-                log!("failed to execute process: {e:?}");
+/// Retries a process-spawn closure when the OS transiently reports
+/// `ExecutableFileBusy` (`ETXTBSY`) across concurrent threads.
+pub fn spawn_with_etxtbsy_retry<F>(mut spawn_fn: F) -> std::io::Result<Child>
+where
+    F: FnMut() -> std::io::Result<Child>,
+{
+    const RETRY_DELAYS_MS: [u64; 5] = [10, 20, 40, 80, 160];
+    for delay_ms in RETRY_DELAYS_MS {
+        match spawn_fn() {
+            Err(err)
+                if err.kind() == std::io::ErrorKind::ExecutableFileBusy =>
+            {
+                std::thread::sleep(std::time::Duration::from_millis(delay_ms));
             }
+            other => return other,
         }
     }
-    #[cfg(not(unix))]
-    {
-        if let Err(e) = Command::new(path).args(args).spawn() {
-            log!("failed to spawn process: {e:?}");
+    spawn_fn()
+}
+
+/// Spawns `path` as a detached background process without invoking shell
+/// wrappers or unsafe post-fork setup.
+pub fn spawn_detached<I, S>(path: &Path, args: I) -> Result<()>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let collected_args: Vec<OsString> = args
+        .into_iter()
+        .map(|arg| arg.as_ref().to_os_string())
+        .collect();
+    let _child = spawn_with_etxtbsy_retry(|| {
+        let mut cmd = Command::new(path);
+        cmd.args(&collected_args)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            cmd.process_group(0);
         }
-    }
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            use windows_sys::Win32::System::Threading::{
+                CREATE_NEW_PROCESS_GROUP, DETACHED_PROCESS,
+            };
+            cmd.creation_flags(CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS);
+        }
+        cmd.spawn()
+    })
+    .with_context(|| {
+        format!("Failed to spawn detached process {}", path.display())
+    })?;
+    Ok(())
 }
 
 // This API is annoying, I can't figure out how to get it to take just the PID

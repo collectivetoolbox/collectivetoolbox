@@ -139,58 +139,55 @@ pub fn start_atomic_upgrade(
     // Create backup path next to the target
     let backup_path = target_path.with_extension("backup");
 
-    // Step 1: Copy current binary to backup
-    fs::copy(target_path, &backup_path).with_context(|| {
+    // Back up the running binary and stage-replace `target_path` safely on
+    // both Unix (no ETXTBSY) and Windows (rename active binary aside first).
+    ctb_utilities::files::replace_executable_with_backup(
+        new_binary_path,
+        target_path,
+        &backup_path,
+    )
+    .with_context(|| {
         format!(
-            "Failed to create backup of {} at {}",
+            "Failed to replace {} with {} (backup at {})",
             target_path.display(),
+            new_binary_path.display(),
             backup_path.display()
         )
     })?;
 
-    log_fmt!("Created backup at {}", backup_path.display());
+    log_fmt!(
+        "Installed new binary at {} (backup at {})",
+        target_path.display(),
+        backup_path.display()
+    );
 
-    // Step 2: Copy new binary over the current location
-    fs::copy(new_binary_path, target_path).with_context(|| {
-        format!(
-            "Failed to copy new binary from {} to {}",
-            new_binary_path.display(),
-            target_path.display()
-        )
-    })?;
-
-    // Set executable permissions on Linux
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(target_path)
-            .context("Failed to get binary metadata")?
-            .permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(target_path, perms)
-            .context("Failed to set executable permissions")?;
-    }
-
-    log_fmt!("Installed new binary at {}", target_path.display());
-
-    // Step 3: Spawn the new binary with --ctb-upgrade-canary
-    // Convert args to Vec<&str> for the fork function
-    let mut args: Vec<&str> = vec!["ctb-upgrade-canary", "--backup-path"];
-    let backup_path_str = backup_path.to_string_lossy().to_string();
-    args.push(&backup_path_str);
-    args.push("--target-path");
-    let target_path_str = target_path.to_string_lossy().to_string();
-    args.push(&target_path_str);
-
-    let port_str;
+    // Spawn the new binary with `ctb-upgrade-canary`; roll back if launch fails.
+    let mut args = vec![
+        std::ffi::OsString::from("ctb-upgrade-canary"),
+        std::ffi::OsString::from("--backup-path"),
+        backup_path.as_os_str().to_os_string(),
+        std::ffi::OsString::from("--target-path"),
+        target_path.as_os_str().to_os_string(),
+    ];
     if let Some(p) = port {
-        port_str = p.to_string();
-        args.push("--port");
-        args.push(&port_str);
+        args.push(std::ffi::OsString::from("--port"));
+        args.push(std::ffi::OsString::from(p.to_string()));
     }
 
-    // Use the utilities fork function to spawn as a detached process
-    ctb_utilities::fork(&target_path.to_path_buf(), args);
+    if let Err(spawn_err) = ctb_utilities::spawn_detached(target_path, &args) {
+        let rollback_status = match fs::rename(&backup_path, target_path) {
+            Ok(()) => "restored original binary from backup".to_owned(),
+            Err(rollback_err) => {
+                format!("rollback also failed: {rollback_err}")
+            }
+        };
+        return Err(spawn_err).with_context(|| {
+            format!(
+                "Failed to spawn canary process {} ({rollback_status})",
+                target_path.display()
+            )
+        });
+    }
 
     log_fmt!("Spawned canary process; caller should exit now");
 
@@ -219,13 +216,24 @@ pub fn run_canary_validation(
     target_path: &Path,
     port: Option<u16>,
 ) -> Result<()> {
-    log_fmt!(
-        "Starting canary validation, waiting {}s...",
-        CANARY_WAIT_SECS
-    );
+    run_canary_validation_with_delay(
+        backup_path,
+        target_path,
+        port,
+        Duration::from_secs(CANARY_WAIT_SECS),
+    )
+}
+
+fn run_canary_validation_with_delay(
+    backup_path: &Path,
+    target_path: &Path,
+    port: Option<u16>,
+    wait: Duration,
+) -> Result<()> {
+    log_fmt!("Starting canary validation, waiting {}s...", wait.as_secs());
 
     // Wait for the canary period
-    std::thread::sleep(Duration::from_secs(CANARY_WAIT_SECS));
+    std::thread::sleep(wait);
 
     log_fmt!("Canary validation passed, deleting backup");
 
@@ -272,24 +280,14 @@ pub fn restore_from_backup(
         );
     }
 
-    fs::copy(backup_path, target_path).with_context(|| {
-        format!(
-            "Failed to restore backup from {} to {}",
-            backup_path.display(),
-            target_path.display()
-        )
-    })?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(target_path)
-            .context("Failed to get binary metadata")?
-            .permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(target_path, perms)
-            .context("Failed to set executable permissions")?;
-    }
+    ctb_utilities::files::replace_executable_file(backup_path, target_path)
+        .with_context(|| {
+            format!(
+                "Failed to restore backup from {} to {}",
+                backup_path.display(),
+                target_path.display()
+            )
+        })?;
 
     // Delete the backup after successful restore
     fs::remove_file(backup_path).with_context(|| {
@@ -304,11 +302,10 @@ pub fn restore_from_backup(
 /// Restarts ctoolbox with the given port.
 fn restart_ctoolbox(binary_path: &Path, port: u16) -> Result<()> {
     let port_str = port.to_string();
-    ctb_utilities::fork(
-        &binary_path.to_path_buf(),
-        vec!["--ctoolbox-ipc-port", &port_str],
-    );
-    Ok(())
+    ctb_utilities::spawn_detached(
+        binary_path,
+        ["--ctoolbox-ipc-port", port_str.as_str()],
+    )
 }
 
 /// Downloads the new binary for an update.
@@ -366,7 +363,6 @@ pub async fn download_new_binary(
 )]
 mod tests {
     use super::*;
-    use std::io::Write;
     use std::process::{Command, Stdio};
     use tempfile::TempDir;
 
@@ -579,105 +575,175 @@ mod tests {
         }
     }
 
-    /// Writes a canary shell script, marks it executable, and runs it via
-    /// `/bin/sh`.
-    #[cfg(unix)]
-    fn spawn_canary_script(
-        script_path: &Path,
-        script: &str,
-        backup_path: &Path,
-    ) -> std::process::Child {
-        use std::os::unix::fs::PermissionsExt;
+    /// Integration test that spawns a self-re-exec child running the canary
+    /// validation flow and verifies it cleans up the backup and exits cleanly.
+    #[crate::ctb_test]
+    fn test_canary_process_exits_cleanly() {
+        const BACKUP_ENV: &str = "CTB_TEST_CANARY_BACKUP_PATH";
+        const TARGET_ENV: &str = "CTB_TEST_CANARY_TARGET_PATH";
+        if let (Some(backup_path), Some(target_path)) =
+            (std::env::var_os(BACKUP_ENV), std::env::var_os(TARGET_ENV))
+        {
+            run_canary_validation_with_delay(
+                Path::new(&backup_path),
+                Path::new(&target_path),
+                None,
+                Duration::from_millis(100),
+            )
+            .unwrap();
+            return;
+        }
 
-        fs::write(script_path, script).unwrap();
-        let mut perms = fs::metadata(script_path).unwrap().permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(script_path, perms).unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        let backup_path = temp_dir.path().join("test.backup");
+        let target_path = temp_dir
+            .path()
+            .join(format!("ctoolbox{}", std::env::consts::EXE_SUFFIX));
+        fs::write(&backup_path, b"backup content").unwrap();
 
-        // Invoke `/bin/sh` explicitly instead of execing `script_path`
-        // directly: in a multithreaded test process, a concurrent `fork()`
-        // can inherit a temporary `O_WRONLY` descriptor before `O_CLOEXEC`
-        // closes it on `execve()`, causing the kernel's `deny_write_access`
-        // check on the freshly written file to fail with `ETXTBSY`.
-        Command::new("/bin/sh")
-            .arg(script_path)
-            .arg(backup_path)
+        let current_exe = std::env::current_exe().unwrap();
+        let mut child = Command::new(&current_exe)
+            .args([
+                "--exact",
+                "upgrade::tests::test_canary_process_exits_cleanly",
+                "--nocapture",
+            ])
+            .env(BACKUP_ENV, &backup_path)
+            .env(TARGET_ENV, &target_path)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .expect("Failed to spawn canary script")
-    }
+            .expect("Failed to spawn canary process");
 
-    /// Integration test that actually spawns a child process to test the
-    /// canary mechanism. This creates a simple shell script that simulates
-    /// the upgrade canary behavior.
-    #[crate::ctb_test]
-    #[cfg(unix)]
-    fn test_canary_process_exits_cleanly() {
-        let temp_dir = TempDir::new().unwrap();
-        let script_path = temp_dir.path().join("test-canary.sh");
-
-        // Create a simple script that simulates canary behavior:
-        // - Waits briefly
-        // - Deletes the backup file
-        // - Exits successfully
-        let script = r#"#!/bin/sh
-sleep 0.1
-rm -f "$1"
-exit 0
-"#;
-        let backup_path = temp_dir.path().join("test.backup");
-        fs::write(&backup_path, b"backup content").unwrap();
-
-        // Spawn the "canary" process
-        let mut child = spawn_canary_script(&script_path, script, &backup_path);
-
-        // Wait for it to complete
         let status = child.wait().expect("Failed to wait on canary");
         assert!(status.success(), "Canary should exit successfully");
 
-        // Verify backup was deleted (canary succeeded)
         assert!(
             !backup_path.exists(),
             "Backup should be deleted after successful canary"
         );
     }
 
-    /// Integration test that simulates a crashing canary process.
+    /// Integration test that simulates a crashing canary process via
+    /// self-re-exec and verifies rollback restores the backup.
     #[crate::ctb_test]
-    #[cfg(unix)]
     fn test_canary_crash_leaves_backup() {
-        let temp_dir = TempDir::new().unwrap();
-        let script_path = temp_dir.path().join("test-crash-canary.sh");
+        const CRASH_ENV: &str = "CTB_TEST_CANARY_CRASH_CHILD";
+        if std::env::var_os(CRASH_ENV).is_some() {
+            std::process::exit(1);
+        }
 
-        // Create a script that "crashes" (exits with error before deleting
-        // backup)
-        let script = r"#!/bin/sh
-# Simulate a crash - exit before cleanup
-exit 1
-";
+        let temp_dir = TempDir::new().unwrap();
         let backup_path = temp_dir.path().join("test.backup");
         fs::write(&backup_path, b"backup content").unwrap();
 
-        // Spawn the "crashing canary" process
-        let mut child = spawn_canary_script(&script_path, script, &backup_path);
+        let current_exe = std::env::current_exe().unwrap();
+        let mut child = Command::new(&current_exe)
+            .args([
+                "--exact",
+                "upgrade::tests::test_canary_crash_leaves_backup",
+                "--nocapture",
+            ])
+            .env(CRASH_ENV, "1")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("Failed to spawn crashing canary process");
 
         let status = child.wait().expect("Failed to wait on canary");
         assert!(!status.success(), "Canary should have crashed");
 
-        // Verify backup is still present (for rollback)
         assert!(
             backup_path.exists(),
             "Backup should still exist after canary crash"
         );
 
-        // Now simulate rollback
-        let target_path = temp_dir.path().join("ctoolbox");
+        let target_path = temp_dir
+            .path()
+            .join(format!("ctoolbox{}", std::env::consts::EXE_SUFFIX));
         fs::write(&target_path, b"crashed binary").unwrap();
 
         restore_from_backup(&backup_path, &target_path).unwrap();
 
         let content = fs::read_to_string(&target_path).unwrap();
         assert_eq!(content, "backup content", "Should restore from backup");
+        assert!(
+            !backup_path.exists(),
+            "Backup should be removed after rollback restore"
+        );
+    }
+
+    /// Exercises `start_atomic_upgrade` from a running copy of the test
+    /// binary when the replacement binary fails to launch, verifying rollback.
+    #[crate::ctb_test]
+    fn test_start_atomic_upgrade_rollback_on_unexecutable_binary() {
+        const NEW_BIN_ENV: &str = "CTB_TEST_UPGRADE_ROLLBACK_NEW_BIN";
+        if let Some(new_binary_os) = std::env::var_os(NEW_BIN_ENV) {
+            let current_exe = std::env::current_exe().unwrap();
+            let err = start_atomic_upgrade(
+                Path::new(&new_binary_os),
+                &current_exe,
+                None,
+            )
+            .expect_err("Unexecutable replacement should fail to spawn");
+            assert!(
+                !err.to_string().is_empty(),
+                "Error message should describe spawn failure"
+            );
+            assert!(
+                current_exe.exists(),
+                "Original binary should be restored after rollback"
+            );
+            assert!(
+                !current_exe.with_extension("backup").exists(),
+                "Backup should be consumed by rollback"
+            );
+            return;
+        }
+
+        let temp_dir = TempDir::new().unwrap();
+        let target_exe = temp_dir
+            .path()
+            .join(format!("ctoolbox{}", std::env::consts::EXE_SUFFIX));
+        let current_exe = std::env::current_exe().unwrap();
+        ctb_utilities::files::replace_executable_file(
+            &current_exe,
+            &target_exe,
+        )
+        .unwrap();
+        let original_len = fs::metadata(&target_exe).unwrap().len();
+
+        let bad_new_binary = temp_dir.path().join("bad-update");
+        // Nonexistent shebang interpreter fails with ENOENT on Unix without
+        // triggering execvp's `/bin/sh` fallback, and fails CreateProcessW
+        // (ERROR_BAD_EXE_FORMAT) on Windows.
+        fs::write(&bad_new_binary, b"#!/ctb-nonexistent-interpreter\n")
+            .unwrap();
+
+        let mut child = ctb_utilities::spawn_with_etxtbsy_retry(|| {
+            Command::new(&target_exe)
+                .args([
+                    "--exact",
+                    "upgrade::tests::test_start_atomic_upgrade_rollback_on_unexecutable_binary",
+                    "--nocapture",
+                ])
+                .env(NEW_BIN_ENV, &bad_new_binary)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+        })
+        .expect("Failed to spawn copied test executable");
+
+        let status = child.wait().expect("Failed to wait on child test");
+        assert!(status.success(), "Rollback verification child should pass");
+        assert_eq!(
+            fs::metadata(&target_exe).unwrap().len(),
+            original_len,
+            "Original binary size should be restored after rollback"
+        );
+        assert!(
+            !target_exe.with_extension("backup").exists(),
+            "Backup file should not remain after rollback"
+        );
     }
 }
