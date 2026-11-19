@@ -59,6 +59,15 @@ opt-level = 3
 [profile.dev.package.small_btree]
 opt-level = 3
 
+[profile.dev.package.tinywasm]
+opt-level = 3
+
+[profile.dev.package.tinywasm-parser]
+opt-level = 3
+
+[profile.dev.package.tinywasm-types]
+opt-level = 3
+
 [profile.test]
 inherits = "dev"
 
@@ -94,6 +103,15 @@ opt-level = 3
 opt-level = 3
 
 [profile.test.package.small_btree]
+opt-level = 3
+
+[profile.test.package.tinywasm]
+opt-level = 3
+
+[profile.test.package.tinywasm-parser]
+opt-level = 3
+
+[profile.test.package.tinywasm-types]
 opt-level = 3
 
 [profile.release]

@@ -49,7 +49,7 @@ use sha2::{Digest, Sha256};
 
 use super::wasm::{
     DcWasmResourceLimits, DcWasmSession, SharedWasmTaskQuota,
-    WasmResourceInterruption, WasmStepOutcome, dcmstring_to_wasm_with_resolver,
+    WasmResourceInterruption, WasmStepOutcome,
 };
 use crate::navigator::{
     DcByteSpan, SyntaxEvalContext,
@@ -57,7 +57,7 @@ use crate::navigator::{
 };
 use crate::{
     DcChar, DcCharExt, DcDocumentNavigator, DcMstr, DcMstring,
-    DcProjectionPolicy,
+    DcProjectionPolicy, DcStr, DcString,
 };
 
 /// Maximum nested invocation depth permitted for [`Dc 1940`].
@@ -408,11 +408,11 @@ fn eval_system_graph_query(
 }
 
 fn compile_cached_wasm_doc(
-    wasm_doc: &DcMstr,
+    wasm_dc_str: &DcStr,
     resolver: &dyn SyntaxRuleResolver,
 ) -> Result<Arc<Vec<u8>>> {
     let sg_fp = fingerprint_seed_graph(resolver.seed_graph());
-    let doc_sha: [u8; 32] = Sha256::digest(wasm_doc.as_bytes()).into();
+    let doc_sha: [u8; 32] = Sha256::digest(wasm_dc_str.as_bytes()).into();
     let cache_key = CompiledWasmCacheKey {
         graph: sg_fp,
         wasm_doc_sha256: doc_sha,
@@ -427,7 +427,10 @@ fn compile_cached_wasm_doc(
     {
         return Ok(hit);
     }
-    let assembled = Arc::new(dcmstring_to_wasm_with_resolver(wasm_doc, resolver)?);
+    let assembled = Arc::new(super::wasm::dcstring_to_wasm_with_resolver(
+        wasm_dc_str,
+        resolver,
+    )?);
     cache
         .lock()
         .map_err(|_| anyhow!("PURE_WASM_BYTECODE_CACHE mutex poisoned"))?
@@ -492,11 +495,11 @@ fn eval_execute_pure_wasm(
         )));
     }
 
-    let mut rest_mstr = DcMstring::new();
+    let mut rest_dc_str = DcString::new();
     for &ch in rest {
-        rest_mstr.push_char(ch);
+        rest_dc_str.push(ch);
     }
-    let mut nav = DcDocumentNavigator::from_mstr(&rest_mstr);
+    let mut nav = DcDocumentNavigator::from_dc_str(&rest_dc_str);
     let start_pos = nav.position();
     let mut ctx = SyntaxEvalContext::new(resolver, None);
     let matched_prog = nav.eval_term_single(
@@ -515,9 +518,9 @@ fn eval_execute_pure_wasm(
     let prog_end = nav.position();
     let prog_u128s =
         nav.read_tokens_in_span(DcByteSpan::new(start_pos, prog_end))?;
-    let mut wasm_doc = DcMstring::new();
+    let mut wasm_dc_str = DcString::new();
     for tok in &prog_u128s {
-        wasm_doc.push_char(DcChar::from_u128(*tok));
+        wasm_dc_str.push(DcChar::from_u128(*tok));
     }
 
     let Some(str_slice) = rest.get(prog_u128s.len()..) else {
@@ -537,12 +540,12 @@ fn eval_execute_pure_wasm(
         ));
     }
 
-    let mut lit_mstr = DcMstring::new();
+    let mut lit_dc_str = DcString::new();
     for &ch in str_slice {
-        lit_mstr.push_char(ch);
+        lit_dc_str.push(ch);
     }
     let policy = DcProjectionPolicy::strict();
-    let mut lit_nav = DcDocumentNavigator::from_mstr(&lit_mstr);
+    let mut lit_nav = DcDocumentNavigator::from_dc_str(&lit_dc_str);
     let mut arena = crate::DcSyntaxArena::new();
     if let Err(err) =
         lit_nav.parse_document_into_arena_with_resolver(&mut arena, &policy, resolver)
@@ -563,8 +566,14 @@ fn eval_execute_pure_wasm(
             "Dc 1940 second operand did not decode as a literal [string]",
         ));
     };
+    let child_dc_str =
+        child_input.to_dc_string_with_policy_and_resolver(&policy, resolver)?;
+    let mut raw_child_input = DcMstring::new();
+    for ch in child_dc_str.chars() {
+        raw_child_input.push_char(ch);
+    }
 
-    let wasm_bytes = match compile_cached_wasm_doc(&wasm_doc, resolver) {
+    let wasm_bytes = match compile_cached_wasm_doc(&wasm_dc_str, resolver) {
         Ok(b) => b,
         Err(err) => {
             return Ok(encode_capability_error_record(&format!(
@@ -577,7 +586,8 @@ fn eval_execute_pure_wasm(
     let sg_fp = fingerprint_seed_graph(sg);
     let most_recent = sg.and_then(SeedGraphIndex::system_block_most_recent_node_id);
     let wasm_sha: [u8; 32] = Sha256::digest(wasm_bytes.as_slice()).into();
-    let input_sha: [u8; 32] = Sha256::digest(child_input.as_bytes()).into();
+    let input_sha: [u8; 32] =
+        Sha256::digest(raw_child_input.as_bytes()).into();
     let result_key = PureResultCacheKey {
         graph: sg_fp,
         wasm_bytes_sha256: wasm_sha,
@@ -605,7 +615,7 @@ fn eval_execute_pure_wasm(
 
     let mut child_session = match DcWasmSession::from_wasm_bytes_with_limits(
         wasm_bytes.as_slice(),
-        &child_input,
+        &raw_child_input,
         most_recent,
         limits,
     ) {
@@ -713,24 +723,42 @@ fn run_wasm_session_pure_with_graph_capabilities_inner(
     shared_quota: Option<SharedWasmTaskQuota>,
     depth: usize,
 ) -> Result<(DcMstring, usize)> {
-    let mut frames_or_empty: Option<DcMstring> = None;
+    let mut frames_or_empty: Option<DcString> = None;
     let mut cap_yields = 0usize;
     loop {
         match session.step()? {
             WasmStepOutcome::Complete(out_doc) => {
                 if let Some(mut acc) = frames_or_empty {
-                    for ch in out_doc.to_dc_string()?.chars() {
-                        acc.push_char(ch);
-                    }
-                    return Ok((acc, cap_yields));
+                    let final_dc_str = out_doc.to_dc_string_with_policy_and_resolver(
+                        &DcProjectionPolicy::strict(),
+                        resolver,
+                    )?;
+                    acc.push_dc_str(&final_dc_str);
+                    let combined = match DcMstring::from_dc_str_with_policy_and_resolver(
+                        &acc,
+                        &DcProjectionPolicy::strict(),
+                        resolver,
+                    ) {
+                        Ok(mst) => mst,
+                        Err(_) => {
+                            let mut mst = DcMstring::new();
+                            for ch in acc.chars() {
+                                mst.push_char(ch);
+                            }
+                            mst
+                        }
+                    };
+                    return Ok((combined, cap_yields));
                 }
                 return Ok((out_doc, cap_yields));
             }
             WasmStepOutcome::YieldFrame(frame) => {
-                let acc = frames_or_empty.get_or_insert_with(DcMstring::new);
-                for ch in frame.to_dc_string()?.chars() {
-                    acc.push_char(ch);
-                }
+                let acc = frames_or_empty.get_or_insert_with(DcString::new);
+                let frame_dc_str = frame.to_dc_string_with_policy_and_resolver(
+                    &DcProjectionPolicy::strict(),
+                    resolver,
+                )?;
+                acc.push_dc_str(&frame_dc_str);
             }
             WasmStepOutcome::RequestCapability(req_doc) => {
                 cap_yields = cap_yields.saturating_add(1);
@@ -1192,6 +1220,92 @@ mod tests {
         }
         assert_eq!(out, expected);
         assert!(shared.snapshot()?.total_instructions_executed > 0);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_1940_preserves_binary_data_segments_and_input_encapsulation()
+    -> Result<()> {
+        let resolver = default_syntax_resolver();
+
+        // 1. Child WASM program with an active data segment (`Dc 203..Dc 204` in
+        //    the `[wasm_program]` KV map) that prepends the data segment bytes
+        //    (`"PREFIX:"`) to the raw child DcTF input stream.
+        let child_wat = r#"(module
+          (memory (export "memory") 1)
+          (data (i32.const 32) "PREFIX:")
+          (func (export "step") (result i32)
+            (local $in_ptr i32)
+            (local $in_len i32)
+            (local $out_ptr i32)
+            (local $i i32)
+            (local.set $in_ptr (i32.load (i32.const 0)))
+            (local.set $in_len (i32.load (i32.const 4)))
+            (local.set $out_ptr (i32.const 4096))
+            (local.set $i (i32.const 0))
+            (block $d1
+              (loop $l1
+                (br_if $d1 (i32.ge_u (local.get $i) (i32.const 7)))
+                (i32.store8
+                  (i32.add (local.get $out_ptr) (local.get $i))
+                  (i32.load8_u (i32.add (i32.const 32) (local.get $i))))
+                (local.set $i (i32.add (local.get $i) (i32.const 1)))
+                (br $l1)))
+            (local.set $i (i32.const 0))
+            (block $d2
+              (loop $l2
+                (br_if $d2 (i32.ge_u (local.get $i) (local.get $in_len)))
+                (i32.store8
+                  (i32.add (local.get $out_ptr) (i32.add (i32.const 7) (local.get $i)))
+                  (i32.load8_u (i32.add (local.get $in_ptr) (local.get $i))))
+                (local.set $i (i32.add (local.get $i) (i32.const 1)))
+                (br $l2)))
+            (i32.store (i32.const 8) (local.get $out_ptr))
+            (i32.store (i32.const 12) (i32.add (i32.const 7) (local.get $in_len)))
+            (i32.const 0)))"#;
+        let child_prog = crate::converters::wat::wat_to_dcmstring(child_wat)?;
+        let prog_dc_str = child_prog.to_dc_string()?;
+        assert!(
+            prog_dc_str
+                .chars()
+                .any(|c| c == ctb_formats_dcdata::dc::DC_START_ENCAPSULATION_BINARY),
+            "Expected data segment in [wasm_program] to encode via Dc 203..Dc 204"
+        );
+
+        // Build child input containing a textual `Dc 203 <len> <base64> Dc 204` frame.
+        let mut inner_input = DcString::new();
+        crate::encapsulation::write_text_with_policy_and_resolver(
+            &mut inner_input,
+            b"abc",
+            &DcString::new(),
+            &DcProjectionPolicy::strict(),
+            resolver.as_ref(),
+        )?;
+        let inner_chars: Vec<DcChar> = inner_input.chars().collect();
+        let lit_in = encode_dc_string_literal(&inner_chars);
+
+        let mut req_dcs = vec![DC_EXECUTE_PURE_WASM_PROGRAM];
+        req_dcs.extend(prog_dc_str.chars());
+        req_dcs.extend(lit_in.to_dc_string()?.chars());
+        let req = mstr_from_dcs(&req_dcs);
+
+        let resp = eval_pure_graph_capability_request(
+            &req,
+            resolver.as_ref(),
+            None,
+            0,
+        )?;
+        let mut expected_chars: Vec<DcChar> =
+            "PREFIX:".chars().map(DcChar::from_char).collect();
+        expected_chars.extend(inner_chars);
+        let resp_chars: Vec<DcChar> = resp.to_dc_string()?.chars().collect();
+        assert_eq!(
+            resp_chars,
+            encode_dc_string_literal(&expected_chars)
+                .to_dc_string()?
+                .chars()
+                .collect::<Vec<_>>()
+        );
         Ok(())
     }
 }
