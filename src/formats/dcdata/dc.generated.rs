@@ -416,6 +416,10 @@ pub const DC_DC_DOCUMENT_EXECUTION_KERNEL: DcChar = DcChar::from_short(1936);
 pub const DC_COLLECTIVE_TOOLBOX_WORKSPACE: DcChar = DcChar::from_short(1937);
 /// Evaluates its second operand (and all graph definitions, decompositions, and routines transitively resolved within that evaluation) against the graph snapshot specified by [pin_description]. (Dc 1938).
 pub const DC_RESOLVE_TO_PIN: DcChar = DcChar::from_short(1938);
+/// Queries the active System graph snapshot (respecting any active pin, or HEAD if unpinned) for verbatim node contents (617 <id> 600 618), exact-token reverse lookup (617 600 <tokens...> 618), relationship triples with 600 wildcards, or active snapshot watermark (641 600). (Dc 1939).
+pub const DC_MINIMAL_SYSTEM_GRAPH_QUERY: DcChar = DcChar::from_short(1939);
+/// Executes a pure Dc-WASM program (1927..1928 or wasm_routine) on the supplied [string] input under the shared task instruction quota, returning the program's output [string]. (Dc 1940).
+pub const DC_EXECUTE_PURE_WASM_PROGRAM: DcChar = DcChar::from_short(1940);
 /// Begins a tokenized module containing an optional namespace declaration, zero or more use imports, and zero or more top-level items. (Dc 2192).
 pub const DC_BEGIN_MODULE: DcChar = DcChar::from_short(2192);
 /// Terminates a module begun by Dc 2192. (Dc 2193).
@@ -692,6 +696,8 @@ pub const DC_S_FROM_DCS_OP: DcChar = DcChar::from_short(2613);
 pub const DC_SEQ_EXPLODE_OP: DcChar = DcChar::from_short(2614);
 /// Concatenates a list of sequences (l/l/T, l/dcs, or l/s) interspersed with the first separator operand, returning Seq. (Dc 2615).
 pub const DC_SEQ_IMPLODE_OP: DcChar = DcChar::from_short(2615);
+/// Requests a host capability payload (l/u8 -> l/u8 in StageL 3, s -> result/s in StageR 3) by yielding to the bootstrap kernel host ABI. (Dc 2616).
+pub const DC_REQUEST_HOST_CAPABILITY_OP: DcChar = DcChar::from_short(2616);
 /// Fixed-slot n-ary tuple type parameterized by a Dc 310..Dc 311 list of slot types. (Dc 2672).
 pub const DC_TYPE_TUPLE: DcChar = DcChar::from_short(2672);
 /// References a declared positional or named struct type by identifier or resolved graph Dc. (Dc 2673).

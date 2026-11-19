@@ -418,6 +418,10 @@ pub enum DcRole {
     CollectiveToolboxWorkspace,
     /// Evaluates its second operand (and all graph definitions, decompositions, and routines transitively resolved within that evaluation) against the graph snapshot specified by [pin_description]. (`1938`).
     ResolveToPin,
+    /// Queries the active System graph snapshot (respecting any active pin, or HEAD if unpinned) for verbatim node contents (617 <id> 600 618), exact-token reverse lookup (617 600 <tokens...> 618), relationship triples with 600 wildcards, or active snapshot watermark (641 600). (`1939`).
+    MinimalSystemGraphQuery,
+    /// Executes a pure Dc-WASM program (1927..1928 or wasm_routine) on the supplied [string] input under the shared task instruction quota, returning the program's output [string]. (`1940`).
+    ExecutePureWasmProgram,
     /// Begins a tokenized module containing an optional namespace declaration, zero or more use imports, and zero or more top-level items. (`2192`).
     BeginModule,
     /// Terminates a module begun by Dc 2192. (`2193`).
@@ -694,6 +698,8 @@ pub enum DcRole {
     SeqExplodeOp,
     /// Concatenates a list of sequences (l/l/T, l/dcs, or l/s) interspersed with the first separator operand, returning Seq. (`2615`).
     SeqImplodeOp,
+    /// Requests a host capability payload (l/u8 -> l/u8 in StageL 3, s -> result/s in StageR 3) by yielding to the bootstrap kernel host ABI. (`2616`).
+    RequestHostCapabilityOp,
     /// Fixed-slot n-ary tuple type parameterized by a Dc 310..Dc 311 list of slot types. (`2672`).
     TypeTuple,
     /// References a declared positional or named struct type by identifier or resolved graph Dc. (`2673`).
@@ -914,6 +920,8 @@ match self {
             Self::DcDocumentExecutionKernel => Some(1936),
             Self::CollectiveToolboxWorkspace => Some(1937),
             Self::ResolveToPin => Some(1938),
+            Self::MinimalSystemGraphQuery => Some(1939),
+            Self::ExecutePureWasmProgram => Some(1940),
             Self::BeginModule => Some(2192),
             Self::EndModule => Some(2193),
             Self::NamespaceDecl => Some(2194),
@@ -1052,6 +1060,7 @@ match self {
             Self::SFromDcsOp => Some(2613),
             Self::SeqExplodeOp => Some(2614),
             Self::SeqImplodeOp => Some(2615),
+            Self::RequestHostCapabilityOp => Some(2616),
             Self::TypeTuple => Some(2672),
             Self::TypeStruct => Some(2673),
             Self::TypeOption => Some(2674),
@@ -1267,6 +1276,8 @@ match self {
             Self::DcDocumentExecutionKernel => short == Some(1936),
             Self::CollectiveToolboxWorkspace => short == Some(1937),
             Self::ResolveToPin => short == Some(1938),
+            Self::MinimalSystemGraphQuery => short == Some(1939),
+            Self::ExecutePureWasmProgram => short == Some(1940),
             Self::BeginModule => short == Some(2192),
             Self::EndModule => short == Some(2193),
             Self::NamespaceDecl => short == Some(2194),
@@ -1405,6 +1416,7 @@ match self {
             Self::SFromDcsOp => short == Some(2613),
             Self::SeqExplodeOp => short == Some(2614),
             Self::SeqImplodeOp => short == Some(2615),
+            Self::RequestHostCapabilityOp => short == Some(2616),
             Self::TypeTuple => short == Some(2672),
             Self::TypeStruct => short == Some(2673),
             Self::TypeOption => short == Some(2674),
@@ -1419,7 +1431,7 @@ Self::TypeToken => {
 || matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535 | 640 | 643 | 2672..=2679))
 }
 Self::EvaluableExpressionStarter => {
-matches!(short, Some(256 | 265 | 266 | 268 | 276 | 279 | 307 | 397 | 511 | 540 | 561 | 1938 | 2215 | 2512..=2572 | 2608..=2615))
+matches!(short, Some(256 | 265 | 266 | 268 | 276 | 279 | 307 | 397 | 511 | 540 | 561 | 1938..=1940 | 2215 | 2512..=2572 | 2608..=2616))
 }
 }
 }
