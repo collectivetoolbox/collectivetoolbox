@@ -25,6 +25,7 @@
   - You may propose new dependencies, but must ask before adding them (CI runs offline; the operator vendors changed dependencies before pushing).
   - Version bumps of existing dependencies—especially when `cargo-deny` reports a security advisory—are encouraged and do not require approval.
   - If you want to run a local build offline for testing (either offline or online is acceptable for general development), but the vendored dependencies folder is outdated, stop and report back to the operator. Do **not** revert dependency changes to force it to run anyway.
+- Runtime dependencies other than kernel and optional display server are not permitted.
 
 ### Collaboration, Git, and Sub-Agents
 - **Inspecting recent changes**: Record the starting commit with `git rev-parse HEAD`. Review committed changes with `git diff <start>..HEAD`, staged/unstaged changes with `git diff HEAD`, and new files with `git status --short`. The operator commits and pushes during work, so neither a working-tree diff nor `origin..HEAD` alone is sufficient.
