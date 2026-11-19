@@ -1,0 +1,4459 @@
+: Graph-resident StageR 3 (Dc f657) implementation of
+: Dc 2608 "Convert Dc string to WASM".
+:
+: Compiles an arbitrary quoted Dc document (`[Dc 2608 [string]]`) into a
+: `Dc 1927`..`Dc 1928` (`[wasm_program]`) executable token sequence via the
+: Option B `Dc 1939` (System graph query) and `Dc 1940` (pure WASM child
+: execution) host capability protocol, without performing host Rust graph
+: resolution or converter execution.
+
+ns std/convert_dc_string_to_wasm.
+
+use std/dcs:
+    dcsToList dcsFromList dcFromUnicode
+::.
+
+use std/dctf:
+    skipComments readEscapedLiteral tokEscapedLiteral readIdentBytes
+::.
+
+: ---------------------------------------------------------------------------
+: 0. Internal Result & Domain Types
+: ---------------------------------------------------------------------------
+
+: @dc l8589992764
+enum dcRes
+    l/dc/ok.
+    l/dc/err.
+
+: @dc l8589992765
+struct strStep
+    l/dc/payload.
+    u64/nextPos.
+
+: @dc l8589992766
+enum strStepRes
+    strStep/ok.
+    l/dc/err.
+
+: @dc l8589992767
+struct u128Step
+    u128/val.
+    u64/nextPos.
+
+: @dc l8589992768
+enum optU128Step
+    u128Step/some.
+    none.
+    l/dc/err.
+
+: @dc l8589992769
+struct capAtomStep
+    dc/ch.
+    b/escaped.
+    u64/nextPos.
+
+: @dc l8589992770
+struct declSliceStep
+    l/dc/tokens.
+    u64/nextPos.
+    b/ok.
+
+: @dc l8589992771
+struct useExtractRes
+    l/u8/key.
+    l/dc/tokens.
+    u64/nextPos.
+    b/ok.
+
+: @dc l8589992772
+struct capEntry
+    l/dc/req.
+    l/dc/resp.
+
+: @dc l8589992773
+struct tripleRec
+    u128/stmtId.
+    dc/verb.
+    dc/subj.
+    dc/obj.
+
+: @dc l8589992774
+struct capClient
+    l/capEntry/cache.
+    b/hasWatermark.
+    u128/watermark.
+
+: @dc l8589992775
+struct capCallRes
+    capClient/cli.
+    b/ok.
+    l/dc/payload.
+
+: @dc l8589992776
+struct capOptNodeRes
+    capClient/cli.
+    : 0 = absent (Dc 316), 1 = active payload, 2 = capability error (Dc 552..553).
+    u8/tag.
+    l/dc/payload.
+
+: @dc l8589992777
+struct capU128ListRes
+    capClient/cli.
+    b/ok.
+    l/u128/ids.
+    l/dc/errTokens.
+
+: @dc l8589992778
+struct capTripleListRes
+    capClient/cli.
+    b/ok.
+    l/tripleRec/triples.
+    l/dc/errTokens.
+
+: @dc l8589992779
+struct capBoolRes
+    capClient/cli.
+    b/ok.
+    b/val.
+    l/dc/errTokens.
+
+: @dc l8589992780
+struct propEntry
+    u128/hasAId.
+    dc/val.
+
+: @dc l8589992781
+struct capPropListRes
+    capClient/cli.
+    b/ok.
+    l/propEntry/props.
+    l/dc/errTokens.
+
+: @dc l8589992782
+struct convStep
+    dc/subj.
+    u128/subjId.
+    dc/src.
+    dc/dst.
+    b/preferred.
+    : 0 = WASM (.WASM / [Routine]), 1 = StageL/StageR converter routine/format.
+    u8/kind.
+    l/dc/bodyTokens.
+
+: @dc l8589992783
+struct convListRes
+    capClient/cli.
+    b/ok.
+    l/convStep/steps.
+    l/dc/errTokens.
+
+: @dc l8589992784
+struct graphDeclItem
+    dc/subj.
+    u128/subjId.
+    b/isStager.
+    b/wasPub.
+    b/hasBuf.
+    : 0 = type, 1 = value/const, 2 = routine.
+    u8/catRank.
+    l/l/u8/useKeys.
+    l/dc/useTokens.
+    l/u128/localDcs.
+    l/u128/refDcs.
+    l/dc/declTokens.
+
+: @dc l8589992785
+struct bundledMod
+    b/isStager.
+    b/isCaller.
+    b/wasPub.
+    b/hasBuf.
+    u128/synthDc.
+    l/u8/nsKey.
+    l/l/u8/nsSegs.
+    l/l/u8/useKeys.
+    l/u128/localDcs.
+    l/u128/refDcs.
+    l/dc/tokens.
+
+: @dc l8589992786
+struct scanModRes
+    b/ok.
+    l/bundledMod/mods.
+
+: ---------------------------------------------------------------------------
+: 1. Pure Sequence, Framing & Error Helpers
+: ---------------------------------------------------------------------------
+
+: @dc l8589992791
+v/capClient/emptyClient
+    structNew capClient: cache l/capEntry: :: hasWatermark false watermark u128:0 ::.
+
+: @dc l8589992792
+v/dc/dcAtOr l/dc/xs u64/idx dc/fallback
+    match get /xs /idx
+        case some dc/c /c.
+        case none /fallback.
+    ::.
+
+: @dc l8589992793
+v/u8/u8AtOr l/u8/xs u64/idx u8/fallback
+    match get /xs /idx
+        case some u8/b /b.
+        case none /fallback.
+    ::.
+
+: @dc l8589992794
+v/l/dc/u8sToUnicodeDcs l/u8/bytes
+    test
+        in b"AB"
+        out l/dc: dcFromU128 u128:65 dcFromU128 u128:66 ::.
+    let buf/dc/out bufNew dc len /bytes.
+    foreach u8/b /bytes do
+        match dcFromUnicode conv /b u32
+            case ok dc/c bufPush /out /c.
+            case err error/_e nop.
+        ::.
+    ::.
+    bufFreeze /out.
+
+: @dc l8589992795
+v/l/dc/errRecord l/u8/msg
+    test
+        in b"bad"
+        out l/dc: dc:552 dc:u62 dc:u61 dc:u64 dc:553 ::.
+    const l/dc/chars u8sToUnicodeDcs /msg.
+    let buf/dc/out bufNew dc wrapAdd len /chars u64:4.
+    bufPush /out dc:552.
+    foreach dc/c /chars do
+        if or eq /c dc:255 eq /c dc:553
+            bufPush /out dc:255
+            nop.
+        bufPush /out /c.
+    ::.
+    bufPush /out dc:553.
+    bufFreeze /out.
+
+: @dc l8589992796
+v/dcRes/failMsg l/u8/msg
+    dcRes:err errRecord /msg.
+
+: @dc l8589992797
+v/b/isErrorRecord l/dc/tokens
+    test
+        in l/dc: dc:552 dc:u65 dc:553 ::
+        out true.
+    test
+        in l/dc: dc:260 dc:261 ::
+        out false.
+    if lt len /tokens u64:2
+        return false
+        nop.
+    eq dcAtOr /tokens u64:0 dc:0 dc:552.
+
+: @dc l8589992798
+v/b/dcListEq l/dc/a l/dc/b
+    const u64/n len /a.
+    if ne /n len /b
+        return false
+        nop.
+    let u64/i u64:0.
+    while lt /i /n do
+        if ne dcAtOr /a /i dc:0 dcAtOr /b /i dc:0
+            return false
+            nop.
+        set /i wrapAdd /i u64:1.
+    ::.
+    true.
+
+: @dc l8589992799
+v/b/u8ListEq l/u8/a l/u8/b
+    const u64/n len /a.
+    if ne /n len /b
+        return false
+        nop.
+    let u64/i u64:0.
+    while lt /i /n do
+        if ne u8AtOr /a /i u8:0 u8AtOr /b /i u8:0
+            return false
+            nop.
+        set /i wrapAdd /i u64:1.
+    ::.
+    true.
+
+: @dc l8589992800
+v/b/listContainsU128 l/u128/xs u128/target
+    foreach u128/x /xs do
+        if eq /x /target
+            return true
+            nop.
+    ::.
+    false.
+
+: @dc l8589992801
+v/l/u128/appendUniqueU128 l/u128/xs u128/x
+    if listContainsU128 /xs /x
+        return /xs
+        nop.
+    let buf/u128/out bufNew u128 wrapAdd len /xs u64:1.
+    bufExtend /out /xs.
+    bufPush /out /x.
+    bufFreeze /out.
+
+: @dc l8589992802
+v/b/listContainsDc l/dc/xs dc/target
+    foreach dc/c /xs do
+        if eq /c /target
+            return true
+            nop.
+    ::.
+    false.
+
+: @dc l8589992803
+v/b/listContainsU8Seq l/l/u8/xs l/u8/target
+    foreach l/u8/item /xs do
+        if u8ListEq /item /target
+            return true
+            nop.
+    ::.
+    false.
+
+: @dc l8589992804
+v/b/isSysRegionId u128/id
+    and ge /id u128:8589934592 le /id u128:12884901887.
+
+: @dc l8589992805
+v/b/isSingleLineCommentOpener dc/c
+    or eq /c dc:246 eq /c dc:247.
+
+: @dc l8589992806
+v/b/isBlockCommentOpener dc/c
+    or eq /c dc:249 eq /c dc:250.
+
+: Skips leading single-line (`Dc 246`/`247`..`Dc 248`) and block
+: (`Dc 249`/`250`..`Dc 251`) comment frames from `pos`.
+: @dc l8589992807
+v/u64/skipAllComments l/dc/tokens u64/pos
+    test
+        in l/dc: dc:247 dc:u65 dc:248 dc:249 dc:u66 dc:251 dc:1927 :: u64:0
+        out u64:6.
+    const u64/n len /tokens.
+    let u64/i /pos.
+    while lt /i /n do
+        const dc/tok dcAtOr /tokens /i dc:0.
+        let dc/closer dc:0.
+        if isSingleLineCommentOpener /tok
+            set /closer dc:248
+            if isBlockCommentOpener /tok
+                set /closer dc:251
+                return /i.
+        set /i wrapAdd /i u64:1.
+        let b/closed false.
+        while lt /i /n do
+            const dc/inner dcAtOr /tokens /i dc:0.
+            if eq /inner dc:255
+                do
+                    set /i wrapAdd /i u64:2.
+                    if gt /i /n
+                        set /i /n
+                        nop.
+                ::
+                do
+                    set /i wrapAdd /i u64:1.
+                    if eq /inner /closer
+                        do
+                            set /closed true.
+                            break.
+                        ::
+                        nop.
+                ::.
+        ::.
+        if not /closed
+            return /i
+            nop.
+    ::.
+    /i.
+
+: Skips leading comments in `tokens` and returns the remaining slice.
+: @dc l8589992808
+v/l/dc/stripLeadingComments l/dc/tokens
+    const u64/p skipAllComments /tokens u64:0.
+    match slice /tokens /p len /tokens
+        case some l/dc/rest /rest.
+        case none l/dc: ::.
+    ::.
+
+: @dc l8589992809
+v/b/isAsciiLowerEq u8/a u8/b
+    let u8/la /a.
+    if and ge /la u8:65 le /la u8:90
+        set /la wrapAdd /la u8:32
+        nop.
+    let u8/lb /b.
+    if and ge /lb u8:65 le /lb u8:90
+        set /lb wrapAdd /lb u8:32
+        nop.
+    eq /la /lb.
+
+: Checks whether Unicode Dcs encode `.Formats:transformation` (after trimming
+: optional ASCII whitespace and `.Formats:`/`Formats:`/`format_` prefix).
+: @dc l8589992810
+v/b/isTransformationCategoryDcs l/dc/chars
+    test
+        in l/dc: dc:u2e dc:u46 dc:u6f dc:u72 dc:u6d dc:u61 dc:u74 dc:u73 dc:u3a dc:u74 dc:u72 dc:u61 dc:u6e dc:u73 dc:u66 dc:u6f dc:u72 dc:u6d dc:u61 dc:u74 dc:u69 dc:u6f dc:u6e ::
+        out true.
+    test
+        in l/dc: dc:u6f dc:u74 dc:u68 dc:u65 dc:u72 ::
+        out false.
+    let buf/u8/raw bufNew u8 len /chars.
+    foreach dc/c /chars do
+        const u128/u u128FromDc /c.
+        if gt /u u128:127
+            return false
+            nop.
+        match conv /u u8
+            case ok u8/b bufPush /raw /b.
+            case err error/_e return false.
+        ::.
+    ::.
+    const l/u8/bytes bufFreeze /raw.
+    let u64/s u64:0.
+    let u64/e len /bytes.
+    while lt /s /e do
+        const u8/b u8AtOr /bytes /s u8:0.
+        if or eq /b u8:32 or eq /b u8:9 or eq /b u8:10 eq /b u8:13
+            set /s wrapAdd /s u64:1
+            break.
+    ::.
+    while gt /e /s do
+        const u64/prev wrapSub /e u64:1.
+        const u8/b u8AtOr /bytes /prev u8:0.
+        if or eq /b u8:32 or eq /b u8:9 or eq /b u8:10 eq /b u8:13
+            set /e /prev
+            break.
+    ::.
+    const l/u8/trimmed match slice /bytes /s /e
+        case some l/u8/sl /sl.
+        case none return false.
+    ::.
+    const u64/tlen len /trimmed.
+    const l/u8/p1 b".Formats:".
+    const l/u8/p2 b"Formats:".
+    const l/u8/p3 b"format_".
+    let u64/off u64:0.
+    if ge /tlen len /p1
+        do
+            const b/m match slice /trimmed u64:0 len /p1
+                case some l/u8/hd u8ListEq /hd /p1.
+                case none false.
+            ::.
+            if /m
+                set /off len /p1
+                nop.
+        ::
+        nop.
+    if and eq /off u64:0 ge /tlen len /p2
+        do
+            const b/m match slice /trimmed u64:0 len /p2
+                case some l/u8/hd u8ListEq /hd /p2.
+                case none false.
+            ::.
+            if /m
+                set /off len /p2
+                nop.
+        ::
+        nop.
+    if and eq /off u64:0 ge /tlen len /p3
+        do
+            const b/m match slice /trimmed u64:0 len /p3
+                case some l/u8/hd u8ListEq /hd /p3.
+                case none false.
+            ::.
+            if /m
+                set /off len /p3
+                nop.
+        ::
+        nop.
+    const l/u8/want b"transformation".
+    if ne wrapSub /tlen /off len /want
+        return false
+        nop.
+    let u64/i u64:0.
+    while lt /i len /want do
+        if not isAsciiLowerEq u8AtOr /trimmed wrapAdd /off /i u8:0 u8AtOr /want /i u8:0
+            return false
+            nop.
+        set /i wrapAdd /i u64:1.
+    ::.
+    true.
+
+: @dc l8589992811
+v/strStepRes/readStringLiteralAt l/dc/tokens u64/pos
+    test
+        in l/dc: dc:260 dc:262 dc:264 dc:263 dc:u65 dc:255 dc:261 dc:261 :: u64:0
+        out strStepRes:ok structNew strStep: payload l/dc: dc:u65 dc:261 :: nextPos u64:8 ::.
+    test
+        in l/dc: dc:260 dc:u66 dc:261 :: u64:0
+        out strStepRes:ok structNew strStep: payload l/dc: dc:u66 :: nextPos u64:3 ::.
+    const u64/n len /tokens.
+    if ge /pos /n
+        return strStepRes:err errRecord b"ConvertDcStringToWasm requires a [string] literal argument"
+        nop.
+    if ne dcAtOr /tokens /pos dc:0 dc:260
+        return strStepRes:err errRecord b"Expected Dc 260 opening [string] literal"
+        nop.
+    const u64/p1 wrapAdd /pos u64:1.
+    if and lt wrapAdd /pos u64:4 /n eq dcAtOr /tokens /p1 dc:0 dc:262
+        do
+            const tup: b dc l/dc u64 ::/lit readEscapedLiteral /tokens /pos.
+            if or not field /lit u32:0 ne field /lit u32:1 dc:264
+                return strStepRes:err errRecord b"Malformed typed [string] literal argument"
+                nop.
+            return strStepRes:ok structNew strStep: payload field /lit u32:2 nextPos field /lit u32:3 ::
+        ::
+        nop.
+    let buf/dc/out bufNew dc u64:32.
+    let u64/i /p1.
+    let b/closed false.
+    while lt /i /n do
+        const dc/ch dcAtOr /tokens /i dc:0.
+        if eq /ch dc:261
+            do
+                set /i wrapAdd /i u64:1.
+                set /closed true.
+                break.
+            ::
+            nop.
+        if eq /ch dc:255
+            do
+                const u64/ni wrapAdd /i u64:1.
+                if ge /ni /n
+                    return strStepRes:err errRecord b"Dangling Dc 255 escape in [string] literal"
+                    nop.
+                bufPush /out dcAtOr /tokens /ni dc:0.
+                set /i wrapAdd /ni u64:1.
+            ::
+            do
+                bufPush /out /ch.
+                set /i wrapAdd /i u64:1.
+            ::.
+    ::.
+    if not /closed
+        return strStepRes:err errRecord b"Unclosed [string] literal argument"
+        nop.
+    strStepRes:ok structNew strStep: payload bufFreeze /out nextPos /i ::.
+
+: @dc l8589992812
+v/b/isClosedStringLiteralNode l/dc/tokens
+    test
+        in l/dc: dc:260 dc:262 dc:264 dc:263 dc:u65 dc:261 ::
+        out true.
+    test
+        in l/dc: dc:260 dc:261 dc:260 ::
+        out false.
+    const u64/n len /tokens.
+    if lt /n u64:2
+        return false
+        nop.
+    if ne dcAtOr /tokens u64:0 dc:0 dc:260
+        return false
+        nop.
+    let u64/i u64:1.
+    while lt /i /n do
+        const dc/c dcAtOr /tokens /i dc:0.
+        if eq /c dc:255
+            do
+                set /i wrapAdd /i u64:2.
+                if gt /i /n
+                    return false
+                    nop.
+            ::
+            if eq /c dc:261
+                return eq wrapAdd /i u64:1 /n
+                set /i wrapAdd /i u64:1.
+    ::.
+    false.
+
+: @dc l8589992813
+v/b/isLegacyUnicodeRunNode l/dc/tokens
+    if eq len /tokens u64:0
+        return false
+        nop.
+    foreach dc/c /tokens do
+        if gt u128FromDc /c u128:1114111
+            return false
+            nop.
+    ::.
+    true.
+
+: @dc l8589992814
+v/b/isRoutineNamedConstruct l/dc/tokens
+    const u64/n len /tokens.
+    if lt /n u64:6
+        return false
+        nop.
+    if or ne dcAtOr /tokens u64:0 dc:0 dc:260 or ne dcAtOr /tokens u64:1 dc:0 dc:262 or ne dcAtOr /tokens u64:2 dc:0 dc:280 ne dcAtOr /tokens u64:3 dc:0 dc:263
+        return false
+        nop.
+    let u64/i u64:4.
+    while lt /i /n do
+        const dc/c dcAtOr /tokens /i dc:0.
+        if eq /c dc:261
+            return eq wrapAdd /i u64:1 /n
+            nop.
+        set /i wrapAdd /i u64:1.
+    ::.
+    false.
+
+: @dc l8589992815
+v/b/isBuiltInWasmOrSyntaxShortId u128/sid
+    if and ge /sid u128:647 le /sid u128:1937
+        return true
+        nop.
+    or eq /sid u128:256 or eq /sid u128:260 or eq /sid u128:268 or eq /sid u128:276 or eq /sid u128:279 or eq /sid u128:307 or eq /sid u128:540 or eq /sid u128:541 or eq /sid u128:584 or eq /sid u128:585 or eq /sid u128:610 or eq /sid u128:616 eq /sid u128:638.
+
+: @dc l8589992816
+v/b/isStageLBuiltinOpDc dc/c
+    const u128/u u128FromDc /c.
+    if lt /u u128:1114112
+        return false
+        nop.
+    const u128/sid wrapSub /u u128:1114112.
+    or and ge /sid u128:2512 le /sid u128:2546 or and ge /sid u128:2580 le /sid u128:2585 eq /sid u128:2616.
+
+: @dc l8589992817
+v/optU128Step/parsePinDescriptionAt l/dc/tokens u64/pos
+    test
+        in l/dc: dc:641 dcFromU128 u128:8589934592 :: u64:0
+        out optU128Step:some structNew u128Step: val u128:8589934592 nextPos u64:2 ::.
+    test
+        in l/dc: dc:641 dc:255 dcFromU128 u128:8589934592 :: u64:0
+        out optU128Step:some structNew u128Step: val u128:8589934592 nextPos u64:3 ::.
+    const u64/n len /tokens.
+    if ge /pos /n
+        return optU128Step:none
+        nop.
+    if ne dcAtOr /tokens /pos dc:0 dc:641
+        return optU128Step:none
+        nop.
+    const u64/p1 wrapAdd /pos u64:1.
+    if ge /p1 /n
+        return optU128Step:err errRecord b"Missing System-block node ID operand after Dc 641"
+        nop.
+    const dc/tok1 dcAtOr /tokens /p1 dc:0.
+    let u128/pinId u128:0.
+    let u64/nextP wrapAdd /p1 u64:1.
+    if eq /tok1 dc:255
+        do
+            const u64/p2 wrapAdd /p1 u64:1.
+            if ge /p2 /n
+                return optU128Step:err errRecord b"Dangling escape in Dc 641 pin_description"
+                nop.
+            set /pinId u128FromDc dcAtOr /tokens /p2 dc:0.
+            set /nextP wrapAdd /p2 u64:1.
+        ::
+        do
+            if or eq /tok1 dc:203 eq /tok1 dc:616
+                return optU128Step:err errRecord b"Invalid unescaped non-atomic token in Dc 641 pin_description"
+                nop.
+            set /pinId u128FromDc /tok1.
+        ::.
+    if not isSysRegionId /pinId
+        return optU128Step:err errRecord b"Invalid System-block most recent node ID in Dc 641 pin_description"
+        nop.
+    optU128Step:some structNew u128Step: val /pinId nextPos /nextP ::.
+
+: ---------------------------------------------------------------------------
+: 2. Memoized Dc 1939 & Dc 1940 Capability Client
+: ---------------------------------------------------------------------------
+
+: @dc l8589992818
+v/l/dc/encodeCapAtom l/dc/outPrefix dc/c b/escapeWildcard
+    let buf/dc/out bufNew dc wrapAdd len /outPrefix u64:2.
+    bufExtend /out /outPrefix.
+    if or eq /c dc:203 or eq /c dc:255 or eq /c dc:616 and /escapeWildcard eq /c dc:600
+        bufPush /out dc:255
+        nop.
+    bufPush /out /c.
+    bufFreeze /out.
+
+: @dc l8589992819
+v/capAtomStep/consumeCapAtom l/dc/tokens u64/pos
+    const dc/first dcAtOr /tokens /pos dc:0.
+    if eq /first dc:255
+        do
+            const u64/p1 wrapAdd /pos u64:1.
+            if ge /p1 len /tokens
+                return structNew capAtomStep: ch dc:0 escaped true nextPos len /tokens ::
+                nop.
+            return structNew capAtomStep: ch dcAtOr /tokens /p1 dc:0 escaped true nextPos wrapAdd /p1 u64:1 ::
+        ::
+        nop.
+    structNew capAtomStep: ch /first escaped false nextPos wrapAdd /pos u64:1 ::.
+
+: @dc l8589992820
+v/option/l/dc/lookupCapCache l/capEntry/cache l/dc/req
+    foreach capEntry/entry /cache do
+        if dcListEq field /entry req /req
+            return option/l/dc:some field /entry resp
+            nop.
+    ::.
+    option/l/dc:none.
+
+: @dc l8589992821
+v/l/capEntry/insertCapCache l/capEntry/cache l/dc/req l/dc/resp
+    let buf/capEntry/out bufNew capEntry wrapAdd len /cache u64:1.
+    bufExtend /out /cache.
+    bufPush /out structNew capEntry: req /req resp /resp ::.
+    bufFreeze /out.
+
+: @dc l8589992822
+v/capCallRes/capCallCached capClient/cli l/dc/req
+    match lookupCapCache field /cli cache /req
+        case some l/dc/resp
+            return structNew capCallRes: cli /cli ok true payload /resp ::
+        case none
+            match requestCapability dcsFromList /req
+                case err error/_e
+                    return structNew capCallRes: cli /cli ok false payload errRecord b"Host capability invocation failed" ::
+                case ok dcs/rawResp
+                    do
+                        const l/dc/resp dcsToList /rawResp.
+                        if isErrorRecord /resp
+                            return structNew capCallRes: cli /cli ok false payload /resp ::
+                            nop.
+                        const capClient/nextCli with /cli cache insertCapCache field /cli cache /req /resp.
+                        return structNew capCallRes: cli /nextCli ok true payload /resp ::
+                    ::
+            ::
+    ::.
+
+: @dc l8589992823
+v/capCallRes/capCallUncached capClient/cli l/dc/req
+    match requestCapability dcsFromList /req
+        case err error/_e
+            return structNew capCallRes: cli /cli ok false payload errRecord b"Dc 1940 host capability invocation failed" ::
+        case ok dcs/rawResp
+            do
+                const l/dc/resp dcsToList /rawResp.
+                if isErrorRecord /resp
+                    return structNew capCallRes: cli /cli ok false payload /resp ::
+                    nop.
+                return structNew capCallRes: cli /cli ok true payload /resp ::
+            ::
+    ::.
+
+: @dc l8589992824
+v/capU128ListRes/queryWatermark capClient/cli
+    if field /cli hasWatermark
+        return structNew capU128ListRes: cli /cli ok true ids l/u128: field /cli watermark :: errTokens l/dc: :: ::
+        nop.
+    const l/dc/req l/dc: dc:1939 dc:641 dc:600 ::.
+    const capCallRes/cr capCallCached /cli /req.
+    if not field /cr ok
+        return structNew capU128ListRes: cli field /cr cli ok false ids l/u128: :: errTokens field /cr payload ::
+        nop.
+    const l/dc/resp field /cr payload.
+    if and eq len /resp u64:1 eq dcAtOr /resp u64:0 dc:0 dc:316
+        return structNew capU128ListRes: cli field /cr cli ok true ids l/u128: :: errTokens l/dc: :: ::
+        nop.
+    if or ne len /resp u64:2 ne dcAtOr /resp u64:0 dc:0 dc:641
+        return structNew capU128ListRes: cli field /cr cli ok false ids l/u128: :: errTokens errRecord b"Malformed Dc 1939 watermark response" ::
+        nop.
+    const u128/wm u128FromDc dcAtOr /resp u64:1 dc:0.
+    const capClient/nextCli with with field /cr cli hasWatermark true watermark /wm.
+    structNew capU128ListRes: cli /nextCli ok true ids l/u128: /wm :: errTokens l/dc: :: ::.
+
+: @dc l8589992825
+v/capOptNodeRes/queryNodeRaw capClient/cli u128/nodeId
+    let buf/dc/reqBuf bufNew dc u64:5.
+    bufPush /reqBuf dc:1939.
+    bufPush /reqBuf dc:617.
+    const dc/idDc dcFromU128 /nodeId.
+    if or eq /idDc dc:203 or eq /idDc dc:255 eq /idDc dc:616
+        bufPush /reqBuf dc:255
+        nop.
+    bufPush /reqBuf /idDc.
+    bufPush /reqBuf dc:600.
+    bufPush /reqBuf dc:618.
+    const capCallRes/cr capCallCached /cli bufFreeze /reqBuf.
+    if not field /cr ok
+        return structNew capOptNodeRes: cli field /cr cli tag u8:2 payload field /cr payload ::
+        nop.
+    const l/dc/resp field /cr payload.
+    if and eq len /resp u64:1 eq dcAtOr /resp u64:0 dc:0 dc:316
+        return structNew capOptNodeRes: cli field /cr cli tag u8:0 payload l/dc: :: ::
+        nop.
+    const tup: b dc l/dc u64 ::/lit readEscapedLiteral /resp u64:0.
+    if or not field /lit u32:0 or ne field /lit u32:1 dc:264 ne field /lit u32:3 len /resp
+        return structNew capOptNodeRes: cli field /cr cli tag u8:2 payload errRecord b"Malformed Dc 1939 node read response" ::
+        nop.
+    structNew capOptNodeRes: cli field /cr cli tag u8:1 payload field /lit u32:2 ::.
+
+: @dc l8589992826
+v/capOptNodeRes/expandInternedNodesInner capClient/cli l/dc/tokens l/u128/visIds
+    let buf/dc/out bufNew dc len /tokens.
+    let capClient/curCli /cli.
+    let b/inComment false.
+    let dc/commentCloser dc:0.
+    let b/inIdent false.
+    let b/inLit false.
+    let b/litIsAtomDc false.
+    let dc/prevOut dc:0.
+    let b/hasPrev false.
+    let u64/i u64:0.
+    const u64/n len /tokens.
+    while lt /i /n do
+        const dc/tok dcAtOr /tokens /i dc:0.
+        if eq /tok dc:255
+            do
+                bufPush /out /tok.
+                const u64/i1 wrapAdd /i u64:1.
+                if lt /i1 /n
+                    do
+                        const dc/nx dcAtOr /tokens /i1 dc:0.
+                        bufPush /out /nx.
+                        set /prevOut /nx.
+                        set /hasPrev true.
+                        set /i wrapAdd /i1 u64:1.
+                    ::
+                    do
+                        set /prevOut /tok.
+                        set /hasPrev true.
+                        set /i /i1.
+                    ::.
+                continue.
+            ::
+            nop.
+        if /inComment
+            do
+                if eq /tok /commentCloser
+                    do
+                        set /inComment false.
+                        bufPush /out /tok.
+                        set /prevOut /tok.
+                    ::
+                    do
+                        const u128/u u128FromDc /tok.
+                        if and isSysRegionId /u not listContainsU128 /visIds /u
+                            do
+                                const capOptNodeRes/nr queryNodeRaw /curCli /u.
+                                set /curCli field /nr cli.
+                                if eq field /nr tag u8:2
+                                    return /nr
+                                    nop.
+                                if and eq field /nr tag u8:1 isLegacyUnicodeRunNode field /nr payload
+                                    do
+                                        bufExtend /out field /nr payload.
+                                        set /prevOut /tok.
+                                        set /hasPrev true.
+                                        set /i wrapAdd /i u64:1.
+                                        continue.
+                                    ::
+                                    nop.
+                            ::
+                            nop.
+                        bufPush /out /tok.
+                        set /prevOut /tok.
+                    ::.
+                set /hasPrev true.
+                set /i wrapAdd /i u64:1.
+                continue.
+            ::
+            nop.
+        if /inIdent
+            do
+                if eq /tok dc:271
+                    do
+                        set /inIdent false.
+                        bufPush /out /tok.
+                        set /prevOut /tok.
+                    ::
+                    do
+                        const u128/u u128FromDc /tok.
+                        if and isSysRegionId /u not listContainsU128 /visIds /u
+                            do
+                                const capOptNodeRes/nr queryNodeRaw /curCli /u.
+                                set /curCli field /nr cli.
+                                if eq field /nr tag u8:2
+                                    return /nr
+                                    nop.
+                                if and eq field /nr tag u8:1 isLegacyUnicodeRunNode field /nr payload
+                                    do
+                                        bufExtend /out field /nr payload.
+                                        set /prevOut /tok.
+                                        set /hasPrev true.
+                                        set /i wrapAdd /i u64:1.
+                                        continue.
+                                    ::
+                                    nop.
+                            ::
+                            nop.
+                        bufPush /out /tok.
+                        set /prevOut /tok.
+                    ::.
+                set /hasPrev true.
+                set /i wrapAdd /i u64:1.
+                continue.
+            ::
+            nop.
+        if /inLit
+            do
+                if eq /tok dc:261
+                    do
+                        set /inLit false.
+                        set /litIsAtomDc false.
+                        bufPush /out /tok.
+                        set /prevOut /tok.
+                    ::
+                    do
+                        const u128/u u128FromDc /tok.
+                        const b/allowExpand and not /litIsAtomDc and isSysRegionId /u and not listContainsU128 /visIds /u or not /hasPrev and ne /prevOut dc:616 ne /prevOut dc:640.
+                        if /allowExpand
+                            do
+                                const capOptNodeRes/nr queryNodeRaw /curCli /u.
+                                set /curCli field /nr cli.
+                                if eq field /nr tag u8:2
+                                    return /nr
+                                    nop.
+                                if and eq field /nr tag u8:1 isLegacyUnicodeRunNode field /nr payload
+                                    do
+                                        bufExtend /out field /nr payload.
+                                        set /prevOut /tok.
+                                        set /hasPrev true.
+                                        set /i wrapAdd /i u64:1.
+                                        continue.
+                                    ::
+                                    nop.
+                            ::
+                            nop.
+                        bufPush /out /tok.
+                        set /prevOut /tok.
+                    ::.
+                set /hasPrev true.
+                set /i wrapAdd /i u64:1.
+                continue.
+            ::
+            nop.
+        if isSingleLineCommentOpener /tok
+            do
+                set /inComment true.
+                set /commentCloser dc:248.
+                bufPush /out /tok.
+                set /prevOut /tok.
+            ::
+            if isBlockCommentOpener /tok
+                do
+                    set /inComment true.
+                    set /commentCloser dc:251.
+                    bufPush /out /tok.
+                    set /prevOut /tok.
+                ::
+                if eq /tok dc:270
+                    do
+                        set /inIdent true.
+                        bufPush /out /tok.
+                        set /prevOut /tok.
+                    ::
+                    if eq /tok dc:260
+                        do
+                            set /inLit true.
+                            const dc/nx1 dcAtOr /tokens wrapAdd /i u64:1 dc:0.
+                            const dc/nx2 dcAtOr /tokens wrapAdd /i u64:2 dc:0.
+                            set /litIsAtomDc or eq /nx1 dc:640 and eq /nx1 dc:262 eq /nx2 dc:640.
+                            bufPush /out /tok.
+                            set /prevOut /tok.
+                        ::
+                        do
+                            const u128/u u128FromDc /tok.
+                            const b/canTopExpand and isSysRegionId /u and not listContainsU128 /visIds /u or not /hasPrev ne /prevOut dc:616.
+                            if /canTopExpand
+                                do
+                                    const capOptNodeRes/nr queryNodeRaw /curCli /u.
+                                    set /curCli field /nr cli.
+                                    if eq field /nr tag u8:2
+                                        return /nr
+                                        nop.
+                                    if eq field /nr tag u8:1
+                                        do
+                                            const l/dc/child field /nr payload.
+                                            if or isClosedStringLiteralNode /child isLegacyUnicodeRunNode /child
+                                                do
+                                                    bufExtend /out /child.
+                                                    set /prevOut /tok.
+                                                    set /hasPrev true.
+                                                    set /i wrapAdd /i u64:1.
+                                                    continue.
+                                                ::
+                                                nop.
+                                        ::
+                                        nop.
+                                ::
+                                nop.
+                            bufPush /out /tok.
+                            set /prevOut /tok.
+                        ::.
+        set /hasPrev true.
+        set /i wrapAdd /i u64:1.
+    ::.
+    structNew capOptNodeRes: cli /curCli tag u8:1 payload bufFreeze /out ::.
+
+: @dc l8589992827
+v/capOptNodeRes/queryNodeExpanded capClient/cli u128/nodeId
+    const capOptNodeRes/raw queryNodeRaw /cli /nodeId.
+    if ne field /raw tag u8:1
+        return /raw
+        nop.
+    expandInternedNodesInner field /raw cli field /raw payload l/u128: /nodeId ::.
+
+: @dc l8589992828
+v/capU128ListRes/queryNodesByExactTokens capClient/cli l/dc/targetTokens
+    if eq len /targetTokens u64:0
+        return structNew capU128ListRes: cli /cli ok true ids l/u128: :: errTokens l/dc: :: ::
+        nop.
+    let buf/dc/reqBuf bufNew dc wrapAdd len /targetTokens u64:4.
+    bufPush /reqBuf dc:1939.
+    bufPush /reqBuf dc:617.
+    bufPush /reqBuf dc:600.
+    bufExtend /reqBuf /targetTokens.
+    bufPush /reqBuf dc:618.
+    const capCallRes/cr capCallCached /cli bufFreeze /reqBuf.
+    if not field /cr ok
+        return structNew capU128ListRes: cli field /cr cli ok false ids l/u128: :: errTokens field /cr payload ::
+        nop.
+    const l/dc/resp field /cr payload.
+    const u64/n len /resp.
+    if or lt /n u64:2 or ne dcAtOr /resp u64:0 dc:0 dc:310 ne dcAtOr /resp wrapSub /n u64:1 dc:0 dc:311
+        return structNew capU128ListRes: cli field /cr cli ok false ids l/u128: :: errTokens errRecord b"Malformed Dc 1939 reverse node lookup response" ::
+        nop.
+    let buf/u128/ids bufNew u128 wrapSub /n u64:2.
+    let u64/i u64:1.
+    const u64/end wrapSub /n u64:1.
+    let b/wantElem true.
+    while lt /i /end do
+        const dc/tok dcAtOr /resp /i dc:0.
+        if /wantElem
+            do
+                if eq /tok dc:312
+                    return structNew capU128ListRes: cli field /cr cli ok false ids l/u128: :: errTokens errRecord b"Unexpected Dc 312 in reverse node lookup list" ::
+                    nop.
+                bufPush /ids u128FromDc /tok.
+                set /wantElem false.
+            ::
+            do
+                if ne /tok dc:312
+                    return structNew capU128ListRes: cli field /cr cli ok false ids l/u128: :: errTokens errRecord b"Expected Dc 312 separator in reverse node lookup list" ::
+                    nop.
+                set /wantElem true.
+            ::.
+        set /i wrapAdd /i u64:1.
+    ::.
+    structNew capU128ListRes: cli field /cr cli ok true ids bufFreeze /ids errTokens l/dc: :: ::.
+
+: @dc l8589992829
+v/capTripleListRes/queryTriples capClient/cli b/hasVerb dc/verb b/hasSubj dc/subj b/hasObj dc/obj
+    let buf/dc/reqBuf bufNew dc u64:8.
+    bufPush /reqBuf dc:1939.
+    bufPush /reqBuf if /hasVerb /verb dc:600.
+    if /hasSubj
+        bufExtend /reqBuf encodeCapAtom l/dc: :: /subj true
+        bufPush /reqBuf dc:600.
+    if /hasObj
+        bufExtend /reqBuf encodeCapAtom l/dc: :: /obj true
+        bufPush /reqBuf dc:600.
+    const capCallRes/cr capCallCached /cli bufFreeze /reqBuf.
+    if not field /cr ok
+        return structNew capTripleListRes: cli field /cr cli ok false triples l/tripleRec: :: errTokens field /cr payload ::
+        nop.
+    const l/dc/resp field /cr payload.
+    const u64/n len /resp.
+    if or lt /n u64:2 or ne dcAtOr /resp u64:0 dc:0 dc:310 ne dcAtOr /resp wrapSub /n u64:1 dc:0 dc:311
+        return structNew capTripleListRes: cli field /cr cli ok false triples l/tripleRec: :: errTokens errRecord b"Malformed Dc 1939 triple query response" ::
+        nop.
+    let buf/tripleRec/out bufNew tripleRec u64:8.
+    let u64/i u64:1.
+    const u64/end wrapSub /n u64:1.
+    while lt /i /end do
+        if ne dcAtOr /resp /i dc:0 dc:617
+            return structNew capTripleListRes: cli field /cr cli ok false triples l/tripleRec: :: errTokens errRecord b"Expected Dc 617 triple item" ::
+            nop.
+        set /i wrapAdd /i u64:1.
+        if ge wrapAdd /i u64:2 /end
+            return structNew capTripleListRes: cli field /cr cli ok false triples l/tripleRec: :: errTokens errRecord b"Truncated Dc 617 triple item" ::
+            nop.
+        const u128/stmtId u128FromDc dcAtOr /resp /i dc:0.
+        const dc/vdc dcAtOr /resp wrapAdd /i u64:1 dc:0.
+        set /i wrapAdd /i u64:2.
+        if ge /i /end
+            return structNew capTripleListRes: cli field /cr cli ok false triples l/tripleRec: :: errTokens errRecord b"Missing triple subject in Dc 1939 response" ::
+            nop.
+        const capAtomStep/ss consumeCapAtom /resp /i.
+        set /i field /ss nextPos.
+        if ge /i /end
+            return structNew capTripleListRes: cli field /cr cli ok false triples l/tripleRec: :: errTokens errRecord b"Missing triple object in Dc 1939 response" ::
+            nop.
+        const capAtomStep/os consumeCapAtom /resp /i.
+        set /i field /os nextPos.
+        if or ge /i /end ne dcAtOr /resp /i dc:0 dc:618
+            return structNew capTripleListRes: cli field /cr cli ok false triples l/tripleRec: :: errTokens errRecord b"Missing Dc 618 closing triple item" ::
+            nop.
+        set /i wrapAdd /i u64:1.
+        bufPush /out structNew tripleRec: stmtId /stmtId verb /vdc subj field /ss ch obj field /os ch ::.
+        if lt /i /end
+            do
+                if ne dcAtOr /resp /i dc:0 dc:312
+                    return structNew capTripleListRes: cli field /cr cli ok false triples l/tripleRec: :: errTokens errRecord b"Expected Dc 312 between triple items" ::
+                    nop.
+                set /i wrapAdd /i u64:1.
+            ::
+            nop.
+    ::.
+    structNew capTripleListRes: cli field /cr cli ok true triples bufFreeze /out errTokens l/dc: :: ::.
+
+: @dc l8589992830
+v/capBoolRes/hasAnyContextQualifier capClient/cli u128/stmtId
+    const capTripleListRes/tr queryTriples /cli true dc:646 true dcFromU128 /stmtId false dc:0.
+    if not field /tr ok
+        return structNew capBoolRes: cli field /tr cli ok false val false errTokens field /tr errTokens ::
+        nop.
+    structNew capBoolRes: cli field /tr cli ok true val gt len field /tr triples u64:0 errTokens l/dc: :: ::.
+
+: @dc l8589992831
+v/capBoolRes/isDirectStatementPresent capClient/cli dc/verb dc/subj dc/obj
+    const capTripleListRes/tr queryTriples /cli true /verb true /subj true /obj.
+    if not field /tr ok
+        return structNew capBoolRes: cli field /tr cli ok false val false errTokens field /tr errTokens ::
+        nop.
+    structNew capBoolRes: cli field /tr cli ok true val gt len field /tr triples u64:0 errTokens l/dc: :: ::.
+
+: Resolves active reified property entries (`584 subj propDc` -> `610 stmtId val`).
+: @dc l8589992832
+v/capPropListRes/queryMultiProperty capClient/cli dc/subj dc/propDc
+    const capTripleListRes/hasA queryTriples /cli true dc:584 true /subj true /propDc.
+    let capClient/curCli field /hasA cli.
+    if not field /hasA ok
+        return structNew capPropListRes: cli /curCli ok false props l/propEntry: :: errTokens field /hasA errTokens ::
+        nop.
+    let buf/propEntry/out bufNew propEntry len field /hasA triples.
+    foreach tripleRec/ht field /hasA triples do
+        const u128/hasAId field /ht stmtId.
+        const capTripleListRes/valQ queryTriples /curCli true dc:610 true dcFromU128 /hasAId false dc:0.
+        set /curCli field /valQ cli.
+        if not field /valQ ok
+            return structNew capPropListRes: cli /curCli ok false props l/propEntry: :: errTokens field /valQ errTokens ::
+            nop.
+        foreach tripleRec/vt field /valQ triples do
+            bufPush /out structNew propEntry: hasAId /hasAId val field /vt obj ::.
+        ::.
+    ::.
+    structNew capPropListRes: cli /curCli ok true props bufFreeze /out errTokens l/dc: :: ::.
+
+: @dc l8589992833
+v/capBoolRes/hasEntityClassDef capClient/cli u128/nodeId dc/optExpectedClass b/checkExpectedClass
+    if isSysRegionId /nodeId
+        do
+            const capOptNodeRes/nr queryNodeRaw /cli /nodeId.
+            let capClient/curCli field /nr cli.
+            if eq field /nr tag u8:2
+                return structNew capBoolRes: cli /curCli ok false val false errTokens field /nr payload ::
+                nop.
+            if and eq field /nr tag u8:1 and eq len field /nr payload u64:3 and eq dcAtOr field /nr payload u64:0 dc:0 dc:586 eq dcAtOr field /nr payload u64:1 dc:0 dc:615
+                do
+                    const b/matched if /checkExpectedClass eq dcAtOr field /nr payload u64:2 dc:0 /optExpectedClass true.
+                    if /matched
+                        return structNew capBoolRes: cli /curCli ok true val true errTokens l/dc: :: ::
+                        nop.
+                ::
+                nop.
+            if /checkExpectedClass
+                return isDirectStatementPresent /curCli dc:586 dcFromU128 /nodeId /optExpectedClass
+                nop.
+            const capTripleListRes/tq queryTriples /curCli true dc:586 true dcFromU128 /nodeId false dc:0.
+            set /curCli field /tq cli.
+            if not field /tq ok
+                return structNew capBoolRes: cli /curCli ok false val false errTokens field /tq errTokens ::
+                nop.
+            return structNew capBoolRes: cli /curCli ok true val gt len field /tq triples u64:0 errTokens l/dc: :: ::
+        ::
+        nop.
+    if /checkExpectedClass
+        return isDirectStatementPresent /cli dc:586 dcFromU128 /nodeId /optExpectedClass
+        nop.
+    const capTripleListRes/tq queryTriples /cli true dc:586 true dcFromU128 /nodeId false dc:0.
+    if not field /tq ok
+        return structNew capBoolRes: cli field /tq cli ok false val false errTokens field /tq errTokens ::
+        nop.
+    structNew capBoolRes: cli field /tq cli ok true val gt len field /tq triples u64:0 errTokens l/dc: :: ::.
+
+: Checks semantic equivalence (`Dc 585` symmetric + 1-token `Dc 611`) between `a` and `b`.
+: Short-circuits with zero capability calls when `eq /a /b`.
+: @dc l8589992834
+v/capBoolRes/dcIsEquiv capClient/cli dc/a dc/b
+    if eq /a /b
+        return structNew capBoolRes: cli /cli ok true val true errTokens l/dc: :: ::
+        nop.
+    const u128/target u128FromDc /b.
+    let buf/u128/queue bufNew u128 u64:8.
+    bufPush /queue u128FromDc /a.
+    let l/u128/visited l/u128: u128FromDc /a ::.
+    let u64/qi u64:0.
+    let capClient/curCli /cli.
+    while lt /qi len /queue do
+        const u128/curU match get /queue /qi
+            case some u128/v /v.
+            case none u128:0.
+        ::.
+        set /qi wrapAdd /qi u64:1.
+        const dc/cur dcFromU128 /curU.
+        : Forward Dc 585 (`Is equal to`).
+        const capTripleListRes/f585 queryTriples /curCli true dc:585 true /cur false dc:0.
+        set /curCli field /f585 cli.
+        if not field /f585 ok
+            return structNew capBoolRes: cli /curCli ok false val false errTokens field /f585 errTokens ::
+            nop.
+        foreach tripleRec/t field /f585 triples do
+            const u128/ou u128FromDc field /t obj.
+            if eq /ou /target
+                return structNew capBoolRes: cli /curCli ok true val true errTokens l/dc: :: ::
+                nop.
+            if not listContainsU128 /visited /ou
+                do
+                    set /visited appendUniqueU128 /visited /ou.
+                    bufPush /queue /ou.
+                ::
+                nop.
+        ::.
+        : Reverse Dc 585.
+        const capTripleListRes/r585 queryTriples /curCli true dc:585 false dc:0 true /cur.
+        set /curCli field /r585 cli.
+        if not field /r585 ok
+            return structNew capBoolRes: cli /curCli ok false val false errTokens field /r585 errTokens ::
+            nop.
+        foreach tripleRec/t field /r585 triples do
+            const u128/su u128FromDc field /t subj.
+            if eq /su /target
+                return structNew capBoolRes: cli /curCli ok true val true errTokens l/dc: :: ::
+                nop.
+            if not listContainsU128 /visited /su
+                do
+                    set /visited appendUniqueU128 /visited /su.
+                    bufPush /queue /su.
+                ::
+                nop.
+        ::.
+        : Forward 1-token Dc 611 (`Canonical decomposition`, reified via `584 -> 610`).
+        const capPropListRes/f611 queryMultiProperty /curCli /cur dc:611.
+        set /curCli field /f611 cli.
+        if not field /f611 ok
+            return structNew capBoolRes: cli /curCli ok false val false errTokens field /f611 errTokens ::
+            nop.
+        foreach propEntry/pe field /f611 props do
+            const capBoolRes/qc hasAnyContextQualifier /curCli field /pe hasAId.
+            set /curCli field /qc cli.
+            if not field /qc ok
+                return /qc
+                nop.
+            if not field /qc val
+                do
+                    const u128/nu u128FromDc field /pe val.
+                    if isSysRegionId /nu
+                        do
+                            const capOptNodeRes/nr queryNodeExpanded /curCli /nu.
+                            set /curCli field /nr cli.
+                            if eq field /nr tag u8:2
+                                return structNew capBoolRes: cli /curCli ok false val false errTokens field /nr payload ::
+                                nop.
+                            if and eq field /nr tag u8:1 eq len field /nr payload u64:1
+                                do
+                                    const u128/single u128FromDc dcAtOr field /nr payload u64:0 dc:0.
+                                    if eq /single /target
+                                        return structNew capBoolRes: cli /curCli ok true val true errTokens l/dc: :: ::
+                                        nop.
+                                    if not listContainsU128 /visited /single
+                                        do
+                                            set /visited appendUniqueU128 /visited /single.
+                                            bufPush /queue /single.
+                                        ::
+                                        nop.
+                                ::
+                                nop.
+                        ::
+                        nop.
+                ::
+                nop.
+        ::.
+        : Reverse 1-token Dc 611 (active nodes equal to `[cur]` referenced via `610 <- hasA[584 subj 611]`).
+        const capU128ListRes/revNodes queryNodesByExactTokens /curCli l/dc: /cur ::.
+        set /curCli field /revNodes cli.
+        if not field /revNodes ok
+            return structNew capBoolRes: cli /curCli ok false val false errTokens field /revNodes errTokens ::
+            nop.
+        foreach u128/nid field /revNodes ids do
+            const capTripleListRes/r610 queryTriples /curCli true dc:610 false dc:0 true dcFromU128 /nid.
+            set /curCli field /r610 cli.
+            if not field /r610 ok
+                return structNew capBoolRes: cli /curCli ok false val false errTokens field /r610 errTokens ::
+                nop.
+            foreach tripleRec/t field /r610 triples do
+                const u128/hasAId u128FromDc field /t subj.
+                if isSysRegionId /hasAId
+                    do
+                        const capOptNodeRes/hn queryNodeExpanded /curCli /hasAId.
+                        set /curCli field /hn cli.
+                        if eq field /hn tag u8:2
+                            return structNew capBoolRes: cli /curCli ok false val false errTokens field /hn payload ::
+                            nop.
+                        if and eq field /hn tag u8:1 and eq len field /hn payload u64:3 and eq dcAtOr field /hn payload u64:0 dc:0 dc:584 eq dcAtOr field /hn payload u64:2 dc:0 dc:611
+                            do
+                                const capBoolRes/qc hasAnyContextQualifier /curCli /hasAId.
+                                set /curCli field /qc cli.
+                                if not field /qc ok
+                                    return /qc
+                                    nop.
+                                if not field /qc val
+                                    do
+                                        const u128/su u128FromDc dcAtOr field /hn payload u64:1 dc:0.
+                                        if eq /su /target
+                                            return structNew capBoolRes: cli /curCli ok true val true errTokens l/dc: :: ::
+                                            nop.
+                                        if not listContainsU128 /visited /su
+                                            do
+                                                set /visited appendUniqueU128 /visited /su.
+                                                bufPush /queue /su.
+                                            ::
+                                            nop.
+                                    ::
+                                    nop.
+                            ::
+                            nop.
+                    ::
+                    nop.
+            ::.
+        ::.
+    ::.
+    structNew capBoolRes: cli /curCli ok true val false errTokens l/dc: :: ::.
+
+: Returns the equivalence component of `start` (`l/u128`), ordered deterministically.
+: @dc l8589992835
+v/capU128ListRes/collectEquivClass capClient/cli dc/start
+    let buf/u128/queue bufNew u128 u64:4.
+    const u128/startU u128FromDc /start.
+    bufPush /queue /startU.
+    let l/u128/visited l/u128: /startU ::.
+    let u64/qi u64:0.
+    let capClient/curCli /cli.
+    while lt /qi len /queue do
+        const u128/curU match get /queue /qi
+            case some u128/v /v.
+            case none u128:0.
+        ::.
+        set /qi wrapAdd /qi u64:1.
+        const dc/cur dcFromU128 /curU.
+        const capTripleListRes/f585 queryTriples /curCli true dc:585 true /cur false dc:0.
+        set /curCli field /f585 cli.
+        if not field /f585 ok
+            return structNew capU128ListRes: cli /curCli ok false ids l/u128: :: errTokens field /f585 errTokens ::
+            nop.
+        foreach tripleRec/t field /f585 triples do
+            const u128/ou u128FromDc field /t obj.
+            if not listContainsU128 /visited /ou
+                do
+                    set /visited appendUniqueU128 /visited /ou.
+                    bufPush /queue /ou.
+                ::
+                nop.
+        ::.
+        const capTripleListRes/r585 queryTriples /curCli true dc:585 false dc:0 true /cur.
+        set /curCli field /r585 cli.
+        if not field /r585 ok
+            return structNew capU128ListRes: cli /curCli ok false ids l/u128: :: errTokens field /r585 errTokens ::
+            nop.
+        foreach tripleRec/t field /r585 triples do
+            const u128/su u128FromDc field /t subj.
+            if not listContainsU128 /visited /su
+                do
+                    set /visited appendUniqueU128 /visited /su.
+                    bufPush /queue /su.
+                ::
+                nop.
+        ::.
+        const capPropListRes/f611 queryMultiProperty /curCli /cur dc:611.
+        set /curCli field /f611 cli.
+        if not field /f611 ok
+            return structNew capU128ListRes: cli /curCli ok false ids l/u128: :: errTokens field /f611 errTokens ::
+            nop.
+        foreach propEntry/pe field /f611 props do
+            const capBoolRes/qc hasAnyContextQualifier /curCli field /pe hasAId.
+            set /curCli field /qc cli.
+            if not field /qc ok
+                return structNew capU128ListRes: cli /curCli ok false ids l/u128: :: errTokens field /qc errTokens ::
+                nop.
+            if not field /qc val
+                do
+                    const u128/nu u128FromDc field /pe val.
+                    if isSysRegionId /nu
+                        do
+                            const capOptNodeRes/nr queryNodeExpanded /curCli /nu.
+                            set /curCli field /nr cli.
+                            if eq field /nr tag u8:2
+                                return structNew capU128ListRes: cli /curCli ok false ids l/u128: :: errTokens field /nr payload ::
+                                nop.
+                            if and eq field /nr tag u8:1 eq len field /nr payload u64:1
+                                do
+                                    const u128/single u128FromDc dcAtOr field /nr payload u64:0 dc:0.
+                                    if not listContainsU128 /visited /single
+                                        do
+                                            set /visited appendUniqueU128 /visited /single.
+                                            bufPush /queue /single.
+                                        ::
+                                        nop.
+                                ::
+                                nop.
+                        ::
+                        nop.
+                ::
+                nop.
+        ::.
+        const capU128ListRes/revNodes queryNodesByExactTokens /curCli l/dc: /cur ::.
+        set /curCli field /revNodes cli.
+        if not field /revNodes ok
+            return structNew capU128ListRes: cli /curCli ok false ids l/u128: :: errTokens field /revNodes errTokens ::
+            nop.
+        foreach u128/nid field /revNodes ids do
+            const capTripleListRes/r610 queryTriples /curCli true dc:610 false dc:0 true dcFromU128 /nid.
+            set /curCli field /r610 cli.
+            if not field /r610 ok
+                return structNew capU128ListRes: cli /curCli ok false ids l/u128: :: errTokens field /r610 errTokens ::
+                nop.
+            foreach tripleRec/t field /r610 triples do
+                const u128/hasAId u128FromDc field /t subj.
+                if isSysRegionId /hasAId
+                    do
+                        const capOptNodeRes/hn queryNodeExpanded /curCli /hasAId.
+                        set /curCli field /hn cli.
+                        if eq field /hn tag u8:2
+                            return structNew capU128ListRes: cli /curCli ok false ids l/u128: :: errTokens field /hn payload ::
+                            nop.
+                        if and eq field /hn tag u8:1 and eq len field /hn payload u64:3 and eq dcAtOr field /hn payload u64:0 dc:0 dc:584 eq dcAtOr field /hn payload u64:2 dc:0 dc:611
+                            do
+                                const capBoolRes/qc hasAnyContextQualifier /curCli /hasAId.
+                                set /curCli field /qc cli.
+                                if not field /qc ok
+                                    return structNew capU128ListRes: cli /curCli ok false ids l/u128: :: errTokens field /qc errTokens ::
+                                    nop.
+                                if not field /qc val
+                                    do
+                                        const u128/su u128FromDc dcAtOr field /hn payload u64:1 dc:0.
+                                        if not listContainsU128 /visited /su
+                                            do
+                                                set /visited appendUniqueU128 /visited /su.
+                                                bufPush /queue /su.
+                                            ::
+                                            nop.
+                                    ::
+                                    nop.
+                            ::
+                            nop.
+                    ::
+                    nop.
+            ::.
+        ::.
+    ::.
+    structNew capU128ListRes: cli /curCli ok true ids /visited errTokens l/dc: :: ::.
+
+: ---------------------------------------------------------------------------
+: 3. Graph Token Classification & Unconstrained Decomposition Lookup
+: ---------------------------------------------------------------------------
+
+: @dc l8589992836
+v/b/tokensStartWasmDefinition l/dc/tokens
+    if eq len /tokens u64:0
+        return false
+        nop.
+    if eq dcAtOr /tokens u64:0 dc:0 dc:1927
+        return true
+        nop.
+    isRoutineNamedConstruct /tokens.
+
+: @dc l8589992837
+v/b/tokensStartStageLOrR l/dc/tokens
+    const l/dc/stripped stripLeadingComments /tokens.
+    if eq len /stripped u64:0
+        return false
+        nop.
+    const dc/f dcAtOr /stripped u64:0 dc:0.
+    or eq /f dc:2192 or eq /f dc:2221 or eq /f dc:2203 or eq /f dc:2217 or eq /f dc:2223 or eq /f dc:2224 or eq /f dc:2230 or eq /f dc:2199 eq /f dc:2200.
+
+: @dc l8589992838
+v/b/tokensContainShortRange647To1928 l/dc/tokens
+    foreach dc/c /tokens do
+        const u128/u u128FromDc /c.
+        if and ge /u u128:1114112 le /u u128:1116040
+            do
+                const u128/sid wrapSub /u u128:1114112.
+                if and ge /sid u128:647 le /sid u128:1928
+                    return true
+                    nop.
+            ::
+            nop.
+    ::.
+    false.
+
+: Resolves the active unconstrained decomposition (`611`, `571`, `614`) of `subj`
+: that carries a StageL/StageR module or top-level declaration.
+: @dc l8589992839
+v/capOptNodeRes/resolveStageLOrRDecomp capClient/cli dc/subj
+    let capClient/curCli /cli.
+    const l/dc/preds l/dc: dc:614 dc:571 dc:611 ::.
+    foreach dc/pred /preds do
+        const capPropListRes/pr queryMultiProperty /curCli /subj /pred.
+        set /curCli field /pr cli.
+        if not field /pr ok
+            return structNew capOptNodeRes: cli /curCli tag u8:2 payload field /pr errTokens ::
+            nop.
+        foreach propEntry/pe field /pr props do
+            const capBoolRes/qc hasAnyContextQualifier /curCli field /pe hasAId.
+            set /curCli field /qc cli.
+            if not field /qc ok
+                return structNew capOptNodeRes: cli /curCli tag u8:2 payload field /qc errTokens ::
+                nop.
+            if not field /qc val
+                do
+                    const u128/nid u128FromDc field /pe val.
+                    if isSysRegionId /nid
+                        do
+                            const capOptNodeRes/nr queryNodeExpanded /curCli /nid.
+                            set /curCli field /nr cli.
+                            if eq field /nr tag u8:2
+                                return /nr
+                                nop.
+                            if and eq field /nr tag u8:1 tokensStartStageLOrR field /nr payload
+                                return structNew capOptNodeRes: cli /curCli tag u8:1 payload field /nr payload ::
+                                nop.
+                        ::
+                        nop.
+                ::
+                nop.
+        ::.
+    ::.
+    structNew capOptNodeRes: cli /curCli tag u8:0 payload l/dc: :: ::.
+
+: Resolves an active unconstrained WASM helper decomposition (`611`, `571`, `614`)
+: for `subj` (`seed_graph.rs:2374-2430`).
+: @dc l8589992840
+v/capOptNodeRes/resolveWasmDecompInner capClient/cli dc/subj l/u128/visSubj
+    const u128/su u128FromDc /subj.
+    if listContainsU128 /visSubj /su
+        return structNew capOptNodeRes: cli /cli tag u8:0 payload l/dc: :: ::
+        nop.
+    const l/u128/nextVis appendUniqueU128 /visSubj /su.
+    let capClient/curCli /cli.
+    const l/dc/preds l/dc: dc:611 dc:571 dc:614 ::.
+    foreach dc/pred /preds do
+        const capPropListRes/pr queryMultiProperty /curCli /subj /pred.
+        set /curCli field /pr cli.
+        if not field /pr ok
+            return structNew capOptNodeRes: cli /curCli tag u8:2 payload field /pr errTokens ::
+            nop.
+        foreach propEntry/pe field /pr props do
+            const capBoolRes/qc hasAnyContextQualifier /curCli field /pe hasAId.
+            set /curCli field /qc cli.
+            if not field /qc ok
+                return structNew capOptNodeRes: cli /curCli tag u8:2 payload field /qc errTokens ::
+                nop.
+            if not field /qc val
+                do
+                    const u128/ou u128FromDc field /pe val.
+                    if isSysRegionId /ou
+                        do
+                            const capOptNodeRes/nr queryNodeExpanded /curCli /ou.
+                            set /curCli field /nr cli.
+                            if eq field /nr tag u8:2
+                                return /nr
+                                nop.
+                            if eq field /nr tag u8:1
+                                do
+                                    const l/dc/cand field /nr payload.
+                                    if and not tokensStartStageLOrR /cand or tokensStartWasmDefinition /cand or tokensContainShortRange647To1928 /cand eq len /cand u64:1
+                                        do
+                                            if or tokensStartWasmDefinition /cand tokensContainShortRange647To1928 /cand
+                                                return structNew capOptNodeRes: cli /curCli tag u8:1 payload /cand ::
+                                                nop.
+                                            if and eq len /cand u64:1 ne dcAtOr /cand u64:0 dc:0 dc:260
+                                                do
+                                                    const dc/innerSub dcAtOr /cand u64:0 dc:0.
+                                                    const capOptNodeRes/sub resolveWasmDecompInner /curCli /innerSub /nextVis.
+                                                    set /curCli field /sub cli.
+                                                    if eq field /sub tag u8:2
+                                                        return /sub
+                                                        nop.
+                                                    if eq field /sub tag u8:1
+                                                        return structNew capOptNodeRes: cli /curCli tag u8:1 payload /cand ::
+                                                        nop.
+                                                ::
+                                                nop.
+                                        ::
+                                        nop.
+                                ::
+                                nop.
+                        ::
+                        do
+                            const capOptNodeRes/sub resolveWasmDecompInner /curCli field /pe val /nextVis.
+                            set /curCli field /sub cli.
+                            if eq field /sub tag u8:2
+                                return /sub
+                                nop.
+                            if eq field /sub tag u8:1
+                                return /sub
+                                nop.
+                        ::.
+                ::
+                nop.
+        ::.
+    ::.
+    structNew capOptNodeRes: cli /curCli tag u8:0 payload l/dc: :: ::.
+
+: @dc l8589992841
+v/capOptNodeRes/resolveWasmDecomp capClient/cli dc/subj
+    resolveWasmDecompInner /cli /subj l/u128: ::.
+
+: ---------------------------------------------------------------------------
+: 4. Graph WASM Shorthand Expander (Dc 1927..Dc 1928 / Helper Dcs)
+: ---------------------------------------------------------------------------
+
+: @dc l8589992842
+v/l/dc/stripNestedWasmProgramDelims l/dc/tokens u64/depth
+    if eq /depth u64:0
+        return /tokens
+        nop.
+    const u64/n len /tokens.
+    if lt /n u64:2
+        return /tokens
+        nop.
+    if and eq dcAtOr /tokens u64:0 dc:0 dc:1927 eq dcAtOr /tokens wrapSub /n u64:1 dc:0 dc:1928
+        match slice /tokens u64:1 wrapSub /n u64:1
+            case some l/dc/inner /inner.
+            case none /tokens.
+        ::
+        /tokens.
+
+: @dc l8589992843
+v/capCallRes/expandWasmTokensInner capClient/cli l/dc/tokens u64/wasmDepth l/u128/visNodes l/u128/visShs
+    let capClient/curCli /cli.
+    let u64/depth /wasmDepth.
+    let buf/dc/out bufNew dc len /tokens.
+    const u64/n len /tokens.
+    let u64/i u64:0.
+    while lt /i /n do
+        const dc/tok dcAtOr /tokens /i dc:0.
+        if eq /tok dc:255
+            do
+                bufPush /out /tok.
+                const u64/i1 wrapAdd /i u64:1.
+                if lt /i1 /n
+                    do
+                        bufPush /out dcAtOr /tokens /i1 dc:0.
+                        set /i wrapAdd /i1 u64:1.
+                    ::
+                    set /i /i1.
+                continue.
+            ::
+            nop.
+        if eq /tok dc:203
+            do
+                bufPush /out /tok.
+                set /i wrapAdd /i u64:1.
+                while lt /i /n do
+                    const dc/bt dcAtOr /tokens /i dc:0.
+                    bufPush /out /bt.
+                    set /i wrapAdd /i u64:1.
+                    if eq /bt dc:204
+                        break
+                        nop.
+                ::.
+                continue.
+            ::
+            nop.
+        const u128/u u128FromDc /tok.
+        : Unicode scalars (`<= 0x10FFFF`) need zero graph expansion.
+        if le /u u128:1114111
+            do
+                bufPush /out /tok.
+                set /i wrapAdd /i u64:1.
+                continue.
+            ::
+            nop.
+        : System-region Long Dc node/entity reference.
+        if isSysRegionId /u
+            do
+                if listContainsU128 /visNodes /u
+                    return structNew capCallRes: cli /curCli ok false payload errRecord b"Cycle expanding graph WASM node" ::
+                    nop.
+                const capOptNodeRes/rawNode queryNodeRaw /curCli /u.
+                set /curCli field /rawNode cli.
+                if eq field /rawNode tag u8:2
+                    return structNew capCallRes: cli /curCli ok false payload field /rawNode payload ::
+                    nop.
+                if ne field /rawNode tag u8:1
+                    return structNew capCallRes: cli /curCli ok false payload errRecord b"Graph WASM node is missing or inactive" ::
+                    nop.
+                const l/dc/rawNodeToks field /rawNode payload.
+                const b/isEntity and eq len /rawNodeToks u64:3 and eq dcAtOr /rawNodeToks u64:0 dc:0 dc:586 eq dcAtOr /rawNodeToks u64:1 dc:0 dc:615.
+                let l/dc/childTokens l/dc: ::.
+                let l/u128/nextVisN appendUniqueU128 /visNodes /u.
+                let l/u128/nextVisS /visShs.
+                if /isEntity
+                    do
+                        if listContainsU128 /visShs /u
+                            return structNew capCallRes: cli /curCli ok false payload errRecord b"Cycle expanding graph WASM entity shorthand" ::
+                            nop.
+                        set /nextVisS appendUniqueU128 /visShs /u.
+                        const capOptNodeRes/hd resolveWasmDecomp /curCli /tok.
+                        set /curCli field /hd cli.
+                        if eq field /hd tag u8:2
+                            return structNew capCallRes: cli /curCli ok false payload field /hd payload ::
+                            nop.
+                        if ne field /hd tag u8:1
+                            return structNew capCallRes: cli /curCli ok false payload errRecord b"Graph entity has no active WASM decomposition" ::
+                            nop.
+                        set /childTokens field /hd payload.
+                    ::
+                    do
+                        const capOptNodeRes/expNode expandInternedNodesInner /curCli /rawNodeToks l/u128: /u ::.
+                        set /curCli field /expNode cli.
+                        if eq field /expNode tag u8:2
+                            return structNew capCallRes: cli /curCli ok false payload field /expNode payload ::
+                            nop.
+                        set /childTokens field /expNode payload.
+                    ::.
+                const l/dc/trimmed stripNestedWasmProgramDelims /childTokens /depth.
+                const capCallRes/sub expandWasmTokensInner /curCli /trimmed /depth /nextVisN /nextVisS.
+                set /curCli field /sub cli.
+                if not field /sub ok
+                    return /sub
+                    nop.
+                bufExtend /out field /sub payload.
+                set /i wrapAdd /i u64:1.
+                continue.
+            ::
+            nop.
+        : Non-Unicode non-System-Long: check Short/Format helper shorthands outside built-ins.
+        if and ge /u u128:1114112 lt /u u128:8589934592
+            do
+                const b/isBuiltIn and le /u u128:2228223 isBuiltInWasmOrSyntaxShortId wrapSub /u u128:1114112.
+                if not /isBuiltIn
+                    do
+                        if listContainsU128 /visShs /u
+                            return structNew capCallRes: cli /curCli ok false payload errRecord b"Cycle expanding graph WASM shorthand" ::
+                            nop.
+                        const capOptNodeRes/hd resolveWasmDecomp /curCli /tok.
+                        set /curCli field /hd cli.
+                        if eq field /hd tag u8:2
+                            return structNew capCallRes: cli /curCli ok false payload field /hd payload ::
+                            nop.
+                        if eq field /hd tag u8:1
+                            do
+                                const l/u128/nextVisS appendUniqueU128 /visShs /u.
+                                const l/dc/trimmed stripNestedWasmProgramDelims field /hd payload /depth.
+                                const capCallRes/sub expandWasmTokensInner /curCli /trimmed /depth /visNodes /nextVisS.
+                                set /curCli field /sub cli.
+                                if not field /sub ok
+                                    return /sub
+                                    nop.
+                                bufExtend /out field /sub payload.
+                                set /i wrapAdd /i u64:1.
+                                continue.
+                            ::
+                            nop.
+                    ::
+                    nop.
+            ::
+            nop.
+        if or eq /tok dc:1927 eq /tok dc:260
+            set /depth wrapAdd /depth u64:1
+            if or eq /tok dc:1928 eq /tok dc:261
+                if gt /depth u64:0
+                    set /depth wrapSub /depth u64:1
+                    nop
+                nop.
+        bufPush /out /tok.
+        set /i wrapAdd /i u64:1.
+    ::.
+    structNew capCallRes: cli /curCli ok true payload bufFreeze /out ::.
+
+: @dc l8589992844
+v/capCallRes/expandWasmTokens capClient/cli l/dc/tokens
+    expandWasmTokensInner /cli /tokens u64:0 l/u128: :: l/u128: ::.
+
+: ---------------------------------------------------------------------------
+: 5. Converter Graph Discovery & Shortest-Path BFS
+: ---------------------------------------------------------------------------
+
+: @dc l8589992845
+v/capBoolRes/isTransformationFormatSubj capClient/cli dc/subj
+    const u128/su u128FromDc /subj.
+    if or lt /su u128:2228224 gt /su u128:3342335
+        return structNew capBoolRes: cli /cli ok true val false errTokens l/dc: :: ::
+        nop.
+    const capTripleListRes/inst queryTriples /cli true dc:586 true /subj false dc:0.
+    let capClient/curCli field /inst cli.
+    if not field /inst ok
+        return structNew capBoolRes: cli /curCli ok false val false errTokens field /inst errTokens ::
+        nop.
+    foreach tripleRec/t field /inst triples do
+        const u128/ou u128FromDc field /t obj.
+        if isSysRegionId /ou
+            do
+                const capOptNodeRes/nr queryNodeExpanded /curCli /ou.
+                set /curCli field /nr cli.
+                if eq field /nr tag u8:2
+                    return structNew capBoolRes: cli /curCli ok false val false errTokens field /nr payload ::
+                    nop.
+                if and eq field /nr tag u8:1 isTransformationCategoryDcs field /nr payload
+                    return structNew capBoolRes: cli /curCli ok true val true errTokens l/dc: :: ::
+                    nop.
+                const capPropListRes/cn queryMultiProperty /curCli field /t obj dc:572.
+                set /curCli field /cn cli.
+                if not field /cn ok
+                    return structNew capBoolRes: cli /curCli ok false val false errTokens field /cn errTokens ::
+                    nop.
+                foreach propEntry/pe field /cn props do
+                    const u128/vu u128FromDc field /pe val.
+                    if isSysRegionId /vu
+                        do
+                            const capOptNodeRes/vnr queryNodeExpanded /curCli /vu.
+                            set /curCli field /vnr cli.
+                            if eq field /vnr tag u8:2
+                                return structNew capBoolRes: cli /curCli ok false val false errTokens field /vnr payload ::
+                                nop.
+                            if eq field /vnr tag u8:1
+                                do
+                                    let l/dc/candChars field /vnr payload.
+                                    if and gt len /candChars u64:0 eq dcAtOr /candChars u64:0 dc:0 dc:260
+                                        match readStringLiteralAt /candChars u64:0
+                                            case ok strStep/st set /candChars field /st payload.
+                                            case err l/dc/_e nop.
+                                        ::
+                                        nop.
+                                    if isTransformationCategoryDcs /candChars
+                                        return structNew capBoolRes: cli /curCli ok true val true errTokens l/dc: :: ::
+                                        nop.
+                                ::
+                                nop.
+                        ::
+                        nop.
+                ::.
+            ::
+            nop.
+    ::.
+    structNew capBoolRes: cli /curCli ok true val false errTokens l/dc: :: ::.
+
+: @dc l8589992846
+v/capBoolRes/isConverterPreferred capClient/cli dc/subj
+    const capBoolRes/ep isDirectStatementPresent /cli dc:584 /subj dc:570.
+    let capClient/curCli field /ep cli.
+    if not field /ep ok
+        return /ep
+        nop.
+    if field /ep val
+        return /ep
+        nop.
+    const l/dc/preds l/dc: dc:611 dc:571 dc:614 ::.
+    foreach dc/pred /preds do
+        const capPropListRes/pr queryMultiProperty /curCli /subj /pred.
+        set /curCli field /pr cli.
+        if not field /pr ok
+            return structNew capBoolRes: cli /curCli ok false val false errTokens field /pr errTokens ::
+            nop.
+        foreach propEntry/pe field /pr props do
+            const capBoolRes/p hasAnyPreferenceOrPrefCheck /curCli field /pe hasAId.
+            set /curCli field /p cli.
+            if not field /p ok
+                return /p
+                nop.
+            if field /p val
+                return /p
+                nop.
+        ::.
+    ::.
+    structNew capBoolRes: cli /curCli ok true val false errTokens l/dc: :: ::.
+
+: @dc l8589992847
+v/capBoolRes/hasAnyPreferenceOrPrefCheck capClient/cli u128/stmtId
+    isDirectStatementPresent /cli dc:584 dcFromU128 /stmtId dc:570.
+
+: @dc l8589992848
+v/l/convStep/sortConverterSteps l/convStep/steps
+    const u64/n len /steps.
+    if le /n u64:1
+        return /steps
+        nop.
+    let buf/convStep/arr bufNew convStep /n.
+    bufExtend /arr /steps.
+    let u64/i u64:1.
+    while lt /i /n do
+        const convStep/key match get /arr /i
+            case some convStep/s /s.
+            case none break.
+        ::.
+        let u64/j /i.
+        while gt /j u64:0 do
+            const u64/jm1 wrapSub /j u64:1.
+            const convStep/prev match get /arr /jm1
+                case some convStep/s /s.
+                case none break.
+            ::.
+            const b/keyPref field /key preferred.
+            const b/prevPref field /prev preferred.
+            const b/earlier or and /keyPref not /prevPref and eq /keyPref /prevPref lt field /key subjId field /prev subjId.
+            if not /earlier
+                break
+                nop.
+            match bufSet /arr /j /prev
+                case ok nop.
+                case err error/_e break.
+            ::.
+            set /j /jm1.
+        ::.
+        match bufSet /arr /j /key
+            case ok nop.
+            case err error/_e break.
+        ::.
+        set /i wrapAdd /i u64:1.
+    ::.
+    bufFreeze /arr.
+
+: @dc l8589992849
+v/convListRes/listAllActiveConverterSteps capClient/cli
+    const capTripleListRes/fmtHasA queryTriples /cli true dc:584 false dc:0 true dc:595.
+    let capClient/curCli field /fmtHasA cli.
+    if not field /fmtHasA ok
+        return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /fmtHasA errTokens ::
+        nop.
+    let buf/convStep/out bufNew convStep u64:16.
+    let l/u128/seenSubj l/u128: ::.
+    foreach tripleRec/t field /fmtHasA triples do
+        const dc/subj field /t subj.
+        const u128/sid u128FromDc /subj.
+        if listContainsU128 /seenSubj /sid
+            continue
+            nop.
+        set /seenSubj appendUniqueU128 /seenSubj /sid.
+        : Must be either a `Routine` (`Dc 280`) entity or a `.Formats:transformation` Format Dc.
+        const capBoolRes/isRout hasEntityClassDef /curCli /sid dc:280 true.
+        set /curCli field /isRout cli.
+        if not field /isRout ok
+            return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /isRout errTokens ::
+            nop.
+        let b/eligible field /isRout val.
+        if not /eligible
+            do
+                const capBoolRes/isFmt isTransformationFormatSubj /curCli /subj.
+                set /curCli field /isFmt cli.
+                if not field /isFmt ok
+                    return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /isFmt errTokens ::
+                    nop.
+                set /eligible field /isFmt val.
+            ::
+            nop.
+        if not /eligible
+            continue
+            nop.
+        : Read `Dc 610` value attached to the `Dc 584` (`Data format description`) statement.
+        const capTripleListRes/valQ queryTriples /curCli true dc:610 true dcFromU128 field /t stmtId false dc:0.
+        set /curCli field /valQ cli.
+        if not field /valQ ok
+            return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /valQ errTokens ::
+            nop.
+        if eq len field /valQ triples u64:0
+            continue
+            nop.
+        const u128/fmtNid u128FromDc match get field /valQ triples u64:0
+            case some tripleRec/vt field /vt obj.
+            case none continue.
+        ::.
+        if not isSysRegionId /fmtNid
+            continue
+            nop.
+        const capOptNodeRes/fnr queryNodeExpanded /curCli /fmtNid.
+        set /curCli field /fnr cli.
+        if eq field /fnr tag u8:2
+            return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /fnr payload ::
+            nop.
+        if ne field /fnr tag u8:1
+            continue
+            nop.
+        const l/dc/fmtToks field /fnr payload.
+        if or ne len /fmtToks u64:3 ne dcAtOr /fmtToks u64:0 dc:0 dc:302
+            continue
+            nop.
+        const dc/src dcAtOr /fmtToks u64:1 dc:0.
+        const dc/dst dcAtOr /fmtToks u64:2 dc:0.
+        : Must have either an active unconstrained WASM or StageL/StageR decomposition.
+        const capOptNodeRes/wb resolveWasmDecomp /curCli /subj.
+        set /curCli field /wb cli.
+        if eq field /wb tag u8:2
+            return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /wb payload ::
+            nop.
+        let u8/kind u8:0.
+        let l/dc/bodyToks l/dc: ::.
+        let b/hasBody false.
+        if eq field /wb tag u8:1
+            do
+                set /kind u8:0.
+                set /bodyToks field /wb payload.
+                set /hasBody true.
+            ::
+            do
+                const capOptNodeRes/sb resolveStageLOrRDecomp /curCli /subj.
+                set /curCli field /sb cli.
+                if eq field /sb tag u8:2
+                    return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /sb payload ::
+                    nop.
+                if eq field /sb tag u8:1
+                    do
+                        set /kind u8:1.
+                        set /bodyToks field /sb payload.
+                        set /hasBody true.
+                    ::
+                    nop.
+            ::.
+        if not /hasBody
+            continue
+            nop.
+        const capBoolRes/prefQ isConverterPreferred /curCli /subj.
+        set /curCli field /prefQ cli.
+        if not field /prefQ ok
+            return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /prefQ errTokens ::
+            nop.
+        bufPush /out structNew convStep: subj /subj subjId /sid src /src dst /dst preferred field /prefQ val kind /kind bodyTokens /bodyToks ::.
+    ::.
+    structNew convListRes: cli /curCli ok true steps sortConverterSteps bufFreeze /out errTokens l/dc: :: ::.
+
+: @dc l8589992850
+v/convListRes/findShortestConverterChain capClient/cli l/convStep/allSteps dc/src dc/dst
+    if eq len /allSteps u64:0
+        return structNew convListRes: cli /cli ok true steps l/convStep: :: errTokens l/dc: :: ::
+        nop.
+    let capClient/curCli /cli.
+    const capU128ListRes/srcEq collectEquivClass /curCli /src.
+    set /curCli field /srcEq cli.
+    if not field /srcEq ok
+        return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /srcEq errTokens ::
+        nop.
+    const capU128ListRes/dstEq collectEquivClass /curCli /dst.
+    set /curCli field /dstEq cli.
+    if not field /dstEq ok
+        return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /dstEq errTokens ::
+        nop.
+    const l/u128/dstIds field /dstEq ids.
+    let buf/u128/qNodes bufNew u128 u64:16.
+    let buf/u64/qParentIdx bufNew u64 u64:16.
+    let buf/u64/qStepIdx bufNew u64 u64:16.
+    let l/u128/visited l/u128: ::.
+    foreach u128/su field /srcEq ids do
+        bufPush /qNodes /su.
+        bufPush /qParentIdx u64:18446744073709551615.
+        bufPush /qStepIdx u64:18446744073709551615.
+        set /visited appendUniqueU128 /visited /su.
+    ::.
+    let u64/qi u64:0.
+    while lt /qi len /qNodes do
+        const u128/curNode match get /qNodes /qi
+            case some u128/v /v.
+            case none break.
+        ::.
+        const u64/stepTotal len /allSteps.
+        let u64/si u64:0.
+        while lt /si /stepTotal do
+            const convStep/st match get /allSteps /si
+                case some convStep/v /v.
+                case none break.
+            ::.
+            const b/srcMatch eq u128FromDc field /st src /curNode.
+            if /srcMatch
+                do
+                    const u128/nextDst u128FromDc field /st dst.
+                    if listContainsU128 /dstIds /nextDst
+                        do
+                            let buf/convStep/rev bufNew convStep u64:4.
+                            bufPush /rev /st.
+                            let u64/back /qi.
+                            while true do
+                                const u64/psi match get /qStepIdx /back
+                                    case some u64/v /v.
+                                    case none break.
+                                ::.
+                                if eq /psi u64:18446744073709551615
+                                    break
+                                    nop.
+                                match get /allSteps /psi
+                                    case some convStep/ps bufPush /rev /ps.
+                                    case none break.
+                                ::.
+                                set /back match get /qParentIdx /back
+                                    case some u64/p /p.
+                                    case none break.
+                                ::.
+                            ::.
+                            const l/convStep/revList bufFreeze /rev.
+                            let buf/convStep/fwd bufNew convStep len /revList.
+                            let u64/ri len /revList.
+                            while gt /ri u64:0 do
+                                set /ri wrapSub /ri u64:1.
+                                match get /revList /ri
+                                    case some convStep/cs bufPush /fwd /cs.
+                                    case none nop.
+                                ::.
+                            ::.
+                            return structNew convListRes: cli /curCli ok true steps bufFreeze /fwd errTokens l/dc: :: ::
+                        ::
+                        nop.
+                    const capU128ListRes/nextEq collectEquivClass /curCli field /st dst.
+                    set /curCli field /nextEq cli.
+                    if not field /nextEq ok
+                        return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /nextEq errTokens ::
+                        nop.
+                    foreach u128/cand field /nextEq ids do
+                        if not listContainsU128 /visited /cand
+                            do
+                                set /visited appendUniqueU128 /visited /cand.
+                                bufPush /qNodes /cand.
+                                bufPush /qParentIdx /qi.
+                                bufPush /qStepIdx /si.
+                            ::
+                            nop.
+                    ::.
+                ::
+                nop.
+            set /si wrapAdd /si u64:1.
+        ::.
+        set /qi wrapAdd /qi u64:1.
+    ::.
+    structNew convListRes: cli /curCli ok true steps l/convStep: :: errTokens l/dc: :: ::.
+
+: ---------------------------------------------------------------------------
+: 6. Token-Dc StageL / StageR Dependency Scanner, Bundler & Stage 0 KV Map
+: ---------------------------------------------------------------------------
+
+: @dc l8589992851
+v/l/u8/joinNsSegs l/l/u8/segs
+    test
+        in l/l/u8: b"std" b"dctf" ::
+        out b"std//dctf".
+    let buf/u8/out bufNew u8 u64:16.
+    let u64/i u64:0.
+    while lt /i len /segs do
+        if gt /i u64:0
+            bufPush /out u8:47
+            nop.
+        match get /segs /i
+            case some l/u8/seg bufExtend /out /seg.
+            case none nop.
+        ::.
+        set /i wrapAdd /i u64:1.
+    ::.
+    bufFreeze /out.
+
+: @dc l8589992852
+v/l/l/u8/splitNsKey l/u8/nsKey
+    test
+        in b"std//dctf"
+        out l/l/u8: b"std" b"dctf" ::.
+    const u64/n len /nsKey.
+    let buf/l/u8/out bufNew l/u8 u64:4.
+    let u64/start u64:0.
+    while lt /start /n do
+        let u64/end /start.
+        while lt /end /n do
+            if eq u8AtOr /nsKey /end u8:0 u8:47
+                break
+                nop.
+            set /end wrapAdd /end u64:1.
+        ::.
+        if gt /end /start
+            match slice /nsKey /start /end
+                case some l/u8/seg bufPush /out /seg.
+                case none nop.
+            ::
+            nop.
+        set /start wrapAdd /end u64:1.
+    ::.
+    bufFreeze /out.
+
+: @dc l8589992853
+v/tup: b l/l/u8 u64 ::/readFilePathSegs l/dc/tokens u64/pos
+    const u64/n len /tokens.
+    let u64/p skipAllComments /tokens /pos.
+    if or ge wrapAdd /p u64:1 /n or ne dcAtOr /tokens /p dc:0 dc:511 ne dcAtOr /tokens wrapAdd /p u64:1 dc:0 dc:f229
+        return tupNew: false l/l/u8: :: /pos ::
+        nop.
+    set /p skipAllComments /tokens wrapAdd /p u64:2.
+    if or ge /p /n ne dcAtOr /tokens /p dc:0 dc:310
+        return tupNew: false l/l/u8: :: /pos ::
+        nop.
+    set /p skipAllComments /tokens wrapAdd /p u64:1.
+    if and lt wrapAdd /p u64:1 /n and eq dcAtOr /tokens /p dc:0 dc:516 eq dcAtOr /tokens wrapAdd /p u64:1 dc:0 dc:f228
+        do
+            set /p wrapAdd /p u64:2.
+            if and lt /p /n eq dcAtOr /tokens /p dc:0 dc:513
+                set /p wrapAdd /p u64:1
+                nop.
+        ::
+        nop.
+    let buf/l/u8/segs bufNew l/u8 u64:4.
+    let b/done false.
+    let b/failed false.
+    while not /done do
+        set /p skipAllComments /tokens /p.
+        if ge /p /n
+            do
+                set /failed true.
+                break.
+            ::
+            nop.
+        const dc/tok dcAtOr /tokens /p dc:0.
+        if eq /tok dc:311
+            do
+                set /p wrapAdd /p u64:1.
+                set /done true.
+                break.
+            ::
+            nop.
+        if eq /tok dc:513
+            do
+                set /p skipAllComments /tokens wrapAdd /p u64:1.
+            ::
+            nop.
+        if or ge wrapAdd /p u64:1 /n or ne dcAtOr /tokens /p dc:0 dc:511 ne dcAtOr /tokens wrapAdd /p u64:1 dc:0 dc:f228
+            do
+                set /failed true.
+                break.
+            ::
+            nop.
+        const tup: b dc l/dc u64 ::/lit readEscapedLiteral /tokens wrapAdd /p u64:2.
+        if or not field /lit u32:0 ne field /lit u32:1 dc:264
+            do
+                set /failed true.
+                break.
+            ::
+            nop.
+        const u64/endFname skipAllComments /tokens field /lit u32:3.
+        if or ge /endFname /n ne dcAtOr /tokens /endFname dc:0 dc:512
+            do
+                set /failed true.
+                break.
+            ::
+            nop.
+        let buf/u8/seg bufNew u8 len field /lit u32:2.
+        foreach dc/ch field /lit u32:2 do
+            match conv u128FromDc /ch u8
+                case ok u8/b bufPush /seg /b.
+                case err error/_e nop.
+            ::.
+        ::.
+        bufPush /segs bufFreeze /seg.
+        set /p wrapAdd /endFname u64:1.
+    ::.
+    const l/l/u8/frozenSegs bufFreeze /segs.
+    if or /failed eq len /frozenSegs u64:0
+        return tupNew: false l/l/u8: :: /pos ::
+        nop.
+    set /p skipAllComments /tokens /p.
+    if or ge /p /n ne dcAtOr /tokens /p dc:0 dc:512
+        return tupNew: false l/l/u8: :: /pos ::
+        nop.
+    tupNew: true /frozenSegs wrapAdd /p u64:1 ::.
+
+: Encodes a segment list into canonical `Dc 511 f229` FilePath tokens
+: (`segMode`: `0` = raw inline segments, `1` = `[string]`-interned IDs,
+: `2` = legacy Unicode-interned IDs; `hdrMode`: `0` = `516 f228 513`, `1` = `516 f228`,
+: `2` = omit `516 f228`).
+: @dc l8589992854
+v/l/dc/encodeFilePathVariant l/l/u8/segs l/u128/internedSegIds u8/segMode u8/hdrMode
+    let buf/dc/out bufNew dc u64:32.
+    bufPush /out dc:511.
+    bufPush /out dc:f229.
+    bufPush /out dc:310.
+    if lt /hdrMode u8:2
+        do
+            bufPush /out dc:516.
+            bufPush /out dc:f228.
+        ::
+        nop.
+    if eq /hdrMode u8:0
+        bufPush /out dc:513
+        nop.
+    let u64/i u64:0.
+    while lt /i len /segs do
+        if gt /i u64:0
+            bufPush /out dc:513
+            nop.
+        bufPush /out dc:511.
+        bufPush /out dc:f228.
+        const l/u8/seg match get /segs /i
+            case some l/u8/s /s.
+            case none b"".
+        ::.
+        const u128/sid match get /internedSegIds /i
+            case some u128/v /v.
+            case none u128:0.
+        ::.
+        if and eq /segMode u8:1 gt /sid u128:0
+            bufPush /out dcFromU128 /sid
+            if and eq /segMode u8:2 gt /sid u128:0
+                do
+                    bufPush /out dc:260.
+                    bufPush /out dc:262.
+                    bufPush /out dc:264.
+                    bufPush /out dc:263.
+                    bufPush /out dcFromU128 /sid.
+                    bufPush /out dc:261.
+                ::
+                bufExtend /out tokEscapedLiteral dc:264 u8sToUnicodeDcs /seg.
+        bufPush /out dc:512.
+        set /i wrapAdd /i u64:1.
+    ::.
+    bufPush /out dc:311.
+    bufPush /out dc:512.
+    bufFreeze /out.
+
+: Queries the UNION of active FilePath context node IDs matching `segs`, covering
+: `[string]`-interned, legacy Unicode-interned, and raw inline FilePath encodings.
+: @dc l8589992855
+v/capU128ListRes/findFilePathContextNodes capClient/cli l/l/u8/segs
+    let capClient/curCli /cli.
+    let buf/u128/strIds bufNew u128 len /segs.
+    let buf/u128/uniIds bufNew u128 len /segs.
+    let b/allStrHit true.
+    let b/allUniHit true.
+    foreach l/u8/seg /segs do
+        const l/dc/uChars u8sToUnicodeDcs /seg.
+        const l/dc/strLit tokEscapedLiteral dc:264 /uChars.
+        const capU128ListRes/sr queryNodesByExactTokens /curCli /strLit.
+        set /curCli field /sr cli.
+        if not field /sr ok
+            return /sr
+            nop.
+        if gt len field /sr ids u64:0
+            bufPush /strIds match get field /sr ids u64:0
+                case some u128/v /v.
+                case none u128:0.
+            ::
+            do
+                set /allStrHit false.
+                bufPush /strIds u128:0.
+            ::.
+        const capU128ListRes/ur queryNodesByExactTokens /curCli /uChars.
+        set /curCli field /ur cli.
+        if not field /ur ok
+            return /ur
+            nop.
+        if gt len field /ur ids u64:0
+            bufPush /uniIds match get field /ur ids u64:0
+                case some u128/v /v.
+                case none u128:0.
+            ::
+            do
+                set /allUniHit false.
+                bufPush /uniIds u128:0.
+            ::.
+    ::.
+    const l/u128/strIdList bufFreeze /strIds.
+    const l/u128/uniIdList bufFreeze /uniIds.
+    let l/u128/found l/u128: ::.
+    const l/u8/hdrModes l/u8: u8:0 u8:1 u8:2 ::.
+    foreach u8/hm /hdrModes do
+        if /allStrHit
+            do
+                const l/dc/q1 encodeFilePathVariant /segs /strIdList u8:1 /hm.
+                const capU128ListRes/r1 queryNodesByExactTokens /curCli /q1.
+                set /curCli field /r1 cli.
+                if not field /r1 ok
+                    return /r1
+                    nop.
+                foreach u128/id field /r1 ids do
+                    set /found appendUniqueU128 /found /id.
+                ::.
+            ::
+            nop.
+        if /allUniHit
+            do
+                const l/dc/q2 encodeFilePathVariant /segs /uniIdList u8:2 /hm.
+                const capU128ListRes/r2 queryNodesByExactTokens /curCli /q2.
+                set /curCli field /r2 cli.
+                if not field /r2 ok
+                    return /r2
+                    nop.
+                foreach u128/id field /r2 ids do
+                    set /found appendUniqueU128 /found /id.
+                ::.
+            ::
+            nop.
+        const l/dc/q0 encodeFilePathVariant /segs l/u128: :: u8:0 /hm.
+        const capU128ListRes/r0 queryNodesByExactTokens /curCli /q0.
+        set /curCli field /r0 cli.
+        if not field /r0 ok
+            return /r0
+            nop.
+        foreach u128/id field /r0 ids do
+            set /found appendUniqueU128 /found /id.
+        ::.
+    ::.
+    structNew capU128ListRes: cli /curCli ok true ids /found errTokens l/dc: :: ::.
+
+: Reads `[255]? <atom>` in Token-Dc encoding (`decode.rs:658`).
+: @dc l8589992856
+v/option/u128Step/readTokAtom l/dc/tokens u64/pos
+    const u64/n len /tokens.
+    if ge /pos /n
+        return option/u128Step:none
+        nop.
+    const dc/tok dcAtOr /tokens /pos dc:0.
+    if eq /tok dc:255
+        do
+            const u64/p1 wrapAdd /pos u64:1.
+            if ge /p1 /n
+                return option/u128Step:none
+                nop.
+            return option/u128Step:some structNew u128Step: val u128FromDc dcAtOr /tokens /p1 dc:0 nextPos wrapAdd /p1 u64:1 ::
+        ::
+        nop.
+    option/u128Step:some structNew u128Step: val u128FromDc /tok nextPos wrapAdd /pos u64:1 ::.
+
+: @dc l8589992857
+v/option/u128Step/readTokOptAtom l/dc/tokens u64/pos
+    if and lt /pos len /tokens eq dcAtOr /tokens /pos dc:0 dc:316
+        return option/u128Step:some structNew u128Step: val u128:0 nextPos wrapAdd /pos u64:1 ::
+        nop.
+    readTokAtom /tokens /pos.
+
+: @dc l8589992858
+v/u64/skipBalancedFrame l/dc/tokens u64/pos dc/openTok dc/closeTok
+    const u64/n len /tokens.
+    let u64/i wrapAdd /pos u64:1.
+    let u64/depth u64:1.
+    while and lt /i /n gt /depth u64:0 do
+        const dc/t dcAtOr /tokens /i dc:0.
+        if eq /t dc:255
+            do
+                set /i wrapAdd /i u64:2.
+                if gt /i /n
+                    set /i /n
+                    nop.
+                continue.
+            ::
+            nop.
+        if eq /t /openTok
+            set /depth wrapAdd /depth u64:1
+            if eq /t /closeTok
+                set /depth wrapSub /depth u64:1
+                nop.
+        set /i wrapAdd /i u64:1.
+    ::.
+    /i.
+
+: @dc l8589992859
+v/u64/skipTokenDcType l/dc/tokens u64/pos
+    const u64/n len /tokens.
+    let u64/i /pos.
+    let u64/need u64:1.
+    while and lt /i /n gt /need u64:0 do
+        const dc/t dcAtOr /tokens /i dc:0.
+        if or eq /t dc:2576 or eq /t dc:2577 or eq /t dc:2674 or eq /t dc:2675 or eq /t dc:2677 eq /t dc:2678
+            do
+                set /i wrapAdd /i u64:1.
+                continue.
+            ::
+            nop.
+        if eq /t dc:262
+            do
+                set /i skipBalancedFrame /tokens /i dc:262 dc:263.
+                set /need wrapSub /need u64:1.
+                continue.
+            ::
+            nop.
+        if eq /t dc:2672
+            do
+                set /i skipBalancedFrame /tokens wrapAdd /i u64:1 dc:310 dc:311.
+                set /need wrapSub /need u64:1.
+                continue.
+            ::
+            nop.
+        if or eq /t dc:2673 eq /t dc:2679
+            do
+                set /i wrapAdd /i u64:1.
+                if lt /i /n
+                    do
+                        if eq dcAtOr /tokens /i dc:0 dc:270
+                            do
+                                const tup: b l/u8 u64 ::/id readIdentBytes /tokens /i.
+                                set /i field /id u32:2.
+                            ::
+                            match readTokAtom /tokens /i
+                                case some u128Step/st set /i field /st nextPos.
+                                case none nop.
+                            ::.
+                    ::
+                    nop.
+                set /need wrapSub /need u64:1.
+                continue.
+            ::
+            nop.
+        set /i wrapAdd /i u64:1.
+        set /need wrapSub /need u64:1.
+    ::.
+    /i.
+
+: Scans Token-Dc stream `tokens[start..end]` (stopping before module end) for
+: external Dc symbol references (returns `l/u128`, raw global Dc IDs).
+: @dc l8589992860
+v/l/u128/scanDcRefsInRange l/dc/tokens u64/start u64/end
+    let buf/u128/refs bufNew u128 u64:16.
+    let u64/i /start.
+    while lt /i /end do
+        const dc/t dcAtOr /tokens /i dc:0.
+        if eq /t dc:255
+            do
+                set /i wrapAdd /i u64:2.
+                if gt /i /end
+                    set /i /end
+                    nop.
+                continue.
+            ::
+            nop.
+        if or isSingleLineCommentOpener /t isBlockCommentOpener /t
+            do
+                set /i skipAllComments /tokens /i.
+                if gt /i /end
+                    set /i /end
+                    nop.
+                continue.
+            ::
+            nop.
+        if eq /t dc:203
+            do
+                set /i wrapAdd /i u64:1.
+                while lt /i /end do
+                    const dc/bt dcAtOr /tokens /i dc:0.
+                    set /i wrapAdd /i u64:1.
+                    if eq /bt dc:204
+                        break
+                        nop.
+                ::.
+                continue.
+            ::
+            nop.
+        if eq /t dc:270
+            do
+                set /i skipBalancedFrame /tokens /i dc:270 dc:271.
+                if gt /i /end
+                    set /i /end
+                    nop.
+                continue.
+            ::
+            nop.
+        if eq /t dc:260
+            do
+                set /i skipBalancedFrame /tokens /i dc:260 dc:261.
+                if gt /i /end
+                    set /i /end
+                    nop.
+                continue.
+            ::
+            nop.
+        if or eq /t dc:2673 or eq /t dc:2679 or eq /t dc:2211 or eq /t dc:2219 or eq /t dc:2227 or eq /t dc:2233 eq /t dc:2197
+            do
+                set /i wrapAdd /i u64:1.
+                if and lt /i /end ne dcAtOr /tokens /i dc:0 dc:270
+                    match readTokAtom /tokens /i
+                        case some u128Step/st
+                            do
+                                bufPush /refs field /st val.
+                                set /i field /st nextPos.
+                            ::
+                        case none nop.
+                    ::
+                    nop.
+                continue.
+            ::
+            nop.
+        if eq /t dc:2202
+            do
+                set /i wrapAdd /i u64:1.
+                if lt /i /end
+                    do
+                        if eq dcAtOr /tokens /i dc:0 dc:316
+                            set /i wrapAdd /i u64:1
+                            set /i skipTokenDcType /tokens /i.
+                        if and lt /i /end ne dcAtOr /tokens /i dc:0 dc:270
+                            match readTokAtom /tokens /i
+                                case some u128Step/st
+                                    do
+                                        bufPush /refs field /st val.
+                                        set /i field /st nextPos.
+                                    ::
+                                case none nop.
+                            ::
+                            nop.
+                    ::
+                    nop.
+                continue.
+            ::
+            nop.
+        set /i wrapAdd /i u64:1.
+    ::.
+    bufFreeze /refs.
+
+: Computes declaration end and metadata for a single top-level declaration starting at `pos`.
+: @dc l8589992861
+v/tup: b b u8 u128 l/u8 l/dc u64 ::/inspectTopDeclMeta l/dc/tokens u64/pos
+    : Returns `(isValid, wasPub, hasBuf, catRank, ownDcId, localDcs, cleanedDeclTokens, nextPos)`.
+    : Actually packed cleanly into helpers below; this extracts header + end position.
+    let u64/i skipAllComments /tokens /pos.
+    const u64/n len /tokens.
+    if ge /i /n
+        return tupNew: false false u8:2 u128:0 l/u8: :: l/dc: :: /pos ::
+        nop.
+    const dc/head dcAtOr /tokens /i dc:0.
+    let b/wasPub false.
+    let b/hasBuf false.
+    let u8/catRank u8:2.
+    let u128/ownDc u128:0.
+    let b/hasOwnDc false.
+    let u64/declEnd /i.
+    if or eq /head dc:2199 eq /head dc:2200
+        do
+            set /wasPub eq /head dc:2200.
+            set /catRank u8:1.
+            let u64/p wrapAdd /i u64:1.
+            const b/isNone and lt /p /n eq dcAtOr /tokens /p dc:0 dc:316.
+            match readTokOptAtom /tokens /p
+                case some u128Step/st
+                    do
+                        if not /isNone
+                            do
+                                set /hasOwnDc true.
+                                set /ownDc field /st val.
+                            ::
+                            nop.
+                        set /p field /st nextPos.
+                    ::
+                case none return tupNew: false false u8:2 u128:0 l/u8: :: l/dc: :: /pos ::.
+            ::.
+            set /p skipTokenDcType /tokens /p.
+            if or ge /p /n ne dcAtOr /tokens /p dc:0 dc:270
+                return tupNew: false false u8:2 u128:0 l/u8: :: l/dc: :: /pos ::
+                nop.
+            const tup: b l/u8 u64 ::/idr readIdentBytes /tokens /p.
+            set /p field /idr u32:2.
+            : Scan value expression until end of enclosing module or next top decl? Wait: single-decl nodes end at `len`, multi-decl module consts cannot easily be split unless balanced expr, so we scan whole module via `scanModuleDecls`.
+            return tupNew: true /wasPub /catRank if /hasOwnDc /ownDc u128:0 l/u8: :: l/dc: :: /p ::
+        ::
+        nop.
+    if or eq /head dc:2203 or eq /head dc:2217 or eq /head dc:2223 or eq /head dc:2224 eq /head dc:2230
+        do
+            let u64/p wrapAdd /i u64:1.
+            if lt /p /n
+                do
+                    if eq dcAtOr /tokens /p dc:0 dc:517
+                        set /wasPub true
+                        nop.
+                    set /p wrapAdd /p u64:1.
+                ::
+                nop.
+            if eq /head dc:2223
+                set /p wrapAdd /p u64:1
+                nop.
+            if or eq /head dc:2217 or eq /head dc:2223 or eq /head dc:2224 eq /head dc:2230
+                set /catRank u8:0
+                nop.
+            const b/isNone and lt /p /n eq dcAtOr /tokens /p dc:0 dc:316.
+            match readTokOptAtom /tokens /p
+                case some u128Step/st
+                    do
+                        if not /isNone
+                            do
+                                set /hasOwnDc true.
+                                set /ownDc field /st val.
+                            ::
+                            nop.
+                        set /p field /st nextPos.
+                    ::
+                case none nop.
+            ::.
+            return tupNew: true /wasPub /catRank if /hasOwnDc /ownDc u128:0 l/u8: :: l/dc: :: /p ::
+        ::
+        nop.
+    tupNew: false false u8:2 u128:0 l/u8: :: l/dc: :: /pos ::.
+
+: @dc l8589992862
+v/b/tokensHasBufDc l/dc/tokens u64/start u64/end
+    let u64/i /start.
+    while lt /i /end do
+        const dc/t dcAtOr /tokens /i dc:0.
+        if eq /t dc:255
+            do
+                set /i wrapAdd /i u64:2.
+                if gt /i /end
+                    set /i /end
+                    nop.
+                continue.
+            ::
+            nop.
+        if eq /t dc:2577
+            return true
+            nop.
+        if or isSingleLineCommentOpener /t isBlockCommentOpener /t
+            do
+                set /i skipAllComments /tokens /i.
+                continue.
+            ::
+            nop.
+        if eq /t dc:270
+            do
+                set /i skipBalancedFrame /tokens /i dc:270 dc:271.
+                continue.
+            ::
+            nop.
+        if eq /t dc:260
+            do
+                set /i skipBalancedFrame /tokens /i dc:260 dc:261.
+                continue.
+            ::
+            nop.
+        if eq /t dc:203
+            do
+                set /i wrapAdd /i u64:1.
+                while lt /i /end do
+                    const dc/bt dcAtOr /tokens /i dc:0.
+                    set /i wrapAdd /i u64:1.
+                    if eq /bt dc:204
+                        break
+                        nop.
+                ::.
+                continue.
+            ::
+            nop.
+        set /i wrapAdd /i u64:1.
+    ::.
+    false.
+
+: Scans local declaration Dc IDs inside `tokens[start..end]`, detecting StageR constructs too.
+: @dc l8589992863
+v/tup: l/u128 b ::/collectLocalDcsAndStagerFlag l/dc/tokens u64/start u64/end
+    let buf/u128/locs bufNew u128 u64:8.
+    let b/usesStager false.
+    let u64/i /start.
+    while lt /i /end do
+        const dc/t dcAtOr /tokens /i dc:0.
+        if eq /t dc:255
+            do
+                set /i wrapAdd /i u64:2.
+                if gt /i /end
+                    set /i /end
+                    nop.
+                continue.
+            ::
+            nop.
+        if or isSingleLineCommentOpener /t isBlockCommentOpener /t
+            do
+                set /i skipAllComments /tokens /i.
+                continue.
+            ::
+            nop.
+        if eq /t dc:203
+            do
+                set /i wrapAdd /i u64:1.
+                while lt /i /end do
+                    const dc/bt dcAtOr /tokens /i dc:0.
+                    set /i wrapAdd /i u64:1.
+                    if eq /bt dc:204
+                        break
+                        nop.
+                ::.
+                continue.
+            ::
+            nop.
+        if eq /t dc:270
+            do
+                set /i skipBalancedFrame /tokens /i dc:270 dc:271.
+                continue.
+            ::
+            nop.
+        if eq /t dc:260
+            do
+                set /i skipBalancedFrame /tokens /i dc:260 dc:261.
+                continue.
+            ::
+            nop.
+        if or eq /t dc:2221 or eq /t dc:2223 or eq /t dc:2224 or eq /t dc:2230 or eq /t dc:2674 or eq /t dc:2675 eq /t dc:2676
+            set /usesStager true
+            nop.
+        if or eq /t dc:2199 eq /t dc:2200
+            do
+                const u64/p wrapAdd /i u64:1.
+                if and lt /p /end ne dcAtOr /tokens /p dc:0 dc:316
+                    match readTokAtom /tokens /p
+                        case some u128Step/st bufPush /locs field /st val.
+                        case none nop.
+                    ::
+                    nop.
+            ::
+            if or eq /t dc:2203 or eq /t dc:2217 or eq /t dc:2224 eq /t dc:2230
+                do
+                    const u64/p wrapAdd /i u64:2.
+                    if and lt /p /end ne dcAtOr /tokens /p dc:0 dc:316
+                        match readTokAtom /tokens /p
+                            case some u128Step/st bufPush /locs field /st val.
+                            case none nop.
+                        ::
+                        nop.
+                ::
+                if eq /t dc:2223
+                    do
+                        const u64/p wrapAdd /i u64:3.
+                        if and lt /p /end ne dcAtOr /tokens /p dc:0 dc:316
+                            match readTokAtom /tokens /p
+                                case some u128Step/st bufPush /locs field /st val.
+                                case none nop.
+                            ::
+                            nop.
+                    ::
+                    nop.
+        set /i wrapAdd /i u64:1.
+    ::.
+    tupNew: bufFreeze /locs /usesStager ::.
+
+: Removes top-level `Dc 2206..Dc 2207` test blocks from a routine Token-Dc slice
+: (`[2203, bool, optAtom, retType, ident, params..., (2206..2207)?, body..., 2204]`).
+: @dc l8589992864
+v/l/dc/stripRoutineTestBlocks l/dc/tokens
+    const u64/n len /tokens.
+    if or eq /n u64:0 ne dcAtOr /tokens u64:0 dc:0 dc:2203
+        return /tokens
+        nop.
+    let u64/p u64:2.
+    match readTokOptAtom /tokens /p
+        case some u128Step/st set /p field /st nextPos.
+        case none return /tokens.
+    ::.
+    set /p skipTokenDcType /tokens /p.
+    if or ge /p /n ne dcAtOr /tokens /p dc:0 dc:270
+        return /tokens
+        nop.
+    const tup: b l/u8 u64 ::/idr readIdentBytes /tokens /p.
+    set /p field /idr u32:2.
+    while lt /p /n do
+        set /p skipAllComments /tokens /p.
+        if or ge /p /n ne dcAtOr /tokens /p dc:0 dc:2205
+            break
+            nop.
+        set /p skipTokenDcType /tokens wrapAdd /p u64:1.
+        if or ge /p /n ne dcAtOr /tokens /p dc:0 dc:270
+            return /tokens
+            nop.
+        const tup: b l/u8 u64 ::/pidr readIdentBytes /tokens /p.
+        set /p field /pidr u32:2.
+    ::.
+    set /p skipAllComments /tokens /p.
+    if or ge /p /n ne dcAtOr /tokens /p dc:0 dc:2206
+        return /tokens
+        nop.
+    const u64/testStart /p.
+    let u64/testEnd /testStart.
+    while and lt /testEnd /n eq dcAtOr /tokens /testEnd dc:0 dc:2206 do
+        set /testEnd skipBalancedFrame /tokens /testEnd dc:2206 dc:2207.
+        set /testEnd skipAllComments /tokens /testEnd.
+    ::.
+    let buf/dc/out bufNew dc /n.
+    match slice /tokens u64:0 /testStart
+        case some l/dc/hd bufExtend /out /hd.
+        case none nop.
+    ::.
+    match slice /tokens /testEnd /n
+        case some l/dc/tl bufExtend /out /tl.
+        case none nop.
+    ::.
+    bufFreeze /out.
+
+: Parses a single StageL/StageR Token-Dc module frame starting at `pos` (`2192..2193` or `2221..2222`).
+: @dc l8589992865
+v/tup: b bundledMod u64 ::/parseModuleAt l/dc/tokens u64/pos b/isCaller b/isStagerCaller
+    const u64/n len /tokens.
+    const u64/openPos skipAllComments /tokens /pos.
+    if ge /openPos /n
+        return tupNew: false structNew bundledMod: isStager false isCaller false wasPub true hasBuf false synthDc u128:0 nsKey b"" nsSegs l/l/u8: :: useKeys l/l/u8: :: localDcs l/u128: :: refDcs l/u128: :: tokens l/dc: :: :: /pos ::
+        nop.
+    const dc/openTok dcAtOr /tokens /openPos dc:0.
+    let b/isStager false.
+    let dc/closeTok dc:2193.
+    if eq /openTok dc:2221
+        do
+            set /isStager true.
+            set /closeTok dc:2222.
+        ::
+        if ne /openTok dc:2192
+            return tupNew: false structNew bundledMod: isStager false isCaller false wasPub true hasBuf false synthDc u128:0 nsKey b"" nsSegs l/l/u8: :: useKeys l/l/u8: :: localDcs l/u128: :: refDcs l/u128: :: tokens l/dc: :: :: /pos ::
+            nop.
+    const u64/modEnd skipBalancedFrame /tokens /openPos /openTok /closeTok.
+    const l/dc/modSlice match slice /tokens /openPos /modEnd
+        case some l/dc/s /s.
+        case none return tupNew: false structNew bundledMod: isStager false isCaller false wasPub true hasBuf false synthDc u128:0 nsKey b"" nsSegs l/l/u8: :: useKeys l/l/u8: :: localDcs l/u128: :: refDcs l/u128: :: tokens l/dc: :: :: /pos ::.
+    ::.
+    let u64/p skipAllComments /tokens wrapAdd /openPos u64:1.
+    let l/u8/nsKey b"".
+    let l/l/u8/nsSegs l/l/u8: ::.
+    if lt /p /modEnd
+        do
+            if eq dcAtOr /tokens /p dc:0 dc:316
+                set /p wrapAdd /p u64:1
+                if eq dcAtOr /tokens /p dc:0 dc:2194
+                    do
+                        const tup: b l/l/u8 u64 ::/fpr readFilePathSegs /tokens wrapAdd /p u64:1.
+                        if not field /fpr u32:0
+                            return tupNew: false structNew bundledMod: isStager false isCaller false wasPub true hasBuf false synthDc u128:0 nsKey b"" nsSegs l/l/u8: :: useKeys l/l/u8: :: localDcs l/u128: :: refDcs l/u128: :: tokens l/dc: :: :: /pos ::
+                            nop.
+                        set /nsSegs field /fpr u32:1.
+                        set /nsKey joinNsSegs /nsSegs.
+                        set /p field /fpr u32:2.
+                    ::
+                    return tupNew: false structNew bundledMod: isStager false isCaller false wasPub true hasBuf false synthDc u128:0 nsKey b"" nsSegs l/l/u8: :: useKeys l/l/u8: :: localDcs l/u128: :: refDcs l/u128: :: tokens l/dc: :: :: /pos ::.
+        ::
+        nop.
+    let buf/l/u8/useKeys bufNew l/u8 u64:4.
+    while lt /p /modEnd do
+        set /p skipAllComments /tokens /p.
+        if or ge /p /modEnd ne dcAtOr /tokens /p dc:0 dc:2195
+            break
+            nop.
+        const tup: b l/l/u8 u64 ::/ufp readFilePathSegs /tokens wrapAdd /p u64:1.
+        if not field /ufp u32:0
+            return tupNew: false structNew bundledMod: isStager false isCaller false wasPub true hasBuf false synthDc u128:0 nsKey b"" nsSegs l/l/u8: :: useKeys l/l/u8: :: localDcs l/u128: :: refDcs l/u128: :: tokens l/dc: :: :: /pos ::
+            nop.
+        bufPush /useKeys joinNsSegs field /ufp u32:1.
+        set /p skipAllComments /tokens field /ufp u32:2.
+        while lt /p /modEnd do
+            const dc/ut dcAtOr /tokens /p dc:0.
+            if eq /ut dc:2196
+                do
+                    set /p wrapAdd /p u64:1.
+                    break.
+                ::
+                nop.
+            if ne /ut dc:2197
+                return tupNew: false structNew bundledMod: isStager false isCaller false wasPub true hasBuf false synthDc u128:0 nsKey b"" nsSegs l/l/u8: :: useKeys l/l/u8: :: localDcs l/u128: :: refDcs l/u128: :: tokens l/dc: :: :: /pos ::
+                nop.
+            set /p wrapAdd /p u64:1.
+            if ge /p /modEnd
+                break
+                nop.
+            if eq dcAtOr /tokens /p dc:0 dc:270
+                do
+                    const tup: b l/u8 u64 ::/tid readIdentBytes /tokens /p.
+                    set /p field /tid u32:2.
+                ::
+                match readTokAtom /tokens /p
+                    case some u128Step/st set /p field /st nextPos.
+                    case none break.
+                ::.
+            if lt /p /modEnd
+                do
+                    if eq dcAtOr /tokens /p dc:0 dc:316
+                        set /p wrapAdd /p u64:1
+                        do
+                            const tup: b l/u8 u64 ::/aid readIdentBytes /tokens /p.
+                            set /p field /aid u32:2.
+                        ::.
+                ::
+                nop.
+        ::.
+    ::.
+    const u64/bodyEnd wrapSub /modEnd u64:1.
+    const tup: l/u128 b ::/locRes collectLocalDcsAndStagerFlag /tokens /p /bodyEnd.
+    const l/u128/locs field /locRes u32:0.
+    const l/u128/refs scanDcRefsInRange /tokens wrapAdd /openPos u64:1 /bodyEnd.
+    const b/bufFlag tokensHasBufDc /tokens /p /bodyEnd.
+    tupNew: true structNew bundledMod: isStager /isStager isCaller /isCaller wasPub true hasBuf /bufFlag synthDc u128:0 nsKey /nsKey nsSegs /nsSegs useKeys bufFreeze /useKeys localDcs /locs refDcs /refs tokens /modSlice :: /modEnd ::.
+
+: @dc l8589992866
+v/scanModRes/parseCallerModuleStream l/dc/tokens
+    let buf/bundledMod/mods bufNew bundledMod u64:4.
+    let u64/p u64:0.
+    const u64/n len /tokens.
+    while lt /p /n do
+        set /p skipAllComments /tokens /p.
+        if ge /p /n
+            break
+            nop.
+        const tup: b bundledMod u64 ::/mr parseModuleAt /tokens /p true false.
+        if not field /mr u32:0
+            return structNew scanModRes: ok false mods l/bundledMod: :: ::
+            nop.
+        bufPush /mods field /mr u32:1.
+        set /p field /mr u32:2.
+    ::.
+    const l/bundledMod/frozen bufFreeze /mods.
+    if eq len /frozen u64:0
+        return structNew scanModRes: ok false mods l/bundledMod: :: ::
+        nop.
+    structNew scanModRes: ok true mods /frozen ::.
+
+: Extracts `uses` (`Dc 2195..Dc 2196`) + body declaration slice from a StageL/StageR `Module`
+: or standalone `TopDecl` (`2199`, `2200`, `2203`, `2217`, `2223`, `2224`, `2230`), stripping
+: test blocks from dependency routines and matching `wantStager`.
+: @dc l8589992867
+v/tup: b l/graphDeclItem ::/unpackGraphEntryTokens dc/subj u128/sid l/dc/rawTokens b/wantStager b/needDialectFilter
+    const l/dc/tokens stripLeadingComments /rawTokens.
+    const u64/n len /tokens.
+    if eq /n u64:0
+        return tupNew: false l/graphDeclItem: :: ::
+        nop.
+    const dc/first dcAtOr /tokens u64:0 dc:0.
+    if or eq /first dc:2192 eq /first dc:2221
+        do
+            const tup: b bundledMod u64 ::/mr parseModuleAt /tokens u64:0 false false.
+            if not field /mr u32:0
+                return tupNew: false l/graphDeclItem: :: ::
+                nop.
+            const bundledMod/bm field /mr u32:1.
+            if and /needDialectFilter ne field /bm isStager /wantStager
+                return tupNew: true l/graphDeclItem: :: ::
+                nop.
+            : Extract raw body slice inside `open..uses..close` (preserving multiple decls as one bundled module entry).
+            let u64/bp skipAllComments /tokens u64:1.
+            if lt /bp /n
+                do
+                    if eq dcAtOr /tokens /bp dc:0 dc:316
+                        set /bp wrapAdd /bp u64:1
+                        if eq dcAtOr /tokens /bp dc:0 dc:2194
+                            do
+                                const tup: b l/l/u8 u64 ::/fpr readFilePathSegs /tokens wrapAdd /bp u64:1.
+                                set /bp field /fpr u32:2.
+                            ::
+                            nop.
+                ::
+                nop.
+            let u64/useStart /bp.
+            while lt /bp /n do
+                set /bp skipAllComments /tokens /bp.
+                if or ge /bp /n ne dcAtOr /tokens /bp dc:0 dc:2195
+                    break
+                    nop.
+                set /bp skipBalancedFrame /tokens /bp dc:2195 dc:2196.
+            ::.
+            const l/dc/useSlice match slice /tokens /useStart /bp
+                case some l/dc/s /s.
+                case none l/dc: ::.
+            ::.
+            const l/dc/bodySlice match slice /tokens /bp wrapSub /n u64:1
+                case some l/dc/s stripRoutineTestBlocks /s.
+                case none l/dc: ::.
+            ::.
+            const graphDeclItem/it structNew graphDeclItem:
+                subj /subj
+                subjId /sid
+                isStager field /bm isStager
+                wasPub true
+                hasBuf field /bm hasBuf
+                catRank u8:2
+                useKeys field /bm useKeys
+                useTokens /useSlice
+                localDcs field /bm localDcs
+                refDcs field /bm refDcs
+                declTokens /bodySlice
+            ::.
+            return tupNew: true l/graphDeclItem: /it :: ::
+        ::
+        nop.
+    const tup: b b u8 u128 l/u8 l/dc u64 ::/meta inspectTopDeclMeta /tokens u64:0.
+    if not field /meta u32:0
+        return tupNew: false l/graphDeclItem: :: ::
+        nop.
+    const tup: l/u128 b ::/locSt collectLocalDcsAndStagerFlag /tokens u64:0 /n.
+    const b/isSr field /locSt u32:1.
+    if and /needDialectFilter ne /isSr /wantStager
+        return tupNew: true l/graphDeclItem: :: ::
+        nop.
+    let l/u128/locs field /locSt u32:0.
+    if not listContainsU128 /locs /sid
+        set /locs appendUniqueU128 /locs /sid
+        nop.
+    const l/dc/cleaned stripRoutineTestBlocks /tokens.
+    const graphDeclItem/it structNew graphDeclItem:
+        subj /subj
+        subjId /sid
+        isStager /isSr
+        wasPub field /meta u32:1
+        hasBuf tokensHasBufDc /cleaned u64:0 len /cleaned
+        catRank field /meta u32:2
+        useKeys l/l/u8: ::
+        useTokens l/dc: ::
+        localDcs /locs
+        refDcs scanDcRefsInRange /cleaned u64:0 len /cleaned
+        declTokens /cleaned
+    ::.
+    tupNew: true l/graphDeclItem: /it :: ::.
+
+: Flips visibility on a private non-`buf` top-level declaration (`518 -> 517` or `2199 -> 2200`).
+: @dc l8589992868
+v/l/dc/flipDeclTokensPub l/dc/tokens
+    if eq len /tokens u64:0
+        return /tokens
+        nop.
+    const dc/h dcAtOr /tokens u64:0 dc:0.
+    if eq /h dc:2199
+        do
+            let buf/dc/out bufNew dc len /tokens.
+            bufPush /out dc:2200.
+            match slice /tokens u64:1 len /tokens
+                case some l/dc/rest bufExtend /out /rest.
+                case none nop.
+            ::.
+            return bufFreeze /out
+        ::
+        nop.
+    if and gt len /tokens u64:1 and eq dcAtOr /tokens u64:1 dc:0 dc:518 or eq /h dc:2203 or eq /h dc:2217 or eq /h dc:2223 or eq /h dc:2224 eq /h dc:2230
+        do
+            let buf/dc/out bufNew dc len /tokens.
+            bufPush /out /h.
+            bufPush /out dc:517.
+            match slice /tokens u64:2 len /tokens
+                case some l/dc/rest bufExtend /out /rest.
+                case none nop.
+            ::.
+            return bufFreeze /out
+        ::
+        nop.
+    /tokens.
+
+: @dc l8589992869
+v/l/dc/buildSyntheticModuleTokens b/isStager b/hasNs l/l/u8/nsSegs l/dc/useToks l/dc/bodyToks
+    let buf/dc/out bufNew dc wrapAdd len /useToks wrapAdd len /bodyToks u64:32.
+    bufPush /out if /isStager dc:2221 dc:2192.
+    if /hasNs
+        do
+            bufPush /out dc:2194.
+            bufExtend /out encodeFilePathVariant /nsSegs l/u128: :: u8:0 u8:0.
+        ::
+        bufPush /out dc:316.
+    bufExtend /out /useToks.
+    bufExtend /out /bodyToks.
+    bufPush /out if /isStager dc:2222 dc:2193.
+    bufFreeze /out.
+
+: @dc l8589992870
+v/l/dc/absorbPrivateDeclIntoModule l/dc/modToks l/dc/declToks
+    const u64/n len /modToks.
+    if lt /n u64:2
+        return /modToks
+        nop.
+    const dc/close dcAtOr /modToks wrapSub /n u64:1 dc:0.
+    let buf/dc/out bufNew dc wrapAdd /n len /declToks.
+    match slice /modToks u64:0 wrapSub /n u64:1
+        case some l/dc/hd bufExtend /out /hd.
+        case none nop.
+    ::.
+    bufExtend /out /declToks.
+    bufPush /out /close.
+    bufFreeze /out.
+
+: @dc l8589992871
+v/l/graphDeclItem/sortGraphDeclItems l/graphDeclItem/items
+    const u64/n len /items.
+    if le /n u64:1
+        return /items
+        nop.
+    let buf/graphDeclItem/arr bufNew graphDeclItem /n.
+    bufExtend /arr /items.
+    let u64/i u64:1.
+    while lt /i /n do
+        const graphDeclItem/key match get /arr /i
+            case some graphDeclItem/s /s.
+            case none break.
+        ::.
+        let u64/j /i.
+        while gt /j u64:0 do
+            const u64/jm1 wrapSub /j u64:1.
+            const graphDeclItem/prev match get /arr /jm1
+                case some graphDeclItem/s /s.
+                case none break.
+            ::.
+            const b/earlier or lt field /key catRank field /prev catRank and eq field /key catRank field /prev catRank lt field /key subjId field /prev subjId.
+            if not /earlier
+                break
+                nop.
+            match bufSet /arr /j /prev
+                case ok nop.
+                case err error/_e break.
+            ::.
+            set /j /jm1.
+        ::.
+        match bufSet /arr /j /key
+            case ok nop.
+            case err error/_e break.
+        ::.
+        set /i wrapAdd /i u64:1.
+    ::.
+    bufFreeze /arr.
+
+: @dc l8589992872
+v/l/dc/extractTopUseItems l/dc/useTokens
+    let buf/l/dc/seen bufNew l/dc u64:4.
+    let buf/dc/out bufNew dc len /useTokens.
+    const u64/n len /useTokens.
+    let u64/i u64:0.
+    while lt /i /n do
+        set /i skipAllComments /useTokens /i.
+        if or ge /i /n ne dcAtOr /useTokens /i dc:0 dc:2195
+            break
+            nop.
+        const u64/endU skipBalancedFrame /useTokens /i dc:2195 dc:2196.
+        match slice /useTokens /i /endU
+            case some l/dc/oneUse
+                do
+                    let b/dup false.
+                    let u64/si u64:0.
+                    while lt /si len /seen do
+                        const b/matched match get /seen /si
+                            case some l/dc/ex dcListEq /ex /oneUse.
+                            case none false.
+                        ::.
+                        if /matched
+                            do
+                                set /dup true.
+                                break.
+                            ::
+                            nop.
+                        set /si wrapAdd /si u64:1.
+                    ::.
+                    if not /dup
+                        do
+                            bufPush /seen /oneUse.
+                            bufExtend /out /oneUse.
+                        ::
+                        nop.
+                ::
+            case none nop.
+        ::.
+        set /i /endU.
+    ::.
+    const l/l/dc/_unusedSeen bufFreeze /seen.
+    bufFreeze /out.
+
+: Loads active declarations for a namespace (`segs`) into `(sl3Mod, sr3Mod)`.
+: @dc l8589992787
+struct loadNsRes
+    capClient/cli.
+    b/ok.
+    l/bundledMod/mods.
+    l/dc/errTokens.
+
+: @dc l8589992873
+v/loadNsRes/loadNamespaceModules capClient/cli l/l/u8/segs b/allowStager
+    let capClient/curCli /cli.
+    const l/u8/nsKey joinNsSegs /segs.
+    const capU128ListRes/fpRes findFilePathContextNodes /curCli /segs.
+    set /curCli field /fpRes cli.
+    if not field /fpRes ok
+        return structNew loadNsRes: cli /curCli ok false mods l/bundledMod: :: errTokens field /fpRes errTokens ::
+        nop.
+    if eq len field /fpRes ids u64:0
+        return structNew loadNsRes: cli /curCli ok true mods l/bundledMod: :: errTokens l/dc: :: ::
+        nop.
+    let buf/graphDeclItem/slItems bufNew graphDeclItem u64:8.
+    let buf/graphDeclItem/srItems bufNew graphDeclItem u64:8.
+    let l/u128/seenSlSubjs l/u128: ::.
+    let l/u128/seenSrSubjs l/u128: ::.
+    foreach u128/ctxId field /fpRes ids do
+        const capTripleListRes/inCtx queryTriples /curCli true dc:646 false dc:0 true dcFromU128 /ctxId.
+        set /curCli field /inCtx cli.
+        if not field /inCtx ok
+            return structNew loadNsRes: cli /curCli ok false mods l/bundledMod: :: errTokens field /inCtx errTokens ::
+            nop.
+        foreach tripleRec/ct field /inCtx triples do
+            const u128/hasAId u128FromDc field /ct subj.
+            if not isSysRegionId /hasAId
+                continue
+                nop.
+            const capOptNodeRes/stmtNode queryNodeExpanded /curCli /hasAId.
+            set /curCli field /stmtNode cli.
+            if eq field /stmtNode tag u8:2
+                return structNew loadNsRes: cli /curCli ok false mods l/bundledMod: :: errTokens field /stmtNode payload ::
+                nop.
+            if ne field /stmtNode tag u8:1
+                continue
+                nop.
+            const l/dc/stToks field /stmtNode payload.
+            if or ne len /stToks u64:3 or ne dcAtOr /stToks u64:0 dc:0 dc:584 ne dcAtOr /stToks u64:2 dc:0 dc:574
+                continue
+                nop.
+            const dc/subj dcAtOr /stToks u64:1 dc:0.
+            const u128/sid u128FromDc /subj.
+            const capOptNodeRes/declNr resolveStageLOrRDecomp /curCli /subj.
+            set /curCli field /declNr cli.
+            if eq field /declNr tag u8:2
+                return structNew loadNsRes: cli /curCli ok false mods l/bundledMod: :: errTokens field /declNr payload ::
+                nop.
+            if ne field /declNr tag u8:1
+                continue
+                nop.
+            const tup: b l/graphDeclItem ::/slUnp unpackGraphEntryTokens /subj /sid field /declNr payload false true.
+            if field /slUnp u32:0
+                foreach graphDeclItem/it field /slUnp u32:1 do
+                    if not listContainsU128 /seenSlSubjs field /it subjId
+                        do
+                            set /seenSlSubjs appendUniqueU128 /seenSlSubjs field /it subjId.
+                            bufPush /slItems /it.
+                        ::
+                        nop.
+                ::
+                nop.
+            if /allowStager
+                do
+                    const tup: b l/graphDeclItem ::/srUnp unpackGraphEntryTokens /subj /sid field /declNr payload true true.
+                    if field /srUnp u32:0
+                        foreach graphDeclItem/it field /srUnp u32:1 do
+                            if not listContainsU128 /seenSrSubjs field /it subjId
+                                do
+                                    set /seenSrSubjs appendUniqueU128 /seenSrSubjs field /it subjId.
+                                    bufPush /srItems /it.
+                                ::
+                                nop.
+                        ::
+                        nop.
+                ::
+                nop.
+        ::.
+    ::.
+    let buf/bundledMod/modsOut bufNew bundledMod u64:2.
+    const l/graphDeclItem/sortedSl sortGraphDeclItems bufFreeze /slItems.
+    if gt len /sortedSl u64:0
+        do
+            let buf/dc/uToks bufNew dc u64:16.
+            let buf/dc/bToks bufNew dc u64:128.
+            let buf/u128/locs bufNew u128 u64:16.
+            let buf/u128/refs bufNew u128 u64:32.
+            let l/l/u8/uKeys l/l/u8: ::.
+            let b/anyBuf false.
+            foreach graphDeclItem/it /sortedSl do
+                foreach l/u8/uk field /it useKeys do
+                    if not listContainsU8Seq /uKeys /uk
+                        do
+                            let buf/l/u8/nb bufNew l/u8 wrapAdd len /uKeys u64:1.
+                            bufExtend /nb /uKeys.
+                            bufPush /nb /uk.
+                            set /uKeys bufFreeze /nb.
+                        ::
+                        nop.
+                ::.
+                bufExtend /uToks field /it useTokens.
+                bufExtend /bToks field /it declTokens.
+                bufExtend /locs field /it localDcs.
+                bufExtend /refs field /it refDcs.
+                if field /it hasBuf
+                    set /anyBuf true
+                    nop.
+            ::.
+            const l/dc/modToks buildSyntheticModuleTokens false true /segs extractTopUseItems bufFreeze /uToks bufFreeze /bToks.
+            bufPush /modsOut structNew bundledMod: isStager false isCaller false wasPub true hasBuf /anyBuf synthDc u128:0 nsKey /nsKey nsSegs /segs useKeys /uKeys localDcs bufFreeze /locs refDcs bufFreeze /refs tokens /modToks ::.
+        ::
+        nop.
+    const l/graphDeclItem/sortedSr sortGraphDeclItems bufFreeze /srItems.
+    if gt len /sortedSr u64:0
+        do
+            let buf/dc/uToks bufNew dc u64:16.
+            let buf/dc/bToks bufNew dc u64:128.
+            let buf/u128/locs bufNew u128 u64:16.
+            let buf/u128/refs bufNew u128 u64:32.
+            let l/l/u8/uKeys l/l/u8: ::.
+            let b/anyBuf false.
+            foreach graphDeclItem/it /sortedSr do
+                foreach l/u8/uk field /it useKeys do
+                    if not listContainsU8Seq /uKeys /uk
+                        do
+                            let buf/l/u8/nb bufNew l/u8 wrapAdd len /uKeys u64:1.
+                            bufExtend /nb /uKeys.
+                            bufPush /nb /uk.
+                            set /uKeys bufFreeze /nb.
+                        ::
+                        nop.
+                ::.
+                bufExtend /uToks field /it useTokens.
+                bufExtend /bToks field /it declTokens.
+                bufExtend /locs field /it localDcs.
+                bufExtend /refs field /it refDcs.
+                if field /it hasBuf
+                    set /anyBuf true
+                    nop.
+            ::.
+            const l/dc/modToks buildSyntheticModuleTokens true true /segs extractTopUseItems bufFreeze /uToks bufFreeze /bToks.
+            bufPush /modsOut structNew bundledMod: isStager true isCaller false wasPub true hasBuf /anyBuf synthDc u128:0 nsKey /nsKey nsSegs /segs useKeys /uKeys localDcs bufFreeze /locs refDcs bufFreeze /refs tokens /modToks ::.
+        ::
+        nop.
+    structNew loadNsRes: cli /curCli ok true mods bufFreeze /modsOut errTokens l/dc: :: ::.
+
+: @dc l8589992788
+struct resolveNsSegsRes
+    capClient/cli.
+    b/ok.
+    b/found.
+    l/l/u8/segs.
+    l/dc/errTokens.
+
+: @dc l8589992874
+v/resolveNsSegsRes/resolveEntityNamespace capClient/cli dc/subj
+    let capClient/curCli /cli.
+    const capPropListRes/identQ queryMultiProperty /curCli /subj dc:574.
+    set /curCli field /identQ cli.
+    if not field /identQ ok
+        return structNew resolveNsSegsRes: cli /curCli ok false found false segs l/l/u8: :: errTokens field /identQ errTokens ::
+        nop.
+    foreach propEntry/it field /identQ props do
+        const capTripleListRes/ctxQ queryTriples /curCli true dc:646 true dcFromU128 field /it hasAId false dc:0.
+        set /curCli field /ctxQ cli.
+        if not field /ctxQ ok
+            return structNew resolveNsSegsRes: cli /curCli ok false found false segs l/l/u8: :: errTokens field /ctxQ errTokens ::
+            nop.
+        foreach tripleRec/ct field /ctxQ triples do
+            const u128/ctxId u128FromDc field /ct obj.
+            if isSysRegionId /ctxId
+                do
+                    const capOptNodeRes/nr queryNodeExpanded /curCli /ctxId.
+                    set /curCli field /nr cli.
+                    if eq field /nr tag u8:2
+                        return structNew resolveNsSegsRes: cli /curCli ok false found false segs l/l/u8: :: errTokens field /nr payload ::
+                        nop.
+                    if eq field /nr tag u8:1
+                        do
+                            const tup: b l/l/u8 u64 ::/fp readFilePathSegs field /nr payload u64:0.
+                            if and field /fp u32:0 eq field /fp u32:2 len field /nr payload
+                                return structNew resolveNsSegsRes: cli /curCli ok true found true segs field /fp u32:1 errTokens l/dc: :: ::
+                                nop.
+                        ::
+                        nop.
+                ::
+                nop.
+        ::.
+    ::.
+    structNew resolveNsSegsRes: cli /curCli ok true found false segs l/l/u8: :: errTokens l/dc: :: ::.
+
+: @dc l8589992875
+v/l/u8/formatDecimalU128 u128/val
+    if eq /val u128:0
+        return b"0"
+        nop.
+    let u128/cur /val.
+    let buf/u8/rev bufNew u8 u64:40.
+    while gt /cur u128:0 do
+        const u128/rem match mod /cur u128:10
+            case ok u128/r /r.
+            case err error/_e u128:0.
+        ::.
+        const u8/dig match conv /rem u8
+            case ok u8/d wrapAdd u8:48 /d.
+            case err error/_e u8:48.
+        ::.
+        bufPush /rev /dig.
+        set /cur match div /cur u128:10
+            case ok u128/q /q.
+            case err error/_e u128:0.
+        ::.
+    ::.
+    const l/u8/revList bufFreeze /rev.
+    let buf/u8/out bufNew u8 len /revList.
+    let u64/i len /revList.
+    while gt /i u64:0 do
+        set /i wrapSub /i u64:1.
+        bufPush /out u8AtOr /revList /i u8:48.
+    ::.
+    bufFreeze /out.
+
+: @dc l8589992876
+v/l/u8/formatDcShorthandAscii dc/c
+    const u128/u u128FromDc /c.
+    if ge /u u128:3342336
+        do
+            let buf/u8/out bufNew u8 u64:24.
+            bufPush /out u8:108.
+            bufExtend /out formatDecimalU128 /u.
+            return bufFreeze /out
+        ::
+        nop.
+    if ge /u u128:2228224
+        do
+            let buf/u8/out bufNew u8 u64:10.
+            bufPush /out u8:102.
+            bufExtend /out formatDecimalU128 wrapSub /u u128:2228224.
+            return bufFreeze /out
+        ::
+        nop.
+    if ge /u u128:1114112
+        return formatDecimalU128 wrapSub /u u128:1114112
+        nop.
+    let buf/u8/out bufNew u8 u64:12.
+    bufPush /out u8:117.
+    bufExtend /out formatDecimalU128 /u.
+    bufFreeze /out.
+
+: @dc l8589992877
+v/b/modDefinesAnyDc bundledMod/m u128/target
+    listContainsU128 field /m localDcs /target.
+
+: Bundles all transitive StageL/StageR dependencies ahead of `callerTokens`.
+: Forwards `callerTokens` unchanged if malformed so the downstream converter reports it cleanly.
+: @dc l8589992878
+v/capCallRes/bundleDcModuleDeps capClient/cli l/dc/callerTokens b/allowStager
+    const scanModRes/cmRes parseCallerModuleStream /callerTokens.
+    if not field /cmRes ok
+        return structNew capCallRes: cli /cli ok true payload /callerTokens ::
+        nop.
+    const l/bundledMod/callerMods field /cmRes mods.
+    let capClient/curCli /cli.
+    let l/bundledMod/depMods l/bundledMod: ::.
+    let l/l/u8/loadedNs l/l/u8: ::.
+    let l/l/u8/enqueuedNs l/l/u8: ::.
+    let l/l/u8/nsQueue l/l/u8: ::.
+    let l/u128/dcQueue l/u128: ::.
+    let l/u128/enqueuedDcs l/u128: ::.
+    let l/u128/knownLocalDcs l/u128: ::.
+
+    foreach bundledMod/cm /callerMods do
+        foreach u128/ld field /cm localDcs do
+            set /knownLocalDcs appendUniqueU128 /knownLocalDcs /ld.
+        ::.
+        foreach l/u8/uk field /cm useKeys do
+            if not listContainsU8Seq /enqueuedNs /uk
+                do
+                    let buf/l/u8/b1 bufNew l/u8 wrapAdd len /enqueuedNs u64:1.
+                    bufExtend /b1 /enqueuedNs.
+                    bufPush /b1 /uk.
+                    set /enqueuedNs bufFreeze /b1.
+                    let buf/l/u8/b2 bufNew l/u8 wrapAdd len /nsQueue u64:1.
+                    bufExtend /b2 /nsQueue.
+                    bufPush /b2 /uk.
+                    set /nsQueue bufFreeze /b2.
+                ::
+                nop.
+        ::.
+        foreach u128/rd field /cm refDcs do
+            if not listContainsU128 /enqueuedDcs /rd
+                do
+                    set /enqueuedDcs appendUniqueU128 /enqueuedDcs /rd.
+                    set /dcQueue appendUniqueU128 /dcQueue /rd.
+                ::
+                nop.
+        ::.
+    ::.
+
+    let u64/nsIdx u64:0.
+    let u64/dcIdx u64:0.
+    while or lt /nsIdx len /nsQueue lt /dcIdx len /dcQueue do
+        while lt /nsIdx len /nsQueue do
+            const l/u8/nsKey match get /nsQueue /nsIdx
+                case some l/u8/k /k.
+                case none break.
+            ::.
+            set /nsIdx wrapAdd /nsIdx u64:1.
+            if listContainsU8Seq /loadedNs /nsKey
+                continue
+                nop.
+            let buf/l/u8/lbuf bufNew l/u8 wrapAdd len /loadedNs u64:1.
+            bufExtend /lbuf /loadedNs.
+            bufPush /lbuf /nsKey.
+            set /loadedNs bufFreeze /lbuf.
+            const l/l/u8/segs splitNsKey /nsKey.
+            const loadNsRes/lnr loadNamespaceModules /curCli /segs /allowStager.
+            set /curCli field /lnr cli.
+            if not field /lnr ok
+                return structNew capCallRes: cli /curCli ok false payload field /lnr errTokens ::
+                nop.
+            foreach bundledMod/dm field /lnr mods do
+                let buf/bundledMod/db bufNew bundledMod wrapAdd len /depMods u64:1.
+                bufExtend /db /depMods.
+                bufPush /db /dm.
+                set /depMods bufFreeze /db.
+                foreach u128/ld field /dm localDcs do
+                    set /knownLocalDcs appendUniqueU128 /knownLocalDcs /ld.
+                ::.
+                foreach l/u8/uk field /dm useKeys do
+                    if not listContainsU8Seq /enqueuedNs /uk
+                        do
+                            let buf/l/u8/b1 bufNew l/u8 wrapAdd len /enqueuedNs u64:1.
+                            bufExtend /b1 /enqueuedNs.
+                            bufPush /b1 /uk.
+                            set /enqueuedNs bufFreeze /b1.
+                            let buf/l/u8/b2 bufNew l/u8 wrapAdd len /nsQueue u64:1.
+                            bufExtend /b2 /nsQueue.
+                            bufPush /b2 /uk.
+                            set /nsQueue bufFreeze /b2.
+                        ::
+                        nop.
+                ::.
+                foreach u128/rd field /dm refDcs do
+                    if not listContainsU128 /enqueuedDcs /rd
+                        do
+                            set /enqueuedDcs appendUniqueU128 /enqueuedDcs /rd.
+                            set /dcQueue appendUniqueU128 /dcQueue /rd.
+                        ::
+                        nop.
+                ::.
+            ::.
+        ::.
+        if lt /dcIdx len /dcQueue
+            do
+                const u128/refU match get /dcQueue /dcIdx
+                    case some u128/v /v.
+                    case none u128:0.
+                ::.
+                set /dcIdx wrapAdd /dcIdx u64:1.
+                if listContainsU128 /knownLocalDcs /refU
+                    continue
+                    nop.
+                const dc/refDc dcFromU128 /refU.
+                const resolveNsSegsRes/nres resolveEntityNamespace /curCli /refDc.
+                set /curCli field /nres cli.
+                if not field /nres ok
+                    return structNew capCallRes: cli /curCli ok false payload field /nres errTokens ::
+                    nop.
+                if field /nres found
+                    do
+                        const l/u8/uk joinNsSegs field /nres segs.
+                        if not listContainsU8Seq /enqueuedNs /uk
+                            do
+                                let buf/l/u8/b1 bufNew l/u8 wrapAdd len /enqueuedNs u64:1.
+                                bufExtend /b1 /enqueuedNs.
+                                bufPush /b1 /uk.
+                                set /enqueuedNs bufFreeze /b1.
+                                let buf/l/u8/b2 bufNew l/u8 wrapAdd len /nsQueue u64:1.
+                                bufExtend /b2 /nsQueue.
+                                bufPush /b2 /uk.
+                                set /nsQueue bufFreeze /b2.
+                            ::
+                            nop.
+                        continue.
+                    ::
+                    nop.
+                const capOptNodeRes/dnr resolveStageLOrRDecomp /curCli /refDc.
+                set /curCli field /dnr cli.
+                if eq field /dnr tag u8:2
+                    return structNew capCallRes: cli /curCli ok false payload field /dnr payload ::
+                    nop.
+                if ne field /dnr tag u8:1
+                    continue
+                    nop.
+                const tup: b l/graphDeclItem ::/unp unpackGraphEntryTokens /refDc /refU field /dnr payload /allowStager false.
+                if not field /unp u32:0
+                    continue
+                    nop.
+                foreach graphDeclItem/it field /unp u32:1 do
+                    if and not /allowStager field /it isStager
+                        continue
+                        nop.
+                    let buf/u8/sNameBuf bufNew u8 u64:24.
+                    bufExtend /sNameBuf b"$graph_dc_".
+                    bufExtend /sNameBuf formatDcShorthandAscii /refDc.
+                    const l/u8/sName bufFreeze /sNameBuf.
+                    const l/dc/mToks buildSyntheticModuleTokens field /it isStager true l/l/u8: /sName :: field /it useTokens field /it declTokens.
+                    const bundledMod/syn structNew bundledMod:
+                        isStager field /it isStager
+                        isCaller false
+                        wasPub field /it wasPub
+                        hasBuf field /it hasBuf
+                        synthDc /refU
+                        nsKey /sName
+                        nsSegs l/l/u8: /sName ::
+                        useKeys field /it useKeys
+                        localDcs field /it localDcs
+                        refDcs field /it refDcs
+                        tokens /mToks
+                    ::.
+                    let buf/bundledMod/db bufNew bundledMod wrapAdd len /depMods u64:1.
+                    bufExtend /db /depMods.
+                    bufPush /db /syn.
+                    set /depMods bufFreeze /db.
+                    foreach u128/ld field /it localDcs do
+                        set /knownLocalDcs appendUniqueU128 /knownLocalDcs /ld.
+                    ::.
+                    foreach l/u8/uk field /it useKeys do
+                        if not listContainsU8Seq /enqueuedNs /uk
+                            do
+                                let buf/l/u8/b1 bufNew l/u8 wrapAdd len /enqueuedNs u64:1.
+                                bufExtend /b1 /enqueuedNs.
+                                bufPush /b1 /uk.
+                                set /enqueuedNs bufFreeze /b1.
+                                let buf/l/u8/b2 bufNew l/u8 wrapAdd len /nsQueue u64:1.
+                                bufExtend /b2 /nsQueue.
+                                bufPush /b2 /uk.
+                                set /nsQueue bufFreeze /b2.
+                            ::
+                            nop.
+                    ::.
+                    foreach u128/rd field /it refDcs do
+                        if not listContainsU128 /enqueuedDcs /rd
+                            do
+                                set /enqueuedDcs appendUniqueU128 /enqueuedDcs /rd.
+                                set /dcQueue appendUniqueU128 /dcQueue /rd.
+                            ::
+                            nop.
+                    ::.
+                ::.
+            ::
+            nop.
+    ::.
+
+    : Handle private synthetic helpers (`!wasPub`): absorb single-owner helpers into their owner
+    : to fixed point; then flip remaining shared non-`buf` `$graph_dc_*` helpers `518 -> 517` (`2199 -> 2200`).
+    const u64/nd len /depMods.
+    let buf/bundledMod/workDeps bufNew bundledMod /nd.
+    bufExtend /workDeps /depMods.
+    let buf/b/removed bufFill false /nd.
+    let b/absorbedAny true.
+    while /absorbedAny do
+        set /absorbedAny false.
+        let u64/di u64:0.
+        while lt /di /nd do
+            const b/dmRemoved match get /removed /di
+                case some b/b /b.
+                case none true.
+            ::.
+            const bundledMod/dm match get /workDeps /di
+                case some bundledMod/v /v.
+                case none break.
+            ::.
+            if and not /dmRemoved and gt field /dm synthDc u128:0 not field /dm wasPub
+                do
+                    const u128/sDc field /dm synthDc.
+                    let u64/refCount u64:0.
+                    let u64/ownerDepIdx u64:18446744073709551615.
+                    let b/refByCaller false.
+                    let u64/oi u64:0.
+                    while lt /oi /nd do
+                        if ne /oi /di
+                            do
+                                const b/isRem match get /removed /oi
+                                    case some b/b /b.
+                                    case none true.
+                                ::.
+                                if not /isRem
+                                    do
+                                        const bundledMod/om match get /workDeps /oi
+                                            case some bundledMod/v /v.
+                                            case none break.
+                                        ::.
+                                        if listContainsU128 field /om refDcs /sDc
+                                            do
+                                                set /refCount wrapAdd /refCount u64:1.
+                                                set /ownerDepIdx /oi.
+                                            ::
+                                            nop.
+                                    ::
+                                    nop.
+                            ::
+                            nop.
+                        set /oi wrapAdd /oi u64:1.
+                    ::.
+                    foreach bundledMod/cm /callerMods do
+                        if listContainsU128 field /cm refDcs /sDc
+                            do
+                                set /refCount wrapAdd /refCount u64:1.
+                                set /refByCaller true.
+                            ::
+                            nop.
+                    ::.
+                    if and eq /refCount u64:1 and not /refByCaller ne /ownerDepIdx u64:18446744073709551615
+                        do
+                            const bundledMod/owner match get /workDeps /ownerDepIdx
+                                case some bundledMod/v /v.
+                                case none break.
+                            ::.
+                            if eq field /owner isStager field /dm isStager
+                                do
+                                    const capOptNodeRes/dnr resolveStageLOrRDecomp /curCli dcFromU128 /sDc.
+                                    set /curCli field /dnr cli.
+                                    if eq field /dnr tag u8:2
+                                        return structNew capCallRes: cli /curCli ok false payload field /dnr payload ::
+                                        nop.
+                                    if eq field /dnr tag u8:1
+                                        do
+                                            const l/dc/rawDecl stripRoutineTestBlocks stripLeadingComments field /dnr payload.
+                                            const l/dc/mergedToks absorbPrivateDeclIntoModule field /owner tokens /rawDecl.
+                                            let buf/u128/newLocs bufNew u128 wrapAdd len field /owner localDcs len field /dm localDcs.
+                                            bufExtend /newLocs field /owner localDcs.
+                                            bufExtend /newLocs field /dm localDcs.
+                                            let buf/u128/newRefs bufNew u128 wrapAdd len field /owner refDcs len field /dm refDcs.
+                                            bufExtend /newRefs field /owner refDcs.
+                                            bufExtend /newRefs field /dm refDcs.
+                                            const bundledMod/updatedOwner with with with /owner localDcs bufFreeze /newLocs refDcs bufFreeze /newRefs tokens /mergedToks.
+                                            match bufSet /workDeps /ownerDepIdx /updatedOwner
+                                                case ok nop.
+                                                case err error/_e nop.
+                                            ::.
+                                            match bufSet /removed /di true
+                                                case ok nop.
+                                                case err error/_e nop.
+                                            ::.
+                                            set /absorbedAny true.
+                                        ::
+                                        nop.
+                                ::
+                                nop.
+                        ::
+                        nop.
+                ::
+                nop.
+            set /di wrapAdd /di u64:1.
+        ::.
+    ::.
+
+    let u64/fiPub u64:0.
+    while lt /fiPub /nd do
+        const b/stillAlive not match get /removed /fiPub
+            case some b/b /b.
+            case none true.
+        ::.
+        const bundledMod/dm match get /workDeps /fiPub
+            case some bundledMod/v /v.
+            case none break.
+        ::.
+        if and /stillAlive and gt field /dm synthDc u128:0 and not field /dm wasPub not field /dm hasBuf
+            do
+                const u128/sDc field /dm synthDc.
+                const capOptNodeRes/dnr resolveStageLOrRDecomp /curCli dcFromU128 /sDc.
+                set /curCli field /dnr cli.
+                if eq field /dnr tag u8:2
+                    return structNew capCallRes: cli /curCli ok false payload field /dnr payload ::
+                    nop.
+                if eq field /dnr tag u8:1
+                    do
+                        const l/dc/rawDecl stripRoutineTestBlocks stripLeadingComments field /dnr payload.
+                        const l/dc/pubDecl flipDeclTokensPub /rawDecl.
+                        const l/dc/pubToks buildSyntheticModuleTokens field /dm isStager true field /dm nsSegs l/dc: :: /pubDecl.
+                        match bufSet /workDeps /fiPub with with /dm wasPub true tokens /pubToks
+                            case ok nop.
+                            case err error/_e nop.
+                        ::.
+                    ::
+                    nop.
+            ::
+            nop.
+        set /fiPub wrapAdd /fiPub u64:1.
+    ::.
+
+    : Collect surviving dependency modules and sort topologically (deps before dependents, SL before SR).
+    let buf/bundledMod/surv bufNew bundledMod /nd.
+    let u64/si u64:0.
+    while lt /si /nd do
+        const b/rem match get /removed /si
+            case some b/b /b.
+            case none true.
+        ::.
+        if not /rem
+            match get /workDeps /si
+                case some bundledMod/m bufPush /surv /m.
+                case none nop.
+            ::
+            nop.
+        set /si wrapAdd /si u64:1.
+    ::.
+    const l/bundledMod/depsList bufFreeze /surv.
+    const u64/mCount len /depsList.
+    let buf/b/emitted bufFill false /mCount.
+    let buf/dc/finalOut bufNew dc wrapAdd len /callerTokens u64:1024.
+    let u64/emittedCount u64:0.
+    while lt /emittedCount /mCount do
+        let u64/pick u64:18446744073709551615.
+        let u64/ci u64:0.
+        while lt /ci /mCount do
+            const b/done match get /emitted /ci
+                case some b/b /b.
+                case none true.
+            ::.
+            if not /done
+                do
+                    const bundledMod/cand match get /depsList /ci
+                        case some bundledMod/m /m.
+                        case none break.
+                    ::.
+                    let b/ready true.
+                    let u64/oi u64:0.
+                    while lt /oi /mCount do
+                        if ne /oi /ci
+                            do
+                                const b/oDone match get /emitted /oi
+                                    case some b/b /b.
+                                    case none true.
+                                ::.
+                                if not /oDone
+                                    do
+                                        const bundledMod/other match get /depsList /oi
+                                            case some bundledMod/m /m.
+                                            case none break.
+                                        ::.
+                                        let b/dependsOn false.
+                                        if and field /cand isStager and not field /other isStager u8ListEq field /cand nsKey field /other nsKey
+                                            set /dependsOn true
+                                            nop.
+                                        if listContainsU8Seq field /cand useKeys field /other nsKey
+                                            set /dependsOn true
+                                            nop.
+                                        if not /dependsOn
+                                            foreach u128/rd field /cand refDcs do
+                                                if and not modDefinesAnyDc /cand /rd modDefinesAnyDc /other /rd
+                                                    do
+                                                        set /dependsOn true.
+                                                        break.
+                                                    ::
+                                                    nop.
+                                            ::
+                                            nop.
+                                        if /dependsOn
+                                            do
+                                                set /ready false.
+                                                break.
+                                            ::
+                                            nop.
+                                    ::
+                                    nop.
+                            ::
+                            nop.
+                        set /oi wrapAdd /oi u64:1.
+                    ::.
+                    if /ready
+                        do
+                            set /pick /ci.
+                            break.
+                        ::
+                        nop.
+                ::
+                nop.
+            set /ci wrapAdd /ci u64:1.
+        ::.
+        if eq /pick u64:18446744073709551615
+            do
+                : Cycle among surviving modules: emit next unemitted StageL-first module cleanly.
+                let u64/fi u64:0.
+                while lt /fi /mCount do
+                    const b/done match get /emitted /fi
+                        case some b/b /b.
+                        case none true.
+                    ::.
+                    if not /done
+                        do
+                            set /pick /fi.
+                            break.
+                        ::
+                        nop.
+                    set /fi wrapAdd /fi u64:1.
+                ::.
+            ::
+            nop.
+        if eq /pick u64:18446744073709551615
+            break
+            nop.
+        match bufSet /emitted /pick true
+            case ok nop.
+            case err error/_e nop.
+        ::.
+        match get /depsList /pick
+            case some bundledMod/pm bufExtend /finalOut field /pm tokens.
+            case none nop.
+        ::.
+        set /emittedCount wrapAdd /emittedCount u64:1.
+    ::.
+    bufExtend /finalOut /callerTokens.
+    structNew capCallRes: cli /curCli ok true payload bufFreeze /finalOut ::.
+
+: Builds and prepends the Stage 0 `.WASM` operator KV map (`Dc 559 275 275 ... Dc 560`)
+: ahead of `moduleStream` for `2192 -> 1927` (`f1680`) compilation (`seed_linker.rs:3074-3136`).
+: @dc l8589992879
+v/capCallRes/prependStage0KvMap capClient/cli l/dc/moduleStream
+    let capClient/curCli /cli.
+    let l/dc/presentOps l/dc: dc:2580 ::.
+    foreach dc/tok /moduleStream do
+        if isStageLBuiltinOpDc /tok
+            do
+                if not listContainsDc /presentOps /tok
+                    do
+                        let buf/dc/nb bufNew dc wrapAdd len /presentOps u64:1.
+                        bufExtend /nb /presentOps.
+                        bufPush /nb /tok.
+                        set /presentOps bufFreeze /nb.
+                    ::
+                    nop.
+                if or eq /tok dc:2535 eq /tok dc:2536
+                    do
+                        if not listContainsDc /presentOps dc:2535
+                            do
+                                let buf/dc/nb bufNew dc wrapAdd len /presentOps u64:1.
+                                bufExtend /nb /presentOps.
+                                bufPush /nb dc:2535.
+                                set /presentOps bufFreeze /nb.
+                            ::
+                            nop.
+                        if not listContainsDc /presentOps dc:2536
+                            do
+                                let buf/dc/nb bufNew dc wrapAdd len /presentOps u64:1.
+                                bufExtend /nb /presentOps.
+                                bufPush /nb dc:2536.
+                                set /presentOps bufFreeze /nb.
+                            ::
+                            nop.
+                    ::
+                    nop.
+            ::
+            nop.
+    ::.
+
+    let buf/dc/out bufNew dc wrapAdd len /moduleStream u64:512.
+    bufPush /out dc:559.
+    bufPush /out dc:275.
+    bufPush /out dc:275.
+
+    const l/dc/decompPreds l/dc: dc:611 dc:571 dc:614 ::.
+    foreach dc/opDc /presentOps do
+        let l/l/dc/seenCtxList l/l/dc: ::.
+        foreach dc/pred /decompPreds do
+            const capPropListRes/pr queryMultiProperty /curCli /opDc /pred.
+            set /curCli field /pr cli.
+            if not field /pr ok
+                return structNew capCallRes: cli /curCli ok false payload field /pr errTokens ::
+                nop.
+            foreach propEntry/pe field /pr props do
+                const u128/nodeId u128FromDc field /pe val.
+                if not isSysRegionId /nodeId
+                    continue
+                    nop.
+                const capTripleListRes/ctxQ queryTriples /curCli true dc:646 true dcFromU128 field /pe hasAId false dc:0.
+                set /curCli field /ctxQ cli.
+                if not field /ctxQ ok
+                    return structNew capCallRes: cli /curCli ok false payload field /ctxQ errTokens ::
+                    nop.
+                if eq len field /ctxQ triples u64:0
+                    continue
+                    nop.
+                const capOptNodeRes/nr queryNodeExpanded /curCli /nodeId.
+                set /curCli field /nr cli.
+                if eq field /nr tag u8:2
+                    return structNew capCallRes: cli /curCli ok false payload field /nr payload ::
+                    nop.
+                if ne field /nr tag u8:1
+                    continue
+                    nop.
+                const l/dc/rawWasm field /nr payload.
+                if not or tokensStartWasmDefinition /rawWasm tokensContainShortRange647To1928 /rawWasm
+                    continue
+                    nop.
+                let buf/dc/wWrap bufNew dc wrapAdd len /rawWasm u64:2.
+                if ne dcAtOr /rawWasm u64:0 dc:0 dc:1927
+                    do
+                        bufPush /wWrap dc:1927.
+                        bufExtend /wWrap /rawWasm.
+                        bufPush /wWrap dc:1928.
+                    ::
+                    bufExtend /wWrap /rawWasm.
+                const l/dc/wasmToks bufFreeze /wWrap.
+                foreach tripleRec/ct field /ctxQ triples do
+                    const u128/ctxU u128FromDc field /ct obj.
+                    let l/dc/ctxToks l/dc: ::.
+                    if isSysRegionId /ctxU
+                        do
+                            const capOptNodeRes/cnr queryNodeRaw /curCli /ctxU.
+                            set /curCli field /cnr cli.
+                            if eq field /cnr tag u8:2
+                                return structNew capCallRes: cli /curCli ok false payload field /cnr payload ::
+                                nop.
+                            if ne field /cnr tag u8:1
+                                continue
+                                nop.
+                            set /ctxToks field /cnr payload.
+                        ::
+                        set /ctxToks l/dc: field /ct obj ::.
+                    let b/dupCtx false.
+                    foreach l/dc/ex /seenCtxList do
+                        if dcListEq /ex /ctxToks
+                            do
+                                set /dupCtx true.
+                                break.
+                            ::
+                            nop.
+                    ::.
+                    if /dupCtx
+                        continue
+                        nop.
+                    let buf/l/dc/scb bufNew l/dc wrapAdd len /seenCtxList u64:1.
+                    bufExtend /scb /seenCtxList.
+                    bufPush /scb /ctxToks.
+                    set /seenCtxList bufFreeze /scb.
+                    bufPush /out dc:514.
+                    bufPush /out dc:310.
+                    bufPush /out dc:275.
+                    bufPush /out /opDc.
+                    foreach dc/ctok /ctxToks do
+                        bufPush /out dc:312.
+                        bufPush /out /ctok.
+                    ::.
+                    bufPush /out dc:311.
+                    bufPush /out dc:312.
+                    bufExtend /out /wasmToks.
+                    bufPush /out dc:515.
+                ::.
+            ::.
+        ::.
+    ::.
+
+    bufPush /out dc:560.
+    bufExtend /out /moduleStream.
+    structNew capCallRes: cli /curCli ok true payload bufFreeze /out ::.
+
+: Builds the 1-routine StageL 3 `step` adapter (`v/l/u8/step l/u8/input :: dc/<sh> /input.`)
+: in Token-Dc form (`seed_linker.rs:3011`).
+: @dc l8589992880
+v/l/dc/buildStageLConverterEntryModule dc/converterDc
+    let buf/dc/out bufNew dc u64:28.
+    : `Dc 2192 316`
+    bufPush /out dc:2192.
+    bufPush /out dc:316.
+    : `2203 518 316 l/u8 "step" 2205 l/u8 "input"`
+    bufPush /out dc:2203.
+    bufPush /out dc:518.
+    bufPush /out dc:316.
+    bufPush /out dc:2576.
+    bufPush /out dc:f203.
+    bufPush /out dc:270.
+    bufExtend /out u8sToUnicodeDcs b"step".
+    bufPush /out dc:271.
+    bufPush /out dc:2205.
+    bufPush /out dc:2576.
+    bufPush /out dc:f203.
+    bufPush /out dc:270.
+    bufExtend /out u8sToUnicodeDcs b"input".
+    bufPush /out dc:271.
+    : Call `dc/<converterDc> /input` (`2211 [255?] <converterDc> 2202 316 270 "input" 271 2212`)
+    bufPush /out dc:2211.
+    if or eq /converterDc dc:255 eq /converterDc dc:270
+        bufPush /out dc:255
+        nop.
+    bufPush /out /converterDc.
+    bufPush /out dc:2202.
+    bufPush /out dc:316.
+    bufPush /out dc:270.
+    bufExtend /out u8sToUnicodeDcs b"input".
+    bufPush /out dc:271.
+    bufPush /out dc:2212.
+    bufPush /out dc:2204.
+    bufPush /out dc:2193.
+    bufFreeze /out.
+
+: ---------------------------------------------------------------------------
+: 7. Converter Step Execution (Dc 1940) & Public Dc 2608 Entrypoint
+: ---------------------------------------------------------------------------
+
+: @dc l8589992881
+v/capCallRes/execPureWasmStep capClient/cli l/dc/wasmProg l/dc/childInput
+    const capCallRes/exp expandWasmTokens /cli /wasmProg.
+    if not field /exp ok
+        return /exp
+        nop.
+    const l/dc/expandedWasm field /exp payload.
+    const l/dc/litInput tokEscapedLiteral dc:264 /childInput.
+    let buf/dc/reqBuf bufNew dc wrapAdd len /expandedWasm wrapAdd len /litInput u64:1.
+    bufPush /reqBuf dc:1940.
+    bufExtend /reqBuf /expandedWasm.
+    bufExtend /reqBuf /litInput.
+    const capCallRes/cr capCallUncached field /exp cli bufFreeze /reqBuf.
+    if not field /cr ok
+        return /cr
+        nop.
+    const l/dc/resp field /cr payload.
+    const tup: b dc l/dc u64 ::/lit readEscapedLiteral /resp u64:0.
+    if or not field /lit u32:0 or ne field /lit u32:1 dc:264 ne field /lit u32:3 len /resp
+        return structNew capCallRes: cli field /cr cli ok false payload errRecord b"Malformed Dc 1940 output response" ::
+        nop.
+    structNew capCallRes: cli field /cr cli ok true payload field /lit u32:2 ::.
+
+: @dc l8589992882
+v/dcRes/runConvertDcStringToWasm l/dc/inputTokens
+    let capClient/cli emptyClient.
+
+    : 1. Parse call prefix `[Dc 2608, <parameter?> [string]]`.
+    let u64/pos skipAllComments /inputTokens u64:0.
+    if ge /pos len /inputTokens
+        return failMsg b"Empty ConvertDcStringToWasm invocation"
+        nop.
+    const dc/headDc dcAtOr /inputTokens /pos dc:0.
+    const capBoolRes/headOk dcIsEquiv /cli /headDc dc:2608.
+    set /cli field /headOk cli.
+    if not field /headOk ok
+        return dcRes:err field /headOk errTokens
+        nop.
+    if not field /headOk val
+        return failMsg b"ConvertDcStringToWasm call must begin with Dc 2608"
+        nop.
+    set /pos skipAllComments /inputTokens wrapAdd /pos u64:1.
+    if ge /pos len /inputTokens
+        return failMsg b"ConvertDcStringToWasm requires a [string] argument"
+        nop.
+    let b/hasParamWrap false.
+    if eq dcAtOr /inputTokens /pos dc:0 dc:258
+        do
+            set /hasParamWrap true.
+            set /pos skipAllComments /inputTokens wrapAdd /pos u64:1.
+        ::
+        nop.
+    const strStepRes/litRes readStringLiteralAt /inputTokens /pos.
+    const l/dc/rawTarget match /litRes
+        case ok strStep/st
+            do
+                set /pos skipAllComments /inputTokens field /st nextPos.
+                field /st payload.
+            ::
+        case err l/dc/e return dcRes:err /e.
+    ::.
+    if /hasParamWrap
+        do
+            if or ge /pos len /inputTokens ne dcAtOr /inputTokens /pos dc:0 dc:259
+                return failMsg b"Unclosed Dc 258..Dc 259 parameter container in ConvertDcStringToWasm"
+                nop.
+            set /pos skipAllComments /inputTokens wrapAdd /pos u64:1.
+        ::
+        nop.
+    if ne /pos len /inputTokens
+        return failMsg b"Unexpected trailing tokens after ConvertDcStringToWasm [string] argument"
+        nop.
+
+    : 2. Strip leading comments in unescaped target document & handle inner `Dc 641` pin.
+    let l/dc/body stripLeadingComments /rawTarget.
+    if eq len /body u64:0
+        return failMsg b"ConvertDcStringToWasm target document contains no executable tokens"
+        nop.
+    const dc/bodyFirst dcAtOr /body u64:0 dc:0.
+    let b/startsWithPin eq /bodyFirst dc:641.
+    if and not /startsWithPin lt u128FromDc /bodyFirst u128:8589934592
+        do
+            const capBoolRes/pe dcIsEquiv /cli /bodyFirst dc:641.
+            set /cli field /pe cli.
+            if not field /pe ok
+                return dcRes:err field /pe errTokens
+                nop.
+            set /startsWithPin field /pe val.
+        ::
+        nop.
+    if /startsWithPin
+        do
+            : Normalize head Dc 641 if an equivalent alias was used before `parsePinDescriptionAt`.
+            let buf/dc/pinCheck bufNew dc len /body.
+            bufPush /pinCheck dc:641.
+            match slice /body u64:1 len /body
+                case some l/dc/rest bufExtend /pinCheck /rest.
+                case none nop.
+            ::.
+            const l/dc/normPinBody bufFreeze /pinCheck.
+            match parsePinDescriptionAt /normPinBody u64:0
+                case some u128Step/ps
+                    do
+                        const capU128ListRes/wmRes queryWatermark /cli.
+                        set /cli field /wmRes cli.
+                        if not field /wmRes ok
+                            return dcRes:err field /wmRes errTokens
+                            nop.
+                        match get field /wmRes ids u64:0
+                            case some u128/wm
+                                if gt field /ps val /wm
+                                    return failMsg b"Inner document Dc 641 pin exceeds active pinned System graph snapshot"
+                                    nop
+                            case none nop.
+                        ::.
+                        set /body match slice /body field /ps nextPos len /body
+                            case some l/dc/after stripLeadingComments /after.
+                            case none l/dc: ::.
+                        ::.
+                    ::
+                case none return failMsg b"Invalid leading [pin_description] inside target Dc document".
+                case err l/dc/e return dcRes:err /e.
+            ::.
+            if eq len /body u64:0
+                return failMsg b"Target Dc document contains only a pin_description and no body"
+                nop.
+        ::
+        nop.
+
+    const dc/firstBody dcAtOr /body u64:0 dc:0.
+
+    : 3. Fast Path 1: already Dc-WASM program (`1927..1928`) or `[Routine]`.
+    if or eq /firstBody dc:1927 isRoutineNamedConstruct /body
+        do
+            const capCallRes/exp expandWasmTokens /cli /body.
+            if not field /exp ok
+                return dcRes:err field /exp payload
+                nop.
+            return dcRes:ok field /exp payload
+        ::
+        nop.
+    if not eq /firstBody dc:1927
+        do
+            const capBoolRes/wEq dcIsEquiv /cli /firstBody dc:1927.
+            set /cli field /wEq cli.
+            if not field /wEq ok
+                return dcRes:err field /wEq errTokens
+                nop.
+            if field /wEq val
+                do
+                    const capCallRes/exp expandWasmTokens /cli /body.
+                    if not field /exp ok
+                        return dcRes:err field /exp payload
+                        nop.
+                    return dcRes:ok field /exp payload
+                ::
+                nop.
+        ::
+        nop.
+
+    : 4. Fast Path 2: single-token WASM helper shorthand (e.g. `Dc 1936`).
+    if eq len /body u64:1
+        do
+            const capOptNodeRes/hd resolveWasmDecomp /cli /firstBody.
+            set /cli field /hd cli.
+            if eq field /hd tag u8:2
+                return dcRes:err field /hd payload
+                nop.
+            if eq field /hd tag u8:1
+                do
+                    const capCallRes/exp expandWasmTokens /cli field /hd payload.
+                    if not field /exp ok
+                        return dcRes:err field /exp payload
+                        nop.
+                    return dcRes:ok field /exp payload
+                ::
+                nop.
+        ::
+        nop.
+
+    : 5. Multi-step graph converter discovery (`listAllActiveConverterSteps` + shortest BFS to `Dc 1927`).
+    const capU128ListRes/wmChk queryWatermark /cli.
+    set /cli field /wmChk cli.
+    if not field /wmChk ok
+        return dcRes:err field /wmChk errTokens
+        nop.
+    if eq len field /wmChk ids u64:0
+        return failMsg b"ConvertDcStringToWasm requires a non-empty System graph snapshot"
+        nop.
+    const convListRes/stepsRes listAllActiveConverterSteps /cli.
+    set /cli field /stepsRes cli.
+    if not field /stepsRes ok
+        return dcRes:err field /stepsRes errTokens
+        nop.
+    const convListRes/chainRes findShortestConverterChain /cli field /stepsRes steps /firstBody dc:1927.
+    set /cli field /chainRes cli.
+    if not field /chainRes ok
+        return dcRes:err field /chainRes errTokens
+        nop.
+    if eq len field /chainRes steps u64:0
+        return failMsg b"No active converter routine or chain found in System graph snapshot"
+        nop.
+
+    : 6. Execute each converter step in the resolved chain via `Dc 1940`.
+    let l/dc/curTokens /body.
+    let l/convStep/chain field /chainRes steps.
+    foreach convStep/step /chain do
+        const l/dc/stripped stripLeadingComments /curTokens.
+        const dc/curHead dcAtOr /stripped u64:0 dc:0.
+        const b/isWasmDst eq field /step dst dc:1927.
+        const b/isStagelInput eq /curHead dc:2192.
+        const b/isStagerSrc eq field /step src dc:2221.
+        const b/isStagerInput or eq /curHead dc:2221 eq /curHead dc:2192.
+        let l/dc/hopInput /curTokens.
+        if and /isWasmDst /isStagelInput
+            do
+                const capCallRes/bun bundleDcModuleDeps /cli /curTokens false.
+                set /cli field /bun cli.
+                if not field /bun ok
+                    return dcRes:err field /bun payload
+                    nop.
+                const capCallRes/kv prependStage0KvMap /cli field /bun payload.
+                set /cli field /kv cli.
+                if not field /kv ok
+                    return dcRes:err field /kv payload
+                    nop.
+                set /hopInput field /kv payload.
+            ::
+            if and /isStagerSrc /isStagerInput
+                do
+                    const capCallRes/bun bundleDcModuleDeps /cli /curTokens true.
+                    set /cli field /bun cli.
+                    if not field /bun ok
+                        return dcRes:err field /bun payload
+                        nop.
+                    set /hopInput field /bun payload.
+                ::
+                nop.
+
+        if eq field /step kind u8:0
+            do
+                const capCallRes/execRes execPureWasmStep /cli field /step bodyTokens /hopInput.
+                set /cli field /execRes cli.
+                if not field /execRes ok
+                    return dcRes:err field /execRes payload
+                    nop.
+                set /curTokens field /execRes payload.
+            ::
+            do
+                : StageL converter step: locate active `2192 -> 1927` WASM converter (`f1680`),
+                : compile the `step` adapter module to `.WASM`, and execute on `/hopInput`.
+                let capBoolRes/hasS2W structNew capBoolRes: cli /cli ok true val false errTokens l/dc: :: ::.
+                let l/dc/s2wProg l/dc: ::.
+                foreach convStep/cs field /stepsRes steps do
+                    if and eq field /cs kind u8:0 and eq field /cs src dc:2192 eq field /cs dst dc:1927
+                        do
+                            set /hasS2W structNew capBoolRes: cli /cli ok true val true errTokens l/dc: :: ::.
+                            set /s2wProg field /cs bodyTokens.
+                            break.
+                        ::
+                        nop.
+                ::.
+                if not field /hasS2W val
+                    return failMsg b"No active StageL-to-WASM converter found in System graph snapshot"
+                    nop.
+                const l/dc/entryMod buildStageLConverterEntryModule field /step subj.
+                const capCallRes/eBun bundleDcModuleDeps /cli /entryMod false.
+                set /cli field /eBun cli.
+                if not field /eBun ok
+                    return dcRes:err field /eBun payload
+                    nop.
+                const capCallRes/eKv prependStage0KvMap /cli field /eBun payload.
+                set /cli field /eKv cli.
+                if not field /eKv ok
+                    return dcRes:err field /eKv payload
+                    nop.
+                const capCallRes/compRes execPureWasmStep /cli /s2wProg field /eKv payload.
+                set /cli field /compRes cli.
+                if not field /compRes ok
+                    return dcRes:err field /compRes payload
+                    nop.
+                const capCallRes/runRes execPureWasmStep /cli field /compRes payload /hopInput.
+                set /cli field /runRes cli.
+                if not field /runRes ok
+                    return dcRes:err field /runRes payload
+                    nop.
+                set /curTokens field /runRes payload.
+            ::.
+    ::.
+
+    : 7. Validate final converter output (`Dc 1927..Dc 1928` or `[Routine]`) and expand helpers.
+    const u64/cn len /curTokens.
+    const b/validFinalWasm or and ge /cn u64:2 and eq dcAtOr /curTokens u64:0 dc:0 dc:1927 eq dcAtOr /curTokens wrapSub /cn u64:1 dc:0 dc:1928 isRoutineNamedConstruct /curTokens.
+    if not /validFinalWasm
+        return failMsg b"Converter chain did not emit a valid Dc-WASM program (Dc 1927..Dc 1928)"
+        nop.
+    const capCallRes/finalExp expandWasmTokens /cli /curTokens.
+    if not field /finalExp ok
+        return dcRes:err field /finalExp payload
+        nop.
+    dcRes:ok field /finalExp payload.
+
+pub dc/2608 v/dcs/convertDcStringToWasm dcs/input
+    match runConvertDcStringToWasm dcsToList /input
+        case ok l/dc/toks dcsFromList /toks.
+        case err l/dc/e dcsFromList /e.
+    ::.
