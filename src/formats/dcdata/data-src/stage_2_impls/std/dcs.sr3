@@ -27,6 +27,7 @@ use std/dctf: encodeDcStream decodeDcStream ::.
 pub type u32/formatId.
 
 : Canonical Document Character region classification matching `DcShorthand`.
+: FIXME: Add opaque types for Unicode and short Dc u32s too
 : @dc l8589987639
 pub enum dcKind
     u32/unicode.
