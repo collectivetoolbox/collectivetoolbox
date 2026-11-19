@@ -34,8 +34,15 @@ pub mod eite;
 pub mod transform;
 pub mod utf8;
 pub mod wasm;
+pub mod wasm_capabilities;
 pub mod wasm_quota;
 pub mod wat;
+
+pub use wasm_capabilities::{
+    MAX_PURE_WASM_NESTING_DEPTH, encode_capability_error_record,
+    encode_dc_string_literal, eval_pure_graph_capability_request,
+    run_wasm_session_pure_with_graph_capabilities,
+};
 
 /// Produces DcUtf while retaining binary payload types and checksums.
 ///

@@ -78,11 +78,18 @@ pub const CTB_RESUME_TARGET_OP_EXPORT: &str = "__ctb_resume_target_op";
 /// for explicit metered execution.
 pub const CTB_WASM_START_EXPORT: &str = "__ctb_wasm_start";
 /// Internal host import module name used by [`DcWasmSession`](super::wasm::DcWasmSession)
-/// to suspend and resume live intra-step continuations on compute-quota exhaustion.
+/// to suspend and resume live intra-step continuations on compute-quota exhaustion
+/// and mid-step host capability requests.
 pub const CTB_HOST_IMPORT_MODULE: &str = "__ctb_host";
 /// Internal host import function name used by [`DcWasmSession`](super::wasm::DcWasmSession)
 /// to suspend and resume live intra-step continuations on compute-quota exhaustion.
 pub const CTB_HOST_SUSPEND_IMPORT_NAME: &str = "__ctb_suspend_on_quota";
+/// Internal host import function name used by [`DcWasmSession`](super::wasm::DcWasmSession)
+/// to suspend a live intra-step continuation for a mid-step host capability request.
+pub const CTB_HOST_CAPABILITY_IMPORT_NAME: &str = "__ctb_request_capability";
+/// Optional guest `() -> ()` stub export rewritten at runtime to invoke
+/// [`CTB_HOST_CAPABILITY_IMPORT_NAME`] so standard modules remain zero-import `.wasm`.
+pub const CTB_CAPABILITY_YIELD_EXPORT: &str = "__ctb_capability_yield";
 
 const WASM_HEADER: [u8; 8] = [0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00];
 
@@ -1446,21 +1453,37 @@ fn build_suspendable_tinywasm_module(
     module.func_types = func_types.into_boxed_slice();
 
     let host_suspend_func_idx = 0u32;
+    let host_capability_func_idx = 1u32;
+    let import_shift = 2u32;
     let mut imports = module.imports.into_vec();
     imports.push(Import {
         module: Box::from(CTB_HOST_IMPORT_MODULE),
         name: Box::from(CTB_HOST_SUSPEND_IMPORT_NAME),
         kind: ImportKind::Function(suspend_type_idx),
     });
+    imports.push(Import {
+        module: Box::from(CTB_HOST_IMPORT_MODULE),
+        name: Box::from(CTB_HOST_CAPABILITY_IMPORT_NAME),
+        kind: ImportKind::Function(suspend_type_idx),
+    });
     module.imports = imports.into_boxed_slice();
 
     if let Some(start) = &mut module.start_func {
-        *start = start.saturating_add(1);
+        *start = start.saturating_add(import_shift);
     }
     let mut exports = module.exports.into_vec();
+    let mut capability_yield_def_idx: Option<u32> = None;
     for exp in &mut exports {
+        if exp.name.as_ref() == CTB_CAPABILITY_YIELD_EXPORT {
+            ensure!(
+                exp.kind == ExternalKind::Func,
+                "Reserved export '{}' must be a function",
+                CTB_CAPABILITY_YIELD_EXPORT
+            );
+            capability_yield_def_idx = Some(exp.index);
+        }
         if exp.kind == ExternalKind::Func {
-            exp.index = exp.index.saturating_add(1);
+            exp.index = exp.index.saturating_add(import_shift);
         }
     }
     module.exports = exports.into_boxed_slice();
@@ -1468,7 +1491,7 @@ fn build_suspendable_tinywasm_module(
     let mut globals = module.globals.into_vec();
     for glob in &mut globals {
         if let ConstInstruction::RefFunc(idx) = &mut glob.init {
-            *idx = idx.saturating_add(1);
+            *idx = idx.saturating_add(import_shift);
         }
     }
     module.globals = globals.into_boxed_slice();
@@ -1480,7 +1503,7 @@ fn build_suspendable_tinywasm_module(
             match item {
                 ElementItem::Func(idx)
                 | ElementItem::Expr(ConstInstruction::RefFunc(idx)) => {
-                    *idx = idx.saturating_add(1);
+                    *idx = idx.saturating_add(import_shift);
                 }
                 _ => {}
             }
@@ -1497,7 +1520,7 @@ fn build_suspendable_tinywasm_module(
                 Instruction::Call(idx)
                 | Instruction::ReturnCall(idx)
                 | Instruction::RefFunc(idx) => {
-                    *idx = idx.saturating_add(1);
+                    *idx = idx.saturating_add(import_shift);
                 }
                 _ => {}
             }
@@ -1522,6 +1545,19 @@ fn build_suspendable_tinywasm_module(
         "Failed to locate suspension point in $__ctb_deduct"
     );
     deduct_def.instructions = deduct_instrs.into_boxed_slice();
+
+    if let Some(y_idx) = capability_yield_def_idx {
+        let yield_def = funcs.get_mut(usize::try_from(y_idx)?).context(
+            "Missing $__ctb_capability_yield function in parsed instrumented module",
+        )?;
+        ensure!(
+            yield_def.ty.params.is_empty() && yield_def.ty.results.is_empty(),
+            "Reserved export '{}' must have WebAssembly signature () -> ()",
+            CTB_CAPABILITY_YIELD_EXPORT
+        );
+        yield_def.instructions =
+            Box::new([Instruction::Call(host_capability_func_idx), Instruction::Return]);
+    }
     module.funcs = funcs.into_boxed_slice();
 
     Ok(module)
@@ -1634,12 +1670,32 @@ pub fn instrument_wasm_module_bytes(
         "WebAssembly memory64 is not supported"
     );
     ensure!(
-        parsed_uninstrumented
-            .exports
-            .iter()
-            .all(|exp| !exp.name.starts_with("__ctb_")),
+        parsed_uninstrumented.exports.iter().all(|exp| {
+            !exp.name.starts_with("__ctb_")
+                || exp.name.as_ref() == CTB_CAPABILITY_YIELD_EXPORT
+        }),
         "WebAssembly module must not declare reserved '__ctb_*' exports"
     );
+    if let Some(cap_exp) = parsed_uninstrumented
+        .exports
+        .iter()
+        .find(|exp| exp.name.as_ref() == CTB_CAPABILITY_YIELD_EXPORT)
+    {
+        ensure!(
+            cap_exp.kind == ExternalKind::Func,
+            "Reserved export '{}' must be a function",
+            CTB_CAPABILITY_YIELD_EXPORT
+        );
+        let cap_fn = parsed_uninstrumented
+            .funcs
+            .get(usize::try_from(cap_exp.index)?)
+            .context("Reserved capability yield export index out of bounds")?;
+        ensure!(
+            cap_fn.ty.params.is_empty() && cap_fn.ty.results.is_empty(),
+            "Reserved export '{}' must have WebAssembly signature () -> ()",
+            CTB_CAPABILITY_YIELD_EXPORT
+        );
+    }
 
     let initial_memory_pages = parsed_uninstrumented
         .memory_types

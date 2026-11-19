@@ -53,7 +53,8 @@ use ctb_formats_dcdata::tinywasm::{
 use ctb_utilities::format_id::FormatId;
 
 pub use super::wasm_quota::{
-    CTB_EXHAUSTED_EXPORT, CTB_HOST_IMPORT_MODULE,
+    CTB_CAPABILITY_YIELD_EXPORT, CTB_EXHAUSTED_EXPORT,
+    CTB_HOST_CAPABILITY_IMPORT_NAME, CTB_HOST_IMPORT_MODULE,
     CTB_HOST_SUSPEND_IMPORT_NAME, CTB_INTERRUPTED_OP_EXPORT,
     CTB_MAX_MEM_PAGES_EXPORT, CTB_MAX_TABLE_ELEMS_EXPORT,
     CTB_OP_ORDINAL_EXPORT, CTB_PHYS_MAX_MEM_PAGES_EXPORT,
@@ -2430,6 +2431,11 @@ enum WorkerCommand {
         quota_rem: u64,
         limits: DcWasmResourceLimits,
     },
+    ResumeCapability {
+        response_bytes: Vec<u8>,
+        quota_rem: u64,
+        limits: DcWasmResourceLimits,
+    },
     Shutdown,
 }
 
@@ -2439,6 +2445,12 @@ enum WorkerEvent {
         remaining: u64,
         interrupted_op: u64,
         required_cost: u64,
+    },
+    StepPausedOnCapability {
+        consumed: u64,
+        remaining: u64,
+        out_ptr: usize,
+        out_len: usize,
     },
     StepFinished {
         call_res: std::result::Result<i32, String>,
@@ -2501,6 +2513,8 @@ pub struct DcWasmSession {
     last_resource_interruption: Option<WasmResourceInterruption>,
     current_input_doc: DcMstring,
     paused_on_compute_quota: bool,
+    paused_on_capability: bool,
+    pending_capability_response: Option<Vec<u8>>,
     pending_quota_increase_since_pause: u64,
     shared_task_quota: Option<SharedWasmTaskQuota>,
 }
@@ -2629,6 +2643,8 @@ fn spawn_session_worker(
                 std::rc::Rc::new(std::cell::Cell::new(false));
             let global_addrs_cell =
                 std::rc::Rc::new(std::cell::Cell::new(None::<CtbGlobalAddrs>));
+            let base_io_offset_cell =
+                std::rc::Rc::new(std::cell::Cell::new(DC_WASM_MIN_IO_BUFFER_OFFSET));
             let cmd_rx_rc = std::rc::Rc::new(cmd_rx);
             let evt_tx_rc = std::rc::Rc::new(evt_tx);
 
@@ -2639,6 +2655,13 @@ fn spawn_session_worker(
                 let addrs_cb = std::rc::Rc::clone(&global_addrs_cell);
                 let cmd_rx_cb = std::rc::Rc::clone(&cmd_rx_rc);
                 let evt_tx_cb = std::rc::Rc::clone(&evt_tx_rc);
+
+                let allow_suspend_cap = std::rc::Rc::clone(&allow_suspend);
+                let shutdown_cap = std::rc::Rc::clone(&shutdown_requested);
+                let addrs_cap = std::rc::Rc::clone(&global_addrs_cell);
+                let base_io_cap = std::rc::Rc::clone(&base_io_offset_cell);
+                let cmd_rx_cap = std::rc::Rc::clone(&cmd_rx_rc);
+                let evt_tx_cap = std::rc::Rc::clone(&evt_tx_rc);
 
                 imports
                     .define(
@@ -2715,7 +2738,11 @@ fn spawn_session_worker(
                                             );
                                             return Ok(());
                                         }
-                                        Ok(WorkerCommand::Shutdown | WorkerCommand::StartStep { .. })
+                                        Ok(
+                                            WorkerCommand::Shutdown
+                                            | WorkerCommand::StartStep { .. }
+                                            | WorkerCommand::ResumeCapability { .. },
+                                        )
                                         | Err(_) => {
                                             shutdown_cb.set(true);
                                             return Err(ctb_formats_dcdata::tinywasm::Error::Trap(
@@ -2729,6 +2756,314 @@ fn spawn_session_worker(
                     )
                     .map_err(|e| {
                         anyhow!("Failed to register __ctb_suspend_on_quota host import: {e:?}")
+                    })?;
+
+                imports
+                    .define(
+                        CTB_HOST_IMPORT_MODULE,
+                        CTB_HOST_CAPABILITY_IMPORT_NAME,
+                        Extern::typed_func(
+                            move |mut ctx: FuncContext<'_>, (): ()| -> std::result::Result<(), ctb_formats_dcdata::tinywasm::Error> {
+                                let trap = || {
+                                    ctb_formats_dcdata::tinywasm::Error::Trap(
+                                        ctb_formats_dcdata::tinywasm::Trap::Unreachable,
+                                    )
+                                };
+                                let Some(addrs) = addrs_cap.get() else {
+                                    return Err(trap());
+                                };
+                                if !allow_suspend_cap.get() {
+                                    return Err(trap());
+                                }
+                                let (out_ptr, out_len) = {
+                                    let mem = ctx
+                                        .exported_memory_mut("memory")
+                                        .map_err(|_| trap())?;
+                                    let hdr = mem.load(8, 8).map_err(|_| trap())?;
+                                    if hdr.len() != 8 {
+                                        return Err(trap());
+                                    }
+                                    let ptr_u32 = u32::from_le_bytes([
+                                        hdr[0], hdr[1], hdr[2], hdr[3],
+                                    ]);
+                                    let len_u32 = u32::from_le_bytes([
+                                        hdr[4], hdr[5], hdr[6], hdr[7],
+                                    ]);
+                                    let ptr = usize::try_from(ptr_u32)
+                                        .map_err(|_| trap())?;
+                                    let len = usize::try_from(len_u32)
+                                        .map_err(|_| trap())?;
+                                    (ptr, len)
+                                };
+                                let consumed = read_store_global_u64(
+                                    ctx.store(),
+                                    addrs.quota_consumed,
+                                );
+                                let remaining = read_store_global_u64(
+                                    ctx.store(),
+                                    addrs.quota_rem,
+                                );
+                                if evt_tx_cap
+                                    .send(WorkerEvent::StepPausedOnCapability {
+                                        consumed,
+                                        remaining,
+                                        out_ptr,
+                                        out_len,
+                                    })
+                                    .is_err()
+                                {
+                                    shutdown_cap.set(true);
+                                    return Err(trap());
+                                }
+
+                                loop {
+                                    match cmd_rx_cap.recv() {
+                                        Ok(WorkerCommand::WithStore(task)) => {
+                                            let inst = ctx.module();
+                                            task(ctx.store_mut(), &inst, &addrs);
+                                        }
+                                        Ok(WorkerCommand::ResumeCapability {
+                                            response_bytes,
+                                            quota_rem,
+                                            limits,
+                                        }) => {
+                                            configure_store_limits(
+                                                ctx.store_mut(),
+                                                &addrs,
+                                                &limits,
+                                            );
+                                            write_store_global_u64(
+                                                ctx.store_mut(),
+                                                addrs.quota_rem,
+                                                quota_rem,
+                                            );
+                                            write_store_global_i32(
+                                                ctx.store_mut(),
+                                                addrs.exhausted,
+                                                0,
+                                            );
+                                            write_store_global_u64(
+                                                ctx.store_mut(),
+                                                addrs.interrupted_op,
+                                                0,
+                                            );
+                                            write_store_global_u64(
+                                                ctx.store_mut(),
+                                                addrs.required_cost,
+                                                0,
+                                            );
+                                            write_store_global_u64(
+                                                ctx.store_mut(),
+                                                addrs.resume_target_op,
+                                                0,
+                                            );
+                                            let inst = ctx.module();
+                                            let heap_global_addr = inst
+                                                .export_addr("__heap_ptr")
+                                                .and_then(|ev| match ev {
+                                                    ExternVal::Global(addr) => {
+                                                        Some(addr)
+                                                    }
+                                                    _ => None,
+                                                });
+                                            let heap_ptr = if let Some(addr) =
+                                                heap_global_addr
+                                            {
+                                                usize::try_from(
+                                                    read_store_global_i32(
+                                                        ctx.store(),
+                                                        addr,
+                                                    ),
+                                                )
+                                                .map_err(|_| trap())?
+                                            } else {
+                                                0
+                                            };
+                                            let total_store_pages = usize::try_from(
+                                                read_store_global_u64(
+                                                    ctx.store(),
+                                                    addrs.total_mem_pages,
+                                                ),
+                                            )
+                                            .map_err(|_| trap())?;
+                                            let max_allowed_pages = limits
+                                                .max_memory_pages
+                                                .min(limits.physical_max_memory_pages);
+
+                                            let (new_total_pages_opt, resp_end_aligned) = {
+                                                let mut mem = ctx
+                                                    .exported_memory_mut("memory")
+                                                    .map_err(|_| trap())?;
+                                                let hdr = mem
+                                                    .load(0, 16)
+                                                    .map_err(|_| trap())?;
+                                                if hdr.len() != 16 {
+                                                    return Err(trap());
+                                                }
+                                                let prev_in_ptr =
+                                                    usize::try_from(u32::from_le_bytes([
+                                                        hdr[0], hdr[1], hdr[2], hdr[3],
+                                                    ]))
+                                                    .map_err(|_| trap())?;
+                                                let prev_in_len =
+                                                    usize::try_from(u32::from_le_bytes([
+                                                        hdr[4], hdr[5], hdr[6], hdr[7],
+                                                    ]))
+                                                    .map_err(|_| trap())?;
+                                                let prev_out_ptr =
+                                                    usize::try_from(u32::from_le_bytes([
+                                                        hdr[8], hdr[9], hdr[10], hdr[11],
+                                                    ]))
+                                                    .map_err(|_| trap())?;
+                                                let prev_out_len =
+                                                    usize::try_from(u32::from_le_bytes([
+                                                        hdr[12], hdr[13], hdr[14], hdr[15],
+                                                    ]))
+                                                    .map_err(|_| trap())?;
+                                                let prev_in_end = prev_in_ptr
+                                                    .saturating_add(prev_in_len);
+                                                let prev_out_end = prev_out_ptr
+                                                    .saturating_add(prev_out_len);
+                                                let resp_ptr = align_up_8(
+                                                    base_io_cap
+                                                        .get()
+                                                        .max(prev_in_end)
+                                                        .max(prev_out_end)
+                                                        .max(heap_ptr),
+                                                )
+                                                .map_err(|_| trap())?;
+                                                let resp_len =
+                                                    response_bytes.len();
+                                                let required_bytes = resp_ptr
+                                                    .checked_add(resp_len)
+                                                    .ok_or_else(&trap)?;
+                                                let current_pages =
+                                                    mem.page_count();
+                                                let current_bytes = current_pages
+                                                    .saturating_mul(65_536);
+                                                let other_mem_pages =
+                                                    total_store_pages
+                                                        .saturating_sub(
+                                                            current_pages,
+                                                        );
+                                                let mut updated_total = None;
+                                                if required_bytes > current_bytes {
+                                                    let missing = required_bytes
+                                                        .saturating_sub(
+                                                            current_bytes,
+                                                        );
+                                                    // Reason for fallback: 65_536 is a non-zero constant page size divisor.
+                                                    let extra_pages = missing
+                                                        .saturating_add(65_535)
+                                                        .checked_div(65_536)
+                                                        .unwrap_or(1);
+                                                    let new_total = other_mem_pages
+                                                        .saturating_add(
+                                                            current_pages
+                                                                .saturating_add(
+                                                                    extra_pages,
+                                                                ),
+                                                        );
+                                                    if new_total > max_allowed_pages {
+                                                        drop(mem);
+                                                        write_store_global_i32(
+                                                            ctx.store_mut(),
+                                                            addrs.exhausted,
+                                                            2,
+                                                        );
+                                                        write_store_global_u64(
+                                                            ctx.store_mut(),
+                                                            addrs.interrupted_op,
+                                                            u64::try_from(new_total)
+                                                                .map_err(|_| trap())?,
+                                                        );
+                                                        return Err(trap());
+                                                    }
+                                                    let delta = i32::try_from(extra_pages)
+                                                        .map_err(|_| trap())?;
+                                                    if mem.grow(delta).is_none() {
+                                                        drop(mem);
+                                                        write_store_global_i32(
+                                                            ctx.store_mut(),
+                                                            addrs.exhausted,
+                                                            2,
+                                                        );
+                                                        write_store_global_u64(
+                                                            ctx.store_mut(),
+                                                            addrs.interrupted_op,
+                                                            u64::try_from(new_total)
+                                                                .map_err(|_| trap())?,
+                                                        );
+                                                        return Err(trap());
+                                                    }
+                                                    updated_total = Some(new_total);
+                                                }
+                                                if !response_bytes.is_empty() {
+                                                    mem.store(
+                                                        resp_ptr,
+                                                        resp_len,
+                                                        &response_bytes,
+                                                    )
+                                                    .map_err(|_| trap())?;
+                                                }
+                                                let resp_ptr_u32 = u32::try_from(resp_ptr)
+                                                    .map_err(|_| trap())?;
+                                                let resp_len_u32 = u32::try_from(resp_len)
+                                                    .map_err(|_| trap())?;
+                                                let mut next_hdr = [0u8; 16];
+                                                next_hdr[0..4].copy_from_slice(
+                                                    &resp_ptr_u32.to_le_bytes(),
+                                                );
+                                                next_hdr[4..8].copy_from_slice(
+                                                    &resp_len_u32.to_le_bytes(),
+                                                );
+                                                mem.store(0, 16, &next_hdr)
+                                                    .map_err(|_| trap())?;
+                                                let aligned_end =
+                                                    align_up_8(required_bytes)
+                                                        .map_err(|_| trap())?;
+                                                (updated_total, aligned_end)
+                                            };
+
+                                            if let Some(new_total) = new_total_pages_opt {
+                                                write_store_global_u64(
+                                                    ctx.store_mut(),
+                                                    addrs.total_mem_pages,
+                                                    u64::try_from(new_total)
+                                                        .map_err(|_| trap())?,
+                                                );
+                                            }
+                                            if let Some(addr) = heap_global_addr {
+                                                let end_i32 = i32::try_from(
+                                                    resp_end_aligned,
+                                                )
+                                                .map_err(|_| trap())?;
+                                                write_store_global_i32(
+                                                    ctx.store_mut(),
+                                                    addr,
+                                                    end_i32,
+                                                );
+                                            }
+                                            return Ok(());
+                                        }
+                                        Ok(
+                                            WorkerCommand::Shutdown
+                                            | WorkerCommand::StartStep { .. }
+                                            | WorkerCommand::ResumeStep { .. },
+                                        )
+                                        | Err(_) => {
+                                            shutdown_cap.set(true);
+                                            return Err(trap());
+                                        }
+                                    }
+                                }
+                            },
+                        ),
+                    )
+                    .map_err(|e| {
+                        anyhow!(
+                            "Failed to register __ctb_request_capability host import: {e:?}"
+                        )
                     })?;
 
                 let module = Module::from(parsed_suspendable);
@@ -2876,7 +3211,9 @@ fn spawn_session_worker(
                         .max(exported_heap_bound)
                         .max(last_nonzero_end)
                         .max(DC_WASM_MIN_IO_BUFFER_OFFSET);
-                    align_up_8(reserved_end)?
+                    let base_io_offset = align_up_8(reserved_end)?;
+                    base_io_offset_cell.set(base_io_offset);
+                    base_io_offset
                 };
 
                 Ok((
@@ -3015,7 +3352,9 @@ fn spawn_session_worker(
                             break;
                         }
                     }
-                    WorkerCommand::ResumeStep { .. } | WorkerCommand::Shutdown => {
+                    WorkerCommand::ResumeStep { .. }
+                    | WorkerCommand::ResumeCapability { .. }
+                    | WorkerCommand::Shutdown => {
                         break;
                     }
                 }
@@ -3145,6 +3484,8 @@ impl DcWasmSession {
             last_resource_interruption: None,
             current_input_doc: initial_input.to_owned(),
             paused_on_compute_quota: false,
+            paused_on_capability: false,
+            pending_capability_response: None,
             pending_quota_increase_since_pause: 0,
             shared_task_quota: None,
         };
@@ -3300,6 +3641,12 @@ impl DcWasmSession {
     #[must_use]
     pub const fn has_shared_task_quota(&self) -> bool {
         self.shared_task_quota.is_some()
+    }
+
+    /// Returns a clone of the attached [`SharedWasmTaskQuota`], if any.
+    #[must_use]
+    pub fn shared_task_quota(&self) -> Option<SharedWasmTaskQuota> {
+        self.shared_task_quota.clone()
     }
 
     /// Builder-style method attaching a [`SharedWasmTaskQuota`].
@@ -3517,6 +3864,10 @@ impl DcWasmSession {
     /// Returns an error if linear memory cannot grow to accommodate the input and output buffers
     /// within [`DcWasmResourceLimits::max_memory_pages`].
     pub fn provide_input(&mut self, input: &DcMstr) -> Result<()> {
+        ensure!(
+            !self.paused_on_capability && !self.paused_on_compute_quota,
+            "Cannot reset input via provide_input while WASM session is suspended mid-step; use provide_capability_response"
+        );
         let raw_bytes = input.as_bytes();
         // Strip the 21-byte `DcMM\0` + UUID file header so `input_ptr` points directly
         // to the DcTF character/encapsulation stream.
@@ -3694,7 +4045,65 @@ impl DcWasmSession {
             }
             return Err(anyhow::Error::new(interruption));
         }
+        if self.paused_on_capability {
+            self.pending_capability_response = Some(payload_bytes.to_vec());
+            return Ok(());
+        }
         self.provide_input(response)
+    }
+
+    fn record_step_compute_usage(
+        &mut self,
+        consumed_before_call: u64,
+        consumed: u64,
+        remaining: u64,
+    ) -> Result<()> {
+        let delta_consumed = consumed.saturating_sub(consumed_before_call);
+        self.last_step_instructions = consumed;
+        self.remaining_compute_quota = remaining;
+        self.total_instructions_executed = self
+            .total_instructions_executed
+            .saturating_add(delta_consumed);
+        if let Some(shared) = &self.shared_task_quota {
+            shared.with_lock(|state| {
+                state.remaining_compute_quota = remaining;
+                state.total_instructions_executed = state
+                    .total_instructions_executed
+                    .saturating_add(delta_consumed);
+            })?;
+        }
+        Ok(())
+    }
+
+    fn read_and_decode_capability_request(
+        &mut self,
+        out_ptr: usize,
+        out_len: usize,
+    ) -> Result<DcMstring> {
+        if out_len > self.resource_limits.max_capability_payload_bytes {
+            let interruption =
+                WasmResourceInterruption::CapabilityPayloadTooLarge {
+                    payload_bytes: out_len,
+                    max_capability_payload_bytes: self
+                        .resource_limits
+                        .max_capability_payload_bytes,
+                };
+            self.last_resource_interruption = Some(interruption.clone());
+            if let Some(shared) = &self.shared_task_quota {
+                let _ = shared.with_lock(|state| {
+                    state.last_resource_interruption =
+                        Some(interruption.clone());
+                });
+            }
+            return Err(anyhow::Error::new(interruption));
+        }
+        let out_bytes = self.read_memory(out_ptr, out_len).map_err(|e| {
+            anyhow!(
+                "WASM capability request slice ({out_ptr}..{}) is out of linear memory bounds: {e}",
+                out_ptr.saturating_add(out_len)
+            )
+        })?;
+        decode_output_bytes_to_dcmstring(&out_bytes)
     }
 
     fn call_entry_once(
@@ -3798,7 +4207,36 @@ impl DcWasmSession {
             return Err(anyhow::Error::new(interruption));
         }
 
-        let (consumed_before_call, evt) = if self.paused_on_compute_quota {
+        let (consumed_before_call, evt) = if self.paused_on_capability {
+            let response_bytes = self
+                .pending_capability_response
+                .take()
+                .context("WASM session paused on capability request without a response; call provide_capability_response first")?;
+            let prev_consumed = self.with_store(|store, _, addrs| {
+                read_store_global_u64(store, addrs.quota_consumed)
+            })?;
+            let guard = self
+                .worker
+                .lock()
+                .map_err(|_| anyhow!("WASM session worker mutex poisoned"))?;
+            guard
+                .cmd_tx
+                .send(WorkerCommand::ResumeCapability {
+                    response_bytes,
+                    quota_rem: self.remaining_compute_quota,
+                    limits: self.resource_limits,
+                })
+                .map_err(|_| {
+                    anyhow!(
+                        "WASM session continuation worker exited unexpectedly"
+                    )
+                })?;
+            let evt = guard.evt_rx.recv().map_err(|_| {
+                anyhow!("WASM session continuation worker failed to respond")
+            })?;
+            drop(guard);
+            (prev_consumed, evt)
+        } else if self.paused_on_compute_quota {
             let prev_consumed = self.with_store(|store, _, addrs| {
                 read_store_global_u64(store, addrs.quota_consumed)
             })?;
@@ -3855,27 +4293,37 @@ impl DcWasmSession {
         };
 
         let raw_status = match evt {
+            WorkerEvent::StepPausedOnCapability {
+                consumed,
+                remaining,
+                out_ptr,
+                out_len,
+            } => {
+                self.record_step_compute_usage(
+                    consumed_before_call,
+                    consumed,
+                    remaining,
+                )?;
+                self.paused_on_compute_quota = false;
+                self.paused_on_capability = true;
+                self.pending_capability_response = None;
+                let req_doc = self.read_and_decode_capability_request(
+                    out_ptr, out_len,
+                )?;
+                return Ok(WasmStepOutcome::RequestCapability(req_doc));
+            }
             WorkerEvent::StepPausedOnQuota {
                 consumed,
                 remaining,
                 interrupted_op,
                 required_cost,
             } => {
-                let delta_consumed =
-                    consumed.saturating_sub(consumed_before_call);
-                self.last_step_instructions = consumed;
-                self.remaining_compute_quota = remaining;
-                self.total_instructions_executed = self
-                    .total_instructions_executed
-                    .saturating_add(delta_consumed);
-                if let Some(shared) = &self.shared_task_quota {
-                    shared.with_lock(|state| {
-                        state.remaining_compute_quota = remaining;
-                        state.total_instructions_executed = state
-                            .total_instructions_executed
-                            .saturating_add(delta_consumed);
-                    })?;
-                }
+                self.record_step_compute_usage(
+                    consumed_before_call,
+                    consumed,
+                    remaining,
+                )?;
+                self.paused_on_capability = false;
                 self.paused_on_compute_quota = true;
                 self.pending_quota_increase_since_pause = 0;
                 self.last_interrupted_op_ordinal = Some(interrupted_op);
@@ -3901,22 +4349,13 @@ impl DcWasmSession {
                 interrupted_op,
                 required_cost,
             } => {
-                let delta_consumed =
-                    consumed.saturating_sub(consumed_before_call);
-                self.last_step_instructions = consumed;
-                self.remaining_compute_quota = remaining;
-                self.total_instructions_executed = self
-                    .total_instructions_executed
-                    .saturating_add(delta_consumed);
-                if let Some(shared) = &self.shared_task_quota {
-                    shared.with_lock(|state| {
-                        state.remaining_compute_quota = remaining;
-                        state.total_instructions_executed = state
-                            .total_instructions_executed
-                            .saturating_add(delta_consumed);
-                    })?;
-                }
+                self.record_step_compute_usage(
+                    consumed_before_call,
+                    consumed,
+                    remaining,
+                )?;
                 self.paused_on_compute_quota = false;
+                self.paused_on_capability = false;
                 match call_res {
                     Ok(code) => {
                         self.last_interrupted_op_ordinal = None;
@@ -4026,61 +4465,47 @@ impl DcWasmSession {
         )??;
 
         if status == WasmStepStatus::RequestCapability {
-            if out_len > self.resource_limits.max_capability_payload_bytes {
-                let interruption =
-                    WasmResourceInterruption::CapabilityPayloadTooLarge {
-                        payload_bytes: out_len,
-                        max_capability_payload_bytes: self
-                            .resource_limits
-                            .max_capability_payload_bytes,
-                    };
-                self.last_resource_interruption = Some(interruption.clone());
-                if let Some(shared) = &self.shared_task_quota {
-                    let _ = shared.with_lock(|state| {
-                        state.last_resource_interruption =
-                            Some(interruption.clone());
-                    });
-                }
-                return Err(anyhow::Error::new(interruption));
-            }
-        } else {
-            if out_len > self.resource_limits.max_step_output_bytes {
-                let interruption =
-                    WasmResourceInterruption::StepOutputSliceTooLarge {
-                        output_bytes: out_len,
-                        max_step_output_bytes: self
-                            .resource_limits
-                            .max_step_output_bytes,
-                    };
-                self.last_resource_interruption = Some(interruption.clone());
-                if let Some(shared) = &self.shared_task_quota {
-                    let _ = shared.with_lock(|state| {
-                        state.last_resource_interruption =
-                            Some(interruption.clone());
-                    });
-                }
-                return Err(anyhow::Error::new(interruption));
-            }
+            let req_doc =
+                self.read_and_decode_capability_request(out_ptr, out_len)?;
+            return Ok(WasmStepOutcome::RequestCapability(req_doc));
+        }
 
-            let new_cumulative =
-                self.cumulative_output_bytes.saturating_add(out_len);
-            if new_cumulative > self.resource_limits.max_session_output_bytes {
-                let interruption =
-                    WasmResourceInterruption::SessionOutputBudgetExceeded {
-                        cumulative_output_bytes: new_cumulative,
-                        max_session_output_bytes: self
-                            .resource_limits
-                            .max_session_output_bytes,
-                    };
-                self.last_resource_interruption = Some(interruption.clone());
-                if let Some(shared) = &self.shared_task_quota {
-                    let _ = shared.with_lock(|state| {
-                        state.last_resource_interruption =
-                            Some(interruption.clone());
-                    });
-                }
-                return Err(anyhow::Error::new(interruption));
+        if out_len > self.resource_limits.max_step_output_bytes {
+            let interruption =
+                WasmResourceInterruption::StepOutputSliceTooLarge {
+                    output_bytes: out_len,
+                    max_step_output_bytes: self
+                        .resource_limits
+                        .max_step_output_bytes,
+                };
+            self.last_resource_interruption = Some(interruption.clone());
+            if let Some(shared) = &self.shared_task_quota {
+                let _ = shared.with_lock(|state| {
+                    state.last_resource_interruption =
+                        Some(interruption.clone());
+                });
             }
+            return Err(anyhow::Error::new(interruption));
+        }
+
+        let new_cumulative =
+            self.cumulative_output_bytes.saturating_add(out_len);
+        if new_cumulative > self.resource_limits.max_session_output_bytes {
+            let interruption =
+                WasmResourceInterruption::SessionOutputBudgetExceeded {
+                    cumulative_output_bytes: new_cumulative,
+                    max_session_output_bytes: self
+                        .resource_limits
+                        .max_session_output_bytes,
+                };
+            self.last_resource_interruption = Some(interruption.clone());
+            if let Some(shared) = &self.shared_task_quota {
+                let _ = shared.with_lock(|state| {
+                    state.last_resource_interruption =
+                        Some(interruption.clone());
+                });
+            }
+            return Err(anyhow::Error::new(interruption));
         }
 
         let out_bytes = self.read_memory(out_ptr, out_len).map_err(|e| {
@@ -4091,21 +4516,17 @@ impl DcWasmSession {
         })?;
 
         let out_doc = decode_output_bytes_to_dcmstring(&out_bytes)?;
-        if status != WasmStepStatus::RequestCapability {
-            let new_cumulative =
-                self.cumulative_output_bytes.saturating_add(out_len);
-            self.cumulative_output_bytes = new_cumulative;
-            if let Some(shared) = &self.shared_task_quota {
-                shared.with_lock(|state| {
-                    state.cumulative_output_bytes = new_cumulative;
-                })?;
-            }
+        self.cumulative_output_bytes = new_cumulative;
+        if let Some(shared) = &self.shared_task_quota {
+            shared.with_lock(|state| {
+                state.cumulative_output_bytes = new_cumulative;
+            })?;
         }
         Ok(match status {
             WasmStepStatus::Complete => WasmStepOutcome::Complete(out_doc),
             WasmStepStatus::YieldFrame => WasmStepOutcome::YieldFrame(out_doc),
             WasmStepStatus::RequestCapability => {
-                WasmStepOutcome::RequestCapability(out_doc)
+                unreachable!("handled immediately above")
             }
         })
     }
@@ -8756,17 +9177,24 @@ mod tests {
             None,
             "Dc 256 (lang.say) belongs in Stage 2 (impls/), not Stage 0 (.wat)"
         );
+        let sg = resolver
+            .seed_graph()
+            .expect("Default syntax resolver must expose SeedGraphIndex");
         assert_eq!(
             resolver
-                .resolve_wasm_definition_tokens(DcChar::from_short(1936).to_u128()),
+                .resolve_wasm_definition_tokens(DcChar::from_short(1936).to_u128())
+                .map(|tokens| sg.expand_interned_string_nodes(tokens))
+                .as_deref(),
             Some(sup_shorthands.as_slice()),
-            "Dc 1936 (Dc document execution kernel) active graph .WASM definition must match build_supervisor_wasm_shorthands()"
+            "Dc 1936 (Dc document execution kernel) expanded graph .WASM definition must match build_supervisor_wasm_shorthands()"
         );
         assert_eq!(
             resolver
-                .resolve_wasm_definition_tokens(DcChar::from_short(1937).to_u128()),
+                .resolve_wasm_definition_tokens(DcChar::from_short(1937).to_u128())
+                .map(|tokens| sg.expand_interned_string_nodes(tokens))
+                .as_deref(),
             Some(sup_shorthands.as_slice()),
-            "Dc 1937 (Collective Toolbox Workspace) active graph .WASM definition must match build_supervisor_wasm_shorthands()"
+            "Dc 1937 (Collective Toolbox Workspace) expanded graph .WASM definition must match build_supervisor_wasm_shorthands()"
         );
         Ok(())
     }
@@ -8915,6 +9343,137 @@ mod tests {
                 "dcmstring_to_wasm must reject StageL Dc {stagel_ty_short} inside .WASM valtype"
             );
         }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_option_b_mid_step_capability_yield_preserves_live_heap_and_quota()
+    -> Result<()> {
+        let mk_dcmst = |s: &str| -> DcMstring {
+            let mut m = DcMstring::new();
+            for ch in s.chars() {
+                m.push_char(DcChar::from_char(ch));
+            }
+            m
+        };
+
+        // Module with exported `__heap_ptr` and `__ctb_capability_yield`:
+        // - Preserves live locals + heap data across two consecutive mid-step yields.
+        // - Returns concatenation of (first half of initial input) + resp1 + resp2.
+        let wat = r#"
+            (module
+              (memory (export "memory") 1)
+              (global $__heap_ptr (export "__heap_ptr") (mut i32) (i32.const 256))
+              (func $__ctb_capability_yield (export "__ctb_capability_yield"))
+              (func (export "step") (result i32)
+                (local $in_ptr i32)
+                (local $in_len i32)
+                (local $half i32)
+                (local $heap_buf i32)
+                (local $req1_ptr i32)
+                (local $req2_ptr i32)
+                (local $r1_ptr i32)
+                (local $r1_len i32)
+                (local $r2_ptr i32)
+                (local $r2_len i32)
+                (local $out_ptr i32)
+                (local $out_total i32)
+
+                (local.set $in_ptr (i32.load (i32.const 0)))
+                (local.set $in_len (i32.load (i32.const 4)))
+                (local.set $half (i32.div_u (local.get $in_len) (i32.const 2)))
+                ;; Ensure heap starts strictly above initial input slice (base_io_offset + in_len).
+                (local.set $heap_buf (i32.add (local.get $in_ptr) (local.get $in_len)))
+                (local.set $heap_buf (i32.and (i32.add (local.get $heap_buf) (i32.const 7)) (i32.const -8)))
+                ;; Copy full initial input to $heap_buf as long-lived heap data across yields.
+                (memory.copy (local.get $heap_buf) (local.get $in_ptr) (local.get $in_len))
+                (local.set $req1_ptr (local.get $heap_buf))
+                (local.set $req2_ptr (i32.add (local.get $heap_buf) (local.get $half)))
+                (global.set $__heap_ptr (i32.add (local.get $heap_buf) (i32.const 64)))
+
+                ;; Yield 1: send first half of input.
+                (i32.store (i32.const 8) (local.get $req1_ptr))
+                (i32.store (i32.const 12) (local.get $half))
+                (call $__ctb_capability_yield)
+
+                ;; After Resume 1: resp1 must be placed >= old $__heap_ptr ($heap_buf + 64).
+                (local.set $r1_ptr (i32.load (i32.const 0)))
+                (local.set $r1_len (i32.load (i32.const 4)))
+                (if (i32.lt_u (local.get $r1_ptr) (i32.add (local.get $heap_buf) (i32.const 64)))
+                  (then (unreachable)))
+
+                ;; Yield 2: send second half from preserved heap buffer.
+                (i32.store (i32.const 8) (local.get $req2_ptr))
+                (i32.store (i32.const 12) (i32.sub (local.get $in_len) (local.get $half)))
+                (call $__ctb_capability_yield)
+
+                ;; After Resume 2: resp2 must not overwrite $heap_buf or $r1_ptr.
+                (local.set $r2_ptr (i32.load (i32.const 0)))
+                (local.set $r2_len (i32.load (i32.const 4)))
+                (if (i32.lt_u (local.get $r2_ptr) (i32.add (local.get $r1_ptr) (local.get $r1_len)))
+                  (then (unreachable)))
+
+                ;; Write combined output above $__heap_ptr: [req1][r1][r2].
+                (local.set $out_ptr (global.get $__heap_ptr))
+                (memory.copy (local.get $out_ptr) (local.get $req1_ptr) (local.get $half))
+                (memory.copy (i32.add (local.get $out_ptr) (local.get $half)) (local.get $r1_ptr) (local.get $r1_len))
+                (memory.copy
+                  (i32.add (local.get $out_ptr) (i32.add (local.get $half) (local.get $r1_len)))
+                  (local.get $r2_ptr)
+                  (local.get $r2_len))
+                (local.set $out_total
+                  (i32.add (local.get $half) (i32.add (local.get $r1_len) (local.get $r2_len))))
+                (i32.store (i32.const 8) (local.get $out_ptr))
+                (i32.store (i32.const 12) (local.get $out_total))
+                (i32.const 0)))
+        "#;
+        let wasm_bytes = crate::converters::wat::wat_to_wasm(wat)?;
+        let shared = SharedWasmTaskQuota::new(
+            DcWasmResourceLimits::default().with_max_instructions_per_step(50_000),
+        );
+        let init_doc = mk_dcmst("AABB");
+        let mut session = DcWasmSession::from_wasm_bytes(
+            &wasm_bytes,
+            &init_doc,
+            None,
+        )?
+        .with_shared_task_quota(shared.clone())?;
+
+        let WasmStepOutcome::RequestCapability(req1) = session.step()? else {
+            bail!("Expected first mid-step capability request");
+        };
+        assert_eq!(req1, mk_dcmst("AA"));
+        session.provide_capability_response(&mk_dcmst("R1"))?;
+
+        let WasmStepOutcome::RequestCapability(req2) = session.step()? else {
+            bail!("Expected second mid-step capability request");
+        };
+        assert_eq!(req2, mk_dcmst("BB"));
+        session.provide_capability_response(&mk_dcmst("R2"))?;
+
+        let WasmStepOutcome::Complete(final_doc) = session.step()? else {
+            bail!("Expected completion after two capability resumes");
+        };
+        assert_eq!(final_doc, mk_dcmst("AAR1R2"));
+        let snap = shared.snapshot()?;
+        assert!(snap.total_instructions_executed > 0);
+        assert_eq!(
+            snap.total_instructions_executed,
+            session.total_instructions_executed()
+        );
+
+        // Reserved `__ctb_capability_yield` with wrong signature must be rejected.
+        let bad_wat = r#"
+            (module
+              (func (export "__ctb_capability_yield") (param i32) (result i32)
+                (local.get 0))
+              (func (export "main") (result i32) (i32.const 0)))
+        "#;
+        let bad_wasm = crate::converters::wat::wat_to_wasm(bad_wat)?;
+        assert!(
+            instrument_wasm_module_bytes(&bad_wasm).is_err(),
+            "__ctb_capability_yield with non-() signature must fail instrumentation"
+        );
         Ok(())
     }
 }

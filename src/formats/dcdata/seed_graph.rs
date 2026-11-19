@@ -227,6 +227,23 @@ pub struct SeedGraphIndex {
     /// Active non-seed entity nodes (`Dc 586` `"Is an instance of"` `Dc 615` `"Enclosing document"` `<class_tok>`),
     /// mapped from entity `u128` node ID to `<class_tok>`.
     pub(crate) entity_class_by_id: HashMap<u128, DcShorthand>,
+    /// Exact verbatim token slice -> active node IDs in ascending `node.id` order.
+    pub(crate) active_nodes_by_exact_tokens: HashMap<Vec<DcShorthand>, Vec<u128>>,
+    /// All active statement triples `(stmt_id, verb, subj, obj)` sorted deterministically.
+    pub(crate) all_active_triples:
+        Vec<(u128, DcShorthand, DcShorthand, DcShorthand)>,
+    /// Indices into `all_active_triples` grouped by `(verb, subj)`.
+    pub(crate) triple_idx_by_verb_subj:
+        HashMap<(DcShorthand, DcShorthand), Vec<usize>>,
+    /// Indices into `all_active_triples` grouped by `(verb, obj)`.
+    pub(crate) triple_idx_by_verb_obj:
+        HashMap<(DcShorthand, DcShorthand), Vec<usize>>,
+    /// Indices into `all_active_triples` grouped by `verb`.
+    pub(crate) triple_idx_by_verb: HashMap<DcShorthand, Vec<usize>>,
+    /// Indices into `all_active_triples` grouped by `subj`.
+    pub(crate) triple_idx_by_subj: HashMap<DcShorthand, Vec<usize>>,
+    /// Indices into `all_active_triples` grouped by `obj`.
+    pub(crate) triple_idx_by_obj: HashMap<DcShorthand, Vec<usize>>,
 }
 
 /// Verified resolution of an unpinned 1-Short-Dc System supervisor entry document
@@ -882,6 +899,10 @@ impl SeedGraphIndex {
 
         // First pass: index active value nodes and find active `610` (`Has value`) and `584 <s1> 570` (`Preferred`) nodes.
         let mut value_node_by_tokens = HashMap::new();
+        let mut active_nodes_by_exact_tokens: HashMap<
+            Vec<DcShorthand>,
+            Vec<u128>,
+        > = HashMap::new();
         let mut string_by_node_id: HashMap<u128, String> = HashMap::new();
         let mut integer_by_node_id: HashMap<u128, u128> = HashMap::new();
         let mut active_has_val_by_stmt: HashMap<
@@ -906,6 +927,10 @@ impl SeedGraphIndex {
             if inactive_ids.contains(&node.id) {
                 continue;
             }
+            active_nodes_by_exact_tokens
+                .entry(node.tokens.clone())
+                .or_default()
+                .push(node.id);
             let stmt_opt = parse_statement_tokens(&node.tokens);
             let for_each_opt = if stmt_opt.is_none() {
                 parse_for_each_statement_tokens(&node.tokens)
@@ -1019,6 +1044,12 @@ impl SeedGraphIndex {
             Vec<DcShorthand>,
         > = HashMap::new();
         let mut consumed_pref_qual_has_a_ids: HashSet<u128> = HashSet::new();
+        let mut all_active_triples: Vec<(
+            u128,
+            DcShorthand,
+            DcShorthand,
+            DcShorthand,
+        )> = Vec::new();
 
         for node in &nodes {
             if inactive_ids.contains(&node.id) {
@@ -1042,6 +1073,14 @@ impl SeedGraphIndex {
                             pat
                         }
                     };
+                for &elem in &targets {
+                    all_active_triples.push((
+                        node.id,
+                        inner_verb,
+                        resolve_iter_tok(inner_subj, elem),
+                        resolve_iter_tok(inner_obj, elem),
+                    ));
+                }
                 if inner_verb == sh_has_a {
                     if let Some(has_vals) = active_has_val_by_stmt.get(&node.id)
                         && !has_vals.is_empty()
@@ -1153,6 +1192,7 @@ impl SeedGraphIndex {
             else {
                 continue;
             };
+            all_active_triples.push((node.id, verb, subj, obj));
 
             // Self-referential entity declaration: `586 615 <class_tok>`.
             // Note: `Dc 615` ("Enclosing document") itself also has CSV classification
@@ -1388,6 +1428,42 @@ impl SeedGraphIndex {
             }
         }
 
+        for ids in active_nodes_by_exact_tokens.values_mut() {
+            ids.sort_unstable();
+            ids.dedup();
+        }
+        all_active_triples.sort_unstable();
+        all_active_triples.dedup();
+        let mut triple_idx_by_verb_subj: HashMap<
+            (DcShorthand, DcShorthand),
+            Vec<usize>,
+        > = HashMap::new();
+        let mut triple_idx_by_verb_obj: HashMap<
+            (DcShorthand, DcShorthand),
+            Vec<usize>,
+        > = HashMap::new();
+        let mut triple_idx_by_verb: HashMap<DcShorthand, Vec<usize>> =
+            HashMap::new();
+        let mut triple_idx_by_subj: HashMap<DcShorthand, Vec<usize>> =
+            HashMap::new();
+        let mut triple_idx_by_obj: HashMap<DcShorthand, Vec<usize>> =
+            HashMap::new();
+        for (idx, &(_, verb, subj, obj)) in
+            all_active_triples.iter().enumerate()
+        {
+            triple_idx_by_verb_subj
+                .entry((verb, subj))
+                .or_default()
+                .push(idx);
+            triple_idx_by_verb_obj
+                .entry((verb, obj))
+                .or_default()
+                .push(idx);
+            triple_idx_by_verb.entry(verb).or_default().push(idx);
+            triple_idx_by_subj.entry(subj).or_default().push(idx);
+            triple_idx_by_obj.entry(obj).or_default().push(idx);
+        }
+
         let system_block_most_recent_node_id = nodes.iter().map(|n| n.id).max();
 
         Self {
@@ -1423,6 +1499,13 @@ impl SeedGraphIndex {
             has_val_stmt_ids_by_has_a,
             system_block_most_recent_node_id,
             entity_class_by_id,
+            active_nodes_by_exact_tokens,
+            all_active_triples,
+            triple_idx_by_verb_subj,
+            triple_idx_by_verb_obj,
+            triple_idx_by_verb,
+            triple_idx_by_subj,
+            triple_idx_by_obj,
         }
     }
 
@@ -1551,6 +1634,109 @@ impl SeedGraphIndex {
     pub fn get_active_node(&self, id: u128) -> Option<&LedgerNode> {
         let resolved_id = self.resolve_latest_node_id(id)?;
         self.get_node(resolved_id)
+    }
+
+    /// Returns the exact verbatim Dc token slice inside an active node `id`
+    /// without following supersession chains or expanding child references.
+    #[must_use]
+    pub fn query_active_node_verbatim(
+        &self,
+        id: u128,
+    ) -> Option<&[DcShorthand]> {
+        if self.inactive_ids.contains(&id) {
+            return None;
+        }
+        if let Some(pin_id) = self.system_block_most_recent_node_id
+            && id > pin_id
+        {
+            return None;
+        }
+        self.get_node(id).map(|n| n.tokens.as_slice())
+    }
+
+    /// Returns all active node IDs (sorted ascending) in the snapshot whose
+    /// verbatim token slice equals `tokens` exactly.
+    #[must_use]
+    pub fn query_active_nodes_by_exact_tokens(
+        &self,
+        tokens: &[DcShorthand],
+    ) -> &[u128] {
+        let Some(ids) = self.active_nodes_by_exact_tokens.get(tokens) else {
+            return &[];
+        };
+        if let Some(pin_id) = self.system_block_most_recent_node_id {
+            let cutoff = ids.partition_point(|&id| id <= pin_id);
+            return ids.get(..cutoff).unwrap_or(&[]);
+        }
+        ids.as_slice()
+    }
+
+    /// Queries all active relationship triples `(stmt_id, verb, subj, obj)`
+    /// in the snapshot matching the supplied pattern (`None` = `Dc 600`
+    /// wildcard). Includes both direct 3-token statements and `Dc 638`
+    /// for-each distributions.
+    #[must_use]
+    pub fn query_active_relationship_triples(
+        &self,
+        verb: Option<DcShorthand>,
+        subj: Option<DcShorthand>,
+        obj: Option<DcShorthand>,
+    ) -> Vec<(u128, DcShorthand, DcShorthand, DcShorthand)> {
+        let pin = self.system_block_most_recent_node_id;
+        let matches_pin_and_filter =
+            |&(stmt_id, v, s, o): &(
+                u128,
+                DcShorthand,
+                DcShorthand,
+                DcShorthand,
+            )| {
+                pin.is_none_or(|p| stmt_id <= p)
+                    && verb.is_none_or(|want_v| v == want_v)
+                    && subj.is_none_or(|want_s| s == want_s)
+                    && obj.is_none_or(|want_o| o == want_o)
+            };
+
+        let cand_indices: Option<&[usize]> = match (verb, subj, obj) {
+            (Some(v), Some(s), _) => self
+                .triple_idx_by_verb_subj
+                .get(&(v, s))
+                .map_or(Some(&[]), |v| Some(v.as_slice())),
+            (Some(v), None, Some(o)) => self
+                .triple_idx_by_verb_obj
+                .get(&(v, o))
+                .map_or(Some(&[]), |v| Some(v.as_slice())),
+            (Some(v), None, None) => self
+                .triple_idx_by_verb
+                .get(&v)
+                .map_or(Some(&[]), |v| Some(v.as_slice())),
+            (None, Some(s), _) => self
+                .triple_idx_by_subj
+                .get(&s)
+                .map_or(Some(&[]), |v| Some(v.as_slice())),
+            (None, None, Some(o)) => self
+                .triple_idx_by_obj
+                .get(&o)
+                .map_or(Some(&[]), |v| Some(v.as_slice())),
+            (None, None, None) => None,
+        };
+
+        let mut out = Vec::new();
+        if let Some(indices) = cand_indices {
+            for &idx in indices {
+                if let Some(triple) = self.all_active_triples.get(idx)
+                    && matches_pin_and_filter(triple)
+                {
+                    out.push(*triple);
+                }
+            }
+        } else {
+            for triple in &self.all_active_triples {
+                if matches_pin_and_filter(triple) {
+                    out.push(*triple);
+                }
+            }
+        }
+        out
     }
 
     /// Resolves `tok` as a string value node (`DcShorthand::Long(id)`), returning its decoded UTF-8 string.
@@ -4815,6 +5001,187 @@ mod tests {
             format!("{untrusted_err:#}")
                 .contains("untrusted Dc 635 data source"),
             "Unexpected error: {untrusted_err:#}"
+        );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_query_api_verbatim_reverse_triples_and_pins() -> Result<()> {
+        let base = 8_589_990_000u128;
+        let val_a = base;
+        let has_a = base + 1;
+        let has_val_old = base + 2;
+        let val_b = base + 3;
+        let has_val_new = base + 4;
+        let sup_stmt = base + 5;
+        let extra_stmt = base + 6;
+        let ret_stmt = base + 7;
+        let for_each_stmt = base + 8;
+
+        let tok_a = vec![
+            DcShorthand::Short(260),
+            DcShorthand::Unicode(0x41),
+            DcShorthand::Short(261),
+        ];
+        let tok_b = vec![
+            DcShorthand::Short(260),
+            DcShorthand::Unicode(0x42),
+            DcShorthand::Short(261),
+        ];
+        let subj = DcShorthand::Short(901);
+        let subj2 = DcShorthand::Short(902);
+
+        let nodes = vec![
+            LedgerNode {
+                id: val_a,
+                tokens: tok_a.clone(),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: has_a,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_A),
+                    subj,
+                    sh(DC_CANONICAL_NAME),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: has_val_old,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_VALUE),
+                    DcShorthand::Long(has_a),
+                    DcShorthand::Long(val_a),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: val_b,
+                tokens: tok_b.clone(),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: has_val_new,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_VALUE),
+                    DcShorthand::Long(has_a),
+                    DcShorthand::Long(val_b),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: sup_stmt,
+                tokens: encode_statement_tokens(
+                    sh(DC_SUPERSEDES),
+                    DcShorthand::Long(has_val_new),
+                    DcShorthand::Long(has_val_old),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: extra_stmt,
+                tokens: encode_statement_tokens(
+                    sh(DC_IS_BASED_ON),
+                    subj,
+                    subj2,
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: ret_stmt,
+                tokens: encode_statement_tokens(
+                    sh(DC_RETRACTS),
+                    sh(DC_ENCLOSING_DOCUMENT),
+                    DcShorthand::Long(extra_stmt),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: for_each_stmt,
+                tokens: crate::graph_ledger::encode_for_each_statement_tokens(
+                    sh(DC_IS_STABLE),
+                    sh(DC_THIS_ELEMENT),
+                    sh(DC_BOOLEAN_TRUE),
+                    sh(DC_TYPE_ATOM_DC),
+                    &[subj, subj2],
+                ),
+                comment: String::new(),
+            },
+        ];
+
+        // 1. Snapshot pinned at `has_val_old` sees `has_val_old` active and neither `has_val_new` nor `ret_stmt`/`for_each_stmt`.
+        let pin_early =
+            SeedGraphIndex::from_nodes_at_most_recent(nodes.clone(), has_val_old);
+        assert_eq!(
+            pin_early.query_active_node_verbatim(val_a),
+            Some(tok_a.as_slice())
+        );
+        assert_eq!(pin_early.query_active_node_verbatim(val_b), None);
+        assert_eq!(
+            pin_early.query_active_nodes_by_exact_tokens(&tok_a),
+            &[val_a]
+        );
+        assert_eq!(
+            pin_early.query_active_relationship_triples(
+                Some(sh(DC_HAS_VALUE)),
+                Some(DcShorthand::Long(has_a)),
+                None,
+            ),
+            vec![(
+                has_val_old,
+                sh(DC_HAS_VALUE),
+                DcShorthand::Long(has_a),
+                DcShorthand::Long(val_a),
+            )]
+        );
+
+        // 2. Full snapshot excludes superseded `has_val_old` and retracted `extra_stmt`, includes expanded `Dc 638`.
+        let full = SeedGraphIndex::from_nodes(nodes);
+        assert_eq!(full.query_active_node_verbatim(has_val_old), None);
+        assert_eq!(full.query_active_node_verbatim(extra_stmt), None);
+        assert!(full.query_active_node_verbatim(val_b).is_some());
+        assert_eq!(
+            full.query_active_relationship_triples(
+                Some(sh(DC_HAS_VALUE)),
+                Some(DcShorthand::Long(has_a)),
+                None,
+            ),
+            vec![(
+                has_val_new,
+                sh(DC_HAS_VALUE),
+                DcShorthand::Long(has_a),
+                DcShorthand::Long(val_b),
+            )]
+        );
+        assert_eq!(
+            full.query_active_relationship_triples(
+                Some(sh(DC_IS_BASED_ON)),
+                None,
+                None,
+            ),
+            vec![]
+        );
+        assert_eq!(
+            full.query_active_relationship_triples(
+                Some(sh(DC_IS_STABLE)),
+                None,
+                Some(sh(DC_BOOLEAN_TRUE)),
+            ),
+            vec![
+                (
+                    for_each_stmt,
+                    sh(DC_IS_STABLE),
+                    subj,
+                    sh(DC_BOOLEAN_TRUE),
+                ),
+                (
+                    for_each_stmt,
+                    sh(DC_IS_STABLE),
+                    subj2,
+                    sh(DC_BOOLEAN_TRUE),
+                ),
+            ]
         );
 
         Ok(())

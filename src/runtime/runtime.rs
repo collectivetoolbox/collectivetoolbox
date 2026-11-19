@@ -146,10 +146,11 @@ pub async fn test_prepend(document: String, prepend: String) -> String {
 }
 
 use ctb_formats_dcstring::{
-    DcChar, DcMstr, DcMstring, DcShorthand, DcString, DcWasmResourceLimits,
-    DcWasmSession, DcWasmWatchdogLimits, SeedGraphIndex,
-    WASM_RESOURCE_ACCOUNTING_VERSION, WasmResourceInterruption,
-    WasmStepOutcome, dc,
+    DcChar, DcMstr, DcMstring, DcRole, DcShorthand, DcString,
+    DcWasmResourceLimits, DcWasmSession, DcWasmWatchdogLimits, SeedGraphIndex,
+    SyntaxRuleResolver, WASM_RESOURCE_ACCOUNTING_VERSION,
+    WasmResourceInterruption, WasmStepOutcome,
+    converters::eval_pure_graph_capability_request, dc,
 };
 use std::collections::HashMap;
 
@@ -783,14 +784,50 @@ pub enum Privilege {
     HighResolutionTimers,
     /// Excessive compute budget exhausted before the document is fully parsed.
     ExcessiveCompute,
+    /// Read-only minimal query of the active System graph (`Dc 1939`).
+    SystemGraphQuery,
+    /// Pure child WebAssembly execution (`Dc 1940`) under shared task quotas.
+    ExecutePureWasm,
     /// Custom privileged operation.
     Custom(String),
 }
 
 impl Privilege {
-    /// Classifies a capability request `DcMstr` emitted by a WASM module (`WasmStepStatus::RequestCapability`).
+    /// Classifies a capability request `DcMstr` emitted by a WASM module
+    /// (`WasmStepStatus::RequestCapability`) against `resolver`.
+    #[must_use]
+    pub fn from_request_dc_with_resolver(
+        request: &DcMstr,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Self {
+        if let Ok(dc_str) = request.to_dc_string()
+            && let Some(first) = dc_str.chars().next()
+        {
+            let first_u = first.to_u128();
+            if resolver
+                .token_fills_role(first_u, DcRole::MinimalSystemGraphQuery)
+            {
+                return Self::SystemGraphQuery;
+            }
+            if resolver
+                .token_fills_role(first_u, DcRole::ExecutePureWasmProgram)
+            {
+                return Self::ExecutePureWasm;
+            }
+        }
+        Self::from_request_dc_ascii_fallback(request)
+    }
+
+    /// Classifies a capability request `DcMstr` emitted by a WASM module
+    /// (`WasmStepStatus::RequestCapability`) using the default syntax resolver.
     #[must_use]
     pub fn from_request_dc(request: &DcMstr) -> Self {
+        let default_res =
+            ctb_formats_dcstring::syntax::default_syntax_resolver();
+        Self::from_request_dc_with_resolver(request, default_res.as_ref())
+    }
+
+    fn from_request_dc_ascii_fallback(request: &DcMstr) -> Self {
         let mut ascii = String::new();
         if let Ok(dc_str) = request.to_dc_string() {
             for ch in dc_str.chars() {
@@ -1177,6 +1214,11 @@ impl ExecutionContext {
         if self.has_errors {
             // Strongly steer away from Allow when document has errors
             PermissionDecision::AutoMock
+        } else if matches!(
+            privilege,
+            Privilege::SystemGraphQuery | Privilege::ExecutePureWasm
+        ) {
+            PermissionDecision::Allow
         } else {
             PermissionDecision::Deny
         }
@@ -1392,6 +1434,24 @@ impl ExecutionContext {
         &mut self,
         session: &mut DcWasmSession,
         input: &DcMstr,
+        capability_handler: F,
+    ) -> Result<WasmExecutionTrace>
+    where
+        F: FnMut(&Privilege, PermissionDecision, &DcMstr) -> Result<DcMstring>,
+    {
+        self.execute_wasm_session_with_trace_inner(
+            session,
+            input,
+            None,
+            capability_handler,
+        )
+    }
+
+    fn execute_wasm_session_with_trace_inner<F>(
+        &mut self,
+        session: &mut DcWasmSession,
+        input: &DcMstr,
+        resolver: Option<&dyn SyntaxRuleResolver>,
         mut capability_handler: F,
     ) -> Result<WasmExecutionTrace>
     where
@@ -1634,7 +1694,11 @@ impl ExecutionContext {
                     logical_step = logical_step.saturating_add(1);
                 }
                 WasmStepOutcome::RequestCapability(req_dc) => {
-                    let privilege = Privilege::from_request_dc(&req_dc);
+                    let privilege = if let Some(res) = resolver {
+                        Privilege::from_request_dc_with_resolver(&req_dc, res)
+                    } else {
+                        Privilege::from_request_dc(&req_dc)
+                    };
                     let decision = self.request_permission(&privilege);
                     if decision == PermissionDecision::BreakOutResumeNext {
                         let _ = self.push_trace_event_bounded(
@@ -1664,7 +1728,28 @@ impl ExecutionContext {
                         ));
                     }
                     let response =
-                        capability_handler(&privilege, decision, &req_dc)?;
+                        match capability_handler(&privilege, decision, &req_dc)
+                        {
+                            Ok(r) => r,
+                            Err(err)
+                                if err
+                                    .downcast_ref::<WasmResourceInterruption>()
+                                    .is_some() =>
+                            {
+                                return Ok(self
+                                    .handle_session_error_into_trace(
+                                        Some(session),
+                                        fallback_limits,
+                                        err,
+                                        logical_step,
+                                        frames,
+                                        events,
+                                        cumulative_trace_bytes,
+                                        last_interrupted_op,
+                                    ));
+                            }
+                            Err(err) => return Err(err),
+                        };
                     if self
                         .push_trace_event_bounded(
                             &mut events,
@@ -1714,6 +1799,42 @@ impl ExecutionContext {
         }
     }
 
+    /// Drives a [`DcWasmSession`] with the default capability response encoder
+    /// and pure `Dc 1939`/`Dc 1940` capability dispatch against `resolver`.
+    ///
+    /// # Errors
+    /// Returns an error if a non-resource capability handler fails.
+    pub fn execute_wasm_session_default_with_resolver_and_trace(
+        &mut self,
+        session: &mut DcWasmSession,
+        input: &DcMstr,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<WasmExecutionTrace> {
+        let shared_quota = session.shared_task_quota();
+        self.execute_wasm_session_with_trace_inner(
+            session,
+            input,
+            Some(resolver),
+            move |privilege, decision, req| {
+                if decision == PermissionDecision::Allow
+                    && matches!(
+                        privilege,
+                        Privilege::SystemGraphQuery
+                            | Privilege::ExecutePureWasm
+                    )
+                {
+                    return eval_pure_graph_capability_request(
+                        req,
+                        resolver,
+                        shared_quota.clone(),
+                        0,
+                    );
+                }
+                Ok(Self::default_capability_response(decision))
+            },
+        )
+    }
+
     /// Drives a [`DcWasmSession`] with the default capability response encoder and returns
     /// the full [`WasmExecutionTrace`].
     ///
@@ -1724,12 +1845,12 @@ impl ExecutionContext {
         session: &mut DcWasmSession,
         input: &DcMstr,
     ) -> Result<WasmExecutionTrace> {
-        self.execute_wasm_session_with_trace(
+        let default_res =
+            ctb_formats_dcstring::syntax::default_syntax_resolver();
+        self.execute_wasm_session_default_with_resolver_and_trace(
             session,
             input,
-            |_priv, decision, _req| {
-                Ok(Self::default_capability_response(decision))
-            },
+            default_res.as_ref(),
         )
     }
 
@@ -1916,8 +2037,11 @@ impl ExecutionContext {
             }
         };
 
-        let mut trace =
-            self.execute_wasm_session_default_with_trace(&mut session, input)?;
+        let mut trace = self.execute_wasm_session_default_with_resolver_and_trace(
+            &mut session,
+            input,
+            exec_res,
+        )?;
         if !compile_events.is_empty() {
             compile_events.extend(trace.events);
             trace.events = compile_events;
@@ -5264,6 +5388,217 @@ pub v/l/u8/step l/u8/input
             trace_unpinned.result.output.to_dc_string()?.to_string(),
             "sr3:payload"
         );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_option_b_dc_1939_and_dc_1940_execution_context_policies()
+    -> Result<()> {
+        use ctb_formats_dcstring::converters::encode_dc_string_literal;
+        use ctb_formats_dcstring::converters::wat::{
+            wat_to_dcmstring, wat_to_wasm,
+        };
+        use ctb_formats_dcstring::syntax::default_syntax_resolver;
+
+        let resolver = default_syntax_resolver();
+        let sg = resolver.seed_graph().context("Missing seed graph")?;
+        let watermark = sg
+            .system_block_most_recent_node_id()
+            .context("Missing seed graph watermark")?;
+
+        let mut wm_req = DcMstring::new();
+        wm_req.push_char(dc::DC_MINIMAL_SYSTEM_GRAPH_QUERY);
+        wm_req.push_char(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+        wm_req.push_char(dc::DC_WILDCARD_PATTERN);
+
+        // Build a looping pure child WASM module so quota exhaustion deterministically occurs inside Dc 1940.
+        let child_wat = r#"(module
+          (memory (export "memory") 1)
+          (func (export "step") (result i32)
+            (local $i i32)
+            (block $done
+              (loop $lp
+                (br_if $done (i32.ge_u (local.get $i) (i32.const 400)))
+                (local.set $i (i32.add (local.get $i) (i32.const 1)))
+                (br $lp)))
+            (i32.store (i32.const 8) (i32.load (i32.const 0)))
+            (i32.store (i32.const 12) (i32.load (i32.const 4)))
+            (i32.const 0)))"#;
+        let child_wasm_doc = wat_to_dcmstring(child_wat)?;
+        let lit_in = encode_dc_string_literal(&[
+            DcChar::from('H'),
+            DcChar::from('i'),
+        ]);
+        let mut pure_req = DcMstring::new();
+        pure_req.push_char(dc::DC_EXECUTE_PURE_WASM_PROGRAM);
+        for ch in child_wasm_doc.to_dc_string()?.chars() {
+            pure_req.push_char(ch);
+        }
+        for ch in lit_in.to_dc_string()?.chars() {
+            pure_req.push_char(ch);
+        }
+
+        let mut combined_input = wm_req.clone();
+        let wm_len = combined_input.payload_bytes().len();
+        for ch in pure_req.to_dc_string()?.chars() {
+            combined_input.push_char(ch);
+        }
+        let pure_len =
+            combined_input.payload_bytes().len().saturating_sub(wm_len);
+
+        let parent_wat = format!(
+            r#"(module
+              (memory (export "memory") 1)
+              (global $__heap_ptr (mut i32) (i32.const 256))
+              (export "__heap_ptr" (global $__heap_ptr))
+              (func $__ctb_capability_yield (export "__ctb_capability_yield"))
+              (func $copy (param $src i32) (param $dst i32) (param $len i32)
+                (local $i i32)
+                (block $done
+                  (loop $lp
+                    (br_if $done (i32.ge_u (local.get $i) (local.get $len)))
+                    (i32.store8
+                      (i32.add (local.get $dst) (local.get $i))
+                      (i32.load8_u (i32.add (local.get $src) (local.get $i))))
+                    (local.set $i (i32.add (local.get $i) (i32.const 1)))
+                    (br $lp))))
+              (func (export "step") (result i32)
+                (local $in_ptr i32)
+                (local $in_len i32)
+                (local $p1 i32)
+                (local $l1 i32)
+                (local $p2 i32)
+                (local $l2 i32)
+                (local $out_ptr i32)
+                (local.set $in_ptr (i32.load (i32.const 0)))
+                (local.set $in_len (i32.load (i32.const 4)))
+                (global.set $__heap_ptr
+                  (i32.and
+                    (i32.add (i32.add (local.get $in_ptr) (local.get $in_len)) (i32.const 63))
+                    (i32.const -8)))
+                (i32.store (i32.const 8) (local.get $in_ptr))
+                (i32.store (i32.const 12) (i32.const {wm_len}))
+                (call $__ctb_capability_yield)
+                (local.set $p1 (i32.load (i32.const 0)))
+                (local.set $l1 (i32.load (i32.const 4)))
+                (i32.store (i32.const 8) (i32.add (local.get $in_ptr) (i32.const {wm_len})))
+                (i32.store (i32.const 12) (i32.const {pure_len}))
+                (call $__ctb_capability_yield)
+                (local.set $p2 (i32.load (i32.const 0)))
+                (local.set $l2 (i32.load (i32.const 4)))
+                (local.set $out_ptr (global.get $__heap_ptr))
+                (call $copy (local.get $p1) (local.get $out_ptr) (local.get $l1))
+                (call $copy (local.get $p2) (i32.add (local.get $out_ptr) (local.get $l1)) (local.get $l2))
+                (i32.store (i32.const 8) (local.get $out_ptr))
+                (i32.store (i32.const 12) (i32.add (local.get $l1) (local.get $l2)))
+                (i32.const 0)))"#,
+        );
+        let parent_wasm = wat_to_wasm(&parent_wat)?;
+
+        // 1. Default policy allows both Dc 1939 and Dc 1940.
+        let mut expected_allow = DcMstring::new();
+        expected_allow
+            .push_char(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+        expected_allow.push_char(DcChar::from_u128(watermark));
+        for ch in lit_in.to_dc_string()?.chars() {
+            expected_allow.push_char(ch);
+        }
+        let mut s_ok = DcWasmSession::from_wasm_bytes_with_limits(
+            &parent_wasm,
+            &combined_input,
+            Some(watermark),
+            DcWasmResourceLimits::default(),
+        )?;
+        let mut ctx_ok = ExecutionContext::new(false);
+        let tr_ok = ctx_ok
+            .execute_wasm_session_default_with_resolver_and_trace(
+                &mut s_ok,
+                &combined_input,
+                resolver.as_ref(),
+            )?;
+        assert!(!tr_ok.result.broke_out_early);
+        assert_eq!(tr_ok.result.output, expected_allow);
+        let cap_privs: Vec<(&Privilege, PermissionDecision)> = tr_ok
+            .events
+            .iter()
+            .filter_map(|e| match e {
+                WasmTraceEvent::CapabilityInteraction {
+                    privilege,
+                    decision,
+                    ..
+                } => Some((privilege, *decision)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            cap_privs,
+            vec![
+                (&Privilege::SystemGraphQuery, PermissionDecision::Allow),
+                (&Privilege::ExecutePureWasm, PermissionDecision::Allow),
+            ]
+        );
+
+        // 2. Explicit Deny override on SystemGraphQuery returns Dc 518 without executing query.
+        let mut s_deny = DcWasmSession::from_wasm_bytes_with_limits(
+            &parent_wasm,
+            &combined_input,
+            Some(watermark),
+            DcWasmResourceLimits::default(),
+        )?;
+        let mut ctx_deny = ExecutionContext::new(false)
+            .with_privilege_decision(
+                Privilege::SystemGraphQuery,
+                PermissionDecision::Deny,
+            );
+        let tr_deny = ctx_deny
+            .execute_wasm_session_default_with_resolver_and_trace(
+                &mut s_deny,
+                &combined_input,
+                resolver.as_ref(),
+            )?;
+        let mut expected_deny = DcMstring::new();
+        expected_deny.push_char(dc::DC_BOOLEAN_FALSE);
+        for ch in lit_in.to_dc_string()?.chars() {
+            expected_deny.push_char(ch);
+        }
+        assert_eq!(tr_deny.result.output, expected_deny);
+
+        // 3. Exhausting shared compute quota inside Dc 1940 child WASM records ResourceInterruption.
+        let tiny_limits = DcWasmResourceLimits::default()
+            .with_max_instructions_per_step(300);
+        let tiny_quota =
+            ctb_formats_dcstring::converters::wasm::SharedWasmTaskQuota::new(
+                tiny_limits,
+            );
+        let mut s_quota = DcWasmSession::from_wasm_bytes_with_limits(
+            &parent_wasm,
+            &combined_input,
+            Some(watermark),
+            tiny_limits,
+        )?;
+        s_quota.set_shared_task_quota(tiny_quota)?;
+        let mut ctx_quota = ExecutionContext::new(false)
+            .with_privilege_decision(
+                Privilege::ExcessiveCompute,
+                PermissionDecision::Deny,
+            );
+        let tr_quota = ctx_quota
+            .execute_wasm_session_default_with_resolver_and_trace(
+                &mut s_quota,
+                &combined_input,
+                resolver.as_ref(),
+            )?;
+        assert!(tr_quota.result.broke_out_early);
+        assert!(tr_quota.events.iter().any(|e| matches!(
+            e,
+            WasmTraceEvent::ResourceInterruption {
+                decision: PermissionDecision::Deny,
+                interruption: Some(_),
+                ..
+            }
+        )));
+        assert!(tr_quota.ensure_not_denied().is_err());
+
         Ok(())
     }
 }
