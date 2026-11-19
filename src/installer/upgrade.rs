@@ -579,14 +579,41 @@ mod tests {
         }
     }
 
+    /// Writes a canary shell script, marks it executable, and runs it via
+    /// `/bin/sh`.
+    #[cfg(unix)]
+    fn spawn_canary_script(
+        script_path: &Path,
+        script: &str,
+        backup_path: &Path,
+    ) -> std::process::Child {
+        use std::os::unix::fs::PermissionsExt;
+
+        fs::write(script_path, script).unwrap();
+        let mut perms = fs::metadata(script_path).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(script_path, perms).unwrap();
+
+        // Invoke `/bin/sh` explicitly instead of execing `script_path`
+        // directly: in a multithreaded test process, a concurrent `fork()`
+        // can inherit a temporary `O_WRONLY` descriptor before `O_CLOEXEC`
+        // closes it on `execve()`, causing the kernel's `deny_write_access`
+        // check on the freshly written file to fail with `ETXTBSY`.
+        Command::new("/bin/sh")
+            .arg(script_path)
+            .arg(backup_path)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("Failed to spawn canary script")
+    }
+
     /// Integration test that actually spawns a child process to test the
     /// canary mechanism. This creates a simple shell script that simulates
     /// the upgrade canary behavior.
     #[crate::ctb_test]
     #[cfg(unix)]
     fn test_canary_process_exits_cleanly() {
-        use std::os::unix::fs::PermissionsExt;
-
         let temp_dir = TempDir::new().unwrap();
         let script_path = temp_dir.path().join("test-canary.sh");
 
@@ -599,21 +626,11 @@ sleep 0.1
 rm -f "$1"
 exit 0
 "#;
-        fs::write(&script_path, script).unwrap();
-        let mut perms = fs::metadata(&script_path).unwrap().permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(&script_path, perms).unwrap();
-
         let backup_path = temp_dir.path().join("test.backup");
         fs::write(&backup_path, b"backup content").unwrap();
 
         // Spawn the "canary" process
-        let mut child = Command::new(&script_path)
-            .arg(&backup_path)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .expect("Failed to spawn canary script");
+        let mut child = spawn_canary_script(&script_path, script, &backup_path);
 
         // Wait for it to complete
         let status = child.wait().expect("Failed to wait on canary");
@@ -630,8 +647,6 @@ exit 0
     #[crate::ctb_test]
     #[cfg(unix)]
     fn test_canary_crash_leaves_backup() {
-        use std::os::unix::fs::PermissionsExt;
-
         let temp_dir = TempDir::new().unwrap();
         let script_path = temp_dir.path().join("test-crash-canary.sh");
 
@@ -641,21 +656,11 @@ exit 0
 # Simulate a crash - exit before cleanup
 exit 1
 ";
-        fs::write(&script_path, script).unwrap();
-        let mut perms = fs::metadata(&script_path).unwrap().permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(&script_path, perms).unwrap();
-
         let backup_path = temp_dir.path().join("test.backup");
         fs::write(&backup_path, b"backup content").unwrap();
 
         // Spawn the "crashing canary" process
-        let mut child = Command::new(&script_path)
-            .arg(&backup_path)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .expect("Failed to spawn canary script");
+        let mut child = spawn_canary_script(&script_path, script, &backup_path);
 
         let status = child.wait().expect("Failed to wait on canary");
         assert!(!status.success(), "Canary should have crashed");
