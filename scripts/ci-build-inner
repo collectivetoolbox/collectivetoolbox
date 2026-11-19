@@ -29,7 +29,8 @@ if [[ -d "${HOME:-}" && "$(id -u)" == "0" ]]; then
     chown -R root:root "$HOME" 2>/dev/null || true
 fi
 
-# Ensure Wine has an isolated, accessible configuration directory
+# Ensure Wine has an isolated, accessible 64-bit configuration directory
+export WINEARCH="${WINEARCH:-win64}"
 export WINEPREFIX="${WINEPREFIX:-/tmp/ctb-wine}"
 mkdir -p "$WINEPREFIX"
 
@@ -92,7 +93,11 @@ if command -v npm >/dev/null 2>&1; then
     npm uninstall -g typescript playwright 2>/dev/null || true
 fi
 
-"$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/apt-install-build-deps"
+apt_deps_args=(--no-test-deps)
+if [[ "$ci_stage" == "all" || "$ci_platform" == windows-* ]]; then
+    apt_deps_args=()
+fi
+"$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/apt-install-build-deps" "${apt_deps_args[@]}"
 
 need_guix=true
 if [[ -f "/var/cache/ctoolbox/guix_posix_initrd.cpio.gz" || -f "built/guix_posix_initrd.cpio.gz" ]]; then

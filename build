@@ -157,6 +157,50 @@ detect_platform() {
     esac
 }
 
+WINE_RUNNER=""
+
+# Configure pure 64-bit Wine environment and pre-initialize the prefix headlessly.
+# Must be called directly (never in a subshell) so exports and WINE_RUNNER persist.
+setup_wine_env() {
+    export WINEDEBUG="-all"
+    export WINEARCH="${WINEARCH:-win64}"
+    export WINEPREFIX="${WINEPREFIX:-/tmp/ctb-wine}"
+    export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:-mscoree,mshtml=}"
+    mkdir -p "$WINEPREFIX"
+
+    WINE_RUNNER=""
+    if WINE_RUNNER="$(command -v wine64 2>/dev/null)"; then
+        :
+    elif [[ -x /usr/lib/wine/wine64 ]]; then
+        WINE_RUNNER="/usr/lib/wine/wine64"
+    elif [[ -x /usr/lib/wine-development/wine64 ]]; then
+        WINE_RUNNER="/usr/lib/wine-development/wine64"
+    elif WINE_RUNNER="$(command -v wine 2>/dev/null)"; then
+        :
+    else
+        return 1
+    fi
+
+    if [[ "$(basename "$WINE_RUNNER")" == "wine64" ]]; then
+        export WINELOADER="${WINELOADER:-$WINE_RUNNER}"
+    fi
+
+    # Pre-initialize or probe the prefix with DISPLAY unset so Wine never blocks
+    # waiting on an unreachable X server (e.g. Dockerfile DISPLAY=:99 without Xvfb).
+    if [[ ! -f "$WINEPREFIX/system.reg" ]]; then
+        if ! env -u DISPLAY "$WINE_RUNNER" wineboot --init </dev/null; then
+            echo "Error: Failed to initialize Wine prefix at $WINEPREFIX using $WINE_RUNNER." >&2
+            return 1
+        fi
+        if command -v wineserver >/dev/null 2>&1; then
+            wineserver -w || true
+        fi
+    elif ! env -u DISPLAY "$WINE_RUNNER" cmd /c exit 0 </dev/null; then
+        echo "Error: Wine smoke check failed using $WINE_RUNNER." >&2
+        return 1
+    fi
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --clean-generated)
@@ -498,22 +542,15 @@ for p in "${platforms[@]}"; do
         fi
 
         extra_test_args=()
+        test_env_prefix=()
         test_harness_args=(--include-ignored --skip tests::test_bootstrap_ts_compilation)
         if [[ "$target" == *windows* ]]; then
-            export WINEDEBUG="-all"
-            export WINEPREFIX="${WINEPREFIX:-/tmp/ctb-wine}"
-            mkdir -p "$WINEPREFIX"
-            if command -v wine64 >/dev/null 2>&1; then
-                export CARGO_TARGET_X86_64_WIN7_WINDOWS_GNU_RUNNER="wine64"
-                # export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER="wine64"
-            elif command -v wine >/dev/null 2>&1; then
-                export CARGO_TARGET_X86_64_WIN7_WINDOWS_GNU_RUNNER="wine"
-                # export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER="wine"
-            else
-                extra_test_args=(--no-run)
-                echo "Could not find WINE to run tests."
+            if ! setup_wine_env; then
+                echo "Could not find a working 64-bit WINE runner to run tests." >&2
                 exit 1
             fi
+            export CARGO_TARGET_X86_64_WIN7_WINDOWS_GNU_RUNNER="$WINE_RUNNER"
+            test_env_prefix=(env -u DISPLAY)
         elif [[ "$target" == *freebsd* ]]; then
             if [[ "$(uname -s)" != "FreeBSD" ]]; then
                 extra_test_args=(--no-run)
@@ -527,13 +564,13 @@ for p in "${platforms[@]}"; do
         # Run tests if RUST_LOG is set (to get more verbose output). By default
         # even debug tests are quiet.
         if [[ -n "${RUST_LOG-}" ]]; then
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- "${test_harness_args[@]}" --nocapture || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" "${test_env_prefix[@]}" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- "${test_harness_args[@]}" --nocapture || exit 1
         else
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- "${test_harness_args[@]}" || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" "${test_env_prefix[@]}" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- "${test_harness_args[@]}" || exit 1
         fi
 
         if [[ "$target" == *windows* ]]; then
-            CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" --doc --no-fail-fast --target "$target" -- --include-ignored || exit 1
+            CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" "${test_env_prefix[@]}" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" --doc --no-fail-fast --target "$target" -- --include-ignored || exit 1
         fi
 
         if [[ "$build_binaries" != "true" ]]; then
@@ -544,7 +581,7 @@ for p in "${platforms[@]}"; do
             fi
             CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline "${extra_cargo_flags[@]}" -p ctoolbox --bin ctoolbox --target "$target" "${cli_build_args[@]}" || exit 1
             if [[ "$target" == *windows* ]]; then
-                bash scripts/test-compression-cli "$CARGO_TARGET_X86_64_WIN7_WINDOWS_GNU_RUNNER $PWD/target/$target/$release/ctoolbox.exe" || exit 1
+                env -u DISPLAY bash scripts/test-compression-cli "$CARGO_TARGET_X86_64_WIN7_WINDOWS_GNU_RUNNER $PWD/target/$target/$release/ctoolbox.exe" || exit 1
             else
                 bash scripts/test-compression-cli "$PWD/target/$target/$release/ctoolbox" || exit 1
             fi
@@ -672,22 +709,26 @@ for p in "${platforms[@]}"; do
         if [[ "$run_tests" == "true" ]]; then
             target_bin="built/$p/ctoolbox${exe_suffix}"
             if [[ -f "$target_bin" ]]; then
+                run_cmd=()
                 run_prefix=""
+                cli_test_env=()
                 if [[ "$target" == *windows* ]]; then
-                    export WINEDEBUG="-all"
-                    export WINEPREFIX="${WINEPREFIX:-/tmp/ctb-wine}"
-                    mkdir -p "$WINEPREFIX"
-                    if command -v wine64 >/dev/null 2>&1; then
-                        run_prefix="wine64 "
-                    elif command -v wine >/dev/null 2>&1; then
-                        run_prefix="wine "
+                    if ! setup_wine_env; then
+                        echo "Could not find a working 64-bit WINE runner to run tests." >&2
+                        exit 1
                     fi
+                    run_cmd=("$WINE_RUNNER")
+                    run_prefix="$WINE_RUNNER "
+                    cli_test_env=(env -u DISPLAY)
                 fi
 
-                if [[ -n "$run_prefix" || "$target" == *"linux"* ]]; then
-                    if ${run_prefix}"$target_bin" --version >/dev/null 2>&1; then
+                if [[ "${#run_cmd[@]}" -gt 0 || "$target" == *"linux"* ]]; then
+                    if "${cli_test_env[@]}" "${run_cmd[@]}" "$target_bin" --version >/dev/null 2>&1; then
                         echo "=== Running CLI compression tests against $target_bin ==="
-                        bash scripts/test-compression-cli "${run_prefix}$PWD/$target_bin" || exit 1
+                        "${cli_test_env[@]}" bash scripts/test-compression-cli "${run_prefix}$PWD/$target_bin" || exit 1
+                    elif [[ "$target" == *windows* ]]; then
+                        echo "Error: Built Windows binary failed --version check under $WINE_RUNNER." >&2
+                        exit 1
                     fi
                 fi
             fi

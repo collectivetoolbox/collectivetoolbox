@@ -54,6 +54,7 @@ jobs:
             -e INSIDE_CONTAINER=true \
             -e CI=true \
             -e GITHUB_ACTIONS=true \
+            -e WINEARCH=win64 \
             -e WINEPREFIX=/tmp/ctb-wine \
             -v "$GITHUB_WORKSPACE:/workspaces/ctoolbox" \
             -w /workspaces/ctoolbox \
@@ -120,6 +121,7 @@ jobs:
             -e INSIDE_CONTAINER=true \
             -e CI=true \
             -e GITHUB_ACTIONS=true \
+            -e WINEARCH=win64 \
             -e WINEPREFIX=/tmp/ctb-wine \
             -v "$GITHUB_WORKSPACE:/workspaces/ctoolbox" \
             -w /workspaces/ctoolbox \

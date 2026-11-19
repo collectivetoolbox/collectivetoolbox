@@ -51,10 +51,12 @@ BUILD_DEPS=(
 # Test-Only Dependencies (Emulation/execution runners for foreign binaries)
 # ==============================================================================
 # NOTE: Wine is NOT required for building Windows binaries; it is only used
-# as a test runner to execute Windows test executables under Linux.
+# as a test runner to execute 64-bit Windows test executables under Linux.
+# wine32:i386 is intentionally omitted because Debian's /usr/bin/wine wrapper
+# prefers 32-bit wine when installed, and 32-bit socketcall(2) is blocked with
+# ENOSYS under Docker's default seccomp profile.
 TEST_DEPS=(
     wine
-    wine32:i386
     wine64
 )
 
