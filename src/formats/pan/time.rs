@@ -37,7 +37,7 @@ SOFTWARE.
 )]
 use crate::utilities::*;
 
-use chrono::{Local, Timelike};
+use jiff::Zoned;
 
 /// A time represented as seconds.
 ///
@@ -51,7 +51,7 @@ const SECONDS_PER_DAY: i64 = 24 * SECONDS_PER_HOUR;
 
 /// Returns the current local time as seconds since midnight.
 pub fn now() -> Result<PanTime> {
-    let t = Local::now().time();
+    let t = Zoned::now().time();
     let h = i64::from(t.hour());
     let m = i64::from(t.minute());
     let s = i64::from(t.second());

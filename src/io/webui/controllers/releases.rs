@@ -1107,7 +1107,7 @@ pub async fn get_latest_manifest_sig(
             }
             let versioned_path = releases_dir.join(format!(
                 "ctb-{platform}-{}.json",
-                manifest.date.format("%Y%m%d-%H%M%S")
+                manifest.date.strftime("%Y%m%d-%H%M%S")
             ));
             let versioned_path = match files::symlink_is_in_dir(
                 &versioned_path,

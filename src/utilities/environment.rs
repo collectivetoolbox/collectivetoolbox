@@ -287,7 +287,8 @@ fn verify_official_signature_in_thread() -> bool {
         format_version: u8,
         ctoolbox_version: semver::Version,
         platform: String,
-        date: chrono::DateTime<chrono::Utc>,
+        #[serde(with = "crate::time::serde_rfc3339_auto_si")]
+        date: jiff::Timestamp,
         signature: Option<String>,
         revoked_key_ids: Vec<String>,
         files: Vec<FileEntryMinimal>,
@@ -342,7 +343,8 @@ fn verify_official_signature_in_thread() -> bool {
         format_version: u8,
         ctoolbox_version: &'a semver::Version,
         platform: &'a str,
-        date: &'a chrono::DateTime<chrono::Utc>,
+        #[serde(with = "crate::time::serde_rfc3339_auto_si")]
+        date: &'a jiff::Timestamp,
         revoked_key_ids: &'a Vec<String>,
         files: &'a Vec<FileEntryMinimal>,
     }

@@ -188,7 +188,7 @@ mod tests {
         KeyId, generate_keypair, public_key_from_base64, public_key_to_base64,
         sign_manifest, verify_manifest,
     };
-    use chrono::Utc;
+    use jiff::Timestamp;
 
     use std::fs;
 
@@ -205,7 +205,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 2, 3),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         // Add some revoked key IDs
@@ -278,7 +278,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::parse("0.1.0-alpha.1").unwrap(),
             Platform::WindowsX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         // Sign it
@@ -304,7 +304,7 @@ mod tests {
             let manifest = ReleaseManifest::new(
                 semver::Version::new(1, 0, 0),
                 platform,
-                Utc::now(),
+                Timestamp::now(),
             );
             let json = serde_json::to_string(&manifest).unwrap();
             let parsed: ReleaseManifest = serde_json::from_str(&json).unwrap();
@@ -325,7 +325,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(2, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let mut entry = FileEntry::new(
@@ -356,7 +356,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let sig = sign_manifest(&manifest, &private_key).unwrap();
@@ -377,7 +377,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let sig = sign_manifest(&manifest, &private_key).unwrap();
@@ -572,7 +572,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         // Add first file entry
@@ -655,7 +655,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let mut entry = FileEntry::new(
@@ -749,7 +749,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let mut file1_entry = FileEntry::new(

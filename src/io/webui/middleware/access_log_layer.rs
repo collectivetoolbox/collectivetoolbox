@@ -48,7 +48,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! Dependencies you need in Cargo.toml (if not already present):
 //! ```toml
-//!   chrono = { version = "0.4", features = ["clock"] }
+//!   jiff = "0.2"
 //!   pin-project = "1"
 //! ```
 //!
@@ -71,7 +71,7 @@ use std::{
 
 use axum::extract::connect_info::ConnectInfo;
 use bytes::Buf;
-use chrono::{DateTime, Local, Utc};
+use ctb_utilities::jiff::{Timestamp, Zoned};
 use http::{Request, Response, Version};
 use http_body::{Body, Frame};
 use pin_project::{pin_project, pinned_drop};
@@ -254,8 +254,8 @@ where
 
     fn call(&mut self, req: Request<B>) -> Self::Future {
         let start_instant = Instant::now();
-        let start_time_local: DateTime<Local> = Local::now();
-        let start_time_utc: DateTime<Utc> = Utc::now();
+        let start_time_local = Zoned::now();
+        let start_time_utc = start_time_local.timestamp();
 
         let method = req.method().clone();
         // Reason for fallback: URI without PathAndQuery component falls back to raw path string
@@ -326,8 +326,8 @@ struct AccessLogState {
     /// HTTP auth user
     user: String,
     start_instant: Instant,
-    start_time_local: DateTime<Local>,
-    start_time_utc: DateTime<Utc>,
+    start_time_local: Zoned,
+    start_time_utc: Timestamp,
     method: http::Method,
     path_and_query: String,
     version: Version,
@@ -409,7 +409,7 @@ where
                     ident: state.ident.clone(),
                     user: state.user.clone(),
                     start_instant: state.start_instant,
-                    start_time_local: state.start_time_local,
+                    start_time_local: state.start_time_local.clone(),
                     start_time_utc: state.start_time_utc,
                     method: state.method.clone(),
                     path_and_query: state.path_and_query.clone(),
@@ -546,8 +546,8 @@ struct SharedLog {
     ident: String,
     user: String,
     start_instant: Instant,
-    start_time_local: DateTime<Local>,
-    start_time_utc: DateTime<Utc>,
+    start_time_local: Zoned,
+    start_time_utc: Timestamp,
     method: http::Method,
     path_and_query: String,
     protocol: String,
@@ -562,7 +562,7 @@ struct SharedLog {
 impl SharedLog {
     fn clf_line(&self) -> String {
         // [day/Mon/year:HH:MM:SS zone]
-        let ts = self.start_time_local.format("%d/%b/%Y:%H:%M:%S %z");
+        let ts = self.start_time_local.strftime("%d/%b/%Y:%H:%M:%S %z");
         let bytes = self.bytes.load(Ordering::Relaxed);
         let bytes_owned;
         let bytes_str: &str = if bytes == 0 {
@@ -594,10 +594,10 @@ impl SharedLog {
                 ElfField::ClientIdent => self.ident.clone(),
                 ElfField::ClientUser => self.user.clone(),
                 ElfField::Date => {
-                    self.start_time_utc.format("%Y-%m-%d").to_string()
+                    self.start_time_utc.strftime("%Y-%m-%d").to_string()
                 }
                 ElfField::Time => {
-                    self.start_time_utc.format("%H:%M:%S").to_string()
+                    self.start_time_utc.strftime("%H:%M:%S").to_string()
                 }
                 ElfField::TimeTaken => {
                     let duration = self.start_instant.elapsed();

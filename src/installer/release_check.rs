@@ -250,7 +250,7 @@ pub fn verify_release(
         success,
         version: manifest.ctoolbox_version.to_string(),
         platform: manifest.platform.to_string(),
-        date: manifest.date.to_rfc3339(),
+        date: ctb_utilities::time::format_rfc3339_auto_si(manifest.date),
         file_count: manifest.files.len(),
         chunk_count: total_chunks,
         chunks_verified,
@@ -338,7 +338,7 @@ mod tests {
     use crate::signing::{
         generate_keypair, public_key_to_base64, sign_manifest,
     };
-    use chrono::Utc;
+    use jiff::Timestamp;
     use std::fs;
     use std::io::Write;
     use std::path::PathBuf;
@@ -414,7 +414,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let mut file_entry = FileEntry::new(
@@ -464,7 +464,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let mut file_entry = FileEntry::new(
@@ -515,7 +515,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let signature = sign_manifest(&manifest, &private_key).unwrap();

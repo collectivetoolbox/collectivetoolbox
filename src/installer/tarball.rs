@@ -212,7 +212,7 @@ impl StreamingTarball {
         installer_source: Option<(TarballDataSource, u64)>,
     ) -> Result<Self> {
         // Reason for fallback: manifest date timestamp i64 conversion overflow defaults mtime to 0
-        let mtime = u64::try_from(manifest.date.timestamp()).unwrap_or(0);
+        let mtime = u64::try_from(manifest.date.as_second()).unwrap_or(0);
 
         let mut entries = Vec::new();
         let mut offset: u64 = 0;
@@ -764,7 +764,7 @@ pub fn download_offline_bundle_to_path(
 )]
 mod tests {
     use super::*;
-    use chrono::Utc;
+    use jiff::Timestamp;
     use tempfile::TempDir;
 
     fn create_test_manifest() -> ReleaseManifest {
@@ -772,7 +772,7 @@ mod tests {
             format_version: 1,
             ctoolbox_version: semver::Version::new(0, 1, 0),
             platform: Platform::LinuxX64,
-            date: Utc::now(),
+            date: Timestamp::now(),
             signature: None,
             revoked_key_ids: Vec::new(),
             files: vec![],

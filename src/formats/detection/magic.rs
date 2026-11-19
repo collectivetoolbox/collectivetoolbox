@@ -664,8 +664,8 @@ fn extract_string16<S: DetectionSource + ?Sized>(
 /// Formats a Unix timestamp as UTC `ctime`-compatible string:
 /// `%a %b %e %H:%M:%S %Y`.
 fn format_timestamp(secs: i64) -> String {
-    if let Some(dt) = chrono::DateTime::from_timestamp(secs, 0) {
-        dt.format("%a %b %e %H:%M:%S %Y").to_string()
+    if let Ok(dt) = jiff::Timestamp::from_second(secs) {
+        dt.strftime("%a %b %e %H:%M:%S %Y").to_string()
     } else {
         format!("{secs}")
     }

@@ -36,8 +36,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use chrono::{Duration, Utc};
 use ctb_utilities::string::bytes::format_bytes_both;
+use jiff::{SignedDuration, Timestamp};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -197,14 +197,17 @@ pub fn expire_releases(
     let mut manifests_to_delete = Vec::new();
     let mut keep_chunk_hashes: HashSet<String> = HashSet::new();
 
-    let cutoff_date = Utc::now()
-        .checked_sub_signed(Duration::days(i64::from(older_than_days)))
+    let retention_secs = i64::from(older_than_days)
+        .checked_mul(86_400)
+        .context("cutoff date calculation overflow")?;
+    let cutoff_date = Timestamp::now()
+        .checked_sub(SignedDuration::from_secs(retention_secs))
         .context("cutoff date calculation overflow")?;
 
     log_fmt!(
         "Expiring releases older than {} days (before {})",
         older_than_days,
-        cutoff_date.format("%Y-%m-%d %H:%M:%S UTC")
+        cutoff_date.strftime("%Y-%m-%d %H:%M:%S UTC")
     );
 
     // Scan for manifest files
@@ -284,14 +287,14 @@ pub fn expire_releases(
             log_fmt!(
                 "Marking for deletion: {} (date: {})",
                 filename,
-                manifest.date.format("%Y-%m-%d")
+                manifest.date.strftime("%Y-%m-%d")
             );
             manifests_to_delete.push(path);
         } else {
             log_fmt!(
                 "Keeping: {} (date: {})",
                 filename,
-                manifest.date.format("%Y-%m-%d")
+                manifest.date.strftime("%Y-%m-%d")
             );
             manifests_kept = manifests_kept.saturating_add(1);
 
@@ -430,9 +433,15 @@ mod tests {
     use super::*;
     use crate::manifest::{ChunkInfo, FileEntry, Platform, ReleaseManifest};
     use crate::signing::{generate_keypair, sign_manifest};
-    use chrono::{DateTime, Duration, Utc};
+    use jiff::{SignedDuration, Timestamp};
     use std::fs;
     use tempfile::TempDir;
+
+    fn days_ago(days: i64) -> Timestamp {
+        Timestamp::now()
+            .checked_sub(SignedDuration::from_secs(days * 86_400))
+            .expect("valid test cutoff timestamp")
+    }
 
     fn create_test_chunk(
         chunks_dir: &Path,
@@ -450,7 +459,7 @@ mod tests {
     fn create_test_manifest(
         releases_dir: &Path,
         filename: &str,
-        date: DateTime<Utc>,
+        date: Timestamp,
         chunk_hashes: &[&str],
     ) -> Result<()> {
         let (private_key, _) = generate_keypair();
@@ -504,12 +513,8 @@ mod tests {
             .unwrap();
 
         // Create manifests
-        let recent_date = Utc::now()
-            .checked_sub_signed(Duration::days(5))
-            .unwrap_or_else(Utc::now);
-        let old_date = Utc::now()
-            .checked_sub_signed(Duration::days(60))
-            .unwrap_or_else(Utc::now);
+        let recent_date = days_ago(5);
+        let old_date = days_ago(60);
 
         create_test_manifest(
             releases_dir,
@@ -590,12 +595,8 @@ mod tests {
         create_test_chunk(&chunks_dir, old_only_hash, b"old only chunk")
             .unwrap();
 
-        let recent_date = Utc::now()
-            .checked_sub_signed(Duration::days(5))
-            .unwrap_or_else(Utc::now);
-        let old_date = Utc::now()
-            .checked_sub_signed(Duration::days(60))
-            .unwrap_or_else(Utc::now);
+        let recent_date = days_ago(5);
+        let old_date = days_ago(60);
 
         // Recent manifest references shared chunk
         create_test_manifest(
@@ -649,9 +650,7 @@ mod tests {
         create_test_chunk(&chunks_dir, hash, b"chunk data").unwrap();
 
         // Create a manifest
-        let date = Utc::now()
-            .checked_sub_signed(Duration::days(5))
-            .unwrap_or_else(Utc::now);
+        let date = days_ago(5);
         create_test_manifest(
             releases_dir,
             "ctb-linux-2025-01-10.json",

@@ -217,8 +217,11 @@ pub async fn subscribe_account(
 
     let expiry_formatted = if is_subscribed {
         // Reason for fallback: subscription expiry timestamp i64 conversion overflow defaults to 0 timestamp
-        chrono::DateTime::from_timestamp(i64::try_from(expiry).unwrap_or(0), 0)
-            .map(|dt| dt.format("%Y-%m-%d %H:%M:%S UTC").to_string())
+        ctb_utilities::jiff::Timestamp::from_second(
+            i64::try_from(expiry).unwrap_or(0),
+        )
+        .ok()
+        .map(|dt| dt.strftime("%Y-%m-%d %H:%M:%S UTC").to_string())
     } else {
         None
     };

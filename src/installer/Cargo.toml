@@ -27,7 +27,6 @@ ed25519-dalek = { version = "2.2.0", features = ["serde", "rand_core", "zeroize"
 fastcdc = "3.2.1"
 sha2 = "0.10.9"
 semver = { version = "1.0", features = ["serde"] }
-chrono = { version = "0.4.43", features = ["serde"] }
 base64 = "0.22"
 zeroize = { version = "1.8.2", features = ["zeroize_derive"] }
 hex = "0.4.3"

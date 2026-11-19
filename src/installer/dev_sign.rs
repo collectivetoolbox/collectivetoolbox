@@ -34,7 +34,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use chrono::Utc;
+use jiff::Timestamp;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
@@ -397,7 +397,7 @@ pub fn run_dev_sign(
     let ctoolbox_version = environment::ctb_version_semver();
 
     // Create manifest
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut manifest = ReleaseManifest::new(ctoolbox_version, platform, now);
 
     // Scan input directory
@@ -470,7 +470,7 @@ pub fn run_dev_sign(
 
     // Write manifest
     let manifest_filename =
-        format!("ctb-{}-{}.json", platform, now.format("%Y%m%d-%H%M%S"));
+        format!("ctb-{}-{}.json", platform, now.strftime("%Y%m%d-%H%M%S"));
     let manifest_path = output_dir.join(&manifest_filename);
 
     let manifest_json = serde_json::to_string_pretty(&manifest)

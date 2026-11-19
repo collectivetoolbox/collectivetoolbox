@@ -366,13 +366,13 @@ fn temp_work_dir(kind: &str) -> Result<PathBuf> {
 mod tests {
     use super::*;
     use crate::manifest::{ChunkInfo, FileEntry, Platform};
-    use chrono::Utc;
+    use jiff::Timestamp;
 
     fn test_manifest() -> ReleaseManifest {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let mut core = FileEntry::new(

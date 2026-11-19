@@ -43,11 +43,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::Feed;
-use chrono::Utc;
 use ctb_formats_html::entities::{
     to_entities_html32, to_entities_netscape_1999,
 };
 use ctb_formats_utf8::to_ascii_translit;
+use jiff::Timestamp;
 
 const TIME_FMT: &str = "%a, %d %b %Y %H:%M:%S GMT";
 
@@ -55,7 +55,7 @@ fn write_feed_dates_to_strings(feed: &Feed) -> (String, String) {
     // Use current date for pubDate and lastBuildDate if not available.
     // Format: "Fri, 26 Dec 1997 08:00:00 GMT"
 
-    let now_date = Utc::now().format(TIME_FMT).to_string();
+    let now_date = Timestamp::now().strftime(TIME_FMT).to_string();
 
     let pub_date = if let Some(entry) = feed.entries().first() {
         entry.try_updated_try_format(TIME_FMT)

@@ -922,7 +922,7 @@ pub(crate) mod tests {
     use crate::chunking::chunk_data;
     use crate::manifest::{FileEntry, Platform, ReleaseManifest};
     use crate::signing::{generate_keypair, sign_manifest};
-    use chrono::Utc;
+    use jiff::Timestamp;
     use std::collections::{HashMap, HashSet};
     use std::sync::Arc;
     use tempfile::TempDir;
@@ -1116,7 +1116,7 @@ pub(crate) mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
         let sig = sign_manifest(&manifest, &private_key).unwrap();
         manifest.signature = Some(sig);
@@ -1148,7 +1148,7 @@ pub(crate) mod tests {
         let manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let http = create_mock_http_client(chunks, manifest);
@@ -1202,7 +1202,7 @@ pub(crate) mod tests {
         let manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let http = create_mock_http_client(chunk_map, manifest);
@@ -1354,7 +1354,7 @@ pub(crate) mod tests {
         let manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let http = create_mock_http_client(empty_chunks, manifest);
@@ -1416,7 +1416,7 @@ pub(crate) mod tests {
         let manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let http = create_mock_http_client(chunk_map, manifest);
@@ -1458,7 +1458,7 @@ pub(crate) mod tests {
         let manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         // Server has no chunks

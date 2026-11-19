@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Tracing-based logging setup.
 //! Useful documentation: <https://docs.rs/tracing-subscriber/latest/tracing_subscriber/layer/index.html#per-layer-filtering>
 
-use std::{env, fmt, io, sync::OnceLock, time::SystemTime};
+use std::{env, fmt, io, sync::OnceLock};
 
 use crate::{is_in_test, pc_settings};
 use anyhow::{Context, Result, anyhow};
@@ -53,7 +53,7 @@ struct LogEventFormatter {
 
 impl LogEventFormatter {
     fn format_timestamp() -> String {
-        humantime::format_rfc3339_micros(SystemTime::now()).to_string()
+        crate::time::format_rfc3339_micros(jiff::Timestamp::now())
     }
 }
 
@@ -494,13 +494,15 @@ pub fn make_app(state: AppState) -> Router {
 
 struct ElfRollingWriter {
     inner: rolling::RollingFileAppender,
-    last_date: Option<chrono::NaiveDate>,
+    last_date: Option<jiff::civil::Date>,
     fields_str: String,
 }
 
 impl io::Write for ElfRollingWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let today = chrono::Utc::now().date_naive();
+        let today = jiff::Timestamp::now()
+            .to_zoned(jiff::tz::TimeZone::UTC)
+            .date();
         if self.last_date != Some(today) {
             self.last_date = Some(today);
             let _ = writeln!(self.inner, "#Version: 1.0");

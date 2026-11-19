@@ -34,7 +34,7 @@ SOFTWARE.
 )]
 use crate::utilities::*;
 
-use chrono::{Datelike, Local, Timelike};
+use jiff::Zoned;
 
 /// A Pan date represented as a Julian day number (JDN).
 pub type PanDate = i64;
@@ -105,8 +105,12 @@ pub fn ymd_from_date(date: PanDate) -> Result<(i32, u32, u32)> {
 
 /// Returns today's local date as a Pan JDN value.
 pub fn today() -> Result<PanDate> {
-    let d = Local::now().date_naive();
-    datevalue(d.year(), d.month(), d.day())
+    let d = Zoned::now().date();
+    datevalue(
+        i32::from(d.year()),
+        u32::try_from(d.month()).context("invalid local month")?,
+        u32::try_from(d.day()).context("invalid local day")?,
+    )
 }
 
 /// Returns the day of week for `date` (Sunday = 0, Saturday = 6).
@@ -999,12 +1003,16 @@ pub fn superdatepattern(
 
 /// Returns the current local time as a superdate timestamp.
 pub fn supernow() -> Result<PanSuperDate> {
-    let now = Local::now();
-    let d = now.date_naive();
+    let now = Zoned::now();
+    let d = now.date();
     let t = now.time();
 
-    let date = datevalue(d.year(), d.month(), d.day())?;
-    let secs = i64::from(t.num_seconds_from_midnight());
+    let date = datevalue(
+        i32::from(d.year()),
+        u32::try_from(d.month()).context("invalid local month")?,
+        u32::try_from(d.day()).context("invalid local day")?,
+    )?;
+    let secs = i64::from(ctb_utilities::time::seconds_from_midnight(t));
     superdate(date, secs)
 }
 

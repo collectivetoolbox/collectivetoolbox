@@ -334,7 +334,7 @@ pub fn key_id_from_hex(encoded: &str) -> Result<KeyId> {
 mod tests {
     use super::*;
     use crate::manifest::Platform;
-    use chrono::Utc;
+    use jiff::Timestamp;
 
     #[crate::ctb_test]
     fn test_generate_keypair() {
@@ -390,7 +390,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 2, 3),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         // Sign the manifest
@@ -410,7 +410,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let signature = sign_manifest(&manifest, &private_key).unwrap();
@@ -428,7 +428,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let signature = sign_manifest(&manifest, &private_key).unwrap();
@@ -449,7 +449,7 @@ mod tests {
         let manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         // Should error on missing signature
@@ -524,7 +524,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let signature = sign_manifest(&manifest, &private_key).unwrap();

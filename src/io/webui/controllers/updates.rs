@@ -33,7 +33,7 @@ use crate::utilities::*;
 use ctb_build_info::build_info;
 
 use axum::{Json, extract::Query};
-use chrono::Utc;
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Default)]
@@ -70,12 +70,12 @@ pub struct UpdateStatusResponse {
     pub server_build_date: String,
 }
 
-fn parse_build_date(build_date: &str) -> Result<chrono::DateTime<Utc>> {
-    chrono::DateTime::parse_from_rfc3339(build_date)
-        .map(|parsed| parsed.with_timezone(&Utc))
-        .with_context(|| {
-            format!("Failed to parse build timestamp for update status: {build_date}")
-        })
+fn parse_build_date(build_date: &str) -> Result<Timestamp> {
+    ctb_utilities::time::parse_rfc3339(build_date).with_context(|| {
+        format!(
+            "Failed to parse build timestamp for update status: {build_date}"
+        )
+    })
 }
 
 fn compare_against_client_build(query: &UpdateStatusQuery) -> BuildComparison {

@@ -32,10 +32,10 @@ use axum::{
     http::{HeaderValue, header},
     response::{Html, IntoResponse, Response},
 };
-use chrono::NaiveDate;
 use ctb_formats_html::text_clipper::{ClipHtmlOptions, clip, html_options};
 use ctb_formats_syndication::{Entry, Feed, FeedFormat, Image};
 use ctb_storage::get_asset;
+use jiff::civil::Date;
 use pc_settings::PcSettingStrKey;
 use std::fmt::Write;
 
@@ -87,7 +87,7 @@ pub async fn get_newsletter(
 ) -> Response {
     // Only serve newsletters that have a real date. Drafts like `2026-01-dd.md`
     // should not be routable.
-    if NaiveDate::parse_from_str(date.as_str(), "%Y-%m-%d").is_err() {
+    if Date::strptime("%Y-%m-%d", date.as_str()).is_err() {
         return error_404(
             &state,
             &req,
@@ -223,8 +223,8 @@ fn server_url_http_only(server_url: &str) -> String {
     format!("http://{}", default_domain())
 }
 
-fn list_newsletter_posts() -> Result<Vec<(NaiveDate, String)>> {
-    let mut posts: Vec<(NaiveDate, String)> = Vec::new();
+fn list_newsletter_posts() -> Result<Vec<(Date, String)>> {
+    let mut posts: Vec<(Date, String)> = Vec::new();
 
     for path in ctb_storage::find_assets("views/pages/newsletters/*.md")? {
         let Some(file_name) = path.rsplit('/').next() else {
@@ -233,7 +233,7 @@ fn list_newsletter_posts() -> Result<Vec<(NaiveDate, String)>> {
         let Some(date_str) = file_name.strip_suffix(".md") else {
             continue;
         };
-        let Ok(date) = NaiveDate::parse_from_str(date_str, "%Y-%m-%d") else {
+        let Ok(date) = Date::strptime("%Y-%m-%d", date_str) else {
             continue;
         };
         posts.push((date, date_str.to_string()));

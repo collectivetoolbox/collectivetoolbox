@@ -38,7 +38,7 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 use std::time::Duration;
 
-use chrono::{Local, Timelike, Utc};
+use jiff::{Timestamp, Zoned};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
@@ -61,7 +61,7 @@ static UPDATE_STATUS: LazyLock<RwLock<UpdateStatus>> =
 #[derive(Debug, Clone)]
 struct BuildIdentity {
     version: semver::Version,
-    build_date: chrono::DateTime<Utc>,
+    build_date: Timestamp,
 }
 
 #[derive(Debug, Deserialize)]
@@ -81,7 +81,8 @@ pub struct UpdateStatus {
     /// URL to release notes (if available).
     pub release_notes_url: Option<String>,
     /// Last time we checked for updates.
-    pub last_check: Option<chrono::DateTime<Utc>>,
+    #[serde(default, with = "ctb_utilities::time::serde_rfc3339_auto_si_opt")]
+    pub last_check: Option<Timestamp>,
     /// Error message if the last check failed.
     pub last_error: Option<String>,
     /// Whether automatic restart is enabled (no user prompting).
@@ -107,7 +108,8 @@ pub struct PendingUpdate {
     /// Path to the downloaded binary.
     pub binary_path: PathBuf,
     /// Timestamp when the download completed.
-    pub download_completed: chrono::DateTime<Utc>,
+    #[serde(with = "ctb_utilities::time::serde_rfc3339_auto_si")]
+    pub download_completed: Timestamp,
 }
 
 impl PendingUpdate {
@@ -224,12 +226,12 @@ pub fn get_or_generate_update_check_time() -> Result<u32> {
 /// Prefers the installed version from `installation.json`, but falls back to
 /// the currently running build version so web UI update checks still work when
 /// ctoolbox is running without a persisted installation record.
-fn parse_build_date(build_date: &str) -> Result<chrono::DateTime<Utc>> {
-    chrono::DateTime::parse_from_rfc3339(build_date)
-        .map(|parsed| parsed.with_timezone(&Utc))
-        .with_context(|| {
-            format!("Failed to parse build timestamp for update checks: {build_date}")
-        })
+fn parse_build_date(build_date: &str) -> Result<Timestamp> {
+    ctb_utilities::time::parse_rfc3339(build_date).with_context(|| {
+        format!(
+            "Failed to parse build timestamp for update checks: {build_date}"
+        )
+    })
 }
 
 fn current_build_identity_for_update_checks() -> Result<BuildIdentity> {
@@ -254,7 +256,8 @@ fn build_update_status_url(
     let api_url =
         format!("{}/api/update-status", server_url.trim_end_matches('/'));
     let current_version = current.version.to_string();
-    let current_build_date = current.build_date.to_rfc3339();
+    let current_build_date =
+        ctb_utilities::time::format_rfc3339_auto_si(current.build_date);
 
     let mut url = reqwest::Url::parse(&api_url)?;
     url.query_pairs_mut()
@@ -297,10 +300,8 @@ async fn query_server_update_status_fast(
 ///
 /// If the scheduled time has already passed today, returns 0 (check immediately).
 fn seconds_until_check_time(scheduled_seconds: u32) -> u64 {
-    let now = Local::now();
-    // Reason for fallback: conversion overflow from seconds_from_midnight uses scheduled_seconds
-    let current_seconds = u32::try_from(now.num_seconds_from_midnight())
-        .unwrap_or(scheduled_seconds);
+    let current_seconds =
+        ctb_utilities::time::seconds_from_midnight(Zoned::now().time());
 
     if current_seconds >= scheduled_seconds {
         // Time has passed today, check immediately
@@ -324,7 +325,7 @@ async fn perform_update_check(server_url: &str, auto_restart_enabled: bool) {
         Ok(build) => build,
         Err(e) => {
             let status = UpdateStatus {
-                last_check: Some(Utc::now()),
+                last_check: Some(Timestamp::now()),
                 last_error: Some(format!(
                     "Failed to determine current version for update check: {e}"
                 )),
@@ -345,7 +346,7 @@ async fn perform_update_check(server_url: &str, auto_restart_enabled: bool) {
             Ok(status) => status,
             Err(e) => {
                 let status = UpdateStatus {
-                    last_check: Some(Utc::now()),
+                    last_check: Some(Timestamp::now()),
                     last_error: Some(format!(
                         "Update-status API preflight failed: {e}"
                     )),
@@ -366,7 +367,7 @@ async fn perform_update_check(server_url: &str, auto_restart_enabled: bool) {
             available: false,
             version: None,
             release_notes_url: None,
-            last_check: Some(Utc::now()),
+            last_check: Some(Timestamp::now()),
             last_error: None,
             auto_restart_enabled: false,
         };
@@ -385,7 +386,7 @@ async fn perform_update_check(server_url: &str, auto_restart_enabled: bool) {
             Ok(d) => d,
             Err(e) => {
                 let status = UpdateStatus {
-                    last_check: Some(Utc::now()),
+                    last_check: Some(Timestamp::now()),
                     last_error: Some(format!(
                         "Failed to create downloader: {e}"
                     )),
@@ -414,7 +415,7 @@ async fn perform_update_check(server_url: &str, auto_restart_enabled: bool) {
                     "{server_url}/releases/notes/{}",
                     api_status.server_version
                 )),
-                last_check: Some(Utc::now()),
+                last_check: Some(Timestamp::now()),
                 last_error: Some(format!(
                     "Failed to download manifest after API reported newer build: {e}"
                 )),
@@ -446,7 +447,7 @@ async fn perform_update_check(server_url: &str, auto_restart_enabled: bool) {
         } else {
             None
         },
-        last_check: Some(Utc::now()),
+        last_check: Some(Timestamp::now()),
         last_error: None,
         auto_restart_enabled: available && auto_restart_enabled,
     };
@@ -747,9 +748,8 @@ mod tests {
     #[crate::ctb_test]
     fn test_seconds_until_check_time() {
         // Get current seconds since midnight
-        let now = Local::now();
-        let current_seconds = u32::try_from(now.num_seconds_from_midnight())
-            .expect("current seconds should fit in u32");
+        let current_seconds =
+            ctb_utilities::time::seconds_from_midnight(Zoned::now().time());
 
         // If we schedule for "now", it should be 0 or very small
         let wait = seconds_until_check_time(current_seconds);

@@ -30,9 +30,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use chrono::{DateTime, Utc};
 use ctb_formats_base64::base64_decode;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use jiff::Timestamp;
 use math::approx_float::{f64_to_u64_approx, u64_to_f64_approx};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -125,7 +125,8 @@ pub struct ReleaseManifest {
     /// Target platform for this release.
     pub platform: Platform,
     /// Build/release date in UTC.
-    pub date: DateTime<Utc>,
+    #[serde(with = "ctb_utilities::time::serde_rfc3339_auto_si")]
+    pub date: Timestamp,
     /// Ed25519 signature over the manifest (base64-encoded).
     /// This field is excluded when computing the signature.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -143,7 +144,8 @@ struct ManifestForSigning<'a> {
     format_version: u8,
     ctoolbox_version: &'a semver::Version,
     platform: Platform,
-    date: &'a DateTime<Utc>,
+    #[serde(with = "ctb_utilities::time::serde_rfc3339_auto_si")]
+    date: &'a Timestamp,
     revoked_key_ids: &'a Vec<String>,
     files: &'a Vec<FileEntry>,
 }
@@ -224,7 +226,7 @@ impl ReleaseManifest {
     pub fn new(
         ctoolbox_version: semver::Version,
         platform: Platform,
-        date: DateTime<Utc>,
+        date: Timestamp,
     ) -> Self {
         Self {
             format_version: Self::CURRENT_FORMAT_VERSION,
@@ -460,7 +462,7 @@ mod tests {
         let manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let json = serde_json::to_string(&manifest).unwrap();
@@ -473,7 +475,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
         manifest.signature = Some("fake_signature".to_string());
 
@@ -508,7 +510,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 2, 3),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         // Sign the manifest
@@ -532,7 +534,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         // Set an invalid signature
@@ -554,7 +556,7 @@ mod tests {
         let manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         // Should error on missing signature
@@ -570,7 +572,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         manifest.add_revoked_key_id("abc12345".to_string());
@@ -608,7 +610,7 @@ mod tests {
         let mut manifest = ReleaseManifest::new(
             semver::Version::new(1, 0, 0),
             Platform::LinuxX64,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let mut installer = FileEntry::new(

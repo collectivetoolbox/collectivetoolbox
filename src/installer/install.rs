@@ -32,9 +32,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use chrono::{DateTime, Utc};
 use flate2::Compression;
 use flate2::write::GzEncoder;
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
@@ -145,7 +145,8 @@ pub struct InstallationRecord {
     /// ctoolbox version that was installed.
     pub ctoolbox_version: semver::Version,
     /// Installation date and time.
-    pub install_date: DateTime<Utc>,
+    #[serde(with = "ctb_utilities::time::serde_rfc3339_auto_si")]
+    pub install_date: Timestamp,
     /// Configuration used for the installation.
     pub config: InstallConfig,
     /// List of installed file paths (relative to `install_dir`).
@@ -161,7 +162,7 @@ impl InstallationRecord {
         Self {
             format_version: 1,
             ctoolbox_version,
-            install_date: Utc::now(),
+            install_date: Timestamp::now(),
             config,
             installed_files: Vec::new(),
         }

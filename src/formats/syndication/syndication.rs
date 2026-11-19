@@ -35,8 +35,16 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
-use chrono::{DateTime, Utc};
 use dateparser::parse;
+use jiff::Timestamp;
+
+fn parse_timestamp(input: &str) -> Result<Timestamp> {
+    let dt = parse(input)?;
+    let nanos = i32::try_from(dt.timestamp_subsec_nanos())
+        .context("Parsed timestamp nanoseconds out of range")?;
+    Timestamp::new(dt.timestamp(), nanos)
+        .context("Parsed timestamp out of range")
+}
 
 pub mod atom;
 pub mod hatom;
@@ -231,18 +239,21 @@ impl Entry {
         &self.date_published
     }
 
-    pub fn date_parsed(&self) -> Result<DateTime<Utc>> {
+    pub fn date_parsed(&self) -> Result<Timestamp> {
         // FIXME: This uses the dateparser crate to parse various date formats.
         // It doesn't look very maintained and has some bugs/what appear to be
         // limitations particularly around timezone. Look for something better
         // later.
-        parse(&self.date_published)
+        parse_timestamp(&self.date_published)
     }
 
     pub fn date_try_format(&self, fmt: &str) -> String {
-        match &self.date_parsed() {
-            Ok(dt) => dt.with_timezone(&Utc).format(fmt).to_string(),
-            Err(_) => self.date_published.clone(),
+        if let Ok(dt) = self.date_parsed()
+            && let Ok(formatted) = jiff::fmt::strtime::format(fmt, dt)
+        {
+            formatted
+        } else {
+            self.date_published.clone()
         }
     }
 
@@ -251,14 +262,17 @@ impl Entry {
         self.date_updated.as_deref()
     }
 
-    pub fn updated_parsed(&self) -> Result<DateTime<Utc>> {
-        parse(bail_if_none!(self.date_updated.as_ref()))
+    pub fn updated_parsed(&self) -> Result<Timestamp> {
+        parse_timestamp(bail_if_none!(self.date_updated.as_ref()))
     }
 
     pub fn updated_try_format(&self, fmt: &str) -> Option<String> {
-        match &self.updated_parsed() {
-            Ok(dt) => Some(dt.with_timezone(&Utc).format(fmt).to_string()),
-            Err(_) => Some(self.date().to_string()),
+        if let Ok(dt) = self.updated_parsed()
+            && let Ok(formatted) = jiff::fmt::strtime::format(fmt, dt)
+        {
+            Some(formatted)
+        } else {
+            Some(self.date().to_string())
         }
     }
 
@@ -269,14 +283,17 @@ impl Entry {
         }
     }
 
-    pub fn try_updated_parsed(&self) -> Result<DateTime<Utc>> {
-        parse(&self.try_updated())
+    pub fn try_updated_parsed(&self) -> Result<Timestamp> {
+        parse_timestamp(&self.try_updated())
     }
 
     pub fn try_updated_try_format(&self, fmt: &str) -> String {
-        match &self.try_updated_parsed() {
-            Ok(dt) => dt.with_timezone(&Utc).format(fmt).to_string(),
-            Err(_) => self.try_updated().clone(),
+        if let Ok(dt) = self.try_updated_parsed()
+            && let Ok(formatted) = jiff::fmt::strtime::format(fmt, dt)
+        {
+            formatted
+        } else {
+            self.try_updated()
         }
     }
 
