@@ -1309,6 +1309,35 @@ impl<'a> ModuleValidator<'a> {
                 state,
                 ctx,
             ),
+            UnaryOp::RequestCapability => {
+                if self.dialect == StageDialect::StageR3 {
+                    let ty = self.check_subexpr(operand, state, ctx)?;
+                    if ty == StageLType::Never {
+                        return Ok(StageLType::Never);
+                    }
+                    match ty {
+                        StageLType::S => {
+                            Ok(StageLType::Result(Box::new(StageLType::S)))
+                        }
+                        StageLType::Dcs => {
+                            Ok(StageLType::Result(Box::new(StageLType::Dcs)))
+                        }
+                        other => bail!(
+                            "'requestCapability' requires 's' or 'dcs' operand in StageR 3, found '{other}' at {span}"
+                        ),
+                    }
+                } else {
+                    self.check_unary_exact(
+                        operand,
+                        &StageLType::List(Box::new(StageLType::U8)),
+                        StageLType::List(Box::new(StageLType::U8)),
+                        "requestCapability",
+                        span,
+                        state,
+                        ctx,
+                    )
+                }
+            }
         }
     }
 

@@ -653,7 +653,8 @@ v/b/isStageRUnarySid u32/sid
                     or and ge /sid u32:2566 le /sid u32:2569
                         or eq /sid u32:2572
                             or eq /sid u32:2585
-                                and ge /sid u32:2610 le /sid u32:2613.
+                                or and ge /sid u32:2610 le /sid u32:2613
+                                    eq /sid u32:2616.
 
 : @dc l8589983048
 v/b/isStageRBinarySid u32/sid
@@ -3647,6 +3648,7 @@ v/rType/inferExprType compEnv/env modScope/mScope fnCtx/fctx exprNode/node
             if eq /aux u32:2611 return primType u8:9 nop.
             if eq /aux u32:2612 return unaryRType u8:20 primType u8:13 nop.
             if eq /aux u32:2613 return primType u8:14 nop.
+            if eq /aux u32:2616 return unaryRType u8:20 /xt nop.
             fault.
         ::
         nop.
@@ -4319,6 +4321,12 @@ v/void/lowerUnaryOp buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/se
     if eq /op u32:2613
         do
             emitStdCall1 /out /stdImports /selfNsKey /uses u8:5 u64:8589982136 /env /mScope /fctx /crossDcs /synths /gensym /x.
+            return.
+        ::
+        nop.
+    if eq /op u32:2616
+        do
+            emitStdCall1 /out /stdImports /selfNsKey /uses u8:5 u64:8589992731 /env /mScope /fctx /crossDcs /synths /gensym /x.
             return.
         ::
         nop.

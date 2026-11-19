@@ -2998,6 +2998,7 @@ const STAGE0_WASM_OPERATOR_DCS: &[DcChar] = &[
     crate::dc::DC_STAGEL_BUF_EXTEND,
     crate::dc::DC_STAGEL_BUF_SET,
     crate::dc::DC_STAGEL_BUF_FREEZE,
+    crate::dc::DC_REQUEST_HOST_CAPABILITY_OP,
 ];
 
 /// Synthesizes a minimal StageL 3 Token-Dc entry module (`v/l/u8/step l/u8/input`)

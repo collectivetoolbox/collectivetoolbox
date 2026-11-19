@@ -424,6 +424,13 @@ fn emit_runtime_prelude(
     writeln!(out, "        Arc::from(out)")?;
     writeln!(out, "    }}")?;
     writeln!(out)?;
+    writeln!(out, "    pub fn request_capability(_req: &[u8]) -> SlList<u8> {{")?;
+    writeln!(
+        out,
+        "        panic!(\"requestCapability (Dc 2616) requires a WASM capability runtime\");"
+    )?;
+    writeln!(out, "    }}")?;
+    writeln!(out)?;
     writeln!(out, "    pub fn cap_new<T>() -> SlCap<T> {{")?;
     writeln!(out, "        Rc::new(RefCell::new(None))")?;
     writeln!(out, "    }}")?;
@@ -3542,6 +3549,14 @@ impl<'a> ModuleEmitter<'a> {
                     StageLType::List(inner.clone()),
                 )),
                 other => bail!("Invalid operand type '{other}' for 'bufFreeze'"),
+            },
+            UnaryOp::RequestCapability => match &op_ty {
+                StageLType::List(inner) if **inner == StageLType::U8 => {
+                    Ok((format!("sl3_rt::request_capability(&({oc}))"), op_ty))
+                }
+                other => {
+                    bail!("Invalid operand type '{other}' for 'requestCapability'")
+                }
             },
             UnaryOp::TotalNeg
             | UnaryOp::IsSome

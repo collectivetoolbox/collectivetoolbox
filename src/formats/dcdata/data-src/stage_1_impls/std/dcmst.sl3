@@ -20,7 +20,7 @@
 : `byteLen`, `dcsFromS`, `sFromDcs`, and atomic-unit-preserving `explode` / `implode`.
 ns std/dcmst.
 use std/u128: errInvalidEncoding ::.
-use std/dctf: dcVal dcShort dcShortId lenDctf ::.
+use std/dctf: dcVal dcShort dcShortId lenDctf encodeDcStream decodeDcStream ::.
 use std/dcs: implode as dcsImplode ::.
 
 : Returns true iff `c` is a Base64 encapsulation digit (`Dc 127..=190`) or padding (`Dc 195`).
@@ -266,6 +266,18 @@ pub v/l/l/dcVal/explode l/dcVal/sep l/dcVal/input
 : @dc l8589982140
 pub v/l/dcVal/implode l/dcVal/sep l/l/dcVal/parts
     dcsImplode /sep /parts.
+
+: Host capability RPC for mixed-mode/pure-Dc strings (`l/dcVal -> tup: b l/dcVal u8 ::`),
+: encoding the request to DcTF, calling StageL `requestCapability` (`Dc 2616`), and
+: decoding the response DcTF bytes (returning `errInvalidEncoding` if malformed).
+: @dc l8589992731
+pub v/tup: b l/dcVal u8 ::/requestCapabilityS l/dcVal/req
+    const l/u8/reqBytes encodeDcStream /req.
+    const l/u8/respBytes requestCapability /reqBytes.
+    const tup: b l/dcVal ::/dec decodeDcStream /respBytes.
+    if field /dec u32:0
+        tupNew: true field /dec u32:1 u8:0 ::
+        tupNew: false l/dcVal: :: /errInvalidEncoding ::.
 
 : Checked StageL `dcsFromS` conversion (`l/dcVal -> l/dcVal`), faulting when unescaped binary
 : encapsulation markers (`Dc 203`/`Dc 204`), trailing escapes, or surrogates appear.

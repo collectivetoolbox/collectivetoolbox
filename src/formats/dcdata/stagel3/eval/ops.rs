@@ -284,6 +284,10 @@ pub(super) fn eval_unary(
             };
             Ok(EvalSignal::Value(Value::S(Rc::new(s_from_dcs(&chars)))))
         }
+        UnaryOp::RequestCapability => Ok(EvalSignal::Fault(
+            "requestCapability (Dc 2616) requires a host WASM capability runtime"
+                .to_owned(),
+        )),
     }
 }
 

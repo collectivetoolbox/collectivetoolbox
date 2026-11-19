@@ -159,6 +159,7 @@
   (const $DC_STAGEL_BUF_EXTEND          1116695) ;; Dc 2583
   (const $DC_STAGEL_BUF_SET             1116696) ;; Dc 2584
   (const $DC_STAGEL_BUF_FREEZE          1116697) ;; Dc 2585
+  (const $DC_REQUEST_HOST_CAPABILITY_OP 1116728) ;; Dc 2616
   (const $DC_TYPE_TUPLE                 1116784) ;; Dc 2672
   (const $DC_TYPE_STRUCT                1116785) ;; Dc 2673
 
@@ -1775,7 +1776,9 @@
         (i32.or (i32.eq $cp $DC_LOGICAL_NOT_OP) (i32.eq $cp $DC_SEQ_LEN_OP)))
       (i32.or
         (i32.and (i32.ge_u $cp $DC_CLZ_OP) (i32.le_u $cp $DC_POPCNT_OP))
-        (i32.eq $cp $DC_STAGEL_BUF_FREEZE))))
+        (i32.or
+          (i32.eq $cp $DC_STAGEL_BUF_FREEZE)
+          (i32.eq $cp $DC_REQUEST_HOST_CAPABILITY_OP)))))
 
   (func $is_binary_op_cp (param $cp i32) (result i32)
     (i32.or
@@ -4566,6 +4569,15 @@
         (set $t (call $buf_get_i32 $type_table $t1))
         (when (i32.ne (i32.load $t) $TK_BUF) (unreachable))
         (return (call $intern_unary_ty $TK_LIST (i32.load offset=4 $t))))
+      (when (i32.eq $op $DC_REQUEST_HOST_CAPABILITY_OP)
+        (when (i32.lt_u $t1 8) (unreachable))
+        (set $t (call $buf_get_i32 $type_table $t1))
+        (when
+          (i32.or
+            (i32.ne (i32.load $t) $TK_LIST)
+            (i32.ne (i32.load offset=4 $t) $TY_U8))
+          (unreachable))
+        (return $t1))
       (return $t1))
     (when (i32.eq $tag $EX_BINARY)
       (set $op (i32.load offset=4 $ex))
@@ -5886,6 +5898,16 @@
         (when (call $ty_contains_buf $ety) (unreachable))
         (call $fb_op_u32 $fb 0x10 (call $link_builtin $DC_STAGEL_BUF_FREEZE 2 $DC_STAGEL_BUF_TYPE $DC_TYPE_ANY 0))
         (return (call $intern_unary_ty $TK_LIST $ety)))
+      (when (i32.eq $op $DC_REQUEST_HOST_CAPABILITY_OP)
+        (when (i32.lt_u $t1 8) (unreachable))
+        (set $t (call $buf_get_i32 $type_table $t1))
+        (when
+          (i32.or
+            (i32.ne (i32.load $t) $TK_LIST)
+            (i32.ne (i32.load offset=4 $t) $TY_U8))
+          (unreachable))
+        (call $fb_op_u32 $fb 0x10 (call $link_builtin $DC_REQUEST_HOST_CAPABILITY_OP 2 $DC_STAGEL_LIST_TYPE $FMT_U8 0))
+        (return $t1))
       (call $fb_op_u32 $fb 0x10 (call $link_scalar_op $op $t1))
       (when (i32.eq $op $DC_LOGICAL_NOT_OP) (return $TY_B))
       (when (i32.and (i32.ge_u $op $DC_CLZ_OP) (i32.le_u $op $DC_POPCNT_OP)) (return $TY_U32))

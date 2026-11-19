@@ -642,6 +642,7 @@ pub(super) fn match_unary_op(
         (StageDialect::StageR3, "u128FromDc") => UnaryOp::U128FromDc,
         (StageDialect::StageR3, "dcsFromS") => UnaryOp::DcsFromS,
         (StageDialect::StageR3, "sFromDcs") => UnaryOp::SFromDcs,
+        (_, "requestCapability") => UnaryOp::RequestCapability,
         (_, "bitNot") => UnaryOp::BitNot,
         (_, "not") => UnaryOp::Not,
         (_, "clz") => UnaryOp::Clz,

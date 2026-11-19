@@ -152,6 +152,33 @@ mod tests {
         )
     }
 
+    fn run_target_with_capabilities(
+        wasm_doc: &DcMstr,
+        input: &DcMstr,
+    ) -> Result<DcMstring> {
+        let resolver = default_syntax_resolver();
+        let sg = SeedGraphIndex::shared()?;
+        let limits = DcWasmResourceLimits {
+            max_instructions_per_step: 200_000_000,
+            max_memory_pages: 256,
+            ..DcWasmResourceLimits::default()
+        };
+        let quota = SharedWasmTaskQuota::new(limits);
+        let mut session = DcWasmSession::from_dc_wasm_with_limits(
+            wasm_doc,
+            input,
+            sg.system_block_most_recent_node_id(),
+            resolver.as_ref(),
+            limits,
+        )?;
+        session.set_shared_task_quota(quota.clone())?;
+        ctb_formats_dcstring::converters::run_wasm_session_pure_with_graph_capabilities(
+            &mut session,
+            resolver.as_ref(),
+            Some(quota),
+        )
+    }
+
     fn assert_self_hosted_matches_rust_wasm(
         sl3_src: &str,
         seed_graph: &SeedGraphIndex,
@@ -979,6 +1006,104 @@ pub v/l/u8/step l/u8/input
                 "[{label}] WASM f1680 must trap on cross-stratum pub collision"
             );
         }
+
+        // 6. StageR 3 `Dc 2616` (`requestCapability`) on BOTH `dcs -> result/dcs` and `s -> result/s`
+        //    lowered via self-hosted `f1681` + `f1680` and driven by Option B graph capabilities.
+        let sr3_cap_prog = r#"ns app/cap_sr3.
+use std/dcs: decodeDcsDctf encodeDcsDctf ::.
+
+v/dcs/stepDcs dcs/req
+    match requestCapability /req
+        case err error/e1 conv l/dc: dc:u21 :: dcs.
+        case ok dcs/r1
+            match requestCapability sFromDcs /req
+                case err error/e2 conv l/dc: dc:u22 :: dcs.
+                case ok s/r2
+                    match dcsFromS /r2
+                        case err error/e3 conv l/dc: dc:u23 :: dcs.
+                        case ok dcs/r2dcs concat /r1 /r2dcs.
+                    ::
+            ::
+    ::.
+
+pub v/l/u8/step l/u8/input
+    match decodeDcsDctf /input
+        case err ignored l/u8: u8:63 ::.
+        case ok dcs/req encodeDcsDctf stepDcs /req.
+    ::.
+"#;
+        let sr3_cap_tokens =
+            ctb_formats_dcdata::stagel3::seed_linker::sr3_to_dc_tokens_with_seed_graph(
+                sr3_cap_prog,
+                sg,
+            )?;
+        let sr3_cap_bundled =
+            ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_dependencies(
+                &sr3_cap_tokens,
+                sg,
+            )?;
+        let sr3_cap_lowered = run_f1681_wasm_raw(&sr3_cap_bundled)?;
+        let sr3_cap_lowered_tokens: Vec<DcChar> =
+            sr3_cap_lowered.to_dc_string()?.chars().collect();
+        let sr3_cap_wasm =
+            compile_dc_tokens_via_wat_compiler(&sr3_cap_lowered_tokens, sg)?;
+
+        let wm = sg
+            .system_block_most_recent_node_id()
+            .context("Expected non-empty seed graph watermark")?;
+        let mut cap_in = DcMstring::new();
+        cap_in.push_char(ctb_formats_dcdata::dc::DC_MINIMAL_SYSTEM_GRAPH_QUERY);
+        cap_in.push_char(
+            ctb_formats_dcdata::dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID,
+        );
+        cap_in.push_char(ctb_formats_dcdata::dc::DC_WILDCARD_PATTERN);
+        let mut expected_cap_out = DcMstring::new();
+        for _ in 0..2 {
+            expected_cap_out.push_char(
+                ctb_formats_dcdata::dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID,
+            );
+            expected_cap_out.push_char(DcChar::from_u128(wm));
+        }
+        let sr3_cap_out = run_target_with_capabilities(&sr3_cap_wasm, &cap_in)?;
+        assert_eq!(sr3_cap_out, expected_cap_out);
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_2616_request_capability_stagel_rust_and_self_hosted_option_b()
+    -> Result<()> {
+        let sg = SeedGraphIndex::shared()?;
+        let wm = sg
+            .system_block_most_recent_node_id()
+            .context("Expected non-empty seed graph watermark")?;
+        let sl3_src = concat!(
+            "ns app/cap_sl3.\n",
+            "pub v/l/u8/step l/u8/input :: requestCapability /input.\n",
+        );
+        let mut cap_in = DcMstring::new();
+        cap_in.push_char(ctb_formats_dcdata::dc::DC_MINIMAL_SYSTEM_GRAPH_QUERY);
+        cap_in.push_char(
+            ctb_formats_dcdata::dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID,
+        );
+        cap_in.push_char(ctb_formats_dcdata::dc::DC_WILDCARD_PATTERN);
+        let mut expected_out = DcMstring::new();
+        expected_out.push_char(
+            ctb_formats_dcdata::dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID,
+        );
+        expected_out.push_char(DcChar::from_u128(wm));
+
+        let rust_dc_wasm =
+            compile_sl3_to_dc_wasm_with_seed_graph(sl3_src, sg)?;
+        let rust_out = run_target_with_capabilities(&rust_dc_wasm, &cap_in)?;
+        assert_eq!(rust_out, expected_out);
+
+        let dc_tokens = sl3_to_dc_tokens_with_seed_graph(sl3_src, sg)?;
+        let self_hosted_wasm =
+            compile_dc_tokens_via_wat_compiler(&dc_tokens, sg)?;
+        let self_hosted_out =
+            run_target_with_capabilities(&self_hosted_wasm, &cap_in)?;
+        assert_eq!(self_hosted_out, expected_out);
 
         Ok(())
     }

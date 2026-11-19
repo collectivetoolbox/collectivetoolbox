@@ -807,6 +807,8 @@ pub enum UnaryOp {
     DcsFromS,
     /// Infallible `dcs -> s` widening (`sFromDcs`, `Dc 2613`, StageR 3 only).
     SFromDcs,
+    /// Host capability RPC (`requestCapability`, `Dc 2616`: `l/u8 -> l/u8` in StageL 3, `s -> result/s` or `dcs -> result/dcs` in StageR 3).
+    RequestCapability,
 }
 
 impl UnaryOp {
@@ -831,6 +833,7 @@ impl UnaryOp {
             Self::U128FromDc => "u128FromDc",
             Self::DcsFromS => "dcsFromS",
             Self::SFromDcs => "sFromDcs",
+            Self::RequestCapability => "requestCapability",
         }
     }
 
@@ -855,7 +858,8 @@ impl UnaryOp {
             | Self::Ctz
             | Self::Popcnt
             | Self::Len
-            | Self::BufFreeze => None,
+            | Self::BufFreeze
+            | Self::RequestCapability => None,
         }
     }
 

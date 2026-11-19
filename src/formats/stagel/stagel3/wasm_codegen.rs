@@ -74,7 +74,8 @@ use ctb_formats_dcdata::dc::{
     DC_ADD_OP, DC_BIT_AND_OP, DC_BIT_NOT_OP, DC_BIT_OR_OP, DC_BIT_XOR_OP,
     DC_BITCAST_OP, DC_CLZ_OP, DC_CONVERT_OP, DC_CTZ_OP, DC_DIV_OP, DC_EQ_OP,
     DC_GE_OP, DC_GT_OP, DC_LE_OP, DC_LOGICAL_NOT_OP, DC_LT_OP, DC_MUL_OP,
-    DC_NE_OP, DC_NEG_OP, DC_POPCNT_OP, DC_REM_OP, DC_ROTL_OP, DC_ROTR_OP,
+    DC_NE_OP, DC_NEG_OP, DC_POPCNT_OP, DC_REM_OP, DC_REQUEST_HOST_CAPABILITY_OP,
+    DC_ROTL_OP, DC_ROTR_OP,
     DC_SEQ_CONCAT_OP, DC_SEQ_GET_OP, DC_SEQ_LEN_OP, DC_SEQ_SLICE_OP, DC_SHL_OP,
     DC_SHR_OP, DC_STAGEL_BUF_EXTEND, DC_STAGEL_BUF_FILL, DC_STAGEL_BUF_FREEZE,
     DC_STAGEL_BUF_NEW, DC_STAGEL_BUF_PUSH, DC_STAGEL_BUF_SET,
@@ -2734,6 +2735,27 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 fctx.fb.call(fn_idx)?;
                 Ok(StageLType::List(inner))
             }
+            UnaryOp::RequestCapability => {
+                let StageLType::List(inner) = &op_ty else {
+                    bail!(
+                        "Invalid operand type '{op_ty}' for 'requestCapability'"
+                    );
+                };
+                ensure!(
+                    **inner == StageLType::U8,
+                    "Invalid element type '{inner}' for 'requestCapability'; expected 'l/u8'"
+                );
+                let u8_dc = FormatId::U8
+                    .dc_id()
+                    .context("Missing FormatId::U8 Dc ID")?;
+                let fn_idx = self.linker.link_system_builtin(
+                    DC_REQUEST_HOST_CAPABILITY_OP.to_u128(),
+                    &[DC_STAGEL_LIST_TYPE.to_u128(), u8_dc],
+                    "__builtin_2616_request_capability",
+                )?;
+                fctx.fb.call(fn_idx)?;
+                Ok(op_ty)
+            }
             UnaryOp::TotalNeg
             | UnaryOp::IsSome
             | UnaryOp::IsNone
@@ -3623,6 +3645,9 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                         StageLType::Buf(inner) => StageLType::List(inner),
                         other => other,
                     },
+                    UnaryOp::RequestCapability => {
+                        StageLType::List(Box::new(StageLType::U8))
+                    }
                     UnaryOp::TotalNeg
                     | UnaryOp::IsSome
                     | UnaryOp::IsNone
