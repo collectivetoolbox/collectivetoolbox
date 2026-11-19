@@ -137,6 +137,7 @@ struct convStep
     dc/src.
     dc/dst.
     b/preferred.
+    b/bodyLoaded.
     : 0 = WASM (.WASM / [Routine]), 1 = StageL/StageR converter routine/format.
     u8/kind.
     l/dc/bodyTokens.
@@ -146,6 +147,14 @@ struct convListRes
     capClient/cli.
     b/ok.
     l/convStep/steps.
+    l/dc/errTokens.
+
+: @dc l8589993362
+struct convStepOptRes
+    capClient/cli.
+    : 0 = absent, 1 = active body loaded, 2 = capability error.
+    u8/tag.
+    convStep/step.
     l/dc/errTokens.
 
 : @dc l8589992784
@@ -613,6 +622,17 @@ v/b/isBuiltInWasmOrSyntaxShortId u128/sid
         nop.
     or eq /sid u128:256 or eq /sid u128:260 or eq /sid u128:268 or eq /sid u128:276 or eq /sid u128:279 or eq /sid u128:307 or eq /sid u128:540 or eq /sid u128:541 or eq /sid u128:584 or eq /sid u128:585 or eq /sid u128:610 or eq /sid u128:616 eq /sid u128:638.
 
+: @dc l8589993365
+v/b/isBuiltInWasmOrSyntaxFormatId u128/fid
+    or eq /fid u128:199
+        or eq /fid u128:203
+            or and ge /fid u128:207 le /fid u128:212
+                or eq /fid u128:214
+                    or eq /fid u128:215
+                        or eq /fid u128:1424
+                            or eq /fid u128:1425
+                                eq /fid u128:1426.
+
 : @dc l8589992816
 v/b/isStageLBuiltinOpDc dc/c
     const u128/u u128FromDc /c.
@@ -793,7 +813,9 @@ v/capOptNodeRes/queryNodeRaw capClient/cli u128/nodeId
 
 : @dc l8589992826
 v/capOptNodeRes/expandInternedNodesInner capClient/cli l/dc/tokens l/u128/visIds
-    let buf/dc/out bufNew dc len /tokens.
+    const u64/n len /tokens.
+    const u64/pad if ge /n u64:4096 u64:4096 u64:256.
+    let buf/dc/out bufNew dc wrapAdd /n /pad.
     let capClient/curCli /cli.
     let b/inComment false.
     let dc/commentCloser dc:0.
@@ -803,7 +825,6 @@ v/capOptNodeRes/expandInternedNodesInner capClient/cli l/dc/tokens l/u128/visIds
     let dc/prevOut dc:0.
     let b/hasPrev false.
     let u64/i u64:0.
-    const u64/n len /tokens.
     while lt /i /n do
         const dc/tok dcAtOr /tokens /i dc:0.
         if eq /tok dc:255
@@ -1675,6 +1696,49 @@ v/capCallRes/expandWasmTokensInner capClient/cli l/dc/tokens u64/wasmDepth l/u12
                 continue.
             ::
             nop.
+        if eq /tok dc:6
+            do
+                bufPush /out /tok.
+                set /i wrapAdd /i u64:1.
+                while lt /i /n do
+                    const dc/nt dcAtOr /tokens /i dc:0.
+                    bufPush /out /nt.
+                    set /i wrapAdd /i u64:1.
+                    if eq /nt dc:7
+                        break
+                        nop.
+                ::.
+                continue.
+            ::
+            nop.
+        if eq /tok dc:270
+            do
+                bufPush /out /tok.
+                set /i wrapAdd /i u64:1.
+                while lt /i /n do
+                    const dc/it dcAtOr /tokens /i dc:0.
+                    if eq /it dc:255
+                        do
+                            bufPush /out /it.
+                            const u64/i1 wrapAdd /i u64:1.
+                            if lt /i1 /n
+                                do
+                                    bufPush /out dcAtOr /tokens /i1 dc:0.
+                                    set /i wrapAdd /i1 u64:1.
+                                ::
+                                set /i /i1.
+                            continue.
+                        ::
+                        nop.
+                    bufPush /out /it.
+                    set /i wrapAdd /i u64:1.
+                    if eq /it dc:271
+                        break
+                        nop.
+                ::.
+                continue.
+            ::
+            nop.
         const u128/u u128FromDc /tok.
         : Unicode scalars (`<= 0x10FFFF`) need zero graph expansion.
         if le /u u128:1114111
@@ -1741,7 +1805,11 @@ v/capCallRes/expandWasmTokensInner capClient/cli l/dc/tokens u64/wasmDepth l/u12
         : Non-Unicode non-System-Long: check Short/Format helper shorthands outside built-ins.
         if and ge /u u128:1114112 lt /u u128:8589934592
             do
-                const b/isBuiltIn and le /u u128:2228223 isBuiltInWasmOrSyntaxShortId wrapSub /u u128:1114112.
+                const b/isShort le /u u128:2228223.
+                const b/isFormat and ge /u u128:2228224 le /u u128:3342335.
+                const b/isBuiltIn or
+                    and /isShort isBuiltInWasmOrSyntaxShortId wrapSub /u u128:1114112
+                    and /isFormat isBuiltInWasmOrSyntaxFormatId wrapSub /u u128:2228224.
                 if not /isBuiltIn
                     do
                         if listContainsU128 /visShs /u
@@ -1782,8 +1850,96 @@ v/capCallRes/expandWasmTokensInner capClient/cli l/dc/tokens u64/wasmDepth l/u12
     ::.
     structNew capCallRes: cli /curCli ok true payload bufFreeze /out ::.
 
+: @dc l8589993366
+v/b/needsWasmTokenExpansion l/dc/tokens
+    const u64/n len /tokens.
+    let u64/i u64:0.
+    while lt /i /n do
+        const dc/tok dcAtOr /tokens /i dc:0.
+        if eq /tok dc:255
+            do
+                const u64/i1 wrapAdd /i u64:1.
+                set /i if lt /i1 /n wrapAdd /i1 u64:1 /i1.
+                continue.
+            ::
+            nop.
+        if eq /tok dc:203
+            do
+                set /i wrapAdd /i u64:1.
+                while lt /i /n do
+                    const dc/bt dcAtOr /tokens /i dc:0.
+                    set /i wrapAdd /i u64:1.
+                    if eq /bt dc:204
+                        break
+                        nop.
+                ::.
+                continue.
+            ::
+            nop.
+        if eq /tok dc:6
+            do
+                set /i wrapAdd /i u64:1.
+                while lt /i /n do
+                    const dc/nt dcAtOr /tokens /i dc:0.
+                    set /i wrapAdd /i u64:1.
+                    if eq /nt dc:7
+                        break
+                        nop.
+                ::.
+                continue.
+            ::
+            nop.
+        if eq /tok dc:270
+            do
+                set /i wrapAdd /i u64:1.
+                while lt /i /n do
+                    const dc/it dcAtOr /tokens /i dc:0.
+                    if eq /it dc:255
+                        do
+                            const u64/i1 wrapAdd /i u64:1.
+                            set /i if lt /i1 /n wrapAdd /i1 u64:1 /i1.
+                            continue.
+                        ::
+                        nop.
+                    set /i wrapAdd /i u64:1.
+                    if eq /it dc:271
+                        break
+                        nop.
+                ::.
+                continue.
+            ::
+            nop.
+        const u128/u u128FromDc /tok.
+        if le /u u128:1114111
+            do
+                set /i wrapAdd /i u64:1.
+                continue.
+            ::
+            nop.
+        if isSysRegionId /u
+            return true
+            nop.
+        if and ge /u u128:1114112 lt /u u128:8589934592
+            do
+                const b/isShort le /u u128:2228223.
+                const b/isFormat and ge /u u128:2228224 le /u u128:3342335.
+                const b/isBuiltIn or
+                    and /isShort isBuiltInWasmOrSyntaxShortId wrapSub /u u128:1114112
+                    and /isFormat isBuiltInWasmOrSyntaxFormatId wrapSub /u u128:2228224.
+                if not /isBuiltIn
+                    return true
+                    nop.
+            ::
+            nop.
+        set /i wrapAdd /i u64:1.
+    ::.
+    false.
+
 : @dc l8589992844
 v/capCallRes/expandWasmTokens capClient/cli l/dc/tokens
+    if not needsWasmTokenExpansion /tokens
+        return structNew capCallRes: cli /cli ok true payload /tokens ::
+        nop.
     expandWasmTokensInner /cli /tokens u64:0 l/u128: :: l/u128: ::.
 
 : ---------------------------------------------------------------------------
@@ -1990,46 +2146,43 @@ v/convListRes/listAllActiveConverterSteps capClient/cli
             nop.
         const dc/src dcAtOr /fmtToks u64:1 dc:0.
         const dc/dst dcAtOr /fmtToks u64:2 dc:0.
-        : Must have either an active unconstrained WASM or StageL/StageR decomposition.
-        const capOptNodeRes/wb resolveWasmDecomp /curCli /subj.
-        set /curCli field /wb cli.
-        if eq field /wb tag u8:2
-            return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /wb payload ::
-            nop.
-        let u8/kind u8:0.
-        let l/dc/bodyToks l/dc: ::.
-        let b/hasBody false.
-        if eq field /wb tag u8:1
-            do
-                set /kind u8:0.
-                set /bodyToks field /wb payload.
-                set /hasBody true.
-            ::
-            do
-                const capOptNodeRes/sb resolveStageLOrRDecomp /curCli /subj.
-                set /curCli field /sb cli.
-                if eq field /sb tag u8:2
-                    return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /sb payload ::
-                    nop.
-                if eq field /sb tag u8:1
-                    do
-                        set /kind u8:1.
-                        set /bodyToks field /sb payload.
-                        set /hasBody true.
-                    ::
-                    nop.
-            ::.
-        if not /hasBody
-            continue
-            nop.
         const capBoolRes/prefQ isConverterPreferred /curCli /subj.
         set /curCli field /prefQ cli.
         if not field /prefQ ok
             return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /prefQ errTokens ::
             nop.
-        bufPush /out structNew convStep: subj /subj subjId /sid src /src dst /dst preferred field /prefQ val kind /kind bodyTokens /bodyToks ::.
+        bufPush /out structNew convStep: subj /subj subjId /sid src /src dst /dst preferred field /prefQ val bodyLoaded false kind u8:0 bodyTokens l/dc: :: ::.
     ::.
     structNew convListRes: cli /curCli ok true steps sortConverterSteps bufFreeze /out errTokens l/dc: :: ::.
+
+: @dc l8589993367
+v/convStepOptRes/resolveConverterStepBody capClient/cli convStep/st
+    if field /st bodyLoaded
+        return structNew convStepOptRes: cli /cli tag u8:1 step /st errTokens l/dc: :: ::
+        nop.
+    const capOptNodeRes/wb resolveWasmDecomp /cli field /st subj.
+    let capClient/curCli field /wb cli.
+    if eq field /wb tag u8:2
+        return structNew convStepOptRes: cli /curCli tag u8:2 step /st errTokens field /wb payload ::
+        nop.
+    if eq field /wb tag u8:1
+        do
+            const convStep/loaded with with with /st bodyLoaded true kind u8:0 bodyTokens field /wb payload.
+            return structNew convStepOptRes: cli /curCli tag u8:1 step /loaded errTokens l/dc: :: ::.
+        ::
+        nop.
+    const capOptNodeRes/sb resolveStageLOrRDecomp /curCli field /st subj.
+    set /curCli field /sb cli.
+    if eq field /sb tag u8:2
+        return structNew convStepOptRes: cli /curCli tag u8:2 step /st errTokens field /sb payload ::
+        nop.
+    if eq field /sb tag u8:1
+        do
+            const convStep/loaded with with with /st bodyLoaded true kind u8:1 bodyTokens field /sb payload.
+            return structNew convStepOptRes: cli /curCli tag u8:1 step /loaded errTokens l/dc: :: ::.
+        ::
+        nop.
+    structNew convStepOptRes: cli /curCli tag u8:0 step /st errTokens l/dc: :: ::.
 
 : @dc l8589992850
 v/convListRes/findShortestConverterChain capClient/cli l/convStep/allSteps dc/src dc/dst
@@ -2048,6 +2201,7 @@ v/convListRes/findShortestConverterChain capClient/cli l/convStep/allSteps dc/sr
         return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /dstEq errTokens ::
         nop.
     const l/u128/dstIds field /dstEq ids.
+    let buf/convStep/loadedSteps bufNew convStep u64:8.
     let buf/u128/qNodes bufNew u128 u64:16.
     let buf/u64/qParentIdx bufNew u64 u64:16.
     let buf/u64/qStepIdx bufNew u64 u64:16.
@@ -2067,13 +2221,27 @@ v/convListRes/findShortestConverterChain capClient/cli l/convStep/allSteps dc/sr
         const u64/stepTotal len /allSteps.
         let u64/si u64:0.
         while lt /si /stepTotal do
-            const convStep/st match get /allSteps /si
+            const convStep/rawSt match get /allSteps /si
                 case some convStep/v /v.
                 case none break.
             ::.
-            const b/srcMatch eq u128FromDc field /st src /curNode.
+            const b/srcMatch eq u128FromDc field /rawSt src /curNode.
             if /srcMatch
                 do
+                    const convStepOptRes/lr resolveConverterStepBody /curCli /rawSt.
+                    set /curCli field /lr cli.
+                    if eq field /lr tag u8:2
+                        return structNew convListRes: cli /curCli ok false steps l/convStep: :: errTokens field /lr errTokens ::
+                        nop.
+                    if eq field /lr tag u8:0
+                        do
+                            set /si wrapAdd /si u64:1.
+                            continue.
+                        ::
+                        nop.
+                    const convStep/st field /lr step.
+                    const u64/loadedIdx len /loadedSteps.
+                    bufPush /loadedSteps /st.
                     const u128/nextDst u128FromDc field /st dst.
                     if listContainsU128 /dstIds /nextDst
                         do
@@ -2088,7 +2256,7 @@ v/convListRes/findShortestConverterChain capClient/cli l/convStep/allSteps dc/sr
                                 if eq /psi u64:18446744073709551615
                                     break
                                     nop.
-                                match get /allSteps /psi
+                                match get /loadedSteps /psi
                                     case some convStep/ps bufPush /rev /ps.
                                     case none break.
                                 ::.
@@ -2121,7 +2289,7 @@ v/convListRes/findShortestConverterChain capClient/cli l/convStep/allSteps dc/sr
                                 set /visited appendUniqueU128 /visited /cand.
                                 bufPush /qNodes /cand.
                                 bufPush /qParentIdx /qi.
-                                bufPush /qStepIdx /si.
+                                bufPush /qStepIdx /loadedIdx.
                             ::
                             nop.
                     ::.
@@ -4401,18 +4569,40 @@ v/dcRes/runConvertDcStringToWasm l/dc/inputTokens
             do
                 : StageL converter step: locate active `2192 -> 1927` WASM converter (`f1680`),
                 : compile the `step` adapter module to `.WASM`, and execute on `/hopInput`.
-                let capBoolRes/hasS2W structNew capBoolRes: cli /cli ok true val false errTokens l/dc: :: ::.
+                let b/hasS2W false.
                 let l/dc/s2wProg l/dc: ::.
-                foreach convStep/cs field /stepsRes steps do
-                    if and eq field /cs kind u8:0 and eq field /cs src dc:2192 eq field /cs dst dc:1927
+                foreach convStep/cs /chain do
+                    if and eq field /cs kind u8:0 and field /cs bodyLoaded and eq field /cs src dc:2192 eq field /cs dst dc:1927
                         do
-                            set /hasS2W structNew capBoolRes: cli /cli ok true val true errTokens l/dc: :: ::.
+                            set /hasS2W true.
                             set /s2wProg field /cs bodyTokens.
                             break.
                         ::
                         nop.
                 ::.
-                if not field /hasS2W val
+                if not /hasS2W
+                    do
+                        foreach convStep/cs field /stepsRes steps do
+                            if and eq field /cs src dc:2192 eq field /cs dst dc:1927
+                                do
+                                    const capOptNodeRes/wb resolveWasmDecomp /cli field /cs subj.
+                                    set /cli field /wb cli.
+                                    if eq field /wb tag u8:2
+                                        return dcRes:err field /wb payload
+                                        nop.
+                                    if eq field /wb tag u8:1
+                                        do
+                                            set /hasS2W true.
+                                            set /s2wProg field /wb payload.
+                                            break.
+                                        ::
+                                        nop.
+                                ::
+                                nop.
+                        ::.
+                    ::
+                    nop.
+                if not /hasS2W
                     return failMsg b"No active StageL-to-WASM converter found in System graph snapshot"
                     nop.
                 const l/dc/entryMod buildStageLConverterEntryModule field /step subj.

@@ -3017,6 +3017,32 @@ pub fn build_entry_module_for_graph_routine_dc(
     sl3_to_dc_tokens_with_seed_graph(&src, seed_graph)
 }
 
+/// Synthesizes a minimal StageR 3 Token-Dc entry module (`v/l/u8/step
+/// l/u8/input`) that decodes DcTF bytes into `dcs` and delegates to
+/// `routine_dc` (`pub dc/<shorthand> v/dcs/... dcs/input`) in `seed_graph`.
+///
+/// # Errors
+/// Returns an error if `routine_dc` cannot be resolved in `seed_graph` or fails
+/// StageR 3 validation.
+pub fn build_stager_dcs_entry_module_for_graph_routine_dc(
+    routine_dc: DcChar,
+    seed_graph: &SeedGraphIndex,
+) -> Result<Vec<DcChar>> {
+    let sh = super::ast::format_dc_shorthand(routine_dc);
+    let src = format!(
+        concat!(
+            "use std/dcs: decodeDcsDctf encodeDcsDctf ::.\n",
+            "v/l/u8/step l/u8/input\n",
+            "    match decodeDcsDctf /input\n",
+            "        case ok dcs/d encodeDcsDctf dc/{sh} /d.\n",
+            "        case err error/_e l/u8: ::.\n",
+            "    ::.\n",
+        ),
+        sh = sh,
+    );
+    sr3_to_dc_tokens_with_seed_graph(&src, seed_graph)
+}
+
 /// Prepends topologically sorted transitive `use` / `dc/<shorthand>` StageL or StageR
 /// Token-Dc dependency modules from `seed_graph` ahead of `entry_tokens`, without
 /// prepending the Stage 0 `.WASM` operator KV map.
@@ -3394,6 +3420,13 @@ pub v/u8/bad
 
     impl Stager3VmCompiler {
         fn new(seed_graph: &SeedGraphIndex) -> Result<Self> {
+            Self::new_with_quota(seed_graph, 50_000_000)
+        }
+
+        fn new_with_quota(
+            seed_graph: &SeedGraphIndex,
+            compute_quota: u64,
+        ) -> Result<Self> {
             use super::super::eval::{EvalConfig, StageLWorkspaceVm};
 
             let compiler_src = std::fs::read_to_string(concat!(
@@ -3412,7 +3445,7 @@ pub v/u8/bad
                 })
                 .context("Expected stager3ToStagel3 module in workspace")?;
             let eval_cfg = EvalConfig {
-                compute_quota: 50_000_000,
+                compute_quota,
                 max_call_depth: 50,
                 max_bigint_bits: 1_048_576,
                 max_seq_elems: 4_194_304,
@@ -4426,5 +4459,52 @@ pub v/b/verifyAll
         handle
             .join()
             .map_err(|_| anyhow::anyhow!("stage2 overlay test thread panicked"))?
+    }
+
+    #[crate::ctb_test]
+    fn test_stager3_to_stagel3_lowers_dc_2608_entry_module() -> Result<()> {
+        let handle = std::thread::Builder::new()
+            .name(String::from("sr3_to_sl3_dc2608_entry"))
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| -> Result<()> {
+                let seed_graph = SeedGraphIndex::shared()?;
+                let compiler =
+                    Stager3VmCompiler::new_with_quota(seed_graph, 500_000_000)?;
+                let entry_tokens =
+                    build_stager_dcs_entry_module_for_graph_routine_dc(
+                        crate::dc::DC_CONVERT_DC_STRING_TO_WASM,
+                        seed_graph,
+                    )?;
+                let bundled =
+                    bundle_dc_module_dependencies(&entry_tokens, seed_graph)?;
+                let lowered = compiler.compile_tokens(&bundled)?;
+                let decoded_mods = decode_modules_from_dc_tokens(&lowered)?;
+                assert!(
+                    !decoded_mods.is_empty(),
+                    "Expected at least 1 lowered StageL 3 module for Dc 2608"
+                );
+                for m in &decoded_mods {
+                    assert_eq!(
+                        m.dialect,
+                        StageDialect::StageL3,
+                        "Expected StageL 3 module after lowering Dc 2608 bundle"
+                    );
+                }
+                let last_mod = decoded_mods
+                    .last()
+                    .context("Missing final entry module in lowered Dc 2608 bundle")?;
+                let has_step = last_mod.items.iter().any(|item| {
+                    matches!(item, TopDecl::Routine(r) if r.name == "step")
+                });
+                assert!(
+                    has_step,
+                    "Expected final lowered Dc 2608 entry module to define 'step'"
+                );
+                Ok(())
+            })
+            .context("Failed to spawn dc2608 StageL VM lowering test thread")?;
+        handle
+            .join()
+            .map_err(|_| anyhow::anyhow!("dc2608 StageL VM lowering thread panicked"))?
     }
 }

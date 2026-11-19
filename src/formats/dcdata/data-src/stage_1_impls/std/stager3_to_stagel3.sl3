@@ -3681,7 +3681,7 @@ v/rType/inferExprType compEnv/env modScope/mScope fnCtx/fctx exprNode/node
                 return if eq field /lt u32:0 u8:1 primType u8:1 unaryRType u8:20 get field /lt u32:2 u64:0
                 nop.
             if eq /aux u32:2581
-                return if eq field /rt u32:0 u8:1 primType u8:1 unaryRType u8:17 /rt
+                return if or eq field /lt u32:0 u8:1 eq field /rt u32:0 u8:1 primType u8:1 unaryRType u8:17 /lt
                 nop.
             if or eq /aux u32:2582 eq /aux u32:2583 return primType u8:0 nop.
             if eq /aux u32:2609 return unaryRType u8:20 primType u8:11 nop.
