@@ -18,6 +18,7 @@
 
 : Stage 1 mixed-mode string (`s` / `DcMst`, represented as `l/dcVal`) runtime helpers:
 : `byteLen`, `dcsFromS`, `sFromDcs`, and atomic-unit-preserving `explode` / `implode`.
+: FIXME: Checksums?
 ns std/dcmst.
 use std/u128: errInvalidEncoding ::.
 use std/dctf: dcVal dcShort dcShortId lenDctf encodeDcStream decodeDcStream ::.

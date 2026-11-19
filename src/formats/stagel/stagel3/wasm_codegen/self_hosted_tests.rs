@@ -1028,7 +1028,7 @@ v/dcs/stepDcs dcs/req
 
 pub v/l/u8/step l/u8/input
     match decodeDcsDctf /input
-        case err ignored l/u8: u8:63 ::.
+        case err error/ignored l/u8: u8:63 ::.
         case ok dcs/req encodeDcsDctf stepDcs /req.
     ::.
 "#;
