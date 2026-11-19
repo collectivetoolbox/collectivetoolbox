@@ -559,7 +559,7 @@ impl WasmModuleLinker {
                     "Missing System-graph Stage 0 WASM built-in for Dc {dc_gid} in context {context_gids:?}"
                 )
             })?;
-        let expanded = expand_interned_strings_in_wasm(&raw_tokens, sg);
+        let expanded = sg.expand_interned_string_nodes(&raw_tokens);
         let parsed = parse_system_wasm_unit(&expanded)?;
 
         let mut global_remap = Vec::with_capacity(parsed.globals.len());
@@ -666,25 +666,6 @@ impl WasmModuleLinker {
 struct ParsedWasmUnit {
     globals: Vec<LinkedGlobal>,
     routines: Vec<LinkedRoutine>,
-}
-
-fn expand_interned_strings_in_wasm(
-    tokens: &[DcShorthand],
-    sg: &SeedGraphIndex,
-) -> Vec<DcShorthand> {
-    let mut out = Vec::with_capacity(tokens.len());
-    for &sh in tokens {
-        if let DcShorthand::Long(_) = sh
-            && let Some(s) = sg.get_string(sh)
-        {
-            for ch in s.chars() {
-                out.push(DcShorthand::Unicode(u32::from(ch)));
-            }
-            continue;
-        }
-        out.push(sh);
-    }
-    out
 }
 
 fn parse_system_wasm_unit(tokens: &[DcShorthand]) -> Result<ParsedWasmUnit> {

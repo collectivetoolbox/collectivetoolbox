@@ -2249,7 +2249,7 @@ pub fn validate_system_graph_wasm_and_stagel_boundaries(
                 // in the System graph must decode and format back to valid `.sl3`.
                 if index.tokens_are_stagel_item_or_module(&val_node.tokens) {
                     let expanded =
-                        index.expand_interned_unicode_runs(&val_node.tokens);
+                        index.expand_interned_string_nodes(&val_node.tokens);
                     let roundtrip_res: Result<()> = (|| {
                         let mut chars = Vec::with_capacity(expanded.len());
                         for t in expanded {

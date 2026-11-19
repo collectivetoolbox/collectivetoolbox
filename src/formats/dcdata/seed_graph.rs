@@ -42,30 +42,34 @@ use ctb_storage_minimal::shorthand::DcShorthand;
 use ctb_utilities::format_id::DC_COLLECTIVE_TOOLBOX;
 
 use crate::dc::{
-    DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP, DC_BEGIN_LIST,
-    DC_BEGIN_LITERAL, DC_BEGIN_MODULE,
-    DC_BEGIN_ROUTINE_DECL, DC_BEGIN_TYPE_DEF, DC_BEGIN_WASM_PROGRAM,
-    DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE, DC_CANONICAL_DECOMPOSITION,
-    DC_CANONICAL_NAME, DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
+    DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP,
+    DC_BEGIN_IDENTIFIER, DC_BEGIN_LIST, DC_BEGIN_LITERAL, DC_BEGIN_MODULE,
+    DC_BEGIN_ROUTINE_DECL, DC_BEGIN_SINGLE_LINE_COMMENT,
+    DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE, DC_BEGIN_TYPE_DEF,
+    DC_BEGIN_WASM_PROGRAM, DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE,
+    DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME,
+    DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
     DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE,
     DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE, DC_DATA_FORMAT_DESCRIPTION,
     DC_DC_GENERAL_CATEGORY, DC_DECLARE_CONST, DC_DECLARE_PUB,
     DC_DECOMPOSITION, DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP,
-    DC_END_LIST, DC_END_WASM_PROGRAM, DC_ENTITY_TYPE,
+    DC_END_IDENTIFIER, DC_END_LIST, DC_END_LITERAL,
+    DC_END_SINGLE_LINE_COMMENT, DC_END_WASM_PROGRAM, DC_ENTITY_TYPE,
+    DC_ESCAPE, DC_EVALUATE_VALUE_AS_ATOM,
     DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID, DC_HAS_A, DC_HAS_VALUE,
     DC_IN_CONTEXT_OF, DC_IS_BASED_ON, DC_IS_INSTANCE_OF, DC_IS_STABLE,
-    DC_MANUAL_ENTRY,
-    DC_PATTERN_REPLACEMENT, DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER,
-    DC_REPLACEMENT, DC_RETRACTS, DC_SEMANTIC_DECOMPOSITION, DC_SUPERSEDES,
-    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ANY, DC_TYPE_CONVERSION,
-    DC_TYPE_ROUTINE, DC_UNICODE_SCRIPT, DcChar,
+    DC_MANUAL_ENTRY, DC_PATTERN_REPLACEMENT, DC_PREFERRED,
+    DC_PROGRAMMATIC_IDENTIFIER, DC_REPLACEMENT, DC_RETRACTS,
+    DC_SEMANTIC_DECOMPOSITION, DC_SUPERSEDES, DC_SYNTAX_RULE, DC_THIS_ELEMENT,
+    DC_TYPE_ANY, DC_TYPE_ATOM_DC, DC_TYPE_CONVERSION, DC_TYPE_ROUTINE,
+    DC_UNICODE_SCRIPT, DcChar,
 };
 use crate::graph_ledger::{
     LedgerNode, SeedEntityKey, decode_ctbnbdl_bundle,
     decode_integer_value_tokens, decode_string_value_tokens,
-    format_chunk_bundle_filename, parse_chunk_bundle_filename_start_id,
-    parse_for_each_statement_tokens, parse_statement_tokens,
-    single_valued_property_set,
+    find_closed_delimited_span, format_chunk_bundle_filename,
+    parse_chunk_bundle_filename_start_id, parse_for_each_statement_tokens,
+    parse_statement_tokens, single_valued_property_set,
 };
 pub use crate::support::seed_graph_reconstruct::ReconstructedNamedType;
 
@@ -2096,7 +2100,7 @@ impl SeedGraphIndex {
                     continue;
                 }
                 let mut expanded =
-                    self.expand_interned_unicode_runs(&node.tokens);
+                    self.expand_interned_string_nodes(&node.tokens);
                 if expanded.first() != Some(&sh(DC_BEGIN_WASM_PROGRAM)) {
                     let mut wrapped =
                         Vec::with_capacity(expanded.len().saturating_add(2));
@@ -2610,41 +2614,147 @@ impl SeedGraphIndex {
         Ok(None)
     }
 
-    /// Expands interned pure-Unicode string value node references (`DcShorthand::Long(child_id)`
-    /// whose active node contains only `DcShorthand::Unicode(_)` tokens) back into inline
-    /// `DcShorthand::Unicode(_)` tokens.
+    fn is_closed_string_literal_node(tokens: &[DcShorthand]) -> bool {
+        tokens.first() == Some(&sh(DC_BEGIN_LITERAL))
+            && find_closed_delimited_span(
+                tokens,
+                0,
+                sh(DC_END_LITERAL),
+                sh(DC_ESCAPE),
+            ) == Some(tokens.len().saturating_sub(1))
+    }
+
+    fn is_legacy_unicode_run_node(tokens: &[DcShorthand]) -> bool {
+        !tokens.is_empty()
+            && tokens.iter().all(|t| matches!(t, DcShorthand::Unicode(_)))
+    }
+
+    /// Expands interned `[string]` node references (`Dc 260 .. Dc 261`) and
+    /// legacy pre-cleanup pure-Unicode run nodes back into inline Dc tokens.
     #[must_use]
-    pub fn expand_interned_unicode_runs(
+    pub fn expand_interned_string_nodes(
         &self,
         tokens: &[DcShorthand],
     ) -> Vec<DcShorthand> {
+        let sh_escape = sh(DC_ESCAPE);
+        let sh_atom = sh(DC_EVALUATE_VALUE_AS_ATOM);
+        let sh_type_atom_dc = sh(DC_TYPE_ATOM_DC);
+        let sh_lit_open = sh(DC_BEGIN_LITERAL);
+        let sh_lit_close = sh(DC_END_LITERAL);
+        let sh_ident_open = sh(DC_BEGIN_IDENTIFIER);
+        let sh_ident_close = sh(DC_END_IDENTIFIER);
+        let sh_cmt_inline = sh(DC_BEGIN_SINGLE_LINE_COMMENT);
+        let sh_cmt_nl = sh(DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE);
+        let sh_cmt_close = sh(DC_END_SINGLE_LINE_COMMENT);
+
         let mut out = Vec::with_capacity(tokens.len());
-        for &tok in tokens {
-            if let DcShorthand::Long(child_id) = tok
+        let mut in_lit = false;
+        let mut lit_is_atom_dc = false;
+        let mut in_ident = false;
+        let mut in_comment = false;
+        let mut i = 0usize;
+        while let Some(&tok) = tokens.get(i) {
+            if tok == sh_escape {
+                out.push(tok);
+                if let Some(&next_tok) = tokens.get(i.saturating_add(1)) {
+                    out.push(next_tok);
+                    i = i.saturating_add(2);
+                } else {
+                    i = i.saturating_add(1);
+                }
+                continue;
+            }
+            if in_comment {
+                if tok == sh_cmt_close {
+                    in_comment = false;
+                    out.push(tok);
+                } else if let DcShorthand::Long(child_id) = tok
+                    && let Some(child_node) = self.get_active_node(child_id)
+                    && Self::is_legacy_unicode_run_node(&child_node.tokens)
+                {
+                    out.extend_from_slice(&child_node.tokens);
+                } else {
+                    out.push(tok);
+                }
+                i = i.saturating_add(1);
+                continue;
+            }
+            if in_ident {
+                if tok == sh_ident_close {
+                    in_ident = false;
+                    out.push(tok);
+                } else if let DcShorthand::Long(child_id) = tok
+                    && let Some(child_node) = self.get_active_node(child_id)
+                    && Self::is_legacy_unicode_run_node(&child_node.tokens)
+                {
+                    out.extend_from_slice(&child_node.tokens);
+                } else {
+                    out.push(tok);
+                }
+                i = i.saturating_add(1);
+                continue;
+            }
+            if in_lit {
+                if tok == sh_lit_close {
+                    in_lit = false;
+                    lit_is_atom_dc = false;
+                    out.push(tok);
+                } else if !lit_is_atom_dc
+                    && let DcShorthand::Long(child_id) = tok
+                    && !matches!(
+                        out.last().copied(),
+                        Some(t) if t == sh_atom || t == sh_type_atom_dc
+                    )
+                    && let Some(child_node) = self.get_active_node(child_id)
+                    && Self::is_legacy_unicode_run_node(&child_node.tokens)
+                {
+                    out.extend_from_slice(&child_node.tokens);
+                } else {
+                    out.push(tok);
+                }
+                i = i.saturating_add(1);
+                continue;
+            }
+
+            if tok == sh_cmt_inline || tok == sh_cmt_nl {
+                in_comment = true;
+                out.push(tok);
+            } else if tok == sh_ident_open {
+                in_ident = true;
+                out.push(tok);
+            } else if tok == sh_lit_open {
+                in_lit = true;
+                lit_is_atom_dc = tokens.get(i.saturating_add(1))
+                    == Some(&sh_type_atom_dc)
+                    || (tokens.get(i.saturating_add(1))
+                        == Some(&sh(DC_BEGIN_TYPE_DEF))
+                        && tokens.get(i.saturating_add(2))
+                            == Some(&sh_type_atom_dc));
+                out.push(tok);
+            } else if let DcShorthand::Long(child_id) = tok
+                && out.last().copied() != Some(sh_atom)
                 && let Some(child_node) = self.get_active_node(child_id)
-                && !child_node.tokens.is_empty()
-                && child_node
-                    .tokens
-                    .iter()
-                    .all(|t| matches!(t, DcShorthand::Unicode(_)))
+                && (Self::is_closed_string_literal_node(&child_node.tokens)
+                    || Self::is_legacy_unicode_run_node(&child_node.tokens))
             {
                 out.extend_from_slice(&child_node.tokens);
             } else {
                 out.push(tok);
             }
+            i = i.saturating_add(1);
         }
         out
     }
 
-    /// Returns `true` if `raw_tokens` (after expanding interned Unicode runs and skipping
-    /// leading single-line comment frames) begins with a StageL 3 module or top-level
-    /// routine/value declaration Token Dc (`Dc 2192`, `Dc 2203`, `Dc 2200`, or `Dc 2199`).
+    /// Returns `true` if `raw_tokens` (after expanding interned `[string]`
+    /// nodes and skipping leading single-line comment frames) begins with a
+    /// StageL 3 module or top-level declaration Token Dc.
     #[must_use]
     pub fn tokens_are_stagel_item_or_module(
         &self,
         raw_tokens: &[DcShorthand],
     ) -> bool {
-        let expanded = self.expand_interned_unicode_runs(raw_tokens);
+        let expanded = self.expand_interned_string_nodes(raw_tokens);
         let mut chars = Vec::with_capacity(expanded.len());
         for tok in expanded {
             let Ok(gid) = tok.to_global_id() else {
@@ -2815,7 +2925,7 @@ impl SeedGraphIndex {
                         }
                         if self.tokens_are_stagel_item_or_module(&node.tokens) {
                             let expanded =
-                                self.expand_interned_unicode_runs(&node.tokens);
+                                self.expand_interned_string_nodes(&node.tokens);
                             let mut dc_chars =
                                 Vec::with_capacity(expanded.len());
                             for tok in expanded {
@@ -2919,7 +3029,7 @@ impl SeedGraphIndex {
                     return false;
                 };
                 self.get_active_node(ctx_id).is_some_and(|ctx_node| {
-                    self.expand_interned_unicode_runs(&ctx_node.tokens)
+                    self.expand_interned_string_nodes(&ctx_node.tokens)
                         == expected_fp_shorthands
                 })
             });
@@ -3007,7 +3117,7 @@ impl SeedGraphIndex {
             let Some(ctx_node) = self.get_active_node(ctx_id) else {
                 continue;
             };
-            let expanded = self.expand_interned_unicode_runs(&ctx_node.tokens);
+            let expanded = self.expand_interned_string_nodes(&ctx_node.tokens);
             let mut dc_chars = Vec::with_capacity(expanded.len());
             let mut all_valid = true;
             for tok in expanded {

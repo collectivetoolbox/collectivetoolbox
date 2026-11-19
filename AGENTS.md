@@ -143,6 +143,7 @@
   - Dcs represent semantic/ontological entities, never Rust fields or serialization structures. Multiple encodings of the same value belong under its existing semantic identifier using Dc 397. Equivalent representations must denote the same value; distinct values or provenance roles must not be presented as equivalent.
   - Path values must follow the declared typed filepath syntax rather than substituting an undelimited string or opaque byte buffer.
   - Dc IDs and semantic meaning are stable and cannot be changed or reassigned. Dc names and syntax are not stable at this time.
+- **Named-type terminology (`[string]`, `[number]`, etc.)**: When referring to Dc documents, specs, or code, terms like "string", "number", "boolean", "data", etc. refer to the Dc named-type concepts defined in [README-named-types.csv](src/formats/dcdata/data-src/README-named-types.csv) (for example, a Dc `[string]` is any arbitrary sequence of 128-bit Dcs bracketed by `Dc 260 "Begin literal value"`..`Dc 261 "End literal value"`—never a "Unicode-only string"). Only assume Unicode text when explicitly converting to or from Unicode.
 - **Strings**: Reach for `DcMstr` / `DcMstring` by default for almost all Dc string use cases. Avoid converting to Rust `String`.
 
 ## Architecture & Workspace Layout

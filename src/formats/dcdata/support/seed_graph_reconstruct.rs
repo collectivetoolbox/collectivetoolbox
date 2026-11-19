@@ -818,7 +818,7 @@ impl SeedGraphIndex {
                         return Some(crate::format_spec::format_expr(&expr));
                     }
                 }
-                let expanded = self.expand_interned_unicode_runs(&node.tokens);
+                let expanded = self.expand_interned_string_nodes(&node.tokens);
                 let parts: Vec<String> =
                     expanded.iter().map(ToString::to_string).collect();
                 return Some(parts.join(" "));

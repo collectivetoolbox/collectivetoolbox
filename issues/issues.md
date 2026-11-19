@@ -10,6 +10,8 @@ assuming the current code still has the reported fault.
 - Save fixtures for all pre-DcTF format versions
 
 - A way to prevent inserting duplicate nodes (e.g. by checksum; I don't mean conceptually) into the graph would be important. Or more precisely I guess it should potentially be possible to insert them, but it shouldn't *store* something more than once (outside of deliberate/systematic redundancy to be able to recover from corruption etc.)
+
+- Audit the codebase for bogus "Unicode-only string" assumptions on Dc documents (e.g. legacy helpers treating `DcShorthand::Unicode(...)` runs as special strings outside actual Unicode format converters instead of operating uniformly over 128-bit Dc `[string]` literals `Dc 260..Dc 261`).
 - [CSC and archives](csc.md): preservation, streams, recovery, file API policy,
   native-platform qualification, and metadata privacy.
 - [Dc parser](dc-parser.md): syntax validation, semantic roles, projection,

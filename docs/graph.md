@@ -1,3 +1,21 @@
+## Unified Dc Model
+
+In the Dc encoding model, strings, data, characters, graph nodes, documents, programs, libraries, and semantic statements are all the exact same kind of entity—sequences over the full 128-bit Dc space—and can generally be used interchangeably (even if a given sequence isn't always meaningful in every context). Any sequence of Dcs is a runnable, renderable document, even if running it only produces errors as output. Do **not** invent separate traditional-software abstractions like "Unicode-only strings vs code vs content nodes" inside graph storage or tooling: a Dc `[string]` is any arbitrary Dc sequence bracketed by `Dc 260 "Begin literal value"`..`Dc 261 "End literal value"`.
+
+## Keyword Search, Linguistic Words, and Derived Statements
+
+Indexing printable/displayable strings and indexing words will be important for search:
+
+- In the linguistic sense, the graph will contain dedicated nodes for **words** (one node per definition), linked via semantic relationships to their **spellings** (the associated string literal(s)) and their **meanings** (the underlying semantic sense).
+- Deterministic **derivation rules** generate **derived statements** (semantic triples) from documents containing words—for example `("Contains", Doc123, StringFoo)`, and when automatic meaning classification or explicit semantic markup is present, `("Contains", Doc123, WordFoo)`.
+- The spellings linked to those nodes are then indexed as searchable keywords.
+
+## Future Query & Indexing Notes
+
+- For reverse lookup of node definitions, comparing full definitions in-memory can become expensive when node payloads are large. A future indexed lookup matching by content checksum (computing the checksum of the search target without copying or scanning full node bodies) may be added as an alternative query form once needed.
+
+## Statements and Disagreement
+
 In the graph, statements shouldn't shadow previous statements of the same fact. It would imply that either both statements were true, or there was a disagreement (once the graph becomes semantically richer, it would be able to capture *disagreement* by using that, for instance - it could hold *true but contradictory* statements where two different parties believe something - e.g. if two linguists disagree about a reconstructed reading of an extinct language, the readings could both be stated as fact in the graph, and would be given statements about who the authority is who confirms that claim - then users could query based on which linguist's work they want to start from).
 
 ## Dc and Format Block Reservations

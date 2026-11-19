@@ -80,11 +80,13 @@ pub use inbox::*;
 
 use crate::dc::{
     DC_ANNOTATION, DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP,
-    DC_BEGIN_GRAPH_NODE_DEFINITION, DC_BEGIN_LIST, DC_BEGIN_NUMBER,
-    DC_BEGIN_PARAMETER, DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE,
-    DC_CANONICAL_COMBINING_CLASS, DC_CANONICAL_DECOMPOSITION,
-    DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER, DC_CHARACTER_GENERAL_CATEGORY,
-    DC_CHARACTER_SCRIPT, DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE,
+    DC_BEGIN_GRAPH_NODE_DEFINITION, DC_BEGIN_IDENTIFIER, DC_BEGIN_LIST,
+    DC_BEGIN_LITERAL, DC_BEGIN_NUMBER, DC_BEGIN_PARAMETER,
+    DC_BEGIN_SINGLE_LINE_COMMENT, DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE,
+    DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE, DC_CANONICAL_COMBINING_CLASS,
+    DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER,
+    DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
+    DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE,
     DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE,
     DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE, DC_DATA_BYTE_LENGTH,
     DC_DATA_FORMAT_DESCRIPTION, DC_DC_FORMAT_EXPORT_SUPPORT,
@@ -92,9 +94,10 @@ use crate::dc::{
     DC_DC_FORMAT_VARIATION_NICKNAME, DC_DC_GENERAL_CATEGORY,
     DC_DEFAULT_FORMAT_VARIANT, DC_DESCRIPTION,
     DC_DISTRIBUTE_STATEMENT_OVER_EACH, DC_ENCLOSING_DOCUMENT,
-    DC_END_ASSOCIATIVITY_GROUP, DC_END_GRAPH_NODE_DEFINITION, DC_END_LIST,
-    DC_END_NUMBER, DC_ENTITY_TYPE, DC_ESCAPE, DC_EVALUATE_VALUE_AS_ATOM,
-    DC_EXCLUSIVE_RANGE_ENDPOINT, DC_FORMAL_ALIAS,
+    DC_END_ASSOCIATIVITY_GROUP, DC_END_GRAPH_NODE_DEFINITION,
+    DC_END_IDENTIFIER, DC_END_LIST, DC_END_LITERAL, DC_END_NUMBER,
+    DC_END_SINGLE_LINE_COMMENT, DC_ENTITY_TYPE, DC_ESCAPE,
+    DC_EVALUATE_VALUE_AS_ATOM, DC_EXCLUSIVE_RANGE_ENDPOINT, DC_FORMAL_ALIAS,
     DC_FORMAT_VARIATION_ASPECT, DC_GENERAL_FORMAT_EXPORT_SUPPORT,
     DC_GENERAL_FORMAT_IMPORT_SUPPORT, DC_GENERAL_FORMAT_TEST_COVERAGE,
     DC_HAS_A, DC_HAS_VALUE, DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_IN_CONTEXT_OF,
@@ -374,6 +377,33 @@ pub fn encode_string_value_tokens(text: &str) -> Vec<DcShorthand> {
     text.chars()
         .map(|ch| DcShorthand::Unicode(u32::from(ch)))
         .collect()
+}
+
+/// Finds the matching unescaped `close` index for a delimited Dc span
+/// opened at `start`, honoring `escape` pairs (`Dc 255 <next>`).
+#[must_use]
+pub(crate) fn find_closed_delimited_span(
+    tokens: &[DcShorthand],
+    start: usize,
+    close: DcShorthand,
+    escape: DcShorthand,
+) -> Option<usize> {
+    let mut cur = start.saturating_add(1);
+    while let Some(&tok) = tokens.get(cur) {
+        if tok == escape {
+            let next_after_escape = cur.saturating_add(2);
+            if next_after_escape > tokens.len() {
+                return None;
+            }
+            cur = next_after_escape;
+            continue;
+        }
+        if tok == close {
+            return Some(cur);
+        }
+        cur = cur.saturating_add(1);
+    }
+    None
 }
 
 /// Decodes a canonical string value node token sequence back into a `String`, if it matches.
@@ -1250,43 +1280,86 @@ impl LedgerBuilder {
         Ok(entity_id)
     }
 
-    fn intern_embedded_string_runs_in_value_node(
+    fn intern_embedded_strings_in_value_node(
         &mut self,
         tokens: &[DcShorthand],
     ) -> Result<Vec<DcShorthand>> {
-        if decode_string_value_tokens(tokens).is_some()
-            || !tokens.iter().any(|t| {
-                matches!(*t, DcShorthand::Unicode(cp) if char::from_u32(cp).is_some())
-            })
+        let sh_lit_open = sh(DC_BEGIN_LITERAL);
+        let sh_lit_close = sh(DC_END_LITERAL);
+        let sh_ident_open = sh(DC_BEGIN_IDENTIFIER);
+        let sh_ident_close = sh(DC_END_IDENTIFIER);
+        let sh_cmt_inline = sh(DC_BEGIN_SINGLE_LINE_COMMENT);
+        let sh_cmt_nl = sh(DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE);
+        let sh_cmt_close = sh(DC_END_SINGLE_LINE_COMMENT);
+        let sh_escape = sh(DC_ESCAPE);
+
+        // Standalone `[string]` node (`Dc 260 .. Dc 261`): keep verbatim rather than self-interning.
+        if tokens.first() == Some(&sh_lit_open)
+            && find_closed_delimited_span(tokens, 0, sh_lit_close, sh_escape)
+                == Some(tokens.len().saturating_sub(1))
         {
+            return Ok(tokens.to_vec());
+        }
+        if !tokens.contains(&sh_lit_open) {
             return Ok(tokens.to_vec());
         }
 
         let mut out = Vec::with_capacity(tokens.len());
         let mut idx = 0usize;
         while let Some(&tok) = tokens.get(idx) {
-            // Only compact runs of valid UTF-8 Unicode scalars; unpaired surrogates
-            // (`0xD800..=0xDFFF`) remain inline `Unicode` Dcs without dropping trailing tokens.
-            if matches!(tok, DcShorthand::Unicode(cp) if char::from_u32(cp).is_some())
+            if tok == sh_escape {
+                out.push(tok);
+                if let Some(&escaped) = tokens.get(idx.saturating_add(1)) {
+                    out.push(escaped);
+                    idx = idx.saturating_add(2);
+                } else {
+                    idx = idx.saturating_add(1);
+                }
+                continue;
+            }
+            if tok == sh_ident_open
+                && let Some(end_idx) = find_closed_delimited_span(
+                    tokens,
+                    idx,
+                    sh_ident_close,
+                    sh_escape,
+                )
+                && let Some(span) = tokens.get(idx..=end_idx)
             {
-                let mut run_end = idx;
-                while matches!(
-                    tokens.get(run_end),
-                    Some(&DcShorthand::Unicode(cp)) if char::from_u32(cp).is_some()
-                ) {
-                    run_end = run_end.saturating_add(1);
-                }
-                if let Some(run_slice) = tokens.get(idx..run_end)
-                    && let Some(decoded) = decode_string_value_tokens(run_slice)
-                {
-                    let str_node_id = self.get_or_insert_value_node(
-                        run_slice.to_vec(),
-                        format_string_summary(&decoded),
-                    )?;
-                    out.push(DcShorthand::Long(str_node_id));
-                    idx = run_end;
-                    continue;
-                }
+                out.extend_from_slice(span);
+                idx = end_idx.saturating_add(1);
+                continue;
+            }
+            if (tok == sh_cmt_inline || tok == sh_cmt_nl)
+                && let Some(end_idx) = find_closed_delimited_span(
+                    tokens,
+                    idx,
+                    sh_cmt_close,
+                    sh_escape,
+                )
+                && let Some(span) = tokens.get(idx..=end_idx)
+            {
+                out.extend_from_slice(span);
+                idx = end_idx.saturating_add(1);
+                continue;
+            }
+            if tok == sh_lit_open
+                && let Some(end_idx) = find_closed_delimited_span(
+                    tokens,
+                    idx,
+                    sh_lit_close,
+                    sh_escape,
+                )
+                && let Some(lit_slice) = tokens.get(idx..=end_idx)
+            {
+                let summary = self.format_tokens_comment(lit_slice);
+                let str_node_id = self.get_or_insert_value_node(
+                    lit_slice.to_vec(),
+                    summary,
+                )?;
+                out.push(DcShorthand::Long(str_node_id));
+                idx = end_idx.saturating_add(1);
+                continue;
             }
             out.push(tok);
             idx = idx.saturating_add(1);
@@ -1303,7 +1376,7 @@ impl LedgerBuilder {
             }
             ValueSpec::ValueNode { tokens, comment } => {
                 let normalized_tokens =
-                    self.intern_embedded_string_runs_in_value_node(tokens)?;
+                    self.intern_embedded_strings_in_value_node(tokens)?;
                 let id = self.get_or_insert_value_node(
                     normalized_tokens,
                     comment.clone(),
@@ -5662,7 +5735,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_intern_embedded_string_runs_preserves_surrogates_and_trailing_tokens()
+    fn test_intern_embedded_strings_uses_260_261_and_keeps_identifiers_inline()
     -> Result<()> {
         let mut builder = LedgerBuilder::from_existing(
             Vec::new(),
@@ -5670,28 +5743,97 @@ mod tests {
             HashMap::new(),
         );
 
-        let isolated_surrogate = vec![
+        let standalone = vec![
             DcShorthand::Short(260),
             DcShorthand::Unicode(0xD800),
+            DcShorthand::Short(255),
+            DcShorthand::Short(261),
             DcShorthand::Short(261),
         ];
-        let interned_isolated = builder
-            .intern_embedded_string_runs_in_value_node(&isolated_surrogate)?;
-        assert_eq!(interned_isolated, isolated_surrogate);
+        let interned_standalone =
+            builder.intern_embedded_strings_in_value_node(&standalone)?;
+        assert_eq!(interned_standalone, standalone);
 
-        let mixed = vec![
-            DcShorthand::Short(260),
+        // Identifiers (`270..271`) must stay verbatim while embedded `[string]`
+        // (`260..261`) literals over arbitrary 128-bit Dcs are interned.
+        let compound = vec![
+            DcShorthand::Short(270),
             DcShorthand::Unicode(0x41),
-            DcShorthand::Unicode(0xD800),
             DcShorthand::Unicode(0x42),
+            DcShorthand::Short(271),
+            DcShorthand::Short(260),
+            DcShorthand::Short(2580),
+            DcShorthand::Unicode(0xD800),
+            DcShorthand::Short(255),
+            DcShorthand::Short(261),
+            DcShorthand::Short(261),
+            DcShorthand::Short(2204),
+        ];
+        let interned_compound =
+            builder.intern_embedded_strings_in_value_node(&compound)?;
+        assert_eq!(
+            &interned_compound[0..4],
+            &[
+                DcShorthand::Short(270),
+                DcShorthand::Unicode(0x41),
+                DcShorthand::Unicode(0x42),
+                DcShorthand::Short(271),
+            ]
+        );
+        assert!(matches!(interned_compound.get(4), Some(DcShorthand::Long(_))));
+        assert_eq!(interned_compound.get(5), Some(&DcShorthand::Short(2204)));
+        assert_eq!(interned_compound.len(), 6);
+
+        // Historical pure-Unicode interned run node (`4ffe190f3`-era ledger chunks)
+        // must still expand inline, while `dc/l<id>` atom references stay intact.
+        let legacy_unicode_id = builder.get_or_insert_value_node(
+            vec![DcShorthand::Unicode(0x66), DcShorthand::Unicode(0x6f)],
+            "\"fo\"".to_string(),
+        )?;
+        let atom_str_id = builder.get_or_insert_value_node(
+            vec![
+                DcShorthand::Short(260),
+                DcShorthand::Unicode(0x78),
+                DcShorthand::Short(261),
+            ],
+            "\"x\"".to_string(),
+        )?;
+        let legacy_ident_with_atom = vec![
+            DcShorthand::Short(270),
+            DcShorthand::Long(legacy_unicode_id),
+            DcShorthand::Short(271),
+            DcShorthand::Short(260),
+            DcShorthand::Short(640),
+            DcShorthand::Long(atom_str_id),
+            DcShorthand::Short(261),
+            DcShorthand::Short(260),
+            DcShorthand::Short(640),
+            DcShorthand::Long(legacy_unicode_id),
             DcShorthand::Short(261),
         ];
-        let interned_mixed =
-            builder.intern_embedded_string_runs_in_value_node(&mixed)?;
+        let expected_legacy = vec![
+            DcShorthand::Short(270),
+            DcShorthand::Unicode(0x66),
+            DcShorthand::Unicode(0x6f),
+            DcShorthand::Short(271),
+            DcShorthand::Short(260),
+            DcShorthand::Short(640),
+            DcShorthand::Long(atom_str_id),
+            DcShorthand::Short(261),
+            DcShorthand::Short(260),
+            DcShorthand::Short(640),
+            DcShorthand::Long(legacy_unicode_id),
+            DcShorthand::Short(261),
+        ];
+
         let index =
             crate::seed_graph::SeedGraphIndex::from_nodes(builder.nodes);
-        let expanded = index.expand_interned_unicode_runs(&interned_mixed);
-        assert_eq!(expanded, mixed);
+        let expanded = index.expand_interned_string_nodes(&interned_compound);
+        assert_eq!(expanded, compound);
+        assert_eq!(
+            index.expand_interned_string_nodes(&legacy_ident_with_atom),
+            expected_legacy
+        );
         Ok(())
     }
 }
