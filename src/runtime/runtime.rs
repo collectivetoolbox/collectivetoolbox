@@ -4898,13 +4898,13 @@ mod tests {
 
     fn admit_high_budget_execution_kernel() -> Result<SystemSupervisorAdmission> {
         let mut limits = DcWasmResourceLimits::default();
-        limits.max_instructions_per_step = 1_000_000_000;
-        limits.max_memory_pages = 1024;
+        limits.max_instructions_per_step = 4_000_000_000;
+        limits.max_memory_pages = 2048;
         limits.max_step_output_bytes = 32 * 1024 * 1024;
         limits.max_session_output_bytes = 64 * 1024 * 1024;
         limits.max_capability_payload_bytes = 32 * 1024 * 1024;
         let watchdog = DcWasmWatchdogLimits::default()
-            .with_hard_max_instructions_per_step(1_000_000_000);
+            .with_hard_max_instructions_per_step(4_000_000_000);
         SystemSupervisorAdmission::admit_execution_kernel(limits, watchdog)
     }
 

@@ -278,48 +278,7 @@ v/u64/hashDcList l/dc/xs
     let u64/h u64:14695981039346656037.
     set /h wrapMul bitXor /h len /xs u64:1099511628211.
     foreach dc/c /xs do
-        const u32/sid dcShortId /c.
-        if ne /sid /noRegionId
-            do
-                set /h wrapMul bitXor /h conv /sid u64 u64:1099511628211.
-                continue.
-            ::
-            nop.
-        const u32/fid dcFormatId /c.
-        if ne /fid /noRegionId
-            do
-                set /h wrapMul bitXor /h wrapAdd u64:2228224 conv /fid u64 u64:1099511628211.
-                continue.
-            ::
-            nop.
-        const u128/u u128FromDc /c.
-        let u64/lo u64:0.
-        let u64/hi u64:0.
-        if le /u /u128U64Max
-            do
-                set /lo match conv /u u64
-                    case ok u64/v /v.
-                    case err error/_e u64:0.
-                ::.
-            ::
-            do
-                set /lo match conv bitAnd /u /u128U64Max u64
-                    case ok u64/v /v.
-                    case err error/_e u64:0.
-                ::.
-                const u128/hi128 match shr /u u32:64
-                    case ok u128/s /s.
-                    case err error/_e /u128Zero.
-                ::.
-                set /hi match conv /hi128 u64
-                    case ok u64/v /v.
-                    case err error/_e u64:0.
-                ::.
-            ::.
-        set /h wrapMul bitXor /h /lo u64:1099511628211.
-        if ne /hi u64:0
-            set /h wrapMul bitXor /h /hi u64:1099511628211
-            nop.
+        set /h wrapMul bitXor /h u128Lo u128FromDc /c u64:1099511628211.
     ::.
     /h.
 
@@ -902,7 +861,19 @@ v/b/isEntityIdPrefixShortU32 u32/sid
     if or eq /sid u32:2199 or eq /sid u32:2200 or eq /sid u32:517 eq /sid u32:518
         return true
         nop.
-    or eq /sid u32:584 or eq /sid u32:586 or eq /sid u32:610 eq /sid u32:646.
+    if or eq /sid u32:584 or eq /sid u32:586 or eq /sid u32:610 eq /sid u32:646
+        return true
+        nop.
+    if or eq /sid u32:2198 or eq /sid u32:2201 or eq /sid u32:2205 eq /sid u32:2226
+        return true
+        nop.
+    if or eq /sid u32:2232 or eq /sid u32:2234 or eq /sid u32:2235 eq /sid u32:2236
+        return true
+        nop.
+    if or eq /sid u32:2237 or eq /sid u32:2450 or eq /sid u32:2576 eq /sid u32:2577
+        return true
+        nop.
+    or eq /sid u32:2578 or eq /sid u32:2580 or eq /sid u32:2674 eq /sid u32:2675.
 
 : @dc l8589993561
 v/b/isStageLBuiltinShortU32 u32/sid
@@ -1143,35 +1114,39 @@ v/capCallRes/capCallCached capClient/cli l/dc/req
         case some l/dc/resp
             return structNew capCallRes: cli /cli ok true payload /resp ::
         case none
-            match requestCapability dcsFromList /req
-                case err error/_e
+            do
+                const l/u8/respBytes requestCapabilityBytes encodeDcStream /req.
+                if eq /respBytes b"/xf4/x90/x88/x86"
                     return structNew capCallRes: cli /cli ok false payload errRecord b"Host capability invocation failed" ::
-                case ok dcs/rawResp
-                    do
-                        const l/dc/resp dcsToList /rawResp.
-                        if isErrorRecord /resp
-                            return structNew capCallRes: cli /cli ok false payload /resp ::
-                            nop.
-                        const capClient/nextCli with /cli buckets insertCapCache field /cli buckets /reqHash /req /resp.
-                        return structNew capCallRes: cli /nextCli ok true payload /resp ::
-                    ::
+                    nop.
+                const tup: b l/dc ::/dec decodeDcStream /respBytes.
+                if not field /dec u32:0
+                    return structNew capCallRes: cli /cli ok false payload errRecord b"Host capability invocation failed" ::
+                    nop.
+                const l/dc/resp field /dec u32:1.
+                if isErrorRecord /resp
+                    return structNew capCallRes: cli /cli ok false payload /resp ::
+                    nop.
+                const capClient/nextCli with /cli buckets insertCapCache field /cli buckets /reqHash /req /resp.
+                return structNew capCallRes: cli /nextCli ok true payload /resp ::
             ::
     ::.
 
 : @dc l8589992823
 v/capCallRes/capCallUncached capClient/cli l/dc/req
-    match requestCapability dcsFromList /req
-        case err error/_e
-            return structNew capCallRes: cli /cli ok false payload errRecord b"Dc 1940 host capability invocation failed" ::
-        case ok dcs/rawResp
-            do
-                const l/dc/resp dcsToList /rawResp.
-                if isErrorRecord /resp
-                    return structNew capCallRes: cli /cli ok false payload /resp ::
-                    nop.
-                return structNew capCallRes: cli /cli ok true payload /resp ::
-            ::
-    ::.
+    const l/u8/respBytes requestCapabilityBytes encodeDcStream /req.
+    if eq /respBytes b"/xf4/x90/x88/x86"
+        return structNew capCallRes: cli /cli ok false payload errRecord b"Dc 1940 host capability invocation failed" ::
+        nop.
+    const tup: b l/dc ::/dec decodeDcStream /respBytes.
+    if not field /dec u32:0
+        return structNew capCallRes: cli /cli ok false payload errRecord b"Dc 1940 host capability invocation failed" ::
+        nop.
+    const l/dc/resp field /dec u32:1.
+    if isErrorRecord /resp
+        return structNew capCallRes: cli /cli ok false payload /resp ::
+        nop.
+    structNew capCallRes: cli /cli ok true payload /resp ::.
 
 : @dc l8589992824
 v/capU128ListRes/queryWatermark capClient/cli
@@ -4437,8 +4412,8 @@ v/loadNsRes/loadNamespaceModules capClient/cli l/l/u8/segs b/allowStager
         nop.
     let buf/graphDeclItem/slItems bufNew graphDeclItem u64:8.
     let buf/graphDeclItem/srItems bufNew graphDeclItem u64:8.
-    let l/l/u128/seenSlSubjs emptyU128Set.
-    let l/l/u128/seenSrSubjs emptyU128Set.
+    let buf/l/u128/seenSlBuckets bufFill l/u128: :: u64:64.
+    let buf/l/u128/seenSrBuckets bufFill l/u128: :: u64:64.
     foreach u128/ctxId field /fpRes ids do
         const capTripleListRes/inCtx queryTriples /curCli true dc:646 false dc:0 true dcFromU128 /ctxId.
         set /curCli field /inCtx cli.
@@ -4475,9 +4450,21 @@ v/loadNsRes/loadNamespaceModules capClient/cli l/l/u8/segs b/allowStager
             const tup: b l/graphDeclItem ::/slUnp unpackGraphEntryTokens /subj /sid field /declNr payload false true.
             if field /slUnp u32:0
                 foreach graphDeclItem/it field /slUnp u32:1 do
-                    if not u128SetContains /seenSlSubjs field /it subjId
+                    const u128/slSid field /it subjId.
+                    const u64/slBi u128Bucket64 /slSid.
+                    const l/u128/slB match get /seenSlBuckets /slBi
+                        case some l/u128/xs /xs.
+                        case none l/u128: ::.
+                    ::.
+                    if not listContainsU128 /slB /slSid
                         do
-                            set /seenSlSubjs u128SetInsert /seenSlSubjs field /it subjId.
+                            let buf/u128/slNb bufNew u128 wrapAdd len /slB u64:1.
+                            bufExtend /slNb /slB.
+                            bufPush /slNb /slSid.
+                            match bufSet /seenSlBuckets /slBi bufFreeze /slNb
+                                case ok nop.
+                                case err error/_e nop.
+                            ::.
                             bufPush /slItems /it.
                         ::
                         nop.
@@ -4488,9 +4475,21 @@ v/loadNsRes/loadNamespaceModules capClient/cli l/l/u8/segs b/allowStager
                     const tup: b l/graphDeclItem ::/srUnp unpackGraphEntryTokens /subj /sid field /declNr payload true true.
                     if field /srUnp u32:0
                         foreach graphDeclItem/it field /srUnp u32:1 do
-                            if not u128SetContains /seenSrSubjs field /it subjId
+                            const u128/srSid field /it subjId.
+                            const u64/srBi u128Bucket64 /srSid.
+                            const l/u128/srB match get /seenSrBuckets /srBi
+                                case some l/u128/xs /xs.
+                                case none l/u128: ::.
+                            ::.
+                            if not listContainsU128 /srB /srSid
                                 do
-                                    set /seenSrSubjs u128SetInsert /seenSrSubjs field /it subjId.
+                                    let buf/u128/srNb bufNew u128 wrapAdd len /srB u64:1.
+                                    bufExtend /srNb /srB.
+                                    bufPush /srNb /srSid.
+                                    match bufSet /seenSrBuckets /srBi bufFreeze /srNb
+                                        case ok nop.
+                                        case err error/_e nop.
+                                    ::.
                                     bufPush /srItems /it.
                                 ::
                                 nop.
@@ -4888,14 +4887,43 @@ v/capCallRes/bundleDcModuleDeps capClient/cli l/dc/callerTokens b/allowStager
     let l/l/u8/enqueuedNs l/l/u8: ::.
     let buf/l/u8/nsQueue bufNew l/u8 u64:8.
     let buf/u128/dcQueue bufNew u128 u64:16.
-    let l/l/u128/enqueuedDcs emptyU128Set.
-    let l/l/u128/knownLocalDcs emptyU128Set.
-    let l/l/u128/callerLocalSet emptyU128Set.
+    let buf/l/u128/enqueuedDcsBuf bufFill l/u128: :: u64:64.
+    let buf/l/u128/knownLocalDcsBuf bufFill l/u128: :: u64:64.
+    let buf/l/u128/callerLocalSetBuf bufFill l/u128: :: u64:64.
 
     foreach bundledMod/cm /callerMods do
         foreach u128/ld field /cm localDcs do
-            set /knownLocalDcs u128SetInsert /knownLocalDcs /ld.
-            set /callerLocalSet u128SetInsert /callerLocalSet /ld.
+            const u64/kbi u128Bucket64 /ld.
+            const l/u128/kb match get /knownLocalDcsBuf /kbi
+                case some l/u128/xs /xs.
+                case none l/u128: ::.
+            ::.
+            if not listContainsU128 /kb /ld
+                do
+                    let buf/u128/knb bufNew u128 wrapAdd len /kb u64:1.
+                    bufExtend /knb /kb.
+                    bufPush /knb /ld.
+                    match bufSet /knownLocalDcsBuf /kbi bufFreeze /knb
+                        case ok nop.
+                        case err error/_e nop.
+                    ::.
+                ::
+                nop.
+            const l/u128/cb match get /callerLocalSetBuf /kbi
+                case some l/u128/xs /xs.
+                case none l/u128: ::.
+            ::.
+            if not listContainsU128 /cb /ld
+                do
+                    let buf/u128/cnb bufNew u128 wrapAdd len /cb u64:1.
+                    bufExtend /cnb /cb.
+                    bufPush /cnb /ld.
+                    match bufSet /callerLocalSetBuf /kbi bufFreeze /cnb
+                        case ok nop.
+                        case err error/_e nop.
+                    ::.
+                ::
+                nop.
         ::.
         foreach l/u8/uk field /cm useKeys do
             if not listContainsU8Seq /enqueuedNs /uk
@@ -4906,14 +4934,26 @@ v/capCallRes/bundleDcModuleDeps capClient/cli l/dc/callerTokens b/allowStager
                 nop.
         ::.
         foreach u128/rd field /cm refDcs do
-            if not u128SetContains /enqueuedDcs /rd
+            const u64/ebi u128Bucket64 /rd.
+            const l/u128/eb match get /enqueuedDcsBuf /ebi
+                case some l/u128/xs /xs.
+                case none l/u128: ::.
+            ::.
+            if not listContainsU128 /eb /rd
                 do
-                    set /enqueuedDcs u128SetInsert /enqueuedDcs /rd.
+                    let buf/u128/enb bufNew u128 wrapAdd len /eb u64:1.
+                    bufExtend /enb /eb.
+                    bufPush /enb /rd.
+                    match bufSet /enqueuedDcsBuf /ebi bufFreeze /enb
+                        case ok nop.
+                        case err error/_e nop.
+                    ::.
                     bufPush /dcQueue /rd.
                 ::
                 nop.
         ::.
     ::.
+    const l/l/u128/callerLocalSet bufFreeze /callerLocalSetBuf.
 
     let u64/nsIdx u64:0.
     let u64/dcIdx u64:0.
@@ -4937,7 +4977,22 @@ v/capCallRes/bundleDcModuleDeps capClient/cli l/dc/callerTokens b/allowStager
             foreach bundledMod/dm field /lnr mods do
                 bufPush /depModsBuf /dm.
                 foreach u128/ld field /dm localDcs do
-                    set /knownLocalDcs u128SetInsert /knownLocalDcs /ld.
+                    const u64/kbi u128Bucket64 /ld.
+                    const l/u128/kb match get /knownLocalDcsBuf /kbi
+                        case some l/u128/xs /xs.
+                        case none l/u128: ::.
+                    ::.
+                    if not listContainsU128 /kb /ld
+                        do
+                            let buf/u128/knb bufNew u128 wrapAdd len /kb u64:1.
+                            bufExtend /knb /kb.
+                            bufPush /knb /ld.
+                            match bufSet /knownLocalDcsBuf /kbi bufFreeze /knb
+                                case ok nop.
+                                case err error/_e nop.
+                            ::.
+                        ::
+                        nop.
                 ::.
                 foreach l/u8/uk field /dm useKeys do
                     if not listContainsU8Seq /enqueuedNs /uk
@@ -4948,9 +5003,20 @@ v/capCallRes/bundleDcModuleDeps capClient/cli l/dc/callerTokens b/allowStager
                         nop.
                 ::.
                 foreach u128/rd field /dm refDcs do
-                    if not u128SetContains /enqueuedDcs /rd
+                    const u64/ebi u128Bucket64 /rd.
+                    const l/u128/eb match get /enqueuedDcsBuf /ebi
+                        case some l/u128/xs /xs.
+                        case none l/u128: ::.
+                    ::.
+                    if not listContainsU128 /eb /rd
                         do
-                            set /enqueuedDcs u128SetInsert /enqueuedDcs /rd.
+                            let buf/u128/enb bufNew u128 wrapAdd len /eb u64:1.
+                            bufExtend /enb /eb.
+                            bufPush /enb /rd.
+                            match bufSet /enqueuedDcsBuf /ebi bufFreeze /enb
+                                case ok nop.
+                                case err error/_e nop.
+                            ::.
                             bufPush /dcQueue /rd.
                         ::
                         nop.
@@ -4964,7 +5030,11 @@ v/capCallRes/bundleDcModuleDeps capClient/cli l/dc/callerTokens b/allowStager
                     case none u128:0.
                 ::.
                 set /dcIdx wrapAdd /dcIdx u64:1.
-                if u128SetContains /knownLocalDcs /refU
+                const l/u128/kBucket match get /knownLocalDcsBuf u128Bucket64 /refU
+                    case some l/u128/xs /xs.
+                    case none l/u128: ::.
+                ::.
+                if listContainsU128 /kBucket /refU
                     continue
                     nop.
                 const dc/refDc dcFromU128 /refU.
@@ -5024,7 +5094,22 @@ v/capCallRes/bundleDcModuleDeps capClient/cli l/dc/callerTokens b/allowStager
                     ::.
                     bufPush /depModsBuf /syn.
                     foreach u128/ld field /it localDcs do
-                        set /knownLocalDcs u128SetInsert /knownLocalDcs /ld.
+                        const u64/kbi u128Bucket64 /ld.
+                        const l/u128/kb match get /knownLocalDcsBuf /kbi
+                            case some l/u128/xs /xs.
+                            case none l/u128: ::.
+                        ::.
+                        if not listContainsU128 /kb /ld
+                            do
+                                let buf/u128/knb bufNew u128 wrapAdd len /kb u64:1.
+                                bufExtend /knb /kb.
+                                bufPush /knb /ld.
+                                match bufSet /knownLocalDcsBuf /kbi bufFreeze /knb
+                                    case ok nop.
+                                    case err error/_e nop.
+                                ::.
+                            ::
+                            nop.
                     ::.
                     foreach l/u8/uk field /it useKeys do
                         if not listContainsU8Seq /enqueuedNs /uk
@@ -5035,9 +5120,20 @@ v/capCallRes/bundleDcModuleDeps capClient/cli l/dc/callerTokens b/allowStager
                             nop.
                     ::.
                     foreach u128/rd field /it refDcs do
-                        if not u128SetContains /enqueuedDcs /rd
+                        const u64/ebi u128Bucket64 /rd.
+                        const l/u128/eb match get /enqueuedDcsBuf /ebi
+                            case some l/u128/xs /xs.
+                            case none l/u128: ::.
+                        ::.
+                        if not listContainsU128 /eb /rd
                             do
-                                set /enqueuedDcs u128SetInsert /enqueuedDcs /rd.
+                                let buf/u128/enb bufNew u128 wrapAdd len /eb u64:1.
+                                bufExtend /enb /eb.
+                                bufPush /enb /rd.
+                                match bufSet /enqueuedDcsBuf /ebi bufFreeze /enb
+                                    case ok nop.
+                                    case err error/_e nop.
+                                ::.
                                 bufPush /dcQueue /rd.
                             ::
                             nop.
@@ -5445,21 +5541,154 @@ v/capCallRes/bundleDcModuleDeps capClient/cli l/dc/callerTokens b/allowStager
     const l/bundledMod/finalMods bufFreeze /finalBuf.
 
     : Phase 3: Compute external symbol references and render final StageL/StageR modules.
-    let l/l/u128/extRefSet emptyU128Set.
+    let buf/l/u128/extRefSetBuf bufFill l/u128: :: u64:64.
     foreach bundledMod/cm /callerMods do
-        foreach u128/rd field /cm refDcs do
-            if not listContainsU128 field /cm localDcs /rd
-                set /extRefSet u128SetInsert /extRefSet /rd
-                nop.
-        ::.
+        const l/u128/cmLocs field /cm localDcs.
+        if gt len /cmLocs u64:8
+            do
+                let buf/l/u128/cmLocBuckets bufFill l/u128: :: u64:64.
+                foreach u128/ld /cmLocs do
+                    const u64/lbi u128Bucket64 /ld.
+                    const l/u128/lb match get /cmLocBuckets /lbi
+                        case some l/u128/xs /xs.
+                        case none l/u128: ::.
+                    ::.
+                    if not listContainsU128 /lb /ld
+                        do
+                            let buf/u128/lnb bufNew u128 wrapAdd len /lb u64:1.
+                            bufExtend /lnb /lb.
+                            bufPush /lnb /ld.
+                            match bufSet /cmLocBuckets /lbi bufFreeze /lnb
+                                case ok nop.
+                                case err error/_e nop.
+                            ::.
+                        ::
+                        nop.
+                ::.
+                foreach u128/rd field /cm refDcs do
+                    const l/u128/lb match get /cmLocBuckets u128Bucket64 /rd
+                        case some l/u128/xs /xs.
+                        case none l/u128: ::.
+                    ::.
+                    if not listContainsU128 /lb /rd
+                        do
+                            const u64/exi u128Bucket64 /rd.
+                            const l/u128/exb match get /extRefSetBuf /exi
+                                case some l/u128/xs /xs.
+                                case none l/u128: ::.
+                            ::.
+                            if not listContainsU128 /exb /rd
+                                do
+                                    let buf/u128/exnb bufNew u128 wrapAdd len /exb u64:1.
+                                    bufExtend /exnb /exb.
+                                    bufPush /exnb /rd.
+                                    match bufSet /extRefSetBuf /exi bufFreeze /exnb
+                                        case ok nop.
+                                        case err error/_e nop.
+                                    ::.
+                                ::
+                                nop.
+                        ::
+                        nop.
+                ::.
+            ::
+            foreach u128/rd field /cm refDcs do
+                if not listContainsU128 /cmLocs /rd
+                    do
+                        const u64/exi u128Bucket64 /rd.
+                        const l/u128/exb match get /extRefSetBuf /exi
+                            case some l/u128/xs /xs.
+                            case none l/u128: ::.
+                        ::.
+                        if not listContainsU128 /exb /rd
+                            do
+                                let buf/u128/exnb bufNew u128 wrapAdd len /exb u64:1.
+                                bufExtend /exnb /exb.
+                                bufPush /exnb /rd.
+                                match bufSet /extRefSetBuf /exi bufFreeze /exnb
+                                    case ok nop.
+                                    case err error/_e nop.
+                                ::.
+                            ::
+                            nop.
+                    ::
+                    nop.
+            ::.
     ::.
     foreach bundledMod/fm /finalMods do
-        foreach u128/rd field /fm refDcs do
-            if not listContainsU128 field /fm localDcs /rd
-                set /extRefSet u128SetInsert /extRefSet /rd
-                nop.
-        ::.
+        const l/u128/fmLocs field /fm localDcs.
+        if gt len /fmLocs u64:8
+            do
+                let buf/l/u128/fmLocBuckets bufFill l/u128: :: u64:64.
+                foreach u128/ld /fmLocs do
+                    const u64/lbi u128Bucket64 /ld.
+                    const l/u128/lb match get /fmLocBuckets /lbi
+                        case some l/u128/xs /xs.
+                        case none l/u128: ::.
+                    ::.
+                    if not listContainsU128 /lb /ld
+                        do
+                            let buf/u128/lnb bufNew u128 wrapAdd len /lb u64:1.
+                            bufExtend /lnb /lb.
+                            bufPush /lnb /ld.
+                            match bufSet /fmLocBuckets /lbi bufFreeze /lnb
+                                case ok nop.
+                                case err error/_e nop.
+                            ::.
+                        ::
+                        nop.
+                ::.
+                foreach u128/rd field /fm refDcs do
+                    const l/u128/lb match get /fmLocBuckets u128Bucket64 /rd
+                        case some l/u128/xs /xs.
+                        case none l/u128: ::.
+                    ::.
+                    if not listContainsU128 /lb /rd
+                        do
+                            const u64/exi u128Bucket64 /rd.
+                            const l/u128/exb match get /extRefSetBuf /exi
+                                case some l/u128/xs /xs.
+                                case none l/u128: ::.
+                            ::.
+                            if not listContainsU128 /exb /rd
+                                do
+                                    let buf/u128/exnb bufNew u128 wrapAdd len /exb u64:1.
+                                    bufExtend /exnb /exb.
+                                    bufPush /exnb /rd.
+                                    match bufSet /extRefSetBuf /exi bufFreeze /exnb
+                                        case ok nop.
+                                        case err error/_e nop.
+                                    ::.
+                                ::
+                                nop.
+                        ::
+                        nop.
+                ::.
+            ::
+            foreach u128/rd field /fm refDcs do
+                if not listContainsU128 /fmLocs /rd
+                    do
+                        const u64/exi u128Bucket64 /rd.
+                        const l/u128/exb match get /extRefSetBuf /exi
+                            case some l/u128/xs /xs.
+                            case none l/u128: ::.
+                        ::.
+                        if not listContainsU128 /exb /rd
+                            do
+                                let buf/u128/exnb bufNew u128 wrapAdd len /exb u64:1.
+                                bufExtend /exnb /exb.
+                                bufPush /exnb /rd.
+                                match bufSet /extRefSetBuf /exi bufFreeze /exnb
+                                    case ok nop.
+                                    case err error/_e nop.
+                                ::.
+                            ::
+                            nop.
+                    ::
+                    nop.
+            ::.
     ::.
+    const l/l/u128/extRefSet bufFreeze /extRefSetBuf.
 
     let buf/bundledMod/rendered bufNew bundledMod len /finalMods.
     foreach bundledMod/fm /finalMods do
@@ -5581,44 +5810,62 @@ v/capCallRes/prependStage0KvMap capClient/cli l/dc/moduleStream
     let capClient/curCli /cli.
     let buf/dc/presentBuf bufNew dc u64:16.
     bufPush /presentBuf dc:2580.
+    let buf/b/seenOp bufFill false u64:128.
+    match bufSet /seenOp u64:68 true
+        case ok nop.
+        case err error/_e nop.
+    ::.
     foreach dc/tok /moduleStream do
         const u32/tsid dcShortId /tok.
         if and ne /tsid /noRegionId isStageLBuiltinShortU32 /tsid
             do
-                let b/seenTok false.
-                let b/seenEq false.
-                let b/seenNe false.
-                let u64/pi u64:0.
-                while lt /pi len /presentBuf do
-                    const dc/px match get /presentBuf /pi
-                        case some dc/v /v.
-                        case none break.
-                    ::.
-                    const u32/psid dcShortId /px.
-                    if eq /psid /tsid
-                        set /seenTok true
-                        nop.
-                    if eq /psid u32:2535
-                        set /seenEq true
-                        nop.
-                    if eq /psid u32:2536
-                        set /seenNe true
-                        nop.
-                    set /pi wrapAdd /pi u64:1.
+                const u64/opIdx wrapSub conv /tsid u64 u64:2512.
+                const b/seenTok match get /seenOp /opIdx
+                    case some b/b /b.
+                    case none false.
                 ::.
                 if not /seenTok
-                    bufPush /presentBuf /tok
-                    nop.
-                if or eq /tsid u32:2535 eq /tsid u32:2536
                     do
-                        if and not /seenEq ne /tsid u32:2535
-                            bufPush /presentBuf dc:2535
-                            nop.
-                        if and not /seenNe ne /tsid u32:2536
-                            bufPush /presentBuf dc:2536
-                            nop.
+                        match bufSet /seenOp /opIdx true
+                            case ok nop.
+                            case err error/_e nop.
+                        ::.
+                        bufPush /presentBuf /tok.
                     ::
                     nop.
+                if eq /tsid u32:2535
+                    do
+                        const b/seenNe match get /seenOp u64:24
+                            case some b/b /b.
+                            case none false.
+                        ::.
+                        if not /seenNe
+                            do
+                                match bufSet /seenOp u64:24 true
+                                    case ok nop.
+                                    case err error/_e nop.
+                                ::.
+                                bufPush /presentBuf dc:2536.
+                            ::
+                            nop.
+                    ::
+                    if eq /tsid u32:2536
+                        do
+                            const b/seenEq match get /seenOp u64:23
+                                case some b/b /b.
+                                case none false.
+                            ::.
+                            if not /seenEq
+                                do
+                                    match bufSet /seenOp u64:23 true
+                                        case ok nop.
+                                        case err error/_e nop.
+                                    ::.
+                                    bufPush /presentBuf dc:2535.
+                                ::
+                                nop.
+                        ::
+                        nop.
             ::
             nop.
     ::.

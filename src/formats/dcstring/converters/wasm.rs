@@ -5570,7 +5570,7 @@ pub fn run_graph_stager_dc_2608_with_quota(
     resolver: &dyn SyntaxRuleResolver,
     shared_quota: Option<SharedWasmTaskQuota>,
 ) -> Result<Option<DcMstring>> {
-    const DIRECT_DC2608_MAX_INSTRUCTIONS: u64 = 1_000_000_000;
+    const DIRECT_DC2608_MAX_INSTRUCTIONS: u64 = 4_000_000_000;
     const DIRECT_DC2608_MAX_MEMORY_PAGES: usize = 2048;
     const DIRECT_DC2608_MAX_STEP_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
     const DIRECT_DC2608_MAX_SESSION_OUTPUT_BYTES: usize = 64 * 1024 * 1024;
