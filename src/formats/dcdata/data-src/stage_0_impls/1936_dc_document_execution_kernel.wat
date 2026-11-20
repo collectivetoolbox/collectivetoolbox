@@ -63,7 +63,7 @@
     (if (i32.eq $in_ptr $in_end)
       (then
         ;; Empty input: populate default 76-byte kernel configuration record.
-        (i32.store $CFG_VERSION 1)
+        (i32.store $CFG_VERSION 2)
         (i64.store align=1 $CFG_COMPUTE_QUOTA_BUDGET     10000000)
         (i64.store align=1 $CFG_CALL_DEPTH      256)
         (i64.store align=1 $CFG_MAX_NODES       -1)
@@ -96,8 +96,8 @@
             (br $decode_loop)))
         (when (i32.ne $idx $CFG_LEN) (unreachable))))
 
-    ;; Validate configuration invariants (version == 1, compute_quota > 0, call_depth > 0).
-    (when (i32.ne (i32.load $CFG_VERSION) 1) (unreachable))
+    ;; Validate configuration invariants (version == 2, compute_quota > 0, call_depth > 0).
+    (when (i32.ne (i32.load $CFG_VERSION) 2) (unreachable))
     (when (i64.eqz (i64.load align=1 $CFG_COMPUTE_QUOTA_BUDGET)) (unreachable))
     (when (i64.eqz (i64.load align=1 $CFG_CALL_DEPTH)) (unreachable))
 

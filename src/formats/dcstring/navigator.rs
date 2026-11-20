@@ -6150,18 +6150,18 @@ mod tests {
         nav.validate_document(&strict)?;
         let snap_after_two = nav.shared_wasm_task_quota().snapshot()?;
         assert!(
-            snap_after_two.total_instructions_executed >= 20,
-            "Expected shared task quota to record instructions from both splice invocations, got {}",
+            snap_after_two.total_instructions_executed >= 2,
+            "Expected shared task quota to record checkpoints from both splice invocations, got {}",
             snap_after_two.total_instructions_executed
         );
         assert_eq!(snap_after_two.cumulative_output_bytes, 4);
 
-        // 2. With a shared task quota of 15 instructions (enough for 1 invocation = 11 instructions,
-        //    not enough for 2 invocations = 22 instructions), the second splice invocation fails with
+        // 2. With a shared task quota of 1 checkpoint unit (enough for 1 invocation = 1 unit,
+        //    not enough for 2 invocations = 2 units), the second splice invocation fails with
         //    `ComputeQuotaExhausted`!
         let tight_quota = crate::converters::wasm::SharedWasmTaskQuota::new(
             crate::DcWasmResourceLimits::default()
-                .with_max_instructions_per_step(15),
+                .with_max_instructions_per_step(1),
         );
         let mut tight_nav = DcDocumentNavigator::from_mstr(&doc)
             .with_shared_wasm_task_quota(tight_quota);

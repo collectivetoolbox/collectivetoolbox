@@ -65,7 +65,7 @@ for (const testCase of cases) {
   const exports = instance.exports;
   if (exports.__ctb_wasm_start) {
     exports.__ctb_quota_remaining.value = BigInt(testCase.quota);
-    exports.__ctb_WASM_start?.();
+    exports.__ctb_wasm_start();
   }
   exports.__ctb_quota_remaining.value = BigInt(testCase.quota);
   exports.__ctb_quota_consumed.value = 0n;

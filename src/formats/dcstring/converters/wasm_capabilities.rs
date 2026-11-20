@@ -1091,7 +1091,8 @@ mod tests {
 
         // Exhausting shared quota propagates `WasmResourceInterruption` instead of hiding it in 552..553.
         let tiny_quota = SharedWasmTaskQuota::new(
-            DcWasmResourceLimits::default().with_max_instructions_per_step(1),
+            DcWasmResourceLimits::default()
+                .with_max_instructions_per_step(cost_one.saturating_sub(1)),
         );
         let err = eval_pure_graph_capability_request(
             &req,

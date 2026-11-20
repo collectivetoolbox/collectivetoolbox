@@ -1869,7 +1869,7 @@ impl WasmStepStatus {
 }
 
 /// Version identifier for the portable WebAssembly resource-accounting rule set.
-pub const WASM_RESOURCE_ACCOUNTING_VERSION: u32 = 1;
+pub const WASM_RESOURCE_ACCOUNTING_VERSION: u32 = 2;
 
 /// Default maximum number of portable WASM compute quota units permitted in a [`DcWasmSession`].
 pub const DEFAULT_MAX_WASM_INSTRUCTIONS_PER_STEP: u64 = 10_000_000;
@@ -7614,13 +7614,13 @@ mod tests {
 
         let mut compatibility_cases = Vec::new();
         for (quota, interrupted_op, required_cost, consumed, remaining) in [
-            (1_u64, Some(2_u64), Some(1_u64), 1_u64, 0_u64),
+            (0_u64, Some(1_u64), Some(1_u64), 0_u64, 0_u64),
+            (1, Some(2), Some(1), 1, 0),
             (5, Some(6), Some(1), 5, 0),
-            (12, Some(13), Some(1), 12, 0),
-            (35, Some(36), Some(1), 35, 0),
-            (65, Some(66), Some(1), 65, 0),
-            (95, Some(90), Some(17), 89, 6),
-            (200, None, None, 175, 25),
+            (11, Some(12), Some(17), 11, 0),
+            (20, Some(12), Some(17), 11, 9),
+            (35, Some(13), Some(65), 28, 7),
+            (100, None, None, 93, 7),
         ] {
             let limits = DcWasmResourceLimits::default()
                 .with_max_instructions_per_step(quota)
@@ -7920,10 +7920,10 @@ mod tests {
             },
         }));
 
-        // 5. Multi-quantum continuation resumption (`35 -> +60 (95) -> +105 (200)`) on a single
+        // 5. Multi-quantum continuation resumption (`5 -> +15 (20) -> +80 (100)`) on a single
         //    live `DcWasmSession`, verifying every intermediate and final checkpoint matches V8!
         let limits = DcWasmResourceLimits::default()
-            .with_max_instructions_per_step(35)
+            .with_max_instructions_per_step(5)
             .with_max_memory_pages(4);
         let mut session = DcWasmSession::from_wasm_bytes_with_limits(
             &wasm,
@@ -7932,47 +7932,47 @@ mod tests {
             limits,
         )?;
         let resume_wasm_bytes = session.instrumented_wasm_bytes().to_vec();
-        // Quantum 1 (limit 35): pauses at op 36 (cost 1)
+        // Quantum 1 (limit 5): pauses at checkpoint 6 (cost 1)
         let err1 = session
             .step()
-            .expect_err("Quota 35 must pause mid-execution");
+            .expect_err("Quota 5 must pause mid-execution");
         assert_eq!(
             err1.downcast_ref::<WasmResourceInterruption>(),
-            Some(&WasmResourceInterruption::ComputeQuotaExhausted { limit: 35 })
+            Some(&WasmResourceInterruption::ComputeQuotaExhausted { limit: 5 })
         );
-        assert_eq!(session.last_interrupted_op_ordinal(), Some(36));
+        assert_eq!(session.last_interrupted_op_ordinal(), Some(6));
         assert_eq!(session.last_interrupted_op_required_cost(), Some(1));
-        assert_eq!(session.total_instructions_executed(), 35);
+        assert_eq!(session.total_instructions_executed(), 5);
         assert_eq!(session.remaining_compute_quota(), 0);
 
-        // Quantum 2 (+60 => limit 95): resumes in place and pauses right before `memory.fill` at op 90 (cost 17)
-        session.increase_compute_quota(60);
+        // Quantum 2 (+15 => limit 20): resumes in place and pauses right before `memory.fill` at checkpoint 12 (cost 17)
+        session.increase_compute_quota(15);
         let err2 = session
             .step()
-            .expect_err("Quota 95 must pause before memory.fill (cost 17)");
+            .expect_err("Quota 20 must pause before memory.fill (cost 17)");
         assert_eq!(
             err2.downcast_ref::<WasmResourceInterruption>(),
-            Some(&WasmResourceInterruption::ComputeQuotaExhausted { limit: 95 })
+            Some(&WasmResourceInterruption::ComputeQuotaExhausted { limit: 20 })
         );
-        assert_eq!(session.last_interrupted_op_ordinal(), Some(90));
+        assert_eq!(session.last_interrupted_op_ordinal(), Some(12));
         assert_eq!(session.last_interrupted_op_required_cost(), Some(17));
-        assert_eq!(session.total_instructions_executed(), 89);
-        assert_eq!(session.remaining_compute_quota(), 6);
+        assert_eq!(session.total_instructions_executed(), 11);
+        assert_eq!(session.remaining_compute_quota(), 9);
         assert_eq!(session.read_memory(32, 4)?, 5_i32.to_le_bytes());
 
-        // Quantum 3 (+105 => limit 200): resumes in place at `memory.fill`, runs `memory.grow(1)`, and completes!
-        session.increase_compute_quota(105);
+        // Quantum 3 (+80 => limit 100): resumes in place at `memory.fill`, runs `memory.grow(1)`, and completes!
+        session.increase_compute_quota(80);
         let outcome = session.step()?;
         assert!(matches!(outcome, WasmStepOutcome::Complete(_)));
-        assert_eq!(session.total_instructions_executed(), 175);
-        assert_eq!(session.remaining_compute_quota(), 25);
+        assert_eq!(session.total_instructions_executed(), 93);
+        assert_eq!(session.remaining_compute_quota(), 7);
         assert_eq!(session.current_memory_pages()?, 2);
         assert_eq!(session.read_memory(32, 4)?, 5_i32.to_le_bytes());
         assert_eq!(session.read_memory(36, 4)?, 1_i32.to_le_bytes());
         assert_eq!(session.read_memory(48, 16)?, vec![0x5a; 16]);
         compatibility_cases.push(serde_json::json!({
             "kind": "resumed_completion",
-            "quota": 200_u64,
+            "quota": 100_u64,
             "wasm": resume_wasm_bytes,
             "max_mem_pages": 4,
             "max_table_elems": 1024,
@@ -8098,8 +8098,8 @@ mod tests {
         );
 
         // Verify shared task quota across multiple sessions (`SharedWasmTaskQuota`):
-        // Each `grow_doc` run costs 133 compute units (1 + 2*64 = 129 for `memory.grow(2)` plus 4 scalar/end ops).
-        // Two sessions sharing a 200-unit task quota allow the first session (133 units, 67 remaining)
+        // Under V2 structural checkpoints, `grow_doc` costs 130 compute units (1 entry + 129 for `memory.grow(2)`).
+        // Two sessions sharing a 200-unit task quota allow the first session (130 units, 70 remaining)
         // and exhaust the quota on the second session.
         let shared = super::super::wasm_quota::SharedWasmTaskQuota::new(
             DcWasmResourceLimits::default().with_max_instructions_per_step(200),
@@ -8112,7 +8112,7 @@ mod tests {
         .with_shared_task_quota(shared.clone())?;
         assert!(matches!(s1.step()?, WasmStepOutcome::Complete(_)));
         let remaining_after_s1 = s1.remaining_compute_quota();
-        assert_eq!(remaining_after_s1, 67);
+        assert_eq!(remaining_after_s1, 70);
 
         let mut s2 = DcWasmSession::from_dc_wasm(
             &grow_doc,
@@ -8156,70 +8156,59 @@ mod tests {
     -> Result<()> {
         let i32_dc = i32_type_dc();
 
-        // 1. Safe basic-block batching with near-exhaustion fallback and mid-block trap flush:
-        // Build a routine that executes a contiguous basic block of 5 pure trap-free instructions
-        // (`i32.const 10`, `i32.const 20`, `i32.add`, `i32.const 5`, `i32.sub` -> 25),
-        // followed by a potentially-trapping `i32.div_s` (`25 / 0` -> traps!) and a trailing
-        // pure run (`i32.const 99`, `i32.add`, `drop`, `i32.const 0`).
-        // Total ops before `i32.div_s` traps:
-        //   op 1: function entry
-        //   ops 2..=6: batched 5-op pure run (`$__ctb_deduct_batch(5)`)
-        //   op 7: `i32.const 0` (divisor pushed right before `i32.div_s`, so batch size is 6: ops 2..=7!)
-        //   op 8: `i32.div_s` (unbatched `$__ctb_deduct(1)` right before trap!)
-        //   ops 9..=12: trailing ops AFTER `i32.div_s` (must NEVER be pre-deducted when `i32.div_s` traps!).
+        // 1. V2 structural checkpoints with mid-block trap safety and straight-line stride splitting:
+        // Routine executes 5 pure ops, then `i32.const 0`, then `i32.div_s` (traps), plus trailing ops.
+        // Under V2 checkpoints:
+        // - checkpoint 1: function entry (`quota = 0` stops BEFORE entry with 0 consumed)
+        // - `quota = 20`: `i32.div_s` traps consuming only 1 checkpoint unit (no pre-deduct past trap).
+        // Additionally, a straight-line 300-`nop` routine tests the V2_MAX_STRAIGHT_LINE_OPS (256)
+        // stride checkpoint (checkpoint 1 at entry, checkpoint 2 after 256 ordinary ops).
         let mut div_trap_doc = DcMstring::new();
         div_trap_doc.push_char(DcChar::from_short(260));
         div_trap_doc.push_char(DcChar::from_short(262));
         div_trap_doc.push_char(DcChar::from_short(280));
         div_trap_doc.push_char(i32_dc);
         div_trap_doc.push_char(DcChar::from_short(263));
-        div_trap_doc.push_char(DcChar::from_short(712)); // op 2: i32.const 10
+        div_trap_doc.push_char(DcChar::from_short(712)); // i32.const 10
         i32::encode_dc_mixed(&10, &mut div_trap_doc)?;
-        div_trap_doc.push_char(DcChar::from_short(712)); // op 3: i32.const 20
+        div_trap_doc.push_char(DcChar::from_short(712)); // i32.const 20
         i32::encode_dc_mixed(&20, &mut div_trap_doc)?;
-        div_trap_doc.push_char(DcChar::from_short(753)); // op 4: i32.add
-        div_trap_doc.push_char(DcChar::from_short(712)); // op 5: i32.const 5
+        div_trap_doc.push_char(DcChar::from_short(753)); // i32.add
+        div_trap_doc.push_char(DcChar::from_short(712)); // i32.const 5
         i32::encode_dc_mixed(&5, &mut div_trap_doc)?;
-        div_trap_doc.push_char(DcChar::from_short(754)); // op 6: i32.sub
-        div_trap_doc.push_char(DcChar::from_short(712)); // op 7: i32.const 0
+        div_trap_doc.push_char(DcChar::from_short(754)); // i32.sub
+        div_trap_doc.push_char(DcChar::from_short(712)); // i32.const 0
         i32::encode_dc_mixed(&0, &mut div_trap_doc)?;
-        div_trap_doc.push_char(DcChar::from_short(756)); // op 8: i32.div_s (traps on / 0!)
-        div_trap_doc.push_char(DcChar::from_short(712)); // op 9: i32.const 99
+        div_trap_doc.push_char(DcChar::from_short(756)); // i32.div_s (traps on / 0!)
+        div_trap_doc.push_char(DcChar::from_short(712)); // i32.const 99
         i32::encode_dc_mixed(&99, &mut div_trap_doc)?;
-        div_trap_doc.push_char(DcChar::from_short(753)); // op 10: i32.add
-        div_trap_doc.push_char(DcChar::from_short(673)); // op 11: drop
-        div_trap_doc.push_char(DcChar::from_short(712)); // op 12: i32.const 0
+        div_trap_doc.push_char(DcChar::from_short(753)); // i32.add
+        div_trap_doc.push_char(DcChar::from_short(673)); // drop
+        div_trap_doc.push_char(DcChar::from_short(712)); // i32.const 0
         i32::encode_dc_mixed(&0, &mut div_trap_doc)?;
         div_trap_doc.push_char(DcChar::from_short(261));
 
-        // Verify near-exhaustion fallback for every quota 0..=7 inside the batched 6-instruction run:
-        for quota in 0..=7_u64 {
-            let mut s = DcWasmSession::from_dc_wasm(
-                &div_trap_doc,
-                &DcMstring::new(),
-                None,
-            )?
-            .with_resource_limits(
-                DcWasmResourceLimits::default()
-                    .with_max_instructions_per_step(quota),
-            );
-            let err = s
-                .step()
-                .expect_err("Quota <= 7 must exhaust before i32.div_s");
-            assert_eq!(
-                err.downcast_ref::<WasmResourceInterruption>(),
-                Some(&WasmResourceInterruption::ComputeQuotaExhausted {
-                    limit: quota
-                })
-            );
-            assert_eq!(s.last_interrupted_op_ordinal(), Some(quota + 1));
-            assert_eq!(s.last_interrupted_op_required_cost(), Some(1));
-            assert_eq!(s.last_step_instructions(), quota);
-            assert_eq!(s.remaining_compute_quota(), 0);
-        }
+        let mut s0 = DcWasmSession::from_dc_wasm(
+            &div_trap_doc,
+            &DcMstring::new(),
+            None,
+        )?
+        .with_resource_limits(
+            DcWasmResourceLimits::default().with_max_instructions_per_step(0),
+        );
+        let err0 = s0
+            .step()
+            .expect_err("Quota 0 must exhaust at function entry before i32.div_s");
+        assert_eq!(
+            err0.downcast_ref::<WasmResourceInterruption>(),
+            Some(&WasmResourceInterruption::ComputeQuotaExhausted { limit: 0 })
+        );
+        assert_eq!(s0.last_interrupted_op_ordinal(), Some(1));
+        assert_eq!(s0.last_interrupted_op_required_cost(), Some(1));
+        assert_eq!(s0.last_step_instructions(), 0);
+        assert_eq!(s0.remaining_compute_quota(), 0);
 
-        // With quota = 20, `i32.div_s` at op 8 traps with division by zero, and ONLY 8 units
-        // (ops 1..=8) are consumed—trailing ops 9..=12 are never pre-deducted across `i32.div_s`!
+        // With quota = 20, `i32.div_s` traps with division by zero after consuming 1 V2 checkpoint.
         let mut trap_s = DcWasmSession::from_dc_wasm(
             &div_trap_doc,
             &DcMstring::new(),
@@ -8234,8 +8223,45 @@ mod tests {
                 .downcast_ref::<WasmResourceInterruption>()
                 .is_none()
         );
-        assert_eq!(trap_s.last_step_instructions(), 8);
-        assert_eq!(trap_s.remaining_compute_quota(), 12);
+        assert_eq!(trap_s.last_step_instructions(), 1);
+        assert_eq!(trap_s.remaining_compute_quota(), 19);
+
+        // Verify straight-line > V2_MAX_STRAIGHT_LINE_OPS (256) inserts deterministic stride checkpoint 2.
+        let mut stride_doc = DcMstring::new();
+        stride_doc.push_char(DcChar::from_short(260));
+        stride_doc.push_char(DcChar::from_short(262));
+        stride_doc.push_char(DcChar::from_short(280));
+        stride_doc.push_char(i32_dc);
+        stride_doc.push_char(DcChar::from_short(263));
+        for _ in 0..300 {
+            stride_doc.push_char(DcChar::from_short(648)); // nop
+        }
+        stride_doc.push_char(DcChar::from_short(712)); // i32.const 0
+        i32::encode_dc_mixed(&0, &mut stride_doc)?;
+        stride_doc.push_char(DcChar::from_short(261));
+
+        let mut stride_pause = DcWasmSession::from_dc_wasm(
+            &stride_doc,
+            &DcMstring::new(),
+            None,
+        )?
+        .with_resource_limits(
+            DcWasmResourceLimits::default().with_max_instructions_per_step(1),
+        );
+        let stride_err = stride_pause
+            .step()
+            .expect_err("300-nop straight-line routine must pause at stride checkpoint 2 under quota 1");
+        assert_eq!(
+            stride_err.downcast_ref::<WasmResourceInterruption>(),
+            Some(&WasmResourceInterruption::ComputeQuotaExhausted { limit: 1 })
+        );
+        assert_eq!(stride_pause.last_interrupted_op_ordinal(), Some(2));
+        assert_eq!(stride_pause.last_interrupted_op_required_cost(), Some(1));
+        assert_eq!(stride_pause.last_step_instructions(), 1);
+        assert_eq!(stride_pause.remaining_compute_quota(), 0);
+        stride_pause.increase_compute_quota(1);
+        assert!(matches!(stride_pause.step()?, WasmStepOutcome::Complete(_)));
+        assert_eq!(stride_pause.total_instructions_executed(), 2);
 
         // 2. Canonical config byte round-trip and watchdog bounds clamping:
         let watchdog = DcWasmWatchdogLimits::default()
@@ -8687,12 +8713,13 @@ mod tests {
             0x0b,
         ];
 
-        // Start with parent shared task quota = 30 units:
-        // - `start` consumes 7 units (`remaining == 23`)
-        // - `main` step 0 runs ~2 loop iterations (`mem[32] == 2`) and pauses mid-step when
-        //   all 30 units are consumed (`remaining == 0`).
+        // Start with parent shared task quota = 4 V2 checkpoint units:
+        // - `start` consumes 1 unit (`remaining == 3`)
+        // - `main` entry consumes 1 unit (`remaining == 2`)
+        // - loop runs 2 iterations (1 unit each, `mem[32] == 2`) and pauses on iteration 3
+        //   (`remaining == 0`, checkpoint 5).
         let parent_limits =
-            DcWasmResourceLimits::default().with_max_instructions_per_step(30);
+            DcWasmResourceLimits::default().with_max_instructions_per_step(4);
         let shared_parent = SharedWasmTaskQuota::new(parent_limits);
         let mut parent_session = DcWasmSession::from_wasm_bytes_with_limits(
             &wasm_with_start_and_loop,
@@ -8705,17 +8732,17 @@ mod tests {
 
         let pause_err = parent_session
             .step()
-            .expect_err("Parent session must pause mid-step at quota 30");
+            .expect_err("Parent session must pause mid-step at quota 4");
         assert_eq!(
             pause_err.downcast_ref::<WasmResourceInterruption>(),
-            Some(&WasmResourceInterruption::ComputeQuotaExhausted { limit: 30 })
+            Some(&WasmResourceInterruption::ComputeQuotaExhausted { limit: 4 })
         );
         // Verify partial loop progress (`mem[32] == 2`) is live in memory while suspended:
         assert_eq!(parent_session.read_memory(32, 4)?, 2_i32.to_le_bytes());
 
         // Grant +100 units to the shared parent quota, then while the parent is STILL paused
         // mid-step, allocate a 20-unit child task quota, run a small child helper session
-        // (consuming 3 units), and reclaim the unused 17 units back into `shared_parent`!
+        // (consuming 1 checkpoint unit), and reclaim the unused 19 units back into `shared_parent`!
         shared_parent.increase_compute_quota(100)?;
         let (child_quota, _) =
             shared_parent.allocate_child_task_quota(20, 64)?;
@@ -8736,11 +8763,11 @@ mod tests {
         .with_shared_task_quota(child_quota.clone())?;
         assert!(matches!(child_session.step()?, WasmStepOutcome::Complete(_)));
         let child_used = child_session.total_instructions_executed();
-        assert_eq!(child_used, 2);
+        assert_eq!(child_used, 1);
         shared_parent.reclaim_child_task_quota(&child_quota)?;
         assert_eq!(
             shared_parent.snapshot()?.total_instructions_executed,
-            30 + child_used
+            4 + child_used
         );
 
         // Now resume the paused parent session (`parent_session.step()`):
@@ -9155,8 +9182,8 @@ mod tests {
         doc.push_char(DcChar::from_short(316));
 
         emit_i32(&mut doc, 712, 64)?;
-        emit_i32(&mut doc, 712, 1)?;
-        emit_mem(&mut doc, 701, 2, 0)?; // accounting_version = 1
+        emit_i32(&mut doc, 712, 2)?;
+        emit_mem(&mut doc, 701, 2, 0)?; // accounting_version = 2
         for (addr, val) in [
             (68i32, 10_000_000_i64),
             (76, 256),
@@ -9250,10 +9277,10 @@ mod tests {
 
         emit_op(&mut doc, 658); // end if in_len == 0
 
-        // 3. Validate accounting_version == 1, max_instructions_per_step > 0, max_memory_pages > 0
+        // 3. Validate accounting_version == 2, max_instructions_per_step > 0, max_memory_pages > 0
         emit_i32(&mut doc, 712, 64)?;
         emit_mem(&mut doc, 687, 2, 0)?;
-        emit_i32(&mut doc, 712, 1)?;
+        emit_i32(&mut doc, 712, 2)?;
         emit_op(&mut doc, 718);
         emit_trap_if(&mut doc);
 
@@ -9471,7 +9498,11 @@ mod tests {
 
         for invalid in [
             DcWasmResourceLimits {
-                accounting_version: 2,
+                accounting_version: 1,
+                ..DcWasmResourceLimits::default()
+            },
+            DcWasmResourceLimits {
+                accounting_version: 3,
                 ..DcWasmResourceLimits::default()
             },
             DcWasmResourceLimits::default().with_max_instructions_per_step(0),

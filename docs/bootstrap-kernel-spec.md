@@ -207,13 +207,14 @@ Each invocation of `"step"` returns an `i32` [`WasmStepStatus`](../src/formats/d
 The host enforces portable, runtime-independent WebAssembly resource limits
 ([`DcWasmResourceLimits`](../src/formats/dcstring/converters/wasm.rs)) by instrumenting
 standard `.wasm` bytecode before instantiation via [`instrument_wasm_module_bytes`](../src/formats/dcstring/converters/wasm_quota.rs)
-and running on unmodified `tinywasm 0.8.0` (with no forked WASM runtime required):
-1. **Portable compute quota** (`max_instructions_per_step`, default `10_000_000` compute units): metered in standard WebAssembly bytecode (`deduct-before-effect`) across the hoisted `start` section (`__ctb_wasm_start`), every `step()` call, and shared task helper evaluations ([`SharedWasmTaskQuota`](../src/formats/dcstring/converters/wasm_quota.rs)):
-   - Function entry, `loop` body entry, and each standard instruction (excluding structural `else` / `end` delimiters): `1` compute unit.
-   - Bulk memory/table operations (`memory.copy`, `memory.fill`, `memory.init`, `table.copy`, `table.fill`, `table.init`): `1 + u64(n)` compute units.
-   - `memory.grow`: `1` unit when logically denied (`delta < 0` or exceeding `max_memory_pages` or declared maximum, returning `-1`); `1 + 64 * u64(delta)` units when logically allowed.
-   - `table.grow`: `1` unit when logically denied (`delta < 0` or exceeding `max_table_elements` or declared maximum, returning `-1`); `1 + u64(delta)` units when logically allowed.
-   - Exhausting the remaining allowance pauses before the next operation takes effect, records the 1-based interrupted operation ordinal (`__ctb_interrupted_op`) and required cost (`__ctb_required_cost`), and raises `WasmResourceInterruption::ComputeQuotaExhausted` (`Privilege::ExcessiveCompute`). Granting additional compute quota via `DcWasmSession::increase_compute_quota` (`PermissionDecision::Allow`) resumes execution from the paused logical step without repeating earlier side effects.
+and executing either on unmodified `tinywasm 0.8.0` or an observationally identical
+Guix-style native Rust substitute (keyed by accounting version and canonical `.wasm` SHA-256):
+1. **Portable compute quota** (`max_instructions_per_step`, default `10_000_000` compute units): metered via deterministic V2 structural checkpoints (`deduct-before-effect`) across the hoisted `start` section (`__ctb_wasm_start`), every `step()` call, and shared task helper evaluations ([`SharedWasmTaskQuota`](../src/formats/dcstring/converters/wasm_quota.rs)):
+   - Function entry (covering direct calls, `call_indirect`, `return_call`, and `return_call_indirect`), `loop` body entry, and every `V2_MAX_STRAIGHT_LINE_OPS` (`256`) ordinary non-loop/non-bulk/non-grow instructions along a function's bytecode scan: `1` compute unit.
+   - Bulk memory/table operations (`memory.copy`, `memory.fill`, `memory.init`, `table.copy`, `table.fill`, `table.init`): `1 + u64(n)` compute units (and resets the straight-line op counter).
+   - `memory.grow`: `1` unit when logically denied (`delta < 0` or exceeding `max_memory_pages` or declared maximum, returning `-1`); `1 + 64 * u64(delta)` units when logically allowed (and resets the straight-line op counter).
+   - `table.grow`: `1` unit when logically denied (`delta < 0` or exceeding `max_table_elements` or declared maximum, returning `-1`); `1 + u64(delta)` units when logically allowed (and resets the straight-line op counter).
+   - Exhausting the remaining allowance pauses before the checkpoint takes effect, records the 1-based interrupted checkpoint ordinal (`__ctb_interrupted_op`) and required cost (`__ctb_required_cost`), and raises `WasmResourceInterruption::ComputeQuotaExhausted` (`Privilege::ExcessiveCompute`). Granting additional compute quota via `DcWasmSession::increase_compute_quota` (`PermissionDecision::Allow`) resumes execution from the paused logical step without repeating earlier side effects.
 2. **Store-wide and per-memory linear memory page cap** (`max_memory_pages`, default `256` pages = `16 MiB` total across all module memories, plus `physical_max_memory_pages`): enforced during module instantiation, `provide_input`, and instrumented `memory.grow` (`__ctb_total_mem_pages`). Logical growth denial returns standard WASM `-1`; physical allocation failure below the logical quota or host cap-lowering violations raise `WasmResourceInterruption::MemoryLimitExceeded`.
 3. **Store-wide and per-table element cap** (`max_table_elements`, default `65_536` elements total across all module tables, plus `physical_max_table_elements`): enforced during module instantiation, instrumented `table.grow` (`__ctb_total_table_elems`), and before each `step()`. Logical growth denial returns standard WASM `-1`; physical allocation failure below the logical quota raises `WasmResourceInterruption::TableLimitExceeded`.
 4. **Single-step output slice cap** (`max_step_output_bytes`, default `4 MiB`): checked before allocating/copying `out_len` bytes from linear memory (`WasmResourceInterruption::StepOutputSliceTooLarge`).
@@ -238,11 +239,12 @@ Runtime-specific interpreter or JIT instruction counts are host watchdogs, not
 portable compute quota units.
 
 Because [`instrument_wasm_module_bytes`](../src/formats/dcstring/converters/wasm_quota.rs)
-injects `deduct-before-effect` accounting directly into standard WebAssembly
-bytecode before engine-specific lowering or compilation, any compliant
-WebAssembly runtime (`tinywasm 0.8.0`, V8/Node `WebAssembly`, Wasmtime, etc.)
-executes the exact same compute-quota deductions and interrupts at the exact
-same 1-based logical operation ordinal (`__ctb_interrupted_op`) with identical
+injects `deduct-before-effect` V2 structural-checkpoint accounting directly into
+standard WebAssembly bytecode before engine-specific lowering or compilation, any
+compliant WebAssembly runtime (`tinywasm 0.8.0`, V8/Node `WebAssembly`, Wasmtime,
+etc.) and any Guix-style native Rust substitute derived from the canonical WASM
+execute the exact same compute-quota deductions and interrupt at the exact
+same 1-based logical checkpoint ordinal (`__ctb_interrupted_op`) with identical
 prior linear-memory, global, and table state. Timeouts and OS allocator
 exhaustion remain host safety events distinct from language-level compute quotas.
 

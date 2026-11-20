@@ -3394,7 +3394,7 @@ mod tests {
         };
 
         let routine_v1 = build_cap_routine(0)?;
-        let routine_v2_extra_instrs = build_cap_routine(75)?;
+        let routine_v2_extra_instrs = build_cap_routine(300)?;
 
         let mut file_io_input = DcMstring::new();
         file_io_input.push_str("FileIo");
@@ -3470,10 +3470,13 @@ mod tests {
         //    executes `session.step()` under the recorded configuration and triggers the exact
         //    recorded `WasmResourceInterruption` at `last_interrupted_op_ordinal`.
         let low_compute_quota =
-            DcWasmResourceLimits::default().with_max_instructions_per_step(5);
-        let mut interrupted_session =
-            DcWasmSession::from_dc_wasm(&routine_v1, &file_io_input, None)?
-                .with_resource_limits(low_compute_quota);
+            DcWasmResourceLimits::default().with_max_instructions_per_step(1);
+        let mut interrupted_session = DcWasmSession::from_dc_wasm(
+            &routine_v2_extra_instrs,
+            &file_io_input,
+            None,
+        )?
+        .with_resource_limits(low_compute_quota);
         let mut int_ctx = ExecutionContext::new(false);
         let interrupted_trace = int_ctx
             .execute_wasm_session_default_with_trace(
@@ -3481,24 +3484,27 @@ mod tests {
                 &file_io_input,
             )?;
         assert!(interrupted_trace.result.broke_out_early);
-        assert_eq!(interrupted_trace.last_interrupted_op_ordinal, Some(6));
+        assert_eq!(interrupted_trace.last_interrupted_op_ordinal, Some(2));
         assert_eq!(
             interrupted_trace.last_interrupted_op_required_cost,
             Some(1)
         );
 
-        let mut fast_replay_session =
-            DcWasmSession::from_dc_wasm(&routine_v1, &file_io_input, None)?;
+        let mut fast_replay_session = DcWasmSession::from_dc_wasm(
+            &routine_v2_extra_instrs,
+            &file_io_input,
+            None,
+        )?;
         let replayed_int = replay_ctx.replay_wasm_session_trace(
             &mut fast_replay_session,
             &file_io_input,
             &interrupted_trace,
         )?;
         assert_eq!(replayed_int, interrupted_trace);
-        assert_eq!(fast_replay_session.total_instructions_executed(), 5);
+        assert_eq!(fast_replay_session.total_instructions_executed(), 1);
         assert_eq!(
             fast_replay_session.last_interrupted_op_ordinal(),
-            Some(6)
+            Some(2)
         );
         assert_eq!(
             fast_replay_session.last_interrupted_op_required_cost(),
@@ -3508,8 +3514,11 @@ mod tests {
         // Tampering with `last_interrupted_op_ordinal` in the recorded trace must fail replay verification.
         let mut forged_ordinal_trace = interrupted_trace.clone();
         forged_ordinal_trace.last_interrupted_op_ordinal = Some(99);
-        let mut forged_replay_session =
-            DcWasmSession::from_dc_wasm(&routine_v1, &file_io_input, None)?;
+        let mut forged_replay_session = DcWasmSession::from_dc_wasm(
+            &routine_v2_extra_instrs,
+            &file_io_input,
+            None,
+        )?;
         assert!(
             replay_ctx
                 .replay_wasm_session_trace(
@@ -3766,11 +3775,11 @@ mod tests {
         bounded_doc.push_char(DcChar::from_short(658)); // end if
         bounded_doc.push_char(DcChar::from_short(261));
 
-        // Step 0 consumes ~21 instructions; step 1 consumes ~16 instructions (~37 total).
-        // Start with quota 25 so step 0 succeeds (`YieldFrame`), step 1 triggers `ComputeQuotaExhausted`,
+        // Step 0 consumes 1 V2 checkpoint unit; step 1 consumes 1 unit (2 total).
+        // Start with quota 1 so step 0 succeeds (`YieldFrame`), step 1 triggers `ComputeQuotaExhausted`,
         // and granting +50 via `PermissionDecision::Allow` resumes step 1 to completion.
         let tight_limits =
-            DcWasmResourceLimits::default().with_max_instructions_per_step(25);
+            DcWasmResourceLimits::default().with_max_instructions_per_step(1);
         let mut resumable_session =
             DcWasmSession::from_dc_wasm(&bounded_doc, &input, None)?
                 .with_resource_limits(tight_limits);
@@ -3789,7 +3798,7 @@ mod tests {
             e,
             WasmTraceEvent::ResourceInterruption {
                 after_logical_steps: 1,
-                interruption: Some(WasmResourceInterruption::ComputeQuotaExhausted { limit: 25 }),
+                interruption: Some(WasmResourceInterruption::ComputeQuotaExhausted { limit: 1 }),
                 decision: PermissionDecision::Allow,
             }
         )));
@@ -4717,8 +4726,8 @@ mod tests {
             id
         };
 
-        // Target WASM spins 80 iterations; converter spins 80 iterations.
-        let target_wasm = build_minimal_constant_output_wasm_doc(b'Q', 80)?;
+        // Target WASM spins 120 iterations (> 100 V2 checkpoints); converter spins 80 iterations.
+        let target_wasm = build_minimal_constant_output_wasm_doc(b'Q', 120)?;
         let conv_wasm = build_converter_emitting_constant_wasm_shorthands(
             &target_wasm,
             80,
@@ -5578,7 +5587,7 @@ pub v/l/u8/step l/u8/input
 
         // 3. Exhausting shared compute quota inside Dc 1940 child WASM records ResourceInterruption.
         let tiny_limits = DcWasmResourceLimits::default()
-            .with_max_instructions_per_step(300);
+            .with_max_instructions_per_step(5);
         let tiny_quota =
             ctb_formats_dcstring::converters::wasm::SharedWasmTaskQuota::new(
                 tiny_limits,
