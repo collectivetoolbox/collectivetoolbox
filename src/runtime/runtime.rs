@@ -5793,4 +5793,156 @@ pub v/l/u8/step l/u8/input
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_wasm_substitute_cross_backend_trace_replay_parity() -> Result<()> {
+        use ctb_formats_dcstring::converters::wasm::{
+            DcWasmExecutionBackend, compile_system_target_wasm_bytes,
+        };
+        use ctb_formats_dcstring::stagel3::seed_linker::{
+            bundle_dc_module_for_wasm_converter,
+            sl3_to_dc_tokens_with_seed_graph,
+        };
+        use ctb_formats_dcstring::syntax::default_syntax_resolver;
+        use ctb_formats_dcstring::{DcWasmResourceLimits, WasmResourceInterruption};
+
+        ctb_wasm_substitutes::ensure_registered();
+        let resolver = default_syntax_resolver();
+        let sg = SeedGraphIndex::shared()?;
+        let f1680_wasm =
+            compile_system_target_wasm_bytes("f1680", resolver.as_ref())?;
+
+        let tiny_sl3 = "v/l/u8/step l/u8/input :: concat b\"ok:\" /input.\n";
+        let entry_tokens = sl3_to_dc_tokens_with_seed_graph(tiny_sl3, sg)?;
+        let bundled = bundle_dc_module_for_wasm_converter(
+            &entry_tokens,
+            sg,
+            resolver.as_ref(),
+        )?;
+        let mut input_doc = DcMstring::new();
+        for &tok in &bundled {
+            input_doc.push_char(tok);
+        }
+
+        let base_limits = DcWasmResourceLimits::default()
+            .with_max_instructions_per_step(50_000_000)
+            .with_max_memory_pages(512)
+            .with_max_step_output_bytes(8 * 1024 * 1024)
+            .with_max_session_output_bytes(16 * 1024 * 1024);
+
+        let mut measure_session =
+            DcWasmSession::from_wasm_bytes_with_limits_and_backend(
+                &f1680_wasm,
+                &input_doc,
+                None,
+                base_limits,
+                DcWasmExecutionBackend::Auto,
+            )?;
+        assert!(measure_session.used_native_substitute());
+        let mut measure_ctx = ExecutionContext::new(false);
+        let full_trace = measure_ctx.execute_wasm_session_default_with_trace(
+            &mut measure_session,
+            &input_doc,
+        )?;
+        let full_total = measure_session.total_instructions_executed();
+        assert!(full_total > 10 && !full_trace.result.broke_out_early);
+
+        let tight_quota = (full_total / 2).max(1);
+        let tight_limits =
+            base_limits.with_max_instructions_per_step(tight_quota);
+        let grant = full_total.saturating_mul(2);
+
+        // 1. Record trace on NativeSubstitute (`Auto`), then replay on `ForceTinyWasm`.
+        let mut s_native =
+            DcWasmSession::from_wasm_bytes_with_limits_and_backend(
+                &f1680_wasm,
+                &input_doc,
+                None,
+                tight_limits,
+                DcWasmExecutionBackend::Auto,
+            )?;
+        assert!(s_native.used_native_substitute());
+        let mut ctx_native = ExecutionContext::new(false)
+            .with_compute_quota_grant(grant)
+            .with_privilege_decision(
+                Privilege::ExcessiveCompute,
+                PermissionDecision::Allow,
+            );
+        let trace_native = ctx_native.execute_wasm_session_default_with_trace(
+            &mut s_native,
+            &input_doc,
+        )?;
+        assert!(!trace_native.result.broke_out_early);
+        assert!(trace_native.events.iter().any(|ev| {
+            matches!(
+                ev,
+                WasmTraceEvent::ResourceInterruption {
+                    interruption: Some(
+                        WasmResourceInterruption::ComputeQuotaExhausted { .. }
+                    ),
+                    decision: PermissionDecision::Allow,
+                    ..
+                }
+            )
+        }));
+
+        let mut s_replay_tw =
+            DcWasmSession::from_wasm_bytes_with_limits_and_backend(
+                &f1680_wasm,
+                &input_doc,
+                None,
+                tight_limits,
+                DcWasmExecutionBackend::ForceTinyWasm,
+            )?;
+        assert!(!s_replay_tw.used_native_substitute());
+        let mut replay_tw_ctx =
+            ExecutionContext::new(false).with_compute_quota_grant(grant);
+        let replayed_on_tw = replay_tw_ctx.replay_wasm_session_trace(
+            &mut s_replay_tw,
+            &input_doc,
+            &trace_native,
+        )?;
+        assert_eq!(replayed_on_tw, trace_native);
+
+        // 2. Record trace on `ForceTinyWasm`, verify equality, and replay on `Auto`.
+        let mut s_tw = DcWasmSession::from_wasm_bytes_with_limits_and_backend(
+            &f1680_wasm,
+            &input_doc,
+            None,
+            tight_limits,
+            DcWasmExecutionBackend::ForceTinyWasm,
+        )?;
+        assert!(!s_tw.used_native_substitute());
+        let mut ctx_tw = ExecutionContext::new(false)
+            .with_compute_quota_grant(grant)
+            .with_privilege_decision(
+                Privilege::ExcessiveCompute,
+                PermissionDecision::Allow,
+            );
+        let trace_tw = ctx_tw.execute_wasm_session_default_with_trace(
+            &mut s_tw,
+            &input_doc,
+        )?;
+        assert_eq!(trace_tw, trace_native);
+
+        let mut s_replay_native =
+            DcWasmSession::from_wasm_bytes_with_limits_and_backend(
+                &f1680_wasm,
+                &input_doc,
+                None,
+                tight_limits,
+                DcWasmExecutionBackend::Auto,
+            )?;
+        assert!(s_replay_native.used_native_substitute());
+        let mut replay_native_ctx =
+            ExecutionContext::new(false).with_compute_quota_grant(grant);
+        let replayed_on_native = replay_native_ctx.replay_wasm_session_trace(
+            &mut s_replay_native,
+            &input_doc,
+            &trace_tw,
+        )?;
+        assert_eq!(replayed_on_native, trace_tw);
+
+        Ok(())
+    }
 }
