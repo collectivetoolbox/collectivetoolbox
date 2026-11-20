@@ -2780,15 +2780,12 @@ fn spawn_session_worker(
                                         .exported_memory_mut("memory")
                                         .map_err(|_| trap())?;
                                     let hdr = mem.load(8, 8).map_err(|_| trap())?;
-                                    if hdr.len() != 8 {
-                                        return Err(trap());
-                                    }
-                                    let ptr_u32 = u32::from_le_bytes([
-                                        hdr[0], hdr[1], hdr[2], hdr[3],
-                                    ]);
-                                    let len_u32 = u32::from_le_bytes([
-                                        hdr[4], hdr[5], hdr[6], hdr[7],
-                                    ]);
+                                    let [b0, b1, b2, b3, b4, b5, b6, b7]: [u8; 8] =
+                                        hdr.try_into().map_err(|_| trap())?;
+                                    let ptr_u32 =
+                                        u32::from_le_bytes([b0, b1, b2, b3]);
+                                    let len_u32 =
+                                        u32::from_le_bytes([b4, b5, b6, b7]);
                                     let ptr = usize::try_from(ptr_u32)
                                         .map_err(|_| trap())?;
                                     let len = usize::try_from(len_u32)
@@ -2897,27 +2894,30 @@ fn spawn_session_worker(
                                                 let hdr = mem
                                                     .load(0, 16)
                                                     .map_err(|_| trap())?;
-                                                if hdr.len() != 16 {
-                                                    return Err(trap());
-                                                }
+                                                let [
+                                                    b0, b1, b2, b3, b4, b5, b6, b7,
+                                                    b8, b9, b10, b11, b12, b13, b14, b15,
+                                                ]: [u8; 16] = hdr
+                                                    .try_into()
+                                                    .map_err(|_| trap())?;
                                                 let prev_in_ptr =
                                                     usize::try_from(u32::from_le_bytes([
-                                                        hdr[0], hdr[1], hdr[2], hdr[3],
+                                                        b0, b1, b2, b3,
                                                     ]))
                                                     .map_err(|_| trap())?;
                                                 let prev_in_len =
                                                     usize::try_from(u32::from_le_bytes([
-                                                        hdr[4], hdr[5], hdr[6], hdr[7],
+                                                        b4, b5, b6, b7,
                                                     ]))
                                                     .map_err(|_| trap())?;
                                                 let prev_out_ptr =
                                                     usize::try_from(u32::from_le_bytes([
-                                                        hdr[8], hdr[9], hdr[10], hdr[11],
+                                                        b8, b9, b10, b11,
                                                     ]))
                                                     .map_err(|_| trap())?;
                                                 let prev_out_len =
                                                     usize::try_from(u32::from_le_bytes([
-                                                        hdr[12], hdr[13], hdr[14], hdr[15],
+                                                        b12, b13, b14, b15,
                                                     ]))
                                                     .map_err(|_| trap())?;
                                                 let prev_in_end = prev_in_ptr
@@ -5535,7 +5535,11 @@ fn decode_dc_error_record_if_present(
             return Ok(Some(msg));
         }
         let actual = if ch.fills_role_with(DcRole::Escape, resolver) {
-            let next = chars.get(idx).copied().unwrap_or(ch);
+            let Some(next) = chars.get(idx).copied() else {
+                bail!(
+                    "Malformed Dc 552..Dc 553 error record: dangling escape token"
+                );
+            };
             idx = idx.saturating_add(1);
             next
         } else {

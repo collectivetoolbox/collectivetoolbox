@@ -1684,7 +1684,13 @@ impl SeedGraphIndex {
         };
         if let Some(pin_id) = self.system_block_most_recent_node_id {
             let cutoff = ids.partition_point(|&id| id <= pin_id);
-            return ids.get(..cutoff).unwrap_or(&[]);
+            #[expect(
+                clippy::expect_used,
+                reason = "partition_point always returns an index within 0..=ids.len()"
+            )]
+            return ids.get(..cutoff).expect(
+                "partition_point always returns an index within 0..=ids.len()",
+            );
         }
         ids.as_slice()
     }
@@ -1714,32 +1720,27 @@ impl SeedGraphIndex {
                     && obj.is_none_or(|want_o| o == want_o)
             };
 
-        let cand_indices: Option<&[usize]> = match (verb, subj, obj) {
-            (Some(v), Some(s), _) => self
-                .triple_idx_by_verb_subj
-                .get(&(v, s))
-                .map_or(Some(&[]), |v| Some(v.as_slice())),
-            (Some(v), None, Some(o)) => self
-                .triple_idx_by_verb_obj
-                .get(&(v, o))
-                .map_or(Some(&[]), |v| Some(v.as_slice())),
-            (Some(v), None, None) => self
-                .triple_idx_by_verb
-                .get(&v)
-                .map_or(Some(&[]), |v| Some(v.as_slice())),
-            (None, Some(s), _) => self
-                .triple_idx_by_subj
-                .get(&s)
-                .map_or(Some(&[]), |v| Some(v.as_slice())),
-            (None, None, Some(o)) => self
-                .triple_idx_by_obj
-                .get(&o)
-                .map_or(Some(&[]), |v| Some(v.as_slice())),
-            (None, None, None) => None,
-        };
+        let indexed_lookup: Option<Option<&Vec<usize>>> =
+            match (verb, subj, obj) {
+                (Some(v), Some(s), _) => {
+                    Some(self.triple_idx_by_verb_subj.get(&(v, s)))
+                }
+                (Some(v), None, Some(o)) => {
+                    Some(self.triple_idx_by_verb_obj.get(&(v, o)))
+                }
+                (Some(v), None, None) => Some(self.triple_idx_by_verb.get(&v)),
+                (None, Some(s), _) => Some(self.triple_idx_by_subj.get(&s)),
+                (None, None, Some(o)) => Some(self.triple_idx_by_obj.get(&o)),
+                (None, None, None) => None,
+            };
 
         let mut out = Vec::new();
-        if let Some(indices) = cand_indices {
+        if let Some(opt_indices) = indexed_lookup {
+            // Absent key in a secondary triple index means zero active triples
+            // match the constrained term(s), so returning an empty result is exact.
+            let Some(indices) = opt_indices else {
+                return out;
+            };
             for &idx in indices {
                 if let Some(triple) = self.all_active_triples.get(idx)
                     && matches_pin_and_filter(triple)
