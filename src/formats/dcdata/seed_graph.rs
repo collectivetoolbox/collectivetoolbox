@@ -208,6 +208,10 @@ pub struct SeedGraphIndex {
     /// `system_graph_history.rsrc`), distinguishing bundled System authority from extra or
     /// unbundled resources (such as Wikidata).
     pub(crate) bundled_origin_node_ids: HashSet<u128>,
+    /// `true` when loaded from the runtime asset bundle (`ctoolbox.rsrc` /
+    /// `system_graph_history.rsrc`), rather than constructed from an in-memory
+    /// or synthetic `LedgerNode` slice.
+    pub(crate) from_asset_bundle: bool,
     /// Maps a superseded node ID (`old_id`) to the statement node ID (`supersede_stmt_id`)
     /// of the `Dc 591` `"Supersedes"` statement itself.
     pub(crate) superseding_stmt_by_old_id: HashMap<u128, u128>,
@@ -383,6 +387,7 @@ impl SeedGraphIndex {
             );
         }
         let mut index = Self::from_bundled_nodes(active_nodes);
+        index.from_asset_bundle = true;
         if let Some(wm) = active_most_recent {
             // Reason for fallback: when no prior watermark has been recorded, wm is the initial watermark.
             index.system_block_most_recent_node_id = Some(
@@ -402,6 +407,7 @@ impl SeedGraphIndex {
         let (bundle_most_recent, merged) =
             Self::load_merged_nodes_with_history()?;
         let mut index = Self::from_bundled_nodes(merged);
+        index.from_asset_bundle = true;
         if let Some(wm) = bundle_most_recent {
             // Reason for fallback: when no prior watermark has been recorded, wm is the initial watermark.
             index.system_block_most_recent_node_id = Some(
@@ -459,13 +465,14 @@ impl SeedGraphIndex {
                 None,
                 false,
             )?;
-        let index = Self::from_active_and_history_nodes_at_most_recent(
+        let mut index = Self::from_active_and_history_nodes_at_most_recent(
             active_most_recent,
             active_nodes,
             history_most_recent,
             history_nodes,
             most_recent_node_id,
         )?;
+        index.from_asset_bundle = true;
         Ok(Arc::new(index))
     }
 
@@ -1493,6 +1500,7 @@ impl SeedGraphIndex {
             node_data_source,
             provenance_stmt_ids,
             bundled_origin_node_ids: HashSet::new(),
+            from_asset_bundle: false,
             superseding_stmt_by_old_id,
             node_provenance_assertions,
             subject_all_stmt_ids,
@@ -1514,6 +1522,16 @@ impl SeedGraphIndex {
     #[must_use]
     pub fn system_block_most_recent_node_id(&self) -> Option<u128> {
         self.system_block_most_recent_node_id
+    }
+
+    /// Returns `true` if this `SeedGraphIndex` was loaded from the runtime
+    /// asset bundle (`ctoolbox.rsrc` / `system_graph_history.rsrc`), meaning
+    /// historical `Dc 641` pins must be reconstructed via the asset bundle
+    /// (merging `data/graph/` and `data/graph/system/`) rather than slicing
+    /// active-only nodes in memory.
+    #[must_use]
+    pub const fn is_from_asset_bundle(&self) -> bool {
+        self.from_asset_bundle
     }
 
     /// Returns the declared `Dc 635` (`"Collective Toolbox seed graph data source"`) token

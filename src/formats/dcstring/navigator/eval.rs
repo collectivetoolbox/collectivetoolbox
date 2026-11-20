@@ -292,25 +292,23 @@ pub(crate) fn resolve_pinned_syntax_resolver(
         "Invalid System-block most recent node ID {pin_node_id} for Dc 641: expected System block range {SYSTEM_REGION_START}..={SYSTEM_REGION_END}"
     );
     if let Some(sg) = base_resolver.seed_graph() {
-        let is_shared_default = SeedGraphIndex::shared()
-            .is_ok_and(|shared| std::ptr::eq(sg, shared.as_ref()));
-        if !is_shared_default {
-            let head_id = sg
-                .system_block_most_recent_node_id()
-                .max(sg.nodes().iter().map(|n| n.id).max())
-                .context(
-                    "Cannot resolve Dc 641 pin against an empty System graph",
-                )?;
-            ensure!(
-                pin_node_id <= head_id,
-                "Document pin Dc 641 requires a newer System graph snapshot than the local graph (l{pin_node_id} > l{head_id})"
-            );
+        let head_id = sg
+            .system_block_most_recent_node_id()
+            .max(sg.nodes().iter().map(|n| n.id).max())
+            .context(
+                "Cannot resolve Dc 641 pin against an empty System graph",
+            )?;
+        ensure!(
+            pin_node_id <= head_id,
+            "Document pin Dc 641 requires a newer System graph snapshot than the local graph (l{pin_node_id} > l{head_id})"
+        );
+        if !sg.is_from_asset_bundle() {
             let pinned_sg = Arc::new(SeedGraphIndex::from_nodes_at_most_recent(
                 sg.nodes().to_vec(),
                 pin_node_id,
             ));
-            return Ok(Arc::new(DatasetRuleResolver::from_seed_graph(
-                &pinned_sg,
+            return Ok(Arc::new(DatasetRuleResolver::from_seed_graph_arc(
+                pinned_sg,
             )?));
         }
     }

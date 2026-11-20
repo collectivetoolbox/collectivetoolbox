@@ -1678,9 +1678,10 @@ impl DatasetRuleResolver {
         }
     }
 
-    /// Builds a resolver directly from the runtime `SeedGraphIndex` (`data/graph/85899_34592.ctbnbdl`).
-    pub fn from_seed_graph(
-        index: &crate::seed_graph::SeedGraphIndex,
+    /// Builds a resolver directly from a shared runtime `SeedGraphIndex`
+    /// (`data/graph/85899_34592.ctbnbdl`) without cloning it.
+    pub fn from_seed_graph_arc(
+        index: std::sync::Arc<crate::seed_graph::SeedGraphIndex>,
     ) -> Result<Self> {
         let dc_defns = index.reconstruct_dc_defns_for_resolver()?;
         let format_defns = index.reconstruct_format_defns_for_resolver()?;
@@ -1694,15 +1695,22 @@ impl DatasetRuleResolver {
             &format_defns,
             named_types,
         )?;
-        resolver.set_seed_graph(std::sync::Arc::new(index.clone()));
+        resolver.set_seed_graph(index);
         Ok(resolver)
+    }
+
+    /// Builds a resolver directly from the runtime `SeedGraphIndex` (`data/graph/85899_34592.ctbnbdl`).
+    pub fn from_seed_graph(
+        index: &crate::seed_graph::SeedGraphIndex,
+    ) -> Result<Self> {
+        Self::from_seed_graph_arc(std::sync::Arc::new(index.clone()))
     }
 
     /// Loads a `DatasetRuleResolver` from the process-wide shared `SeedGraphIndex`
     /// (`data/graph/85899_34592.ctbnbdl`).
     pub fn load_from_seed_graph() -> Result<Self> {
         let index = crate::seed_graph::SeedGraphIndex::shared()?;
-        Self::from_seed_graph(index)
+        Self::from_seed_graph_arc(std::sync::Arc::clone(index))
     }
 
     /// Loads a `DatasetRuleResolver` reflecting the System-block graph state as of
@@ -1712,7 +1720,7 @@ impl DatasetRuleResolver {
             crate::seed_graph::SeedGraphIndex::load_at_most_recent_from_asset_bundle(
                 most_recent_node_id,
             )?;
-        Self::from_seed_graph(&index)
+        Self::from_seed_graph_arc(index)
     }
 
     pub(crate) fn finalize_equivalences_and_derived_tables(

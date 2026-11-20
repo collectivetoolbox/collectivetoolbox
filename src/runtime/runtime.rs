@@ -1978,9 +1978,7 @@ impl ExecutionContext {
         });
         let exec_pinned = if let Some(pin_id) = opt_pin_id {
             if let Some(sg) = resolver.seed_graph()
-                && !sg.is_bundled_origin_node(
-                    ctb_formats_dcstring::global_graph_layout::SYSTEM_REGION_START,
-                )
+                && !sg.is_from_asset_bundle()
             {
                 let pinned_sg = std::sync::Arc::new(
                     SeedGraphIndex::from_nodes_at_most_recent(
@@ -1989,8 +1987,8 @@ impl ExecutionContext {
                     ),
                 );
                 Some(std::sync::Arc::new(
-                    ctb_formats_dcstring::syntax::DatasetRuleResolver::from_seed_graph(
-                        &pinned_sg,
+                    ctb_formats_dcstring::syntax::DatasetRuleResolver::from_seed_graph_arc(
+                        pinned_sg,
                     )?,
                 ))
             } else {
@@ -5613,6 +5611,172 @@ pub v/l/u8/step l/u8/input
             }
         )));
         assert!(tr_quota.ensure_not_denied().is_err());
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_2608_graph_stager_and_pre_migration_fallback() -> Result<()> {
+        use ctb_formats_dcstring::converters::encode_dc_string_literal;
+        use ctb_formats_dcstring::syntax::DatasetRuleResolver;
+
+        let shared_sg = SeedGraphIndex::shared()?;
+        let dc2608_sh = DcShorthand::from_global_id(
+            dc::DC_CONVERT_DC_STRING_TO_WASM.to_u128(),
+        );
+        let mut cur_sg = std::sync::Arc::clone(shared_sg);
+        let mut pre_pin: Option<u128> = None;
+        while let Some((val_id, _)) =
+            cur_sg.resolve_stagel_decomposition_tokens(dc2608_sh)?
+        {
+            let mut min_id = val_id;
+            for pred in [
+                dc::DC_CANONICAL_DECOMPOSITION,
+                dc::DC_DECOMPOSITION,
+                dc::DC_SEMANTIC_DECOMPOSITION,
+            ] {
+                let pred_sh = DcShorthand::from_global_id(pred.to_u128());
+                for entry in cur_sg.get_multi_properties(dc2608_sh, pred_sh) {
+                    min_id = min_id.min(entry.has_a_id);
+                }
+            }
+            let next_pin = min_id
+                .checked_sub(1)
+                .context("Dc 2608 pre-migration pin underflow")?;
+            pre_pin = Some(next_pin);
+            cur_sg = SeedGraphIndex::load_at_most_recent_from_asset_bundle(
+                next_pin,
+            )?;
+        }
+        let pre_pin = pre_pin.context(
+            "Expected active StageR 3 decomposition on Dc 2608 at HEAD",
+        )?;
+        assert!(
+            cur_sg
+                .resolve_stagel_decomposition_tokens(dc2608_sh)?
+                .is_none()
+        );
+
+        let tiny_sl3 = "v/l/u8/step l/u8/input :: concat b\"ok:\" /input.\n";
+        let doc_unpinned =
+            sl3_source_to_dc_document(tiny_sl3, shared_sg, None)?;
+        let doc_pre_pinned =
+            sl3_source_to_dc_document(tiny_sl3, &cur_sg, Some(pre_pin))?;
+        let doc_chars: Vec<DcChar> =
+            doc_unpinned.to_dc_string()?.chars().collect();
+        let encoded_doc_lit = encode_dc_string_literal(&doc_chars);
+        let mut call_tokens = vec![dc::DC_CONVERT_DC_STRING_TO_WASM];
+        for ch in encoded_doc_lit.to_dc_string()?.chars() {
+            call_tokens.push(ch);
+        }
+
+        let mut input_hi = DcMstring::new();
+        for ch in "hi".chars() {
+            input_hi.push_char(DcChar::from(ch));
+        }
+
+        let high_adm = admit_high_budget_execution_kernel()?;
+        assert!(
+            std::ptr::eq(
+                ctb_formats_dcstring::syntax::default_syntax_resolver()
+                    .seed_graph()
+                    .context("Missing default seed graph")?,
+                shared_sg.as_ref(),
+            ),
+            "default_syntax_resolver() must share the process-wide SeedGraphIndex::shared() Arc without cloning"
+        );
+        let head_res = DatasetRuleResolver::from_seed_graph(shared_sg)?;
+        let pre_res = DatasetRuleResolver::from_seed_graph(&cur_sg)?;
+
+        // 1. HEAD pin compiles Dc 2608 via its StageR 3 graph implementation.
+        assert!(
+            shared_sg
+                .resolve_stagel_decomposition_tokens(dc2608_sh)?
+                .is_some(),
+            "HEAD pin must have an active StageR 3 decomposition on Dc 2608"
+        );
+        let mut env_head = ExecutionContext::new(false)
+            .with_system_supervisor_admission(high_adm.clone());
+        let trace_head = env_head.execute_dc_document_default_with_trace(
+            &doc_unpinned,
+            &input_hi,
+            &head_res,
+        )?;
+        assert!(
+            !trace_head.result.broke_out_early,
+            "HEAD graph StageR 3 Dc 2608 execution broke out early: {:?}",
+            trace_head.events
+        );
+        assert_eq!(
+            trace_head.result.output.to_dc_string()?.to_string(),
+            "ok:hi"
+        );
+
+        // 2. Pre-migration pin returns None from graph StageR 3 lookup and
+        //    succeeds through the historical host Rust fallback.
+        assert!(
+            ctb_formats_dcstring::converters::wasm::run_graph_stager_dc_2608_with_quota(
+                &call_tokens,
+                &pre_res,
+                None,
+            )?
+            .is_none(),
+            "Pre-migration pin must return None so historical Rust fallback handles Dc 2608"
+        );
+        let mut env_pre_res = ExecutionContext::new(false)
+            .with_system_supervisor_admission(high_adm.clone());
+        let trace_pre_res = env_pre_res
+            .execute_dc_document_default_with_trace(
+                &doc_unpinned,
+                &input_hi,
+                &pre_res,
+            )?;
+        assert!(
+            !trace_pre_res.result.broke_out_early,
+            "Pre-migration resolver execution broke out early: {:?}",
+            trace_pre_res.events
+        );
+        assert_eq!(
+            trace_pre_res.result.output.to_dc_string()?.to_string(),
+            "ok:hi"
+        );
+
+        let mut env_pre_doc = ExecutionContext::new(false)
+            .with_system_supervisor_admission(high_adm.clone());
+        let trace_pre_doc = env_pre_doc
+            .execute_dc_document_default_with_trace(
+                &doc_pre_pinned,
+                &input_hi,
+                &head_res,
+            )?;
+        assert!(
+            !trace_pre_doc.result.broke_out_early,
+            "Pre-migration Dc 641 pinned document execution broke out early: {:?}",
+            trace_pre_doc.events
+        );
+        assert_eq!(
+            trace_pre_doc.result.output.to_dc_string()?.to_string(),
+            "ok:hi"
+        );
+
+        let mut env_pre_doc_default = ExecutionContext::new(false)
+            .with_system_supervisor_admission(high_adm);
+        let trace_pre_doc_default = env_pre_doc_default
+            .execute_dc_document_default_with_trace(
+                &doc_pre_pinned,
+                &input_hi,
+                ctb_formats_dcstring::syntax::default_syntax_resolver()
+                    .as_ref(),
+            )?;
+        assert!(
+            !trace_pre_doc_default.result.broke_out_early,
+            "Pre-migration Dc 641 pinned document execution against default_syntax_resolver broke out early: {:?}",
+            trace_pre_doc_default.events
+        );
+        assert_eq!(
+            trace_pre_doc_default.result.output.to_dc_string()?.to_string(),
+            "ok:hi"
+        );
 
         Ok(())
     }
