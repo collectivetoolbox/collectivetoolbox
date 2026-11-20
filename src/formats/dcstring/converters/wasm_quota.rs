@@ -91,24 +91,29 @@ pub const CTB_HOST_CAPABILITY_IMPORT_NAME: &str = "__ctb_request_capability";
 /// [`CTB_HOST_CAPABILITY_IMPORT_NAME`] so standard modules remain zero-import `.wasm`.
 pub const CTB_CAPABILITY_YIELD_EXPORT: &str = "__ctb_capability_yield";
 
-const WASM_HEADER: [u8; 8] = [0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00];
+pub(crate) const WASM_HEADER: [u8; 8] =
+    [0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00];
 
-const SEC_CUSTOM: u8 = 0;
-const SEC_TYPE: u8 = 1;
-const SEC_IMPORT: u8 = 2;
-const SEC_FUNCTION: u8 = 3;
-const SEC_TABLE: u8 = 4;
-const SEC_MEMORY: u8 = 5;
-const SEC_GLOBAL: u8 = 6;
-const SEC_EXPORT: u8 = 7;
-const SEC_START: u8 = 8;
-const SEC_ELEMENT: u8 = 9;
-const SEC_CODE: u8 = 10;
-const SEC_DATA: u8 = 11;
-const SEC_DATA_COUNT: u8 = 12;
+#[allow(
+    dead_code,
+    reason = "Full WASM section id table shared across wasm_quota and wasm_to_rust"
+)]
+pub(crate) const SEC_CUSTOM: u8 = 0;
+pub(crate) const SEC_TYPE: u8 = 1;
+pub(crate) const SEC_IMPORT: u8 = 2;
+pub(crate) const SEC_FUNCTION: u8 = 3;
+pub(crate) const SEC_TABLE: u8 = 4;
+pub(crate) const SEC_MEMORY: u8 = 5;
+pub(crate) const SEC_GLOBAL: u8 = 6;
+pub(crate) const SEC_EXPORT: u8 = 7;
+pub(crate) const SEC_START: u8 = 8;
+pub(crate) const SEC_ELEMENT: u8 = 9;
+pub(crate) const SEC_CODE: u8 = 10;
+pub(crate) const SEC_DATA: u8 = 11;
+pub(crate) const SEC_DATA_COUNT: u8 = 12;
 
-const VALTYPE_I32: u8 = 0x7F;
-const VALTYPE_I64: u8 = 0x7E;
+pub(crate) const VALTYPE_I32: u8 = 0x7F;
+pub(crate) const VALTYPE_I64: u8 = 0x7E;
 
 /// Maximum table size declared in Section 4 so that passing `0x4000_0000`
 /// (`1_073_741_824`) on logical denial deterministically exceeds the table's
@@ -432,7 +437,7 @@ fn push_sleb_i64(mut val: i64, out: &mut Vec<u8>) {
     }
 }
 
-fn read_byte(bytes: &[u8], pos: &mut usize) -> Result<u8> {
+pub(crate) fn read_byte(bytes: &[u8], pos: &mut usize) -> Result<u8> {
     let b = *bytes
         .get(*pos)
         .context("Unexpected EOF while reading WASM binary")?;
@@ -440,7 +445,7 @@ fn read_byte(bytes: &[u8], pos: &mut usize) -> Result<u8> {
     Ok(b)
 }
 
-fn read_uleb_u32(bytes: &[u8], pos: &mut usize) -> Result<u32> {
+pub(crate) fn read_uleb_u32(bytes: &[u8], pos: &mut usize) -> Result<u32> {
     let mut result = 0u32;
     let mut shift = 0u32;
     loop {
@@ -458,7 +463,11 @@ fn read_uleb_u32(bytes: &[u8], pos: &mut usize) -> Result<u32> {
     }
 }
 
-fn skip_leb(bytes: &[u8], pos: &mut usize, max_bytes: usize) -> Result<()> {
+pub(crate) fn skip_leb(
+    bytes: &[u8],
+    pos: &mut usize,
+    max_bytes: usize,
+) -> Result<()> {
     for _ in 0..max_bytes {
         let b = read_byte(bytes, pos)?;
         if (b & 0x80) == 0 {
@@ -466,6 +475,107 @@ fn skip_leb(bytes: &[u8], pos: &mut usize, max_bytes: usize) -> Result<()> {
         }
     }
     bail!("Overlong LEB128 immediate in WASM binary")
+}
+
+/// Decoded WebAssembly structured control-flow `blocktype` immediate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WasmBlockType {
+    Empty,
+    ValType(u8),
+    TypeIdx(u32),
+}
+
+pub(crate) fn read_sleb_i32(bytes: &[u8], pos: &mut usize) -> Result<i32> {
+    let mut result = 0u32;
+    let mut shift = 0u32;
+    for _ in 0..5 {
+        let byte = read_byte(bytes, pos)?;
+        result |= u32::from(byte & 0x7F).wrapping_shl(shift);
+        shift = shift.saturating_add(7);
+        if (byte & 0x80) == 0 {
+            if shift < 32 && (byte & 0x40) != 0 {
+                result |= (!0u32).wrapping_shl(shift);
+            }
+            return Ok(i32::from_le_bytes(result.to_le_bytes()));
+        }
+    }
+    bail!("Overlong s32 LEB128 immediate in WASM binary")
+}
+
+pub(crate) fn read_sleb_i64(bytes: &[u8], pos: &mut usize) -> Result<i64> {
+    let mut result = 0u64;
+    let mut shift = 0u32;
+    for _ in 0..10 {
+        let byte = read_byte(bytes, pos)?;
+        result |= u64::from(byte & 0x7F).wrapping_shl(shift);
+        shift = shift.saturating_add(7);
+        if (byte & 0x80) == 0 {
+            if shift < 64 && (byte & 0x40) != 0 {
+                result |= (!0u64).wrapping_shl(shift);
+            }
+            return Ok(i64::from_le_bytes(result.to_le_bytes()));
+        }
+    }
+    bail!("Overlong s64 LEB128 immediate in WASM binary")
+}
+
+pub(crate) fn read_blocktype(
+    bytes: &[u8],
+    pos: &mut usize,
+) -> Result<WasmBlockType> {
+    let first = *bytes
+        .get(*pos)
+        .context("Unexpected EOF while reading WASM blocktype")?;
+    if first == 0x63 || first == 0x64 {
+        bail!("Typed reference blocktype {first:#04x} is not supported in substitutes");
+    }
+    let mut result = 0u64;
+    let mut shift = 0u32;
+    for _ in 0..5 {
+        let byte = read_byte(bytes, pos)?;
+        result |= u64::from(byte & 0x7F).wrapping_shl(shift);
+        shift = shift.saturating_add(7);
+        if (byte & 0x80) == 0 {
+            if shift < 64 && (byte & 0x40) != 0 {
+                result |= (!0u64).wrapping_shl(shift);
+            }
+            let signed = i64::from_le_bytes(result.to_le_bytes());
+            if signed < 0 {
+                let code = match signed {
+                    -64 => return Ok(WasmBlockType::Empty),
+                    -1 => 0x7F,
+                    -2 => 0x7E,
+                    -3 => 0x7D,
+                    -4 => 0x7C,
+                    -5 => 0x7B,
+                    -16 => 0x70,
+                    -17 => 0x6F,
+                    other => bail!(
+                        "Unsupported negative blocktype {other} in WASM binary"
+                    ),
+                };
+                return Ok(WasmBlockType::ValType(code));
+            }
+            let idx = u32::try_from(signed)
+                .context("WASM blocktype index exceeds u32 range")?;
+            return Ok(WasmBlockType::TypeIdx(idx));
+        }
+    }
+    bail!("Overlong s33 blocktype immediate in WASM binary")
+}
+
+pub(crate) fn read_memarg(
+    bytes: &[u8],
+    pos: &mut usize,
+) -> Result<(u32, u32)> {
+    let align_flags = read_uleb_u32(bytes, pos)?;
+    let mem_idx = if (align_flags & 0x40) != 0 {
+        read_uleb_u32(bytes, pos)?
+    } else {
+        0
+    };
+    let offset = read_uleb_u32(bytes, pos)?;
+    Ok((mem_idx, offset))
 }
 
 fn skip_blocktype(bytes: &[u8], pos: &mut usize) -> Result<()> {
@@ -509,7 +619,7 @@ fn push_name(name: &str, out: &mut Vec<u8>) -> Result<()> {
     Ok(())
 }
 
-fn eval_const_offset(
+pub(crate) fn eval_const_offset(
     instr: &ConstInstruction,
     globals: &[Global],
 ) -> Option<usize> {
@@ -529,7 +639,7 @@ fn eval_const_offset(
     }
 }
 
-fn compute_static_data_end(parsed: &TinyWasmModule) -> usize {
+pub(crate) fn compute_static_data_end(parsed: &TinyWasmModule) -> usize {
     let mut max_end = 0usize;
     for seg in &parsed.data {
         if let DataKind::Active { mem: 0, offset } = &seg.kind

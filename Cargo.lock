@@ -3178,6 +3178,7 @@ dependencies = [
  "ctb-formats-wtf8",
  "ctb-storage-minimal",
  "ctb-utilities",
+ "ctb-wasm-substitute-rt",
  "malachite",
  "serde",
  "serde_json",

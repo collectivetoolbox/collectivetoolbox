@@ -130,6 +130,13 @@ impl WasmLinearMemory {
         }
     }
 
+    /// Grows linear memory on behalf of the host mailbox writer, returning `Some(old_pages)`
+    /// or `None` if allocation or declared bounds fail.
+    pub fn grow_host(&mut self, delta: u32) -> Option<i32> {
+        let old = self.grow_raw(delta);
+        (old >= 0).then_some(old)
+    }
+
     fn grow_raw(&mut self, delta: u32) -> i32 {
         let old_pages = self.page_count();
         let Ok(old_pages_u32) = u32::try_from(old_pages) else {
@@ -460,6 +467,78 @@ impl SubstituteVm {
         }
         self.total_mem_pages = next_total;
         Ok(old)
+    }
+
+    /// Initializes active data bytes in `memories[mem_idx]` at startup.
+    pub fn init_active_data(
+        &mut self,
+        mem_idx: usize,
+        offset: usize,
+        bytes: &[u8],
+    ) -> std::result::Result<(), WasmTrap> {
+        let mem = self
+            .memories
+            .get_mut(mem_idx)
+            .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
+        mem.init_active(offset, bytes)
+    }
+
+    /// Initializes active table entries in `tables[table_idx]` at startup.
+    pub fn init_active_elem(
+        &mut self,
+        table_idx: usize,
+        offset: usize,
+        items: &[Option<u32>],
+    ) -> std::result::Result<(), WasmTrap> {
+        let tbl = self
+            .tables
+            .get_mut(table_idx)
+            .ok_or(WasmTrap::OutOfBoundsTableAccess)?;
+        tbl.init_active(offset, items)
+    }
+
+    /// Executes `table.get table_idx`.
+    #[inline]
+    pub fn table_get(
+        &self,
+        table_idx: usize,
+        idx: i32,
+    ) -> std::result::Result<Option<u32>, WasmTrap> {
+        let tbl = self
+            .tables
+            .get(table_idx)
+            .ok_or(WasmTrap::OutOfBoundsTableAccess)?;
+        tbl.get(idx).map_err(|_| WasmTrap::OutOfBoundsTableAccess)
+    }
+
+    /// Executes `table.set table_idx`.
+    #[inline]
+    pub fn table_set(
+        &mut self,
+        table_idx: usize,
+        idx: i32,
+        val: Option<u32>,
+    ) -> std::result::Result<(), WasmTrap> {
+        let tbl = self
+            .tables
+            .get_mut(table_idx)
+            .ok_or(WasmTrap::OutOfBoundsTableAccess)?;
+        tbl.set(idx, val)
+    }
+
+    /// Resolves a function index from `tables[table_idx][idx]` for `call_indirect`
+    /// or `return_call_indirect`.
+    #[inline]
+    pub fn call_indirect_target(
+        &self,
+        table_idx: usize,
+        idx: i32,
+    ) -> std::result::Result<u32, WasmTrap> {
+        let tbl = self
+            .tables
+            .get(table_idx)
+            .ok_or(WasmTrap::UndefinedElement)?;
+        tbl.get(idx)?.ok_or(WasmTrap::UninitializedElement)
     }
 
     /// Executes `table.size table_idx`.
@@ -931,6 +1010,7 @@ mod tests {
         fn request_capability(
             &mut self,
             _vm: &mut SubstituteVm,
+            _heap_ptr: Option<&mut i32>,
         ) -> std::result::Result<(), WasmTrap> {
             Ok(())
         }
@@ -1057,5 +1137,25 @@ mod tests {
         assert_eq!(vm.enter_call(), Err(WasmTrap::CallStackExhausted));
         vm.exit_call();
         vm.enter_call().unwrap();
+
+        assert_eq!(vm.init_active_data(0, 64, b"hi"), Ok(()));
+        assert_eq!(vm.memories[0].load_bytes(64, 2).unwrap(), b"hi");
+        assert_eq!(vm.init_active_elem(0, 0, &[Some(7), None]), Ok(()));
+        assert_eq!(vm.call_indirect_target(0, 0), Ok(7));
+        assert_eq!(
+            vm.call_indirect_target(0, 1),
+            Err(WasmTrap::UninitializedElement)
+        );
+        assert_eq!(
+            vm.call_indirect_target(0, 99),
+            Err(WasmTrap::UndefinedElement)
+        );
+        assert_eq!(vm.table_set(0, 1, Some(12)), Ok(()));
+        assert_eq!(vm.table_get(0, 1), Ok(Some(12)));
+        assert_eq!(
+            vm.table_get(0, 99),
+            Err(WasmTrap::OutOfBoundsTableAccess)
+        );
+        assert_eq!(vm.memories[0].grow_host(1), Some(1));
     }
 }

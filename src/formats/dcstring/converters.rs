@@ -36,6 +36,7 @@ pub mod utf8;
 pub mod wasm;
 pub mod wasm_capabilities;
 pub mod wasm_quota;
+pub mod wasm_to_rust;
 pub mod wat;
 
 pub use wasm_capabilities::{

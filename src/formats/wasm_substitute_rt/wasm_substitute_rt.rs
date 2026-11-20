@@ -36,7 +36,9 @@ use std::fmt;
 pub use registry::{
     WasmSubstituteDescriptor, lookup_substitute, register_substitute,
 };
-pub use vm::{MAX_CALL_DEPTH, SubstituteVm, WASM_PAGE_BYTES};
+pub use vm::{
+    MAX_CALL_DEPTH, SubstituteVm, WASM_PAGE_BYTES, WasmLinearMemory, WasmTable,
+};
 
 /// Deterministic WebAssembly execution trap raised by native substitutes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -134,6 +136,7 @@ pub trait WasmSubstituteHost {
     fn request_capability(
         &mut self,
         vm: &mut SubstituteVm,
+        heap_ptr: Option<&mut i32>,
     ) -> std::result::Result<(), WasmTrap>;
 }
 
@@ -148,8 +151,19 @@ pub trait WasmSubstituteInstance: Send {
     /// Returns a mutable reference to the substitute VM state.
     fn vm_mut(&mut self) -> &mut SubstituteVm;
 
+    /// Returns the memory index of the exported `"memory"`, if present.
+    fn exported_memory_index(&self) -> Option<usize>;
+
+    /// Returns the value of an exported `i32` global by name, if present.
+    fn exported_global_i32(&self, name: &str) -> Option<i32>;
+
+    /// Returns the value of an exported `i64` global by name, if present.
+    fn exported_global_i64(&self, name: &str) -> Option<i64>;
+
     /// Returns the guest `__heap_ptr` `i32` global value if exported.
-    fn heap_ptr(&self) -> Option<i32>;
+    fn heap_ptr(&self) -> Option<i32> {
+        self.exported_global_i32("__heap_ptr")
+    }
 
     /// Updates the guest `__heap_ptr` `i32` global if exported (`true` if updated).
     fn set_heap_ptr(&mut self, val: i32) -> bool;
@@ -163,6 +177,8 @@ pub trait WasmSubstituteInstance: Send {
     /// Executes the exported entry function (`"step"` / `"main"`) once.
     fn call_entry(
         &mut self,
+        in_ptr: i32,
+        in_len: i32,
         host: &mut dyn WasmSubstituteHost,
     ) -> std::result::Result<i32, WasmTrap>;
 }

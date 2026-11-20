@@ -11,6 +11,7 @@ ctb-utilities = { path = "../../utilities" }
 ctb-formats-dctf = { path = "../dctf" }
 ctb-formats-utilities = { path = "../utilities" }
 ctb-formats-dcdata = { path = "../dcdata" }
+ctb-wasm-substitute-rt = { path = "../wasm_substitute_rt" }
 ctb-formats-eite = { path = "../eite" }
 ctb-formats-html = { path = "../html" }
 ctb-formats-checksum = { path = "../checksum" }
