@@ -4123,6 +4123,13 @@ name = "ctb-v86-posix-init"
 version = "0.1.0"
 
 [[package]]
+name = "ctb-wasm-substitute-rt"
+version = "0.0.0"
+dependencies = [
+ "ctb-utilities",
+]
+
+[[package]]
 name = "ctb-workspace"
 version = "0.0.0"
 dependencies = [
@@ -4327,6 +4334,7 @@ dependencies = [
  "ctb-test-macro",
  "ctb-utilities",
  "ctb-v86-posix-init",
+ "ctb-wasm-substitute-rt",
  "ctb-workspace",
  "ctb-workspace-ipc",
  "ctb-workspace-ipc-macro",

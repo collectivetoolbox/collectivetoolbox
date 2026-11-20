@@ -68,6 +68,9 @@ opt-level = 3
 [profile.dev.package.tinywasm-types]
 opt-level = 3
 
+[profile.dev.package.ctb-wasm-substitute-rt]
+opt-level = 3
+
 [profile.test]
 inherits = "dev"
 
@@ -112,6 +115,9 @@ opt-level = 3
 opt-level = 3
 
 [profile.test.package.tinywasm-types]
+opt-level = 3
+
+[profile.test.package.ctb-wasm-substitute-rt]
 opt-level = 3
 
 [profile.release]
@@ -228,6 +234,7 @@ ctb-storage-minimal = { path = "src/storage/minimal" }
 ctb-storage-asset-bundle = { path = "src/storage/asset_bundle" }
 ctb-utilities = { path = "src/utilities" }
 ctb-workspace = { path = "src/workspace" }
+ctb-wasm-substitute-rt = { path = "src/formats/wasm_substitute_rt" }
 ctb-workspace-ipc = { path = "src/workspace/ipc" }
 ctb-v86-posix-init = { path = "src/v86_posix_init" }
 

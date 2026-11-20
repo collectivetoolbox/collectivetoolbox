@@ -1,0 +1,13 @@
+[package]
+name = "ctb-wasm-substitute-rt"
+edition = "2024"
+
+[lib]
+path = "wasm_substitute_rt.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+
+[lints]
+workspace = true
