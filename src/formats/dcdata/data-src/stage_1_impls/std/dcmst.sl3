@@ -280,6 +280,12 @@ pub v/tup: b l/dcVal u8 ::/requestCapabilityS l/dcVal/req
         tupNew: true field /dec u32:1 u8:0 ::
         tupNew: false l/dcVal: :: /errInvalidEncoding ::.
 
+: Raw DcTF-byte host capability RPC (`l/u8 -> l/u8`), invoking StageL `Dc 2616`
+: directly without decoding or re-encoding the payload token stream.
+: @dc l8589993763
+pub v/l/u8/requestCapabilityBytes l/u8/req
+    requestCapability /req.
+
 : Checked StageL `dcsFromS` conversion (`l/dcVal -> l/dcVal`), faulting when unescaped binary
 : encapsulation markers (`Dc 203`/`Dc 204`), trailing escapes, or surrogates appear.
 : @dc l8589984707

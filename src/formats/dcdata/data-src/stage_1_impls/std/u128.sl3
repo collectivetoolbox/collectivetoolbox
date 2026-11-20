@@ -88,6 +88,14 @@ pub v/u128Val/u128New u64/lo u64/hi
         out structNew u128Val: u64:42 u64:7 ::.
     structNew u128Val: /lo /hi ::.
 
+: Returns the low 64-bit limb of `x`.
+: @dc l8589994027
+pub v/u64/u128Lo u128Val/x
+    test
+        in structNew u128Val: u64:42 u64:9 ::
+        out u64:42.
+    field /x u32:0.
+
 : Widens `u64` to `u128Val`.
 : @dc l8589980749
 pub v/u128Val/from u64/x

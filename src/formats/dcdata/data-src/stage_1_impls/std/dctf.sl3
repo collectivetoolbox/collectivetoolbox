@@ -277,13 +277,30 @@ pub v/l/u8/encodeDcStream l/dcVal/tokens
     test
         in l/dcVal: structNew dcVal: u64:65 u64:0 :: structNew dcVal: u64:128 u64:0 :: ::
         out b"A/xc2/x80".
-    let u64/total u64:0.
+    const buf/u8/out bufNew u8 wrapAdd wrapMul len /tokens u64:4 u64:64.
     foreach dcVal/tok /tokens do
-        set /total add /total lenDctf /tok.
-    ::.
-    const buf/u8/out bufNew u8 /total.
-    foreach dcVal/tok /tokens do
-        encodeDctfPush /out /tok.
+        const u64/lo field /tok u32:0.
+        const u64/hi field /tok u32:1.
+        if eq /hi u64:0
+            if le /lo u64:127
+                bufPush /out conv /lo u8
+                if and ge /lo u64:65536 le /lo u64:2097151
+                    do
+                        bufPush /out bitOr u8:240 conv shr /lo u32:18 u8.
+                        bufPush /out bitOr u8:128 conv bitAnd shr /lo u32:12 u64:63 u8.
+                        bufPush /out bitOr u8:128 conv bitAnd shr /lo u32:6 u64:63 u8.
+                        bufPush /out bitOr u8:128 conv bitAnd /lo u64:63 u8.
+                    ::
+                    if and ge /lo u64:2097152 le /lo u64:67108863
+                        do
+                            bufPush /out bitOr u8:248 conv shr /lo u32:24 u8.
+                            bufPush /out bitOr u8:128 conv bitAnd shr /lo u32:18 u64:63 u8.
+                            bufPush /out bitOr u8:128 conv bitAnd shr /lo u32:12 u64:63 u8.
+                            bufPush /out bitOr u8:128 conv bitAnd shr /lo u32:6 u64:63 u8.
+                            bufPush /out bitOr u8:128 conv bitAnd /lo u64:63 u8.
+                        ::
+                        encodeDctfPush /out /tok
+            encodeDctfPush /out /tok.
     ::.
     bufFreeze /out.
 
@@ -404,6 +421,64 @@ pub v/tup: b l/dcVal ::/decodeDcStream l/u8/bytes
     const buf/dcVal/out bufNew dcVal shr /blen u32:2.
     let u64/pos u64:0.
     while lt /pos /blen do
+        const u8/b0 get /bytes /pos.
+        if lt /b0 u8:128
+            do
+                bufPush /out structNew dcVal: conv /b0 u64 u64:0 ::.
+                set /pos wrapAdd /pos u64:1.
+                continue.
+            ::
+            nop.
+        if and ge /b0 u8:240 le /b0 u8:247
+            do
+                const u64/pos4 wrapAdd /pos u64:4.
+                if gt /pos4 /blen
+                    return tupNew: false l/dcVal: :: ::
+                    nop.
+                const u8/b1 get /bytes wrapAdd /pos u64:1.
+                const u8/b2 get /bytes wrapAdd /pos u64:2.
+                const u8/b3 get /bytes wrapAdd /pos u64:3.
+                if or ne bitAnd /b1 u8:192 u8:128 or ne bitAnd /b2 u8:192 u8:128 ne bitAnd /b3 u8:192 u8:128
+                    return tupNew: false l/dcVal: :: ::
+                    nop.
+                const u64/lo bitOr shl conv bitAnd /b0 u8:7 u64 u32:18
+                    bitOr shl conv bitAnd /b1 u8:63 u64 u32:12
+                        bitOr shl conv bitAnd /b2 u8:63 u64 u32:6
+                            conv bitAnd /b3 u8:63 u64.
+                if lt /lo u64:65536
+                    return tupNew: false l/dcVal: :: ::
+                    nop.
+                bufPush /out structNew dcVal: /lo u64:0 ::.
+                set /pos /pos4.
+                continue.
+            ::
+            nop.
+        if and ge /b0 u8:248 le /b0 u8:251
+            do
+                const u64/pos5 wrapAdd /pos u64:5.
+                if gt /pos5 /blen
+                    return tupNew: false l/dcVal: :: ::
+                    nop.
+                const u8/b1 get /bytes wrapAdd /pos u64:1.
+                const u8/b2 get /bytes wrapAdd /pos u64:2.
+                const u8/b3 get /bytes wrapAdd /pos u64:3.
+                const u8/b4 get /bytes wrapAdd /pos u64:4.
+                if or ne bitAnd /b1 u8:192 u8:128 or ne bitAnd /b2 u8:192 u8:128 or ne bitAnd /b3 u8:192 u8:128 ne bitAnd /b4 u8:192 u8:128
+                    return tupNew: false l/dcVal: :: ::
+                    nop.
+                const u64/lo bitOr shl conv bitAnd /b0 u8:3 u64 u32:24
+                    bitOr shl conv bitAnd /b1 u8:63 u64 u32:18
+                        bitOr shl conv bitAnd /b2 u8:63 u64 u32:12
+                            bitOr shl conv bitAnd /b3 u8:63 u64 u32:6
+                                conv bitAnd /b4 u8:63 u64.
+                if lt /lo u64:2097152
+                    return tupNew: false l/dcVal: :: ::
+                    nop.
+                bufPush /out structNew dcVal: /lo u64:0 ::.
+                set /pos /pos5.
+                continue.
+            ::
+            nop.
         const tup: b dcVal u64 ::/one decodeDctfOne /bytes /pos.
         if not field /one u32:0
             return tupNew: false l/dcVal: :: ::
@@ -411,6 +486,188 @@ pub v/tup: b l/dcVal ::/decodeDcStream l/u8/bytes
         bufPush /out field /one u32:1.
         set /pos field /one u32:2.
     ::.
+    tupNew: true bufFreeze /out ::.
+
+: Returns exact canonical `DcTF` byte length (`1..=23`) at `pos < end`, or `0` if invalid/truncated.
+: @dc l8589993764
+v/u64/dctfTokenByteLen l/u8/rawBytes u64/pos u64/end
+    const u8/b0 get /rawBytes /pos.
+    if lt /b0 u8:128
+        return u64:1
+        nop.
+    if lt /b0 u8:194
+        return u64:0
+        nop.
+    if lt /b0 u8:224
+        return u64:2
+        nop.
+    if lt /b0 u8:240
+        return u64:3
+        nop.
+    if lt /b0 u8:248
+        return u64:4
+        nop.
+    if lt /b0 u8:252
+        return u64:5
+        nop.
+    if lt /b0 u8:254
+        return u64:6
+        nop.
+    if eq /b0 u8:254
+        return u64:7
+        nop.
+    const u64/p1 wrapAdd /pos u64:1.
+    if ge /p1 /end
+        return u64:0
+        nop.
+    const u8/b1 get /rawBytes /p1.
+    if ne bitAnd /b1 u8:192 u8:128
+        return u64:0
+        nop.
+    wrapAdd u64:8 conv bitAnd shr /b1 u32:2 u8:15 u64.
+
+: Validates a `DcTF`-encoded `[string]` literal (`Dc 260 262 264 263 <payload> Dc 261`)
+: and strips literal `Dc 255` escapes via bulk `slice`/`bufExtend`,
+: returning `(ok, unescapedBytes)`.
+: @dc l8589993765
+pub v/tup: b l/u8 ::/unescapeDctfStringLitBytes l/u8/rawBytes
+    test
+        in b"/xf4/x90/x84/x84/xf4/x90/x84/x86/xf4/x90/x84/x88/xf4/x90/x84/x87A/xf4/x90/x9e/x87/xf4/x90/x84/x85"
+        out tupNew: true b"A/xf4/x90/x9e/x87" ::.
+        in b"/xf4/x90/x84/x84/xf4/x90/x84/x86/xf4/x90/x84/x88/xf4/x90/x84/x87A/xf4/x90/x83/xbf/xf4/x90/x84/x85/xf4/x90/x83/xbf/xf4/x90/x83/xbf/xf4/x90/x84/x85"
+        out tupNew: true b"A/xf4/x90/x84/x85/xf4/x90/x83/xbf" ::.
+        in b"/xf4/x90/x84/x84/xf4/x90/x84/x86/xf4/x90/x84/x88/xf4/x90/x84/x87/xf4/x90/x84/x85/xf4/x90/x84/x85"
+        out tupNew: false b"" ::.
+        in b"/xf4/x90/x84/x84/xf4/x90/x84/x86/xf4/x90/x84/x88/xf4/x90/x84/x87/xf4/x90/x83/xbf/xf4/x90/x84/x85"
+        out tupNew: false b"" ::.
+        in b"/xf4/x90/x84/x84/xf4/x90/x84/x86/xf4/x90/x84/x88/xf4/x90/x84/x87/xff/x80/x88/x80/x80/x80/x80/x80/xf4/x90/x84/x85"
+        out tupNew: true b"/xff/x80/x88/x80/x80/x80/x80/x80" ::.
+    const u64/blen len /rawBytes.
+    if lt /blen u64:20
+        return tupNew: false b"" ::
+        nop.
+    const u64/end wrapSub /blen u64:4.
+    if or ne slice /rawBytes u64:0 u64:16 b"/xf4/x90/x84/x84/xf4/x90/x84/x86/xf4/x90/x84/x88/xf4/x90/x84/x87" ne slice /rawBytes /end /blen b"/xf4/x90/x84/x85"
+        return tupNew: false b"" ::
+        nop.
+    const buf/u8/out bufNew u8 wrapSub /end u64:16.
+    let u64/runStart u64:16.
+    let b/hasEscape false.
+    let u64/i u64:16.
+    const u64/fastEnd if ge /end u64:5 wrapSub /end u64:5 u64:0.
+    while lt /i /fastEnd do
+        const u32/b0 conv get /rawBytes /i u32.
+        if eq /b0 u32:244
+            do
+                const u32/b2 conv get /rawBytes wrapAdd /i u64:2 u32.
+                if le wrapSub /b2 u32:131 u32:1
+                    do
+                        if eq conv get /rawBytes wrapAdd /i u64:1 u32 u32:144
+                            do
+                                const u32/b3 conv get /rawBytes wrapAdd /i u64:3 u32.
+                                if and eq /b2 u32:131 eq /b3 u32:191
+                                    do
+                                        set /hasEscape true.
+                                        if gt /i /runStart
+                                            bufExtend /out slice /rawBytes /runStart /i
+                                            nop.
+                                        set /i wrapAdd /i u64:4.
+                                        set /runStart /i.
+                                        const u64/escLen dctfTokenByteLen /rawBytes /i /end.
+                                        if or eq /escLen u64:0 gt wrapAdd /i /escLen /end
+                                            return tupNew: false b"" ::
+                                            nop.
+                                        set /i wrapAdd /i /escLen.
+                                        continue.
+                                    ::
+                                    nop.
+                                if and eq /b2 u32:132 eq /b3 u32:133
+                                    return tupNew: false b"" ::
+                                    nop.
+                            ::
+                            nop.
+                    ::
+                    nop.
+                set /i wrapAdd /i u64:4.
+            ::
+            if eq /b0 u32:248
+                set /i wrapAdd /i u64:5
+                if lt /b0 u32:128
+                    set /i wrapAdd /i u64:1
+                    do
+                        const u64/tlen dctfTokenByteLen /rawBytes /i /end.
+                        if or eq /tlen u64:0 gt wrapAdd /i /tlen /end
+                            return tupNew: false b"" ::
+                            nop.
+                        set /i wrapAdd /i /tlen.
+                    ::.
+    ::.
+    while lt /i /end do
+        const u32/b0 conv get /rawBytes /i u32.
+        if eq /b0 u32:244
+            do
+                const u64/i4 wrapAdd /i u64:4.
+                if gt /i4 /end
+                    return tupNew: false b"" ::
+                    nop.
+                const u32/b2 conv get /rawBytes wrapAdd /i u64:2 u32.
+                if le wrapSub /b2 u32:131 u32:1
+                    do
+                        if eq conv get /rawBytes wrapAdd /i u64:1 u32 u32:144
+                            do
+                                const u32/b3 conv get /rawBytes wrapAdd /i u64:3 u32.
+                                if and eq /b2 u32:131 eq /b3 u32:191
+                                    do
+                                        set /hasEscape true.
+                                        if gt /i /runStart
+                                            bufExtend /out slice /rawBytes /runStart /i
+                                            nop.
+                                        set /i /i4.
+                                        set /runStart /i.
+                                        if ge /i /end
+                                            return tupNew: false b"" ::
+                                            nop.
+                                        const u64/escLen dctfTokenByteLen /rawBytes /i /end.
+                                        if or eq /escLen u64:0 gt wrapAdd /i /escLen /end
+                                            return tupNew: false b"" ::
+                                            nop.
+                                        set /i wrapAdd /i /escLen.
+                                        continue.
+                                    ::
+                                    nop.
+                                if and eq /b2 u32:132 eq /b3 u32:133
+                                    return tupNew: false b"" ::
+                                    nop.
+                            ::
+                            nop.
+                    ::
+                    nop.
+                set /i /i4.
+            ::
+            if eq /b0 u32:248
+                do
+                    const u64/i5 wrapAdd /i u64:5.
+                    if gt /i5 /end
+                        return tupNew: false b"" ::
+                        nop.
+                    set /i /i5.
+                ::
+                if lt /b0 u32:128
+                    set /i wrapAdd /i u64:1
+                    do
+                        const u64/tlen dctfTokenByteLen /rawBytes /i /end.
+                        if or eq /tlen u64:0 gt wrapAdd /i /tlen /end
+                            return tupNew: false b"" ::
+                            nop.
+                        set /i wrapAdd /i /tlen.
+                    ::.
+    ::.
+    if not /hasEscape
+        return tupNew: true slice /rawBytes u64:16 /end ::
+        nop.
+    if gt /end /runStart
+        bufExtend /out slice /rawBytes /runStart /end
+        nop.
     tupNew: true bufFreeze /out ::.
 
 : Builds an atom `dcVal` token sequence (`[Dc 255, c]` when `c` is `Dc 203`/`255`/`616`, else `[c]`).
@@ -676,26 +933,27 @@ pub v/tup: b dcVal l/dcVal u64 ::/readEscapedLiteral l/dcVal/tokens u64/pos
     if or ne dcShortId get /tokens /pos u32:260 or ne dcShortId get /tokens add /pos u64:1 u32:262 ne dcShortId get /tokens add /pos u64:3 u32:263
         return tupNew: false dcNew u64:0 u64:0 l/dcVal: :: /pos ::
         nop.
-    const dcVal/typeDc get /tokens add /pos u64:2.
-    const buf/dcVal/payload bufNew dcVal u64:16.
-    let u64/i add /pos u64:4.
+    const dcVal/typeDc get /tokens wrapAdd /pos u64:2.
+    const buf/dcVal/payload bufNew dcVal wrapSub /tlen /pos.
+    let u64/i wrapAdd /pos u64:4.
     while lt /i /tlen do
         const dcVal/tok get /tokens /i.
         const u32/sid dcShortId /tok.
         if eq /sid u32:261
-            return tupNew: true /typeDc bufFreeze /payload add /i u64:1 ::
+            return tupNew: true /typeDc bufFreeze /payload wrapAdd /i u64:1 ::
             nop.
         if eq /sid u32:255
             do
-                if ge add /i u64:1 /tlen
+                const u64/i1 wrapAdd /i u64:1.
+                if ge /i1 /tlen
                     return tupNew: false dcNew u64:0 u64:0 l/dcVal: :: /pos ::
                     nop.
-                bufPush /payload get /tokens add /i u64:1.
-                set /i add /i u64:2.
+                bufPush /payload get /tokens /i1.
+                set /i wrapAdd /i u64:2.
             ::
             do
                 bufPush /payload /tok.
-                set /i add /i u64:1.
+                set /i wrapAdd /i u64:1.
             ::.
     ::.
     tupNew: false dcNew u64:0 u64:0 l/dcVal: :: /pos ::.

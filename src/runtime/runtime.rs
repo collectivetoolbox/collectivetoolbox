@@ -4902,6 +4902,7 @@ mod tests {
         limits.max_memory_pages = 1024;
         limits.max_step_output_bytes = 32 * 1024 * 1024;
         limits.max_session_output_bytes = 64 * 1024 * 1024;
+        limits.max_capability_payload_bytes = 32 * 1024 * 1024;
         let watchdog = DcWasmWatchdogLimits::default()
             .with_hard_max_instructions_per_step(1_000_000_000);
         SystemSupervisorAdmission::admit_execution_kernel(limits, watchdog)
@@ -5369,6 +5370,13 @@ pub v/l/u8/step l/u8/input
             &in_doc,
             &shared_res,
         )?;
+        assert!(
+            !trace_pinned.result.broke_out_early,
+            "pinned StageR 3 execution broke out early (op={:?}, req_cost={:?}); events: {:?}",
+            trace_pinned.last_interrupted_op_ordinal,
+            trace_pinned.last_interrupted_op_required_cost,
+            trace_pinned.events,
+        );
         assert_eq!(
             trace_pinned.result.output.to_dc_string()?.to_string(),
             "sr3:payload"
@@ -5384,6 +5392,13 @@ pub v/l/u8/step l/u8/input
                 &in_doc,
                 &shared_res,
             )?;
+        assert!(
+            !trace_unpinned.result.broke_out_early,
+            "unpinned StageR 3 execution broke out early (op={:?}, req_cost={:?}); events: {:?}",
+            trace_unpinned.last_interrupted_op_ordinal,
+            trace_unpinned.last_interrupted_op_required_cost,
+            trace_unpinned.events,
+        );
         assert_eq!(
             trace_unpinned.result.output.to_dc_string()?.to_string(),
             "sr3:payload"

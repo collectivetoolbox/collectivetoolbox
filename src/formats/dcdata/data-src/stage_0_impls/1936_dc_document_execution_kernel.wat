@@ -64,7 +64,7 @@
       (then
         ;; Empty input: populate default 76-byte kernel configuration record.
         (i32.store $CFG_VERSION 1)
-        (i64.store align=1 $CFG_COMPUTE_QUOTA_BUDGET     1000000)
+        (i64.store align=1 $CFG_COMPUTE_QUOTA_BUDGET     10000000)
         (i64.store align=1 $CFG_CALL_DEPTH      256)
         (i64.store align=1 $CFG_MAX_NODES       -1)
         (i64.store align=1 $CFG_MEMORY_PAGES    65536)

@@ -486,17 +486,11 @@ fn strip_leading_dc_comment_frames<'a>(
     Ok(chars)
 }
 
-/// Temporary host Rust fallback evaluator for `Dc 2608 "Convert Dc string to WASM"`
-/// (`.EM Miscellaneous`).
-///
-/// NOTE (replace with StageR 3 / EM3 graph implementation soon):
-/// `Dc 2608 "Convert Dc string to WASM"` is intentionally NOT a language builtin and has
-/// no `.WASM` decomposition in `assets/data/graph/*.ctbnodes` (`2608_convert_dc_string_to_wasm.wat`
-/// was deleted because `Dc 2608`'s conversion-graph routing belongs in a higher-level
-/// language rather than hand-written WAT). As soon as `DcWasmSession` gains a host
-/// capability ABI for querying `SeedGraphIndex` from inside WASM (`issues/language.md`),
-/// this host fallback MUST be replaced by a normal verb implementation in StageR 3
-/// (or Rust transpiled to EM3) stored in the System graph.
+/// Evaluates `Dc 2608 "Convert Dc string to WASM"` (`.EM Miscellaneous`) via the
+/// System-graph StageR 3 implementation (`impls/std/convert_dc_string_to_wasm.sr3`)
+/// when active in the pinned snapshot, falling back to this Rust implementation
+/// strictly for pre-migration historical `Dc 641` pins lacking an active
+/// StageR decomposition on `Dc 2608`.
 fn eval_convert_dc_string_to_wasm(
     call_tokens: &[DcChar],
     resolver: &dyn SyntaxRuleResolver,
@@ -587,6 +581,20 @@ fn eval_convert_dc_string_to_wasm(
         )?,
         "ConvertDcStringToWasm requires a valid [string] literal argument"
     );
+
+    let mut canonical_call =
+        Vec::with_capacity(string_slice.len().saturating_add(1));
+    canonical_call.push(head_dc);
+    canonical_call.extend_from_slice(string_slice);
+    if let Some(wasm_doc) =
+        crate::converters::wasm::run_graph_stager_dc_2608_with_quota(
+            &canonical_call,
+            resolver,
+            shared_quota.clone(),
+        )?
+    {
+        return Ok(wasm_doc);
+    }
 
     let unescaped_doc = if let Some(wasm_shorthands) =
         resolver.resolve_wasm_definition_tokens(head_dc.to_u128())

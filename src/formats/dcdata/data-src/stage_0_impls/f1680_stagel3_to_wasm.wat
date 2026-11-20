@@ -1052,41 +1052,20 @@
     (i32.store offset=8 $r $body_ptr)
     (i32.store offset=12 $r $body_len))
 
-  ;; Matches & links a Stage 0 `.WASM` built-in for `($op_cp, $ctx_len, $c0, $c1, $c2)`.
-  (func $link_builtin
+  ;; Finds a Stage 0 `.WASM` built-in entry for `($op_cp, $ctx_len, $c0, $c1, $c2)`.
+  ;; Sets `$ret_aux = match_idx` and returns `$matched`.
+  (func $find_builtin_entry
     (param $op_cp i32) (param $ctx_len i32) (param $c0 i32) (param $c1 i32) (param $c2 i32) (result i32)
-    (local $cnt        i32)
-    (local $i          i32)
-    (local $e          i32)
-    (local $matched    i32)
-    (local $match_idx  i32)
-    (local $best_plen  i32)
-    (local $eclen      i32)
-    (local $last_tok   i32)
-    (local $plen       i32)
-    (local $ok         i32)
-    (local $w_ptr      i32)
-    (local $w_end      i32)
-    (local $in_ptr     i32)
-    (local $in_end     i32)
-    (local $len        i32)
-    (local $cp         i32)
-    (local $glob_remap i32)
-    (local $func_remap i32)
-    (local $pend_idx   i32)
-    (local $pend_ptr   i32)
-    (local $pend_len   i32)
-    (local $n_ptr      i32)
-    (local $n_len      i32)
-    (local $kt_box     i32)
-    (local $after      i32)
-    (local $sym_ptr    i32)
-    (local $sym_len    i32)
-    (local $main_lit   i32)
-    (local $is_main    i32)
-    (local $f_idx      i32)
-    (local $main_idx   i32)
-    (local $rel_ptr    i32)
+    (local $cnt       i32)
+    (local $i         i32)
+    (local $e         i32)
+    (local $matched   i32)
+    (local $match_idx i32)
+    (local $best_plen i32)
+    (local $eclen     i32)
+    (local $last_tok  i32)
+    (local $plen      i32)
+    (local $ok        i32)
 
     (set $cnt (call $buf_count_i32 $builtin_entries))
     (set $matched 0)
@@ -1144,6 +1123,36 @@
           (br $p2_lp))))
 
     (when (i32.eqz $matched) (unreachable))
+    (global.set $ret_aux $match_idx)
+    (get $matched))
+
+  ;; Links `$matched` (from `$find_builtin_entry`) into the output module and returns `func_idx`.
+  (func $link_builtin_matched (param $matched i32) (param $match_idx i32) (result i32)
+    (local $w_ptr      i32)
+    (local $w_end      i32)
+    (local $in_ptr     i32)
+    (local $in_end     i32)
+    (local $len        i32)
+    (local $cp         i32)
+    (local $glob_remap i32)
+    (local $func_remap i32)
+    (local $pend_idx   i32)
+    (local $pend_ptr   i32)
+    (local $pend_len   i32)
+    (local $n_ptr      i32)
+    (local $n_len      i32)
+    (local $kt_box     i32)
+    (local $after      i32)
+    (local $sym_ptr    i32)
+    (local $sym_len    i32)
+    (local $main_lit   i32)
+    (local $is_main    i32)
+    (local $f_idx      i32)
+    (local $main_idx   i32)
+    (local $rel_ptr    i32)
+    (local $cnt        i32)
+    (local $i          i32)
+
     (when (i32.gt_u (i32.load offset=28 $matched) 0)
       (return (i32.sub (i32.load offset=28 $matched) 1)))
 
@@ -1260,6 +1269,142 @@
     (when (i32.lt_s $main_idx 0) (unreachable))
     (i32.store offset=28 $matched (i32.add $main_idx 1))
     (get $main_idx))
+
+  ;; Matches & links a Stage 0 `.WASM` built-in for `($op_cp, $ctx_len, $c0, $c1, $c2)`.
+  (func $link_builtin
+    (param $op_cp i32) (param $ctx_len i32) (param $c0 i32) (param $c1 i32) (param $c2 i32) (result i32)
+    (local $matched i32)
+    (set $matched (call $find_builtin_entry $op_cp $ctx_len $c0 $c1 $c2))
+    (call $link_builtin_matched $matched $ret_aux))
+
+  ;; If `$matched` is a pure, relocation-free standalone `[Routine]` beginning with
+  ;; `local.get 0` (and `local.get 1` for `$arity == 2`) with no locals, appends its
+  ;; trailing instruction tokens directly into `$fb`'s body buffer and returns `1`.
+  (func $try_inline_builtin (param $fb i32) (param $matched i32) (param $arity i32) (result i32)
+    (local $w_ptr    i32)
+    (local $w_len    i32)
+    (local $w_end    i32)
+    (local $in_ptr   i32)
+    (local $in_end   i32)
+    (local $body_end i32)
+    (local $ptr      i32)
+    (local $len      i32)
+    (local $k        i32)
+    (local $tail_ptr i32)
+    (local $scan     i32)
+    (local $cp       i32)
+    (local $sub      i32)
+
+    (set $w_ptr (i32.load offset=20 $matched))
+    (set $w_len (i32.load offset=24 $matched))
+    (when (i32.lt_u $w_len 12) (return 0))
+    (set $w_end (i32.add $w_ptr $w_len))
+    (set $len (call $raw_decode_at $w_ptr $w_end))
+    (when (i32.ne $dec_cp $DC_BEGIN_WASM_PROGRAM) (return 0))
+    (set $in_ptr (i32.add $w_ptr $len))
+    (set $in_end (i32.sub $w_end 4))
+    (when (i32.ge_u $in_ptr $in_end) (return 0))
+    (set $len (call $raw_decode_at $in_end $w_end))
+    (when (i32.ne $dec_cp $DC_END_WASM_PROGRAM) (return 0))
+
+    ;; Only standalone `[Routine]` (`Dc 260 .. Dc 261`) entries qualify
+    (set $len (call $raw_decode_at $in_ptr $in_end))
+    (when (i32.ne $dec_cp $DC_BEGIN_LITERAL) (return 0))
+    (set $ptr (i32.add $in_ptr $len))
+    (set $body_end (i32.sub $in_end 4))
+    (when (i32.ge_u $ptr $body_end) (return 0))
+    (set $len (call $raw_decode_at $body_end $in_end))
+    (when (i32.ne $dec_cp $DC_END_LITERAL) (return 0))
+
+    (set $ptr (call $skip_wasm_type_expr $ptr $body_end))
+    (when (i32.ge_u $ptr $body_end) (return 0))
+
+    ;; Optional empty locals list (`Dc 310 Dc 565 Dc 311`) only
+    (set $len (call $raw_decode_at $ptr $body_end))
+    (when (i32.eq $dec_cp $DC_BEGIN_LIST)
+      (set $ptr (i32.add $ptr $len))
+      (when (i32.ge_u $ptr $body_end) (return 0))
+      (set $len (call $raw_decode_at $ptr $body_end))
+      (when (i32.ne $dec_cp $DC_ENTITY_TYPE) (return 0))
+      (set $ptr (i32.add $ptr $len))
+      (when (i32.ge_u $ptr $body_end) (return 0))
+      (set $len (call $raw_decode_at $ptr $body_end))
+      (when (i32.ne $dec_cp $DC_END_LIST) (return 0))
+      (set $ptr (i32.add $ptr $len)))
+
+    ;; Must begin with exact `local.get 0` (and `local.get 1` if binary)
+    (set $k 0)
+    (block $pg_done
+      (loop $pg_lp
+        (br_if $pg_done (i32.ge_u $k $arity))
+        (when (i32.ge_u $ptr $body_end) (return 0))
+        (set $len (call $raw_decode_at $ptr $body_end))
+        (when (i32.ne $dec_cp (i32.add $DC_WASM_START 0x20)) (return 0))
+        (set $ptr (i32.add $ptr $len))
+        (when (i32.ge_u $ptr $body_end) (return 0))
+        (drop (call $raw_decode_at $ptr $body_end))
+        (when (i32.ne $dec_cp $DC_BEGIN_NUMBER) (return 0))
+        (when (i32.ne (call $read_wasm_u32_at $ptr $body_end) $k) (return 0))
+        (set $ptr $ret_aux)
+        (set $k (i32.add $k 1))
+        (br $pg_lp)))
+
+    ;; Verify remaining tail contains only pure, relocation-free core ops
+    (set $tail_ptr $ptr)
+    (set $scan $tail_ptr)
+    (block $sc_done
+      (loop $sc_lp
+        (br_if $sc_done (i32.ge_u $scan $body_end))
+        (set $len (call $raw_decode_at $scan $body_end))
+        (set $cp $dec_cp)
+        (set $scan (i32.add $scan $len))
+        (when (i32.or (i32.lt_u $cp $DC_WASM_START) (i32.ge_u $cp $DC_WASM_FB_START))
+          (return 0))
+        (set $sub (i32.sub $cp $DC_WASM_START))
+        (block $step
+          (when
+            (i32.or
+              (i32.le_u $sub 0x01)
+              (i32.or
+                (i32.and (i32.ge_u $sub 0x1A) (i32.le_u $sub 0x1B))
+                (i32.and (i32.ge_u $sub 0x45) (i32.le_u $sub 0xC4))))
+            (br $step))
+          (when (i32.and (i32.ge_u $sub 0x41) (i32.le_u $sub 0x44))
+            (when (i32.ge_u $scan $body_end) (return 0))
+            (drop (call $raw_decode_at $scan $body_end))
+            (when (i32.ne $dec_cp $DC_BEGIN_NUMBER) (return 0))
+            (set $scan (call $skip_wasm_balanced $scan $body_end $DC_BEGIN_NUMBER $DC_END_NUMBER))
+            (br $step))
+          (when (i32.and (i32.ge_u $sub 0x28) (i32.le_u $sub 0x35))
+            (set $k 0)
+            (block $imm_done
+              (loop $imm_lp
+                (br_if $imm_done (i32.ge_u $k 3))
+                (when (i32.ge_u $scan $body_end) (return 0))
+                (drop (call $raw_decode_at $scan $body_end))
+                (when (i32.ne $dec_cp $DC_BEGIN_NUMBER) (return 0))
+                (set $scan (call $skip_wasm_balanced $scan $body_end $DC_BEGIN_NUMBER $DC_END_NUMBER))
+                (set $k (i32.add $k 1))
+                (br $imm_lp)))
+            (br $step))
+          (return 0))
+        (br $sc_lp)))
+
+    (call $buf_push_bytes (i32.load offset=16 $fb) $tail_ptr (i32.sub $body_end $tail_ptr))
+    (i32.const 1))
+
+  ;; Emits either an inlined pure tail or `(call $fn_idx)` for `($op_cp, $ctx_len, $c0, $c1, $c2)`.
+  (func $emit_builtin_op
+    (param $fb i32) (param $arity i32) (param $op_cp i32) (param $ctx_len i32) (param $c0 i32) (param $c1 i32) (param $c2 i32)
+    (local $matched   i32)
+    (local $match_idx i32)
+    (set $matched (call $find_builtin_entry $op_cp $ctx_len $c0 $c1 $c2))
+    (set $match_idx $ret_aux)
+    (when (call $try_inline_builtin $fb $matched $arity) (return))
+    (call $fb_op_u32 $fb 0x10 (call $link_builtin_matched $matched $match_idx)))
+
+  (func $emit_scalar_op (param $fb i32) (param $arity i32) (param $op_cp i32) (param $ty_id i32)
+    (call $emit_builtin_op $fb $arity $op_cp 1 (call $ty_scalar_fmt_cp $ty_id) 0 0))
 
   (func $ensure_alloc_helper (result i32)
     (local $p   i32)
@@ -3636,7 +3781,7 @@
     (local $inner i32)
     (when (call $ty_contains_buf $ty_id) (unreachable))
     (when (call $ty_is_scalar $ty_id)
-      (call $fb_op_u32 $fb 0x10 (call $link_scalar_op $DC_EQ_OP $ty_id))
+      (call $emit_scalar_op $fb 2 $DC_EQ_OP $ty_id)
       (return))
     (when (i32.eq $ty_id $TY_TUP0)
       (call $fb_op $fb 0x1A)
@@ -5560,6 +5705,25 @@
           $in_tail
           (i32.eq (call $ty_wasm_vt (i32.load offset=12 $fctx)) (call $ty_wasm_vt $cty))))
 
+      (when (i32.and (i32.eqz $nr) (i32.or (i32.eqz $can_tail) (i32.eqz $uses_shadow)))
+        ;; Top-level call needing no capture preparation or shadow pop: push args directly
+        (set $i 0)
+        (block $dc_done
+          (loop $dc_lp
+            (br_if $dc_done (i32.ge_u $i $cnt))
+            (set $ety (call $emit_expr $fctx (call $buf_get_i32 $elems $i) 0))
+            (when (i32.eq $ety $TY_NEVER) (return $TY_NEVER))
+            (set $i (i32.add $i 1))
+            (br $dc_lp)))
+        (if $can_tail
+          (then
+            (call $fb_op_u32 $fb 0x12 (i32.load offset=36 $r))
+            (return $TY_NEVER))
+          (else
+            (call $fb_op_u32 $fb 0x10 (i32.load offset=36 $r))
+            (when (i32.eq $cty $TY_NEVER) (call $fb_op $fb 0x00))
+            (return $cty))))
+
       ;; Evaluate arguments left-to-right into temp locals
       (set $i 0)
       (block $ce_done
@@ -5887,7 +6051,7 @@
               (if (result i32) (i32.eq $cnt $TK_BUF)
                 (then (i32.const $DC_STAGEL_BUF_TYPE))
                 (else (unreachable))))))
-        (call $fb_op_u32 $fb 0x10 (call $link_builtin $DC_SEQ_LEN_OP 2 $p $DC_TYPE_ANY 0))
+        (call $emit_builtin_op $fb 1 $DC_SEQ_LEN_OP 2 $p $DC_TYPE_ANY 0)
         (return $TY_U64))
       (when (i32.eq $op $DC_STAGEL_BUF_FREEZE)
         (when (i32.load offset=40 $fctx) (unreachable))
@@ -5908,7 +6072,7 @@
           (unreachable))
         (call $fb_op_u32 $fb 0x10 (call $link_builtin $DC_REQUEST_HOST_CAPABILITY_OP 2 $DC_STAGEL_LIST_TYPE $FMT_U8 0))
         (return $t1))
-      (call $fb_op_u32 $fb 0x10 (call $link_scalar_op $op $t1))
+      (call $emit_scalar_op $fb 1 $op $t1)
       (when (i32.eq $op $DC_LOGICAL_NOT_OP) (return $TY_B))
       (when (i32.and (i32.ge_u $op $DC_CLZ_OP) (i32.le_u $op $DC_POPCNT_OP)) (return $TY_U32))
       (return $t1))
@@ -5938,26 +6102,16 @@
         (call $fb_op $fb 0x0B)
         (return $TY_B))
 
-      (set $vt (call $ty_wasm_vt $t1))
-      (when (i32.eqz $vt) (unreachable))
-      (set $l1 (call $fb_alloc_local $fb $vt))
-      (call $fb_op_u32 $fb 0x21 $l1)
-
+      (when (i32.eqz (call $ty_wasm_vt $t1)) (unreachable))
       (set $t2 (call $emit_expr $fctx (i32.load offset=12 $ex) 0))
       (when (i32.eq $t2 $TY_NEVER) (return $TY_NEVER))
-      (set $vt (call $ty_wasm_vt $t2))
-      (when (i32.eqz $vt) (unreachable))
-      (set $l2 (call $fb_alloc_local $fb $vt))
-      (call $fb_op_u32 $fb 0x21 $l2)
-
-      (call $fb_op_u32 $fb 0x20 $l1)
-      (call $fb_op_u32 $fb 0x20 $l2)
+      (when (i32.eqz (call $ty_wasm_vt $t2)) (unreachable))
 
       (when (i32.or (i32.eq $op $DC_EQ_OP) (i32.eq $op $DC_NE_OP))
         (when (i32.ne $t1 $t2) (unreachable))
         (when (call $ty_contains_buf $t1) (unreachable))
         (when (call $ty_is_scalar $t1)
-          (call $fb_op_u32 $fb 0x10 (call $link_scalar_op $op $t1))
+          (call $emit_scalar_op $fb 2 $op $t1)
           (return $TY_B))
         (when (i32.eq $t1 $TY_TUP0)
           (call $fb_op $fb 0x1A)
@@ -6022,10 +6176,10 @@
       ;; Remaining binary scalar ops (`add..rem`, `wrap*`, `bit*`, `shl..rotr`, `lt..ge`)
       (when (i32.and (i32.ge_u $op $DC_SHL_OP) (i32.le_u $op $DC_ROTR_OP))
         (when (i32.ne $t2 $TY_U32) (unreachable))
-        (call $fb_op_u32 $fb 0x10 (call $link_scalar_op $op $t1))
+        (call $emit_scalar_op $fb 2 $op $t1)
         (return $t1))
       (when (i32.ne $t1 $t2) (unreachable))
-      (call $fb_op_u32 $fb 0x10 (call $link_scalar_op $op $t1))
+      (call $emit_scalar_op $fb 2 $op $t1)
       (when (i32.and (i32.ge_u $op $DC_LT_OP) (i32.le_u $op $DC_GE_OP))
         (return $TY_B))
       (return $t1))
@@ -6034,23 +6188,15 @@
       (set $op (i32.load offset=4 $ex))
       (set $t1 (call $emit_expr $fctx (i32.load offset=8 $ex) 0))
       (when (i32.eq $t1 $TY_NEVER) (return $TY_NEVER))
-      (set $l1 (call $fb_alloc_local $fb (call $ty_wasm_vt $t1)))
-      (call $fb_op_u32 $fb 0x21 $l1)
+      (when (i32.eqz (call $ty_wasm_vt $t1)) (unreachable))
 
       (set $t2 (call $emit_expr $fctx (i32.load offset=12 $ex) 0))
       (when (i32.eq $t2 $TY_NEVER) (return $TY_NEVER))
       (when (i32.ne $t2 $TY_U64) (unreachable))
-      (set $l2 (call $fb_alloc_local $fb $FMT_I64))
-      (call $fb_op_u32 $fb 0x21 $l2)
 
       (set $t3 (call $emit_expr $fctx (i32.load offset=16 $ex) 0))
       (when (i32.eq $t3 $TY_NEVER) (return $TY_NEVER))
-      (set $l3 (call $fb_alloc_local $fb (call $ty_wasm_vt $t3)))
-      (call $fb_op_u32 $fb 0x21 $l3)
-
-      (call $fb_op_u32 $fb 0x20 $l1)
-      (call $fb_op_u32 $fb 0x20 $l2)
-      (call $fb_op_u32 $fb 0x20 $l3)
+      (when (i32.eqz (call $ty_wasm_vt $t3)) (unreachable))
 
       (when (i32.lt_u $t1 8) (unreachable))
       (set $t (call $buf_get_i32 $type_table $t1))
@@ -6071,26 +6217,22 @@
       (set $t1 (call $emit_expr $fctx (i32.load offset=4 $ex) 0))
       (when (i32.eq $t1 $TY_NEVER) (return $TY_NEVER))
       (set $cty (call $canon_type $mod_i (i32.load offset=8 $ex)))
-      (call $fb_op_u32
-        $fb 0x10
-        (call $link_builtin
-          $DC_CONVERT_OP 3
-          $DC_TYPE_CONVERSION
-          (call $ty_scalar_fmt_cp $t1)
-          (call $ty_scalar_fmt_cp $cty)))
+      (call $emit_builtin_op
+        $fb 1 $DC_CONVERT_OP 3
+        $DC_TYPE_CONVERSION
+        (call $ty_scalar_fmt_cp $t1)
+        (call $ty_scalar_fmt_cp $cty))
       (return $cty))
 
     (when (i32.eq $tag $EX_BITCAST)
       (set $t1 (call $emit_expr $fctx (i32.load offset=4 $ex) 0))
       (when (i32.eq $t1 $TY_NEVER) (return $TY_NEVER))
       (set $cty (call $canon_type $mod_i (i32.load offset=8 $ex)))
-      (call $fb_op_u32
-        $fb 0x10
-        (call $link_builtin
-          $DC_BITCAST_OP 3
-          $DC_TYPE_TRANSMUTATION
-          (call $ty_scalar_fmt_cp $t1)
-          (call $ty_scalar_fmt_cp $cty)))
+      (call $emit_builtin_op
+        $fb 1 $DC_BITCAST_OP 3
+        $DC_TYPE_TRANSMUTATION
+        (call $ty_scalar_fmt_cp $t1)
+        (call $ty_scalar_fmt_cp $cty))
       (return $cty))
 
     (unreachable))

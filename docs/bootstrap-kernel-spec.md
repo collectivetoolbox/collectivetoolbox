@@ -208,7 +208,7 @@ The host enforces portable, runtime-independent WebAssembly resource limits
 ([`DcWasmResourceLimits`](../src/formats/dcstring/converters/wasm.rs)) by instrumenting
 standard `.wasm` bytecode before instantiation via [`instrument_wasm_module_bytes`](../src/formats/dcstring/converters/wasm_quota.rs)
 and running on unmodified `tinywasm 0.8.0` (with no forked WASM runtime required):
-1. **Portable compute quota** (`max_instructions_per_step`, default `1_000_000` compute units): metered in standard WebAssembly bytecode (`deduct-before-effect`) across the hoisted `start` section (`__ctb_wasm_start`), every `step()` call, and shared task helper evaluations ([`SharedWasmTaskQuota`](../src/formats/dcstring/converters/wasm_quota.rs)):
+1. **Portable compute quota** (`max_instructions_per_step`, default `10_000_000` compute units): metered in standard WebAssembly bytecode (`deduct-before-effect`) across the hoisted `start` section (`__ctb_wasm_start`), every `step()` call, and shared task helper evaluations ([`SharedWasmTaskQuota`](../src/formats/dcstring/converters/wasm_quota.rs)):
    - Function entry, `loop` body entry, and each standard instruction (excluding structural `else` / `end` delimiters): `1` compute unit.
    - Bulk memory/table operations (`memory.copy`, `memory.fill`, `memory.init`, `table.copy`, `table.fill`, `table.init`): `1 + u64(n)` compute units.
    - `memory.grow`: `1` unit when logically denied (`delta < 0` or exceeding `max_memory_pages` or declared maximum, returning `-1`); `1 + 64 * u64(delta)` units when logically allowed.
