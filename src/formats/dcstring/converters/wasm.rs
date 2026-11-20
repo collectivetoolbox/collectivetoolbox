@@ -48,9 +48,14 @@ use ctb_formats_dcdata::syntax::{
 use ctb_formats_dcdata::tinywasm::interpreter::TinyWasmValue;
 use ctb_formats_dcdata::tinywasm::types::ExternVal;
 use ctb_formats_dcdata::tinywasm::{
-    Extern, FuncContext, Imports, Module, ModuleInstance, Store,
+    Extern, FuncContext, Imports, MemoryRefMut, Module, ModuleInstance, Store,
 };
 use ctb_utilities::format_id::FormatId;
+use ctb_wasm_substitute_rt::{
+    SubstituteVm, WasmLinearMemory, WasmSubstituteDescriptor,
+    WasmSubstituteHost, WasmSubstituteInstance, WasmTrap, lookup_substitute,
+};
+use sha2::{Digest, Sha256};
 
 pub use super::wasm_quota::{
     CTB_CAPABILITY_YIELD_EXPORT, CTB_EXHAUSTED_EXPORT,
@@ -2369,6 +2374,19 @@ pub enum WasmStepOutcome {
     RequestCapability(DcMstring),
 }
 
+/// Execution backend selection for instantiating a [`DcWasmSession`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DcWasmExecutionBackend {
+    /// Automatically dispatch to a registered native safe-Rust substitute when
+    /// `(WASM_RESOURCE_ACCOUNTING_VERSION, sha256(wasm))` matches, falling back
+    /// cleanly to instrumented `tinywasm` otherwise.
+    #[default]
+    Auto,
+    /// Force instrumented WebAssembly execution on `tinywasm`, bypassing native
+    /// substitutes.
+    ForceTinyWasm,
+}
+
 #[derive(Debug, Clone, Copy)]
 struct CtbGlobalAddrs {
     quota_rem: u32,
@@ -2414,11 +2432,51 @@ impl CtbGlobalAddrs {
     }
 }
 
-type StoreTask =
-    Box<dyn FnOnce(&mut Store, &ModuleInstance, &CtbGlobalAddrs) + Send>;
+type Reply<T> = std::sync::mpsc::Sender<T>;
 
 enum WorkerCommand {
-    WithStore(StoreTask),
+    ConfigureLimits {
+        limits: DcWasmResourceLimits,
+        reply: Reply<()>,
+    },
+    ExportedGlobalI32 {
+        name: String,
+        reply: Reply<Option<i32>>,
+    },
+    ExportedGlobalI64 {
+        name: String,
+        reply: Reply<Option<i64>>,
+    },
+    ReadMemory {
+        offset: usize,
+        len: usize,
+        reply: Reply<Result<Vec<u8>>>,
+    },
+    ReadOutputMailboxHeader {
+        reply: Reply<Result<(usize, usize)>>,
+    },
+    ReadCurrentMemoryPages {
+        reply: Reply<Result<usize>>,
+    },
+    ReadCurrentTableElements {
+        reply: Reply<usize>,
+    },
+    ReadExportedMemoryPages {
+        reply: Reply<Result<usize>>,
+    },
+    ReadQuotaConsumed {
+        reply: Reply<u64>,
+    },
+    WriteInput {
+        input_ptr: usize,
+        payload: Vec<u8>,
+        header: [u8; 32],
+        required_mem_bytes: usize,
+        total_store_pages: usize,
+        other_mem_pages: usize,
+        effective_max_pages: usize,
+        reply: Reply<Result<()>>,
+    },
     StartStep {
         entry_func_name: String,
         in_ptr_i32: i32,
@@ -2487,14 +2545,17 @@ impl Drop for SessionWorkerHandle {
 }
 
 /// Pure-compute WebAssembly execution state machine (`step() -> StatusCode`) backed by
-/// unmodified `tinywasm` and portable bytecode compute-quota instrumentation.
+/// either `tinywasm` (with portable bytecode compute-quota instrumentation) or a
+/// bit-for-bit equivalent Guix-style compiled safe-Rust substitute.
 ///
-/// Owns a persistent [`Store`] and [`ModuleInstance`] on a continuation worker whose
-/// call stack, locals, linear memory, tables, and globals survive across `step()` calls
-/// and mid-step compute-quota pauses without re-executing earlier instructions.
+/// Owns a persistent worker thread whose call stack, locals, linear memory, tables,
+/// and globals survive across `step()` calls and mid-step compute-quota pauses without
+/// re-executing earlier instructions.
 #[derive(Debug)]
 pub struct DcWasmSession {
-    instrumented: InstrumentedWasmModule,
+    raw_wasm_bytes: Vec<u8>,
+    instrumented_bytes: std::sync::OnceLock<Vec<u8>>,
+    used_native_substitute: bool,
     worker: std::sync::Mutex<SessionWorkerHandle>,
     entry_func_name: String,
     base_io_offset: usize,
@@ -2615,17 +2676,752 @@ fn configure_store_limits(
     write_store_global_u64(store, addrs.phys_max_table_elems, phys_max_tbl);
 }
 
+fn configure_vm_limits(vm: &mut SubstituteVm, limits: &DcWasmResourceLimits) {
+    // Reason for fallback: on hypothetical >64-bit usize platforms, values above u64::MAX
+    // saturate to u64::MAX in the 64-bit VM resource ceiling.
+    vm.max_mem_pages = u64::try_from(limits.max_memory_pages).unwrap_or(u64::MAX);
+    // Reason for fallback: on hypothetical >64-bit usize platforms, values above u64::MAX
+    // saturate to u64::MAX in the 64-bit VM resource ceiling.
+    vm.phys_max_mem_pages =
+        u64::try_from(limits.physical_max_memory_pages).unwrap_or(u64::MAX);
+    // Reason for fallback: on hypothetical >64-bit usize platforms, values above u64::MAX
+    // saturate to u64::MAX in the 64-bit VM resource ceiling.
+    vm.max_table_elems =
+        u64::try_from(limits.max_table_elements).unwrap_or(u64::MAX);
+    // Reason for fallback: on hypothetical >64-bit usize platforms, values above u64::MAX
+    // saturate to u64::MAX in the 64-bit VM resource ceiling.
+    vm.phys_max_table_elems =
+        u64::try_from(limits.physical_max_table_elements).unwrap_or(u64::MAX);
+}
+
+trait HostLinearMemory {
+    fn mem_page_count(&mut self) -> usize;
+    fn mem_load(&self, offset: usize, len: usize) -> Result<Vec<u8>>;
+    fn mem_store(&mut self, offset: usize, bytes: &[u8]) -> Result<()>;
+    fn mem_grow(&mut self, delta: i32) -> Option<i32>;
+}
+
+impl HostLinearMemory for MemoryRefMut<'_> {
+    fn mem_page_count(&mut self) -> usize {
+        self.page_count()
+    }
+
+    fn mem_load(&self, offset: usize, len: usize) -> Result<Vec<u8>> {
+        self.load(offset, len)
+            .map(<[u8]>::to_vec)
+            .map_err(|e| anyhow!("WASM memory load failed: {e:?}"))
+    }
+
+    fn mem_store(&mut self, offset: usize, bytes: &[u8]) -> Result<()> {
+        self.store(offset, bytes.len(), bytes)
+            .map_err(|e| anyhow!("WASM memory store failed: {e:?}"))
+    }
+
+    fn mem_grow(&mut self, delta: i32) -> Option<i32> {
+        self.grow(delta)
+    }
+}
+
+impl HostLinearMemory for WasmLinearMemory {
+    fn mem_page_count(&mut self) -> usize {
+        self.page_count()
+    }
+
+    fn mem_load(&self, offset: usize, len: usize) -> Result<Vec<u8>> {
+        self.load_bytes(offset, len)
+            .map(<[u8]>::to_vec)
+            .map_err(|e| anyhow!("WASM substitute memory load failed: {e}"))
+    }
+
+    fn mem_store(&mut self, offset: usize, bytes: &[u8]) -> Result<()> {
+        self.store_bytes(offset, bytes)
+            .map_err(|e| anyhow!("WASM substitute memory store failed: {e}"))
+    }
+
+    fn mem_grow(&mut self, delta: i32) -> Option<i32> {
+        let delta_u32 = u32::try_from(delta).ok()?;
+        self.grow_host(delta_u32)
+    }
+}
+
+fn read_output_mailbox_header_from_mem<M: HostLinearMemory>(
+    mem: &M,
+) -> Result<(usize, usize)> {
+    let hdr = mem.mem_load(8, 8).map_err(|e| {
+        anyhow!("Failed to read WASM output mailbox header at 8..16: {e}")
+    })?;
+    let hdr_arr: [u8; 8] = hdr
+        .try_into()
+        .map_err(|_| anyhow!("WASM output mailbox header slice is not 8 bytes"))?;
+    let out_ptr = usize::try_from(u32::from_le_bytes([
+        hdr_arr[0], hdr_arr[1], hdr_arr[2], hdr_arr[3],
+    ]))?;
+    let out_len = usize::try_from(u32::from_le_bytes([
+        hdr_arr[4], hdr_arr[5], hdr_arr[6], hdr_arr[7],
+    ]))?;
+    Ok((out_ptr, out_len))
+}
+
 #[allow(
-    clippy::too_many_lines,
-    reason = "Initializes tinywasm store, hoisted start section, and live continuation worker loop"
+    clippy::too_many_arguments,
+    reason = "Shared mailbox write and growth helper across WASM and substitute engines"
 )]
-fn spawn_session_worker(
-    parsed_suspendable: ctb_formats_dcdata::tinywasm::types::TinyWasmModule,
-    resource_limits: DcWasmResourceLimits,
-    has_start_func: bool,
+fn write_input_on_memory<M: HostLinearMemory>(
+    mem: &mut M,
+    input_ptr: usize,
+    payload: &[u8],
+    header: &[u8; 32],
+    required_mem_bytes: usize,
+    total_store_pages: usize,
+    other_mem_pages: usize,
+    effective_max_pages: usize,
+) -> Result<usize> {
+    let current_pages = mem.mem_page_count();
+    let current_bytes = current_pages.saturating_mul(65_536);
+    let mut new_total_store_pages = total_store_pages;
+    if required_mem_bytes > current_bytes {
+        let missing_bytes = required_mem_bytes.saturating_sub(current_bytes);
+        // Reason for fallback: 65_536 is a non-zero constant page divisor.
+        let extra_pages = missing_bytes
+            .saturating_add(65_535)
+            .checked_div(65_536)
+            .unwrap_or(1);
+        let delta = i32::try_from(extra_pages)
+            .context("WASM memory page growth exceeds i32")?;
+        if mem.mem_grow(delta).is_none() {
+            return Err(anyhow::Error::new(
+                WasmResourceInterruption::MemoryLimitExceeded {
+                    requested_pages: other_mem_pages
+                        .saturating_add(current_pages)
+                        .saturating_add(extra_pages),
+                    max_pages: effective_max_pages,
+                },
+            ));
+        }
+        new_total_store_pages = other_mem_pages
+            .saturating_add(current_pages.saturating_add(extra_pages));
+    }
+    if !payload.is_empty() {
+        mem.mem_store(input_ptr, payload)?;
+    }
+    mem.mem_store(0, header)?;
+    Ok(new_total_store_pages)
+}
+
+fn apply_capability_response_on_memory<M: HostLinearMemory>(
+    mem: &mut M,
+    base_io_offset: usize,
+    response_bytes: &[u8],
+    heap_ptr: usize,
+    total_store_pages: usize,
+    max_allowed_pages: usize,
+) -> std::result::Result<(Option<usize>, usize), Option<u64>> {
+    let hdr = mem.mem_load(0, 16).map_err(|_| None)?;
+    let [
+        b0, b1, b2, b3, b4, b5, b6, b7,
+        b8, b9, b10, b11, b12, b13, b14, b15,
+    ]: [u8; 16] = hdr.try_into().map_err(|_| None)?;
+    let prev_in_ptr =
+        usize::try_from(u32::from_le_bytes([b0, b1, b2, b3])).map_err(|_| None)?;
+    let prev_in_len =
+        usize::try_from(u32::from_le_bytes([b4, b5, b6, b7])).map_err(|_| None)?;
+    let prev_out_ptr =
+        usize::try_from(u32::from_le_bytes([b8, b9, b10, b11])).map_err(|_| None)?;
+    let prev_out_len =
+        usize::try_from(u32::from_le_bytes([b12, b13, b14, b15])).map_err(|_| None)?;
+    let prev_in_end = prev_in_ptr.saturating_add(prev_in_len);
+    let prev_out_end = prev_out_ptr.saturating_add(prev_out_len);
+    let resp_ptr = align_up_8(
+        base_io_offset
+            .max(prev_in_end)
+            .max(prev_out_end)
+            .max(heap_ptr),
+    )
+    .map_err(|_| None)?;
+    let resp_len = response_bytes.len();
+    let required_bytes = resp_ptr.checked_add(resp_len).ok_or(None)?;
+    let current_pages = mem.mem_page_count();
+    let current_bytes = current_pages.saturating_mul(65_536);
+    let other_mem_pages = total_store_pages.saturating_sub(current_pages);
+    let mut updated_total = None;
+    if required_bytes > current_bytes {
+        let missing = required_bytes.saturating_sub(current_bytes);
+        // Reason for fallback: 65_536 is a non-zero constant page size divisor.
+        let extra_pages = missing
+            .saturating_add(65_535)
+            .checked_div(65_536)
+            .unwrap_or(1);
+        let new_total = other_mem_pages
+            .saturating_add(current_pages.saturating_add(extra_pages));
+        if new_total > max_allowed_pages {
+            return Err(Some(u64::try_from(new_total).map_err(|_| None)?));
+        }
+        let delta = i32::try_from(extra_pages).map_err(|_| None)?;
+        if mem.mem_grow(delta).is_none() {
+            return Err(Some(u64::try_from(new_total).map_err(|_| None)?));
+        }
+        updated_total = Some(new_total);
+    }
+    if !response_bytes.is_empty() {
+        mem.mem_store(resp_ptr, response_bytes).map_err(|_| None)?;
+    }
+    let resp_ptr_u32 = u32::try_from(resp_ptr).map_err(|_| None)?;
+    let resp_len_u32 = u32::try_from(resp_len).map_err(|_| None)?;
+    let mut next_hdr = [0u8; 16];
+    next_hdr[0..4].copy_from_slice(&resp_ptr_u32.to_le_bytes());
+    next_hdr[4..8].copy_from_slice(&resp_len_u32.to_le_bytes());
+    mem.mem_store(0, &next_hdr).map_err(|_| None)?;
+    let aligned_end = align_up_8(required_bytes).map_err(|_| None)?;
+    Ok((updated_total, aligned_end))
+}
+
+fn reset_output_mailbox_on_mem<M: HostLinearMemory>(
+    mem: &mut M,
+    default_output_ptr: u32,
+) {
+    let mut out_reset = [0u8; 8];
+    out_reset[0..4].copy_from_slice(&default_output_ptr.to_le_bytes());
+    out_reset[4..8].copy_from_slice(&0u32.to_le_bytes());
+    if let Ok(out_off) = usize::try_from(DC_WASM_MAILBOX_OUTPUT_PTR) {
+        let _ = mem.mem_store(out_off, &out_reset);
+    }
+}
+
+fn last_nonzero_memory_end_on_slice(slice: &[u8]) -> usize {
+    // Reason for fallback: an all-zero initial memory has 0 nonzero bytes written.
+    slice
+        .iter()
+        .rposition(|&b| b != 0)
+        .map_or(0, |idx| idx.saturating_add(1))
+}
+
+fn map_start_section_error(
+    exhausted: i32,
+    interrupted_op: u64,
+    limit: u64,
     effective_max_mem: usize,
     effective_max_tbl: usize,
-    static_data_end: usize,
+    trap_desc: impl std::fmt::Display,
+) -> anyhow::Error {
+    match exhausted {
+        1 => anyhow::Error::new(
+            WasmResourceInterruption::ComputeQuotaExhausted { limit },
+        ),
+        2 => {
+            // Reason for fallback: on 32-bit hosts, a 64-bit requested page count
+            // exceeding usize::MAX saturates to usize::MAX in the diagnostic report.
+            let requested_pages =
+                usize::try_from(interrupted_op).unwrap_or(usize::MAX);
+            anyhow::Error::new(WasmResourceInterruption::MemoryLimitExceeded {
+                requested_pages,
+                max_pages: effective_max_mem,
+            })
+        }
+        3 => {
+            // Reason for fallback: on 32-bit hosts, a 64-bit requested element count
+            // exceeding usize::MAX saturates to usize::MAX in the diagnostic report.
+            let requested_elements =
+                usize::try_from(interrupted_op).unwrap_or(usize::MAX);
+            anyhow::Error::new(WasmResourceInterruption::TableLimitExceeded {
+                requested_elements,
+                max_elements: effective_max_tbl,
+            })
+        }
+        _ => anyhow::Error::new(WasmStartSectionTrap {
+            message: format!(
+                "Failed to execute WebAssembly start section: {trap_desc}"
+            ),
+        }),
+    }
+}
+
+fn tinywasm_handle_query(
+    store: &mut Store,
+    instance: &ModuleInstance,
+    addrs: &CtbGlobalAddrs,
+    cmd: WorkerCommand,
+) -> Option<WorkerCommand> {
+    match cmd {
+        WorkerCommand::ConfigureLimits { limits, reply } => {
+            configure_store_limits(store, addrs, &limits);
+            let _ = reply.send(());
+            None
+        }
+        WorkerCommand::ExportedGlobalI32 { name, reply } => {
+            let val = if let Some(ExternVal::Global(addr)) =
+                instance.export_addr(&name)
+            {
+                Some(read_store_global_i32(store, addr))
+            } else {
+                None
+            };
+            let _ = reply.send(val);
+            None
+        }
+        WorkerCommand::ExportedGlobalI64 { name, reply } => {
+            let val = if let Some(ExternVal::Global(addr)) =
+                instance.export_addr(&name)
+            {
+                let u = read_store_global_u64(store, addr);
+                Some(i64::from_le_bytes(u.to_le_bytes()))
+            } else {
+                None
+            };
+            let _ = reply.send(val);
+            None
+        }
+        WorkerCommand::ReadMemory { offset, len, reply } => {
+            let res = (|| -> Result<Vec<u8>> {
+                let mem = instance
+                    .exported_memory(store, "memory")
+                    .map_err(|e| {
+                        anyhow!("Failed to access WASM exported 'memory': {e:?}")
+                    })?;
+                mem.load_vec(offset, len).map_err(|e| {
+                    anyhow!(
+                        "Failed to read WASM memory at {offset}..{}: {e:?}",
+                        offset.saturating_add(len)
+                    )
+                })
+            })();
+            let _ = reply.send(res);
+            None
+        }
+        WorkerCommand::ReadOutputMailboxHeader { reply } => {
+            let res = (|| -> Result<(usize, usize)> {
+                let mut mem = instance
+                    .exported_memory_mut(store, "memory")
+                    .map_err(|e| {
+                        anyhow!("Failed to access WASM exported 'memory': {e:?}")
+                    })?;
+                read_output_mailbox_header_from_mem(&mut mem)
+            })();
+            let _ = reply.send(res);
+            None
+        }
+        WorkerCommand::ReadCurrentMemoryPages { reply } => {
+            let res = (|| -> Result<usize> {
+                let _mem = instance
+                    .exported_memory(store, "memory")
+                    .map_err(|e| {
+                        anyhow!("Failed to access WASM exported 'memory': {e:?}")
+                    })?;
+                let total = read_store_global_u64(store, addrs.total_mem_pages);
+                Ok(usize::try_from(total)?)
+            })();
+            let _ = reply.send(res);
+            None
+        }
+        WorkerCommand::ReadCurrentTableElements { reply } => {
+            let total = read_store_global_u64(store, addrs.total_table_elems);
+            // Reason for fallback: on 32-bit hosts, a 64-bit table count exceeding usize::MAX
+            // saturates to usize::MAX.
+            let _ = reply.send(usize::try_from(total).unwrap_or(usize::MAX));
+            None
+        }
+        WorkerCommand::ReadExportedMemoryPages { reply } => {
+            let res = (|| -> Result<usize> {
+                let mut mem = instance
+                    .exported_memory_mut(store, "memory")
+                    .map_err(|e| {
+                        anyhow!("Failed to access WASM exported 'memory': {e:?}")
+                    })?;
+                Ok(mem.page_count())
+            })();
+            let _ = reply.send(res);
+            None
+        }
+        WorkerCommand::ReadQuotaConsumed { reply } => {
+            let _ = reply.send(read_store_global_u64(store, addrs.quota_consumed));
+            None
+        }
+        WorkerCommand::WriteInput {
+            input_ptr,
+            payload,
+            header,
+            required_mem_bytes,
+            total_store_pages,
+            other_mem_pages,
+            effective_max_pages,
+            reply,
+        } => {
+            let res = (|| -> Result<()> {
+                let mut mem = instance
+                    .exported_memory_mut(store, "memory")
+                    .map_err(|e| {
+                        anyhow!("Failed to access WASM exported 'memory': {e:?}")
+                    })?;
+                let new_total_store_pages = write_input_on_memory(
+                    &mut mem,
+                    input_ptr,
+                    &payload,
+                    &header,
+                    required_mem_bytes,
+                    total_store_pages,
+                    other_mem_pages,
+                    effective_max_pages,
+                )?;
+                drop(mem);
+                write_store_global_u64(
+                    store,
+                    addrs.total_mem_pages,
+                    u64::try_from(new_total_store_pages)?,
+                );
+                Ok(())
+            })();
+            let _ = reply.send(res);
+            None
+        }
+        other => Some(other),
+    }
+}
+
+fn read_vm_ctb_global_i32(vm: &SubstituteVm, name: &str) -> Option<i32> {
+    if name == CTB_EXHAUSTED_EXPORT {
+        Some(vm.exhausted)
+    } else {
+        None
+    }
+}
+
+fn read_vm_ctb_global_u64(vm: &SubstituteVm, name: &str) -> Option<u64> {
+    match name {
+        n if n == CTB_QUOTA_REMAINING_EXPORT => Some(vm.quota_remaining),
+        n if n == CTB_QUOTA_CONSUMED_EXPORT => Some(vm.quota_consumed),
+        n if n == CTB_INTERRUPTED_OP_EXPORT => Some(vm.interrupted_op),
+        n if n == CTB_REQUIRED_COST_EXPORT => Some(vm.required_cost),
+        n if n == CTB_OP_ORDINAL_EXPORT => Some(vm.op_ordinal),
+        n if n == CTB_TOTAL_MEM_PAGES_EXPORT => Some(vm.total_mem_pages),
+        n if n == CTB_MAX_MEM_PAGES_EXPORT => Some(vm.max_mem_pages),
+        n if n == CTB_PHYS_MAX_MEM_PAGES_EXPORT => Some(vm.phys_max_mem_pages),
+        n if n == CTB_TOTAL_TABLE_ELEMS_EXPORT => Some(vm.total_table_elems),
+        n if n == CTB_MAX_TABLE_ELEMS_EXPORT => Some(vm.max_table_elems),
+        n if n == CTB_PHYS_MAX_TABLE_ELEMS_EXPORT => Some(vm.phys_max_table_elems),
+        n if n == CTB_RESUME_TARGET_OP_EXPORT => Some(vm.resume_target_op),
+        _ => None,
+    }
+}
+
+fn native_vm_handle_query(
+    vm: &mut SubstituteVm,
+    mem_export_idx: Option<usize>,
+    heap_ptr: Option<&i32>,
+    cmd: WorkerCommand,
+) -> Option<WorkerCommand> {
+    match cmd {
+        WorkerCommand::ConfigureLimits { limits, reply } => {
+            configure_vm_limits(vm, &limits);
+            let _ = reply.send(());
+            None
+        }
+        WorkerCommand::ExportedGlobalI32 { name, reply } => {
+            let val = if let Some(v) = read_vm_ctb_global_i32(vm, &name) {
+                Some(v)
+            } else if name == "__heap_ptr" {
+                heap_ptr.copied()
+            } else {
+                None
+            };
+            let _ = reply.send(val);
+            None
+        }
+        WorkerCommand::ExportedGlobalI64 { name, reply } => {
+            let val = read_vm_ctb_global_u64(vm, &name)
+                .map(|u| i64::from_le_bytes(u.to_le_bytes()));
+            let _ = reply.send(val);
+            None
+        }
+        WorkerCommand::ReadMemory { offset, len, reply } => {
+            let res = (|| -> Result<Vec<u8>> {
+                let mem_idx = mem_export_idx.context(
+                    "Failed to access WASM exported 'memory'",
+                )?;
+                let mem = vm.memories.get(mem_idx).context(
+                    "WASM exported memory index out of bounds",
+                )?;
+                mem.load_bytes(offset, len)
+                    .map(<[u8]>::to_vec)
+                    .map_err(|e| {
+                        anyhow!(
+                            "Failed to read WASM memory at {offset}..{}: {e}",
+                            offset.saturating_add(len)
+                        )
+                    })
+            })();
+            let _ = reply.send(res);
+            None
+        }
+        WorkerCommand::ReadOutputMailboxHeader { reply } => {
+            let res = (|| -> Result<(usize, usize)> {
+                let mem_idx = mem_export_idx.context(
+                    "Failed to access WASM exported 'memory'",
+                )?;
+                let mem = vm.memories.get(mem_idx).context(
+                    "WASM exported memory index out of bounds",
+                )?;
+                read_output_mailbox_header_from_mem(mem)
+            })();
+            let _ = reply.send(res);
+            None
+        }
+        WorkerCommand::ReadCurrentMemoryPages { reply } => {
+            let res = (|| -> Result<usize> {
+                let mem_idx = mem_export_idx.context(
+                    "Failed to access WASM exported 'memory'",
+                )?;
+                let _ = vm.memories.get(mem_idx).context(
+                    "WASM exported memory index out of bounds",
+                )?;
+                Ok(usize::try_from(vm.total_mem_pages)?)
+            })();
+            let _ = reply.send(res);
+            None
+        }
+        WorkerCommand::ReadCurrentTableElements { reply } => {
+            // Reason for fallback: on 32-bit hosts, a 64-bit table count exceeding usize::MAX
+            // saturates to usize::MAX.
+            let _ = reply.send(
+                usize::try_from(vm.total_table_elems).unwrap_or(usize::MAX),
+            );
+            None
+        }
+        WorkerCommand::ReadExportedMemoryPages { reply } => {
+            let res = (|| -> Result<usize> {
+                let mem_idx = mem_export_idx.context(
+                    "Failed to access WASM exported 'memory'",
+                )?;
+                let mem = vm.memories.get(mem_idx).context(
+                    "WASM exported memory index out of bounds",
+                )?;
+                Ok(mem.page_count())
+            })();
+            let _ = reply.send(res);
+            None
+        }
+        WorkerCommand::ReadQuotaConsumed { reply } => {
+            let _ = reply.send(vm.quota_consumed);
+            None
+        }
+        WorkerCommand::WriteInput {
+            input_ptr,
+            payload,
+            header,
+            required_mem_bytes,
+            total_store_pages,
+            other_mem_pages,
+            effective_max_pages,
+            reply,
+        } => {
+            let res = (|| -> Result<()> {
+                let mem_idx = mem_export_idx.context(
+                    "Failed to access WASM exported 'memory'",
+                )?;
+                let mem = vm.memories.get_mut(mem_idx).context(
+                    "WASM exported memory index out of bounds",
+                )?;
+                let new_total_store_pages = write_input_on_memory(
+                    mem,
+                    input_ptr,
+                    &payload,
+                    &header,
+                    required_mem_bytes,
+                    total_store_pages,
+                    other_mem_pages,
+                    effective_max_pages,
+                )?;
+                vm.total_mem_pages = u64::try_from(new_total_store_pages)?;
+                Ok(())
+            })();
+            let _ = reply.send(res);
+            None
+        }
+        other => Some(other),
+    }
+}
+
+struct WorkerSubstituteHost<'a> {
+    mem_export_idx: Option<usize>,
+    base_io_offset: usize,
+    allow_suspend: bool,
+    shutdown_requested: &'a mut bool,
+    cmd_rx: &'a std::sync::mpsc::Receiver<WorkerCommand>,
+    evt_tx: &'a std::sync::mpsc::Sender<WorkerEvent>,
+}
+
+impl WasmSubstituteHost for WorkerSubstituteHost<'_> {
+    fn suspend_on_quota(
+        &mut self,
+        vm: &mut SubstituteVm,
+    ) -> std::result::Result<(), WasmTrap> {
+        if !self.allow_suspend || vm.exhausted != 1 {
+            return Err(WasmTrap::HostAbort);
+        }
+        if self
+            .evt_tx
+            .send(WorkerEvent::StepPausedOnQuota {
+                consumed: vm.quota_consumed,
+                remaining: vm.quota_remaining,
+                interrupted_op: vm.interrupted_op,
+                required_cost: vm.required_cost,
+            })
+            .is_err()
+        {
+            *self.shutdown_requested = true;
+            return Err(WasmTrap::HostAbort);
+        }
+        loop {
+            let Ok(cmd) = self.cmd_rx.recv() else {
+                *self.shutdown_requested = true;
+                return Err(WasmTrap::HostAbort);
+            };
+            let Some(ctrl) =
+                native_vm_handle_query(vm, self.mem_export_idx, None, cmd)
+            else {
+                continue;
+            };
+            match ctrl {
+                WorkerCommand::ResumeStep { quota_rem, limits } => {
+                    configure_vm_limits(vm, &limits);
+                    vm.quota_remaining = quota_rem;
+                    vm.exhausted = 0;
+                    vm.interrupted_op = 0;
+                    vm.required_cost = 0;
+                    vm.resume_target_op = 0;
+                    return Ok(());
+                }
+                WorkerCommand::Shutdown
+                | WorkerCommand::StartStep { .. }
+                | WorkerCommand::ResumeCapability { .. } => {
+                    *self.shutdown_requested = true;
+                    return Err(WasmTrap::HostAbort);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn request_capability(
+        &mut self,
+        vm: &mut SubstituteVm,
+        mut heap_ptr: Option<&mut i32>,
+    ) -> std::result::Result<(), WasmTrap> {
+        if !self.allow_suspend {
+            return Err(WasmTrap::HostAbort);
+        }
+        let mem_idx = self.mem_export_idx.ok_or(WasmTrap::HostAbort)?;
+        let (out_ptr, out_len) = {
+            let mem = vm.memories.get(mem_idx).ok_or(WasmTrap::HostAbort)?;
+            read_output_mailbox_header_from_mem(mem)
+                .map_err(|_| WasmTrap::HostAbort)?
+        };
+        if self
+            .evt_tx
+            .send(WorkerEvent::StepPausedOnCapability {
+                consumed: vm.quota_consumed,
+                remaining: vm.quota_remaining,
+                out_ptr,
+                out_len,
+            })
+            .is_err()
+        {
+            *self.shutdown_requested = true;
+            return Err(WasmTrap::HostAbort);
+        }
+        loop {
+            let Ok(cmd) = self.cmd_rx.recv() else {
+                *self.shutdown_requested = true;
+                return Err(WasmTrap::HostAbort);
+            };
+            let hp_ref = heap_ptr.as_deref();
+            let Some(ctrl) =
+                native_vm_handle_query(vm, self.mem_export_idx, hp_ref, cmd)
+            else {
+                continue;
+            };
+            match ctrl {
+                WorkerCommand::ResumeCapability {
+                    response_bytes,
+                    quota_rem,
+                    limits,
+                } => {
+                    configure_vm_limits(vm, &limits);
+                    vm.quota_remaining = quota_rem;
+                    vm.exhausted = 0;
+                    vm.interrupted_op = 0;
+                    vm.required_cost = 0;
+                    vm.resume_target_op = 0;
+                    let heap_ptr_usize = match heap_ptr.as_deref() {
+                        Some(&v) => {
+                            usize::try_from(v).map_err(|_| WasmTrap::HostAbort)?
+                        }
+                        None => 0,
+                    };
+                    let total_store_pages = usize::try_from(vm.total_mem_pages)
+                        .map_err(|_| WasmTrap::HostAbort)?;
+                    let max_allowed_pages = limits
+                        .max_memory_pages
+                        .min(limits.physical_max_memory_pages);
+                    let mem = vm
+                        .memories
+                        .get_mut(mem_idx)
+                        .ok_or(WasmTrap::HostAbort)?;
+                    let (new_total_pages_opt, resp_end_aligned) =
+                        match apply_capability_response_on_memory(
+                            mem,
+                            self.base_io_offset,
+                            &response_bytes,
+                            heap_ptr_usize,
+                            total_store_pages,
+                            max_allowed_pages,
+                        ) {
+                            Ok(res) => res,
+                            Err(Some(new_total)) => {
+                                vm.exhausted = 2;
+                                vm.interrupted_op = new_total;
+                                return Err(WasmTrap::HostAbort);
+                            }
+                            Err(None) => return Err(WasmTrap::HostAbort),
+                        };
+                    if let Some(new_total) = new_total_pages_opt {
+                        vm.total_mem_pages = u64::try_from(new_total)
+                            .map_err(|_| WasmTrap::HostAbort)?;
+                    }
+                    if let Some(hp_slot) = heap_ptr.as_deref_mut() {
+                        *hp_slot = i32::try_from(resp_end_aligned)
+                            .map_err(|_| WasmTrap::HostAbort)?;
+                    }
+                    return Ok(());
+                }
+                WorkerCommand::Shutdown
+                | WorkerCommand::StartStep { .. }
+                | WorkerCommand::ResumeStep { .. } => {
+                    *self.shutdown_requested = true;
+                    return Err(WasmTrap::HostAbort);
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+enum WorkerInitBackend {
+    TinyWasm {
+        parsed_suspendable: ctb_formats_dcdata::tinywasm::types::TinyWasmModule,
+        has_start_func: bool,
+        static_data_end: usize,
+    },
+    NativeSubstitute(WasmSubstituteDescriptor),
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "Coordinates unified continuation worker initialization across TinyWasm and NativeSubstitute backends"
+)]
+fn spawn_session_worker(
+    backend_init: WorkerInitBackend,
+    resource_limits: DcWasmResourceLimits,
+    effective_max_mem: usize,
+    effective_max_tbl: usize,
 ) -> Result<(SessionWorkerHandle, WorkerInitSuccess)> {
     let (cmd_tx, cmd_rx) = std::sync::mpsc::channel::<WorkerCommand>();
     let (evt_tx, evt_rx) = std::sync::mpsc::channel::<WorkerEvent>();
@@ -2638,603 +3434,575 @@ fn spawn_session_worker(
         .name("ctb-wasm-session".to_owned())
         .stack_size(SESSION_WORKER_STACK_BYTES)
         .spawn(move || {
-            let allow_suspend = std::rc::Rc::new(std::cell::Cell::new(false));
-            let shutdown_requested =
-                std::rc::Rc::new(std::cell::Cell::new(false));
-            let global_addrs_cell =
-                std::rc::Rc::new(std::cell::Cell::new(None::<CtbGlobalAddrs>));
-            let base_io_offset_cell =
-                std::rc::Rc::new(std::cell::Cell::new(DC_WASM_MIN_IO_BUFFER_OFFSET));
-            let cmd_rx_rc = std::rc::Rc::new(cmd_rx);
-            let evt_tx_rc = std::rc::Rc::new(evt_tx);
+            enum LiveEngine {
+                TinyWasm {
+                    store: Store,
+                    instance: ModuleInstance,
+                    addrs: CtbGlobalAddrs,
+                    allow_suspend: std::rc::Rc<std::cell::Cell<bool>>,
+                    shutdown_requested: std::rc::Rc<std::cell::Cell<bool>>,
+                    cmd_rx: std::rc::Rc<std::sync::mpsc::Receiver<WorkerCommand>>,
+                    evt_tx: std::rc::Rc<std::sync::mpsc::Sender<WorkerEvent>>,
+                },
+                NativeSubstitute {
+                    inst: Box<dyn WasmSubstituteInstance>,
+                    mem_export_idx: Option<usize>,
+                    base_io_offset: usize,
+                    cmd_rx: std::sync::mpsc::Receiver<WorkerCommand>,
+                    evt_tx: std::sync::mpsc::Sender<WorkerEvent>,
+                },
+            }
 
-            let init_outcome = (|| -> Result<(Store, ModuleInstance, CtbGlobalAddrs, WorkerInitSuccess)> {
-                let mut imports = Imports::new();
-                let allow_suspend_cb = std::rc::Rc::clone(&allow_suspend);
-                let shutdown_cb = std::rc::Rc::clone(&shutdown_requested);
-                let addrs_cb = std::rc::Rc::clone(&global_addrs_cell);
-                let cmd_rx_cb = std::rc::Rc::clone(&cmd_rx_rc);
-                let evt_tx_cb = std::rc::Rc::clone(&evt_tx_rc);
+            let init_outcome = (|| -> Result<(LiveEngine, WorkerInitSuccess)> {
+                match backend_init {
+                    WorkerInitBackend::TinyWasm {
+                        parsed_suspendable,
+                        has_start_func,
+                        static_data_end,
+                    } => {
+                        let allow_suspend =
+                            std::rc::Rc::new(std::cell::Cell::new(false));
+                        let shutdown_requested =
+                            std::rc::Rc::new(std::cell::Cell::new(false));
+                        let global_addrs_cell =
+                            std::rc::Rc::new(std::cell::Cell::new(None::<CtbGlobalAddrs>));
+                        let base_io_offset_cell = std::rc::Rc::new(
+                            std::cell::Cell::new(DC_WASM_MIN_IO_BUFFER_OFFSET),
+                        );
+                        let cmd_rx_rc = std::rc::Rc::new(cmd_rx);
+                        let evt_tx_rc = std::rc::Rc::new(evt_tx);
 
-                let allow_suspend_cap = std::rc::Rc::clone(&allow_suspend);
-                let shutdown_cap = std::rc::Rc::clone(&shutdown_requested);
-                let addrs_cap = std::rc::Rc::clone(&global_addrs_cell);
-                let base_io_cap = std::rc::Rc::clone(&base_io_offset_cell);
-                let cmd_rx_cap = std::rc::Rc::clone(&cmd_rx_rc);
-                let evt_tx_cap = std::rc::Rc::clone(&evt_tx_rc);
+                        let mut imports = Imports::new();
+                        let allow_suspend_cb = std::rc::Rc::clone(&allow_suspend);
+                        let shutdown_cb = std::rc::Rc::clone(&shutdown_requested);
+                        let addrs_cb = std::rc::Rc::clone(&global_addrs_cell);
+                        let cmd_rx_cb = std::rc::Rc::clone(&cmd_rx_rc);
+                        let evt_tx_cb = std::rc::Rc::clone(&evt_tx_rc);
 
-                imports
-                    .define(
-                        CTB_HOST_IMPORT_MODULE,
-                        CTB_HOST_SUSPEND_IMPORT_NAME,
-                        Extern::typed_func(
-                            move |mut ctx: FuncContext<'_>, (): ()| -> std::result::Result<(), ctb_formats_dcdata::tinywasm::Error> {
-                                let Some(addrs) = addrs_cb.get() else {
-                                    return Err(ctb_formats_dcdata::tinywasm::Error::Trap(
-                                        ctb_formats_dcdata::tinywasm::Trap::Unreachable,
-                                    ));
-                                };
-                                let exhausted = read_store_global_i32(ctx.store(), addrs.exhausted);
-                                if !allow_suspend_cb.get() || exhausted != 1 {
-                                    return Err(ctb_formats_dcdata::tinywasm::Error::Trap(
-                                        ctb_formats_dcdata::tinywasm::Trap::Unreachable,
-                                    ));
-                                }
+                        let allow_suspend_cap = std::rc::Rc::clone(&allow_suspend);
+                        let shutdown_cap = std::rc::Rc::clone(&shutdown_requested);
+                        let addrs_cap = std::rc::Rc::clone(&global_addrs_cell);
+                        let base_io_cap = std::rc::Rc::clone(&base_io_offset_cell);
+                        let cmd_rx_cap = std::rc::Rc::clone(&cmd_rx_rc);
+                        let evt_tx_cap = std::rc::Rc::clone(&evt_tx_rc);
 
-                                let consumed = read_store_global_u64(ctx.store(), addrs.quota_consumed);
-                                let remaining = read_store_global_u64(ctx.store(), addrs.quota_rem);
-                                let interrupted_op =
-                                    read_store_global_u64(ctx.store(), addrs.interrupted_op);
-                                let required_cost =
-                                    read_store_global_u64(ctx.store(), addrs.required_cost);
-
-                                if evt_tx_cb
-                                    .send(WorkerEvent::StepPausedOnQuota {
-                                        consumed,
-                                        remaining,
-                                        interrupted_op,
-                                        required_cost,
-                                    })
-                                    .is_err()
-                                {
-                                    shutdown_cb.set(true);
-                                    return Err(ctb_formats_dcdata::tinywasm::Error::Trap(
-                                        ctb_formats_dcdata::tinywasm::Trap::Unreachable,
-                                    ));
-                                }
-
-                                loop {
-                                    match cmd_rx_cb.recv() {
-                                        Ok(WorkerCommand::WithStore(task)) => {
-                                            let inst = ctx.module();
-                                            task(ctx.store_mut(), &inst, &addrs);
+                        imports
+                            .define(
+                                CTB_HOST_IMPORT_MODULE,
+                                CTB_HOST_SUSPEND_IMPORT_NAME,
+                                Extern::typed_func(
+                                    move |mut ctx: FuncContext<'_>, (): ()| -> std::result::Result<(), ctb_formats_dcdata::tinywasm::Error> {
+                                        let Some(addrs) = addrs_cb.get() else {
+                                            return Err(ctb_formats_dcdata::tinywasm::Error::Trap(
+                                                ctb_formats_dcdata::tinywasm::Trap::Unreachable,
+                                            ));
+                                        };
+                                        let exhausted = read_store_global_i32(ctx.store(), addrs.exhausted);
+                                        if !allow_suspend_cb.get() || exhausted != 1 {
+                                            return Err(ctb_formats_dcdata::tinywasm::Error::Trap(
+                                                ctb_formats_dcdata::tinywasm::Trap::Unreachable,
+                                            ));
                                         }
-                                        Ok(WorkerCommand::ResumeStep { quota_rem, limits }) => {
-                                            configure_store_limits(ctx.store_mut(), &addrs, &limits);
-                                            write_store_global_u64(
-                                                ctx.store_mut(),
-                                                addrs.quota_rem,
-                                                quota_rem,
-                                            );
-                                            write_store_global_i32(
-                                                ctx.store_mut(),
-                                                addrs.exhausted,
-                                                0,
-                                            );
-                                            write_store_global_u64(
-                                                ctx.store_mut(),
-                                                addrs.interrupted_op,
-                                                0,
-                                            );
-                                            write_store_global_u64(
-                                                ctx.store_mut(),
-                                                addrs.required_cost,
-                                                0,
-                                            );
-                                            write_store_global_u64(
-                                                ctx.store_mut(),
-                                                addrs.resume_target_op,
-                                                0,
-                                            );
-                                            return Ok(());
-                                        }
-                                        Ok(
-                                            WorkerCommand::Shutdown
-                                            | WorkerCommand::StartStep { .. }
-                                            | WorkerCommand::ResumeCapability { .. },
-                                        )
-                                        | Err(_) => {
+
+                                        let consumed = read_store_global_u64(ctx.store(), addrs.quota_consumed);
+                                        let remaining = read_store_global_u64(ctx.store(), addrs.quota_rem);
+                                        let interrupted_op =
+                                            read_store_global_u64(ctx.store(), addrs.interrupted_op);
+                                        let required_cost =
+                                            read_store_global_u64(ctx.store(), addrs.required_cost);
+
+                                        if evt_tx_cb
+                                            .send(WorkerEvent::StepPausedOnQuota {
+                                                consumed,
+                                                remaining,
+                                                interrupted_op,
+                                                required_cost,
+                                            })
+                                            .is_err()
+                                        {
                                             shutdown_cb.set(true);
                                             return Err(ctb_formats_dcdata::tinywasm::Error::Trap(
                                                 ctb_formats_dcdata::tinywasm::Trap::Unreachable,
                                             ));
                                         }
-                                    }
-                                }
-                            },
-                        ),
-                    )
-                    .map_err(|e| {
-                        anyhow!("Failed to register __ctb_suspend_on_quota host import: {e:?}")
-                    })?;
 
-                imports
-                    .define(
-                        CTB_HOST_IMPORT_MODULE,
-                        CTB_HOST_CAPABILITY_IMPORT_NAME,
-                        Extern::typed_func(
-                            move |mut ctx: FuncContext<'_>, (): ()| -> std::result::Result<(), ctb_formats_dcdata::tinywasm::Error> {
-                                let trap = || {
-                                    ctb_formats_dcdata::tinywasm::Error::Trap(
-                                        ctb_formats_dcdata::tinywasm::Trap::Unreachable,
-                                    )
-                                };
-                                let Some(addrs) = addrs_cap.get() else {
-                                    return Err(trap());
-                                };
-                                if !allow_suspend_cap.get() {
-                                    return Err(trap());
-                                }
-                                let (out_ptr, out_len) = {
-                                    let mem = ctx
-                                        .exported_memory_mut("memory")
-                                        .map_err(|_| trap())?;
-                                    let hdr = mem.load(8, 8).map_err(|_| trap())?;
-                                    let [b0, b1, b2, b3, b4, b5, b6, b7]: [u8; 8] =
-                                        hdr.try_into().map_err(|_| trap())?;
-                                    let ptr_u32 =
-                                        u32::from_le_bytes([b0, b1, b2, b3]);
-                                    let len_u32 =
-                                        u32::from_le_bytes([b4, b5, b6, b7]);
-                                    let ptr = usize::try_from(ptr_u32)
-                                        .map_err(|_| trap())?;
-                                    let len = usize::try_from(len_u32)
-                                        .map_err(|_| trap())?;
-                                    (ptr, len)
-                                };
-                                let consumed = read_store_global_u64(
-                                    ctx.store(),
-                                    addrs.quota_consumed,
-                                );
-                                let remaining = read_store_global_u64(
-                                    ctx.store(),
-                                    addrs.quota_rem,
-                                );
-                                if evt_tx_cap
-                                    .send(WorkerEvent::StepPausedOnCapability {
-                                        consumed,
-                                        remaining,
-                                        out_ptr,
-                                        out_len,
-                                    })
-                                    .is_err()
-                                {
-                                    shutdown_cap.set(true);
-                                    return Err(trap());
-                                }
-
-                                loop {
-                                    match cmd_rx_cap.recv() {
-                                        Ok(WorkerCommand::WithStore(task)) => {
-                                            let inst = ctx.module();
-                                            task(ctx.store_mut(), &inst, &addrs);
-                                        }
-                                        Ok(WorkerCommand::ResumeCapability {
-                                            response_bytes,
-                                            quota_rem,
-                                            limits,
-                                        }) => {
-                                            configure_store_limits(
-                                                ctx.store_mut(),
-                                                &addrs,
-                                                &limits,
-                                            );
-                                            write_store_global_u64(
-                                                ctx.store_mut(),
-                                                addrs.quota_rem,
-                                                quota_rem,
-                                            );
-                                            write_store_global_i32(
-                                                ctx.store_mut(),
-                                                addrs.exhausted,
-                                                0,
-                                            );
-                                            write_store_global_u64(
-                                                ctx.store_mut(),
-                                                addrs.interrupted_op,
-                                                0,
-                                            );
-                                            write_store_global_u64(
-                                                ctx.store_mut(),
-                                                addrs.required_cost,
-                                                0,
-                                            );
-                                            write_store_global_u64(
-                                                ctx.store_mut(),
-                                                addrs.resume_target_op,
-                                                0,
-                                            );
-                                            let inst = ctx.module();
-                                            let heap_global_addr = inst
-                                                .export_addr("__heap_ptr")
-                                                .and_then(|ev| match ev {
-                                                    ExternVal::Global(addr) => {
-                                                        Some(addr)
-                                                    }
-                                                    _ => None,
-                                                });
-                                            let heap_ptr = if let Some(addr) =
-                                                heap_global_addr
-                                            {
-                                                usize::try_from(
-                                                    read_store_global_i32(
-                                                        ctx.store(),
-                                                        addr,
-                                                    ),
-                                                )
-                                                .map_err(|_| trap())?
-                                            } else {
-                                                0
+                                        loop {
+                                            let Ok(cmd) = cmd_rx_cb.recv() else {
+                                                shutdown_cb.set(true);
+                                                return Err(ctb_formats_dcdata::tinywasm::Error::Trap(
+                                                    ctb_formats_dcdata::tinywasm::Trap::Unreachable,
+                                                ));
                                             };
-                                            let total_store_pages = usize::try_from(
-                                                read_store_global_u64(
-                                                    ctx.store(),
-                                                    addrs.total_mem_pages,
-                                                ),
+                                            let inst = ctx.module();
+                                            let Some(ctrl) = tinywasm_handle_query(ctx.store_mut(), &inst, &addrs, cmd) else {
+                                                continue;
+                                            };
+                                            match ctrl {
+                                                WorkerCommand::ResumeStep { quota_rem, limits } => {
+                                                    configure_store_limits(ctx.store_mut(), &addrs, &limits);
+                                                    write_store_global_u64(
+                                                        ctx.store_mut(),
+                                                        addrs.quota_rem,
+                                                        quota_rem,
+                                                    );
+                                                    write_store_global_i32(
+                                                        ctx.store_mut(),
+                                                        addrs.exhausted,
+                                                        0,
+                                                    );
+                                                    write_store_global_u64(
+                                                        ctx.store_mut(),
+                                                        addrs.interrupted_op,
+                                                        0,
+                                                    );
+                                                    write_store_global_u64(
+                                                        ctx.store_mut(),
+                                                        addrs.required_cost,
+                                                        0,
+                                                    );
+                                                    write_store_global_u64(
+                                                        ctx.store_mut(),
+                                                        addrs.resume_target_op,
+                                                        0,
+                                                    );
+                                                    return Ok(());
+                                                }
+                                                WorkerCommand::Shutdown
+                                                | WorkerCommand::StartStep { .. }
+                                                | WorkerCommand::ResumeCapability { .. } => {
+                                                    shutdown_cb.set(true);
+                                                    return Err(ctb_formats_dcdata::tinywasm::Error::Trap(
+                                                        ctb_formats_dcdata::tinywasm::Trap::Unreachable,
+                                                    ));
+                                                }
+                                                _ => {}
+                                            }
+                                        }
+                                    },
+                                ),
+                            )
+                            .map_err(|e| {
+                                anyhow!("Failed to register __ctb_suspend_on_quota host import: {e:?}")
+                            })?;
+
+                        imports
+                            .define(
+                                CTB_HOST_IMPORT_MODULE,
+                                CTB_HOST_CAPABILITY_IMPORT_NAME,
+                                Extern::typed_func(
+                                    move |mut ctx: FuncContext<'_>, (): ()| -> std::result::Result<(), ctb_formats_dcdata::tinywasm::Error> {
+                                        let trap = || {
+                                            ctb_formats_dcdata::tinywasm::Error::Trap(
+                                                ctb_formats_dcdata::tinywasm::Trap::Unreachable,
                                             )
-                                            .map_err(|_| trap())?;
-                                            let max_allowed_pages = limits
-                                                .max_memory_pages
-                                                .min(limits.physical_max_memory_pages);
-
-                                            let (new_total_pages_opt, resp_end_aligned) = {
-                                                let mut mem = ctx
-                                                    .exported_memory_mut("memory")
-                                                    .map_err(|_| trap())?;
-                                                let hdr = mem
-                                                    .load(0, 16)
-                                                    .map_err(|_| trap())?;
-                                                let [
-                                                    b0, b1, b2, b3, b4, b5, b6, b7,
-                                                    b8, b9, b10, b11, b12, b13, b14, b15,
-                                                ]: [u8; 16] = hdr
-                                                    .try_into()
-                                                    .map_err(|_| trap())?;
-                                                let prev_in_ptr =
-                                                    usize::try_from(u32::from_le_bytes([
-                                                        b0, b1, b2, b3,
-                                                    ]))
-                                                    .map_err(|_| trap())?;
-                                                let prev_in_len =
-                                                    usize::try_from(u32::from_le_bytes([
-                                                        b4, b5, b6, b7,
-                                                    ]))
-                                                    .map_err(|_| trap())?;
-                                                let prev_out_ptr =
-                                                    usize::try_from(u32::from_le_bytes([
-                                                        b8, b9, b10, b11,
-                                                    ]))
-                                                    .map_err(|_| trap())?;
-                                                let prev_out_len =
-                                                    usize::try_from(u32::from_le_bytes([
-                                                        b12, b13, b14, b15,
-                                                    ]))
-                                                    .map_err(|_| trap())?;
-                                                let prev_in_end = prev_in_ptr
-                                                    .saturating_add(prev_in_len);
-                                                let prev_out_end = prev_out_ptr
-                                                    .saturating_add(prev_out_len);
-                                                let resp_ptr = align_up_8(
-                                                    base_io_cap
-                                                        .get()
-                                                        .max(prev_in_end)
-                                                        .max(prev_out_end)
-                                                        .max(heap_ptr),
-                                                )
-                                                .map_err(|_| trap())?;
-                                                let resp_len =
-                                                    response_bytes.len();
-                                                let required_bytes = resp_ptr
-                                                    .checked_add(resp_len)
-                                                    .ok_or_else(&trap)?;
-                                                let current_pages =
-                                                    mem.page_count();
-                                                let current_bytes = current_pages
-                                                    .saturating_mul(65_536);
-                                                let other_mem_pages =
-                                                    total_store_pages
-                                                        .saturating_sub(
-                                                            current_pages,
-                                                        );
-                                                let mut updated_total = None;
-                                                if required_bytes > current_bytes {
-                                                    let missing = required_bytes
-                                                        .saturating_sub(
-                                                            current_bytes,
-                                                        );
-                                                    // Reason for fallback: 65_536 is a non-zero constant page size divisor.
-                                                    let extra_pages = missing
-                                                        .saturating_add(65_535)
-                                                        .checked_div(65_536)
-                                                        .unwrap_or(1);
-                                                    let new_total = other_mem_pages
-                                                        .saturating_add(
-                                                            current_pages
-                                                                .saturating_add(
-                                                                    extra_pages,
-                                                                ),
-                                                        );
-                                                    if new_total > max_allowed_pages {
-                                                        drop(mem);
-                                                        write_store_global_i32(
-                                                            ctx.store_mut(),
-                                                            addrs.exhausted,
-                                                            2,
-                                                        );
-                                                        write_store_global_u64(
-                                                            ctx.store_mut(),
-                                                            addrs.interrupted_op,
-                                                            u64::try_from(new_total)
-                                                                .map_err(|_| trap())?,
-                                                        );
-                                                        return Err(trap());
-                                                    }
-                                                    let delta = i32::try_from(extra_pages)
-                                                        .map_err(|_| trap())?;
-                                                    if mem.grow(delta).is_none() {
-                                                        drop(mem);
-                                                        write_store_global_i32(
-                                                            ctx.store_mut(),
-                                                            addrs.exhausted,
-                                                            2,
-                                                        );
-                                                        write_store_global_u64(
-                                                            ctx.store_mut(),
-                                                            addrs.interrupted_op,
-                                                            u64::try_from(new_total)
-                                                                .map_err(|_| trap())?,
-                                                        );
-                                                        return Err(trap());
-                                                    }
-                                                    updated_total = Some(new_total);
-                                                }
-                                                if !response_bytes.is_empty() {
-                                                    mem.store(
-                                                        resp_ptr,
-                                                        resp_len,
-                                                        &response_bytes,
-                                                    )
-                                                    .map_err(|_| trap())?;
-                                                }
-                                                let resp_ptr_u32 = u32::try_from(resp_ptr)
-                                                    .map_err(|_| trap())?;
-                                                let resp_len_u32 = u32::try_from(resp_len)
-                                                    .map_err(|_| trap())?;
-                                                let mut next_hdr = [0u8; 16];
-                                                next_hdr[0..4].copy_from_slice(
-                                                    &resp_ptr_u32.to_le_bytes(),
-                                                );
-                                                next_hdr[4..8].copy_from_slice(
-                                                    &resp_len_u32.to_le_bytes(),
-                                                );
-                                                mem.store(0, 16, &next_hdr)
-                                                    .map_err(|_| trap())?;
-                                                let aligned_end =
-                                                    align_up_8(required_bytes)
-                                                        .map_err(|_| trap())?;
-                                                (updated_total, aligned_end)
-                                            };
-
-                                            if let Some(new_total) = new_total_pages_opt {
-                                                write_store_global_u64(
-                                                    ctx.store_mut(),
-                                                    addrs.total_mem_pages,
-                                                    u64::try_from(new_total)
-                                                        .map_err(|_| trap())?,
-                                                );
-                                            }
-                                            if let Some(addr) = heap_global_addr {
-                                                let end_i32 = i32::try_from(
-                                                    resp_end_aligned,
-                                                )
-                                                .map_err(|_| trap())?;
-                                                write_store_global_i32(
-                                                    ctx.store_mut(),
-                                                    addr,
-                                                    end_i32,
-                                                );
-                                            }
-                                            return Ok(());
+                                        };
+                                        let Some(addrs) = addrs_cap.get() else {
+                                            return Err(trap());
+                                        };
+                                        if !allow_suspend_cap.get() {
+                                            return Err(trap());
                                         }
-                                        Ok(
-                                            WorkerCommand::Shutdown
-                                            | WorkerCommand::StartStep { .. }
-                                            | WorkerCommand::ResumeStep { .. },
-                                        )
-                                        | Err(_) => {
+                                        let (out_ptr, out_len) = {
+                                            let mem = ctx
+                                                .exported_memory_mut("memory")
+                                                .map_err(|_| trap())?;
+                                            read_output_mailbox_header_from_mem(&mem)
+                                                .map_err(|_| trap())?
+                                        };
+                                        let consumed = read_store_global_u64(
+                                            ctx.store(),
+                                            addrs.quota_consumed,
+                                        );
+                                        let remaining = read_store_global_u64(
+                                            ctx.store(),
+                                            addrs.quota_rem,
+                                        );
+                                        if evt_tx_cap
+                                            .send(WorkerEvent::StepPausedOnCapability {
+                                                consumed,
+                                                remaining,
+                                                out_ptr,
+                                                out_len,
+                                            })
+                                            .is_err()
+                                        {
                                             shutdown_cap.set(true);
                                             return Err(trap());
                                         }
-                                    }
-                                }
-                            },
-                        ),
-                    )
-                    .map_err(|e| {
-                        anyhow!(
-                            "Failed to register __ctb_request_capability host import: {e:?}"
-                        )
-                    })?;
 
-                let module = Module::from(parsed_suspendable);
-                let mut store = Store::default();
-                let instance =
-                    ModuleInstance::instantiate(&mut store, module, Some(imports))
-                        .map_err(|e| {
-                            anyhow!(
-                                "Failed to instantiate WebAssembly module in tinywasm: {e:?}"
+                                        loop {
+                                            let Ok(cmd) = cmd_rx_cap.recv() else {
+                                                shutdown_cap.set(true);
+                                                return Err(trap());
+                                            };
+                                            let inst = ctx.module();
+                                            let Some(ctrl) = tinywasm_handle_query(ctx.store_mut(), &inst, &addrs, cmd) else {
+                                                continue;
+                                            };
+                                            match ctrl {
+                                                WorkerCommand::ResumeCapability {
+                                                    response_bytes,
+                                                    quota_rem,
+                                                    limits,
+                                                } => {
+                                                    configure_store_limits(
+                                                        ctx.store_mut(),
+                                                        &addrs,
+                                                        &limits,
+                                                    );
+                                                    write_store_global_u64(
+                                                        ctx.store_mut(),
+                                                        addrs.quota_rem,
+                                                        quota_rem,
+                                                    );
+                                                    write_store_global_i32(
+                                                        ctx.store_mut(),
+                                                        addrs.exhausted,
+                                                        0,
+                                                    );
+                                                    write_store_global_u64(
+                                                        ctx.store_mut(),
+                                                        addrs.interrupted_op,
+                                                        0,
+                                                    );
+                                                    write_store_global_u64(
+                                                        ctx.store_mut(),
+                                                        addrs.required_cost,
+                                                        0,
+                                                    );
+                                                    write_store_global_u64(
+                                                        ctx.store_mut(),
+                                                        addrs.resume_target_op,
+                                                        0,
+                                                    );
+                                                    let inst = ctx.module();
+                                                    let heap_global_addr = inst
+                                                        .export_addr("__heap_ptr")
+                                                        .and_then(|ev| match ev {
+                                                            ExternVal::Global(addr) => {
+                                                                Some(addr)
+                                                            }
+                                                            _ => None,
+                                                        });
+                                                    let heap_ptr = if let Some(addr) =
+                                                        heap_global_addr
+                                                    {
+                                                        usize::try_from(
+                                                            read_store_global_i32(
+                                                                ctx.store(),
+                                                                addr,
+                                                            ),
+                                                        )
+                                                        .map_err(|_| trap())?
+                                                    } else {
+                                                        0
+                                                    };
+                                                    let total_store_pages = usize::try_from(
+                                                        read_store_global_u64(
+                                                            ctx.store(),
+                                                            addrs.total_mem_pages,
+                                                        ),
+                                                    )
+                                                    .map_err(|_| trap())?;
+                                                    let max_allowed_pages = limits
+                                                        .max_memory_pages
+                                                        .min(limits.physical_max_memory_pages);
+
+                                                    let cap_outcome = {
+                                                        let mut mem = ctx
+                                                            .exported_memory_mut("memory")
+                                                            .map_err(|_| trap())?;
+                                                        apply_capability_response_on_memory(
+                                                            &mut mem,
+                                                            base_io_cap.get(),
+                                                            &response_bytes,
+                                                            heap_ptr,
+                                                            total_store_pages,
+                                                            max_allowed_pages,
+                                                        )
+                                                    };
+                                                    let (new_total_pages_opt, resp_end_aligned) =
+                                                        match cap_outcome {
+                                                            Ok(res) => res,
+                                                            Err(Some(new_total)) => {
+                                                                write_store_global_i32(
+                                                                    ctx.store_mut(),
+                                                                    addrs.exhausted,
+                                                                    2,
+                                                                );
+                                                                write_store_global_u64(
+                                                                    ctx.store_mut(),
+                                                                    addrs.interrupted_op,
+                                                                    new_total,
+                                                                );
+                                                                return Err(trap());
+                                                            }
+                                                            Err(None) => return Err(trap()),
+                                                        };
+
+                                                    if let Some(new_total) = new_total_pages_opt {
+                                                        write_store_global_u64(
+                                                            ctx.store_mut(),
+                                                            addrs.total_mem_pages,
+                                                            u64::try_from(new_total)
+                                                                .map_err(|_| trap())?,
+                                                        );
+                                                    }
+                                                    if let Some(addr) = heap_global_addr {
+                                                        let end_i32 = i32::try_from(
+                                                            resp_end_aligned,
+                                                        )
+                                                        .map_err(|_| trap())?;
+                                                        write_store_global_i32(
+                                                            ctx.store_mut(),
+                                                            addr,
+                                                            end_i32,
+                                                        );
+                                                    }
+                                                    return Ok(());
+                                                }
+                                                WorkerCommand::Shutdown
+                                                | WorkerCommand::StartStep { .. }
+                                                | WorkerCommand::ResumeStep { .. } => {
+                                                    shutdown_cap.set(true);
+                                                    return Err(trap());
+                                                }
+                                                _ => {}
+                                            }
+                                        }
+                                    },
+                                ),
                             )
-                        })?;
-                let global_addrs = CtbGlobalAddrs::resolve(&instance)?;
-                global_addrs_cell.set(Some(global_addrs));
-                configure_store_limits(&mut store, &global_addrs, &resource_limits);
-                write_store_global_u64(
-                    &mut store,
-                    global_addrs.quota_rem,
-                    resource_limits.max_instructions_per_step,
-                );
-                write_store_global_u64(&mut store, global_addrs.quota_consumed, 0);
-                write_store_global_i32(&mut store, global_addrs.exhausted, 0);
-                write_store_global_u64(&mut store, global_addrs.interrupted_op, 0);
-                write_store_global_u64(&mut store, global_addrs.required_cost, 0);
-                write_store_global_u64(&mut store, global_addrs.op_ordinal, 0);
-                write_store_global_u64(&mut store, global_addrs.resume_target_op, 0);
+                            .map_err(|e| {
+                                anyhow!(
+                                    "Failed to register __ctb_request_capability host import: {e:?}"
+                                )
+                            })?;
 
-                let mut remaining_compute_quota =
-                    resource_limits.max_instructions_per_step;
-                let mut total_instructions_executed = 0u64;
+                        let module = Module::from(parsed_suspendable);
+                        let mut store = Store::default();
+                        let instance =
+                            ModuleInstance::instantiate(&mut store, module, Some(imports))
+                                .map_err(|e| {
+                                    anyhow!(
+                                        "Failed to instantiate WebAssembly module in tinywasm: {e:?}"
+                                    )
+                                })?;
+                        let global_addrs = CtbGlobalAddrs::resolve(&instance)?;
+                        global_addrs_cell.set(Some(global_addrs));
+                        configure_store_limits(&mut store, &global_addrs, &resource_limits);
+                        write_store_global_u64(
+                            &mut store,
+                            global_addrs.quota_rem,
+                            resource_limits.max_instructions_per_step,
+                        );
+                        write_store_global_u64(&mut store, global_addrs.quota_consumed, 0);
+                        write_store_global_i32(&mut store, global_addrs.exhausted, 0);
+                        write_store_global_u64(&mut store, global_addrs.interrupted_op, 0);
+                        write_store_global_u64(&mut store, global_addrs.required_cost, 0);
+                        write_store_global_u64(&mut store, global_addrs.op_ordinal, 0);
+                        write_store_global_u64(&mut store, global_addrs.resume_target_op, 0);
 
-                if has_start_func {
-                    let start_fn = instance
-                        .exported_func::<(), ()>(&store, CTB_WASM_START_EXPORT)
-                        .map_err(|e| {
-                            anyhow!(
-                                "Failed to resolve hoisted WASM start function: {e:?}"
-                            )
-                        })?;
-                    if let Err(e) = start_fn.call(&mut store, ()) {
-                        let exhausted =
-                            read_store_global_i32(&store, global_addrs.exhausted);
-                        let interrupted_op =
-                            read_store_global_u64(&store, global_addrs.interrupted_op);
-                        match exhausted {
-                            1 => {
-                                return Err(anyhow::Error::new(
-                                    WasmResourceInterruption::ComputeQuotaExhausted {
-                                        limit: resource_limits
-                                            .max_instructions_per_step,
-                                    },
+                        let mut remaining_compute_quota =
+                            resource_limits.max_instructions_per_step;
+                        let mut total_instructions_executed = 0u64;
+
+                        if has_start_func {
+                            let start_fn = instance
+                                .exported_func::<(), ()>(&store, CTB_WASM_START_EXPORT)
+                                .map_err(|e| {
+                                    anyhow!(
+                                        "Failed to resolve hoisted WASM start function: {e:?}"
+                                    )
+                                })?;
+                            if let Err(e) = start_fn.call(&mut store, ()) {
+                                let exhausted =
+                                    read_store_global_i32(&store, global_addrs.exhausted);
+                                let interrupted_op =
+                                    read_store_global_u64(&store, global_addrs.interrupted_op);
+                                return Err(map_start_section_error(
+                                    exhausted,
+                                    interrupted_op,
+                                    resource_limits.max_instructions_per_step,
+                                    effective_max_mem,
+                                    effective_max_tbl,
+                                    format_args!("{e:?}"),
                                 ));
                             }
-                            2 => {
-                                // Reason for fallback: on 32-bit hosts, a 64-bit requested page count
-                                // exceeding usize::MAX saturates to usize::MAX in the diagnostic report.
-                                let requested_pages = usize::try_from(interrupted_op)
-                                    .unwrap_or(usize::MAX);
-                                return Err(anyhow::Error::new(
-                                    WasmResourceInterruption::MemoryLimitExceeded {
-                                        requested_pages,
-                                        max_pages: effective_max_mem,
-                                    },
-                                ));
-                            }
-                            3 => {
-                                // Reason for fallback: on 32-bit hosts, a 64-bit requested element count
-                                // exceeding usize::MAX saturates to usize::MAX in the diagnostic report.
-                                let requested_elements =
-                                    usize::try_from(interrupted_op)
-                                        .unwrap_or(usize::MAX);
-                                return Err(anyhow::Error::new(
-                                    WasmResourceInterruption::TableLimitExceeded {
-                                        requested_elements,
-                                        max_elements: effective_max_tbl,
-                                    },
-                                ));
-                            }
-                            _ => {
-                                return Err(anyhow::Error::new(
-                                    WasmStartSectionTrap {
-                                        message: format!(
-                                            "Failed to execute WebAssembly start section: {e:?}"
-                                        ),
-                                    },
-                                ));
-                            }
+                            let start_consumed =
+                                read_store_global_u64(&store, global_addrs.quota_consumed);
+                            remaining_compute_quota =
+                                read_store_global_u64(&store, global_addrs.quota_rem);
+                            total_instructions_executed = start_consumed;
                         }
-                    }
-                    let start_consumed =
-                        read_store_global_u64(&store, global_addrs.quota_consumed);
-                    remaining_compute_quota =
-                        read_store_global_u64(&store, global_addrs.quota_rem);
-                    total_instructions_executed = start_consumed;
-                }
 
-                let entry_func_name = if instance.export_addr("step").is_some() {
-                    "step".to_owned()
-                } else if instance.export_addr("main").is_some() {
-                    "main".to_owned()
-                } else {
-                    bail!(
-                        "WebAssembly module must export a 'step' or 'main' entry function"
-                    );
-                };
-
-                // Determine the highest byte owned by static data segments, optional exported
-                // `__heap_base` / `__data_end` globals, or nonzero bytes written during instantiation
-                // so host I/O buffers never overwrite zero-filled or trailing-zero static data segments.
-                // Reason for fallback: modules that do not export `__heap_base` or `__data_end` contribute
-                // 0 to the reserved static data high-water mark.
-                let exported_heap_bound = ["__heap_base", "__data_end"]
-                    .into_iter()
-                    .filter_map(|name| {
-                        if let Some(ExternVal::Global(addr)) =
-                            instance.export_addr(name)
-                        {
-                            usize::try_from(read_store_global_i32(&store, addr))
-                                .ok()
+                        let entry_func_name = if instance.export_addr("step").is_some() {
+                            "step".to_owned()
+                        } else if instance.export_addr("main").is_some() {
+                            "main".to_owned()
                         } else {
-                            None
-                        }
-                    })
-                    .max()
-                    .unwrap_or(0);
-                let base_io_offset = {
-                    let mut mem = instance
-                        .exported_memory_mut(&mut store, "memory")
-                        .map_err(|e| {
-                            anyhow!(
-                                "WebAssembly module is missing exported 'memory': {e:?}"
-                            )
-                        })?;
-                    let total_len = mem.page_count().saturating_mul(65_536);
-                    let slice = mem.load(0, total_len).map_err(|e| {
-                        anyhow!(
-                            "Failed to inspect initial WASM linear memory: {e:?}"
-                        )
-                    })?;
-                    // Reason for fallback: an all-zero initial memory has 0 nonzero bytes written.
-                    let last_nonzero_end = slice
-                        .iter()
-                        .rposition(|&b| b != 0)
-                        .map_or(0, |idx| idx.saturating_add(1));
-                    let reserved_end = static_data_end
-                        .max(exported_heap_bound)
-                        .max(last_nonzero_end)
-                        .max(DC_WASM_MIN_IO_BUFFER_OFFSET);
-                    let base_io_offset = align_up_8(reserved_end)?;
-                    base_io_offset_cell.set(base_io_offset);
-                    base_io_offset
-                };
+                            bail!(
+                                "WebAssembly module must export a 'step' or 'main' entry function"
+                            );
+                        };
 
-                Ok((
-                    store,
-                    instance,
-                    global_addrs,
-                    WorkerInitSuccess {
-                        entry_func_name,
-                        base_io_offset,
-                        remaining_compute_quota,
-                        total_instructions_executed,
-                    },
-                ))
+                        // Reason for fallback: modules without `__heap_base`/`__data_end` contribute 0.
+                        let exported_heap_bound = ["__heap_base", "__data_end"]
+                            .into_iter()
+                            .filter_map(|name| {
+                                if let Some(ExternVal::Global(addr)) =
+                                    instance.export_addr(name)
+                                {
+                                    usize::try_from(read_store_global_i32(&store, addr))
+                                        .ok()
+                                } else {
+                                    None
+                                }
+                            })
+                            .max()
+                            .unwrap_or(0);
+                        let base_io_offset = {
+                            let mut mem = instance
+                                .exported_memory_mut(&mut store, "memory")
+                                .map_err(|e| {
+                                    anyhow!(
+                                        "WebAssembly module is missing exported 'memory': {e:?}"
+                                    )
+                                })?;
+                            let total_len = mem.page_count().saturating_mul(65_536);
+                            let slice = mem.load(0, total_len).map_err(|e| {
+                                anyhow!(
+                                    "Failed to inspect initial WASM linear memory: {e:?}"
+                                )
+                            })?;
+                            let last_nonzero_end = last_nonzero_memory_end_on_slice(slice);
+                            let reserved_end = static_data_end
+                                .max(exported_heap_bound)
+                                .max(last_nonzero_end)
+                                .max(DC_WASM_MIN_IO_BUFFER_OFFSET);
+                            let base_io_offset = align_up_8(reserved_end)?;
+                            base_io_offset_cell.set(base_io_offset);
+                            base_io_offset
+                        };
+
+                        Ok((
+                            LiveEngine::TinyWasm {
+                                store,
+                                instance,
+                                addrs: global_addrs,
+                                allow_suspend,
+                                shutdown_requested,
+                                cmd_rx: cmd_rx_rc,
+                                evt_tx: evt_tx_rc,
+                            },
+                            WorkerInitSuccess {
+                                entry_func_name,
+                                base_io_offset,
+                                remaining_compute_quota,
+                                total_instructions_executed,
+                            },
+                        ))
+                    }
+                    WorkerInitBackend::NativeSubstitute(desc) => {
+                        let mut inst = (desc.instantiate)();
+                        let meta = inst.meta();
+                        let mem_export_idx = inst.exported_memory_index();
+                        {
+                            let vm = inst.vm_mut();
+                            configure_vm_limits(vm, &resource_limits);
+                            vm.quota_remaining =
+                                resource_limits.max_instructions_per_step;
+                            vm.quota_consumed = 0;
+                            vm.exhausted = 0;
+                            vm.interrupted_op = 0;
+                            vm.required_cost = 0;
+                            vm.op_ordinal = 0;
+                            vm.resume_target_op = 0;
+                        }
+
+                        let mut remaining_compute_quota =
+                            resource_limits.max_instructions_per_step;
+                        let mut total_instructions_executed = 0u64;
+
+                        if meta.has_start_func {
+                            let mut start_shutdown = false;
+                            let mut start_host = WorkerSubstituteHost {
+                                mem_export_idx,
+                                base_io_offset: DC_WASM_MIN_IO_BUFFER_OFFSET,
+                                allow_suspend: false,
+                                shutdown_requested: &mut start_shutdown,
+                                cmd_rx: &cmd_rx,
+                                evt_tx: &evt_tx,
+                            };
+                            if let Err(err) = inst.call_start(&mut start_host) {
+                                let exhausted = inst.vm().exhausted;
+                                let interrupted_op = inst.vm().interrupted_op;
+                                return Err(map_start_section_error(
+                                    exhausted,
+                                    interrupted_op,
+                                    resource_limits.max_instructions_per_step,
+                                    effective_max_mem,
+                                    effective_max_tbl,
+                                    format_args!("{err}"),
+                                ));
+                            }
+                            remaining_compute_quota = inst.vm().quota_remaining;
+                            total_instructions_executed = inst.vm().quota_consumed;
+                        }
+
+                        // Reason for fallback: modules without `__heap_base`/`__data_end` contribute 0.
+                        let exported_heap_bound = ["__heap_base", "__data_end"]
+                            .into_iter()
+                            .filter_map(|name| {
+                                inst.exported_global_i32(name)
+                                    .and_then(|v| usize::try_from(v).ok())
+                            })
+                            .max()
+                            .unwrap_or(0);
+                        let base_io_offset = {
+                            let mem_idx = mem_export_idx.context(
+                                "WebAssembly module is missing exported 'memory'",
+                            )?;
+                            let mem = inst
+                                .vm()
+                                .memories
+                                .get(mem_idx)
+                                .context("WASM exported memory index out of bounds")?;
+                            let last_nonzero_end =
+                                last_nonzero_memory_end_on_slice(mem.as_slice());
+                            let reserved_end = meta
+                                .static_data_end
+                                .max(exported_heap_bound)
+                                .max(last_nonzero_end)
+                                .max(DC_WASM_MIN_IO_BUFFER_OFFSET);
+                            align_up_8(reserved_end)?
+                        };
+
+                        Ok((
+                            LiveEngine::NativeSubstitute {
+                                inst,
+                                mem_export_idx,
+                                base_io_offset,
+                                cmd_rx,
+                                evt_tx,
+                            },
+                            WorkerInitSuccess {
+                                entry_func_name: meta.entry_func_name.to_owned(),
+                                base_io_offset,
+                                remaining_compute_quota,
+                                total_instructions_executed,
+                            },
+                        ))
+                    }
+                }
             })();
 
-            let (mut store, instance, global_addrs) = match init_outcome {
-                Ok((s, i, g, info)) => {
+            let mut engine = match init_outcome {
+                Ok((eng, info)) => {
                     if init_tx.send(Ok(info)).is_err() {
                         return;
                     }
-                    (s, i, g)
+                    eng
                 }
                 Err(err) => {
                     let _ = init_tx.send(Err(err));
@@ -3242,120 +4010,220 @@ fn spawn_session_worker(
                 }
             };
 
-            while let Ok(cmd) = cmd_rx_rc.recv() {
-                match cmd {
-                    WorkerCommand::WithStore(task) => {
-                        task(&mut store, &instance, &global_addrs);
-                    }
-                    WorkerCommand::StartStep {
-                        entry_func_name,
-                        in_ptr_i32,
-                        in_len_i32,
-                        default_output_ptr,
-                        quota_rem,
-                        limits,
-                    } => {
-                        configure_store_limits(&mut store, &global_addrs, &limits);
-                        if let Ok(mut mem) =
-                            instance.exported_memory_mut(&mut store, "memory")
-                        {
-                            let mut out_reset = [0u8; 8];
-                            out_reset[0..4].copy_from_slice(
-                                &default_output_ptr.to_le_bytes(),
-                            );
-                            out_reset[4..8].copy_from_slice(&0u32.to_le_bytes());
-                            if let Ok(out_off) =
-                                usize::try_from(DC_WASM_MAILBOX_OUTPUT_PTR)
-                            {
-                                let _ = mem.store(
-                                    out_off,
-                                    out_reset.len(),
-                                    &out_reset,
-                                );
-                            }
-                        }
-                        write_store_global_u64(
-                            &mut store,
-                            global_addrs.quota_rem,
-                            quota_rem,
-                        );
-                        write_store_global_u64(
-                            &mut store,
-                            global_addrs.quota_consumed,
-                            0,
-                        );
-                        write_store_global_i32(
-                            &mut store,
-                            global_addrs.exhausted,
-                            0,
-                        );
-                        write_store_global_u64(
-                            &mut store,
-                            global_addrs.interrupted_op,
-                            0,
-                        );
-                        write_store_global_u64(
-                            &mut store,
-                            global_addrs.required_cost,
-                            0,
-                        );
-                        write_store_global_u64(
-                            &mut store,
-                            global_addrs.resume_target_op,
-                            0,
-                        );
-
-                        allow_suspend.set(true);
-                        let call_res = match DcWasmSession::call_entry_once(
-                            &mut store,
-                            &instance,
-                            &entry_func_name,
-                            in_ptr_i32,
-                            in_len_i32,
-                        ) {
-                            Ok(Ok(code)) => Ok(code),
-                            Ok(Err(trap_err)) => Err(format!("{trap_err:?}")),
-                            Err(sig_err) => Err(format!("{sig_err}")),
+            match &mut engine {
+                LiveEngine::TinyWasm {
+                    store,
+                    instance,
+                    addrs,
+                    allow_suspend,
+                    shutdown_requested,
+                    cmd_rx: rx,
+                    evt_tx: tx,
+                } => {
+                    while let Ok(cmd) = rx.recv() {
+                        let Some(ctrl) = tinywasm_handle_query(store, instance, addrs, cmd) else {
+                            continue;
                         };
-                        allow_suspend.set(false);
-                        if shutdown_requested.get() {
-                            break;
-                        }
+                        match ctrl {
+                            WorkerCommand::StartStep {
+                                entry_func_name,
+                                in_ptr_i32,
+                                in_len_i32,
+                                default_output_ptr,
+                                quota_rem,
+                                limits,
+                            } => {
+                                configure_store_limits(store, addrs, &limits);
+                                if let Ok(mut mem) =
+                                    instance.exported_memory_mut(store, "memory")
+                                {
+                                    reset_output_mailbox_on_mem(
+                                        &mut mem,
+                                        default_output_ptr,
+                                    );
+                                }
+                                write_store_global_u64(store, addrs.quota_rem, quota_rem);
+                                write_store_global_u64(store, addrs.quota_consumed, 0);
+                                write_store_global_i32(store, addrs.exhausted, 0);
+                                write_store_global_u64(store, addrs.interrupted_op, 0);
+                                write_store_global_u64(store, addrs.required_cost, 0);
+                                write_store_global_u64(store, addrs.resume_target_op, 0);
 
-                        let consumed = read_store_global_u64(
-                            &store,
-                            global_addrs.quota_consumed,
-                        );
-                        let remaining =
-                            read_store_global_u64(&store, global_addrs.quota_rem);
-                        let exhausted =
-                            read_store_global_i32(&store, global_addrs.exhausted);
-                        let interrupted_op = read_store_global_u64(
-                            &store,
-                            global_addrs.interrupted_op,
-                        );
-                        let required_cost = read_store_global_u64(
-                            &store,
-                            global_addrs.required_cost,
-                        );
-                        if evt_tx_rc
-                            .send(WorkerEvent::StepFinished {
-                                call_res,
-                                consumed,
-                                remaining,
-                                exhausted,
-                                interrupted_op,
-                                required_cost,
-                            })
-                            .is_err()
-                        {
-                            break;
+                                allow_suspend.set(true);
+                                let call_res = match DcWasmSession::call_entry_once(
+                                    store,
+                                    instance,
+                                    &entry_func_name,
+                                    in_ptr_i32,
+                                    in_len_i32,
+                                ) {
+                                    Ok(Ok(code)) => Ok(code),
+                                    Ok(Err(trap_err)) => Err(format!("{trap_err:?}")),
+                                    Err(sig_err) => Err(format!("{sig_err}")),
+                                };
+                                allow_suspend.set(false);
+                                if shutdown_requested.get() {
+                                    break;
+                                }
+
+                                let consumed =
+                                    read_store_global_u64(store, addrs.quota_consumed);
+                                let remaining =
+                                    read_store_global_u64(store, addrs.quota_rem);
+                                let exhausted =
+                                    read_store_global_i32(store, addrs.exhausted);
+                                let interrupted_op =
+                                    read_store_global_u64(store, addrs.interrupted_op);
+                                let required_cost =
+                                    read_store_global_u64(store, addrs.required_cost);
+                                if tx
+                                    .send(WorkerEvent::StepFinished {
+                                        call_res,
+                                        consumed,
+                                        remaining,
+                                        exhausted,
+                                        interrupted_op,
+                                        required_cost,
+                                    })
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
+                            WorkerCommand::ResumeStep { .. }
+                            | WorkerCommand::ResumeCapability { .. }
+                            | WorkerCommand::Shutdown => {
+                                break;
+                            }
+                            _ => {}
                         }
                     }
-                    WorkerCommand::ResumeStep { .. }
-                    | WorkerCommand::ResumeCapability { .. }
-                    | WorkerCommand::Shutdown => {
-                        break;
+                }
+                LiveEngine::NativeSubstitute {
+                    inst,
+                    mem_export_idx,
+                    base_io_offset,
+                    cmd_rx: rx,
+                    evt_tx: tx,
+                } => {
+                    while let Ok(cmd) = rx.recv() {
+                        let hp_opt = inst.exported_global_i32("__heap_ptr");
+                        let ctrl_opt = match &cmd {
+                            WorkerCommand::ExportedGlobalI32 { name, .. } => {
+                                if let Some(v) = inst.exported_global_i32(name) {
+                                    if let WorkerCommand::ExportedGlobalI32 {
+                                        reply,
+                                        ..
+                                    } = cmd
+                                    {
+                                        let _ = reply.send(Some(v));
+                                    }
+                                    None
+                                } else {
+                                    native_vm_handle_query(
+                                        inst.vm_mut(),
+                                        *mem_export_idx,
+                                        hp_opt.as_ref(),
+                                        cmd,
+                                    )
+                                }
+                            }
+                            WorkerCommand::ExportedGlobalI64 { name, .. } => {
+                                if let Some(v) = inst.exported_global_i64(name) {
+                                    if let WorkerCommand::ExportedGlobalI64 {
+                                        reply,
+                                        ..
+                                    } = cmd
+                                    {
+                                        let _ = reply.send(Some(v));
+                                    }
+                                    None
+                                } else {
+                                    native_vm_handle_query(
+                                        inst.vm_mut(),
+                                        *mem_export_idx,
+                                        hp_opt.as_ref(),
+                                        cmd,
+                                    )
+                                }
+                            }
+                            _ => native_vm_handle_query(
+                                inst.vm_mut(),
+                                *mem_export_idx,
+                                hp_opt.as_ref(),
+                                cmd,
+                            ),
+                        };
+                        let Some(ctrl) = ctrl_opt else {
+                            continue;
+                        };
+                        match ctrl {
+                            WorkerCommand::StartStep {
+                                entry_func_name: _,
+                                in_ptr_i32,
+                                in_len_i32,
+                                default_output_ptr,
+                                quota_rem,
+                                limits,
+                            } => {
+                                {
+                                    let vm = inst.vm_mut();
+                                    configure_vm_limits(vm, &limits);
+                                    if let Some(mem_idx) = *mem_export_idx
+                                        && let Some(mem) = vm.memories.get_mut(mem_idx)
+                                    {
+                                        reset_output_mailbox_on_mem(
+                                            mem,
+                                            default_output_ptr,
+                                        );
+                                    }
+                                    vm.quota_remaining = quota_rem;
+                                    vm.quota_consumed = 0;
+                                    vm.exhausted = 0;
+                                    vm.interrupted_op = 0;
+                                    vm.required_cost = 0;
+                                    vm.resume_target_op = 0;
+                                }
+
+                                let mut shutdown_req = false;
+                                let call_res = {
+                                    let mut host = WorkerSubstituteHost {
+                                        mem_export_idx: *mem_export_idx,
+                                        base_io_offset: *base_io_offset,
+                                        allow_suspend: true,
+                                        shutdown_requested: &mut shutdown_req,
+                                        cmd_rx: rx,
+                                        evt_tx: tx,
+                                    };
+                                    inst.call_entry(in_ptr_i32, in_len_i32, &mut host)
+                                        .map_err(|trap| format!("{trap:?}"))
+                                };
+                                if shutdown_req {
+                                    break;
+                                }
+
+                                let vm = inst.vm();
+                                if tx
+                                    .send(WorkerEvent::StepFinished {
+                                        call_res,
+                                        consumed: vm.quota_consumed,
+                                        remaining: vm.quota_remaining,
+                                        exhausted: vm.exhausted,
+                                        interrupted_op: vm.interrupted_op,
+                                        required_cost: vm.required_cost,
+                                    })
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
+                            WorkerCommand::ResumeStep { .. }
+                            | WorkerCommand::ResumeCapability { .. }
+                            | WorkerCommand::Shutdown => {
+                                break;
+                            }
+                            _ => {}
+                        }
                     }
                 }
             }
@@ -3369,12 +4237,9 @@ fn spawn_session_worker(
 }
 
 impl DcWasmSession {
-    fn with_store<R, F>(&self, f: F) -> Result<R>
+    fn query_worker<R, F>(&self, build: F) -> Result<R>
     where
-        R: Send + 'static,
-        F: FnOnce(&mut Store, &ModuleInstance, &CtbGlobalAddrs) -> R
-            + Send
-            + 'static,
+        F: FnOnce(Reply<R>) -> WorkerCommand,
     {
         let guard = self
             .worker
@@ -3383,11 +4248,7 @@ impl DcWasmSession {
         let (res_tx, res_rx) = std::sync::mpsc::channel::<R>();
         guard
             .cmd_tx
-            .send(WorkerCommand::WithStore(Box::new(
-                move |store, instance, addrs| {
-                    let _ = res_tx.send(f(store, instance, addrs));
-                },
-            )))
+            .send(build(res_tx))
             .map_err(|_| {
                 anyhow!("WASM session continuation worker exited unexpectedly")
             })?;
@@ -3418,7 +4279,7 @@ impl DcWasmSession {
     }
 
     /// Instantiates a pure-compute [`DcWasmSession`] from compiled `.wasm` module bytes
-    /// with explicit [`DcWasmResourceLimits`].
+    /// with explicit [`DcWasmResourceLimits`] using [`DcWasmExecutionBackend::Auto`].
     ///
     /// # Errors
     /// Returns an error if parsing, instrumenting, or instantiating the module fails,
@@ -3430,41 +4291,105 @@ impl DcWasmSession {
         most_recent_node_id: Option<u128>,
         resource_limits: DcWasmResourceLimits,
     ) -> Result<Self> {
-        let instrumented = instrument_wasm_module_bytes(wasm_bytes)?;
+        Self::from_wasm_bytes_with_limits_and_backend(
+            wasm_bytes,
+            initial_input,
+            most_recent_node_id,
+            resource_limits,
+            DcWasmExecutionBackend::Auto,
+        )
+    }
+
+    /// Instantiates a pure-compute [`DcWasmSession`] from compiled `.wasm` module bytes
+    /// with explicit [`DcWasmResourceLimits`] and [`DcWasmExecutionBackend`].
+    ///
+    /// # Errors
+    /// Returns an error if parsing, instrumenting, or instantiating the module fails,
+    /// if initial memory/tables exceed `resource_limits`, if the module exports neither
+    /// `"step"` nor `"main"`, or if writing the initial input into linear memory fails.
+    pub fn from_wasm_bytes_with_limits_and_backend(
+        wasm_bytes: &[u8],
+        initial_input: &DcMstr,
+        most_recent_node_id: Option<u128>,
+        resource_limits: DcWasmResourceLimits,
+        backend: DcWasmExecutionBackend,
+    ) -> Result<Self> {
         let effective_max_mem = resource_limits
             .max_memory_pages
             .min(resource_limits.physical_max_memory_pages);
-        if instrumented.initial_memory_pages > effective_max_mem {
-            return Err(anyhow::Error::new(
-                WasmResourceInterruption::MemoryLimitExceeded {
-                    requested_pages: instrumented.initial_memory_pages,
-                    max_pages: effective_max_mem,
-                },
-            ));
-        }
         let effective_max_tbl = resource_limits
             .max_table_elements
             .min(resource_limits.physical_max_table_elements);
-        if instrumented.initial_table_elements > effective_max_tbl {
-            return Err(anyhow::Error::new(
-                WasmResourceInterruption::TableLimitExceeded {
-                    requested_elements: instrumented.initial_table_elements,
-                    max_elements: effective_max_tbl,
+
+        let raw_wasm_bytes = wasm_bytes.to_vec();
+        let instrumented_bytes = std::sync::OnceLock::new();
+
+        let matched_desc = match backend {
+            DcWasmExecutionBackend::Auto => {
+                let wasm_sha256: [u8; 32] = Sha256::digest(wasm_bytes).into();
+                lookup_substitute(WASM_RESOURCE_ACCOUNTING_VERSION, &wasm_sha256)
+            }
+            DcWasmExecutionBackend::ForceTinyWasm => None,
+        };
+
+        let (used_native_substitute, backend_init) = if let Some(desc) = matched_desc {
+            if desc.meta.initial_memory_pages > effective_max_mem {
+                return Err(anyhow::Error::new(
+                    WasmResourceInterruption::MemoryLimitExceeded {
+                        requested_pages: desc.meta.initial_memory_pages,
+                        max_pages: effective_max_mem,
+                    },
+                ));
+            }
+            if desc.meta.initial_table_elements > effective_max_tbl {
+                return Err(anyhow::Error::new(
+                    WasmResourceInterruption::TableLimitExceeded {
+                        requested_elements: desc.meta.initial_table_elements,
+                        max_elements: effective_max_tbl,
+                    },
+                ));
+            }
+            (true, WorkerInitBackend::NativeSubstitute(desc))
+        } else {
+            let instrumented = instrument_wasm_module_bytes(wasm_bytes)?;
+            if instrumented.initial_memory_pages > effective_max_mem {
+                return Err(anyhow::Error::new(
+                    WasmResourceInterruption::MemoryLimitExceeded {
+                        requested_pages: instrumented.initial_memory_pages,
+                        max_pages: effective_max_mem,
+                    },
+                ));
+            }
+            if instrumented.initial_table_elements > effective_max_tbl {
+                return Err(anyhow::Error::new(
+                    WasmResourceInterruption::TableLimitExceeded {
+                        requested_elements: instrumented.initial_table_elements,
+                        max_elements: effective_max_tbl,
+                    },
+                ));
+            }
+            let _ = instrumented_bytes.set(instrumented.wasm_bytes);
+            (
+                false,
+                WorkerInitBackend::TinyWasm {
+                    parsed_suspendable: instrumented.parsed_suspendable,
+                    has_start_func: instrumented.has_start_func,
+                    static_data_end: instrumented.static_data_end,
                 },
-            ));
-        }
+            )
+        };
 
         let (worker, init_info) = spawn_session_worker(
-            instrumented.parsed_suspendable.clone(),
+            backend_init,
             resource_limits,
-            instrumented.has_start_func,
             effective_max_mem,
             effective_max_tbl,
-            instrumented.static_data_end,
         )?;
 
         let mut session = Self {
-            instrumented,
+            raw_wasm_bytes,
+            instrumented_bytes,
+            used_native_substitute,
             worker: std::sync::Mutex::new(worker),
             entry_func_name: init_info.entry_func_name,
             base_io_offset: init_info.base_io_offset,
@@ -3554,6 +4479,12 @@ impl DcWasmSession {
         )
     }
 
+    /// Returns `true` if this session is backed by a registered native substitute.
+    #[must_use]
+    pub const fn used_native_substitute(&self) -> bool {
+        self.used_native_substitute
+    }
+
     /// Returns the portable instrumented `.wasm` bytes executed by this session.
     ///
     /// Because compute-quota accounting is embedded in standard WebAssembly bytecode,
@@ -3561,7 +4492,17 @@ impl DcWasmSession {
     /// Wasmtime, etc.) produces identical interruption points and state transitions.
     #[must_use]
     pub fn instrumented_wasm_bytes(&self) -> &[u8] {
-        &self.instrumented.wasm_bytes
+        self.instrumented_bytes.get_or_init(|| {
+            match instrument_wasm_module_bytes(&self.raw_wasm_bytes) {
+                Ok(m) => m.wasm_bytes,
+                Err(err) => {
+                    warn_fmt!(
+                        "Lazy WASM quota instrumentation failed after native substitute instantiation: {err:#}"
+                    );
+                    Vec::new()
+                }
+            }
+        })
     }
 
     /// Returns the active [`DcWasmResourceLimits`] for this session.
@@ -3586,8 +4527,9 @@ impl DcWasmSession {
         self.resource_limits = limits;
         self.current_compute_quota_limit = limits.max_instructions_per_step;
         self.remaining_compute_quota = new_rem;
-        let _ = self.with_store(move |store, _, addrs| {
-            configure_store_limits(store, addrs, &limits);
+        let _ = self.query_worker(|reply| WorkerCommand::ConfigureLimits {
+            limits,
+            reply,
         });
     }
 
@@ -3715,14 +4657,9 @@ impl DcWasmSession {
     #[must_use]
     pub fn exported_global_i32(&self, name: &str) -> Option<i32> {
         let name_owned = name.to_owned();
-        self.with_store(move |store, instance, _| {
-            if let Some(ExternVal::Global(addr)) =
-                instance.export_addr(&name_owned)
-            {
-                Some(read_store_global_i32(store, addr))
-            } else {
-                None
-            }
+        self.query_worker(|reply| WorkerCommand::ExportedGlobalI32 {
+            name: name_owned,
+            reply,
         })
         .ok()
         .flatten()
@@ -3732,15 +4669,9 @@ impl DcWasmSession {
     #[must_use]
     pub fn exported_global_i64(&self, name: &str) -> Option<i64> {
         let name_owned = name.to_owned();
-        self.with_store(move |store, instance, _| {
-            if let Some(ExternVal::Global(addr)) =
-                instance.export_addr(&name_owned)
-            {
-                let u = read_store_global_u64(store, addr);
-                Some(i64::from_le_bytes(u.to_le_bytes()))
-            } else {
-                None
-            }
+        self.query_worker(|reply| WorkerCommand::ExportedGlobalI64 {
+            name: name_owned,
+            reply,
         })
         .ok()
         .flatten()
@@ -3751,18 +4682,10 @@ impl DcWasmSession {
     /// # Errors
     /// Returns an error if exported `"memory"` is missing or `offset..offset + len` is out of bounds.
     pub fn read_memory(&mut self, offset: usize, len: usize) -> Result<Vec<u8>> {
-        self.with_store(move |store, instance, _| {
-            let mem = instance
-                .exported_memory(store, "memory")
-                .map_err(|e| {
-                    anyhow!("Failed to access WASM exported 'memory': {e:?}")
-                })?;
-            mem.load_vec(offset, len).map_err(|e| {
-                anyhow!(
-                    "Failed to read WASM memory at {offset}..{}: {e:?}",
-                    offset.saturating_add(len)
-                )
-            })
+        self.query_worker(|reply| WorkerCommand::ReadMemory {
+            offset,
+            len,
+            reply,
         })?
     }
 
@@ -3803,29 +4726,17 @@ impl DcWasmSession {
     /// # Errors
     /// Returns an error if the exported `"memory"` cannot be accessed.
     pub fn current_memory_pages(&mut self) -> Result<usize> {
-        self.with_store(|store, instance, addrs| -> Result<usize> {
-            let _mem = instance
-                .exported_memory(store, "memory")
-                .map_err(|e| {
-                    anyhow!("Failed to access WASM exported 'memory': {e:?}")
-                })?;
-            let total = read_store_global_u64(store, addrs.total_mem_pages);
-            Ok(usize::try_from(total)?)
-        })?
+        self.query_worker(|reply| WorkerCommand::ReadCurrentMemoryPages { reply })?
     }
 
     /// Returns the total number of table elements currently allocated across the session store.
     #[must_use]
     pub fn current_table_elements(&self) -> usize {
-        let total = self
-            .with_store(|store, _, addrs| {
-                read_store_global_u64(store, addrs.total_table_elems)
-            })
-            // Reason for fallback: if the worker channel closed, 0 table elements remain accessible.
-            .unwrap_or(0);
-        // Reason for fallback: on 32-bit hosts, a 64-bit table count exceeding usize::MAX
-        // saturates to usize::MAX.
-        usize::try_from(total).unwrap_or(usize::MAX)
+        // Reason for fallback: if the worker channel closed, 0 table elements remain accessible.
+        self.query_worker(|reply| WorkerCommand::ReadCurrentTableElements {
+            reply,
+        })
+        .unwrap_or(0)
     }
 
     /// Returns the byte offset (`input_ptr`) where the host places the input payload in linear memory.
@@ -3890,18 +4801,9 @@ impl DcWasmSession {
             .checked_div(65_536)
             .unwrap_or(1);
         let total_store_pages = self.current_memory_pages()?;
-        let exported_pages = self.with_store(
-            |store, instance, _| -> Result<usize> {
-                let mut mem = instance
-                    .exported_memory_mut(store, "memory")
-                    .map_err(|e| {
-                        anyhow!(
-                            "Failed to access WASM exported 'memory': {e:?}"
-                        )
-                    })?;
-                Ok(mem.page_count())
-            },
-        )??;
+        let exported_pages = self.query_worker(|reply| {
+            WorkerCommand::ReadExportedMemoryPages { reply }
+        })??;
         let other_mem_pages = total_store_pages.saturating_sub(exported_pages);
         let required_total_pages =
             other_mem_pages.saturating_add(required_pages.max(exported_pages));
@@ -3925,75 +4827,23 @@ impl DcWasmSession {
         // Reason for fallback: when no Dc 641 watermark is bound, the mailbox slot is 0.
         let watermark = self.most_recent_node_id.unwrap_or(0);
 
-        let write_res = self.with_store(
-            move |store, instance, addrs| -> Result<()> {
-                let mut mem = instance
-                    .exported_memory_mut(store, "memory")
-                    .map_err(|e| {
-                        anyhow!(
-                            "Failed to access WASM exported 'memory': {e:?}"
-                        )
-                    })?;
-                let current_pages = mem.page_count();
-                let current_bytes = current_pages.saturating_mul(65_536);
-                let mut new_total_store_pages = total_store_pages;
-                if required_mem_bytes > current_bytes {
-                    let missing_bytes =
-                        required_mem_bytes.saturating_sub(current_bytes);
-                    // Reason for fallback: 65_536 is a non-zero constant divisor.
-                    let extra_pages = missing_bytes
-                        .saturating_add(65_535)
-                        .checked_div(65_536)
-                        .unwrap_or(1);
-                    let delta = i32::try_from(extra_pages)
-                        .context("WASM memory page growth exceeds i32")?;
-                    if mem.grow(delta).is_none() {
-                        drop(mem);
-                        return Err(anyhow::Error::new(
-                            WasmResourceInterruption::MemoryLimitExceeded {
-                                requested_pages: other_mem_pages
-                                    .saturating_add(current_pages)
-                                    .saturating_add(extra_pages),
-                                max_pages: effective_max_pages,
-                            },
-                        ));
-                    }
-                    new_total_store_pages = other_mem_pages
-                        .saturating_add(current_pages.saturating_add(extra_pages));
-                }
+        let mut header = [0u8; 32];
+        header[0..4].copy_from_slice(&input_ptr_u32.to_le_bytes());
+        header[4..8].copy_from_slice(&input_len_u32.to_le_bytes());
+        header[8..12].copy_from_slice(&output_ptr_u32.to_le_bytes());
+        header[12..16].copy_from_slice(&0u32.to_le_bytes());
+        header[16..32].copy_from_slice(&watermark.to_le_bytes());
 
-                if !payload_vec.is_empty() {
-                    mem.store(input_ptr, input_len, &payload_vec).map_err(
-                        |e| {
-                            anyhow!(
-                                "Failed to write input payload to WASM memory: {e:?}"
-                            )
-                        },
-                    )?;
-                }
-
-                let mut header = [0u8; 32];
-                header[0..4].copy_from_slice(&input_ptr_u32.to_le_bytes());
-                header[4..8].copy_from_slice(&input_len_u32.to_le_bytes());
-                header[8..12].copy_from_slice(&output_ptr_u32.to_le_bytes());
-                header[12..16].copy_from_slice(&0u32.to_le_bytes());
-                header[16..32].copy_from_slice(&watermark.to_le_bytes());
-
-                mem.store(0, header.len(), &header).map_err(|e| {
-                    anyhow!(
-                        "Failed to write WASM mailbox header at 0..32: {e:?}"
-                    )
-                })?;
-                drop(mem);
-
-                write_store_global_u64(
-                    store,
-                    addrs.total_mem_pages,
-                    u64::try_from(new_total_store_pages)?,
-                );
-                Ok(())
-            },
-        )?;
+        let write_res = self.query_worker(|reply| WorkerCommand::WriteInput {
+            input_ptr,
+            payload: payload_vec,
+            header,
+            required_mem_bytes,
+            total_store_pages,
+            other_mem_pages,
+            effective_max_pages,
+            reply,
+        })?;
         if let Err(err) = write_res {
             if let Some(interruption) =
                 err.downcast_ref::<WasmResourceInterruption>()
@@ -4212,8 +5062,8 @@ impl DcWasmSession {
                 .pending_capability_response
                 .take()
                 .context("WASM session paused on capability request without a response; call provide_capability_response first")?;
-            let prev_consumed = self.with_store(|store, _, addrs| {
-                read_store_global_u64(store, addrs.quota_consumed)
+            let prev_consumed = self.query_worker(|reply| {
+                WorkerCommand::ReadQuotaConsumed { reply }
             })?;
             let guard = self
                 .worker
@@ -4237,8 +5087,8 @@ impl DcWasmSession {
             drop(guard);
             (prev_consumed, evt)
         } else if self.paused_on_compute_quota {
-            let prev_consumed = self.with_store(|store, _, addrs| {
-                read_store_global_u64(store, addrs.quota_consumed)
+            let prev_consumed = self.query_worker(|reply| {
+                WorkerCommand::ReadQuotaConsumed { reply }
             })?;
             self.pending_quota_increase_since_pause = 0;
             let guard = self
@@ -4437,32 +5287,9 @@ impl DcWasmSession {
 
         let status = WasmStepStatus::from_i32(raw_status)?;
 
-        let (out_ptr, out_len) = self.with_store(
-            |store, instance, _| -> Result<(usize, usize)> {
-                let mem = instance
-                    .exported_memory(store, "memory")
-                    .map_err(|e| {
-                        anyhow!(
-                            "Failed to access WASM exported 'memory': {e:?}"
-                        )
-                    })?;
-                let hdr = mem.load(8, 8).map_err(|e| {
-                    anyhow!(
-                        "Failed to read WASM output mailbox header at 8..16: {e:?}"
-                    )
-                })?;
-                let hdr_arr: [u8; 8] = hdr.try_into().context(
-                    "WASM output mailbox header slice is not 8 bytes",
-                )?;
-                let out_ptr = usize::try_from(u32::from_le_bytes([
-                    hdr_arr[0], hdr_arr[1], hdr_arr[2], hdr_arr[3],
-                ]))?;
-                let out_len = usize::try_from(u32::from_le_bytes([
-                    hdr_arr[4], hdr_arr[5], hdr_arr[6], hdr_arr[7],
-                ]))?;
-                Ok((out_ptr, out_len))
-            },
-        )??;
+        let (out_ptr, out_len) = self.query_worker(|reply| {
+            WorkerCommand::ReadOutputMailboxHeader { reply }
+        })??;
 
         if status == WasmStepStatus::RequestCapability {
             let req_doc =
