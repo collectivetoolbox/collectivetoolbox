@@ -9,6 +9,7 @@ crate-type = ["lib"]
 [dependencies]
 ctb-utilities = { path = "../utilities" }
 ctb-formats-dcstring = { path = "../formats/dcstring" }
+ctb-wasm-substitutes = { path = "../formats/wasm_substitutes" }
 
 async-trait = "0.1.89"
 serde = "1.0.228"

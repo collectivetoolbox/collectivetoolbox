@@ -449,6 +449,7 @@ impl SystemSupervisorAdmission {
         definition_tokens: &[DcShorthand],
         user_limits: DcWasmResourceLimits,
     ) -> Result<DcWasmResourceLimits> {
+        ctb_wasm_substitutes::ensure_registered();
         if definition_tokens.len() <= 2 {
             return Ok(user_limits);
         }
@@ -1083,6 +1084,7 @@ impl ExecutionContext {
     /// Creates a new execution context with default limits.
     #[must_use]
     pub fn new(has_errors: bool) -> Self {
+        ctb_wasm_substitutes::ensure_registered();
         Self {
             bindings: HashMap::new(),
             has_errors,
@@ -1457,6 +1459,7 @@ impl ExecutionContext {
     where
         F: FnMut(&Privilege, PermissionDecision, &DcMstr) -> Result<DcMstring>,
     {
+        ctb_wasm_substitutes::ensure_registered();
         if let Some(adm) = &self.supervisor_admission
             && !session.has_shared_task_quota()
         {
@@ -2117,6 +2120,7 @@ impl ExecutionContext {
         mut event_idx: usize,
         initial_limits_override: Option<DcWasmResourceLimits>,
     ) -> Result<WasmExecutionTrace> {
+        ctb_wasm_substitutes::ensure_registered();
         ensure!(
             recorded_trace.accounting_version
                 == WASM_RESOURCE_ACCOUNTING_VERSION,

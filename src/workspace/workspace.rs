@@ -72,6 +72,7 @@ pub mod process;
 pub mod update_status;
 
 pub async fn entry() -> anyhow::Result<()> {
+    ctb_wasm_substitutes::ensure_registered();
     let raw_args: Vec<String> = std::env::args().collect();
     invocation_settings::apply_command_line_args(&raw_args)?;
 

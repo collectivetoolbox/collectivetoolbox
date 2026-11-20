@@ -31,6 +31,7 @@ tempfile = "3"
 
 [dev-dependencies]
 csv = "1.4.0"
+ctb-wasm-substitutes = { path = "../wasm_substitutes" }
 
 [lints]
 workspace = true

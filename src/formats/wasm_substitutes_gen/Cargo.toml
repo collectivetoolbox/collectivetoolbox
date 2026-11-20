@@ -1,0 +1,22 @@
+[package]
+name = "ctb-wasm-substitutes-gen"
+edition = "2024"
+
+[lib]
+path = "wasm_substitutes_gen.rs"
+crate-type = ["lib"]
+
+[[bin]]
+name = "generate-wasm-substitutes"
+path = "main.rs"
+test = false
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-dcdata = { path = "../dcdata" }
+ctb-formats-dcstring = { path = "../dcstring" }
+ctb-wasm-substitute-rt = { path = "../wasm_substitute_rt" }
+sha2 = "0.10.9"
+
+[lints]
+workspace = true

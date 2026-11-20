@@ -20,6 +20,7 @@ ctb-renderer = { path = "../renderer" }
 ctb-runtime = { path = "../runtime" }
 ctb-storage = { path = "../storage" }
 ctb-storage-minimal = { path = "../storage/minimal" }
+ctb-wasm-substitutes = { path = "../formats/wasm_substitutes" }
 ctb-workspace-ipc = { path = "./ipc" }
 
 portpicker = "0.1.1"

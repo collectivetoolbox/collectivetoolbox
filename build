@@ -426,6 +426,7 @@ if [[ ! -f "built/ctoolbox.rsrc" ]]; then
 fi
 
 ./scripts/update-workspace-depgraph ${offline} || exit 1
+./scripts/generate-wasm-substitutes ${offline} || exit 1
 
 if [[ "$build_docs" == "true" ]]; then
     echo "Building documentation..."

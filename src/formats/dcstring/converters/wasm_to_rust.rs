@@ -62,6 +62,7 @@ pub fn transpiler_fingerprint_sha256() -> [u8; 32] {
     hasher.update(WASM_RESOURCE_ACCOUNTING_VERSION.to_le_bytes());
     hasher.update(include_bytes!("wasm_to_rust.rs"));
     hasher.update(include_bytes!("wasm_quota.rs"));
+    hasher.update(include_bytes!("wasm.rs"));
     hasher.finalize().into()
 }
 
@@ -394,16 +395,11 @@ fn eval_const_usize_expr(
 fn scan_tail_call_usage(
     bodies: &[CodeBodyRaw<'_>],
     fn_sigs: &[FnSigInfo],
-) -> Result<(BTreeSet<String>, Vec<bool>)> {
-    let mut cross_tail_ret_sigs: BTreeSet<String> = BTreeSet::new();
+    block_types: &[FnSigInfo],
+) -> Result<(BTreeSet<usize>, Vec<bool>)> {
+    let mut tail_target_fns: BTreeSet<usize> = BTreeSet::new();
     let mut has_self_tail: Vec<bool> = vec![false; bodies.len()];
     for (fn_idx, body) in bodies.iter().enumerate() {
-        let cur_ret_slug = ret_sig_slug(
-            &fn_sigs
-                .get(fn_idx)
-                .context("Function signature index out of bounds")?
-                .results,
-        );
         let bytes = body.code_bytes;
         let mut pos = 0usize;
         while pos < bytes.len() {
@@ -416,13 +412,27 @@ fn scan_tail_call_usage(
                             *slot = true;
                         }
                     } else {
-                        cross_tail_ret_sigs.insert(cur_ret_slug.clone());
+                        tail_target_fns.insert(target);
                     }
                 }
                 0x13 => {
-                    let _type_idx = read_uleb_u32(bytes, &mut pos)?;
+                    let type_idx =
+                        usize::try_from(read_uleb_u32(bytes, &mut pos)?)?;
                     let _table_idx = read_uleb_u32(bytes, &mut pos)?;
-                    cross_tail_ret_sigs.insert(cur_ret_slug.clone());
+                    let expected_sig = block_types
+                        .get(type_idx)
+                        .with_context(|| {
+                            format!(
+                                "return_call_indirect type {type_idx} out of bounds"
+                            )
+                        })?;
+                    for (cand_idx, cand_sig) in fn_sigs.iter().enumerate() {
+                        if cand_sig.params == expected_sig.params
+                            && cand_sig.results == expected_sig.results
+                        {
+                            tail_target_fns.insert(cand_idx);
+                        }
+                    }
                 }
                 _ => {
                     skip_instruction_immediates(opcode, bytes, &mut pos)?;
@@ -430,7 +440,7 @@ fn scan_tail_call_usage(
             }
         }
     }
-    Ok((cross_tail_ret_sigs, has_self_tail))
+    Ok((tail_target_fns, has_self_tail))
 }
 
 fn skip_instruction_immediates(
@@ -1502,9 +1512,15 @@ impl<'a> FuncLowerer<'a> {
                 } else {
                     let ret_slug = ret_sig_slug(&callee_sig.results);
                     let arg_str = temps.join(", ");
-                    self.emit_line(&format!(
-                        "return Ok(TailStep_{ret_slug}::Tail(TailTarget_{ret_slug}::Func{target_idx}({arg_str})));"
-                    ));
+                    if self.is_cross_tail_step {
+                        self.emit_line(&format!(
+                            "return Ok(TailStep_{ret_slug}::Tail(TailTarget_{ret_slug}::Func{target_idx}({arg_str})));"
+                        ));
+                    } else {
+                        self.emit_line(&format!(
+                            "return self.tail_dispatch_{ret_slug}(TailStep_{ret_slug}::Tail(TailTarget_{ret_slug}::Func{target_idx}({arg_str})), host);"
+                        ));
+                    }
                 }
                 self.set_unreachable()?;
             }
@@ -1543,24 +1559,49 @@ impl<'a> FuncLowerer<'a> {
                 let ret_slug = ret_sig_slug(&expected_sig.results);
                 let arg_str = temps.join(", ");
                 let indent = self.current_indent();
-                self.emit_line(&format!("return match {target_var} {{"));
-                for (cand_idx, cand_sig) in self.fn_sigs.iter().enumerate() {
-                    if cand_sig.params == expected_sig.params
-                        && cand_sig.results == expected_sig.results
-                    {
-                        self.emit_line_at(
-                            indent.saturating_add(1),
-                            &format!(
-                                "{cand_idx}u32 => Ok(TailStep_{ret_slug}::Tail(TailTarget_{ret_slug}::Func{cand_idx}({arg_str}))),"
-                            ),
-                        );
+                if self.is_cross_tail_step {
+                    self.emit_line(&format!("return match {target_var} {{"));
+                    for (cand_idx, cand_sig) in self.fn_sigs.iter().enumerate() {
+                        if cand_sig.params == expected_sig.params
+                            && cand_sig.results == expected_sig.results
+                        {
+                            self.emit_line_at(
+                                indent.saturating_add(1),
+                                &format!(
+                                    "{cand_idx}u32 => Ok(TailStep_{ret_slug}::Tail(TailTarget_{ret_slug}::Func{cand_idx}({arg_str}))),"
+                                ),
+                            );
+                        }
                     }
+                    self.emit_line_at(
+                        indent.saturating_add(1),
+                        "_ => Err(WasmTrap::IndirectCallTypeMismatch),",
+                    );
+                    self.emit_line("};");
+                } else {
+                    let step_var = self.alloc_temp();
+                    self.emit_line(&format!("let {step_var} = match {target_var} {{"));
+                    for (cand_idx, cand_sig) in self.fn_sigs.iter().enumerate() {
+                        if cand_sig.params == expected_sig.params
+                            && cand_sig.results == expected_sig.results
+                        {
+                            self.emit_line_at(
+                                indent.saturating_add(1),
+                                &format!(
+                                    "{cand_idx}u32 => TailStep_{ret_slug}::Tail(TailTarget_{ret_slug}::Func{cand_idx}({arg_str})),"
+                                ),
+                            );
+                        }
+                    }
+                    self.emit_line_at(
+                        indent.saturating_add(1),
+                        "_ => return Err(WasmTrap::IndirectCallTypeMismatch),",
+                    );
+                    self.emit_line("};");
+                    self.emit_line(&format!(
+                        "return self.tail_dispatch_{ret_slug}({step_var}, host);"
+                    ));
                 }
-                self.emit_line_at(
-                    indent.saturating_add(1),
-                    "_ => Err(WasmTrap::IndirectCallTypeMismatch),",
-                );
-                self.emit_line("};");
                 self.set_unreachable()?;
             }
             0x1A => {
@@ -1999,6 +2040,7 @@ fn emit_generated_allows(out: &mut String, indent: usize) {
          clippy::manual_let_else,\n\
          clippy::shadow_unrelated,\n\
          clippy::type_complexity,\n\
+         clippy::almost_swapped,\n\
          reason = \"Generated WASM-to-Rust substitute function\"\n\
          )]\n",
     );
@@ -2136,14 +2178,14 @@ fn resolve_entry_and_specials(
 
 fn emit_tail_call_types_and_dispatch(
     out: &mut String,
-    cross_tail_ret_sigs: &BTreeSet<String>,
+    tail_target_fns: &BTreeSet<usize>,
     fn_sigs: &[FnSigInfo],
 ) {
     let mut grouped: BTreeMap<String, (&[RustValTy], Vec<(usize, &FnSigInfo)>)> =
         BTreeMap::new();
     for (idx, sig) in fn_sigs.iter().enumerate() {
-        let slug = ret_sig_slug(&sig.results);
-        if cross_tail_ret_sigs.contains(&slug) {
+        if tail_target_fns.contains(&idx) {
+            let slug = ret_sig_slug(&sig.results);
             let entry = grouped
                 .entry(slug)
                 .or_insert_with(|| (&sig.results, Vec::new()));
@@ -2173,7 +2215,7 @@ fn emit_tail_call_types_and_dispatch(
         out.push_str("impl SubstituteInstance {\n");
         for (slug, (ret_tys, members)) in &grouped {
             let ret_ty = ret_type_expr(ret_tys);
-            emit_generated_allows(out, 1);
+            out.push_str("    #[inline(never)]\n");
             let _ = writeln!(
                 out,
                 "    fn tail_dispatch_{slug}(&mut self, mut step_val: TailStep_{slug}, host: &mut dyn WasmSubstituteHost) -> std::result::Result<{ret_ty}, WasmTrap> {{"
@@ -2546,8 +2588,8 @@ pub fn transpile_wasm_to_safe_rust(
         heap_ptr_global_idx,
     ) = resolve_entry_and_specials(&parsed, &fn_sigs)?;
 
-    let (cross_tail_ret_sigs, has_self_tail) =
-        scan_tail_call_usage(&code_bodies, &fn_sigs)?;
+    let (tail_target_fns, has_self_tail) =
+        scan_tail_call_usage(&code_bodies, &fn_sigs, &block_types)?;
 
     let wasm_sha256: [u8; 32] = Sha256::digest(wasm_bytes).into();
     let static_data_end = compute_static_data_end(&parsed);
@@ -2565,7 +2607,7 @@ pub fn transpile_wasm_to_safe_rust(
         initial_table_elements,
         static_data_end,
     )?;
-    emit_tail_call_types_and_dispatch(&mut out, &cross_tail_ret_sigs, &fn_sigs);
+    emit_tail_call_types_and_dispatch(&mut out, &tail_target_fns, &fn_sigs);
 
     emit_generated_allows(&mut out, 0);
     out.push_str("impl SubstituteInstance {\n");
@@ -2573,7 +2615,7 @@ pub fn transpile_wasm_to_safe_rust(
         code_bodies.iter().zip(fn_sigs.iter()).enumerate()
     {
         let ret_slug = ret_sig_slug(&sig.results);
-        let is_cross_tail_step = cross_tail_ret_sigs.contains(&ret_slug);
+        let is_cross_tail_step = tail_target_fns.contains(&fn_idx);
         // Reason for fallback: out-of-bounds index implies no self-tail calls.
         let use_self_tail = has_self_tail.get(fn_idx).copied().unwrap_or(false);
 
@@ -2601,7 +2643,7 @@ pub fn transpile_wasm_to_safe_rust(
         let lowered_body = lowerer.lower_body(body.code_bytes)?;
 
         if is_cross_tail_step {
-            emit_generated_allows(&mut out, 1);
+            out.push_str("    #[inline(never)]\n");
             let _ = writeln!(
                 out,
                 "    fn fn_{fn_idx}_step({}) -> std::result::Result<TailStep_{ret_slug}, WasmTrap> {{",
@@ -2610,7 +2652,6 @@ pub fn transpile_wasm_to_safe_rust(
             out.push_str(&lowered_body);
             out.push_str("    }\n\n");
 
-            emit_generated_allows(&mut out, 1);
             let _ = writeln!(
                 out,
                 "    fn fn_{fn_idx}({}) -> std::result::Result<{ret_ty}, WasmTrap> {{",
@@ -2627,7 +2668,9 @@ pub fn transpile_wasm_to_safe_rust(
             );
             out.push_str("    }\n\n");
         } else {
-            emit_generated_allows(&mut out, 1);
+            if body.code_bytes.len() > 64 {
+                out.push_str("    #[inline(never)]\n");
+            }
             let _ = writeln!(
                 out,
                 "    fn fn_{fn_idx}({}) -> std::result::Result<{ret_ty}, WasmTrap> {{",

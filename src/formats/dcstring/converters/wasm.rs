@@ -6462,6 +6462,120 @@ pub fn run_graph_stager_dc_2608_with_quota(
     Ok(Some(output))
 }
 
+/// Lowers and assembles the uninstrumented canonical `.wasm` bytes for a
+/// System-graph substitute target (`"dc_1936"`, `"f1680"`, `"f1681"`, `"dc_2608"`).
+///
+/// # Errors
+/// Returns an error if `target` is unknown, `resolver` lacks a `SeedGraphIndex`,
+/// or lowering/assembling the target fails.
+pub fn compile_system_target_wasm_bytes(
+    target: &str,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<Vec<u8>> {
+    use ctb_formats_dcdata::seed_graph::ActiveConverterBody;
+    use ctb_storage_minimal::shorthand::DcShorthand;
+
+    let sg = resolver
+        .seed_graph()
+        .context("Active SyntaxRuleResolver has no SeedGraphIndex")?;
+    match target {
+        "dc_1936" => {
+            let kernel_sh = DcShorthand::from_global_id(
+                ctb_formats_dcdata::dc::DC_DC_DOCUMENT_EXECUTION_KERNEL.to_u128(),
+            );
+            let resolved =
+                sg.resolve_trusted_system_supervisor_bootstrap_tokens(&[kernel_sh])?;
+            let mut sup_doc = DcMstring::new();
+            for tok in &resolved.definition_tokens {
+                sup_doc.push_char(DcChar::from_u128(tok.to_global_id()?));
+            }
+            dcmstring_to_wasm_with_resolver(&sup_doc, resolver)
+        }
+        "f1680" => {
+            let stagel_src_sh = DcShorthand::from_global_id(
+                ctb_formats_dcdata::dc::DC_BEGIN_MODULE.to_u128(),
+            );
+            let wasm_dst_sh = DcShorthand::from_global_id(
+                ctb_formats_dcdata::dc::DC_BEGIN_WASM_PROGRAM.to_u128(),
+            );
+            let (_, tokens) = sg
+                .resolve_active_converter_routine(stagel_src_sh, wasm_dst_sh)?
+                .context("Dc f1680 missing active WASM converter routine in System graph")?;
+            let doc = expand_graph_wasm_shorthands_to_dcmstring(tokens, resolver)?;
+            dcmstring_to_wasm_with_resolver(&doc, resolver)
+        }
+        "f1681" => {
+            let stagel_src_sh = DcShorthand::from_global_id(
+                ctb_formats_dcdata::dc::DC_BEGIN_MODULE.to_u128(),
+            );
+            let stager_src_sh = DcShorthand::from_global_id(
+                ctb_formats_dcdata::dc::DC_BEGIN_STAGER_MODULE.to_u128(),
+            );
+            let wasm_dst_sh = DcShorthand::from_global_id(
+                ctb_formats_dcdata::dc::DC_BEGIN_WASM_PROGRAM.to_u128(),
+            );
+            let chain = sg
+                .resolve_active_converter_chain(stager_src_sh, stagel_src_sh)?
+                .context(
+                    "Missing active StageR 3 -> StageL 3 converter chain in System graph",
+                )?;
+            let step = chain
+                .iter()
+                .find(|s| matches!(s.body, ActiveConverterBody::StageL(_)))
+                .context("Missing StageL f1681 converter step in System graph")?;
+            let converter_dc = DcChar::from_u128(step.subject.to_global_id()?);
+            let entry_tokens = ctb_formats_dcdata::stagel3::seed_linker::build_entry_module_for_graph_routine_dc(
+                converter_dc,
+                sg,
+            )?;
+            let bundled = ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_for_wasm_converter(
+                &entry_tokens,
+                sg,
+                resolver,
+            )?;
+            let Some((_, stagel_to_wasm_tokens)) =
+                sg.resolve_active_converter_routine(stagel_src_sh, wasm_dst_sh)?
+            else {
+                bail!("Missing active StageL -> WASM converter routine f1680 in System graph");
+            };
+            let converter_quota = SharedWasmTaskQuota::new(
+                DcWasmResourceLimits::default()
+                    .with_max_instructions_per_step(1_000_000_000)
+                    .with_max_memory_pages(2048)
+                    .with_max_step_output_bytes(32 * 1024 * 1024)
+                    .with_max_session_output_bytes(64 * 1024 * 1024),
+            );
+            let raw_wasm_doc = run_graph_wasm_tokens_on_dc_slice_with_quota(
+                stagel_to_wasm_tokens,
+                &bundled,
+                resolver,
+                Some(converter_quota),
+            )?;
+            let raw_chars: Vec<DcChar> =
+                raw_wasm_doc.to_dc_string()?.chars().collect();
+            let raw_shorthands: Vec<DcShorthand> = raw_chars
+                .iter()
+                .map(|c| DcShorthand::from_global_id(c.to_u128()))
+                .collect();
+            let expanded = expand_graph_wasm_shorthands_to_dcmstring(
+                &raw_shorthands,
+                resolver,
+            )?;
+            dcmstring_to_wasm_with_resolver(&expanded, resolver)
+        }
+        "dc_2608" => {
+            let compiled = compile_and_cache_graph_stager_dcs_routine_to_wasm_bytes(
+                ctb_formats_dcdata::dc::DC_CONVERT_DC_STRING_TO_WASM,
+                sg,
+                resolver,
+            )?
+            .context("Dc 2608 missing active StageR 3 decomposition in System graph")?;
+            Ok(compiled.as_ref().clone())
+        }
+        other => bail!("Unknown System WASM substitute target '{other}'"),
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,

@@ -83,6 +83,9 @@ if [[ ! -f "built/ctoolbox.rsrc" ]]; then
     cargo run ${offline} --quiet --manifest-path src/build_support/Cargo.toml --bin refresh-asset-bundle -- . || exit 1
 fi
 
+echo "=== Ensuring native WASM substitutes are up to date ==="
+./scripts/generate-wasm-substitutes ${offline} || exit 1
+
 quick_flag=""
 if [[ -n "$quick" ]]; then
     quick_flag="--quick"

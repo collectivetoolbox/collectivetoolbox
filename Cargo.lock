@@ -3179,6 +3179,7 @@ dependencies = [
  "ctb-storage-minimal",
  "ctb-utilities",
  "ctb-wasm-substitute-rt",
+ "ctb-wasm-substitutes",
  "malachite",
  "serde",
  "serde_json",
@@ -3980,6 +3981,7 @@ dependencies = [
  "async-trait",
  "ctb-formats-dcstring",
  "ctb-utilities",
+ "ctb-wasm-substitutes",
  "postcard",
  "serde",
 ]
@@ -4131,6 +4133,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctb-wasm-substitutes"
+version = "0.0.0"
+dependencies = [
+ "ctb-utilities",
+ "ctb-wasm-substitute-rt",
+]
+
+[[package]]
+name = "ctb-wasm-substitutes-gen"
+version = "0.0.0"
+dependencies = [
+ "ctb-formats-dcdata",
+ "ctb-formats-dcstring",
+ "ctb-utilities",
+ "ctb-wasm-substitute-rt",
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "ctb-workspace"
 version = "0.0.0"
 dependencies = [
@@ -4152,6 +4173,7 @@ dependencies = [
  "ctb-storage",
  "ctb-storage-minimal",
  "ctb-utilities",
+ "ctb-wasm-substitutes",
  "ctb-workspace-ipc",
  "ctb-workspace-x11-client",
  "ctb-workspace-x11-client-egui",
@@ -4336,6 +4358,8 @@ dependencies = [
  "ctb-utilities",
  "ctb-v86-posix-init",
  "ctb-wasm-substitute-rt",
+ "ctb-wasm-substitutes",
+ "ctb-wasm-substitutes-gen",
  "ctb-workspace",
  "ctb-workspace-ipc",
  "ctb-workspace-ipc-macro",
