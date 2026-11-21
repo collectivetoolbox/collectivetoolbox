@@ -1828,8 +1828,42 @@ mod tier4_expression_evaluation_and_stream_splicing {
         };
         use ctb_formats_dcdata::seed_graph::SeedGraphIndex;
 
-        let definitions = ctb_formats_dcdata::lookup::get_all_dc_defns();
-        let formats = ctb_formats_dcdata::lookup::get_all_format_defns();
+        let contains_long_graph_ref = |raw: &str| -> bool {
+            raw.split(|ch: char| {
+                ch.is_whitespace()
+                    || matches!(
+                        ch,
+                        '<' | '>' | '@' | '(' | ')' | ',' | '[' | ']'
+                    )
+            })
+            .any(|tok| {
+                matches!(
+                    ctb_formats_dcdata::DcShorthand::parse(tok),
+                    Ok(ctb_formats_dcdata::DcShorthand::Long(_))
+                )
+            })
+        };
+        let strip_long_graph_refs =
+            |source: &[ctb_formats_dcdata::dc_def::DcDefn]| {
+                let mut cloned = source.to_vec();
+                for defn in &mut cloned {
+                    defn.decompositions
+                        .retain(|item| !contains_long_graph_ref(item));
+                    defn.cross_references
+                        .retain(|item| !contains_long_graph_ref(item));
+                    defn.implies.retain(|item| !contains_long_graph_ref(item));
+                    defn.based_on.retain(|item| !contains_long_graph_ref(item));
+                    defn.os_associations
+                        .retain(|item| !contains_long_graph_ref(item));
+                }
+                cloned
+            };
+        let definitions = strip_long_graph_refs(
+            ctb_formats_dcdata::lookup::get_all_dc_defns(),
+        );
+        let formats = strip_long_graph_refs(
+            ctb_formats_dcdata::lookup::get_all_format_defns(),
+        );
         let scripts: BTreeSet<String> = definitions
             .iter()
             .chain(formats.iter())
@@ -1861,8 +1895,8 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let named = named_with_routine(":260 262 [280:] 263 [^261]+ 261")?;
         let (original, _) = update_ledger_in_memory(
             Vec::new(),
-            definitions,
-            formats,
+            &definitions,
+            &formats,
             &scripts,
             Some(&named),
         )?;
@@ -1941,8 +1975,8 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let updated_named = named_with_routine(":(u52)? 260 262 [280:] 263 [^261]+ 261")?;
         let (updated, statistics) = update_ledger_in_memory(
             original.clone(),
-            definitions,
-            formats,
+            &definitions,
+            &formats,
             &scripts,
             Some(&updated_named),
         )?;
@@ -2073,7 +2107,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
 
         let restricted_named = named_with_routine(":260 262 [280:] 263 648 [^261]+ 261")?;
         let (restricted_nodes, _) = update_ledger_in_memory(
-            updated.clone(), definitions, formats, &scripts, Some(&restricted_named),
+            updated.clone(), &definitions, &formats, &scripts, Some(&restricted_named),
         )?;
         let restricted_revision = restricted_nodes.last()
             .context("Empty restricted ledger")?.id;
@@ -2111,8 +2145,8 @@ mod tier4_expression_evaluation_and_stream_splicing {
             named_with_routine(":u52 260 262 [280:] 263 [^261]+ 261")?;
         let (prefix_restricted_nodes, _) = update_ledger_in_memory(
             updated,
-            definitions,
-            formats,
+            &definitions,
+            &formats,
             &scripts,
             Some(&prefix_restricted_named),
         )?;

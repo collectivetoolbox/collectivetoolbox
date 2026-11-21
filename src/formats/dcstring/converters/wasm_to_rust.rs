@@ -201,7 +201,7 @@ fn full_fn_sig_slug(sig: &FnSigInfo) -> String {
         let parts: Vec<&str> = sig.params.iter().map(|t| t.slug()).collect();
         parts.join("_")
     };
-    format!("p_{params_part}__r_{}", ret_sig_slug(&sig.results))
+    format!("p_{params_part}_ret_{}", ret_sig_slug(&sig.results))
 }
 
 fn rust_i32_literal(v: i32) -> String {
@@ -3770,10 +3770,11 @@ fn emit_bundle_descriptor_submodule(
             }
         }
         if !entries.is_empty() {
+            let sig_upper = sig_slug.to_ascii_uppercase();
             emit_generated_allows(&mut inner, 0);
             let _ = writeln!(
                 inner,
-                "static BOUND_SIG_{sig_slug}: &[crate::Bound_{sig_slug}] = &[\n{}\n];\n",
+                "static BOUND_SIG_{sig_upper}: &[crate::Bound_{sig_slug}] = &[\n{}\n];\n",
                 entries.join("\n")
             );
         }
@@ -3788,9 +3789,10 @@ fn emit_bundle_descriptor_submodule(
             .flatten()
             .any(|(s, _)| s == sig_slug);
         if has_any {
+            let sig_upper = sig_slug.to_ascii_uppercase();
             let _ = writeln!(
                 inner,
-                "    sig_{sig_slug}: BOUND_SIG_{sig_slug},"
+                "    sig_{sig_slug}: BOUND_SIG_{sig_upper},"
             );
         } else {
             let _ = writeln!(inner, "    sig_{sig_slug}: &[],");
@@ -3981,13 +3983,13 @@ fn emit_registry_dispatch_types(
         for (sig_slug, sig) in bundle_sigs {
             let ret_ty = ret_type_expr(&sig.results);
             let mut call_params = vec![
-                "&self".to_owned(),
+                "&'static self".to_owned(),
                 "vm: &mut SubstituteVm".to_owned(),
                 "c_map: &'static [u32]".to_owned(),
                 "local_slot: usize".to_owned(),
             ];
             let mut direct_params = vec![
-                "&self".to_owned(),
+                "&'static self".to_owned(),
                 "vm: &mut SubstituteVm".to_owned(),
                 "bound_idx: usize".to_owned(),
             ];

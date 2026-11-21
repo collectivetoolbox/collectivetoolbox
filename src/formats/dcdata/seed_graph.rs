@@ -4331,10 +4331,29 @@ impl SeedGraphIndex {
             decomp_subjects.insert(subj);
         }
 
+        let decomp_props = [
+            sh(DC_CANONICAL_DECOMPOSITION),
+            sh(DC_DECOMPOSITION),
+            sh(DC_SEMANTIC_DECOMPOSITION),
+        ];
+
         // 2. Standalone uncontextualized `.WASM` modules on subjects.
         let kernel_sh = sh(DC_DC_DOCUMENT_EXECUTION_KERNEL);
         for &subj in &decomp_subjects {
             if seen_subjects.contains(&subj) {
+                continue;
+            }
+            let has_active_wasm_decomp = decomp_props.iter().any(|&p_sh| {
+                self.get_multi_properties(subj, p_sh).into_iter().any(|entry| {
+                    self.get_direct_objects(
+                        sh(DC_IN_CONTEXT_OF),
+                        DcShorthand::Long(entry.has_a_id),
+                    )
+                    .is_empty()
+                        && matches!(entry.value, DcShorthand::Long(nid) if self.get_active_node(nid).is_some_and(|n| Self::tokens_start_wasm_definition(&n.tokens)))
+                })
+            });
+            if !has_active_wasm_decomp {
                 continue;
             }
             let resolved_helper = match self.resolve_wasm_helper_shorthand(subj)
@@ -4392,6 +4411,19 @@ impl SeedGraphIndex {
             if seen_subjects.contains(&subj)
                 || !matches!(subj, DcShorthand::Short(_) | DcShorthand::Format(_))
             {
+                continue;
+            }
+            let has_active_stagel_decomp = decomp_props.iter().any(|&p_sh| {
+                self.get_multi_properties(subj, p_sh).into_iter().any(|entry| {
+                    self.get_direct_objects(
+                        sh(DC_IN_CONTEXT_OF),
+                        DcShorthand::Long(entry.has_a_id),
+                    )
+                    .is_empty()
+                        && matches!(entry.value, DcShorthand::Long(nid) if self.get_active_node(nid).is_some_and(|n| self.tokens_are_stagel_item_or_module(&n.tokens)))
+                })
+            });
+            if !has_active_stagel_decomp {
                 continue;
             }
             let inspected = match crate::stagel3::seed_linker::inspect_standalone_graph_routine_signature(

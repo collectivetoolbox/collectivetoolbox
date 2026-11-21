@@ -316,6 +316,20 @@ pub fn generate_substitutes_for_nodes(
                 "{}/{}@l{}",
                 snap.target.chunk_prefix, snap.target.subject, snap.pin_node_id
             );
+            if !snap.is_head
+                && let Err(err) = ctb_formats_dcstring::converters::wasm_to_rust::transpile_wasm_to_safe_rust(
+                    &wasm_bytes,
+                    &ctb_formats_dcstring::converters::wasm_to_rust::TranspileWasmOptions {
+                        name: &label,
+                        input_sha256_hex: None,
+                    },
+                )
+            {
+                warn_fmt!(
+                    "Skipping non-entry or unsupported historical WASM snapshot {label}: {err:#}"
+                );
+                continue;
+            }
             compiled.push((
                 snap.target.chunk_prefix.clone(),
                 label,

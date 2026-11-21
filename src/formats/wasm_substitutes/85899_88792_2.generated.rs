@@ -1,0 +1,20728 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+//! Generated native Rust WebAssembly substitute chunk `85899_88792_2`.
+//! Do not edit by hand; regenerate via `./scripts/generate-wasm-substitutes`.
+
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
+use crate::utilities::*;
+
+#[allow(
+    unused_imports,
+    reason = "Generated substitute chunk runtime imports"
+)]
+use ctb_wasm_substitute_rt::{
+    SubstituteModuleMeta, SubstituteVm, WasmLinearMemory,
+    WasmSubstituteDescriptor, WasmSubstituteHost, WasmSubstituteInstance,
+    WasmTable, WasmTrap, ops,
+};
+
+/// Signature-normalized deduplicated WebAssembly functions first defined in this `.ctbnodes` chunk.
+pub(crate) struct ChunkFns;
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+impl ChunkFns {
+    #[inline(never)]
+    pub(crate) fn f_f99da218d0da(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+    let mut l0: i32 = p0;
+    let mut l1: i32 = p1;
+    let mut l2: i32 = p2;
+    let mut l3: i64 = p3;
+    let mut s_i32_0: i32 = 0i32;
+    let mut s_i64_0: i64 = 0i64;
+    let mut s_i32_1: i32 = 0i32;
+    let mut s_i64_1: i64 = 0i64;
+    let mut s_i64_2: i64 = 0i64;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
+    vm.exit_call();
+    __call_res?;
+    s_i32_0 = l1;
+    s_i32_1 = 19i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 1usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t0 = __call_res?;
+    s_i32_0 = __t0;
+    'blk_1: {
+        if s_i32_0 != 0 {
+            s_i64_0 = l3;
+            s_i64_1 = 0i64;
+            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+            'blk_2: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 2532i32;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 2usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                } else {
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2547i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 2usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l2;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 3usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_ret_void(vm, c_map, 4usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(());
+        } else {
+        }
+    }
+    s_i32_0 = l1;
+    s_i32_1 = 20i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 1usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t1 = __call_res?;
+    s_i32_0 = __t1;
+    'blk_3: {
+        if s_i32_0 != 0 {
+            s_i64_0 = l3;
+            s_i64_1 = 1i64;
+            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+            'blk_4: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 2532i32;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 2usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                } else {
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2547i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 2usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l2;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 3usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_ret_void(vm, c_map, 4usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(());
+        } else {
+        }
+    }
+    s_i32_0 = l1;
+    s_i32_1 = 15i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 1usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t2 = __call_res?;
+    s_i32_0 = __t2;
+    'blk_5: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2535i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 2usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l2;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 3usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 203i32;
+            s_i64_2 = l3;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_i64_ret_void(vm, c_map, 5usize, s_i32_0, s_i32_1, s_i64_2, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(());
+        } else {
+        }
+    }
+    s_i32_0 = l1;
+    s_i32_1 = 24i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 1usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t3 = __call_res?;
+    s_i32_0 = __t3;
+    'blk_6: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2535i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 2usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2547i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 2usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l2;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 3usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_ret_void(vm, c_map, 4usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 207i32;
+            s_i64_2 = l3;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_i64_ret_void(vm, c_map, 5usize, s_i32_0, s_i32_1, s_i64_2, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(());
+        } else {
+        }
+    }
+    return Err(WasmTrap::Unreachable);
+    }
+
+    #[inline(never)]
+    pub(crate) fn f_3c777e7664b4(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    let mut l0: i32 = p0;
+    let mut l1: i64 = p1;
+    let mut l2: i64 = 0i64;
+    let mut l3: i64 = 0i64;
+    let mut l4: i64 = 0i64;
+    let mut l5: i32 = 0i32;
+    let mut l6: i32 = 0i32;
+    let mut l7: i32 = 0i32;
+    let mut l8: i32 = 0i32;
+    let mut l9: i32 = 0i32;
+    let mut l10: i32 = 0i32;
+    let mut l11: i32 = 0i32;
+    let mut l12: i32 = 0i32;
+    let mut l13: i32 = 0i32;
+    let mut l14: i32 = 0i32;
+    let mut l15: i32 = 0i32;
+    let mut l16: i32 = 0i32;
+    let mut l17: i32 = 0i32;
+    let mut l18: i32 = 0i32;
+    let mut l19: i32 = 0i32;
+    let mut l20: i32 = 0i32;
+    let mut l21: i32 = 0i32;
+    let mut l22: i32 = 0i32;
+    let mut l23: i32 = 0i32;
+    let mut l24: i32 = 0i32;
+    let mut l25: i32 = 0i32;
+    let mut l26: i32 = 0i32;
+    let mut l27: i32 = 0i32;
+    let mut l28: i32 = 0i32;
+    let mut l29: i64 = 0i64;
+    let mut l30: i32 = 0i32;
+    let mut l31: i32 = 0i32;
+    let mut s_i32_0: i32 = 0i32;
+    let mut s_i64_0: i64 = 0i64;
+    let mut s_i32_1: i32 = 0i32;
+    let mut s_i64_1: i64 = 0i64;
+    let mut s_i32_2: i32 = 0i32;
+    let mut s_i64_2: i64 = 0i64;
+    let mut s_i32_3: i32 = 0i32;
+    let mut s_i32_4: i32 = 0i32;
+    let mut s_i32_5: i32 = 0i32;
+    let mut s_i32_6: i32 = 0i32;
+    let mut s_i32_7: i32 = 0i32;
+    let mut s_i32_8: i32 = 0i32;
+    let mut s_i32_9: i32 = 0i32;
+    let mut s_i32_10: i32 = 0i32;
+    let mut s_i32_11: i32 = 0i32;
+    let mut s_i32_12: i32 = 0i32;
+    let mut s_i32_13: i32 = 0i32;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
+    vm.exit_call();
+    __call_res?;
+    s_i64_0 = l1;
+    l2 = s_i64_0;
+    s_i64_0 = 1i64;
+    l3 = s_i64_0;
+    s_i64_0 = 0i64;
+    l4 = s_i64_0;
+    s_i32_0 = 0i32;
+    l5 = s_i32_0;
+    s_i64_0 = 8i64;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i64_ret_i32(vm, c_map, 1usize, s_i64_0, host);
+    vm.exit_call();
+    let __t0 = __call_res?;
+    s_i32_0 = __t0;
+    l6 = s_i32_0;
+    'blk_1: {
+        'blk_2: loop {
+            vm.deduct(host, 1)?;
+            s_i64_0 = l3;
+            s_i64_1 = 0i64;
+            s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
+            s_i32_0 = ops::i32_eqz(s_i32_0);
+            if s_i32_0 != 0 {
+                break 'blk_1;
+            }
+            s_i32_0 = l0;
+            s_i64_1 = l2;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_ret_i64(vm, c_map, 2usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t1 = __call_res?;
+            s_i64_0 = __t1;
+            l2 = s_i64_0;
+            s_i64_0 = l2;
+            s_i32_1 = l0;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            s_i32_0 = ops::i64_ge_u(s_i64_0, s_i64_1);
+            'blk_3: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l0;
+            s_i64_1 = l2;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 3usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t2 = __call_res?;
+            s_i32_0 = __t2;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 4usize, s_i32_0, host);
+            vm.exit_call();
+            let __t3 = __call_res?;
+            s_i32_0 = __t3;
+            l7 = s_i32_0;
+            s_i32_0 = l7;
+            s_i32_1 = 255i32;
+            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+            'blk_4: {
+                if s_i32_0 != 0 {
+                    s_i64_0 = l2;
+                    s_i64_1 = 2i64;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 5usize, s_i64_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t4 = __call_res?;
+                    s_i64_0 = __t4;
+                    l2 = s_i64_0;
+                } else {
+                    s_i32_0 = l7;
+                    s_i32_1 = 270i32;
+                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                    'blk_5: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i64_1 = l2;
+                            vm.enter_call()?;
+                            let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 6usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t5 = __call_res?;
+                            s_i32_0 = __t5;
+                            l8 = s_i32_0;
+                            s_i32_0 = l8;
+                            s_i64_0 = ops::i64_load(vm, 0, s_i32_0, 8u32)?;
+                            l2 = s_i64_0;
+                        } else {
+                            s_i32_0 = l7;
+                            s_i32_1 = 260i32;
+                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                            'blk_6: {
+                                if s_i32_0 != 0 {
+                                    s_i32_0 = l0;
+                                    s_i64_1 = l2;
+                                    vm.enter_call()?;
+                                    let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 7usize, s_i32_0, s_i64_1, host);
+                                    vm.exit_call();
+                                    let __t6 = __call_res?;
+                                    s_i32_0 = __t6;
+                                    l9 = s_i32_0;
+                                    s_i32_0 = l9;
+                                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                                    'blk_7: {
+                                        if s_i32_0 != 0 {
+                                            return Err(WasmTrap::Unreachable);
+                                        } else {
+                                        }
+                                    }
+                                    s_i32_0 = l9;
+                                    s_i64_0 = ops::i64_load(vm, 0, s_i32_0, 16u32)?;
+                                    l2 = s_i64_0;
+                                } else {
+                                    s_i32_0 = l7;
+                                    s_i32_1 = 203i32;
+                                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                    'blk_8: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = l0;
+                                            s_i64_1 = l2;
+                                            vm.enter_call()?;
+                                            let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 8usize, s_i32_0, s_i64_1, host);
+                                            vm.exit_call();
+                                            let __t7 = __call_res?;
+                                            s_i32_0 = __t7;
+                                            l10 = s_i32_0;
+                                            s_i32_0 = l10;
+                                            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                                            s_i32_0 = ops::i32_eqz(s_i32_0);
+                                            'blk_9: {
+                                                if s_i32_0 != 0 {
+                                                    return Err(WasmTrap::Unreachable);
+                                                } else {
+                                                }
+                                            }
+                                            s_i32_0 = l10;
+                                            s_i64_0 = ops::i64_load(vm, 0, s_i32_0, 8u32)?;
+                                            l2 = s_i64_0;
+                                        } else {
+                                            s_i32_0 = l7;
+                                            s_i32_1 = 6i32;
+                                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                            'blk_10: {
+                                                if s_i32_0 != 0 {
+                                                    s_i32_0 = l0;
+                                                    s_i64_1 = l2;
+                                                    vm.enter_call()?;
+                                                    let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 9usize, s_i32_0, s_i64_1, host);
+                                                    vm.exit_call();
+                                                    let __t8 = __call_res?;
+                                                    s_i32_0 = __t8;
+                                                    l11 = s_i32_0;
+                                                    s_i32_0 = l11;
+                                                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                                                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                                                    'blk_11: {
+                                                        if s_i32_0 != 0 {
+                                                            return Err(WasmTrap::Unreachable);
+                                                        } else {
+                                                        }
+                                                    }
+                                                    s_i32_0 = l11;
+                                                    s_i64_0 = ops::i64_load(vm, 0, s_i32_0, 16u32)?;
+                                                    l2 = s_i64_0;
+                                                } else {
+                                                    s_i32_0 = l7;
+                                                    s_i32_1 = 2206i32;
+                                                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                                    'blk_12: {
+                                                        if s_i32_0 != 0 {
+                                                            s_i64_0 = l4;
+                                                            s_i64_1 = 1i64;
+                                                            vm.enter_call()?;
+                                                            let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 5usize, s_i64_0, s_i64_1, host);
+                                                            vm.exit_call();
+                                                            let __t9 = __call_res?;
+                                                            s_i64_0 = __t9;
+                                                            l4 = s_i64_0;
+                                                            s_i64_0 = l2;
+                                                            s_i64_1 = 1i64;
+                                                            vm.enter_call()?;
+                                                            let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 5usize, s_i64_0, s_i64_1, host);
+                                                            vm.exit_call();
+                                                            let __t10 = __call_res?;
+                                                            s_i64_0 = __t10;
+                                                            l2 = s_i64_0;
+                                                        } else {
+                                                            s_i32_0 = l7;
+                                                            s_i32_1 = 2207i32;
+                                                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                                            'blk_13: {
+                                                                if s_i32_0 != 0 {
+                                                                    s_i64_0 = l4;
+                                                                    s_i64_1 = 0i64;
+                                                                    s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+                                                                    'blk_14: {
+                                                                        if s_i32_0 != 0 {
+                                                                            return Err(WasmTrap::Unreachable);
+                                                                        } else {
+                                                                        }
+                                                                    }
+                                                                    s_i64_0 = l4;
+                                                                    s_i64_1 = 1i64;
+                                                                    vm.enter_call()?;
+                                                                    let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 10usize, s_i64_0, s_i64_1, host);
+                                                                    vm.exit_call();
+                                                                    let __t11 = __call_res?;
+                                                                    s_i64_0 = __t11;
+                                                                    l4 = s_i64_0;
+                                                                    s_i64_0 = l2;
+                                                                    s_i64_1 = 1i64;
+                                                                    vm.enter_call()?;
+                                                                    let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 5usize, s_i64_0, s_i64_1, host);
+                                                                    vm.exit_call();
+                                                                    let __t12 = __call_res?;
+                                                                    s_i64_0 = __t12;
+                                                                    l2 = s_i64_0;
+                                                                } else {
+                                                                    s_i32_0 = l7;
+                                                                    s_i32_1 = 2203i32;
+                                                                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                                                    'blk_15: {
+                                                                        if s_i32_0 != 0 {
+                                                                            s_i64_0 = l3;
+                                                                            s_i64_1 = 1i64;
+                                                                            vm.enter_call()?;
+                                                                            let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 5usize, s_i64_0, s_i64_1, host);
+                                                                            vm.exit_call();
+                                                                            let __t13 = __call_res?;
+                                                                            s_i64_0 = __t13;
+                                                                            l3 = s_i64_0;
+                                                                            s_i64_0 = l2;
+                                                                            s_i64_1 = 1i64;
+                                                                            vm.enter_call()?;
+                                                                            let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 5usize, s_i64_0, s_i64_1, host);
+                                                                            vm.exit_call();
+                                                                            let __t14 = __call_res?;
+                                                                            s_i64_0 = __t14;
+                                                                            l2 = s_i64_0;
+                                                                        } else {
+                                                                            s_i32_0 = l7;
+                                                                            s_i32_1 = 2204i32;
+                                                                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                                                            'blk_16: {
+                                                                                if s_i32_0 != 0 {
+                                                                                    s_i64_0 = l3;
+                                                                                    s_i64_1 = 1i64;
+                                                                                    vm.enter_call()?;
+                                                                                    let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 10usize, s_i64_0, s_i64_1, host);
+                                                                                    vm.exit_call();
+                                                                                    let __t15 = __call_res?;
+                                                                                    s_i64_0 = __t15;
+                                                                                    l3 = s_i64_0;
+                                                                                    s_i64_0 = l2;
+                                                                                    s_i64_1 = 1i64;
+                                                                                    vm.enter_call()?;
+                                                                                    let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 5usize, s_i64_0, s_i64_1, host);
+                                                                                    vm.exit_call();
+                                                                                    let __t16 = __call_res?;
+                                                                                    s_i64_0 = __t16;
+                                                                                    l2 = s_i64_0;
+                                                                                } else {
+                                                                                    s_i64_0 = l4;
+                                                                                    s_i64_1 = 0i64;
+                                                                                    s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+                                                                                    'blk_17: {
+                                                                                        if s_i32_0 != 0 {
+                                                                                            s_i32_0 = l7;
+                                                                                            s_i32_1 = 2454i32;
+                                                                                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                                                                            'blk_18: {
+                                                                                                if s_i32_0 != 0 {
+                                                                                                    s_i32_0 = 1i32;
+                                                                                                    l5 = s_i32_0;
+                                                                                                    s_i64_0 = l2;
+                                                                                                    s_i64_1 = 1i64;
+                                                                                                    vm.enter_call()?;
+                                                                                                    let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 5usize, s_i64_0, s_i64_1, host);
+                                                                                                    vm.exit_call();
+                                                                                                    let __t17 = __call_res?;
+                                                                                                    s_i64_0 = __t17;
+                                                                                                    l2 = s_i64_0;
+                                                                                                } else {
+                                                                                                    s_i32_0 = l7;
+                                                                                                    s_i32_1 = 2211i32;
+                                                                                                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                                                                                    'blk_19: {
+                                                                                                        if s_i32_0 != 0 {
+                                                                                                            s_i32_0 = l0;
+                                                                                                            s_i64_1 = l2;
+                                                                                                            s_i64_2 = 1i64;
+                                                                                                            vm.enter_call()?;
+                                                                                                            let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 5usize, s_i64_1, s_i64_2, host);
+                                                                                                            vm.exit_call();
+                                                                                                            let __t18 = __call_res?;
+                                                                                                            s_i64_1 = __t18;
+                                                                                                            vm.enter_call()?;
+                                                                                                            let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 11usize, s_i32_0, s_i64_1, host);
+                                                                                                            vm.exit_call();
+                                                                                                            let __t19 = __call_res?;
+                                                                                                            s_i32_0 = __t19;
+                                                                                                            l12 = s_i32_0;
+                                                                                                            s_i32_0 = l6;
+                                                                                                            s_i32_1 = 16i32;
+                                                                                                            s_i32_2 = 0i32;
+                                                                                                            vm.enter_call()?;
+                                                                                                            let __call_res = dispatch.call_p_unit_ret_i32(vm, c_map, 12usize, host);
+                                                                                                            vm.exit_call();
+                                                                                                            let __t20 = __call_res?;
+                                                                                                            s_i32_3 = __t20;
+                                                                                                            s_i32_4 = 16i32;
+                                                                                                            vm.enter_call()?;
+                                                                                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 13usize, s_i32_4, host);
+                                                                                                            vm.exit_call();
+                                                                                                            let __t21 = __call_res?;
+                                                                                                            s_i32_4 = __t21;
+                                                                                                            l13 = s_i32_4;
+                                                                                                            s_i32_4 = l13;
+                                                                                                            s_i32_5 = l13;
+                                                                                                            s_i32_6 = 16i32;
+                                                                                                            s_i32_5 = ops::i32_add(s_i32_5, s_i32_6);
+                                                                                                            ops::i32_store(vm, 0, s_i32_4, 0u32, s_i32_5)?;
+                                                                                                            s_i32_4 = l13;
+                                                                                                            s_i32_5 = 0i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_4, 4u32, s_i32_5)?;
+                                                                                                            s_i32_4 = l13;
+                                                                                                            s_i32_5 = 0i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_4, 8u32, s_i32_5)?;
+                                                                                                            s_i32_4 = l13;
+                                                                                                            s_i32_5 = 1i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_4, 12u32, s_i32_5)?;
+                                                                                                            s_i32_4 = l13;
+                                                                                                            s_i32_5 = 16i32;
+                                                                                                            vm.enter_call()?;
+                                                                                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 13usize, s_i32_5, host);
+                                                                                                            vm.exit_call();
+                                                                                                            let __t22 = __call_res?;
+                                                                                                            s_i32_5 = __t22;
+                                                                                                            l14 = s_i32_5;
+                                                                                                            s_i32_5 = l14;
+                                                                                                            s_i32_6 = l14;
+                                                                                                            s_i32_7 = 16i32;
+                                                                                                            s_i32_6 = ops::i32_add(s_i32_6, s_i32_7);
+                                                                                                            ops::i32_store(vm, 0, s_i32_5, 0u32, s_i32_6)?;
+                                                                                                            s_i32_5 = l14;
+                                                                                                            s_i32_6 = 0i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_5, 4u32, s_i32_6)?;
+                                                                                                            s_i32_5 = l14;
+                                                                                                            s_i32_6 = 0i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_5, 8u32, s_i32_6)?;
+                                                                                                            s_i32_5 = l14;
+                                                                                                            s_i32_6 = 1i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_5, 12u32, s_i32_6)?;
+                                                                                                            s_i32_5 = l14;
+                                                                                                            s_i32_6 = l12;
+                                                                                                            s_i32_6 = ops::i32_load(vm, 0, s_i32_6, 0u32)?;
+                                                                                                            s_i32_7 = 16i32;
+                                                                                                            vm.enter_call()?;
+                                                                                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 13usize, s_i32_7, host);
+                                                                                                            vm.exit_call();
+                                                                                                            let __t23 = __call_res?;
+                                                                                                            s_i32_7 = __t23;
+                                                                                                            l15 = s_i32_7;
+                                                                                                            s_i32_7 = l15;
+                                                                                                            s_i32_8 = l15;
+                                                                                                            s_i32_9 = 16i32;
+                                                                                                            s_i32_8 = ops::i32_add(s_i32_8, s_i32_9);
+                                                                                                            ops::i32_store(vm, 0, s_i32_7, 0u32, s_i32_8)?;
+                                                                                                            s_i32_7 = l15;
+                                                                                                            s_i32_8 = 0i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_7, 4u32, s_i32_8)?;
+                                                                                                            s_i32_7 = l15;
+                                                                                                            s_i32_8 = 0i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_7, 8u32, s_i32_8)?;
+                                                                                                            s_i32_7 = l15;
+                                                                                                            s_i32_8 = 1i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_7, 12u32, s_i32_8)?;
+                                                                                                            s_i32_7 = l15;
+                                                                                                            s_i32_8 = 16i32;
+                                                                                                            vm.enter_call()?;
+                                                                                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 13usize, s_i32_8, host);
+                                                                                                            vm.exit_call();
+                                                                                                            let __t24 = __call_res?;
+                                                                                                            s_i32_8 = __t24;
+                                                                                                            l16 = s_i32_8;
+                                                                                                            s_i32_8 = l16;
+                                                                                                            s_i32_9 = l16;
+                                                                                                            s_i32_10 = 16i32;
+                                                                                                            s_i32_9 = ops::i32_add(s_i32_9, s_i32_10);
+                                                                                                            ops::i32_store(vm, 0, s_i32_8, 0u32, s_i32_9)?;
+                                                                                                            s_i32_8 = l16;
+                                                                                                            s_i32_9 = 0i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_8, 4u32, s_i32_9)?;
+                                                                                                            s_i32_8 = l16;
+                                                                                                            s_i32_9 = 0i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_8, 8u32, s_i32_9)?;
+                                                                                                            s_i32_8 = l16;
+                                                                                                            s_i32_9 = 1i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_8, 12u32, s_i32_9)?;
+                                                                                                            s_i32_8 = l16;
+                                                                                                            s_i32_9 = 16i32;
+                                                                                                            vm.enter_call()?;
+                                                                                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 13usize, s_i32_9, host);
+                                                                                                            vm.exit_call();
+                                                                                                            let __t25 = __call_res?;
+                                                                                                            s_i32_9 = __t25;
+                                                                                                            l17 = s_i32_9;
+                                                                                                            s_i32_9 = l17;
+                                                                                                            s_i32_10 = l17;
+                                                                                                            s_i32_11 = 16i32;
+                                                                                                            s_i32_10 = ops::i32_add(s_i32_10, s_i32_11);
+                                                                                                            ops::i32_store(vm, 0, s_i32_9, 0u32, s_i32_10)?;
+                                                                                                            s_i32_9 = l17;
+                                                                                                            s_i32_10 = 0i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_9, 4u32, s_i32_10)?;
+                                                                                                            s_i32_9 = l17;
+                                                                                                            s_i32_10 = 0i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_9, 8u32, s_i32_10)?;
+                                                                                                            s_i32_9 = l17;
+                                                                                                            s_i32_10 = 1i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_9, 12u32, s_i32_10)?;
+                                                                                                            s_i32_9 = l17;
+                                                                                                            s_i32_10 = 16i32;
+                                                                                                            vm.enter_call()?;
+                                                                                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 13usize, s_i32_10, host);
+                                                                                                            vm.exit_call();
+                                                                                                            let __t26 = __call_res?;
+                                                                                                            s_i32_10 = __t26;
+                                                                                                            l18 = s_i32_10;
+                                                                                                            s_i32_10 = l18;
+                                                                                                            s_i32_11 = l18;
+                                                                                                            s_i32_12 = 16i32;
+                                                                                                            s_i32_11 = ops::i32_add(s_i32_11, s_i32_12);
+                                                                                                            ops::i32_store(vm, 0, s_i32_10, 0u32, s_i32_11)?;
+                                                                                                            s_i32_10 = l18;
+                                                                                                            s_i32_11 = 0i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_10, 4u32, s_i32_11)?;
+                                                                                                            s_i32_10 = l18;
+                                                                                                            s_i32_11 = 0i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_10, 8u32, s_i32_11)?;
+                                                                                                            s_i32_10 = l18;
+                                                                                                            s_i32_11 = 1i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_10, 12u32, s_i32_11)?;
+                                                                                                            s_i32_10 = l18;
+                                                                                                            s_i32_11 = 16i32;
+                                                                                                            vm.enter_call()?;
+                                                                                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 13usize, s_i32_11, host);
+                                                                                                            vm.exit_call();
+                                                                                                            let __t27 = __call_res?;
+                                                                                                            s_i32_11 = __t27;
+                                                                                                            l19 = s_i32_11;
+                                                                                                            s_i32_11 = l19;
+                                                                                                            s_i32_12 = l19;
+                                                                                                            s_i32_13 = 16i32;
+                                                                                                            s_i32_12 = ops::i32_add(s_i32_12, s_i32_13);
+                                                                                                            ops::i32_store(vm, 0, s_i32_11, 0u32, s_i32_12)?;
+                                                                                                            s_i32_11 = l19;
+                                                                                                            s_i32_12 = 0i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_11, 4u32, s_i32_12)?;
+                                                                                                            s_i32_11 = l19;
+                                                                                                            s_i32_12 = 0i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_11, 8u32, s_i32_12)?;
+                                                                                                            s_i32_11 = l19;
+                                                                                                            s_i32_12 = 1i32;
+                                                                                                            ops::i32_store(vm, 0, s_i32_11, 12u32, s_i32_12)?;
+                                                                                                            s_i32_11 = l19;
+                                                                                                            vm.enter_call()?;
+                                                                                                            let __call_res = dispatch.call_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_i32(vm, c_map, 14usize, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+                                                                                                            vm.exit_call();
+                                                                                                            let __t28 = __call_res?;
+                                                                                                            s_i32_1 = __t28;
+                                                                                                            vm.enter_call()?;
+                                                                                                            let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 15usize, s_i32_0, s_i32_1, host);
+                                                                                                            vm.exit_call();
+                                                                                                            __call_res?;
+                                                                                                            s_i32_0 = l12;
+                                                                                                            s_i64_0 = ops::i64_load(vm, 0, s_i32_0, 8u32)?;
+                                                                                                            l2 = s_i64_0;
+                                                                                                        } else {
+                                                                                                            s_i64_0 = l2;
+                                                                                                            s_i64_1 = 1i64;
+                                                                                                            vm.enter_call()?;
+                                                                                                            let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 5usize, s_i64_0, s_i64_1, host);
+                                                                                                            vm.exit_call();
+                                                                                                            let __t29 = __call_res?;
+                                                                                                            s_i64_0 = __t29;
+                                                                                                            l2 = s_i64_0;
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        } else {
+                                                                                            s_i64_0 = l2;
+                                                                                            s_i64_1 = 1i64;
+                                                                                            vm.enter_call()?;
+                                                                                            let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 5usize, s_i64_0, s_i64_1, host);
+                                                                                            vm.exit_call();
+                                                                                            let __t30 = __call_res?;
+                                                                                            s_i64_0 = __t30;
+                                                                                            l2 = s_i64_0;
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            continue 'blk_2;
+            break 'blk_2;
+        }
+    }
+    s_i32_0 = l5;
+    'blk_20: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 1i32;
+        } else {
+            s_i32_0 = 0i32;
+        }
+    }
+    l20 = s_i32_0;
+    s_i32_0 = 0i32;
+    s_i32_1 = l20;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_unit_ret_i32(vm, c_map, 12usize, host);
+    vm.exit_call();
+    let __t31 = __call_res?;
+    s_i32_2 = __t31;
+    s_i32_3 = 16i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 13usize, s_i32_3, host);
+    vm.exit_call();
+    let __t32 = __call_res?;
+    s_i32_3 = __t32;
+    l21 = s_i32_3;
+    s_i32_3 = l21;
+    s_i32_4 = l21;
+    s_i32_5 = 16i32;
+    s_i32_4 = ops::i32_add(s_i32_4, s_i32_5);
+    ops::i32_store(vm, 0, s_i32_3, 0u32, s_i32_4)?;
+    s_i32_3 = l21;
+    s_i32_4 = 0i32;
+    ops::i32_store(vm, 0, s_i32_3, 4u32, s_i32_4)?;
+    s_i32_3 = l21;
+    s_i32_4 = 0i32;
+    ops::i32_store(vm, 0, s_i32_3, 8u32, s_i32_4)?;
+    s_i32_3 = l21;
+    s_i32_4 = 1i32;
+    ops::i32_store(vm, 0, s_i32_3, 12u32, s_i32_4)?;
+    s_i32_3 = l21;
+    s_i32_4 = 16i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 13usize, s_i32_4, host);
+    vm.exit_call();
+    let __t33 = __call_res?;
+    s_i32_4 = __t33;
+    l22 = s_i32_4;
+    s_i32_4 = l22;
+    s_i32_5 = l22;
+    s_i32_6 = 16i32;
+    s_i32_5 = ops::i32_add(s_i32_5, s_i32_6);
+    ops::i32_store(vm, 0, s_i32_4, 0u32, s_i32_5)?;
+    s_i32_4 = l22;
+    s_i32_5 = 0i32;
+    ops::i32_store(vm, 0, s_i32_4, 4u32, s_i32_5)?;
+    s_i32_4 = l22;
+    s_i32_5 = 0i32;
+    ops::i32_store(vm, 0, s_i32_4, 8u32, s_i32_5)?;
+    s_i32_4 = l22;
+    s_i32_5 = 1i32;
+    ops::i32_store(vm, 0, s_i32_4, 12u32, s_i32_5)?;
+    s_i32_4 = l22;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_unit_ret_i32(vm, c_map, 16usize, host);
+    vm.exit_call();
+    let __t34 = __call_res?;
+    s_i32_5 = __t34;
+    s_i32_6 = 16i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 13usize, s_i32_6, host);
+    vm.exit_call();
+    let __t35 = __call_res?;
+    s_i32_6 = __t35;
+    l23 = s_i32_6;
+    s_i32_6 = l23;
+    s_i32_7 = l23;
+    s_i32_8 = 16i32;
+    s_i32_7 = ops::i32_add(s_i32_7, s_i32_8);
+    ops::i32_store(vm, 0, s_i32_6, 0u32, s_i32_7)?;
+    s_i32_6 = l23;
+    s_i32_7 = 0i32;
+    ops::i32_store(vm, 0, s_i32_6, 4u32, s_i32_7)?;
+    s_i32_6 = l23;
+    s_i32_7 = 0i32;
+    ops::i32_store(vm, 0, s_i32_6, 8u32, s_i32_7)?;
+    s_i32_6 = l23;
+    s_i32_7 = 1i32;
+    ops::i32_store(vm, 0, s_i32_6, 12u32, s_i32_7)?;
+    s_i32_6 = l23;
+    s_i32_7 = l6;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 17usize, s_i32_7, host);
+    vm.exit_call();
+    let __t36 = __call_res?;
+    s_i32_7 = __t36;
+    s_i32_8 = 16i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 13usize, s_i32_8, host);
+    vm.exit_call();
+    let __t37 = __call_res?;
+    s_i32_8 = __t37;
+    l24 = s_i32_8;
+    s_i32_8 = l24;
+    s_i32_9 = l24;
+    s_i32_10 = 16i32;
+    s_i32_9 = ops::i32_add(s_i32_9, s_i32_10);
+    ops::i32_store(vm, 0, s_i32_8, 0u32, s_i32_9)?;
+    s_i32_8 = l24;
+    s_i32_9 = 0i32;
+    ops::i32_store(vm, 0, s_i32_8, 4u32, s_i32_9)?;
+    s_i32_8 = l24;
+    s_i32_9 = 0i32;
+    ops::i32_store(vm, 0, s_i32_8, 8u32, s_i32_9)?;
+    s_i32_8 = l24;
+    s_i32_9 = 1i32;
+    ops::i32_store(vm, 0, s_i32_8, 12u32, s_i32_9)?;
+    s_i32_8 = l24;
+    s_i32_9 = 16i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 13usize, s_i32_9, host);
+    vm.exit_call();
+    let __t38 = __call_res?;
+    s_i32_9 = __t38;
+    l25 = s_i32_9;
+    s_i32_9 = l25;
+    s_i32_10 = l25;
+    s_i32_11 = 16i32;
+    s_i32_10 = ops::i32_add(s_i32_10, s_i32_11);
+    ops::i32_store(vm, 0, s_i32_9, 0u32, s_i32_10)?;
+    s_i32_9 = l25;
+    s_i32_10 = 0i32;
+    ops::i32_store(vm, 0, s_i32_9, 4u32, s_i32_10)?;
+    s_i32_9 = l25;
+    s_i32_10 = 0i32;
+    ops::i32_store(vm, 0, s_i32_9, 8u32, s_i32_10)?;
+    s_i32_9 = l25;
+    s_i32_10 = 1i32;
+    ops::i32_store(vm, 0, s_i32_9, 12u32, s_i32_10)?;
+    s_i32_9 = l25;
+    s_i32_10 = 16i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 13usize, s_i32_10, host);
+    vm.exit_call();
+    let __t39 = __call_res?;
+    s_i32_10 = __t39;
+    l26 = s_i32_10;
+    s_i32_10 = l26;
+    s_i32_11 = l26;
+    s_i32_12 = 16i32;
+    s_i32_11 = ops::i32_add(s_i32_11, s_i32_12);
+    ops::i32_store(vm, 0, s_i32_10, 0u32, s_i32_11)?;
+    s_i32_10 = l26;
+    s_i32_11 = 0i32;
+    ops::i32_store(vm, 0, s_i32_10, 4u32, s_i32_11)?;
+    s_i32_10 = l26;
+    s_i32_11 = 0i32;
+    ops::i32_store(vm, 0, s_i32_10, 8u32, s_i32_11)?;
+    s_i32_10 = l26;
+    s_i32_11 = 1i32;
+    ops::i32_store(vm, 0, s_i32_10, 12u32, s_i32_11)?;
+    s_i32_10 = l26;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_i32(vm, c_map, 14usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+    vm.exit_call();
+    let __t40 = __call_res?;
+    s_i32_0 = __t40;
+    l27 = s_i32_0;
+    s_i32_0 = l27;
+    l28 = s_i32_0;
+    s_i64_0 = l2;
+    l29 = s_i64_0;
+    s_i32_0 = 16i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 13usize, s_i32_0, host);
+    vm.exit_call();
+    let __t41 = __call_res?;
+    s_i32_0 = __t41;
+    l30 = s_i32_0;
+    s_i32_0 = l30;
+    s_i32_1 = l28;
+    ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+    s_i32_0 = l30;
+    s_i64_1 = l29;
+    ops::i64_store(vm, 0, s_i32_0, 8u32, s_i64_1)?;
+    s_i32_0 = l30;
+    l31 = s_i32_0;
+    s_i32_0 = l31;
+    return Ok(s_i32_0);
+    }
+
+    #[inline(never)]
+    pub(crate) fn f_218b53dab712(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    let mut l0: i32 = p0;
+    let mut l1: i32 = p1;
+    let mut l2: i32 = p2;
+    let mut l3: i32 = 0i32;
+    let mut l4: i32 = 0i32;
+    let mut l5: i32 = 0i32;
+    let mut l6: i32 = 0i32;
+    let mut l7: i32 = 0i32;
+    let mut l8: i32 = 0i32;
+    let mut l9: i32 = 0i32;
+    let mut l10: i32 = 0i32;
+    let mut l11: i32 = 0i32;
+    let mut l12: i32 = 0i32;
+    let mut l13: i32 = 0i32;
+    let mut l14: i32 = 0i32;
+    let mut l15: i32 = 0i32;
+    let mut l16: i32 = 0i32;
+    let mut l17: i32 = 0i32;
+    let mut l18: i32 = 0i32;
+    let mut l19: i32 = 0i32;
+    let mut l20: i32 = 0i32;
+    let mut l21: i32 = 0i32;
+    let mut l22: i32 = 0i32;
+    let mut l23: i32 = 0i32;
+    let mut l24: i32 = 0i32;
+    let mut l25: i32 = 0i32;
+    let mut l26: i32 = 0i32;
+    let mut l27: i32 = 0i32;
+    let mut l28: i32 = 0i32;
+    let mut l29: i32 = 0i32;
+    let mut l30: i32 = 0i32;
+    let mut l31: i32 = 0i32;
+    let mut l32: i32 = 0i32;
+    let mut l33: i32 = 0i32;
+    let mut l34: i32 = 0i32;
+    let mut l35: i32 = 0i32;
+    let mut l36: i32 = 0i32;
+    let mut l37: i32 = 0i32;
+    let mut s_i32_0: i32 = 0i32;
+    let mut s_i64_0: i64 = 0i64;
+    let mut s_i32_1: i32 = 0i32;
+    let mut s_i64_1: i64 = 0i64;
+    let mut s_i32_2: i32 = 0i32;
+    let mut s_i64_2: i64 = 0i64;
+    let mut s_i32_3: i32 = 0i32;
+    let mut s_i64_3: i64 = 0i64;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
+    vm.exit_call();
+    __call_res?;
+    s_i32_0 = l2;
+    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+    l3 = s_i32_0;
+    s_i32_0 = l3;
+    s_i32_1 = 21i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 1usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t0 = __call_res?;
+    s_i32_0 = __t0;
+    'blk_1: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 2usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t1 = __call_res?;
+            s_i32_0 = __t1;
+            l4 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = l4;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 2usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t2 = __call_res?;
+            s_i32_0 = __t2;
+            l5 = s_i32_0;
+            s_i32_0 = l4;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 12u32)?;
+            l6 = s_i32_0;
+            s_i32_0 = l5;
+            s_i32_1 = 24i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_1, host);
+            vm.exit_call();
+            let __t3 = __call_res?;
+            s_i32_1 = __t3;
+            l7 = s_i32_1;
+            s_i32_1 = l7;
+            s_i32_2 = l7;
+            s_i32_3 = 16i32;
+            s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+            ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l7;
+            s_i32_2 = 8i32;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l7;
+            s_i32_2 = 8i32;
+            ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+            s_i32_1 = l7;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+            s_i32_1 = l7;
+            s_i64_2 = 4049353342795936883i64;
+            ops::i64_store(vm, 0, s_i32_1, 16u32, s_i64_2)?;
+            s_i32_1 = l7;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 4usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t4 = __call_res?;
+            s_i32_0 = __t4;
+            'blk_2: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l6;
+                    s_i32_1 = 23i32;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_1, host);
+                    vm.exit_call();
+                    let __t5 = __call_res?;
+                    s_i32_1 = __t5;
+                    l8 = s_i32_1;
+                    s_i32_1 = l8;
+                    s_i32_2 = l8;
+                    s_i32_3 = 16i32;
+                    s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+                    ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+                    s_i32_1 = l8;
+                    s_i32_2 = 7i32;
+                    ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+                    s_i32_1 = l8;
+                    s_i32_2 = 7i32;
+                    ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+                    s_i32_1 = l8;
+                    s_i32_2 = 1i32;
+                    ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+                    s_i32_1 = l8;
+                    s_i32_2 = 105i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+                    s_i32_1 = l8;
+                    s_i32_2 = 49i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 17u32, s_i32_2)?;
+                    s_i32_1 = l8;
+                    s_i32_2 = 50i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 18u32, s_i32_2)?;
+                    s_i32_1 = l8;
+                    s_i32_2 = 56i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 19u32, s_i32_2)?;
+                    s_i32_1 = l8;
+                    s_i32_2 = 86i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 20u32, s_i32_2)?;
+                    s_i32_1 = l8;
+                    s_i32_2 = 97i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 21u32, s_i32_2)?;
+                    s_i32_1 = l8;
+                    s_i32_2 = 108i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 22u32, s_i32_2)?;
+                    s_i32_1 = l8;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 4usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t6 = __call_res?;
+                    s_i32_0 = __t6;
+                } else {
+                    s_i32_0 = 0i32;
+                }
+            }
+            'blk_3: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = 8i32;
+                    let __t7 = s_i32_0;
+                    return dispatch.call_p_i32_ret_i32(vm, c_map, 5usize, __t7, host);
+                } else {
+                }
+            }
+            s_i32_0 = l5;
+            s_i32_1 = 24i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_1, host);
+            vm.exit_call();
+            let __t8 = __call_res?;
+            s_i32_1 = __t8;
+            l9 = s_i32_1;
+            s_i32_1 = l9;
+            s_i32_2 = l9;
+            s_i32_3 = 16i32;
+            s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+            ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l9;
+            s_i32_2 = 8i32;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l9;
+            s_i32_2 = 8i32;
+            ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+            s_i32_1 = l9;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+            s_i32_1 = l9;
+            s_i64_2 = 4049353394335544435i64;
+            ops::i64_store(vm, 0, s_i32_1, 16u32, s_i64_2)?;
+            s_i32_1 = l9;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 4usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t9 = __call_res?;
+            s_i32_0 = __t9;
+            'blk_4: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l6;
+                    s_i32_1 = 23i32;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_1, host);
+                    vm.exit_call();
+                    let __t10 = __call_res?;
+                    s_i32_1 = __t10;
+                    l10 = s_i32_1;
+                    s_i32_1 = l10;
+                    s_i32_2 = l10;
+                    s_i32_3 = 16i32;
+                    s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+                    ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+                    s_i32_1 = l10;
+                    s_i32_2 = 7i32;
+                    ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+                    s_i32_1 = l10;
+                    s_i32_2 = 7i32;
+                    ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+                    s_i32_1 = l10;
+                    s_i32_2 = 1i32;
+                    ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+                    s_i32_1 = l10;
+                    s_i32_2 = 117i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+                    s_i32_1 = l10;
+                    s_i32_2 = 49i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 17u32, s_i32_2)?;
+                    s_i32_1 = l10;
+                    s_i32_2 = 50i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 18u32, s_i32_2)?;
+                    s_i32_1 = l10;
+                    s_i32_2 = 56i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 19u32, s_i32_2)?;
+                    s_i32_1 = l10;
+                    s_i32_2 = 86i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 20u32, s_i32_2)?;
+                    s_i32_1 = l10;
+                    s_i32_2 = 97i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 21u32, s_i32_2)?;
+                    s_i32_1 = l10;
+                    s_i32_2 = 108i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 22u32, s_i32_2)?;
+                    s_i32_1 = l10;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 4usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t11 = __call_res?;
+                    s_i32_0 = __t11;
+                } else {
+                    s_i32_0 = 0i32;
+                }
+            }
+            'blk_5: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = 9i32;
+                    let __t12 = s_i32_0;
+                    return dispatch.call_p_i32_ret_i32(vm, c_map, 5usize, __t12, host);
+                } else {
+                }
+            }
+            s_i32_0 = l5;
+            s_i32_1 = 26i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_1, host);
+            vm.exit_call();
+            let __t13 = __call_res?;
+            s_i32_1 = __t13;
+            l11 = s_i32_1;
+            s_i32_1 = l11;
+            s_i32_2 = l11;
+            s_i32_3 = 16i32;
+            s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+            ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l11;
+            s_i32_2 = 10i32;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l11;
+            s_i32_2 = 10i32;
+            ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+            s_i32_1 = l11;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+            s_i32_1 = l11;
+            s_i64_2 = 7595155167006454899i64;
+            ops::i64_store(vm, 0, s_i32_1, 16u32, s_i64_2)?;
+            s_i32_1 = l11;
+            s_i32_2 = 110i32;
+            ops::i32_store8(vm, 0, s_i32_1, 24u32, s_i32_2)?;
+            s_i32_1 = l11;
+            s_i32_2 = 116i32;
+            ops::i32_store8(vm, 0, s_i32_1, 25u32, s_i32_2)?;
+            s_i32_1 = l11;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 4usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t14 = __call_res?;
+            s_i32_0 = __t14;
+            'blk_6: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l6;
+                    s_i32_1 = 22i32;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_1, host);
+                    vm.exit_call();
+                    let __t15 = __call_res?;
+                    s_i32_1 = __t15;
+                    l12 = s_i32_1;
+                    s_i32_1 = l12;
+                    s_i32_2 = l12;
+                    s_i32_3 = 16i32;
+                    s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+                    ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+                    s_i32_1 = l12;
+                    s_i32_2 = 6i32;
+                    ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+                    s_i32_1 = l12;
+                    s_i32_2 = 6i32;
+                    ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+                    s_i32_1 = l12;
+                    s_i32_2 = 1i32;
+                    ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+                    s_i32_1 = l12;
+                    s_i32_2 = 98i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+                    s_i32_1 = l12;
+                    s_i32_2 = 105i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 17u32, s_i32_2)?;
+                    s_i32_1 = l12;
+                    s_i32_2 = 103i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 18u32, s_i32_2)?;
+                    s_i32_1 = l12;
+                    s_i32_2 = 73i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 19u32, s_i32_2)?;
+                    s_i32_1 = l12;
+                    s_i32_2 = 110i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 20u32, s_i32_2)?;
+                    s_i32_1 = l12;
+                    s_i32_2 = 116i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 21u32, s_i32_2)?;
+                    s_i32_1 = l12;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 4usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t16 = __call_res?;
+                    s_i32_0 = __t16;
+                } else {
+                    s_i32_0 = 0i32;
+                }
+            }
+            'blk_7: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = 10i32;
+                    let __t17 = s_i32_0;
+                    return dispatch.call_p_i32_ret_i32(vm, c_map, 5usize, __t17, host);
+                } else {
+                }
+            }
+            s_i32_0 = l5;
+            s_i32_1 = 23i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_1, host);
+            vm.exit_call();
+            let __t18 = __call_res?;
+            s_i32_1 = __t18;
+            l13 = s_i32_1;
+            s_i32_1 = l13;
+            s_i32_2 = l13;
+            s_i32_3 = 16i32;
+            s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+            ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l13;
+            s_i32_2 = 7i32;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l13;
+            s_i32_2 = 7i32;
+            ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+            s_i32_1 = l13;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+            s_i32_1 = l13;
+            s_i32_2 = 115i32;
+            ops::i32_store8(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+            s_i32_1 = l13;
+            s_i32_2 = 116i32;
+            ops::i32_store8(vm, 0, s_i32_1, 17u32, s_i32_2)?;
+            s_i32_1 = l13;
+            s_i32_2 = 100i32;
+            vm.deduct(host, 1)?;
+            ops::i32_store8(vm, 0, s_i32_1, 18u32, s_i32_2)?;
+            s_i32_1 = l13;
+            s_i32_2 = 47i32;
+            ops::i32_store8(vm, 0, s_i32_1, 19u32, s_i32_2)?;
+            s_i32_1 = l13;
+            s_i32_2 = 114i32;
+            ops::i32_store8(vm, 0, s_i32_1, 20u32, s_i32_2)?;
+            s_i32_1 = l13;
+            s_i32_2 = 97i32;
+            ops::i32_store8(vm, 0, s_i32_1, 21u32, s_i32_2)?;
+            s_i32_1 = l13;
+            s_i32_2 = 116i32;
+            ops::i32_store8(vm, 0, s_i32_1, 22u32, s_i32_2)?;
+            s_i32_1 = l13;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 4usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t19 = __call_res?;
+            s_i32_0 = __t19;
+            'blk_8: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l6;
+                    s_i32_1 = 22i32;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_1, host);
+                    vm.exit_call();
+                    let __t20 = __call_res?;
+                    s_i32_1 = __t20;
+                    l14 = s_i32_1;
+                    s_i32_1 = l14;
+                    s_i32_2 = l14;
+                    s_i32_3 = 16i32;
+                    s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+                    ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+                    s_i32_1 = l14;
+                    s_i32_2 = 6i32;
+                    ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+                    s_i32_1 = l14;
+                    s_i32_2 = 6i32;
+                    ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+                    s_i32_1 = l14;
+                    s_i32_2 = 1i32;
+                    ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+                    s_i32_1 = l14;
+                    s_i32_2 = 114i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+                    s_i32_1 = l14;
+                    s_i32_2 = 97i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 17u32, s_i32_2)?;
+                    s_i32_1 = l14;
+                    s_i32_2 = 116i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 18u32, s_i32_2)?;
+                    s_i32_1 = l14;
+                    s_i32_2 = 86i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 19u32, s_i32_2)?;
+                    s_i32_1 = l14;
+                    s_i32_2 = 97i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 20u32, s_i32_2)?;
+                    s_i32_1 = l14;
+                    s_i32_2 = 108i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 21u32, s_i32_2)?;
+                    s_i32_1 = l14;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 4usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t21 = __call_res?;
+                    s_i32_0 = __t21;
+                } else {
+                    s_i32_0 = 0i32;
+                }
+            }
+            'blk_9: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = 11i32;
+                    let __t22 = s_i32_0;
+                    return dispatch.call_p_i32_ret_i32(vm, c_map, 5usize, __t22, host);
+                } else {
+                }
+            }
+            s_i32_0 = l5;
+            s_i32_1 = 24i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_1, host);
+            vm.exit_call();
+            let __t23 = __call_res?;
+            s_i32_1 = __t23;
+            l15 = s_i32_1;
+            s_i32_1 = l15;
+            s_i32_2 = l15;
+            s_i32_3 = 16i32;
+            s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+            ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l15;
+            s_i32_2 = 8i32;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l15;
+            s_i32_2 = 8i32;
+            ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+            s_i32_1 = l15;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+            s_i32_1 = l15;
+            s_i64_2 = 7382634971110077555i64;
+            ops::i64_store(vm, 0, s_i32_1, 16u32, s_i64_2)?;
+            s_i32_1 = l15;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 4usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t24 = __call_res?;
+            s_i32_0 = __t24;
+            'blk_10: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l6;
+                    s_i32_1 = 21i32;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_1, host);
+                    vm.exit_call();
+                    let __t25 = __call_res?;
+                    s_i32_1 = __t25;
+                    l16 = s_i32_1;
+                    s_i32_1 = l16;
+                    s_i32_2 = l16;
+                    s_i32_3 = 16i32;
+                    s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+                    ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+                    s_i32_1 = l16;
+                    s_i32_2 = 5i32;
+                    ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+                    s_i32_1 = l16;
+                    s_i32_2 = 5i32;
+                    ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+                    s_i32_1 = l16;
+                    s_i32_2 = 1i32;
+                    ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+                    s_i32_1 = l16;
+                    s_i32_2 = 100i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+                    s_i32_1 = l16;
+                    s_i32_2 = 99i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 17u32, s_i32_2)?;
+                    s_i32_1 = l16;
+                    s_i32_2 = 86i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 18u32, s_i32_2)?;
+                    s_i32_1 = l16;
+                    s_i32_2 = 97i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 19u32, s_i32_2)?;
+                    s_i32_1 = l16;
+                    s_i32_2 = 108i32;
+                    ops::i32_store8(vm, 0, s_i32_1, 20u32, s_i32_2)?;
+                    s_i32_1 = l16;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 4usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t26 = __call_res?;
+                    s_i32_0 = __t26;
+                } else {
+                    s_i32_0 = 0i32;
+                }
+            }
+            'blk_11: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = 12i32;
+                    let __t27 = s_i32_0;
+                    return dispatch.call_p_i32_ret_i32(vm, c_map, 5usize, __t27, host);
+                } else {
+                }
+            }
+            s_i32_0 = l2;
+            l17 = s_i32_0;
+            s_i32_0 = l17;
+            return Ok(s_i32_0);
+        } else {
+        }
+    }
+    s_i32_0 = l3;
+    s_i32_1 = 16i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 1usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t28 = __call_res?;
+    s_i32_0 = __t28;
+    'blk_12: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 16i32;
+            l18 = s_i32_0;
+            s_i32_0 = 0i32;
+            l19 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_2 = ops::i32_load(vm, 0, s_i32_2, 8u32)?;
+            s_i64_3 = 0i64;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 2usize, s_i32_2, s_i64_3, host);
+            vm.exit_call();
+            let __t29 = __call_res?;
+            s_i32_2 = __t29;
+            vm.enter_call()?;
+            let __call_res = Self::f_218b53dab712(vm, dispatch, g_map, c_map, s_i32_0, s_i32_1, s_i32_2, host);
+            vm.exit_call();
+            let __t30 = __call_res?;
+            s_i32_0 = __t30;
+            l20 = s_i32_0;
+            s_i32_0 = 20i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_0, host);
+            vm.exit_call();
+            let __t31 = __call_res?;
+            s_i32_0 = __t31;
+            l21 = s_i32_0;
+            s_i32_0 = l21;
+            s_i32_1 = l21;
+            s_i32_2 = 16i32;
+            s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
+            ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+            s_i32_0 = l21;
+            s_i32_1 = 1i32;
+            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+            s_i32_0 = l21;
+            s_i32_1 = 1i32;
+            ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+            s_i32_0 = l21;
+            s_i32_1 = 1i32;
+            ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
+            s_i32_0 = l21;
+            s_i32_1 = l20;
+            ops::i32_store(vm, 0, s_i32_0, 16u32, s_i32_1)?;
+            s_i32_0 = l21;
+            l22 = s_i32_0;
+            s_i32_0 = 12i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_0, host);
+            vm.exit_call();
+            let __t32 = __call_res?;
+            s_i32_0 = __t32;
+            l23 = s_i32_0;
+            s_i32_0 = l23;
+            s_i32_1 = l18;
+            ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+            s_i32_0 = l23;
+            s_i32_1 = l19;
+            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+            s_i32_0 = l23;
+            s_i32_1 = l22;
+            ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+            s_i32_0 = l23;
+            l24 = s_i32_0;
+            s_i32_0 = l24;
+            return Ok(s_i32_0);
+        } else {
+        }
+    }
+    s_i32_0 = l3;
+    s_i32_1 = 18i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 1usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t33 = __call_res?;
+    s_i32_0 = __t33;
+    'blk_13: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l2;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+            l25 = s_i32_0;
+            s_i32_0 = l25;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i64_ret_i32(vm, c_map, 6usize, s_i64_0, host);
+            vm.exit_call();
+            let __t34 = __call_res?;
+            s_i32_0 = __t34;
+            l26 = s_i32_0;
+            s_i32_0 = l25;
+            l27 = s_i32_0;
+            s_i32_0 = l27;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l28 = s_i32_0;
+            s_i32_0 = l27;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l29 = s_i32_0;
+            s_i32_0 = 0i32;
+            l30 = s_i32_0;
+            'blk_14: {
+                'blk_15: loop {
+                    vm.deduct(host, 1)?;
+                    s_i32_0 = l30;
+                    s_i32_1 = l29;
+                    s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                    if s_i32_0 != 0 {
+                        break 'blk_14;
+                    }
+                    s_i32_0 = l28;
+                    s_i32_1 = l30;
+                    s_i32_2 = 4i32;
+                    s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l31 = s_i32_0;
+                    'blk_16: {
+                        s_i32_0 = l26;
+                        s_i32_1 = l0;
+                        s_i32_2 = l1;
+                        s_i32_3 = l31;
+                        vm.enter_call()?;
+                        let __call_res = Self::f_218b53dab712(vm, dispatch, g_map, c_map, s_i32_1, s_i32_2, s_i32_3, host);
+                        vm.exit_call();
+                        let __t35 = __call_res?;
+                        s_i32_1 = __t35;
+                        vm.enter_call()?;
+                        let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 7usize, s_i32_0, s_i32_1, host);
+                        vm.exit_call();
+                        __call_res?;
+                    }
+                    s_i32_0 = l30;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    l30 = s_i32_0;
+                    continue 'blk_15;
+                    break 'blk_15;
+                }
+            }
+            s_i32_0 = 18i32;
+            l32 = s_i32_0;
+            s_i32_0 = 0i32;
+            l33 = s_i32_0;
+            s_i32_0 = l26;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 8usize, s_i32_0, host);
+            vm.exit_call();
+            let __t36 = __call_res?;
+            s_i32_0 = __t36;
+            l34 = s_i32_0;
+            s_i32_0 = 12i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_0, host);
+            vm.exit_call();
+            let __t37 = __call_res?;
+            s_i32_0 = __t37;
+            l35 = s_i32_0;
+            s_i32_0 = l35;
+            s_i32_1 = l32;
+            ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+            s_i32_0 = l35;
+            s_i32_1 = l33;
+            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+            s_i32_0 = l35;
+            s_i32_1 = l34;
+            ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+            s_i32_0 = l35;
+            l36 = s_i32_0;
+            s_i32_0 = l36;
+            return Ok(s_i32_0);
+        } else {
+        }
+    }
+    s_i32_0 = l2;
+    l37 = s_i32_0;
+    s_i32_0 = l37;
+    return Ok(s_i32_0);
+    }
+
+    #[inline(never)]
+    pub(crate) fn f_9361c4e9179a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    let mut l0: i32 = p0;
+    let mut l1: i32 = 0i32;
+    let mut l2: i32 = 0i32;
+    let mut l3: i64 = 0i64;
+    let mut l4: i64 = 0i64;
+    let mut l5: i32 = 0i32;
+    let mut l6: i64 = 0i64;
+    let mut l7: i64 = 0i64;
+    let mut l8: i32 = 0i32;
+    let mut l9: i32 = 0i32;
+    let mut l10: i32 = 0i32;
+    let mut s_i32_0: i32 = 0i32;
+    let mut s_i64_0: i64 = 0i64;
+    let mut s_i32_1: i32 = 0i32;
+    let mut s_i64_1: i64 = 0i64;
+    let mut s_i32_2: i32 = 0i32;
+    let mut s_i64_2: i64 = 0i64;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
+    vm.exit_call();
+    __call_res?;
+    s_i32_0 = 30i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+    vm.exit_call();
+    let __t0 = __call_res?;
+    s_i32_0 = __t0;
+    l1 = s_i32_0;
+    s_i32_0 = l1;
+    s_i32_1 = l1;
+    s_i32_2 = 16i32;
+    s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
+    ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+    s_i32_0 = l1;
+    s_i32_1 = 14i32;
+    ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+    s_i32_0 = l1;
+    s_i32_1 = 14i32;
+    ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+    s_i32_0 = l1;
+    s_i32_1 = 1i32;
+    ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
+    s_i32_0 = l1;
+    s_i64_1 = 7956009399508628595i64;
+    ops::i64_store(vm, 0, s_i32_0, 16u32, s_i64_1)?;
+    s_i32_0 = l1;
+    s_i32_1 = 116i32;
+    ops::i32_store8(vm, 0, s_i32_0, 24u32, s_i32_1)?;
+    s_i32_0 = l1;
+    s_i32_1 = 101i32;
+    ops::i32_store8(vm, 0, s_i32_0, 25u32, s_i32_1)?;
+    s_i32_0 = l1;
+    s_i32_1 = 114i32;
+    ops::i32_store8(vm, 0, s_i32_0, 26u32, s_i32_1)?;
+    s_i32_0 = l1;
+    s_i32_1 = 110i32;
+    ops::i32_store8(vm, 0, s_i32_0, 27u32, s_i32_1)?;
+    s_i32_0 = l1;
+    s_i32_1 = 97i32;
+    ops::i32_store8(vm, 0, s_i32_0, 28u32, s_i32_1)?;
+    s_i32_0 = l1;
+    s_i32_1 = 108i32;
+    ops::i32_store8(vm, 0, s_i32_0, 29u32, s_i32_1)?;
+    s_i32_0 = l1;
+    l2 = s_i32_0;
+    s_i32_0 = l2;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+    s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+    l3 = s_i64_0;
+    s_i32_0 = l0;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+    s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+    l4 = s_i64_0;
+    s_i64_0 = l4;
+    s_i64_1 = l3;
+    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+    'blk_1: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 0i32;
+            l5 = s_i32_0;
+            s_i32_0 = l5;
+            return Ok(s_i32_0);
+        } else {
+        }
+    }
+    s_i64_0 = l4;
+    s_i64_1 = l3;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 2usize, s_i64_0, s_i64_1, host);
+    vm.exit_call();
+    let __t1 = __call_res?;
+    s_i64_0 = __t1;
+    l6 = s_i64_0;
+    s_i64_0 = 0i64;
+    l7 = s_i64_0;
+    'blk_2: {
+        'blk_3: loop {
+            vm.deduct(host, 1)?;
+            s_i64_0 = l7;
+            s_i64_1 = l3;
+            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+            s_i32_0 = ops::i32_eqz(s_i32_0);
+            if s_i32_0 != 0 {
+                break 'blk_2;
+            }
+            s_i32_0 = l0;
+            s_i64_1 = l6;
+            s_i64_2 = l7;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 3usize, s_i64_1, s_i64_2, host);
+            vm.exit_call();
+            let __t2 = __call_res?;
+            s_i64_1 = __t2;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 4usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t3 = __call_res?;
+            s_i32_0 = __t3;
+            l8 = s_i32_0;
+            s_i32_0 = l8;
+            s_i32_1 = 65i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 5usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t4 = __call_res?;
+            s_i32_0 = __t4;
+            'blk_4: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l8;
+                    s_i32_1 = 90i32;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 6usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t5 = __call_res?;
+                    s_i32_0 = __t5;
+                } else {
+                    s_i32_0 = 0i32;
+                }
+            }
+            'blk_5: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l8;
+                    s_i32_1 = 32i32;
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 7usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t6 = __call_res?;
+                    s_i32_0 = __t6;
+                    l8 = s_i32_0;
+                } else {
+                }
+            }
+            s_i32_0 = l8;
+            s_i32_1 = l2;
+            s_i64_2 = l7;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 4usize, s_i32_1, s_i64_2, host);
+            vm.exit_call();
+            let __t7 = __call_res?;
+            s_i32_1 = __t7;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 8usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t8 = __call_res?;
+            s_i32_0 = __t8;
+            'blk_6: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = 0i32;
+                    l9 = s_i32_0;
+                    s_i32_0 = l9;
+                    return Ok(s_i32_0);
+                } else {
+                }
+            }
+            s_i64_0 = l7;
+            s_i64_1 = 1i64;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i64_i64_ret_i64(vm, c_map, 3usize, s_i64_0, s_i64_1, host);
+            vm.exit_call();
+            let __t9 = __call_res?;
+            s_i64_0 = __t9;
+            l7 = s_i64_0;
+            continue 'blk_3;
+            break 'blk_3;
+        }
+    }
+    s_i32_0 = 1i32;
+    l10 = s_i32_0;
+    s_i32_0 = l10;
+    return Ok(s_i32_0);
+    }
+
+    pub(crate) fn f_61a16d9614ba(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    let mut l0: i32 = p0;
+    let mut s_i32_0: i32 = 0i32;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
+    vm.exit_call();
+    __call_res?;
+    s_i32_0 = l0;
+    let __t0 = s_i32_0;
+    return dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, __t0, host);
+    }
+
+    pub(crate) fn f_03e481579af4(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    let mut l0: i32 = p0;
+    let mut l1: i32 = p1;
+    let mut s_i32_0: i32 = 0i32;
+    let mut s_i64_0: i64 = 0i64;
+    let mut s_i32_1: i32 = 0i32;
+    let mut s_i64_1: i64 = 0i64;
+    vm.deduct(host, 1)?;
+    s_i32_0 = l0;
+    s_i32_1 = l1;
+    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+    'blk_1: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 1i32;
+            return Ok(s_i32_0);
+        }
+    }
+    s_i32_0 = l0;
+    s_i64_0 = ops::i64_load(vm, 0, s_i32_0, 0u32)?;
+    s_i32_1 = l1;
+    s_i64_1 = ops::i64_load(vm, 0, s_i32_1, 0u32)?;
+    s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+    s_i32_0 = ops::i32_eqz(s_i32_0);
+    'blk_2: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 0i32;
+            return Ok(s_i32_0);
+        }
+    }
+    s_i32_0 = l0;
+    s_i64_0 = ops::i64_load(vm, 0, s_i32_0, 8u32)?;
+    s_i32_1 = l1;
+    s_i64_1 = ops::i64_load(vm, 0, s_i32_1, 8u32)?;
+    s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+    s_i32_0 = ops::i32_eqz(s_i32_0);
+    'blk_3: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 0i32;
+            return Ok(s_i32_0);
+        }
+    }
+    s_i32_0 = 1i32;
+    return Ok(s_i32_0);
+    }
+
+    pub(crate) fn f_162b60a1a7e7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    let mut l0: i32 = p0;
+    let mut l1: i32 = p1;
+    let mut s_i32_0: i32 = 0i32;
+    let mut s_i32_1: i32 = 0i32;
+    vm.deduct(host, 1)?;
+    s_i32_0 = l0;
+    s_i32_1 = l1;
+    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+    'blk_1: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 1i32;
+            return Ok(s_i32_0);
+        }
+    }
+    s_i32_0 = l0;
+    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+    s_i32_1 = l1;
+    s_i32_1 = ops::i32_load8_u(vm, 0, s_i32_1, 0u32)?;
+    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+    s_i32_0 = ops::i32_eqz(s_i32_0);
+    'blk_2: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 0i32;
+            return Ok(s_i32_0);
+        }
+    }
+    s_i32_0 = l0;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+    s_i32_1 = l1;
+    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 0usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t0 = __call_res?;
+    s_i32_0 = __t0;
+    s_i32_0 = ops::i32_eqz(s_i32_0);
+    'blk_3: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 0i32;
+            return Ok(s_i32_0);
+        }
+    }
+    s_i32_0 = 1i32;
+    return Ok(s_i32_0);
+    }
+
+    pub(crate) fn f_0630896cabfc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    let mut l0: i32 = p0;
+    let mut l1: i32 = p1;
+    let mut s_i32_0: i32 = 0i32;
+    let mut s_i32_1: i32 = 0i32;
+    vm.deduct(host, 1)?;
+    s_i32_0 = l0;
+    s_i32_1 = l1;
+    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+    'blk_1: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 1i32;
+            return Ok(s_i32_0);
+        }
+    }
+    s_i32_0 = l0;
+    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+    s_i32_1 = l1;
+    s_i32_1 = ops::i32_load8_u(vm, 0, s_i32_1, 0u32)?;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 0usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t0 = __call_res?;
+    s_i32_0 = __t0;
+    s_i32_0 = ops::i32_eqz(s_i32_0);
+    'blk_2: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 0i32;
+            return Ok(s_i32_0);
+        }
+    }
+    s_i32_0 = l0;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+    s_i32_1 = l1;
+    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+    s_i32_0 = ops::i32_eqz(s_i32_0);
+    'blk_3: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 0i32;
+            return Ok(s_i32_0);
+        }
+    }
+    s_i32_0 = l0;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+    s_i32_1 = l1;
+    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 8u32)?;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 1usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t1 = __call_res?;
+    s_i32_0 = __t1;
+    s_i32_0 = ops::i32_eqz(s_i32_0);
+    'blk_4: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 0i32;
+            return Ok(s_i32_0);
+        }
+    }
+    s_i32_0 = 1i32;
+    return Ok(s_i32_0);
+    }
+
+    pub(crate) fn f_cb1aa58541c6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    let mut l0: i32 = p0;
+    let mut l1: i64 = 0i64;
+    let mut s_i32_0: i32 = 0i32;
+    let mut s_i64_0: i64 = 0i64;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
+    vm.exit_call();
+    __call_res?;
+    s_i32_0 = l0;
+    s_i64_0 = ops::i64_load(vm, 0, s_i32_0, 0u32)?;
+    l1 = s_i64_0;
+    s_i64_0 = l1;
+    return Ok(s_i64_0);
+    }
+
+    #[inline(never)]
+    pub(crate) fn f_638e3fd61a80(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    let mut l0: i32 = p0;
+    let mut l1: i64 = 0i64;
+    let mut l2: i32 = 0i32;
+    let mut l3: i32 = 0i32;
+    let mut l4: i32 = 0i32;
+    let mut l5: i32 = 0i32;
+    let mut l6: i32 = 0i32;
+    let mut l7: i64 = 0i64;
+    let mut l8: i32 = 0i32;
+    let mut l9: i32 = 0i32;
+    let mut l10: i32 = 0i32;
+    let mut l11: i32 = 0i32;
+    let mut l12: i32 = 0i32;
+    let mut l13: i32 = 0i32;
+    let mut l14: i32 = 0i32;
+    let mut l15: i32 = 0i32;
+    let mut l16: i64 = 0i64;
+    let mut l17: i32 = 0i32;
+    let mut l18: i64 = 0i64;
+    let mut l19: i64 = 0i64;
+    let mut l20: i32 = 0i32;
+    let mut l21: i32 = 0i32;
+    let mut l22: i32 = 0i32;
+    let mut l23: i64 = 0i64;
+    let mut l24: i32 = 0i32;
+    let mut l25: i32 = 0i32;
+    let mut l26: i32 = 0i32;
+    let mut l27: i32 = 0i32;
+    let mut l28: i32 = 0i32;
+    let mut l29: i32 = 0i32;
+    let mut l30: i32 = 0i32;
+    let mut l31: i32 = 0i32;
+    let mut l32: i32 = 0i32;
+    let mut l33: i32 = 0i32;
+    let mut l34: i64 = 0i64;
+    let mut l35: i32 = 0i32;
+    let mut l36: i32 = 0i32;
+    let mut l37: i32 = 0i32;
+    let mut l38: i32 = 0i32;
+    let mut l39: i32 = 0i32;
+    let mut l40: i32 = 0i32;
+    let mut l41: i64 = 0i64;
+    let mut l42: i32 = 0i32;
+    let mut l43: i32 = 0i32;
+    let mut l44: i32 = 0i32;
+    let mut l45: i32 = 0i32;
+    let mut l46: i32 = 0i32;
+    let mut l47: i32 = 0i32;
+    let mut l48: i32 = 0i32;
+    let mut l49: i32 = 0i32;
+    let mut l50: i32 = 0i32;
+    let mut l51: i32 = 0i32;
+    let mut l52: i32 = 0i32;
+    let mut l53: i32 = 0i32;
+    let mut l54: i64 = 0i64;
+    let mut l55: i32 = 0i32;
+    let mut l56: i32 = 0i32;
+    let mut l57: i32 = 0i32;
+    let mut l58: i32 = 0i32;
+    let mut l59: i32 = 0i32;
+    let mut l60: i32 = 0i32;
+    let mut l61: i32 = 0i32;
+    let mut l62: i32 = 0i32;
+    let mut l63: i32 = 0i32;
+    let mut l64: i32 = 0i32;
+    let mut l65: i64 = 0i64;
+    let mut l66: i32 = 0i32;
+    let mut l67: i32 = 0i32;
+    let mut l68: i32 = 0i32;
+    let mut l69: i32 = 0i32;
+    let mut l70: i32 = 0i32;
+    let mut l71: i64 = 0i64;
+    let mut l72: i32 = 0i32;
+    let mut l73: i32 = 0i32;
+    let mut l74: i32 = 0i32;
+    let mut l75: i32 = 0i32;
+    let mut l76: i32 = 0i32;
+    let mut l77: i32 = 0i32;
+    let mut l78: i32 = 0i32;
+    let mut l79: i32 = 0i32;
+    let mut l80: i32 = 0i32;
+    let mut l81: i32 = 0i32;
+    let mut l82: i32 = 0i32;
+    let mut l83: i32 = 0i32;
+    let mut l84: i32 = 0i32;
+    let mut s_i32_0: i32 = 0i32;
+    let mut s_i64_0: i64 = 0i64;
+    let mut s_i32_1: i32 = 0i32;
+    let mut s_i64_1: i64 = 0i64;
+    let mut s_i32_2: i32 = 0i32;
+    let mut s_i64_2: i64 = 0i64;
+    let mut s_i32_3: i32 = 0i32;
+    let mut s_i64_3: i64 = 0i64;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
+    vm.exit_call();
+    __call_res?;
+    s_i32_0 = l0;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+    s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+    l1 = s_i64_0;
+    s_i64_0 = l1;
+    s_i64_1 = 20i64;
+    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+    'blk_1: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 0i32;
+            l2 = s_i32_0;
+            s_i32_0 = 16i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+            vm.exit_call();
+            let __t0 = __call_res?;
+            s_i32_0 = __t0;
+            l3 = s_i32_0;
+            s_i32_0 = l3;
+            s_i32_1 = l3;
+            s_i32_2 = 16i32;
+            s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
+            ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+            s_i32_0 = l3;
+            s_i32_1 = 0i32;
+            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+            s_i32_0 = l3;
+            s_i32_1 = 0i32;
+            ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+            s_i32_0 = l3;
+            s_i32_1 = 1i32;
+            ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
+            s_i32_0 = l3;
+            l4 = s_i32_0;
+            s_i32_0 = 8i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+            vm.exit_call();
+            let __t1 = __call_res?;
+            s_i32_0 = __t1;
+            l5 = s_i32_0;
+            s_i32_0 = l5;
+            s_i32_1 = l2;
+            ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+            s_i32_0 = l5;
+            s_i32_1 = l4;
+            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+            s_i32_0 = l5;
+            l6 = s_i32_0;
+            s_i32_0 = l6;
+            return Ok(s_i32_0);
+        } else {
+        }
+    }
+    s_i64_0 = l1;
+    s_i64_1 = 4i64;
+    s_i64_0 = ops::i64_sub(s_i64_0, s_i64_1);
+    l7 = s_i64_0;
+    s_i32_0 = l0;
+    s_i64_1 = 0i64;
+    s_i64_2 = 16i64;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_i64_i64_ret_i32(vm, c_map, 2usize, s_i32_0, s_i64_1, s_i64_2, host);
+    vm.exit_call();
+    let __t2 = __call_res?;
+    s_i32_0 = __t2;
+    s_i32_1 = 32i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_1, host);
+    vm.exit_call();
+    let __t3 = __call_res?;
+    s_i32_1 = __t3;
+    l8 = s_i32_1;
+    s_i32_1 = l8;
+    s_i32_2 = l8;
+    s_i32_3 = 16i32;
+    s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+    ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+    s_i32_1 = l8;
+    s_i32_2 = 16i32;
+    ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+    s_i32_1 = l8;
+    s_i32_2 = 16i32;
+    ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+    s_i32_1 = l8;
+    s_i32_2 = 1i32;
+    ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+    s_i32_1 = l8;
+    s_i64_2 = -8753712395831701260i64;
+    ops::i64_store(vm, 0, s_i32_1, 16u32, s_i64_2)?;
+    s_i32_1 = l8;
+    s_i64_2 = -8681654801726664460i64;
+    ops::i64_store(vm, 0, s_i32_1, 24u32, s_i64_2)?;
+    s_i32_1 = l8;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 3usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t4 = __call_res?;
+    s_i32_0 = __t4;
+    'blk_2: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 1i32;
+        } else {
+            s_i32_0 = l0;
+            s_i64_1 = l7;
+            s_i64_2 = l1;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_i64_ret_i32(vm, c_map, 2usize, s_i32_0, s_i64_1, s_i64_2, host);
+            vm.exit_call();
+            let __t5 = __call_res?;
+            s_i32_0 = __t5;
+            s_i32_1 = 20i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_1, host);
+            vm.exit_call();
+            let __t6 = __call_res?;
+            s_i32_1 = __t6;
+            l9 = s_i32_1;
+            s_i32_1 = l9;
+            s_i32_2 = l9;
+            s_i32_3 = 16i32;
+            s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+            ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l9;
+            s_i32_2 = 4i32;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l9;
+            s_i32_2 = 4i32;
+            ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+            s_i32_1 = l9;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+            s_i32_1 = l9;
+            s_i32_2 = 244i32;
+            ops::i32_store8(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+            s_i32_1 = l9;
+            s_i32_2 = 144i32;
+            ops::i32_store8(vm, 0, s_i32_1, 17u32, s_i32_2)?;
+            s_i32_1 = l9;
+            s_i32_2 = 132i32;
+            ops::i32_store8(vm, 0, s_i32_1, 18u32, s_i32_2)?;
+            s_i32_1 = l9;
+            s_i32_2 = 133i32;
+            ops::i32_store8(vm, 0, s_i32_1, 19u32, s_i32_2)?;
+            s_i32_1 = l9;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 3usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t7 = __call_res?;
+            s_i32_0 = __t7;
+        }
+    }
+    'blk_3: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 0i32;
+            l10 = s_i32_0;
+            s_i32_0 = 16i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+            vm.exit_call();
+            let __t8 = __call_res?;
+            s_i32_0 = __t8;
+            l11 = s_i32_0;
+            s_i32_0 = l11;
+            s_i32_1 = l11;
+            s_i32_2 = 16i32;
+            s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
+            ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+            s_i32_0 = l11;
+            s_i32_1 = 0i32;
+            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+            s_i32_0 = l11;
+            s_i32_1 = 0i32;
+            ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+            s_i32_0 = l11;
+            s_i32_1 = 1i32;
+            ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
+            s_i32_0 = l11;
+            l12 = s_i32_0;
+            s_i32_0 = 8i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+            vm.exit_call();
+            let __t9 = __call_res?;
+            s_i32_0 = __t9;
+            l13 = s_i32_0;
+            s_i32_0 = l13;
+            s_i32_1 = l10;
+            ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+            s_i32_0 = l13;
+            s_i32_1 = l12;
+            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+            s_i32_0 = l13;
+            l14 = s_i32_0;
+            s_i32_0 = l14;
+            return Ok(s_i32_0);
+        } else {
+        }
+    }
+    s_i64_0 = l7;
+    s_i64_1 = 16i64;
+    s_i64_0 = ops::i64_sub(s_i64_0, s_i64_1);
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i64_ret_i32(vm, c_map, 4usize, s_i64_0, host);
+    vm.exit_call();
+    let __t10 = __call_res?;
+    s_i32_0 = __t10;
+    l15 = s_i32_0;
+    s_i64_0 = 16i64;
+    l16 = s_i64_0;
+    s_i32_0 = 0i32;
+    l17 = s_i32_0;
+    s_i64_0 = 16i64;
+    l18 = s_i64_0;
+    s_i64_0 = l7;
+    s_i64_1 = 5i64;
+    s_i32_0 = ops::i64_ge_u(s_i64_0, s_i64_1);
+    'blk_4: {
+        if s_i32_0 != 0 {
+            s_i64_0 = l7;
+            s_i64_1 = 5i64;
+            s_i64_0 = ops::i64_sub(s_i64_0, s_i64_1);
+        } else {
+            s_i64_0 = 0i64;
+        }
+    }
+    l19 = s_i64_0;
+    'blk_5: {
+        'blk_6: loop {
+            vm.deduct(host, 1)?;
+            s_i64_0 = l18;
+            s_i64_1 = l19;
+            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+            s_i32_0 = ops::i32_eqz(s_i32_0);
+            if s_i32_0 != 0 {
+                break 'blk_5;
+            }
+            s_i32_0 = l0;
+            s_i64_1 = l18;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 5usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t11 = __call_res?;
+            s_i32_0 = __t11;
+            s_i32_1 = 255i32;
+            s_i32_0 = ops::i32_and(s_i32_0, s_i32_1);
+            l20 = s_i32_0;
+            s_i32_0 = l20;
+            s_i32_1 = 244i32;
+            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+            'blk_7: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i64_1 = l18;
+                    s_i64_2 = 2i64;
+                    s_i64_1 = ops::i64_add(s_i64_1, s_i64_2);
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 5usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t12 = __call_res?;
+                    s_i32_0 = __t12;
+                    s_i32_1 = 255i32;
+                    s_i32_0 = ops::i32_and(s_i32_0, s_i32_1);
+                    l21 = s_i32_0;
+                    s_i32_0 = l21;
+                    s_i32_1 = 131i32;
+                    s_i32_0 = ops::i32_sub(s_i32_0, s_i32_1);
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_le_u(s_i32_0, s_i32_1);
+                    'blk_8: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i64_1 = l18;
+                            s_i64_2 = 1i64;
+                            s_i64_1 = ops::i64_add(s_i64_1, s_i64_2);
+                            vm.enter_call()?;
+                            let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 5usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t13 = __call_res?;
+                            s_i32_0 = __t13;
+                            s_i32_1 = 255i32;
+                            s_i32_0 = ops::i32_and(s_i32_0, s_i32_1);
+                            s_i32_1 = 144i32;
+                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                            'blk_9: {
+                                if s_i32_0 != 0 {
+                                    s_i32_0 = l0;
+                                    s_i64_1 = l18;
+                                    s_i64_2 = 3i64;
+                                    s_i64_1 = ops::i64_add(s_i64_1, s_i64_2);
+                                    vm.enter_call()?;
+                                    let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 5usize, s_i32_0, s_i64_1, host);
+                                    vm.exit_call();
+                                    let __t14 = __call_res?;
+                                    s_i32_0 = __t14;
+                                    s_i32_1 = 255i32;
+                                    s_i32_0 = ops::i32_and(s_i32_0, s_i32_1);
+                                    l22 = s_i32_0;
+                                    s_i32_0 = l21;
+                                    s_i32_1 = 131i32;
+                                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                    'blk_10: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = l22;
+                                            s_i32_1 = 191i32;
+                                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                        } else {
+                                            s_i32_0 = 0i32;
+                                        }
+                                    }
+                                    'blk_11: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = 1i32;
+                                            l17 = s_i32_0;
+                                            s_i64_0 = l18;
+                                            s_i64_1 = l16;
+                                            s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
+                                            'blk_12: {
+                                                if s_i32_0 != 0 {
+                                                    s_i32_0 = l15;
+                                                    s_i32_1 = l0;
+                                                    s_i64_2 = l16;
+                                                    s_i64_3 = l18;
+                                                    vm.enter_call()?;
+                                                    let __call_res = dispatch.call_p_i32_i64_i64_ret_i32(vm, c_map, 2usize, s_i32_1, s_i64_2, s_i64_3, host);
+                                                    vm.exit_call();
+                                                    let __t15 = __call_res?;
+                                                    s_i32_1 = __t15;
+                                                    vm.enter_call()?;
+                                                    let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 6usize, s_i32_0, s_i32_1, host);
+                                                    vm.exit_call();
+                                                    __call_res?;
+                                                } else {
+                                                }
+                                            }
+                                            s_i64_0 = l18;
+                                            s_i64_1 = 4i64;
+                                            s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                                            l18 = s_i64_0;
+                                            s_i64_0 = l18;
+                                            l16 = s_i64_0;
+                                            s_i32_0 = l0;
+                                            s_i64_1 = l18;
+                                            s_i64_2 = l7;
+                                            vm.enter_call()?;
+                                            let __call_res = dispatch.call_p_i32_i64_i64_ret_i64(vm, c_map, 7usize, s_i32_0, s_i64_1, s_i64_2, host);
+                                            vm.exit_call();
+                                            let __t16 = __call_res?;
+                                            s_i64_0 = __t16;
+                                            l23 = s_i64_0;
+                                            s_i64_0 = l23;
+                                            s_i64_1 = 0i64;
+                                            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+                                            'blk_13: {
+                                                if s_i32_0 != 0 {
+                                                    s_i32_0 = 1i32;
+                                                } else {
+                                                    s_i64_0 = l18;
+                                                    s_i64_1 = l23;
+                                                    s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                                                    s_i64_1 = l7;
+                                                    s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
+                                                }
+                                            }
+                                            'blk_14: {
+                                                if s_i32_0 != 0 {
+                                                    s_i32_0 = 0i32;
+                                                    l24 = s_i32_0;
+                                                    s_i32_0 = 16i32;
+                                                    vm.enter_call()?;
+                                                    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                                    vm.exit_call();
+                                                    let __t17 = __call_res?;
+                                                    s_i32_0 = __t17;
+                                                    l25 = s_i32_0;
+                                                    s_i32_0 = l25;
+                                                    s_i32_1 = l25;
+                                                    s_i32_2 = 16i32;
+                                                    s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
+                                                    ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                                    s_i32_0 = l25;
+                                                    s_i32_1 = 0i32;
+                                                    ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                                    s_i32_0 = l25;
+                                                    s_i32_1 = 0i32;
+                                                    ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+                                                    s_i32_0 = l25;
+                                                    s_i32_1 = 1i32;
+                                                    ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
+                                                    s_i32_0 = l25;
+                                                    l26 = s_i32_0;
+                                                    s_i32_0 = 8i32;
+                                                    vm.enter_call()?;
+                                                    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                                    vm.exit_call();
+                                                    let __t18 = __call_res?;
+                                                    s_i32_0 = __t18;
+                                                    l27 = s_i32_0;
+                                                    s_i32_0 = l27;
+                                                    s_i32_1 = l24;
+                                                    ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                                    s_i32_0 = l27;
+                                                    s_i32_1 = l26;
+                                                    ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                                    s_i32_0 = l27;
+                                                    l28 = s_i32_0;
+                                                    s_i32_0 = l28;
+                                                    return Ok(s_i32_0);
+                                                } else {
+                                                }
+                                            }
+                                            s_i64_0 = l18;
+                                            s_i64_1 = l23;
+                                            s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                                            l18 = s_i64_0;
+                                            continue 'blk_6;
+                                        } else {
+                                        }
+                                    }
+                                    s_i32_0 = l21;
+                                    s_i32_1 = 132i32;
+                                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                    'blk_15: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = l22;
+                                            s_i32_1 = 133i32;
+                                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                        } else {
+                                            s_i32_0 = 0i32;
+                                        }
+                                    }
+                                    'blk_16: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = 0i32;
+                                            l29 = s_i32_0;
+                                            s_i32_0 = 16i32;
+                                            vm.enter_call()?;
+                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                            vm.exit_call();
+                                            let __t19 = __call_res?;
+                                            s_i32_0 = __t19;
+                                            l30 = s_i32_0;
+                                            s_i32_0 = l30;
+                                            s_i32_1 = l30;
+                                            s_i32_2 = 16i32;
+                                            s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
+                                            ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                            s_i32_0 = l30;
+                                            s_i32_1 = 0i32;
+                                            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                            s_i32_0 = l30;
+                                            s_i32_1 = 0i32;
+                                            ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+                                            s_i32_0 = l30;
+                                            s_i32_1 = 1i32;
+                                            ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
+                                            s_i32_0 = l30;
+                                            l31 = s_i32_0;
+                                            s_i32_0 = 8i32;
+                                            vm.enter_call()?;
+                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                            vm.exit_call();
+                                            let __t20 = __call_res?;
+                                            s_i32_0 = __t20;
+                                            l32 = s_i32_0;
+                                            s_i32_0 = l32;
+                                            s_i32_1 = l29;
+                                            ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                            s_i32_0 = l32;
+                                            s_i32_1 = l31;
+                                            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                            s_i32_0 = l32;
+                                            l33 = s_i32_0;
+                                            s_i32_0 = l33;
+                                            return Ok(s_i32_0);
+                                        } else {
+                                        }
+                                    }
+                                } else {
+                                }
+                            }
+                        } else {
+                        }
+                    }
+                    s_i64_0 = l18;
+                    s_i64_1 = 4i64;
+                    s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                    l18 = s_i64_0;
+                } else {
+                    s_i32_0 = l20;
+                    s_i32_1 = 248i32;
+                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                    'blk_17: {
+                        if s_i32_0 != 0 {
+                            s_i64_0 = l18;
+                            s_i64_1 = 5i64;
+                            s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                            l18 = s_i64_0;
+                        } else {
+                            s_i32_0 = l20;
+                            s_i32_1 = 128i32;
+                            s_i32_0 = ops::i32_lt_u(s_i32_0, s_i32_1);
+                            'blk_18: {
+                                if s_i32_0 != 0 {
+                                    s_i64_0 = l18;
+                                    s_i64_1 = 1i64;
+                                    s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                                    l18 = s_i64_0;
+                                } else {
+                                    s_i32_0 = l0;
+                                    s_i64_1 = l18;
+                                    s_i64_2 = l7;
+                                    vm.enter_call()?;
+                                    let __call_res = dispatch.call_p_i32_i64_i64_ret_i64(vm, c_map, 7usize, s_i32_0, s_i64_1, s_i64_2, host);
+                                    vm.exit_call();
+                                    let __t21 = __call_res?;
+                                    s_i64_0 = __t21;
+                                    l34 = s_i64_0;
+                                    s_i64_0 = l34;
+                                    s_i64_1 = 0i64;
+                                    s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+                                    'blk_19: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = 1i32;
+                                        } else {
+                                            s_i64_0 = l18;
+                                            s_i64_1 = l34;
+                                            s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                                            s_i64_1 = l7;
+                                            s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
+                                        }
+                                    }
+                                    'blk_20: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = 0i32;
+                                            l35 = s_i32_0;
+                                            s_i32_0 = 16i32;
+                                            vm.enter_call()?;
+                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                            vm.exit_call();
+                                            let __t22 = __call_res?;
+                                            s_i32_0 = __t22;
+                                            l36 = s_i32_0;
+                                            s_i32_0 = l36;
+                                            s_i32_1 = l36;
+                                            s_i32_2 = 16i32;
+                                            s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
+                                            ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                            s_i32_0 = l36;
+                                            s_i32_1 = 0i32;
+                                            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                            s_i32_0 = l36;
+                                            s_i32_1 = 0i32;
+                                            ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+                                            s_i32_0 = l36;
+                                            s_i32_1 = 1i32;
+                                            ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
+                                            s_i32_0 = l36;
+                                            l37 = s_i32_0;
+                                            s_i32_0 = 8i32;
+                                            vm.enter_call()?;
+                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                            vm.exit_call();
+                                            let __t23 = __call_res?;
+                                            s_i32_0 = __t23;
+                                            l38 = s_i32_0;
+                                            s_i32_0 = l38;
+                                            s_i32_1 = l35;
+                                            ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                            s_i32_0 = l38;
+                                            s_i32_1 = l37;
+                                            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                            s_i32_0 = l38;
+                                            l39 = s_i32_0;
+                                            s_i32_0 = l39;
+                                            return Ok(s_i32_0);
+                                        } else {
+                                        }
+                                    }
+                                    s_i64_0 = l18;
+                                    s_i64_1 = l34;
+                                    s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                                    l18 = s_i64_0;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            continue 'blk_6;
+            break 'blk_6;
+        }
+    }
+    'blk_21: {
+        'blk_22: loop {
+            vm.deduct(host, 1)?;
+            s_i64_0 = l18;
+            s_i64_1 = l7;
+            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+            s_i32_0 = ops::i32_eqz(s_i32_0);
+            if s_i32_0 != 0 {
+                break 'blk_21;
+            }
+            s_i32_0 = l0;
+            s_i64_1 = l18;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 5usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t24 = __call_res?;
+            s_i32_0 = __t24;
+            s_i32_1 = 255i32;
+            s_i32_0 = ops::i32_and(s_i32_0, s_i32_1);
+            l40 = s_i32_0;
+            s_i32_0 = l40;
+            s_i32_1 = 244i32;
+            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+            'blk_23: {
+                if s_i32_0 != 0 {
+                    s_i64_0 = l18;
+                    s_i64_1 = 4i64;
+                    s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                    l41 = s_i64_0;
+                    s_i64_0 = l41;
+                    s_i64_1 = l7;
+                    s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
+                    'blk_24: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = 0i32;
+                            l42 = s_i32_0;
+                            s_i32_0 = 16i32;
+                            vm.enter_call()?;
+                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                            vm.exit_call();
+                            let __t25 = __call_res?;
+                            s_i32_0 = __t25;
+                            l43 = s_i32_0;
+                            s_i32_0 = l43;
+                            s_i32_1 = l43;
+                            s_i32_2 = 16i32;
+                            s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
+                            ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                            s_i32_0 = l43;
+                            s_i32_1 = 0i32;
+                            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                            s_i32_0 = l43;
+                            s_i32_1 = 0i32;
+                            ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+                            s_i32_0 = l43;
+                            s_i32_1 = 1i32;
+                            ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
+                            s_i32_0 = l43;
+                            l44 = s_i32_0;
+                            s_i32_0 = 8i32;
+                            vm.enter_call()?;
+                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                            vm.exit_call();
+                            let __t26 = __call_res?;
+                            s_i32_0 = __t26;
+                            l45 = s_i32_0;
+                            s_i32_0 = l45;
+                            s_i32_1 = l42;
+                            ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                            s_i32_0 = l45;
+                            s_i32_1 = l44;
+                            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                            s_i32_0 = l45;
+                            l46 = s_i32_0;
+                            s_i32_0 = l46;
+                            return Ok(s_i32_0);
+                        } else {
+                        }
+                    }
+                    s_i32_0 = l0;
+                    s_i64_1 = l18;
+                    s_i64_2 = 2i64;
+                    s_i64_1 = ops::i64_add(s_i64_1, s_i64_2);
+                    vm.enter_call()?;
+                    let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 5usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t27 = __call_res?;
+                    s_i32_0 = __t27;
+                    s_i32_1 = 255i32;
+                    s_i32_0 = ops::i32_and(s_i32_0, s_i32_1);
+                    l47 = s_i32_0;
+                    s_i32_0 = l47;
+                    s_i32_1 = 131i32;
+                    s_i32_0 = ops::i32_sub(s_i32_0, s_i32_1);
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_le_u(s_i32_0, s_i32_1);
+                    'blk_25: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i64_1 = l18;
+                            s_i64_2 = 1i64;
+                            s_i64_1 = ops::i64_add(s_i64_1, s_i64_2);
+                            vm.enter_call()?;
+                            let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 5usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t28 = __call_res?;
+                            s_i32_0 = __t28;
+                            s_i32_1 = 255i32;
+                            s_i32_0 = ops::i32_and(s_i32_0, s_i32_1);
+                            s_i32_1 = 144i32;
+                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                            'blk_26: {
+                                if s_i32_0 != 0 {
+                                    s_i32_0 = l0;
+                                    s_i64_1 = l18;
+                                    s_i64_2 = 3i64;
+                                    s_i64_1 = ops::i64_add(s_i64_1, s_i64_2);
+                                    vm.enter_call()?;
+                                    let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 5usize, s_i32_0, s_i64_1, host);
+                                    vm.exit_call();
+                                    let __t29 = __call_res?;
+                                    s_i32_0 = __t29;
+                                    s_i32_1 = 255i32;
+                                    s_i32_0 = ops::i32_and(s_i32_0, s_i32_1);
+                                    l48 = s_i32_0;
+                                    s_i32_0 = l47;
+                                    s_i32_1 = 131i32;
+                                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                    'blk_27: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = l48;
+                                            s_i32_1 = 191i32;
+                                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                        } else {
+                                            s_i32_0 = 0i32;
+                                        }
+                                    }
+                                    'blk_28: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = 1i32;
+                                            l17 = s_i32_0;
+                                            s_i64_0 = l18;
+                                            s_i64_1 = l16;
+                                            s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
+                                            'blk_29: {
+                                                if s_i32_0 != 0 {
+                                                    s_i32_0 = l15;
+                                                    s_i32_1 = l0;
+                                                    s_i64_2 = l16;
+                                                    s_i64_3 = l18;
+                                                    vm.enter_call()?;
+                                                    let __call_res = dispatch.call_p_i32_i64_i64_ret_i32(vm, c_map, 2usize, s_i32_1, s_i64_2, s_i64_3, host);
+                                                    vm.exit_call();
+                                                    let __t30 = __call_res?;
+                                                    s_i32_1 = __t30;
+                                                    vm.enter_call()?;
+                                                    let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 6usize, s_i32_0, s_i32_1, host);
+                                                    vm.exit_call();
+                                                    __call_res?;
+                                                } else {
+                                                }
+                                            }
+                                            s_i64_0 = l41;
+                                            l18 = s_i64_0;
+                                            s_i64_0 = l18;
+                                            l16 = s_i64_0;
+                                            s_i64_0 = l18;
+                                            s_i64_1 = l7;
+                                            s_i32_0 = ops::i64_ge_u(s_i64_0, s_i64_1);
+                                            'blk_30: {
+                                                if s_i32_0 != 0 {
+                                                    s_i32_0 = 0i32;
+                                                    l49 = s_i32_0;
+                                                    s_i32_0 = 16i32;
+                                                    vm.enter_call()?;
+                                                    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                                    vm.exit_call();
+                                                    let __t31 = __call_res?;
+                                                    s_i32_0 = __t31;
+                                                    l50 = s_i32_0;
+                                                    s_i32_0 = l50;
+                                                    s_i32_1 = l50;
+                                                    s_i32_2 = 16i32;
+                                                    s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
+                                                    ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                                    s_i32_0 = l50;
+                                                    s_i32_1 = 0i32;
+                                                    ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                                    s_i32_0 = l50;
+                                                    s_i32_1 = 0i32;
+                                                    ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+                                                    s_i32_0 = l50;
+                                                    s_i32_1 = 1i32;
+                                                    ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
+                                                    s_i32_0 = l50;
+                                                    l51 = s_i32_0;
+                                                    s_i32_0 = 8i32;
+                                                    vm.enter_call()?;
+                                                    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                                    vm.exit_call();
+                                                    let __t32 = __call_res?;
+                                                    s_i32_0 = __t32;
+                                                    l52 = s_i32_0;
+                                                    s_i32_0 = l52;
+                                                    s_i32_1 = l49;
+                                                    ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                                    s_i32_0 = l52;
+                                                    s_i32_1 = l51;
+                                                    ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                                    s_i32_0 = l52;
+                                                    l53 = s_i32_0;
+                                                    s_i32_0 = l53;
+                                                    return Ok(s_i32_0);
+                                                } else {
+                                                }
+                                            }
+                                            s_i32_0 = l0;
+                                            s_i64_1 = l18;
+                                            s_i64_2 = l7;
+                                            vm.enter_call()?;
+                                            let __call_res = dispatch.call_p_i32_i64_i64_ret_i64(vm, c_map, 7usize, s_i32_0, s_i64_1, s_i64_2, host);
+                                            vm.exit_call();
+                                            let __t33 = __call_res?;
+                                            s_i64_0 = __t33;
+                                            l54 = s_i64_0;
+                                            s_i64_0 = l54;
+                                            s_i64_1 = 0i64;
+                                            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+                                            'blk_31: {
+                                                if s_i32_0 != 0 {
+                                                    s_i32_0 = 1i32;
+                                                } else {
+                                                    s_i64_0 = l18;
+                                                    s_i64_1 = l54;
+                                                    s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                                                    s_i64_1 = l7;
+                                                    s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
+                                                }
+                                            }
+                                            'blk_32: {
+                                                if s_i32_0 != 0 {
+                                                    s_i32_0 = 0i32;
+                                                    l55 = s_i32_0;
+                                                    s_i32_0 = 16i32;
+                                                    vm.enter_call()?;
+                                                    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                                    vm.exit_call();
+                                                    let __t34 = __call_res?;
+                                                    s_i32_0 = __t34;
+                                                    l56 = s_i32_0;
+                                                    s_i32_0 = l56;
+                                                    s_i32_1 = l56;
+                                                    s_i32_2 = 16i32;
+                                                    s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
+                                                    ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                                    s_i32_0 = l56;
+                                                    s_i32_1 = 0i32;
+                                                    ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                                    s_i32_0 = l56;
+                                                    s_i32_1 = 0i32;
+                                                    ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+                                                    s_i32_0 = l56;
+                                                    s_i32_1 = 1i32;
+                                                    ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
+                                                    s_i32_0 = l56;
+                                                    l57 = s_i32_0;
+                                                    s_i32_0 = 8i32;
+                                                    vm.enter_call()?;
+                                                    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                                    vm.exit_call();
+                                                    let __t35 = __call_res?;
+                                                    s_i32_0 = __t35;
+                                                    l58 = s_i32_0;
+                                                    s_i32_0 = l58;
+                                                    s_i32_1 = l55;
+                                                    ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                                    s_i32_0 = l58;
+                                                    s_i32_1 = l57;
+                                                    ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                                    s_i32_0 = l58;
+                                                    l59 = s_i32_0;
+                                                    s_i32_0 = l59;
+                                                    return Ok(s_i32_0);
+                                                } else {
+                                                }
+                                            }
+                                            s_i64_0 = l18;
+                                            s_i64_1 = l54;
+                                            s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                                            l18 = s_i64_0;
+                                            continue 'blk_22;
+                                        } else {
+                                        }
+                                    }
+                                    s_i32_0 = l47;
+                                    s_i32_1 = 132i32;
+                                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                    'blk_33: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = l48;
+                                            s_i32_1 = 133i32;
+                                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                                        } else {
+                                            s_i32_0 = 0i32;
+                                        }
+                                    }
+                                    'blk_34: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = 0i32;
+                                            l60 = s_i32_0;
+                                            s_i32_0 = 16i32;
+                                            vm.enter_call()?;
+                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                            vm.exit_call();
+                                            let __t36 = __call_res?;
+                                            s_i32_0 = __t36;
+                                            l61 = s_i32_0;
+                                            s_i32_0 = l61;
+                                            s_i32_1 = l61;
+                                            s_i32_2 = 16i32;
+                                            s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
+                                            ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                            s_i32_0 = l61;
+                                            s_i32_1 = 0i32;
+                                            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                            s_i32_0 = l61;
+                                            s_i32_1 = 0i32;
+                                            ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+                                            s_i32_0 = l61;
+                                            s_i32_1 = 1i32;
+                                            ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
+                                            s_i32_0 = l61;
+                                            l62 = s_i32_0;
+                                            s_i32_0 = 8i32;
+                                            vm.enter_call()?;
+                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                            vm.exit_call();
+                                            let __t37 = __call_res?;
+                                            s_i32_0 = __t37;
+                                            l63 = s_i32_0;
+                                            s_i32_0 = l63;
+                                            s_i32_1 = l60;
+                                            ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                            s_i32_0 = l63;
+                                            s_i32_1 = l62;
+                                            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                            s_i32_0 = l63;
+                                            l64 = s_i32_0;
+                                            s_i32_0 = l64;
+                                            return Ok(s_i32_0);
+                                        } else {
+                                        }
+                                    }
+                                } else {
+                                }
+                            }
+                        } else {
+                        }
+                    }
+                    s_i64_0 = l41;
+                    l18 = s_i64_0;
+                } else {
+                    s_i32_0 = l40;
+                    s_i32_1 = 248i32;
+                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                    'blk_35: {
+                        if s_i32_0 != 0 {
+                            s_i64_0 = l18;
+                            s_i64_1 = 5i64;
+                            s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                            l65 = s_i64_0;
+                            s_i64_0 = l65;
+                            s_i64_1 = l7;
+                            s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
+                            'blk_36: {
+                                if s_i32_0 != 0 {
+                                    s_i32_0 = 0i32;
+                                    l66 = s_i32_0;
+                                    s_i32_0 = 16i32;
+                                    vm.enter_call()?;
+                                    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                    vm.exit_call();
+                                    let __t38 = __call_res?;
+                                    s_i32_0 = __t38;
+                                    l67 = s_i32_0;
+                                    s_i32_0 = l67;
+                                    s_i32_1 = l67;
+                                    s_i32_2 = 16i32;
+                                    s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
+                                    ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                    s_i32_0 = l67;
+                                    s_i32_1 = 0i32;
+                                    ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                    s_i32_0 = l67;
+                                    s_i32_1 = 0i32;
+                                    ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+                                    s_i32_0 = l67;
+                                    s_i32_1 = 1i32;
+                                    ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
+                                    s_i32_0 = l67;
+                                    l68 = s_i32_0;
+                                    s_i32_0 = 8i32;
+                                    vm.enter_call()?;
+                                    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                    vm.exit_call();
+                                    let __t39 = __call_res?;
+                                    s_i32_0 = __t39;
+                                    l69 = s_i32_0;
+                                    s_i32_0 = l69;
+                                    s_i32_1 = l66;
+                                    ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                    s_i32_0 = l69;
+                                    s_i32_1 = l68;
+                                    ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                    s_i32_0 = l69;
+                                    l70 = s_i32_0;
+                                    s_i32_0 = l70;
+                                    return Ok(s_i32_0);
+                                } else {
+                                }
+                            }
+                            s_i64_0 = l65;
+                            l18 = s_i64_0;
+                        } else {
+                            s_i32_0 = l40;
+                            s_i32_1 = 128i32;
+                            s_i32_0 = ops::i32_lt_u(s_i32_0, s_i32_1);
+                            'blk_37: {
+                                if s_i32_0 != 0 {
+                                    s_i64_0 = l18;
+                                    s_i64_1 = 1i64;
+                                    s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                                    l18 = s_i64_0;
+                                } else {
+                                    s_i32_0 = l0;
+                                    s_i64_1 = l18;
+                                    s_i64_2 = l7;
+                                    vm.enter_call()?;
+                                    let __call_res = dispatch.call_p_i32_i64_i64_ret_i64(vm, c_map, 7usize, s_i32_0, s_i64_1, s_i64_2, host);
+                                    vm.exit_call();
+                                    let __t40 = __call_res?;
+                                    s_i64_0 = __t40;
+                                    l71 = s_i64_0;
+                                    s_i64_0 = l71;
+                                    s_i64_1 = 0i64;
+                                    s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+                                    'blk_38: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = 1i32;
+                                        } else {
+                                            s_i64_0 = l18;
+                                            s_i64_1 = l71;
+                                            s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                                            s_i64_1 = l7;
+                                            s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
+                                        }
+                                    }
+                                    'blk_39: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = 0i32;
+                                            l72 = s_i32_0;
+                                            s_i32_0 = 16i32;
+                                            vm.enter_call()?;
+                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                            vm.exit_call();
+                                            let __t41 = __call_res?;
+                                            s_i32_0 = __t41;
+                                            l73 = s_i32_0;
+                                            s_i32_0 = l73;
+                                            s_i32_1 = l73;
+                                            s_i32_2 = 16i32;
+                                            s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
+                                            ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                            s_i32_0 = l73;
+                                            s_i32_1 = 0i32;
+                                            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                            s_i32_0 = l73;
+                                            s_i32_1 = 0i32;
+                                            ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+                                            s_i32_0 = l73;
+                                            s_i32_1 = 1i32;
+                                            ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
+                                            s_i32_0 = l73;
+                                            l74 = s_i32_0;
+                                            s_i32_0 = 8i32;
+                                            vm.enter_call()?;
+                                            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+                                            vm.exit_call();
+                                            let __t42 = __call_res?;
+                                            s_i32_0 = __t42;
+                                            l75 = s_i32_0;
+                                            s_i32_0 = l75;
+                                            s_i32_1 = l72;
+                                            ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                                            s_i32_0 = l75;
+                                            s_i32_1 = l74;
+                                            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                                            s_i32_0 = l75;
+                                            l76 = s_i32_0;
+                                            s_i32_0 = l76;
+                                            return Ok(s_i32_0);
+                                        } else {
+                                        }
+                                    }
+                                    s_i64_0 = l18;
+                                    s_i64_1 = l71;
+                                    s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
+                                    l18 = s_i64_0;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            continue 'blk_22;
+            break 'blk_22;
+        }
+    }
+    s_i32_0 = l17;
+    s_i32_0 = ops::i32_eqz(s_i32_0);
+    'blk_40: {
+        if s_i32_0 != 0 {
+            s_i32_0 = 1i32;
+            l77 = s_i32_0;
+            s_i32_0 = l0;
+            s_i64_1 = 16i64;
+            s_i64_2 = l7;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_i64_ret_i32(vm, c_map, 2usize, s_i32_0, s_i64_1, s_i64_2, host);
+            vm.exit_call();
+            let __t43 = __call_res?;
+            s_i32_0 = __t43;
+            l78 = s_i32_0;
+            s_i32_0 = 8i32;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+            vm.exit_call();
+            let __t44 = __call_res?;
+            s_i32_0 = __t44;
+            l79 = s_i32_0;
+            s_i32_0 = l79;
+            s_i32_1 = l77;
+            ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+            s_i32_0 = l79;
+            s_i32_1 = l78;
+            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+            s_i32_0 = l79;
+            l80 = s_i32_0;
+            s_i32_0 = l80;
+            return Ok(s_i32_0);
+        } else {
+        }
+    }
+    s_i64_0 = l7;
+    s_i64_1 = l16;
+    s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
+    'blk_41: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i32_1 = l0;
+            s_i64_2 = l16;
+            s_i64_3 = l7;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i64_i64_ret_i32(vm, c_map, 2usize, s_i32_1, s_i64_2, s_i64_3, host);
+            vm.exit_call();
+            let __t45 = __call_res?;
+            s_i32_1 = __t45;
+            vm.enter_call()?;
+            let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 6usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+        } else {
+        }
+    }
+    s_i32_0 = 1i32;
+    l81 = s_i32_0;
+    s_i32_0 = l15;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 8usize, s_i32_0, host);
+    vm.exit_call();
+    let __t46 = __call_res?;
+    s_i32_0 = __t46;
+    l82 = s_i32_0;
+    s_i32_0 = 8i32;
+    vm.enter_call()?;
+    let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
+    vm.exit_call();
+    let __t47 = __call_res?;
+    s_i32_0 = __t47;
+    l83 = s_i32_0;
+    s_i32_0 = l83;
+    s_i32_1 = l81;
+    ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+    s_i32_0 = l83;
+    s_i32_1 = l82;
+    ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+    s_i32_0 = l83;
+    l84 = s_i32_0;
+    s_i32_0 = l84;
+    return Ok(s_i32_0);
+    }
+
+}
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+pub(crate) mod desc_0 {
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
+use crate::utilities::*;
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Generated descriptor submodule imports"
+)]
+use super::*;
+
+const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize];
+const FN_0_CALLEES: &[u32] = &[92u32];
+const FN_1_CALLEES: &[u32] = &[0u32, 24u32];
+const FN_2_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_3_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_4_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_5_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_7_GLOBALS: &[usize] = &[14usize];
+const FN_7_CALLEES: &[u32] = &[0u32, 110u32];
+const FN_8_CALLEES: &[u32] = &[0u32, 0u32];
+const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
+const FN_10_CALLEES: &[u32] = &[0u32, 111u32];
+const FN_11_CALLEES: &[u32] = &[0u32, 111u32];
+const FN_12_CALLEES: &[u32] = &[0u32, 25u32];
+const FN_13_CALLEES: &[u32] = &[0u32, 110u32];
+const FN_14_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_15_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_16_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_17_CALLEES: &[u32] = &[0u32, 13u32];
+const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
+const FN_19_CALLEES: &[u32] = &[0u32, 13u32];
+const FN_20_CALLEES: &[u32] = &[0u32];
+const FN_21_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_22_CALLEES: &[u32] = &[0u32, 27u32];
+const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 1u32, 1u32, 92u32];
+const FN_24_CALLEES: &[u32] = &[0u32, 110u32];
+const FN_25_CALLEES: &[u32] = &[0u32, 111u32];
+const FN_26_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_27_CALLEES: &[u32] = &[0u32, 32u32, 112u32, 33u32, 2u32];
+const FN_28_CALLEES: &[u32] = &[0u32, 33u32, 112u32, 32u32, 2u32];
+const FN_29_CALLEES: &[u32] = &[0u32, 28u32];
+const FN_30_CALLEES: &[u32] = &[0u32, 29u32];
+const FN_31_CALLEES: &[u32] = &[0u32, 30u32];
+const FN_32_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 92u32];
+const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 92u32];
+const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_35_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_36_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
+const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 92u32];
+const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 92u32];
+const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_39_CALLEES: &[u32] = &[0u32, 92u32, 32u32];
+const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_40_CALLEES: &[u32] = &[0u32, 92u32, 33u32];
+const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 92u32];
+const FN_42_GLOBALS: &[usize] = &[9usize];
+const FN_42_CALLEES: &[u32] = &[0u32, 10u32, 92u32];
+const FN_43_GLOBALS: &[usize] = &[9usize];
+const FN_43_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_44_GLOBALS: &[usize] = &[9usize];
+const FN_44_CALLEES: &[u32] = &[0u32, 11u32, 92u32];
+const FN_45_GLOBALS: &[usize] = &[9usize];
+const FN_45_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_46_GLOBALS: &[usize] = &[9usize];
+const FN_46_CALLEES: &[u32] = &[0u32, 12u32, 92u32];
+const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
+const FN_47_CALLEES: &[u32] = &[0u32, 110u32, 92u32, 13u32, 93u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 113u32];
+const FN_48_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_49_CALLEES: &[u32] = &[0u32, 1u32, 112u32, 0u32, 92u32];
+const FN_50_CALLEES: &[u32] = &[0u32, 0u32, 112u32, 1u32, 92u32];
+const FN_51_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_52_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
+const FN_53_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_54_CALLEES: &[u32] = &[0u32, 0u32, 112u32];
+const FN_55_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 112u32];
+const FN_56_CALLEES: &[u32] = &[0u32, 18u32];
+const FN_57_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_58_GLOBALS: &[usize] = &[15usize];
+const FN_58_CALLEES: &[u32] = &[0u32, 16u32, 2u32, 11u32];
+const FN_59_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_60_CALLEES: &[u32] = &[0u32];
+const FN_61_CALLEES: &[u32] = &[0u32];
+const FN_62_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_63_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_64_GLOBALS: &[usize] = &[15usize];
+const FN_64_CALLEES: &[u32] = &[0u32, 17u32, 2u32, 11u32];
+const FN_65_CALLEES: &[u32] = &[0u32, 1u32];
+const FN_66_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_67_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 22u32, 114u32, 92u32, 13u32, 115u32, 116u32, 117u32, 1u32, 0u32, 94u32];
+const FN_68_CALLEES: &[u32] = &[0u32, 2u32, 92u32, 22u32, 114u32, 1u32, 118u32, 117u32, 119u32, 0u32, 32u32, 2u32, 120u32, 111u32, 13u32, 15u32, 1u32];
+const FN_69_GLOBALS: &[usize] = &[14usize];
+const FN_69_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 92u32, 32u32, 0u32, 2u32];
+const FN_70_CALLEES: &[u32] = &[0u32, 9u32, 12u32, 14u32, 0u32, 0u32, 94u32];
+const FN_71_CALLEES: &[u32] = &[0u32, 0u32, 9u32, 0u32, 94u32];
+const FN_72_CALLEES: &[u32] = &[0u32, 19u32];
+const FN_73_CALLEES: &[u32] = &[0u32, 20u32, 1u32, 112u32, 111u32, 1u32];
+const FN_74_CALLEES: &[u32] = &[0u32, 2u32, 92u32, 23u32, 19u32, 1u32];
+const FN_75_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 92u32, 1u32, 5u32, 23u32, 9u32, 94u32, 112u32, 95u32, 121u32, 119u32, 14u32];
+const FN_76_CALLEES: &[u32] = &[0u32, 1u32, 2u32, 92u32, 23u32, 19u32, 13u32, 94u32, 13u32];
+const FN_77_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 92u32, 9u32, 1u32, 94u32, 12u32, 14u32];
+const FN_78_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 23u32, 19u32, 16u32, 14u32, 9u32, 94u32, 112u32, 95u32, 14u32];
+const FN_79_CALLEES: &[u32] = &[0u32, 23u32, 26u32, 1u32];
+const FN_80_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 1u32];
+const FN_81_CALLEES: &[u32] = &[0u32, 19u32, 18u32, 92u32];
+const FN_82_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 13u32, 18u32, 13u32, 2u32, 15u32, 22u32, 119u32, 111u32, 121u32, 2u32, 94u32];
+const FN_83_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
+const FN_84_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 18u32, 13u32, 19u32, 94u32];
+const FN_85_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 18u32, 13u32, 22u32, 21u32, 19u32, 16u32, 94u32];
+const FN_86_CALLEES: &[u32] = &[0u32, 27u32, 18u32, 92u32];
+const FN_87_GLOBALS: &[usize] = &[14usize];
+const FN_87_CALLEES: &[u32] = &[0u32, 110u32, 18u32, 13u32, 92u32, 13u32, 13u32, 14u32, 11u32, 111u32, 16u32, 33u32, 2u32, 24u32, 94u32];
+const FN_88_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
+const FN_89_CALLEES: &[u32] = &[0u32, 92u32, 0u32, 122u32, 9u32, 22u32, 17u32, 0u32, 94u32];
+const FN_90_CALLEES: &[u32] = &[0u32, 12u32, 14u32, 120u32, 0u32, 112u32, 111u32, 20u32, 1u32, 33u32, 95u32, 121u32];
+const FN_91_CALLEES: &[u32] = &[0u32, 22u32, 114u32, 118u32, 117u32, 119u32];
+const FN_92_GLOBALS: &[usize] = &[14usize];
+const FN_92_CALLEES: &[u32] = &[0u32, 40u32, 43u32, 36u32];
+const FN_93_CALLEES: &[u32] = &[0u32, 62u32];
+const FN_94_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_95_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_96_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_97_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_98_CALLEES: &[u32] = &[0u32, 70u32];
+const FN_99_GLOBALS: &[usize] = &[20usize, 17usize, 18usize];
+const FN_99_CALLEES: &[u32] = &[0u32, 123u32];
+const FN_100_GLOBALS: &[usize] = &[20usize];
+const FN_100_CALLEES: &[u32] = &[0u32, 123u32, 31u32, 6u32, 35u32, 40u32, 1u32, 12u32];
+const FN_101_GLOBALS: &[usize] = &[17usize];
+const FN_101_CALLEES: &[u32] = &[0u32, 123u32];
+const FN_102_CALLEES: &[u32] = &[0u32, 72u32];
+const FN_103_CALLEES: &[u32] = &[0u32, 43u32, 1u32];
+const FN_104_CALLEES: &[u32] = &[0u32, 43u32, 2u32];
+const FN_105_CALLEES: &[u32] = &[0u32, 63u32];
+const FN_106_CALLEES: &[u32] = &[0u32, 123u32];
+const FN_107_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_108_CALLEES: &[u32] = &[0u32, 3u32];
+const FN_109_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_110_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_111_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_112_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_113_CALLEES: &[u32] = &[0u32, 53u32];
+const FN_114_CALLEES: &[u32] = &[0u32, 53u32];
+const FN_115_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_116_CALLEES: &[u32] = &[0u32];
+const FN_117_CALLEES: &[u32] = &[0u32, 53u32];
+const FN_118_CALLEES: &[u32] = &[0u32];
+const FN_119_CALLEES: &[u32] = &[0u32, 64u32];
+const FN_120_CALLEES: &[u32] = &[0u32, 65u32];
+const FN_121_CALLEES: &[u32] = &[0u32, 123u32];
+const FN_122_CALLEES: &[u32] = &[0u32, 45u32];
+const FN_123_CALLEES: &[u32] = &[0u32, 43u32, 5u32];
+const FN_124_CALLEES: &[u32] = &[0u32, 45u32, 69u32];
+const FN_125_CALLEES: &[u32] = &[0u32, 66u32];
+const FN_126_CALLEES: &[u32] = &[0u32, 67u32];
+const FN_127_CALLEES: &[u32] = &[0u32, 68u32];
+const FN_128_CALLEES: &[u32] = &[0u32, 1u32];
+const FN_129_CALLEES: &[u32] = &[0u32, 69u32];
+const FN_130_GLOBALS: &[usize] = &[20usize, 9usize];
+const FN_130_CALLEES: &[u32] = &[0u32, 44u32, 70u32, 92u32];
+const FN_131_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize, 9usize];
+const FN_131_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 31u32, 31u32, 39u32, 40u32, 52u32];
+const FN_132_GLOBALS: &[usize] = &[20usize, 9usize];
+const FN_132_CALLEES: &[u32] = &[0u32, 39u32, 92u32];
+const FN_133_CALLEES: &[u32] = &[0u32, 69u32, 40u32, 92u32, 70u32, 72u32];
+const FN_134_GLOBALS: &[usize] = &[20usize, 9usize];
+const FN_134_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 92u32];
+const FN_135_GLOBALS: &[usize] = &[17usize, 20usize, 9usize];
+const FN_135_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 52u32];
+const FN_136_GLOBALS: &[usize] = &[20usize, 9usize];
+const FN_136_CALLEES: &[u32] = &[0u32, 92u32, 43u32, 32u32, 39u32];
+const FN_137_GLOBALS: &[usize] = &[20usize, 9usize];
+const FN_137_CALLEES: &[u32] = &[0u32, 92u32, 0u32, 112u32, 1u32, 2u32];
+const FN_138_GLOBALS: &[usize] = &[20usize, 9usize];
+const FN_138_CALLEES: &[u32] = &[0u32, 47u32, 72u32, 92u32];
+const FN_139_GLOBALS: &[usize] = &[9usize];
+const FN_139_CALLEES: &[u32] = &[0u32, 47u32, 92u32, 15u32];
+const FN_140_GLOBALS: &[usize] = &[9usize];
+const FN_140_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_141_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_141_CALLEES: &[u32] = &[0u32, 40u32, 92u32, 43u32];
+const FN_142_GLOBALS: &[usize] = &[9usize];
+const FN_142_CALLEES: &[u32] = &[0u32, 11u32, 92u32];
+const FN_143_GLOBALS: &[usize] = &[9usize];
+const FN_143_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_144_GLOBALS: &[usize] = &[9usize];
+const FN_144_CALLEES: &[u32] = &[0u32, 12u32, 92u32];
+const FN_145_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize];
+const FN_145_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 31u32, 31u32, 39u32, 40u32, 52u32];
+const FN_146_CALLEES: &[u32] = &[0u32, 43u32, 34u32, 39u32];
+const FN_147_CALLEES: &[u32] = &[0u32, 43u32, 35u32, 39u32];
+const FN_148_GLOBALS: &[usize] = &[20usize];
+const FN_148_CALLEES: &[u32] = &[0u32, 72u32];
+const FN_149_CALLEES: &[u32] = &[0u32, 43u32, 36u32, 39u32];
+const FN_150_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_151_GLOBALS: &[usize] = &[23usize];
+const FN_151_CALLEES: &[u32] = &[0u32, 98u32, 87u32, 97u32, 99u32];
+const FN_152_CALLEES: &[u32] = &[0u32];
+const FN_153_CALLEES: &[u32] = &[0u32, 60u32];
+const FN_154_CALLEES: &[u32] = &[0u32];
+const FN_155_CALLEES: &[u32] = &[0u32];
+const FN_156_CALLEES: &[u32] = &[0u32];
+const FN_157_CALLEES: &[u32] = &[0u32, 97u32, 96u32];
+const FN_158_CALLEES: &[u32] = &[0u32, 94u32];
+const FN_159_CALLEES: &[u32] = &[0u32, 124u32];
+const FN_160_GLOBALS: &[usize] = &[23usize];
+const FN_160_CALLEES: &[u32] = &[0u32, 11u32, 0u32, 92u32];
+const FN_161_GLOBALS: &[usize] = &[23usize];
+const FN_161_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_162_CALLEES: &[u32] = &[0u32, 55u32];
+const FN_163_CALLEES: &[u32] = &[0u32, 11u32, 0u32, 92u32, 87u32];
+const FN_164_CALLEES: &[u32] = &[0u32, 31u32, 57u32, 40u32, 87u32];
+const FN_165_CALLEES: &[u32] = &[0u32, 5u32, 87u32, 0u32];
+const FN_166_CALLEES: &[u32] = &[0u32, 6u32];
+const FN_167_CALLEES: &[u32] = &[0u32, 102u32, 87u32];
+const FN_168_CALLEES: &[u32] = &[0u32, 78u32];
+const FN_169_CALLEES: &[u32] = &[0u32, 78u32];
+const FN_170_CALLEES: &[u32] = &[0u32, 1u32, 14u32, 24u32, 1u32, 11u32, 1u32, 0u32, 16u32, 94u32, 87u32];
+const FN_171_CALLEES: &[u32] = &[0u32];
+const FN_172_CALLEES: &[u32] = &[0u32, 78u32];
+const FN_173_CALLEES: &[u32] = &[0u32, 78u32];
+const FN_174_GLOBALS: &[usize] = &[23usize];
+const FN_174_CALLEES: &[u32] = &[0u32, 69u32, 92u32];
+const FN_175_CALLEES: &[u32] = &[0u32, 95u32];
+const FN_176_CALLEES: &[u32] = &[0u32, 100u32, 87u32];
+const FN_177_CALLEES: &[u32] = &[0u32, 124u32];
+const FN_178_GLOBALS: &[usize] = &[23usize];
+const FN_178_CALLEES: &[u32] = &[0u32, 60u32, 92u32];
+const FN_179_CALLEES: &[u32] = &[0u32, 96u32];
+const FN_180_CALLEES: &[u32] = &[0u32, 61u32, 73u32];
+const FN_181_CALLEES: &[u32] = &[0u32, 96u32];
+const FN_182_GLOBALS: &[usize] = &[23usize, 1usize];
+const FN_182_CALLEES: &[u32] = &[0u32, 60u32, 92u32, 102u32, 87u32];
+const FN_183_CALLEES: &[u32] = &[0u32, 96u32, 53u32, 73u32, 92u32];
+const FN_184_GLOBALS: &[usize] = &[20usize, 9usize, 17usize];
+const FN_184_CALLEES: &[u32] = &[0u32, 70u32, 92u32, 1u32, 110u32, 44u32, 45u32];
+const FN_185_GLOBALS: &[usize] = &[9usize];
+const FN_185_CALLEES: &[u32] = &[0u32, 62u32, 92u32, 46u32];
+const FN_186_GLOBALS: &[usize] = &[9usize];
+const FN_186_CALLEES: &[u32] = &[0u32, 62u32, 92u32, 47u32];
+const FN_187_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_187_CALLEES: &[u32] = &[0u32, 92u32, 70u32];
+const FN_188_GLOBALS: &[usize] = &[9usize];
+const FN_188_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 9u32];
+const FN_189_GLOBALS: &[usize] = &[9usize];
+const FN_189_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 10u32];
+const FN_190_GLOBALS: &[usize] = &[9usize];
+const FN_190_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 11u32];
+const FN_191_GLOBALS: &[usize] = &[23usize, 1usize];
+const FN_191_CALLEES: &[u32] = &[0u32, 60u32, 92u32, 102u32, 87u32];
+const FN_192_CALLEES: &[u32] = &[0u32, 2u32, 25u32, 1u32];
+const FN_193_GLOBALS: &[usize] = &[14usize];
+const FN_193_CALLEES: &[u32] = &[0u32, 92u32, 25u32, 1u32, 1u32];
+const FN_194_CALLEES: &[u32] = &[0u32, 2u32, 25u32];
+const FN_195_CALLEES: &[u32] = &[0u32, 1u32, 14u32, 25u32, 11u32, 16u32, 0u32, 94u32];
+const FN_196_CALLEES: &[u32] = &[0u32, 14u32, 25u32, 1u32, 2u32, 11u32, 16u32, 94u32, 69u32];
+const FN_197_CALLEES: &[u32] = &[0u32, 92u32, 1u32, 26u32, 25u32, 24u32, 0u32, 11u32, 1u32, 0u32, 94u32, 69u32];
+const FN_198_CALLEES: &[u32] = &[0u32, 24u32, 2u32, 25u32];
+const FN_199_CALLEES: &[u32] = &[0u32, 97u32, 92u32, 25u32, 26u32, 2u32, 1u32, 11u32, 1u32, 94u32, 69u32, 1u32, 112u32, 0u32, 0u32, 126u32, 24u32, 127u32, 101u32];
+const FN_200_CALLEES: &[u32] = &[0u32, 22u32, 89u32, 24u32];
+const FN_201_CALLEES: &[u32] = &[0u32, 2u32];
+const FN_202_CALLEES: &[u32] = &[0u32, 2u32];
+const FN_203_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
+const FN_204_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_205_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_206_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_207_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_208_CALLEES: &[u32] = &[0u32, 0u32, 92u32, 1u32, 0u32];
+const FN_209_CALLEES: &[u32] = &[0u32, 92u32, 1u32];
+const FN_210_CALLEES: &[u32] = &[0u32, 18u32, 13u32];
+const FN_211_CALLEES: &[u32] = &[0u32, 13u32, 13u32];
+const FN_212_CALLEES: &[u32] = &[0u32, 1u32];
+const FN_213_CALLEES: &[u32] = &[0u32, 27u32, 15u32];
+const FN_214_CALLEES: &[u32] = &[0u32, 39u32, 15u32];
+const FN_215_CALLEES: &[u32] = &[0u32, 29u32, 15u32];
+const FN_216_CALLEES: &[u32] = &[0u32, 4u32, 6u32];
+const FN_217_CALLEES: &[u32] = &[0u32, 2u32, 15u32];
+const FN_218_CALLEES: &[u32] = &[0u32, 6u32, 15u32];
+const FN_219_CALLEES: &[u32] = &[0u32, 92u32, 9u32, 12u32, 128u32, 14u32, 2u32, 27u32, 94u32];
+const FN_220_CALLEES: &[u32] = &[0u32, 5u32, 1u32, 0u32, 92u32, 8u32, 129u32];
+const FN_221_CALLEES: &[u32] = &[0u32, 9u32, 14u32, 23u32, 12u32, 0u32, 1u32, 94u32];
+const FN_222_CALLEES: &[u32] = &[0u32, 1u32, 2u32, 18u32, 23u32, 38u32, 15u32, 1u32];
+const FN_223_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32];
+const FN_224_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 92u32];
+const FN_225_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 0u32, 92u32, 1u32, 1u32];
+const FN_226_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 92u32];
+const FN_227_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 9u32, 0u32, 92u32, 1u32];
+const FN_228_CALLEES: &[u32] = &[0u32, 0u32, 5u32, 23u32, 92u32];
+const FN_229_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 14u32, 1u32, 0u32, 19u32, 13u32, 3u32, 13u32, 94u32, 92u32];
+const FN_230_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 16u32, 19u32];
+const FN_231_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 2u32, 14u32];
+const FN_232_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 1u32, 16u32, 14u32, 72u32, 92u32, 19u32, 0u32, 1u32, 11u32, 2u32, 13u32, 13u32, 94u32, 10u32];
+const FN_233_CALLEES: &[u32] = &[0u32, 92u32, 130u32];
+const FN_234_CALLEES: &[u32] = &[0u32];
+const FN_235_CALLEES: &[u32] = &[0u32];
+const FN_236_CALLEES: &[u32] = &[0u32];
+const FN_237_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 92u32, 1u32, 5u32, 0u32, 1u32, 0u32, 2u32, 3u32, 9u32, 76u32, 14u32, 13u32, 13u32, 94u32, 11u32, 13u32, 2u32, 0u32, 11u32, 10u32, 8u32, 16u32, 2u32, 77u32, 78u32, 79u32, 72u32];
+const FN_238_CALLEES: &[u32] = &[0u32, 0u32, 7u32, 8u32, 14u32, 9u32, 13u32, 0u32, 23u32, 19u32, 1u32, 92u32, 13u32, 15u32, 94u32, 2u32];
+const FN_239_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 5u32, 2u32, 14u32, 11u32, 13u32, 2u32, 0u32, 10u32, 9u32, 8u32, 4u32];
+const FN_240_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 23u32, 19u32, 1u32, 2u32];
+const FN_241_CALLEES: &[u32] = &[0u32, 0u32, 92u32, 23u32, 19u32, 1u32, 12u32, 75u32, 0u32, 13u32, 10u32, 9u32, 13u32, 94u32];
+const FN_242_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 13u32, 0u32, 23u32, 19u32, 1u32, 7u32, 8u32, 9u32, 14u32, 92u32, 13u32, 94u32, 3u32, 2u32, 21u32];
+const FN_243_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 13u32, 0u32, 23u32, 19u32, 1u32, 7u32, 8u32, 14u32, 9u32, 92u32, 13u32, 94u32, 72u32, 15u32, 16u32];
+const FN_244_CALLEES: &[u32] = &[0u32, 131u32];
+const FN_245_CALLEES: &[u32] = &[0u32, 104u32, 28u32, 131u32, 1u32, 92u32, 13u32];
+const FN_246_CALLEES: &[u32] = &[0u32, 7u32, 0u32, 4u32];
+const FN_247_CALLEES: &[u32] = &[0u32, 104u32, 28u32, 131u32, 1u32, 92u32, 13u32];
+const FN_248_CALLEES: &[u32] = &[0u32, 28u32, 118u32, 1u32, 92u32, 8u32, 129u32, 13u32];
+const FN_249_CALLEES: &[u32] = &[0u32, 118u32, 92u32];
+const FN_250_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32];
+const FN_251_CALLEES: &[u32] = &[0u32, 3u32, 6u32, 23u32, 0u32, 4u32, 2u32, 0u32];
+const FN_252_CALLEES: &[u32] = &[0u32, 118u32, 2u32, 1u32, 0u32, 23u32, 1u32, 117u32, 115u32, 116u32, 132u32, 0u32];
+const FN_253_CALLEES: &[u32] = &[0u32, 118u32, 3u32, 0u32, 1u32, 0u32, 2u32, 23u32, 0u32, 0u32, 1u32, 0u32];
+const FN_254_CALLEES: &[u32] = &[0u32, 23u32, 131u32, 11u32, 92u32, 1u32, 130u32, 116u32, 133u32, 128u32];
+const FN_255_CALLEES: &[u32] = &[0u32, 116u32, 73u32, 115u32, 13u32, 118u32, 13u32, 94u32, 92u32, 0u32];
+const FN_256_CALLEES: &[u32] = &[0u32, 118u32, 73u32, 23u32, 117u32, 1u32];
+const FN_257_CALLEES: &[u32] = &[0u32, 23u32, 4u32, 1u32];
+const FN_258_CALLEES: &[u32] = &[0u32, 118u32, 115u32, 116u32, 132u32, 1u32, 1u32];
+const FN_259_CALLEES: &[u32] = &[0u32];
+const FN_260_CALLEES: &[u32] = &[0u32, 20u32, 92u32, 134u32, 0u32, 12u32, 16u32, 118u32, 23u32, 9u32, 94u32];
+const FN_261_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 0u32, 1u32];
+const FN_262_CALLEES: &[u32] = &[0u32, 17u32, 13u32, 23u32, 11u32, 130u32, 1u32, 18u32, 13u32, 92u32, 73u32, 94u32, 131u32, 1u32, 118u32, 0u32, 28u32, 6u32, 135u32, 5u32, 8u32, 129u32, 90u32, 29u32, 30u32, 2u32, 15u32];
+const FN_263_CALLEES: &[u32] = &[0u32, 115u32, 116u32];
+const FN_264_CALLEES: &[u32] = &[0u32, 115u32, 116u32];
+const FN_265_CALLEES: &[u32] = &[0u32, 118u32];
+const FN_266_CALLEES: &[u32] = &[0u32, 136u32, 118u32, 23u32, 82u32, 115u32, 116u32];
+const FN_267_CALLEES: &[u32] = &[0u32, 118u32, 136u32];
+const FN_268_CALLEES: &[u32] = &[0u32, 118u32, 136u32];
+const FN_269_CALLEES: &[u32] = &[0u32, 131u32, 2u32, 23u32, 130u32, 118u32];
+const FN_270_CALLEES: &[u32] = &[0u32, 23u32, 106u32, 1u32];
+const FN_271_CALLEES: &[u32] = &[0u32, 23u32, 131u32, 108u32, 11u32, 92u32, 1u32, 2u32, 130u32, 73u32, 111u32, 118u32];
+const FN_272_CALLEES: &[u32] = &[0u32, 73u32];
+const FN_273_CALLEES: &[u32] = &[0u32, 118u32, 73u32, 84u32, 103u32, 23u32, 1u32, 13u32, 13u32, 94u32, 92u32, 2u32, 115u32, 116u32, 1u32, 137u32, 107u32, 83u32, 81u32, 105u32, 0u32, 117u32, 130u32];
+const FN_274_CALLEES: &[u32] = &[0u32, 118u32];
+const FN_275_CALLEES: &[u32] = &[0u32, 118u32];
+const FN_276_CALLEES: &[u32] = &[0u32, 118u32, 1u32, 0u32, 15u32];
+const FN_277_CALLEES: &[u32] = &[0u32, 85u32, 1u32, 0u32, 15u32];
+const FN_278_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 6u32, 0u32];
+const FN_279_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 85u32, 0u32];
+const FN_280_CALLEES: &[u32] = &[0u32, 1u32, 6u32];
+const FN_281_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
+const FN_282_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
+const FN_283_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
+const FN_284_CALLEES: &[u32] = &[0u32, 116u32, 118u32, 115u32];
+const FN_285_CALLEES: &[u32] = &[0u32, 84u32, 1u32, 0u32, 3u32, 2u32, 0u32, 23u32, 1u32, 12u32, 0u32, 15u32];
+const FN_286_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 105u32, 0u32, 116u32, 1u32, 85u32, 2u32, 0u32, 74u32, 6u32, 83u32, 12u32, 0u32, 1u32, 0u32, 15u32, 0u32, 3u32, 1u32];
+const FN_287_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 0u32, 1u32, 116u32, 0u32, 74u32, 85u32, 2u32, 6u32, 12u32, 10u32, 1u32, 0u32, 3u32, 0u32];
+const FN_288_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 118u32, 74u32, 0u32, 6u32, 116u32, 0u32, 112u32, 1u32, 0u32, 0u32, 0u32, 85u32, 2u32, 83u32, 12u32, 0u32, 1u32, 0u32, 1u32, 0u32, 15u32, 3u32, 10u32, 11u32, 86u32, 23u32, 1u32];
+const FN_289_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 0u32, 74u32, 1u32, 0u32, 6u32, 0u32, 2u32, 12u32, 0u32, 3u32, 1u32, 23u32, 0u32];
+const FN_290_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
+const FN_291_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+fn bound_adapter_292(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+    SubstituteInstance::fn_292(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, host)
+}
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+fn bound_adapter_293(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+    SubstituteInstance::fn_293(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, host)
+}
+
+const FN_294_CALLEES: &[u32] = &[0u32, 1u32, 118u32, 1u32, 3u32, 5u32, 0u32, 6u32, 13u32, 92u32, 13u32, 73u32, 0u32, 94u32];
+const FN_295_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 1u32, 3u32, 5u32, 6u32, 0u32, 2u32, 73u32, 92u32, 1u32, 0u32, 13u32, 94u32, 23u32, 2u32, 1u32, 8u32, 130u32, 7u32, 15u32];
+const FN_296_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 23u32, 19u32, 18u32, 13u32, 19u32, 94u32];
+const FN_297_CALLEES: &[u32] = &[0u32, 88u32, 80u32, 13u32, 23u32, 1u32, 2u32, 15u32, 1u32, 94u32];
+const FN_298_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32, 73u32];
+const FN_299_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
+const FN_300_CALLEES: &[u32] = &[0u32, 118u32, 1u32, 12u32, 0u32, 0u32];
+const FN_301_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 23u32, 19u32, 1u32, 9u32, 3u32, 2u32, 5u32, 2u32, 10u32, 0u32, 92u32, 0u32, 13u32, 1u32, 94u32];
+const FN_302_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32, 130u32, 73u32, 13u32, 13u32, 94u32];
+const FN_303_CALLEES: &[u32] = &[0u32, 92u32, 2u32, 1u32, 22u32, 115u32, 116u32, 128u32, 117u32];
+const FN_304_CALLEES: &[u32] = &[0u32, 71u32];
+const FN_305_CALLEES: &[u32] = &[92u32];
+const FN_323_CALLEES: &[u32] = &[92u32];
+const FN_326_CALLEES: &[u32] = &[92u32];
+const FN_334_CALLEES: &[u32] = &[92u32];
+const FN_338_CALLEES: &[u32] = &[92u32];
+const FN_339_CALLEES: &[u32] = &[92u32];
+const FN_340_CALLEES: &[u32] = &[92u32];
+const FN_342_CALLEES: &[u32] = &[92u32];
+const FN_344_CALLEES: &[u32] = &[92u32];
+const FN_349_CALLEES: &[u32] = &[125u32];
+const FN_353_CALLEES: &[u32] = &[92u32];
+const FN_354_CALLEES: &[u32] = &[92u32];
+const FN_361_CALLEES: &[u32] = &[92u32];
+const FN_367_CALLEES: &[u32] = &[92u32];
+const FN_368_CALLEES: &[u32] = &[92u32];
+const FN_369_CALLEES: &[u32] = &[92u32];
+const FN_370_CALLEES: &[u32] = &[92u32];
+const FN_371_CALLEES: &[u32] = &[92u32];
+const FN_372_CALLEES: &[u32] = &[136u32];
+const FN_373_CALLEES: &[u32] = &[118u32, 135u32];
+const FN_377_CALLEES: &[u32] = &[92u32];
+const FN_379_CALLEES: &[u32] = &[92u32];
+const FN_380_CALLEES: &[u32] = &[92u32];
+const FN_381_CALLEES: &[u32] = &[0u32, 92u32, 91u32];
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_fb85927bc70e, globals: &[], callees: FN_289_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_0ddbd2a0c6c7, globals: &[], callees: FN_288_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: bound_adapter_292, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_0de184ba6ec2, globals: &[], callees: FN_286_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_e5a24c0994c8, globals: &[], callees: FN_287_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_b57655dd8811, globals: &[], callees: FN_294_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_I32: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_i32] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_fa4dc0503a8b, globals: &[], callees: FN_207_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: bound_adapter_293, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_80a2700dc508, globals: &[], callees: FN_252_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_4378ebc74725, globals: &[], callees: FN_253_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_feae86872b3d, globals: &[], callees: FN_251_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_35bad47882b3, globals: &[], callees: FN_285_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I64_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_25739df0feb1, globals: &[], callees: FN_283_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I64_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_94c88a2903c6, globals: &[], callees: FN_282_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I64_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_92fa18052c43, globals: &[], callees: FN_281_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I64_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i64_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i64_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_328ca2525ad7, globals: &[], callees: FN_246_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_RET_I32: &[crate::Bound_p_i32_i32_i32_i32_i32_ret_i32] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_d8a1c3db4e50, globals: &[], callees: FN_248_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_8d22ec1cb834, globals: &[], callees: FN_271_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_cc1738e8df7d, globals: &[], callees: FN_245_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_RET_I32: &[crate::Bound_p_i32_i32_i32_i32_ret_i32] = &[
+    crate::Bound_p_i32_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_a399b3396057, globals: &[], callees: FN_254_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_a8cea86e738a, globals: &[], callees: FN_255_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_33b2fc4bf28a, globals: &[], callees: FN_269_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_68f5a5c019f9, globals: &[], callees: FN_273_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_6622fa28880e, globals: &[], callees: FN_247_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_3620625fc347, globals: &[], callees: FN_295_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I64_RET_VOID: &[crate::Bound_p_i32_i32_i32_i64_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i64_ret_void { func: crate::c_85899_88792_2::ChunkFns::f_f99da218d0da, globals: &[], callees: FN_300_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_RET_I32: &[crate::Bound_p_i32_i32_i32_ret_i32] = &[
+    crate::Bound_p_i32_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_0ba96dccaf47, globals: FN_87_GLOBALS, callees: FN_87_CALLEES },
+    crate::Bound_p_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_5f4fb9f2e183, globals: &[], callees: FN_208_CALLEES },
+    crate::Bound_p_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_f9bb68ae965b, globals: &[], callees: FN_249_CALLEES },
+    crate::Bound_p_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_82f90329ff03, globals: &[], callees: FN_250_CALLEES },
+    crate::Bound_p_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_0af41756144f, globals: &[], callees: FN_256_CALLEES },
+    crate::Bound_p_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_5839f7669fdd, globals: &[], callees: FN_257_CALLEES },
+    crate::Bound_p_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_218b53dab712, globals: &[], callees: FN_302_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_5724ff66e1fb, globals: &[], callees: FN_278_CALLEES },
+    crate::Bound_p_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_2022ad61dbb9, globals: &[], callees: FN_279_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I64_RET_VOID: &[crate::Bound_p_i32_i32_i64_ret_void] = &[
+    crate::Bound_p_i32_i32_i64_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_46ce1170568e, globals: &[], callees: FN_218_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_RET_I32: &[crate::Bound_p_i32_i32_ret_i32] = &[
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_1_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_27aaa3cb9114, globals: &[], callees: FN_2_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f2340190950c, globals: &[], callees: FN_4_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_0ece3b1734d5, globals: &[], callees: FN_5_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_803fb230173c, globals: &[], callees: FN_6_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_8ed247cfa309, globals: FN_7_GLOBALS, callees: FN_7_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_a9acae168912, globals: &[], callees: FN_8_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_dcce91d2e133, globals: &[], callees: FN_9_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_12_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1e6ff4c83b62, globals: &[], callees: FN_13_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_da0e89bc9783, globals: &[], callees: FN_17_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_6df8689f059b, globals: &[], callees: FN_18_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f9ce687d90ae, globals: &[], callees: FN_19_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_30ec60d4302a, globals: &[], callees: FN_20_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_21_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_22_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_da0e89bc9783, globals: &[], callees: FN_24_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_26_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7e58af41e27d, globals: &[], callees: FN_27_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7e58af41e27d, globals: &[], callees: FN_28_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_29_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_30_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_31_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_32_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_ace0563243a6, globals: FN_33_GLOBALS, callees: FN_33_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_c69686cacf82, globals: &[], callees: FN_34_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1a5f3f7571e2, globals: &[], callees: FN_37_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f1c0a657afaa, globals: FN_38_GLOBALS, callees: FN_38_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_acb2a186ecef, globals: FN_39_GLOBALS, callees: FN_39_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_acb2a186ecef, globals: FN_40_GLOBALS, callees: FN_40_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f1c0a657afaa, globals: FN_41_GLOBALS, callees: FN_41_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_5cfd1c966ee0, globals: FN_47_GLOBALS, callees: FN_47_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_c1a365c57784, globals: &[], callees: FN_49_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f15f52fd10ac, globals: &[], callees: FN_50_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_b9ec3478b1be, globals: &[], callees: FN_51_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f5ab0dd84882, globals: &[], callees: FN_52_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_a07d59a0459c, globals: &[], callees: FN_53_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_998c31a576d2, globals: &[], callees: FN_55_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_b238ded6c3fe, globals: &[], callees: FN_84_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_fbaa521b0850, globals: &[], callees: FN_86_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_93_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_27aaa3cb9114, globals: &[], callees: FN_94_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f2340190950c, globals: &[], callees: FN_96_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_0ece3b1734d5, globals: &[], callees: FN_97_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f8850b1df958, globals: &[], callees: FN_98_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_609b70a572c5, globals: FN_99_GLOBALS, callees: FN_99_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f148b5f5c14f, globals: FN_100_GLOBALS, callees: FN_100_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_e23aae24b862, globals: &[], callees: FN_102_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_105_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1e6ff4c83b62, globals: &[], callees: FN_106_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_da0e89bc9783, globals: &[], callees: FN_113_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_6df8689f059b, globals: &[], callees: FN_114_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f9ce687d90ae, globals: &[], callees: FN_117_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7ec8bf846782, globals: &[], callees: FN_118_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_119_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_120_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_da0e89bc9783, globals: &[], callees: FN_121_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_293ae2a09ea3, globals: &[], callees: FN_124_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_125_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_126_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_127_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_129_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f1c0a657afaa, globals: FN_130_GLOBALS, callees: FN_130_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_28a9f52b5bce, globals: FN_131_GLOBALS, callees: FN_131_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_4cf93470be08, globals: &[], callees: FN_133_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f1c0a657afaa, globals: FN_134_GLOBALS, callees: FN_134_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1acc39445a44, globals: FN_136_GLOBALS, callees: FN_136_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_5230ac976967, globals: FN_137_GLOBALS, callees: FN_137_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f1c0a657afaa, globals: FN_138_GLOBALS, callees: FN_138_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_3c62ec56fda8, globals: FN_145_GLOBALS, callees: FN_145_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f90a3e72a759, globals: &[], callees: FN_146_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f90a3e72a759, globals: &[], callees: FN_147_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f90a3e72a759, globals: &[], callees: FN_149_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_40871f360722, globals: FN_151_GLOBALS, callees: FN_151_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_84192::ChunkFns::f_4f573e6f88cb, globals: &[], callees: FN_152_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_67329667d7fd, globals: &[], callees: FN_153_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_84192::ChunkFns::f_4f573e6f88cb, globals: &[], callees: FN_154_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_84192::ChunkFns::f_4f573e6f88cb, globals: &[], callees: FN_156_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_ca8d871e077c, globals: &[], callees: FN_157_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_158_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1e6ff4c83b62, globals: &[], callees: FN_159_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_3594571ef794, globals: &[], callees: FN_167_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_e02bb7a5ce3b, globals: &[], callees: FN_168_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_868a5fcb144d, globals: &[], callees: FN_169_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_94c31aaa12fa, globals: &[], callees: FN_170_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_c56c009f41de, globals: &[], callees: FN_172_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_cfe54f4f1606, globals: &[], callees: FN_173_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_da603e0969cb, globals: FN_174_GLOBALS, callees: FN_174_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_175_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_0364226cb1e8, globals: &[], callees: FN_176_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_da0e89bc9783, globals: &[], callees: FN_177_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_179_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_194f062f76fc, globals: &[], callees: FN_180_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_181_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_4a4ae773c3d4, globals: FN_182_GLOBALS, callees: FN_182_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_1592393fe606, globals: &[], callees: FN_183_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_04c43103713a, globals: FN_191_GLOBALS, callees: FN_191_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_2af4fe9e7d26, globals: &[], callees: FN_194_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_8a603a474721, globals: &[], callees: FN_195_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_08e07943209e, globals: &[], callees: FN_196_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_188a11564f14, globals: &[], callees: FN_197_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_d3a85f461ba8, globals: &[], callees: FN_198_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_a70135e4cf19, globals: &[], callees: FN_199_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_67f993fba1d7, globals: &[], callees: FN_206_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_b418d4374260, globals: &[], callees: FN_244_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_78753a2673fb, globals: &[], callees: FN_266_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_d9603289a8ca, globals: &[], callees: FN_267_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_ddd48519a13a, globals: &[], callees: FN_268_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_7315cbab4f66, globals: &[], callees: FN_270_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_798409933840, globals: &[], callees: FN_298_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_03e481579af4, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_c6e97ee70046, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_5015758bb709, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_3948a84700b8, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_2c680f88091b, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_140fb33a5afe, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_32917fc773d9, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_7d1f4d7fcad4, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_fa57b0c2b6ab, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a74c85b451e0, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_3f75c31e0aa0, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_aba70ab0b976, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_deffe42432b7, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_03e481579af4, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_162b60a1a7e7, globals: &[], callees: FN_349_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_11c79f5620b0, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_ea4faf22326d, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a43a5ae7b21f, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_24d45d64e33e, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_ffb3b9e53e54, globals: &[], callees: FN_361_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_5591fa286389, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_03e481579af4, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_55b7914f10c8, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_c065076ec71a, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_89b68888cc06, globals: &[], callees: FN_368_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_f96a9e02e90e, globals: &[], callees: FN_372_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_0630896cabfc, globals: &[], callees: FN_373_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_ec7fee50bb79, globals: &[], callees: FN_377_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_RET_I64: &[crate::Bound_p_i32_i32_ret_i64] = &[
+    crate::Bound_p_i32_i32_ret_i64 { func: crate::c_85899_88792::ChunkFns::f_3abc88984867, globals: &[], callees: FN_54_CALLEES },
+    crate::Bound_p_i32_i32_ret_i64 { func: crate::c_85899_88792_1::ChunkFns::f_96f81305eb6c, globals: &[], callees: FN_290_CALLEES },
+    crate::Bound_p_i32_i32_ret_i64 { func: crate::c_85899_88792_1::ChunkFns::f_96f81305eb6c, globals: &[], callees: FN_291_CALLEES },
+    crate::Bound_p_i32_i32_ret_i64 { func: crate::c_85899_88792_1::ChunkFns::f_4647751d7ce5, globals: &[], callees: FN_299_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792::ChunkFns::f_c55926dd782d, globals: &[], callees: FN_90_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_cf4e33c75e7a, globals: &[], callees: FN_210_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_cf4e33c75e7a, globals: &[], callees: FN_211_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_b1d8e3ac9a9f, globals: &[], callees: FN_212_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_cf4e33c75e7a, globals: &[], callees: FN_213_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_047b1849ed1a, globals: &[], callees: FN_214_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_cf4e33c75e7a, globals: &[], callees: FN_215_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_c9c4551c7a8c, globals: &[], callees: FN_216_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_ddb69a9786ee, globals: &[], callees: FN_222_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_02437646707f, globals: &[], callees: FN_258_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_460683591453, globals: &[], callees: FN_276_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_be20c4fb76e1, globals: &[], callees: FN_277_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_f4d10bf21ca1, globals: &[], callees: FN_280_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_71d8a2d6235d, globals: &[], callees: FN_326_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_e79c4e116bfd, globals: &[], callees: FN_334_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_bc6c808270d1, globals: &[], callees: FN_338_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_71d8a2d6235d, globals: &[], callees: FN_340_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792::ChunkFns::f_8fa562cbc853, globals: &[], callees: FN_344_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_e79c4e116bfd, globals: &[], callees: FN_371_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_I32_RET_I64: &[crate::Bound_p_i32_i64_i32_ret_i64] = &[
+    crate::Bound_p_i32_i64_i32_ret_i64 { func: crate::c_85899_88792_1::ChunkFns::f_b80f92b0d759, globals: &[], callees: FN_223_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_I32_RET_VOID: &[crate::Bound_p_i32_i64_i32_ret_void] = &[
+    crate::Bound_p_i32_i64_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_86b3566ebf56, globals: &[], callees: FN_260_CALLEES },
+    crate::Bound_p_i32_i64_i32_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_0a0fecb79fc7, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_i32_ret_void { func: crate::c_85899_84192::ChunkFns::f_a46dcb1ea662, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_I64_RET_I32: &[crate::Bound_p_i32_i64_i64_ret_i32] = &[
+    crate::Bound_p_i32_i64_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_9607d677c9db, globals: &[], callees: FN_342_CALLEES },
+    crate::Bound_p_i32_i64_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_9adecba56606, globals: &[], callees: FN_353_CALLEES },
+    crate::Bound_p_i32_i64_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_9adecba56606, globals: &[], callees: FN_380_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_I64_RET_I64: &[crate::Bound_p_i32_i64_i64_ret_i64] = &[
+    crate::Bound_p_i32_i64_i64_ret_i64 { func: crate::c_85899_88792::ChunkFns::f_31af32cb558c, globals: &[], callees: FN_91_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_I64_RET_VOID: &[crate::Bound_p_i32_i64_i64_ret_void] = &[
+    crate::Bound_p_i32_i64_i64_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_3b6f3fbbb4a3, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_RET_I32: &[crate::Bound_p_i32_i64_ret_i32] = &[
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f0da2366c908, globals: &[], callees: FN_68_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_6952202a54be, globals: &[], callees: FN_74_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_deaf01e451f9, globals: &[], callees: FN_75_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_e47cbb0bbd9e, globals: &[], callees: FN_76_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1161eced000b, globals: &[], callees: FN_77_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_b96282108807, globals: &[], callees: FN_78_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_419c292e1d24, globals: &[], callees: FN_88_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_1582af309d21, globals: &[], callees: FN_224_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_02dee31d1867, globals: &[], callees: FN_225_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_013015c130b5, globals: &[], callees: FN_226_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_028bfdb14936, globals: &[], callees: FN_227_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_6f8281821e65, globals: &[], callees: FN_228_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_287c71e8b52e, globals: &[], callees: FN_229_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_0fef82c2ddad, globals: &[], callees: FN_230_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_303072035b05, globals: &[], callees: FN_232_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_0f986d1edbac, globals: &[], callees: FN_237_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_f77f83a1e7f6, globals: &[], callees: FN_238_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_0d962ba5619b, globals: &[], callees: FN_241_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_0ea497ca9a06, globals: &[], callees: FN_242_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_7b1073a144d8, globals: &[], callees: FN_243_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_d6afbc2ad994, globals: &[], callees: FN_259_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_3c777e7664b4, globals: &[], callees: FN_301_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_87279bd968a2, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a4027a2778a0, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a4027a2778a0, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a4027a2778a0, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_e849c87b3008, globals: &[], callees: FN_354_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_87279bd968a2, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a4027a2778a0, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_87279bd968a2, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_87279bd968a2, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_RET_I64: &[crate::Bound_p_i32_i64_ret_i64] = &[
+    crate::Bound_p_i32_i64_ret_i64 { func: crate::c_85899_88792::ChunkFns::f_2bae3ae8abdb, globals: &[], callees: FN_79_CALLEES },
+    crate::Bound_p_i32_i64_ret_i64 { func: crate::c_85899_88792::ChunkFns::f_241fa345f31b, globals: &[], callees: FN_80_CALLEES },
+    crate::Bound_p_i32_i64_ret_i64 { func: crate::c_85899_88792_1::ChunkFns::f_5fb930408646, globals: &[], callees: FN_231_CALLEES },
+    crate::Bound_p_i32_i64_ret_i64 { func: crate::c_85899_88792_1::ChunkFns::f_eab38bf24e65, globals: &[], callees: FN_239_CALLEES },
+    crate::Bound_p_i32_i64_ret_i64 { func: crate::c_85899_88792_1::ChunkFns::f_24614f7f550b, globals: &[], callees: FN_240_CALLEES },
+    crate::Bound_p_i32_i64_ret_i64 { func: crate::c_85899_83092_2::ChunkFns::f_853e96823915, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i64 { func: crate::c_85899_83092_2::ChunkFns::f_853e96823915, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_RET_VOID: &[crate::Bound_p_i32_i64_ret_void] = &[
+    crate::Bound_p_i32_i64_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_676808e9a54c, globals: &[], callees: FN_217_CALLEES },
+    crate::Bound_p_i32_i64_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_90383cde56ba, globals: &[], callees: FN_367_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_RET_I32: &[crate::Bound_p_i32_ret_i32] = &[
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1d111f94255c, globals: &[], callees: FN_3_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7eb29a59d915, globals: &[], callees: FN_10_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_fab6c7792bec, globals: &[], callees: FN_11_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_a45a26c14c17, globals: &[], callees: FN_15_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_8f0ec661a804, globals: &[], callees: FN_16_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_3979fdeb44f5, globals: &[], callees: FN_25_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_de050b4b81f1, globals: FN_35_GLOBALS, callees: FN_35_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_327504b23599, globals: FN_42_GLOBALS, callees: FN_42_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_703887b4ca0f, globals: FN_43_GLOBALS, callees: FN_43_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_671a96cacef8, globals: FN_44_GLOBALS, callees: FN_44_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f1674ef8dccc, globals: FN_45_GLOBALS, callees: FN_45_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_e75c24ce5706, globals: FN_46_GLOBALS, callees: FN_46_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_2a1df693f599, globals: &[], callees: FN_56_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_428301bbe702, globals: &[], callees: FN_57_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_16b21026a7f2, globals: FN_58_GLOBALS, callees: FN_58_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_0e5bb44a1e78, globals: &[], callees: FN_59_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_ffdee7c93cbe, globals: &[], callees: FN_60_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_3eb654e927a1, globals: &[], callees: FN_61_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_3927290801c7, globals: &[], callees: FN_63_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_d89853f7c7c5, globals: FN_64_GLOBALS, callees: FN_64_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_49de3a4260ff, globals: &[], callees: FN_65_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_a45a26c14c17, globals: &[], callees: FN_66_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_5e048dbe7c1f, globals: &[], callees: FN_67_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f26f1b9b1ce2, globals: FN_69_GLOBALS, callees: FN_69_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_a4b8b05c5fad, globals: &[], callees: FN_70_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_45817b7043dc, globals: &[], callees: FN_71_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_fdb0906f56bb, globals: &[], callees: FN_72_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_bdc4fb2aaab1, globals: &[], callees: FN_81_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_990600c4a836, globals: &[], callees: FN_82_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_34a49f345dca, globals: &[], callees: FN_85_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_3d9a0eff9f90, globals: &[], callees: FN_89_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7d101c2d913a, globals: FN_92_GLOBALS, callees: FN_92_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1d111f94255c, globals: &[], callees: FN_95_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_c65ede4802f8, globals: FN_101_GLOBALS, callees: FN_101_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_005520f212f5, globals: &[], callees: FN_103_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_005520f212f5, globals: &[], callees: FN_104_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1e881702eb44, globals: &[], callees: FN_108_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_a45a26c14c17, globals: &[], callees: FN_110_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_8f0ec661a804, globals: &[], callees: FN_111_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_0e5bb44a1e78, globals: &[], callees: FN_112_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_0cbcbc1ef76e, globals: &[], callees: FN_116_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_9d92c7701c67, globals: &[], callees: FN_122_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_005520f212f5, globals: &[], callees: FN_123_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_49de3a4260ff, globals: &[], callees: FN_128_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_e32d590b954e, globals: FN_132_GLOBALS, callees: FN_132_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_329f5ce01511, globals: FN_135_GLOBALS, callees: FN_135_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_dbe6bf1cc46b, globals: FN_139_GLOBALS, callees: FN_139_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_0fabceb05d99, globals: FN_140_GLOBALS, callees: FN_140_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_b6a8cfd6ecb8, globals: FN_141_GLOBALS, callees: FN_141_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_671a96cacef8, globals: FN_142_GLOBALS, callees: FN_142_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f1674ef8dccc, globals: FN_143_GLOBALS, callees: FN_143_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_e75c24ce5706, globals: FN_144_GLOBALS, callees: FN_144_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_b828c3bb90f0, globals: FN_148_GLOBALS, callees: FN_148_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_70644cf2f7cf, globals: &[], callees: FN_150_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_84192::ChunkFns::f_7931de08c6d9, globals: &[], callees: FN_155_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_64d7099dbc77, globals: FN_161_GLOBALS, callees: FN_161_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_358231fcf579, globals: &[], callees: FN_162_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_d421c25ba8cd, globals: &[], callees: FN_163_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_22fbbfe4115b, globals: &[], callees: FN_164_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1e881702eb44, globals: &[], callees: FN_166_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_f1d61f915b91, globals: &[], callees: FN_171_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_f6699ee6758d, globals: FN_178_GLOBALS, callees: FN_178_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_56b1ab258317, globals: FN_184_GLOBALS, callees: FN_184_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_e8394947df8a, globals: FN_185_GLOBALS, callees: FN_185_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_a01f25005cd0, globals: FN_186_GLOBALS, callees: FN_186_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_ac9ed96b8296, globals: FN_187_GLOBALS, callees: FN_187_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_e8394947df8a, globals: FN_188_GLOBALS, callees: FN_188_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_a01f25005cd0, globals: FN_189_GLOBALS, callees: FN_189_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_3f199480863a, globals: FN_190_GLOBALS, callees: FN_190_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_4374122c356c, globals: &[], callees: FN_192_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_93af815d1803, globals: FN_193_GLOBALS, callees: FN_193_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_163a32094abe, globals: &[], callees: FN_200_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_e86045ad31a0, globals: &[], callees: FN_204_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_88569aa9a1c6, globals: &[], callees: FN_205_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_047d303782bf, globals: &[], callees: FN_220_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_a92adf80bbbf, globals: &[], callees: FN_221_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_1d097db891aa, globals: &[], callees: FN_233_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_1e94c8b8eb01, globals: &[], callees: FN_234_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_616e80fddb7d, globals: &[], callees: FN_235_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_f11d21470a04, globals: &[], callees: FN_236_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_01bdc838c8fa, globals: &[], callees: FN_262_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_aca28ed8fa04, globals: &[], callees: FN_263_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_58c4f47d7594, globals: &[], callees: FN_264_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_888e62342555, globals: &[], callees: FN_265_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_52731d599874, globals: &[], callees: FN_272_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_bfcee6bdb4da, globals: &[], callees: FN_274_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_d4971c544120, globals: &[], callees: FN_275_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_9cd6f86bba78, globals: &[], callees: FN_284_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_9e42a1d834c3, globals: &[], callees: FN_296_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_e4c126eb465c, globals: &[], callees: FN_297_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_9361c4e9179a, globals: &[], callees: FN_303_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_61a16d9614ba, globals: &[], callees: FN_304_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_5e1271fe89af, globals: &[], callees: &[] },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_3dd4bf2481ba, globals: &[], callees: &[] },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_cbe0184bd9b5, globals: &[], callees: &[] },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_1a71d29336df, globals: &[], callees: &[] },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_c47bb8df9be0, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_RET_I64: &[crate::Bound_p_i32_ret_i64] = &[
+    crate::Bound_p_i32_ret_i64 { func: crate::c_85899_88792::ChunkFns::f_6f07359304f0, globals: &[], callees: FN_73_CALLEES },
+    crate::Bound_p_i32_ret_i64 { func: crate::c_85899_83092_2::ChunkFns::f_c239f066ccbc, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_RET_VOID: &[crate::Bound_p_i32_ret_void] = &[
+    crate::Bound_p_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_7eb39c01608f, globals: &[], callees: FN_261_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I64_I32_RET_I64: &[crate::Bound_p_i64_i32_ret_i64] = &[
+    crate::Bound_p_i64_i32_ret_i64 { func: crate::c_85899_83092_1::ChunkFns::f_79815729aec3, globals: &[], callees: &[] },
+    crate::Bound_p_i64_i32_ret_i64 { func: crate::c_85899_83092_1::ChunkFns::f_16e5e69025c5, globals: &[], callees: &[] },
+    crate::Bound_p_i64_i32_ret_i64 { func: crate::c_85899_83092_2::ChunkFns::f_53b864d8a1de, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I64_I64_RET_I32: &[crate::Bound_p_i64_i64_ret_i32] = &[
+    crate::Bound_p_i64_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_470053343055, globals: &[], callees: FN_23_CALLEES },
+    crate::Bound_p_i64_i64_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_bb85b13eb8ff, globals: &[], callees: FN_48_CALLEES },
+    crate::Bound_p_i64_i64_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_bb85b13eb8ff, globals: &[], callees: FN_62_CALLEES },
+    crate::Bound_p_i64_i64_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_bb85b13eb8ff, globals: &[], callees: FN_115_CALLEES },
+    crate::Bound_p_i64_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_ce7a44b7f744, globals: &[], callees: FN_379_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I64_I64_RET_I64: &[crate::Bound_p_i64_i64_ret_i64] = &[
+    crate::Bound_p_i64_i64_ret_i64 { func: crate::c_85899_83092_1::ChunkFns::f_2b59315b7818, globals: &[], callees: &[] },
+    crate::Bound_p_i64_i64_ret_i64 { func: crate::c_85899_83092_1::ChunkFns::f_0de929be56dc, globals: &[], callees: &[] },
+    crate::Bound_p_i64_i64_ret_i64 { func: crate::c_85899_83092_2::ChunkFns::f_a5a79dab7242, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I64_RET_I32: &[crate::Bound_p_i64_ret_i32] = &[
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_3002f0cd1024, globals: &[], callees: FN_14_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_8d4ef5bbec94, globals: FN_36_GLOBALS, callees: FN_36_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_4ce1c3955399, globals: &[], callees: FN_83_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_16a5c648c247, globals: &[], callees: FN_107_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_3002f0cd1024, globals: &[], callees: FN_109_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_956ac04c06f0, globals: FN_160_GLOBALS, callees: FN_160_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_a80be209ca01, globals: &[], callees: FN_165_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_9f6eb86571b2, globals: &[], callees: FN_202_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_80366ba4ed0c, globals: &[], callees: FN_219_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_ee190614c423, globals: &[], callees: FN_305_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_15ed6333638e, globals: &[], callees: &[] },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a95199099e27, globals: &[], callees: &[] },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_609444ff4048, globals: &[], callees: &[] },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_3961cde2a530, globals: &[], callees: FN_323_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_3961cde2a530, globals: &[], callees: FN_339_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_f36d2b83b7ff, globals: &[], callees: &[] },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a6e1bc397641, globals: &[], callees: FN_369_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_ee190614c423, globals: &[], callees: FN_370_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I64_RET_I64: &[crate::Bound_p_i64_ret_i64] = &[
+    crate::Bound_p_i64_ret_i64 { func: crate::c_85899_83092_2::ChunkFns::f_554f71c39a7a, globals: &[], callees: &[] },
+    crate::Bound_p_i64_ret_i64 { func: crate::c_85899_83092_2::ChunkFns::f_554f71c39a7a, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_UNIT_RET_I32: &[crate::Bound_p_unit_ret_i32] = &[
+    crate::Bound_p_unit_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_1d7de35b2d8a, globals: &[], callees: FN_201_CALLEES },
+    crate::Bound_p_unit_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_1291541a6166, globals: &[], callees: FN_203_CALLEES },
+    crate::Bound_p_unit_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_7ac932a19aae, globals: &[], callees: FN_209_CALLEES },
+    crate::Bound_p_unit_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a6a8842e4b04, globals: &[], callees: FN_381_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_UNIT_RET_VOID: &[crate::Bound_p_unit_ret_void] = &[
+    crate::Bound_p_unit_ret_void { func: crate::c_85899_84192::ChunkFns::f_da48ed3929f4, globals: FN_0_GLOBALS, callees: FN_0_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static DISPATCH: crate::ModuleDispatch = crate::ModuleDispatch {
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_i32: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_I32,
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_i32: &[],
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i32_i32_ret_i32: &[],
+    sig_p_i32_i32_i32_i32_i32_i32_i32_ret_void: &[],
+    sig_p_i32_i32_i32_i32_i32_i32_ret_i32: &[],
+    sig_p_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I64_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I64_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I64_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i64_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I64_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_ret_i32: BOUND_SIG_P_I32_I32_I32_I32_I32_RET_I32,
+    sig_p_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_ret_i32: BOUND_SIG_P_I32_I32_I32_I32_RET_I32,
+    sig_p_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i64_ret_void: BOUND_SIG_P_I32_I32_I32_I64_RET_VOID,
+    sig_p_i32_i32_i32_ret_i32: BOUND_SIG_P_I32_I32_I32_RET_I32,
+    sig_p_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i64_i32_i32_ret_i32: &[],
+    sig_p_i32_i32_i64_ret_void: BOUND_SIG_P_I32_I32_I64_RET_VOID,
+    sig_p_i32_i32_ret_i32: BOUND_SIG_P_I32_I32_RET_I32,
+    sig_p_i32_i32_ret_i64: BOUND_SIG_P_I32_I32_RET_I64,
+    sig_p_i32_i32_ret_void: BOUND_SIG_P_I32_I32_RET_VOID,
+    sig_p_i32_i64_i32_i32_ret_i32: &[],
+    sig_p_i32_i64_i32_i32_ret_i64: &[],
+    sig_p_i32_i64_i32_ret_i32: &[],
+    sig_p_i32_i64_i32_ret_i64: BOUND_SIG_P_I32_I64_I32_RET_I64,
+    sig_p_i32_i64_i32_ret_void: BOUND_SIG_P_I32_I64_I32_RET_VOID,
+    sig_p_i32_i64_i64_ret_i32: BOUND_SIG_P_I32_I64_I64_RET_I32,
+    sig_p_i32_i64_i64_ret_i64: BOUND_SIG_P_I32_I64_I64_RET_I64,
+    sig_p_i32_i64_i64_ret_void: BOUND_SIG_P_I32_I64_I64_RET_VOID,
+    sig_p_i32_i64_ret_i32: BOUND_SIG_P_I32_I64_RET_I32,
+    sig_p_i32_i64_ret_i64: BOUND_SIG_P_I32_I64_RET_I64,
+    sig_p_i32_i64_ret_void: BOUND_SIG_P_I32_I64_RET_VOID,
+    sig_p_i32_ret_i32: BOUND_SIG_P_I32_RET_I32,
+    sig_p_i32_ret_i64: BOUND_SIG_P_I32_RET_I64,
+    sig_p_i32_ret_void: BOUND_SIG_P_I32_RET_VOID,
+    sig_p_i64_i32_ret_i64: BOUND_SIG_P_I64_I32_RET_I64,
+    sig_p_i64_i64_ret_i32: BOUND_SIG_P_I64_I64_RET_I32,
+    sig_p_i64_i64_ret_i64: BOUND_SIG_P_I64_I64_RET_I64,
+    sig_p_i64_ret_i32: BOUND_SIG_P_I64_RET_I32,
+    sig_p_i64_ret_i64: BOUND_SIG_P_I64_RET_I64,
+    sig_p_unit_ret_i32: BOUND_SIG_P_UNIT_RET_I32,
+    sig_p_unit_ret_void: BOUND_SIG_P_UNIT_RET_VOID,
+};
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+struct SubstituteInstance {
+    vm: SubstituteVm,
+}
+
+const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
+    name: "85899_88792/f1681@l8589994023",
+    accounting_version: 2u32,
+    wasm_sha256: [0xf4, 0xca, 0x76, 0xee, 0x4d, 0xca, 0x8c, 0xb0, 0xc1, 0x44, 0x3c, 0x10, 0x5c, 0x50, 0xd3, 0x6d, 0x44, 0x63, 0x97, 0x12, 0x85, 0x5d, 0x0f, 0xdf, 0x1d, 0xeb, 0xc1, 0xd4, 0x4a, 0x26, 0x8a, 0x7a],
+    entry_func_name: "step",
+    has_start_func: false,
+    initial_memory_pages: 1usize,
+    initial_table_elements: 0usize,
+    static_data_end: 0usize,
+    num_memories: 1usize,
+    num_tables: 0usize,
+};
+
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+fn instantiate_substitute() -> Box<dyn WasmSubstituteInstance> {
+    let g0: i32 = 0i32;
+    let g1: i32 = 0i32;
+    let g2: i32 = 0i32;
+    let g3: i32 = 0i32;
+    let g4: i32 = 0i32;
+    let g5: i32 = 0i32;
+    let g6: i32 = 0i32;
+    let g7: i32 = 0i32;
+    let g8: i32 = 0i32;
+    let g9: i32 = 0i32;
+    let g10: i32 = 0i32;
+    let g11: i32 = 0i32;
+    let g12: i32 = 0i32;
+    let g13: i32 = 0i32;
+    let g14: i32 = 0i32;
+    let g15: i32 = 0i32;
+    let g16: i32 = 0i32;
+    let g17: i32 = 0i32;
+    let g18: i32 = 0i32;
+    let g19: i32 = 0i32;
+    let g20: i32 = 0i32;
+    let g21: i32 = 0i32;
+    let g22: i32 = 0i32;
+    let g23: i32 = 0i32;
+    let g24: i32 = 256i32;
+    let memories = vec![
+        WasmLinearMemory::new(1u32, None),
+    ];
+    let tables = vec![
+    ];
+    let passive_data: Vec<Option<&'static [u8]>> = vec![
+    ];
+    let passive_elems: Vec<Option<&'static [Option<u32>]>> = vec![
+    ];
+    let mut vm = SubstituteVm::new(memories, tables, passive_data, passive_elems);
+    vm.heap_ptr = g24;
+    vm.has_heap_ptr = true;
+    vm.globals_i32 = vec![g0, g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11, g12, g13, g14, g15, g16, g17, g18, g19, g20, g21, g22, g23];
+    Box::new(SubstituteInstance { vm })
+}
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+enum TailTarget_void {
+    Func293(i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32),
+}
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+enum TailStep_void {
+    Done(()),
+    Tail(TailTarget_void),
+}
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+impl SubstituteInstance {
+    #[inline(never)]
+    fn tail_dispatch_void(vm: &mut SubstituteVm, mut step_val: TailStep_void, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+        loop {
+            match step_val {
+                TailStep_void::Done(res) => return Ok(res),
+                TailStep_void::Tail(target) => match target {
+                    TailTarget_void::Func293(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10) => step_val = SubstituteInstance::fn_293_step(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, host)?,
+                },
+            }
+        }
+    }
+
+}
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+impl SubstituteInstance {
+    #[inline(never)]
+    fn fn_292(vm: &mut SubstituteVm, p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+    let mut l0: i32 = p0;
+    let mut l1: i32 = p1;
+    let mut l2: i32 = p2;
+    let mut l3: i32 = p3;
+    let mut l4: i32 = p4;
+    let mut l5: i32 = p5;
+    let mut l6: i32 = p6;
+    let mut l7: i32 = p7;
+    let mut l8: i32 = p8;
+    let mut l9: i32 = p9;
+    let mut l10: i32 = p10;
+    let mut l11: i32 = p11;
+    let mut l12: i32 = p12;
+    let mut l13: i32 = 0i32;
+    let mut l14: i32 = 0i32;
+    let mut l15: i64 = 0i64;
+    let mut l16: i32 = 0i32;
+    let mut l17: i32 = 0i32;
+    let mut l18: i32 = 0i32;
+    let mut l19: i32 = 0i32;
+    let mut l20: i32 = 0i32;
+    let mut l21: i32 = 0i32;
+    let mut l22: i32 = 0i32;
+    let mut l23: i32 = 0i32;
+    let mut l24: i32 = 0i32;
+    let mut l25: i32 = 0i32;
+    let mut l26: i32 = 0i32;
+    let mut s_i32_0: i32 = 0i32;
+    let mut s_i64_0: i64 = 0i64;
+    let mut s_i32_1: i32 = 0i32;
+    let mut s_i64_1: i64 = 0i64;
+    let mut s_i32_2: i32 = 0i32;
+    let mut s_i32_3: i32 = 0i32;
+    let mut s_i32_4: i32 = 0i32;
+    let mut s_i32_5: i32 = 0i32;
+    let mut s_i32_6: i32 = 0i32;
+    let mut s_i32_7: i32 = 0i32;
+    let mut s_i32_8: i32 = 0i32;
+    let mut s_i32_9: i32 = 0i32;
+    let mut s_i32_10: i32 = 0i32;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
+    vm.exit_call();
+    __call_res?;
+    s_i32_0 = l12;
+    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
+    'blk_1: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l11;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
+            s_i32_0 = ops::i32_eqz(s_i32_0);
+            'blk_2: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l12;
+            s_i32_3 = ops::i32_load(vm, 0, s_i32_3, 8u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t0 = __call_res?;
+            s_i32_0 = __t0;
+            l13 = s_i32_0;
+            s_i32_0 = l13;
+            s_i32_1 = l11;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 8u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 136usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t1 = __call_res?;
+            s_i32_0 = __t1;
+            s_i32_0 = ops::i32_eqz(s_i32_0);
+            'blk_3: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l12;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 12u32)?;
+            l14 = s_i32_0;
+            s_i64_0 = 1i64;
+            s_i32_1 = l11;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+            vm.exit_call();
+            let __t2 = __call_res?;
+            s_i64_0 = __t2;
+            l15 = s_i64_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2213i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2199i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 316i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l13;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l14;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2547i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l10;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = l15;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i32_1 = l14;
+            l16 = s_i32_1;
+            s_i32_1 = l13;
+            l17 = s_i32_1;
+            s_i32_1 = 8i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+            vm.exit_call();
+            let __t3 = __call_res?;
+            s_i32_1 = __t3;
+            l18 = s_i32_1;
+            s_i32_1 = l18;
+            s_i32_2 = l16;
+            ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l18;
+            s_i32_2 = l17;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l18;
+            l19 = s_i32_1;
+            s_i32_1 = 20i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+            vm.exit_call();
+            let __t4 = __call_res?;
+            s_i32_1 = __t4;
+            l20 = s_i32_1;
+            s_i32_1 = l20;
+            s_i32_2 = l20;
+            s_i32_3 = 16i32;
+            s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+            ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l20;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l20;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+            s_i32_1 = l20;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+            s_i32_1 = l20;
+            s_i32_2 = l19;
+            ops::i32_store(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+            s_i32_1 = l20;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 137usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t5 = __call_res?;
+            s_i32_0 = __t5;
+            l21 = s_i32_0;
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l22 = s_i32_0;
+            s_i32_0 = l21;
+            l23 = s_i32_0;
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+            l24 = s_i32_0;
+            s_i32_0 = 12i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_0, host);
+            vm.exit_call();
+            let __t6 = __call_res?;
+            s_i32_0 = __t6;
+            l25 = s_i32_0;
+            s_i32_0 = l25;
+            s_i32_1 = l22;
+            ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+            s_i32_0 = l25;
+            s_i32_1 = l23;
+            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+            s_i32_0 = l25;
+            s_i32_1 = l24;
+            ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+            s_i32_0 = l25;
+            l26 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l26;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l12;
+            s_i32_10 = ops::i32_load(vm, 0, s_i32_10, 16u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2214i32;
+            let __t7 = s_i32_0;
+            let __t8 = s_i32_1;
+            return DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, __t7, __t8, host);
+        } else {
+            s_i32_0 = l11;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
+            'blk_4: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l12;
+            s_i32_10 = ops::i32_load(vm, 0, s_i32_10, 16u32)?;
+            let __t9 = s_i32_0;
+            let __t10 = s_i32_1;
+            let __t11 = s_i32_2;
+            let __t12 = s_i32_3;
+            let __t13 = s_i32_4;
+            let __t14 = s_i32_5;
+            let __t15 = s_i32_6;
+            let __t16 = s_i32_7;
+            let __t17 = s_i32_8;
+            let __t18 = s_i32_9;
+            let __t19 = s_i32_10;
+            return SubstituteInstance::tail_dispatch_void(vm, TailStep_void::Tail(TailTarget_void::Func293(__t9, __t10, __t11, __t12, __t13, __t14, __t15, __t16, __t17, __t18, __t19)), host);
+        }
+    }
+    return Err(WasmTrap::Unreachable);
+    }
+
+    #[inline(never)]
+    fn fn_293_step(vm: &mut SubstituteVm, p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<TailStep_void, WasmTrap> {
+    let mut l0: i32 = p0;
+    let mut l1: i32 = p1;
+    let mut l2: i32 = p2;
+    let mut l3: i32 = p3;
+    let mut l4: i32 = p4;
+    let mut l5: i32 = p5;
+    let mut l6: i32 = p6;
+    let mut l7: i32 = p7;
+    let mut l8: i32 = p8;
+    let mut l9: i32 = p9;
+    let mut l10: i32 = p10;
+    let mut l11: i32 = 0i32;
+    let mut l12: i32 = 0i32;
+    let mut l13: i32 = 0i32;
+    let mut l14: i32 = 0i32;
+    let mut l15: i32 = 0i32;
+    let mut l16: i32 = 0i32;
+    let mut l17: i32 = 0i32;
+    let mut l18: i32 = 0i32;
+    let mut l19: i32 = 0i32;
+    let mut l20: i32 = 0i32;
+    let mut l21: i32 = 0i32;
+    let mut l22: i32 = 0i32;
+    let mut l23: i32 = 0i32;
+    let mut l24: i32 = 0i32;
+    let mut l25: i32 = 0i32;
+    let mut l26: i32 = 0i32;
+    let mut l27: i64 = 0i64;
+    let mut l28: i32 = 0i32;
+    let mut l29: i32 = 0i32;
+    let mut l30: i32 = 0i32;
+    let mut l31: i32 = 0i32;
+    let mut l32: i32 = 0i32;
+    let mut l33: i32 = 0i32;
+    let mut l34: i32 = 0i32;
+    let mut l35: i32 = 0i32;
+    let mut l36: i32 = 0i32;
+    let mut l37: i32 = 0i32;
+    let mut l38: i32 = 0i32;
+    let mut l39: i32 = 0i32;
+    let mut l40: i32 = 0i32;
+    let mut l41: i32 = 0i32;
+    let mut l42: i32 = 0i32;
+    let mut l43: i32 = 0i32;
+    let mut l44: i32 = 0i32;
+    let mut l45: i32 = 0i32;
+    let mut l46: i32 = 0i32;
+    let mut l47: i32 = 0i32;
+    let mut l48: i32 = 0i32;
+    let mut l49: i32 = 0i32;
+    let mut l50: i32 = 0i32;
+    let mut l51: i32 = 0i32;
+    let mut l52: i32 = 0i32;
+    let mut l53: i32 = 0i32;
+    let mut l54: i32 = 0i32;
+    let mut l55: i32 = 0i32;
+    let mut l56: i32 = 0i32;
+    let mut l57: i32 = 0i32;
+    let mut l58: i32 = 0i32;
+    let mut l59: i32 = 0i32;
+    let mut l60: i32 = 0i32;
+    let mut l61: i32 = 0i32;
+    let mut l62: i32 = 0i32;
+    let mut l63: i32 = 0i32;
+    let mut l64: i32 = 0i32;
+    let mut l65: i32 = 0i32;
+    let mut l66: i32 = 0i32;
+    let mut l67: i32 = 0i32;
+    let mut l68: i32 = 0i32;
+    let mut l69: i32 = 0i32;
+    let mut l70: i32 = 0i32;
+    let mut l71: i32 = 0i32;
+    let mut l72: i32 = 0i32;
+    let mut l73: i32 = 0i32;
+    let mut l74: i32 = 0i32;
+    let mut l75: i32 = 0i32;
+    let mut l76: i32 = 0i32;
+    let mut l77: i32 = 0i32;
+    let mut l78: i32 = 0i32;
+    let mut l79: i32 = 0i32;
+    let mut l80: i32 = 0i32;
+    let mut l81: i32 = 0i32;
+    let mut l82: i32 = 0i32;
+    let mut l83: i32 = 0i32;
+    let mut l84: i32 = 0i32;
+    let mut l85: i32 = 0i32;
+    let mut l86: i32 = 0i32;
+    let mut l87: i32 = 0i32;
+    let mut l88: i32 = 0i32;
+    let mut l89: i32 = 0i32;
+    let mut l90: i32 = 0i32;
+    let mut l91: i32 = 0i32;
+    let mut l92: i32 = 0i32;
+    let mut l93: i32 = 0i32;
+    let mut l94: i32 = 0i32;
+    let mut l95: i32 = 0i32;
+    let mut l96: i32 = 0i32;
+    let mut l97: i32 = 0i32;
+    let mut l98: i32 = 0i32;
+    let mut l99: i32 = 0i32;
+    let mut l100: i32 = 0i32;
+    let mut l101: i32 = 0i32;
+    let mut l102: i32 = 0i32;
+    let mut l103: i32 = 0i32;
+    let mut l104: i32 = 0i32;
+    let mut l105: i32 = 0i32;
+    let mut l106: i32 = 0i32;
+    let mut l107: i64 = 0i64;
+    let mut l108: i64 = 0i64;
+    let mut l109: i64 = 0i64;
+    let mut l110: i32 = 0i32;
+    let mut l111: i32 = 0i32;
+    let mut l112: i64 = 0i64;
+    let mut l113: i32 = 0i32;
+    let mut l114: i32 = 0i32;
+    let mut l115: i64 = 0i64;
+    let mut l116: i64 = 0i64;
+    let mut l117: i32 = 0i32;
+    let mut l118: i64 = 0i64;
+    let mut l119: i32 = 0i32;
+    let mut l120: i64 = 0i64;
+    let mut l121: i32 = 0i32;
+    let mut l122: i64 = 0i64;
+    let mut l123: i32 = 0i32;
+    let mut l124: i32 = 0i32;
+    let mut l125: i32 = 0i32;
+    let mut l126: i32 = 0i32;
+    let mut l127: i64 = 0i64;
+    let mut l128: i32 = 0i32;
+    let mut l129: i32 = 0i32;
+    let mut l130: i32 = 0i32;
+    let mut l131: i64 = 0i64;
+    let mut l132: i32 = 0i32;
+    let mut l133: i32 = 0i32;
+    let mut l134: i32 = 0i32;
+    let mut l135: i64 = 0i64;
+    let mut l136: i32 = 0i32;
+    let mut l137: i32 = 0i32;
+    let mut l138: i32 = 0i32;
+    let mut l139: i64 = 0i64;
+    let mut l140: i32 = 0i32;
+    let mut l141: i32 = 0i32;
+    let mut l142: i32 = 0i32;
+    let mut l143: i64 = 0i64;
+    let mut l144: i32 = 0i32;
+    let mut l145: i32 = 0i32;
+    let mut l146: i32 = 0i32;
+    let mut l147: i32 = 0i32;
+    let mut l148: i32 = 0i32;
+    let mut l149: i32 = 0i32;
+    let mut l150: i32 = 0i32;
+    let mut l151: i32 = 0i32;
+    let mut l152: i32 = 0i32;
+    let mut l153: i32 = 0i32;
+    let mut l154: i32 = 0i32;
+    let mut l155: i32 = 0i32;
+    let mut l156: i32 = 0i32;
+    let mut l157: i32 = 0i32;
+    let mut l158: i32 = 0i32;
+    let mut l159: i32 = 0i32;
+    let mut l160: i32 = 0i32;
+    let mut l161: i32 = 0i32;
+    let mut l162: i32 = 0i32;
+    let mut l163: i32 = 0i32;
+    let mut l164: i32 = 0i32;
+    let mut l165: i32 = 0i32;
+    let mut l166: i64 = 0i64;
+    let mut l167: i64 = 0i64;
+    let mut l168: i64 = 0i64;
+    let mut l169: i32 = 0i32;
+    let mut l170: i32 = 0i32;
+    let mut l171: i64 = 0i64;
+    let mut l172: i64 = 0i64;
+    let mut l173: i64 = 0i64;
+    let mut l174: i64 = 0i64;
+    let mut l175: i64 = 0i64;
+    let mut l176: i64 = 0i64;
+    let mut l177: i32 = 0i32;
+    let mut l178: i32 = 0i32;
+    let mut l179: i32 = 0i32;
+    let mut l180: i32 = 0i32;
+    let mut l181: i32 = 0i32;
+    let mut l182: i32 = 0i32;
+    let mut l183: i32 = 0i32;
+    let mut l184: i64 = 0i64;
+    let mut s_i32_0: i32 = 0i32;
+    let mut s_i64_0: i64 = 0i64;
+    let mut s_i32_1: i32 = 0i32;
+    let mut s_i64_1: i64 = 0i64;
+    let mut s_i32_2: i32 = 0i32;
+    let mut s_i64_2: i64 = 0i64;
+    let mut s_i32_3: i32 = 0i32;
+    let mut s_i64_3: i64 = 0i64;
+    let mut s_i32_4: i32 = 0i32;
+    let mut s_i64_4: i64 = 0i64;
+    let mut s_i32_5: i32 = 0i32;
+    let mut s_i64_5: i64 = 0i64;
+    let mut s_i32_6: i32 = 0i32;
+    let mut s_i32_7: i32 = 0i32;
+    let mut s_i32_8: i32 = 0i32;
+    let mut s_i32_9: i32 = 0i32;
+    let mut s_i64_9: i64 = 0i64;
+    let mut s_i32_10: i32 = 0i32;
+    let mut s_i32_11: i32 = 0i32;
+    let mut s_i64_11: i64 = 0i64;
+    let mut s_i32_12: i32 = 0i32;
+    let mut s_i64_12: i64 = 0i64;
+    let mut s_i32_13: i32 = 0i32;
+    let mut s_i64_13: i64 = 0i64;
+    let mut s_i32_14: i32 = 0i32;
+    let mut s_i64_14: i64 = 0i64;
+    let mut s_i64_15: i64 = 0i64;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
+    vm.exit_call();
+    __call_res?;
+    s_i32_0 = l10;
+    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+    l11 = s_i32_0;
+    s_i32_0 = l10;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+    l12 = s_i32_0;
+    s_i32_0 = l10;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 20u32)?;
+    l13 = s_i32_0;
+    s_i32_0 = l10;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 24u32)?;
+    l14 = s_i32_0;
+    s_i32_0 = l10;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 28u32)?;
+    l15 = s_i32_0;
+    s_i32_0 = l11;
+    s_i32_1 = 0i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t0 = __call_res?;
+    s_i32_0 = __t0;
+    'blk_1: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = l12;
+            s_i32_2 = 0i32;
+            s_i32_1 = ops::i32_ne(s_i32_1, s_i32_2);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 1i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t1 = __call_res?;
+    s_i32_0 = __t1;
+    'blk_2: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = l4;
+            s_i32_2 = l5;
+            s_i32_3 = l6;
+            s_i32_4 = l12;
+            s_i32_5 = l10;
+            s_i32_5 = ops::i32_load(vm, 0, s_i32_5, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 2i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t2 = __call_res?;
+    s_i32_0 = __t2;
+    'blk_3: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 28usize, s_i32_1, host);
+            vm.exit_call();
+            let __t3 = __call_res?;
+            s_i32_1 = __t3;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 15usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 3i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t4 = __call_res?;
+    s_i32_0 = __t4;
+    'blk_4: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2578i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2673i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l6;
+            s_i32_2 = l4;
+            s_i32_3 = l5;
+            s_i32_4 = 0i32;
+            s_i64_5 = 8589980641i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i64_5, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l10;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+            l16 = s_i32_0;
+            s_i32_0 = l16;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l17 = s_i32_0;
+            s_i32_0 = l16;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l18 = s_i32_0;
+            s_i32_0 = 0i32;
+            l19 = s_i32_0;
+            'blk_5: {
+                'blk_6: loop {
+                    vm.deduct(host, 1)?;
+                    s_i32_0 = l19;
+                    s_i32_1 = l18;
+                    s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                    if s_i32_0 != 0 {
+                        break 'blk_5;
+                    }
+                    s_i32_0 = l17;
+                    s_i32_1 = l19;
+                    s_i32_2 = 4i32;
+                    s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l20 = s_i32_0;
+                    'blk_7: {
+                        s_i32_0 = l0;
+                        s_i32_1 = 2219i32;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                        vm.exit_call();
+                        __call_res?;
+                        s_i32_0 = l0;
+                        s_i32_1 = l6;
+                        s_i32_2 = l4;
+                        s_i32_3 = l5;
+                        s_i32_4 = 0i32;
+                        s_i64_5 = 8589980641i64;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i64_5, host);
+                        vm.exit_call();
+                        __call_res?;
+                        s_i32_0 = l0;
+                        s_i32_1 = 209i32;
+                        s_i32_2 = l20;
+                        s_i64_2 = ops::i64_load(vm, 0, s_i32_2, 0u32)?;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+                        vm.exit_call();
+                        __call_res?;
+                        s_i32_0 = l0;
+                        s_i32_1 = 209i32;
+                        s_i32_2 = l20;
+                        s_i64_2 = ops::i64_load(vm, 0, s_i32_2, 8u32)?;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+                        vm.exit_call();
+                        __call_res?;
+                        s_i32_0 = l0;
+                        s_i32_1 = 2220i32;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                        vm.exit_call();
+                        __call_res?;
+                    }
+                    s_i32_0 = l19;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    l19 = s_i32_0;
+                    continue 'blk_6;
+                    break 'blk_6;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2579i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 4i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t5 = __call_res?;
+    s_i32_0 = __t5;
+    'blk_8: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l10;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+            l21 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2219i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l6;
+            s_i32_2 = l4;
+            s_i32_3 = l5;
+            s_i32_4 = 0i32;
+            s_i64_5 = 8589980641i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i64_5, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 209i32;
+            s_i32_2 = l21;
+            s_i64_2 = ops::i64_load(vm, 0, s_i32_2, 0u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 209i32;
+            s_i32_2 = l21;
+            s_i64_2 = ops::i64_load(vm, 0, s_i32_2, 8u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2220i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 5i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t6 = __call_res?;
+    s_i32_0 = __t6;
+    'blk_9: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 203i32;
+            s_i32_2 = l12;
+            s_i64_2 = ops::i64_extend_i32_u(s_i32_2);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 6i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t7 = __call_res?;
+    s_i32_0 = __t7;
+    'blk_10: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2578i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l1;
+            s_i32_9 = l2;
+            s_i32_10 = 1i32;
+            s_i32_11 = l14;
+            s_i64_12 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+            vm.exit_call();
+            let __t8 = __call_res?;
+            s_i32_11 = __t8;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+            vm.exit_call();
+            let __t9 = __call_res?;
+            s_i32_8 = __t9;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l15;
+            l22 = s_i32_0;
+            s_i32_0 = l22;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l23 = s_i32_0;
+            s_i32_0 = l22;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l24 = s_i32_0;
+            s_i32_0 = 0i32;
+            l25 = s_i32_0;
+            'blk_11: {
+                'blk_12: loop {
+                    vm.deduct(host, 1)?;
+                    s_i32_0 = l25;
+                    s_i32_1 = l24;
+                    s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                    if s_i32_0 != 0 {
+                        break 'blk_11;
+                    }
+                    s_i32_0 = l23;
+                    s_i32_1 = l25;
+                    s_i32_2 = 4i32;
+                    s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l26 = s_i32_0;
+                    'blk_13: {
+                        s_i32_0 = l0;
+                        s_i32_1 = l1;
+                        s_i32_2 = l2;
+                        s_i32_3 = l3;
+                        s_i32_4 = l4;
+                        s_i32_5 = l5;
+                        s_i32_6 = l6;
+                        s_i32_7 = l7;
+                        s_i32_8 = l8;
+                        s_i32_9 = l9;
+                        s_i32_10 = l26;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                        vm.exit_call();
+                        __call_res?;
+                    }
+                    s_i32_0 = l25;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    l25 = s_i32_0;
+                    continue 'blk_12;
+                    break 'blk_12;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2579i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 7i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t10 = __call_res?;
+    s_i32_0 = __t10;
+    'blk_14: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2215i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l15;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i64_0 = 0i64;
+            l27 = s_i64_0;
+            'blk_15: {
+                'blk_16: loop {
+                    vm.deduct(host, 1)?;
+                    s_i64_0 = l27;
+                    s_i32_1 = l15;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                    if s_i32_0 != 0 {
+                        break 'blk_15;
+                    }
+                    s_i64_0 = l27;
+                    s_i64_1 = 0i64;
+                    s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
+                    'blk_17: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i32_1 = 312i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                        }
+                    }
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l15;
+                    s_i64_11 = l27;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                    vm.exit_call();
+                    let __t11 = __call_res?;
+                    s_i32_10 = __t11;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i64_0 = l27;
+                    s_i64_1 = 1i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t12 = __call_res?;
+                    s_i64_0 = __t12;
+                    l27 = s_i64_0;
+                    continue 'blk_16;
+                    break 'blk_16;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2216i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 8i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t13 = __call_res?;
+    s_i32_0 = __t13;
+    'blk_18: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2547i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t14 = __call_res?;
+            s_i32_10 = __t14;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l12;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 9i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t15 = __call_res?;
+    s_i32_0 = __t15;
+    'blk_19: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2548i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t16 = __call_res?;
+            s_i32_10 = __t16;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l12;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 1i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t17 = __call_res?;
+            s_i32_10 = __t17;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 10i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t18 = __call_res?;
+    s_i32_0 = __t18;
+    'blk_20: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2580i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            vm.deduct(host, 1)?;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l1;
+            s_i32_9 = l2;
+            s_i32_10 = 1i32;
+            s_i32_11 = l14;
+            s_i64_12 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+            vm.exit_call();
+            let __t19 = __call_res?;
+            s_i32_11 = __t19;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+            vm.exit_call();
+            let __t20 = __call_res?;
+            s_i32_8 = __t20;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t21 = __call_res?;
+            s_i32_10 = __t21;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 11i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t22 = __call_res?;
+    s_i32_0 = __t22;
+    'blk_21: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2202i32;
+            vm.deduct(host, 1)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l14;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            s_i64_1 = 0i64;
+            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+            'blk_22: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 316i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                } else {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l4;
+                    s_i32_4 = l5;
+                    s_i32_5 = l6;
+                    s_i32_6 = l7;
+                    s_i32_7 = l8;
+                    s_i32_8 = l1;
+                    s_i32_9 = l2;
+                    s_i32_10 = 1i32;
+                    s_i32_11 = l14;
+                    s_i64_12 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+                    vm.exit_call();
+                    let __t23 = __call_res?;
+                    s_i32_11 = __t23;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+                    vm.exit_call();
+                    let __t24 = __call_res?;
+                    s_i32_8 = __t24;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                    vm.exit_call();
+                    __call_res?;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = l13;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 7usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 12i32;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t25 = __call_res?;
+    s_i32_0 = __t25;
+    'blk_23: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2198i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l1;
+            s_i32_9 = l2;
+            s_i32_10 = 1i32;
+            s_i32_11 = l14;
+            s_i64_12 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+            vm.exit_call();
+            let __t26 = __call_res?;
+            s_i32_11 = __t26;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+            vm.exit_call();
+            let __t27 = __call_res?;
+            s_i32_8 = __t27;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l15;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            s_i64_1 = 0i64;
+            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+            'blk_24: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 316i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                } else {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l15;
+                    s_i64_11 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                    vm.exit_call();
+                    let __t28 = __call_res?;
+                    s_i32_10 = __t28;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                }
+            }
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 13i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t29 = __call_res?;
+    s_i32_0 = __t29;
+    'blk_25: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l14;
+            s_i64_4 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+            vm.exit_call();
+            let __t30 = __call_res?;
+            s_i32_3 = __t30;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t31 = __call_res?;
+            s_i32_0 = __t31;
+            l28 = s_i32_0;
+            s_i32_0 = l28;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 17i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t32 = __call_res?;
+            s_i32_0 = __t32;
+            'blk_26: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2199i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l12;
+            s_i32_2 = 0i32;
+            s_i32_1 = ops::i32_ne(s_i32_1, s_i32_2);
+            l29 = s_i32_1;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 8u32)?;
+            l30 = s_i32_1;
+            s_i32_1 = 8i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+            vm.exit_call();
+            let __t33 = __call_res?;
+            s_i32_1 = __t33;
+            l31 = s_i32_1;
+            s_i32_1 = l31;
+            s_i32_2 = l29;
+            ops::i32_store8(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l31;
+            s_i32_2 = l30;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l31;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 5usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l28;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t34 = __call_res?;
+            s_i32_10 = __t34;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 14i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t35 = __call_res?;
+    s_i32_0 = __t35;
+    'blk_27: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2201i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l14;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            s_i64_1 = 0i64;
+            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+            'blk_28: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 316i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                } else {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l4;
+                    s_i32_4 = l5;
+                    s_i32_5 = l6;
+                    s_i32_6 = l7;
+                    s_i32_7 = l8;
+                    s_i32_8 = l1;
+                    s_i32_9 = l2;
+                    s_i32_10 = 1i32;
+                    s_i32_11 = l14;
+                    s_i64_12 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+                    vm.exit_call();
+                    let __t36 = __call_res?;
+                    s_i32_11 = __t36;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+                    vm.exit_call();
+                    let __t37 = __call_res?;
+                    s_i32_8 = __t37;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                    vm.exit_call();
+                    __call_res?;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t38 = __call_res?;
+            s_i32_10 = __t38;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 15i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t39 = __call_res?;
+    s_i32_0 = __t39;
+    'blk_29: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l10;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 40u32)?;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t40 = __call_res?;
+            s_i32_0 = __t40;
+            l32 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_3 = ops::i32_load(vm, 0, s_i32_3, 8u32)?;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l32;
+            s_i32_11 = l32;
+            s_i32_11 = ops::i32_load(vm, 0, s_i32_11, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 2usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 16i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t41 = __call_res?;
+    s_i32_0 = __t41;
+    'blk_30: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i64_ret_i32(vm, 13usize, s_i64_0, host);
+            vm.exit_call();
+            let __t42 = __call_res?;
+            s_i32_0 = __t42;
+            l33 = s_i32_0;
+            s_i32_0 = l15;
+            l34 = s_i32_0;
+            s_i32_0 = l34;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l35 = s_i32_0;
+            s_i32_0 = l34;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l36 = s_i32_0;
+            s_i32_0 = 0i32;
+            l37 = s_i32_0;
+            'blk_31: {
+                'blk_32: loop {
+                    vm.deduct(host, 1)?;
+                    s_i32_0 = l37;
+                    s_i32_1 = l36;
+                    s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                    if s_i32_0 != 0 {
+                        break 'blk_31;
+                    }
+                    s_i32_0 = l35;
+                    s_i32_1 = l37;
+                    s_i32_2 = 4i32;
+                    s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l38 = s_i32_0;
+                    'blk_33: {
+                        s_i32_0 = l33;
+                        s_i32_1 = l1;
+                        s_i32_2 = l2;
+                        s_i32_3 = l3;
+                        s_i32_4 = l38;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_1, s_i32_2, s_i32_3, s_i32_4, host);
+                        vm.exit_call();
+                        let __t43 = __call_res?;
+                        s_i32_1 = __t43;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 13usize, s_i32_0, s_i32_1, host);
+                        vm.exit_call();
+                        __call_res?;
+                    }
+                    s_i32_0 = l37;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    l37 = s_i32_0;
+                    continue 'blk_32;
+                    break 'blk_32;
+                }
+            }
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l13;
+            s_i32_4 = l33;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 94usize, s_i32_4, host);
+            vm.exit_call();
+            let __t44 = __call_res?;
+            s_i32_4 = __t44;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, host);
+            vm.exit_call();
+            let __t45 = __call_res?;
+            s_i32_0 = __t45;
+            l39 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2211i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l39;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            'blk_34: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l13;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 8u32)?;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                } else {
+                    s_i32_0 = l39;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                    l40 = s_i32_0;
+                    s_i32_0 = l1;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 32u32)?;
+                    s_i32_1 = l40;
+                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t46 = __call_res?;
+                    s_i32_0 = __t46;
+                    l41 = s_i32_0;
+                    s_i32_0 = l41;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l42 = s_i32_0;
+                    s_i32_0 = l41;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+                    l43 = s_i32_0;
+                    s_i32_0 = l41;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 12u32)?;
+                    l44 = s_i32_0;
+                    s_i32_0 = l41;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+                    l45 = s_i32_0;
+                    s_i32_0 = l13;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    'blk_35: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l42;
+                            s_i32_1 = l2;
+                            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+                            s_i32_0 = ops::i32_ne(s_i32_0, s_i32_1);
+                            'blk_36: {
+                                if s_i32_0 != 0 {
+                                    s_i32_0 = l7;
+                                    s_i32_1 = l5;
+                                    s_i32_2 = l1;
+                                    s_i32_2 = ops::i32_load(vm, 0, s_i32_2, 4u32)?;
+                                    s_i32_3 = l42;
+                                    vm.deduct(host, 1)?;
+                                    s_i64_3 = ops::i64_extend_i32_u(s_i32_3);
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_2, s_i64_3, host);
+                                    vm.exit_call();
+                                    let __t47 = __call_res?;
+                                    s_i32_2 = __t47;
+                                    s_i32_3 = l13;
+                                    s_i32_3 = ops::i32_load(vm, 0, s_i32_3, 4u32)?;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                } else {
+                                }
+                            }
+                            s_i32_0 = l0;
+                            s_i32_1 = l13;
+                            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 4usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                            s_i32_0 = l42;
+                            s_i32_1 = l2;
+                            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                            'blk_37: {
+                                if s_i32_0 != 0 {
+                                    s_i32_0 = l0;
+                                    s_i32_1 = l45;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                } else {
+                                    s_i32_0 = l43;
+                                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                                    'blk_38: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = l7;
+                                            s_i32_1 = l5;
+                                            vm.deduct(host, 1)?;
+                                            s_i32_2 = l1;
+                                            s_i32_2 = ops::i32_load(vm, 0, s_i32_2, 4u32)?;
+                                            s_i32_3 = l42;
+                                            s_i64_3 = ops::i64_extend_i32_u(s_i32_3);
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_2, s_i64_3, host);
+                                            vm.exit_call();
+                                            let __t48 = __call_res?;
+                                            s_i32_2 = __t48;
+                                            s_i32_3 = l43;
+                                            s_i32_3 = ops::i32_load(vm, 0, s_i32_3, 4u32)?;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = l43;
+                                            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 4usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                        } else {
+                                            s_i32_0 = l45;
+                                            s_i32_1 = l44;
+                                            vm.deduct(host, 1)?;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 130usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            let __t49 = __call_res?;
+                                            s_i32_0 = __t49;
+                                            'blk_39: {
+                                                if s_i32_0 != 0 {
+                                                    s_i32_0 = l0;
+                                                    s_i32_1 = l13;
+                                                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 8u32)?;
+                                                    vm.enter_call()?;
+                                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+                                                    vm.exit_call();
+                                                    __call_res?;
+                                                } else {
+                                                    s_i32_0 = l1;
+                                                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                                                    s_i32_1 = l42;
+                                                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                                                    vm.enter_call()?;
+                                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                                                    vm.exit_call();
+                                                    let __t50 = __call_res?;
+                                                    s_i32_0 = __t50;
+                                                    l46 = s_i32_0;
+                                                    s_i32_0 = l0;
+                                                    s_i32_1 = l8;
+                                                    s_i32_2 = 5i32;
+                                                    s_i32_3 = l40;
+                                                    s_i32_4 = l46;
+                                                    s_i32_5 = l45;
+                                                    vm.enter_call()?;
+                                                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_ret_i32(vm, 0usize, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, host);
+                                                    vm.exit_call();
+                                                    let __t51 = __call_res?;
+                                                    s_i32_1 = __t51;
+                                                    vm.enter_call()?;
+                                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+                                                    vm.exit_call();
+                                                    __call_res?;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            s_i32_0 = l15;
+            vm.deduct(host, 1)?;
+            l47 = s_i32_0;
+            s_i32_0 = l47;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l48 = s_i32_0;
+            s_i32_0 = l47;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l49 = s_i32_0;
+            s_i32_0 = 0i32;
+            l50 = s_i32_0;
+            'blk_40: {
+                'blk_41: loop {
+                    vm.deduct(host, 1)?;
+                    s_i32_0 = l50;
+                    s_i32_1 = l49;
+                    s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                    if s_i32_0 != 0 {
+                        break 'blk_40;
+                    }
+                    s_i32_0 = l48;
+                    s_i32_1 = l50;
+                    s_i32_2 = 4i32;
+                    s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l51 = s_i32_0;
+                    'blk_42: {
+                        s_i32_0 = l0;
+                        s_i32_1 = l1;
+                        s_i32_2 = l2;
+                        s_i32_3 = l3;
+                        s_i32_4 = l4;
+                        s_i32_5 = l5;
+                        s_i32_6 = l6;
+                        s_i32_7 = l7;
+                        s_i32_8 = l8;
+                        s_i32_9 = l9;
+                        s_i32_10 = l51;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                        vm.exit_call();
+                        __call_res?;
+                    }
+                    s_i32_0 = l50;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    l50 = s_i32_0;
+                    continue 'blk_41;
+                    break 'blk_41;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2212i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 17i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t52 = __call_res?;
+    s_i32_0 = __t52;
+    'blk_43: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l52 = s_i32_0;
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+            l53 = s_i32_0;
+            s_i32_0 = l15;
+            l54 = s_i32_0;
+            s_i32_0 = l54;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l55 = s_i32_0;
+            s_i32_0 = l54;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l56 = s_i32_0;
+            s_i32_0 = 0i32;
+            l57 = s_i32_0;
+            'blk_44: {
+                'blk_45: loop {
+                    vm.deduct(host, 1)?;
+                    s_i32_0 = l57;
+                    s_i32_1 = l56;
+                    s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                    if s_i32_0 != 0 {
+                        break 'blk_44;
+                    }
+                    s_i32_0 = l55;
+                    s_i32_1 = l57;
+                    s_i32_2 = 4i32;
+                    s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l58 = s_i32_0;
+                    'blk_46: {
+                        s_i32_0 = l58;
+                        s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                        s_i32_1 = 15i32;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                        vm.exit_call();
+                        let __t53 = __call_res?;
+                        s_i32_0 = __t53;
+                        'blk_47: {
+                            if s_i32_0 != 0 {
+                                s_i32_0 = l58;
+                                s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 40u32)?;
+                                s_i64_1 = 0i64;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                                vm.exit_call();
+                                let __t54 = __call_res?;
+                                s_i32_0 = __t54;
+                                l59 = s_i32_0;
+                                s_i32_0 = l59;
+                                s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+                                s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                                s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i64_ret_i32(vm, 13usize, s_i64_0, host);
+                                vm.exit_call();
+                                let __t55 = __call_res?;
+                                s_i32_0 = __t55;
+                                l60 = s_i32_0;
+                                s_i32_0 = l59;
+                                s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+                                l61 = s_i32_0;
+                                s_i32_0 = l61;
+                                s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                                l62 = s_i32_0;
+                                s_i32_0 = l61;
+                                s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                                l63 = s_i32_0;
+                                s_i32_0 = 0i32;
+                                l64 = s_i32_0;
+                                'blk_48: {
+                                    'blk_49: loop {
+                                        vm.deduct(host, 1)?;
+                                        s_i32_0 = l64;
+                                        s_i32_1 = l63;
+                                        s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                                        if s_i32_0 != 0 {
+                                            break 'blk_48;
+                                        }
+                                        s_i32_0 = l62;
+                                        s_i32_1 = l64;
+                                        s_i32_2 = 4i32;
+                                        s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                                        s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                                        s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                                        l65 = s_i32_0;
+                                        'blk_50: {
+                                            s_i32_0 = l60;
+                                            s_i32_1 = l1;
+                                            s_i32_2 = l2;
+                                            s_i32_3 = 1i32;
+                                            s_i32_4 = l65;
+                                            s_i32_4 = ops::i32_load(vm, 0, s_i32_4, 0u32)?;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_1, s_i32_2, s_i32_3, s_i32_4, host);
+                                            vm.exit_call();
+                                            let __t56 = __call_res?;
+                                            s_i32_1 = __t56;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 13usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                        }
+                                        s_i32_0 = l64;
+                                        s_i32_1 = 1i32;
+                                        s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                                        l64 = s_i32_0;
+                                        continue 'blk_49;
+                                        break 'blk_49;
+                                    }
+                                }
+                                s_i32_0 = l53;
+                                s_i32_1 = l59;
+                                s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+                                l66 = s_i32_1;
+                                s_i32_1 = l1;
+                                s_i32_2 = l2;
+                                s_i32_3 = 1i32;
+                                s_i32_4 = l59;
+                                s_i32_4 = ops::i32_load(vm, 0, s_i32_4, 8u32)?;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_1, s_i32_2, s_i32_3, s_i32_4, host);
+                                vm.exit_call();
+                                let __t57 = __call_res?;
+                                s_i32_1 = __t57;
+                                l67 = s_i32_1;
+                                s_i32_1 = l60;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 94usize, s_i32_1, host);
+                                vm.exit_call();
+                                let __t58 = __call_res?;
+                                s_i32_1 = __t58;
+                                l68 = s_i32_1;
+                                s_i32_1 = 12i32;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+                                vm.exit_call();
+                                let __t59 = __call_res?;
+                                s_i32_1 = __t59;
+                                l69 = s_i32_1;
+                                s_i32_1 = l69;
+                                s_i32_2 = l66;
+                                ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+                                s_i32_1 = l69;
+                                s_i32_2 = l67;
+                                ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+                                s_i32_1 = l69;
+                                s_i32_2 = l68;
+                                ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+                                s_i32_1 = l69;
+                                l70 = s_i32_1;
+                                s_i32_1 = 20i32;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+                                vm.exit_call();
+                                let __t60 = __call_res?;
+                                s_i32_1 = __t60;
+                                l71 = s_i32_1;
+                                s_i32_1 = l71;
+                                s_i32_2 = l71;
+                                s_i32_3 = 16i32;
+                                s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+                                ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+                                s_i32_1 = l71;
+                                s_i32_2 = 1i32;
+                                ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+                                s_i32_1 = l71;
+                                s_i32_2 = 1i32;
+                                ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+                                s_i32_1 = l71;
+                                s_i32_2 = 1i32;
+                                ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+                                s_i32_1 = l71;
+                                s_i32_2 = l70;
+                                ops::i32_store(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+                                s_i32_1 = l71;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 137usize, s_i32_0, s_i32_1, host);
+                                vm.exit_call();
+                                let __t61 = __call_res?;
+                                s_i32_0 = __t61;
+                                l53 = s_i32_0;
+                            } else {
+                            }
+                        }
+                    }
+                    s_i32_0 = l57;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    l57 = s_i32_0;
+                    continue 'blk_45;
+                    break 'blk_45;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2213i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l15;
+            l72 = s_i32_0;
+            s_i32_0 = l72;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l73 = s_i32_0;
+            s_i32_0 = l72;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l74 = s_i32_0;
+            s_i32_0 = 0i32;
+            l75 = s_i32_0;
+            'blk_51: {
+                'blk_52: loop {
+                    vm.deduct(host, 1)?;
+                    s_i32_0 = l75;
+                    s_i32_1 = l74;
+                    s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                    if s_i32_0 != 0 {
+                        break 'blk_51;
+                    }
+                    s_i32_0 = l73;
+                    s_i32_1 = l75;
+                    s_i32_2 = 4i32;
+                    s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l76 = s_i32_0;
+                    'blk_53: {
+                        s_i32_0 = l3;
+                        s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                        l77 = s_i32_0;
+                        s_i32_0 = l52;
+                        l78 = s_i32_0;
+                        s_i32_0 = l53;
+                        l79 = s_i32_0;
+                        s_i32_0 = 12i32;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_0, host);
+                        vm.exit_call();
+                        let __t62 = __call_res?;
+                        s_i32_0 = __t62;
+                        l80 = s_i32_0;
+                        s_i32_0 = l80;
+                        s_i32_1 = l77;
+                        ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                        s_i32_0 = l80;
+                        s_i32_1 = l78;
+                        ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                        s_i32_0 = l80;
+                        s_i32_1 = l79;
+                        ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+                        s_i32_0 = l80;
+                        l81 = s_i32_0;
+                        s_i32_0 = l0;
+                        s_i32_1 = l1;
+                        s_i32_2 = l2;
+                        s_i32_3 = l81;
+                        s_i32_4 = l4;
+                        s_i32_5 = l5;
+                        s_i32_6 = l6;
+                        s_i32_7 = l7;
+                        s_i32_8 = l8;
+                        s_i32_9 = l9;
+                        s_i32_10 = l76;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                        vm.exit_call();
+                        __call_res?;
+                        s_i32_0 = l76;
+                        s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                        l82 = s_i32_0;
+                        s_i32_0 = l82;
+                        s_i32_1 = 12i32;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                        vm.exit_call();
+                        let __t63 = __call_res?;
+                        s_i32_0 = __t63;
+                        'blk_54: {
+                            if s_i32_0 != 0 {
+                                s_i32_0 = 1i32;
+                            } else {
+                                s_i32_0 = l82;
+                                s_i32_1 = 13i32;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                                vm.exit_call();
+                                let __t64 = __call_res?;
+                                s_i32_0 = __t64;
+                            }
+                        }
+                        'blk_55: {
+                            if s_i32_0 != 0 {
+                                s_i32_0 = l1;
+                                s_i32_1 = l2;
+                                s_i32_2 = 1i32;
+                                s_i32_3 = l76;
+                                s_i32_3 = ops::i32_load(vm, 0, s_i32_3, 24u32)?;
+                                s_i64_4 = 0i64;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+                                vm.exit_call();
+                                let __t65 = __call_res?;
+                                s_i32_3 = __t65;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+                                vm.exit_call();
+                                let __t66 = __call_res?;
+                                s_i32_0 = __t66;
+                                l83 = s_i32_0;
+                                s_i32_0 = l52;
+                                s_i32_1 = l76;
+                                s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+                                l84 = s_i32_1;
+                                s_i32_1 = l83;
+                                l85 = s_i32_1;
+                                s_i32_1 = 8i32;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+                                vm.exit_call();
+                                let __t67 = __call_res?;
+                                s_i32_1 = __t67;
+                                l86 = s_i32_1;
+                                s_i32_1 = l86;
+                                s_i32_2 = l84;
+                                ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+                                s_i32_1 = l86;
+                                s_i32_2 = l85;
+                                ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+                                s_i32_1 = l86;
+                                l87 = s_i32_1;
+                                s_i32_1 = 20i32;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+                                vm.exit_call();
+                                let __t68 = __call_res?;
+                                s_i32_1 = __t68;
+                                l88 = s_i32_1;
+                                s_i32_1 = l88;
+                                s_i32_2 = l88;
+                                s_i32_3 = 16i32;
+                                s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+                                ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+                                s_i32_1 = l88;
+                                s_i32_2 = 1i32;
+                                ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+                                s_i32_1 = l88;
+                                s_i32_2 = 1i32;
+                                ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+                                s_i32_1 = l88;
+                                s_i32_2 = 1i32;
+                                ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+                                s_i32_1 = l88;
+                                s_i32_2 = l87;
+                                ops::i32_store(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+                                s_i32_1 = l88;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 137usize, s_i32_0, s_i32_1, host);
+                                vm.exit_call();
+                                let __t69 = __call_res?;
+                                s_i32_0 = __t69;
+                                l52 = s_i32_0;
+                            } else {
+                            }
+                        }
+                    }
+                    s_i32_0 = l75;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    l75 = s_i32_0;
+                    continue 'blk_52;
+                    break 'blk_52;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2214i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 18i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t70 = __call_res?;
+    s_i32_0 = __t70;
+    'blk_56: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2448i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t71 = __call_res?;
+            s_i32_10 = __t71;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            vm.deduct(host, 1)?;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 1i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t72 = __call_res?;
+            s_i32_10 = __t72;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 2i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t73 = __call_res?;
+            s_i32_10 = __t73;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 19i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t74 = __call_res?;
+    s_i32_0 = __t74;
+    'blk_57: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2449i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t75 = __call_res?;
+            s_i32_10 = __t75;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            vm.deduct(host, 1)?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 1i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t76 = __call_res?;
+            s_i32_10 = __t76;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 20i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t77 = __call_res?;
+    s_i32_0 = __t77;
+    'blk_58: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l14;
+            s_i64_4 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+            vm.exit_call();
+            let __t78 = __call_res?;
+            s_i32_3 = __t78;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t79 = __call_res?;
+            s_i32_0 = __t79;
+            l89 = s_i32_0;
+            s_i32_0 = l10;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 12u32)?;
+            l90 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2450i32;
+            vm.deduct(host, 1)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l89;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l90;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t80 = __call_res?;
+            s_i32_10 = __t80;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i32_1 = l90;
+            l91 = s_i32_1;
+            s_i32_1 = l89;
+            l92 = s_i32_1;
+            s_i32_1 = 8i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+            vm.exit_call();
+            let __t81 = __call_res?;
+            s_i32_1 = __t81;
+            l93 = s_i32_1;
+            s_i32_1 = l93;
+            s_i32_2 = l91;
+            ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l93;
+            s_i32_2 = l92;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l93;
+            l94 = s_i32_1;
+            s_i32_1 = 20i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+            vm.exit_call();
+            let __t82 = __call_res?;
+            s_i32_1 = __t82;
+            l95 = s_i32_1;
+            s_i32_1 = l95;
+            s_i32_2 = l95;
+            s_i32_3 = 16i32;
+            s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+            ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l95;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l95;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+            s_i32_1 = l95;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+            s_i32_1 = l95;
+            s_i32_2 = l94;
+            ops::i32_store(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+            s_i32_1 = l95;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 137usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t83 = __call_res?;
+            s_i32_0 = __t83;
+            l96 = s_i32_0;
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l97 = s_i32_0;
+            s_i32_0 = l96;
+            l98 = s_i32_0;
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+            l99 = s_i32_0;
+            s_i32_0 = 12i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_0, host);
+            vm.exit_call();
+            let __t84 = __call_res?;
+            s_i32_0 = __t84;
+            l100 = s_i32_0;
+            s_i32_0 = l100;
+            s_i32_1 = l97;
+            ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+            s_i32_0 = l100;
+            s_i32_1 = l98;
+            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+            s_i32_0 = l100;
+            s_i32_1 = l99;
+            ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+            s_i32_0 = l100;
+            l101 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l101;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 1i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t85 = __call_res?;
+            s_i32_10 = __t85;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 21i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t86 = __call_res?;
+    s_i32_0 = __t86;
+    'blk_59: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2451i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 22i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t87 = __call_res?;
+    s_i32_0 = __t87;
+    'blk_60: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            vm.deduct(host, 1)?;
+            s_i32_1 = 2452i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    vm.deduct(host, 1)?;
+    s_i32_1 = 23i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t88 = __call_res?;
+    s_i32_0 = __t88;
+    'blk_61: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2453i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l15;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            s_i64_1 = 0i64;
+            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+            'blk_62: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 316i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                } else {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l15;
+                    s_i64_11 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                    vm.exit_call();
+                    let __t89 = __call_res?;
+                    s_i32_10 = __t89;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                }
+            }
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 24i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t90 = __call_res?;
+    s_i32_0 = __t90;
+    'blk_63: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2455i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 25i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t91 = __call_res?;
+    s_i32_0 = __t91;
+    'blk_64: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l12;
+            s_i32_11 = l15;
+            s_i64_12 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+            vm.exit_call();
+            let __t92 = __call_res?;
+            s_i32_11 = __t92;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 26i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t93 = __call_res?;
+    s_i32_0 = __t93;
+    'blk_65: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l12;
+            s_i32_11 = l15;
+            s_i64_12 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+            vm.exit_call();
+            let __t94 = __call_res?;
+            s_i32_11 = __t94;
+            s_i32_12 = l15;
+            s_i64_13 = 1i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_12, s_i64_13, host);
+            vm.exit_call();
+            let __t95 = __call_res?;
+            s_i32_12 = __t95;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, s_i32_12, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 27i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t96 = __call_res?;
+    s_i32_0 = __t96;
+    'blk_66: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l12;
+            s_i32_11 = l15;
+            s_i64_12 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+            vm.exit_call();
+            let __t97 = __call_res?;
+            s_i32_11 = __t97;
+            s_i32_12 = l15;
+            s_i64_13 = 1i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_12, s_i64_13, host);
+            vm.exit_call();
+            let __t98 = __call_res?;
+            s_i32_12 = __t98;
+            s_i32_13 = l15;
+            s_i64_14 = 2i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_13, s_i64_14, host);
+            vm.exit_call();
+            let __t99 = __call_res?;
+            s_i32_13 = __t99;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, s_i32_12, s_i32_13, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 28i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t100 = __call_res?;
+    s_i32_0 = __t100;
+    'blk_67: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t101 = __call_res?;
+            s_i32_10 = __t101;
+            s_i32_11 = l1;
+            s_i32_12 = l2;
+            s_i32_13 = 1i32;
+            s_i32_14 = l14;
+            s_i64_15 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_14, s_i64_15, host);
+            vm.exit_call();
+            let __t102 = __call_res?;
+            s_i32_14 = __t102;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_11, s_i32_12, s_i32_13, s_i32_14, host);
+            vm.exit_call();
+            let __t103 = __call_res?;
+            s_i32_11 = __t103;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 29i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t104 = __call_res?;
+    s_i32_0 = __t104;
+    'blk_68: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l13;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t105 = __call_res?;
+            s_i32_0 = __t105;
+            l102 = s_i32_0;
+            s_i32_0 = l102;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 22i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t106 = __call_res?;
+            s_i32_0 = __t106;
+            'blk_69: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l102;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l103 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+            s_i32_1 = l103;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t107 = __call_res?;
+            s_i32_0 = __t107;
+            l104 = s_i32_0;
+            s_i32_0 = l104;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+            l105 = s_i32_0;
+            s_i32_0 = l10;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 32u32)?;
+            l106 = s_i32_0;
+            s_i32_0 = l105;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            l107 = s_i64_0;
+            s_i32_0 = l106;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            s_i64_1 = l107;
+            s_i32_0 = ops::i64_ne(s_i64_0, s_i64_1);
+            'blk_70: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i64_0 = 0i64;
+            l108 = s_i64_0;
+            'blk_71: {
+                'blk_72: loop {
+                    vm.deduct(host, 1)?;
+                    s_i64_0 = l108;
+                    s_i64_1 = l107;
+                    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                    if s_i32_0 != 0 {
+                        break 'blk_71;
+                    }
+                    s_i64_0 = 0i64;
+                    l109 = s_i64_0;
+                    'blk_73: {
+                        'blk_74: loop {
+                            vm.deduct(host, 1)?;
+                            s_i64_0 = l109;
+                            s_i64_1 = l108;
+                            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                            s_i32_0 = ops::i32_eqz(s_i32_0);
+                            if s_i32_0 != 0 {
+                                break 'blk_73;
+                            }
+                            s_i32_0 = l106;
+                            s_i64_1 = l109;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t108 = __call_res?;
+                            s_i32_0 = __t108;
+                            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                            s_i32_1 = l106;
+                            s_i64_2 = l108;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_1, s_i64_2, host);
+                            vm.exit_call();
+                            let __t109 = __call_res?;
+                            s_i32_1 = __t109;
+                            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 130usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            let __t110 = __call_res?;
+                            s_i32_0 = __t110;
+                            'blk_75: {
+                                if s_i32_0 != 0 {
+                                    return Err(WasmTrap::Unreachable);
+                                } else {
+                                }
+                            }
+                            s_i64_0 = l109;
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t111 = __call_res?;
+                            s_i64_0 = __t111;
+                            l109 = s_i64_0;
+                            continue 'blk_74;
+                            break 'blk_74;
+                        }
+                    }
+                    s_i64_0 = l108;
+                    s_i64_1 = 1i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t112 = __call_res?;
+                    s_i64_0 = __t112;
+                    l108 = s_i64_0;
+                    continue 'blk_72;
+                    break 'blk_72;
+                }
+            }
+            s_i64_0 = l107;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i64_ret_i32(vm, 16usize, s_i64_0, host);
+            vm.exit_call();
+            let __t113 = __call_res?;
+            s_i32_0 = __t113;
+            l110 = s_i32_0;
+            s_i32_0 = 1i32;
+            l111 = s_i32_0;
+            s_i64_0 = 0i64;
+            l112 = s_i64_0;
+            'blk_76: {
+                'blk_77: loop {
+                    vm.deduct(host, 1)?;
+                    s_i64_0 = l112;
+                    s_i64_1 = l107;
+                    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                    if s_i32_0 != 0 {
+                        break 'blk_76;
+                    }
+                    s_i32_0 = l105;
+                    s_i64_1 = l112;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t114 = __call_res?;
+                    s_i32_0 = __t114;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l113 = s_i32_0;
+                    s_i32_0 = 0i32;
+                    l114 = s_i32_0;
+                    s_i64_0 = 0i64;
+                    l115 = s_i64_0;
+                    s_i64_0 = 0i64;
+                    l116 = s_i64_0;
+                    'blk_78: {
+                        'blk_79: loop {
+                            vm.deduct(host, 1)?;
+                            s_i64_0 = l116;
+                            s_i64_1 = l107;
+                            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                            s_i32_0 = ops::i32_eqz(s_i32_0);
+                            if s_i32_0 != 0 {
+                                break 'blk_78;
+                            }
+                            s_i32_0 = l106;
+                            s_i64_1 = l116;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t115 = __call_res?;
+                            s_i32_0 = __t115;
+                            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                            s_i32_1 = l113;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 130usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            let __t116 = __call_res?;
+                            s_i32_0 = __t116;
+                            'blk_80: {
+                                if s_i32_0 != 0 {
+                                    s_i32_0 = 1i32;
+                                    l114 = s_i32_0;
+                                    s_i64_0 = l116;
+                                    l115 = s_i64_0;
+                                } else {
+                                }
+                            }
+                            s_i64_0 = l116;
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t117 = __call_res?;
+                            s_i64_0 = __t117;
+                            l116 = s_i64_0;
+                            continue 'blk_79;
+                            break 'blk_79;
+                        }
+                    }
+                    s_i32_0 = l114;
+                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                    'blk_81: {
+                        if s_i32_0 != 0 {
+                            return Err(WasmTrap::Unreachable);
+                        } else {
+                        }
+                    }
+                    s_i64_0 = l115;
+                    s_i64_1 = l112;
+                    s_i32_0 = ops::i64_ne(s_i64_0, s_i64_1);
+                    'blk_82: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = 0i32;
+                            l111 = s_i32_0;
+                        } else {
+                        }
+                    }
+                    s_i32_0 = l110;
+                    s_i64_1 = l115;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 1usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i64_0 = l112;
+                    s_i64_1 = 1i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t118 = __call_res?;
+                    s_i64_0 = __t118;
+                    l112 = s_i64_0;
+                    continue 'blk_77;
+                    break 'blk_77;
+                }
+            }
+            s_i32_0 = l110;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 94usize, s_i32_0, host);
+            vm.exit_call();
+            let __t119 = __call_res?;
+            s_i32_0 = __t119;
+            l117 = s_i32_0;
+            s_i32_0 = l111;
+            'blk_83: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = 1i32;
+                } else {
+                    s_i32_0 = l10;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 87usize, s_i32_0, host);
+                    vm.exit_call();
+                    let __t120 = __call_res?;
+                    s_i32_0 = __t120;
+                }
+            }
+            'blk_84: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 2219i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l5;
+                    s_i32_4 = l7;
+                    s_i32_5 = l8;
+                    s_i32_6 = 1i32;
+                    s_i32_7 = l103;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i64_0 = 0i64;
+                    l118 = s_i64_0;
+                    'blk_85: {
+                        'blk_86: loop {
+                            vm.deduct(host, 1)?;
+                            s_i64_0 = l118;
+                            s_i64_1 = l107;
+                            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                            s_i32_0 = ops::i32_eqz(s_i32_0);
+                            if s_i32_0 != 0 {
+                                break 'blk_85;
+                            }
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l106;
+                            s_i32_11 = l117;
+                            s_i64_12 = l118;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i64(vm, 6usize, s_i32_11, s_i64_12, host);
+                            vm.exit_call();
+                            let __t121 = __call_res?;
+                            s_i64_11 = __t121;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                            vm.exit_call();
+                            let __t122 = __call_res?;
+                            s_i32_10 = __t122;
+                            s_i32_10 = ops::i32_load(vm, 0, s_i32_10, 4u32)?;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i64_0 = l118;
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t123 = __call_res?;
+                            s_i64_0 = __t123;
+                            l118 = s_i64_0;
+                            continue 'blk_86;
+                            break 'blk_86;
+                        }
+                    }
+                    s_i32_0 = l0;
+                    s_i32_1 = 2220i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                    s_i64_0 = l107;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i64_ret_i32(vm, 13usize, s_i64_0, host);
+                    vm.exit_call();
+                    let __t124 = __call_res?;
+                    s_i32_0 = __t124;
+                    l119 = s_i32_0;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2213i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i64_0 = 0i64;
+                    l120 = s_i64_0;
+                    'blk_87: {
+                        'blk_88: loop {
+                            vm.deduct(host, 1)?;
+                            s_i64_0 = l120;
+                            s_i64_1 = l107;
+                            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                            s_i32_0 = ops::i32_eqz(s_i32_0);
+                            if s_i32_0 != 0 {
+                                break 'blk_87;
+                            }
+                            s_i32_0 = l106;
+                            s_i64_1 = l120;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t125 = __call_res?;
+                            s_i32_0 = __t125;
+                            l121 = s_i32_0;
+                            s_i32_0 = l104;
+                            s_i32_1 = l121;
+                            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i64(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            let __t126 = __call_res?;
+                            s_i64_0 = __t126;
+                            l122 = s_i64_0;
+                            s_i32_0 = l105;
+                            s_i64_1 = l122;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t127 = __call_res?;
+                            s_i32_0 = __t127;
+                            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                            l123 = s_i32_0;
+                            s_i32_0 = l1;
+                            s_i32_1 = l2;
+                            s_i32_2 = l3;
+                            s_i32_3 = l121;
+                            s_i32_3 = ops::i32_load(vm, 0, s_i32_3, 4u32)?;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+                            vm.exit_call();
+                            let __t128 = __call_res?;
+                            s_i32_0 = __t128;
+                            l124 = s_i32_0;
+                            s_i32_0 = l124;
+                            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                            s_i32_1 = 1i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            let __t129 = __call_res?;
+                            s_i32_0 = __t129;
+                            'blk_89: {
+                                if s_i32_0 != 0 {
+                                    s_i32_0 = l0;
+                                    s_i32_1 = l1;
+                                    s_i32_2 = l2;
+                                    s_i32_3 = l3;
+                                    s_i32_4 = l4;
+                                    s_i32_5 = l5;
+                                    s_i32_6 = l6;
+                                    s_i32_7 = l7;
+                                    s_i32_8 = l8;
+                                    s_i32_9 = l9;
+                                    s_i32_10 = l121;
+                                    s_i32_10 = ops::i32_load(vm, 0, s_i32_10, 4u32)?;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = 2214i32;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    return Ok(TailStep_void::Done(()));
+                                } else {
+                                }
+                            }
+                            s_i32_0 = l9;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 74usize, s_i32_0, host);
+                            vm.exit_call();
+                            let __t130 = __call_res?;
+                            s_i32_0 = __t130;
+                            l125 = s_i32_0;
+                            s_i32_0 = l119;
+                            s_i32_1 = l125;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 13usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2199i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 316i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l4;
+                            s_i32_4 = l5;
+                            s_i32_5 = l6;
+                            s_i32_6 = l7;
+                            s_i32_7 = l8;
+                            s_i32_8 = l123;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l125;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l121;
+                            s_i32_10 = ops::i32_load(vm, 0, s_i32_10, 4u32)?;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i64_0 = l120;
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t131 = __call_res?;
+                            s_i64_0 = __t131;
+                            l120 = s_i64_0;
+                            continue 'blk_88;
+                            break 'blk_88;
+                        }
+                    }
+                    s_i32_0 = l119;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 94usize, s_i32_0, host);
+                    vm.exit_call();
+                    let __t132 = __call_res?;
+                    s_i32_0 = __t132;
+                    l126 = s_i32_0;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2219i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l5;
+                    s_i32_4 = l7;
+                    s_i32_5 = l8;
+                    s_i32_6 = 1i32;
+                    s_i32_7 = l103;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i64_0 = 0i64;
+                    l127 = s_i64_0;
+                    'blk_90: {
+                        'blk_91: loop {
+                            vm.deduct(host, 1)?;
+                            s_i64_0 = l127;
+                            s_i64_1 = l107;
+                            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                            s_i32_0 = ops::i32_eqz(s_i32_0);
+                            if s_i32_0 != 0 {
+                                break 'blk_90;
+                            }
+                            s_i32_0 = l0;
+                            s_i32_1 = l126;
+                            s_i32_2 = l117;
+                            s_i64_3 = l127;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i64(vm, 6usize, s_i32_2, s_i64_3, host);
+                            vm.exit_call();
+                            let __t133 = __call_res?;
+                            s_i64_2 = __t133;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_1, s_i64_2, host);
+                            vm.exit_call();
+                            let __t134 = __call_res?;
+                            s_i32_1 = __t134;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i64_0 = l127;
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t135 = __call_res?;
+                            s_i64_0 = __t135;
+                            l127 = s_i64_0;
+                            continue 'blk_91;
+                            break 'blk_91;
+                        }
+                    }
+                    s_i32_0 = l0;
+                    s_i32_1 = 2220i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2214i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                }
+            }
+            return Err(WasmTrap::Unreachable);
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 30i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t136 = __call_res?;
+    s_i32_0 = __t136;
+    'blk_92: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t137 = __call_res?;
+            s_i32_0 = __t137;
+            l128 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l128;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t138 = __call_res?;
+            s_i32_0 = __t138;
+            l129 = s_i32_0;
+            s_i32_0 = l129;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t139 = __call_res?;
+            s_i32_0 = __t139;
+            'blk_93: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l128;
+                    vm.deduct(host, 1)?;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l129;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 22i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t140 = __call_res?;
+            s_i32_0 = __t140;
+            'blk_94: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l1;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+            s_i32_1 = l129;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.deduct(host, 1)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t141 = __call_res?;
+            s_i32_0 = __t141;
+            l130 = s_i32_0;
+            s_i32_0 = l130;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i64(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t142 = __call_res?;
+            s_i64_0 = __t142;
+            l131 = s_i64_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2547i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l128;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = l131;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 31i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t143 = __call_res?;
+    s_i32_0 = __t143;
+    'blk_95: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t144 = __call_res?;
+            s_i32_0 = __t144;
+            l132 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l132;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t145 = __call_res?;
+            s_i32_0 = __t145;
+            l133 = s_i32_0;
+            s_i32_0 = l133;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t146 = __call_res?;
+            s_i32_0 = __t146;
+            'blk_96: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    vm.deduct(host, 1)?;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l132;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l133;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 22i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t147 = __call_res?;
+            s_i32_0 = __t147;
+            'blk_97: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l1;
+            vm.deduct(host, 1)?;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+            s_i32_1 = l133;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t148 = __call_res?;
+            s_i32_0 = __t148;
+            l134 = s_i32_0;
+            s_i32_0 = l134;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i64(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t149 = __call_res?;
+            s_i64_0 = __t149;
+            l135 = s_i64_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2548i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l132;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = l135;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 1i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t150 = __call_res?;
+            s_i32_10 = __t150;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 32i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t151 = __call_res?;
+    s_i32_0 = __t151;
+    'blk_98: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l13;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t152 = __call_res?;
+            s_i32_0 = __t152;
+            l136 = s_i32_0;
+            s_i32_0 = l136;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 24i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t153 = __call_res?;
+            s_i32_0 = __t153;
+            'blk_99: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l136;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l137 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 24u32)?;
+            s_i32_1 = l137;
+            vm.deduct(host, 1)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t154 = __call_res?;
+            s_i32_0 = __t154;
+            l138 = s_i32_0;
+            s_i32_0 = l138;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i64(vm, 2usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t155 = __call_res?;
+            s_i64_0 = __t155;
+            l139 = s_i64_0;
+            s_i32_0 = l138;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+            s_i64_1 = l139;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t156 = __call_res?;
+            s_i32_0 = __t156;
+            l140 = s_i32_0;
+            s_i32_0 = l140;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
+            'blk_100: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l15;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                    s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+                    s_i64_1 = 1i64;
+                    s_i32_0 = ops::i64_ne(s_i64_0, s_i64_1);
+                    'blk_101: {
+                        if s_i32_0 != 0 {
+                            return Err(WasmTrap::Unreachable);
+                        } else {
+                        }
+                    }
+                    s_i32_0 = l1;
+                    s_i32_1 = l2;
+                    s_i32_2 = l3;
+                    s_i32_3 = l15;
+                    s_i64_4 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+                    vm.exit_call();
+                    let __t157 = __call_res?;
+                    s_i32_3 = __t157;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+                    vm.exit_call();
+                    let __t158 = __call_res?;
+                    s_i32_0 = __t158;
+                    l141 = s_i32_0;
+                    s_i32_0 = l141;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = 1i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t159 = __call_res?;
+                    s_i32_0 = __t159;
+                    'blk_102: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l15;
+                            s_i64_11 = 0i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                            vm.exit_call();
+                            let __t160 = __call_res?;
+                            s_i32_10 = __t160;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                            vm.exit_call();
+                            __call_res?;
+                            return Ok(TailStep_void::Done(()));
+                        } else {
+                        }
+                    }
+                    s_i32_0 = l141;
+                    s_i32_1 = l140;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 8u32)?;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 106usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t161 = __call_res?;
+                    s_i32_0 = __t161;
+                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                    'blk_103: {
+                        if s_i32_0 != 0 {
+                            return Err(WasmTrap::Unreachable);
+                        } else {
+                        }
+                    }
+                } else {
+                    s_i32_0 = l15;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                    s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+                    s_i64_1 = 0i64;
+                    s_i32_0 = ops::i64_ne(s_i64_0, s_i64_1);
+                    'blk_104: {
+                        if s_i32_0 != 0 {
+                            return Err(WasmTrap::Unreachable);
+                        } else {
+                        }
+                    }
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2219i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l5;
+            s_i32_4 = l7;
+            s_i32_5 = l8;
+            s_i32_6 = 3i32;
+            s_i32_7 = l137;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 207i32;
+            s_i64_2 = l139;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l138;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 20u32)?;
+            l142 = s_i32_0;
+            s_i64_0 = 0i64;
+            l143 = s_i64_0;
+            'blk_105: {
+                'blk_106: loop {
+                    vm.deduct(host, 1)?;
+                    s_i64_0 = l143;
+                    s_i32_1 = l142;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                    if s_i32_0 != 0 {
+                        break 'blk_105;
+                    }
+                    s_i32_0 = l140;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
+                    'blk_107: {
+                        if s_i32_0 != 0 {
+                            s_i64_0 = l143;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_ret_i32(vm, 11usize, s_i64_0, host);
+                            vm.exit_call();
+                            let __t162 = __call_res?;
+                            s_i32_0 = __t162;
+                            s_i32_1 = l140;
+                            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                        } else {
+                            s_i32_0 = 0i32;
+                        }
+                    }
+                    'blk_108: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l15;
+                            s_i64_11 = 0i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                            vm.exit_call();
+                            let __t163 = __call_res?;
+                            s_i32_10 = __t163;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l4;
+                            s_i32_4 = l5;
+                            s_i32_5 = l6;
+                            s_i32_6 = l7;
+                            s_i32_7 = l8;
+                            s_i32_8 = l142;
+                            s_i64_9 = l143;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_8, s_i64_9, host);
+                            vm.exit_call();
+                            let __t164 = __call_res?;
+                            s_i32_8 = __t164;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                            vm.exit_call();
+                            __call_res?;
+                        }
+                    }
+                    s_i64_0 = l143;
+                    s_i64_1 = 1i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t165 = __call_res?;
+                    s_i64_0 = __t165;
+                    l143 = s_i64_0;
+                    continue 'blk_106;
+                    break 'blk_106;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2220i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 33i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t166 = __call_res?;
+    s_i32_0 = __t166;
+    'blk_109: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l14;
+            s_i64_4 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+            vm.exit_call();
+            let __t167 = __call_res?;
+            s_i32_3 = __t167;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t168 = __call_res?;
+            s_i32_0 = __t168;
+            l144 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2215i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = 2i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            vm.deduct(host, 1)?;
+            s_i32_0 = l0;
+            s_i32_1 = 0i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 312i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l144;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2216i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 34i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t169 = __call_res?;
+    s_i32_0 = __t169;
+    'blk_110: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t170 = __call_res?;
+            s_i32_0 = __t170;
+            l145 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l145;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t171 = __call_res?;
+            s_i32_0 = __t171;
+            l146 = s_i32_0;
+            vm.deduct(host, 1)?;
+            s_i32_0 = l146;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t172 = __call_res?;
+            s_i32_0 = __t172;
+            'blk_111: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l145;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2215i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = 2i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 312i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l145;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2216i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 35i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t173 = __call_res?;
+    s_i32_0 = __t173;
+    'blk_112: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l14;
+            s_i64_4 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+            vm.exit_call();
+            let __t174 = __call_res?;
+            s_i32_3 = __t174;
+            vm.deduct(host, 1)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t175 = __call_res?;
+            s_i32_0 = __t175;
+            l147 = s_i32_0;
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t176 = __call_res?;
+            s_i32_0 = __t176;
+            l148 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l148;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t177 = __call_res?;
+            s_i32_0 = __t177;
+            l149 = s_i32_0;
+            s_i32_0 = l149;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t178 = __call_res?;
+            s_i32_0 = __t178;
+            'blk_113: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l148;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l147;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 0i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t179 = __call_res?;
+            s_i32_0 = __t179;
+            'blk_114: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l148;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = 24i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t180 = __call_res?;
+                    s_i32_0 = __t180;
+                    'blk_115: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i32_1 = 2215i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i64_1 = 2i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 1i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 312i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 203i32;
+                            s_i64_2 = 0i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2216i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                            s_i32_0 = l0;
+                            s_i32_1 = 2213i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l148;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2215i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i64_1 = 2i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 1i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 312i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 203i32;
+                            s_i64_2 = 0i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2216i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2214i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        }
+                    }
+                } else {
+                    s_i32_0 = l0;
+                    s_i32_1 = 2215i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i64_1 = 3i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 1i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 312i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l148;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 312i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 203i32;
+                    s_i64_2 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2216i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                }
+            }
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 36i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t181 = __call_res?;
+    s_i32_0 = __t181;
+    'blk_116: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            vm.deduct(host, 1)?;
+            s_i32_2 = 1i32;
+            s_i32_3 = l14;
+            s_i64_4 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+            vm.exit_call();
+            let __t182 = __call_res?;
+            s_i32_3 = __t182;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t183 = __call_res?;
+            s_i32_0 = __t183;
+            l150 = s_i32_0;
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t184 = __call_res?;
+            s_i32_0 = __t184;
+            l151 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l151;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t185 = __call_res?;
+            s_i32_0 = __t185;
+            l152 = s_i32_0;
+            s_i32_0 = l152;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t186 = __call_res?;
+            s_i32_0 = __t186;
+            'blk_117: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l151;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l150;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 0i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t187 = __call_res?;
+            s_i32_0 = __t187;
+            'blk_118: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 2215i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i64_1 = 2i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 0i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 312i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l151;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2216i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                } else {
+                    s_i32_0 = l0;
+                    s_i32_1 = 2215i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i64_1 = 3i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 0i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 312i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l4;
+                    s_i32_4 = l5;
+                    s_i32_5 = l6;
+                    s_i32_6 = l7;
+                    s_i32_7 = l8;
+                    s_i32_8 = l150;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 312i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l151;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2216i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                }
+            }
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 37i32;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t188 = __call_res?;
+    s_i32_0 = __t188;
+    'blk_119: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l14;
+            s_i64_4 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+            vm.exit_call();
+            let __t189 = __call_res?;
+            s_i32_3 = __t189;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t190 = __call_res?;
+            s_i32_0 = __t190;
+            l153 = s_i32_0;
+            s_i32_0 = l153;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 23i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t191 = __call_res?;
+            s_i32_0 = __t191;
+            'blk_120: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l1;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 20u32)?;
+            s_i32_1 = l153;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t192 = __call_res?;
+            s_i32_0 = __t192;
+            l154 = s_i32_0;
+            s_i32_0 = l154;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 5u32)?;
+            'blk_121: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l154;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = l2;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+                    s_i32_0 = ops::i32_ne(s_i32_0, s_i32_1);
+                } else {
+                    s_i32_0 = 0i32;
+                }
+            }
+            'blk_122: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t193 = __call_res?;
+            s_i32_0 = __t193;
+            l155 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l155;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t194 = __call_res?;
+            s_i32_0 = __t194;
+            l156 = s_i32_0;
+            s_i32_0 = l156;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t195 = __call_res?;
+            s_i32_0 = __t195;
+            'blk_123: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l155;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2219i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l5;
+            s_i32_4 = l7;
+            s_i32_5 = l8;
+            s_i32_6 = 2i32;
+            s_i32_7 = l153;
+            s_i32_7 = ops::i32_load(vm, 0, s_i32_7, 4u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l155;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2220i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 38i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t196 = __call_res?;
+    s_i32_0 = __t196;
+    'blk_124: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t197 = __call_res?;
+            s_i32_0 = __t197;
+            l157 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l157;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t198 = __call_res?;
+            s_i32_0 = __t198;
+            l158 = s_i32_0;
+            s_i32_0 = l158;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t199 = __call_res?;
+            s_i32_0 = __t199;
+            'blk_125: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l157;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l158;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 23i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t200 = __call_res?;
+            s_i32_0 = __t200;
+            'blk_126: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l1;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 20u32)?;
+            s_i32_1 = l158;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t201 = __call_res?;
+            s_i32_0 = __t201;
+            l159 = s_i32_0;
+            s_i32_0 = l159;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 5u32)?;
+            'blk_127: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l159;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = l2;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+                    s_i32_0 = ops::i32_ne(s_i32_0, s_i32_1);
+                } else {
+                    s_i32_0 = 0i32;
+                }
+            }
+            'blk_128: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2547i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l157;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 39i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t202 = __call_res?;
+    s_i32_0 = __t202;
+    'blk_129: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t203 = __call_res?;
+            s_i32_0 = __t203;
+            l160 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l160;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t204 = __call_res?;
+            s_i32_0 = __t204;
+            l161 = s_i32_0;
+            s_i32_0 = l161;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t205 = __call_res?;
+            s_i32_0 = __t205;
+            'blk_130: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l160;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l161;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            l162 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l161;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 109usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t206 = __call_res?;
+            s_i32_0 = __t206;
+            l163 = s_i32_0;
+            s_i32_0 = l10;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 36u32)?;
+            l164 = s_i32_0;
+            s_i32_0 = l164;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i64_ret_i32(vm, 16usize, s_i64_0, host);
+            vm.exit_call();
+            let __t207 = __call_res?;
+            s_i32_0 = __t207;
+            l165 = s_i32_0;
+            s_i64_0 = 0i64;
+            l166 = s_i64_0;
+            'blk_131: {
+                'blk_132: loop {
+                    vm.deduct(host, 1)?;
+                    s_i64_0 = l166;
+                    s_i32_1 = l164;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                    if s_i32_0 != 0 {
+                        break 'blk_131;
+                    }
+                    s_i32_0 = l163;
+                    s_i32_1 = l164;
+                    s_i64_2 = l166;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_1, s_i64_2, host);
+                    vm.exit_call();
+                    let __t208 = __call_res?;
+                    s_i32_1 = __t208;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i64(vm, 3usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t209 = __call_res?;
+                    s_i64_0 = __t209;
+                    l167 = s_i64_0;
+                    s_i64_0 = 0i64;
+                    l168 = s_i64_0;
+                    'blk_133: {
+                        'blk_134: loop {
+                            vm.deduct(host, 1)?;
+                            s_i64_0 = l168;
+                            s_i64_1 = l166;
+                            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                            s_i32_0 = ops::i32_eqz(s_i32_0);
+                            if s_i32_0 != 0 {
+                                break 'blk_133;
+                            }
+                            s_i32_0 = l165;
+                            s_i64_1 = l168;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i64(vm, 5usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t210 = __call_res?;
+                            s_i64_0 = __t210;
+                            s_i64_1 = l167;
+                            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+                            'blk_135: {
+                                if s_i32_0 != 0 {
+                                    return Err(WasmTrap::Unreachable);
+                                } else {
+                                }
+                            }
+                            s_i64_0 = l168;
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t211 = __call_res?;
+                            s_i64_0 = __t211;
+                            l168 = s_i64_0;
+                            continue 'blk_134;
+                            break 'blk_134;
+                        }
+                    }
+                    s_i32_0 = l165;
+                    s_i64_1 = l167;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 1usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i64_0 = l166;
+                    s_i64_1 = 1i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t212 = __call_res?;
+                    s_i64_0 = __t212;
+                    l166 = s_i64_0;
+                    continue 'blk_132;
+                    break 'blk_132;
+                }
+            }
+            s_i32_0 = l165;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 94usize, s_i32_0, host);
+            vm.exit_call();
+            let __t213 = __call_res?;
+            s_i32_0 = __t213;
+            l169 = s_i32_0;
+            s_i32_0 = l12;
+            s_i32_1 = 1i32;
+            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+            'blk_136: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l164;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                    s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+                    s_i32_1 = l163;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                    s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+                    'blk_137: {
+                        if s_i32_0 != 0 {
+                            return Err(WasmTrap::Unreachable);
+                        } else {
+                        }
+                    }
+                } else {
+                    s_i32_0 = l164;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                    s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+                    s_i32_1 = l163;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                    s_i32_0 = ops::i64_ne(s_i64_0, s_i64_1);
+                    'blk_138: {
+                        if s_i32_0 != 0 {
+                            return Err(WasmTrap::Unreachable);
+                        } else {
+                        }
+                    }
+                }
+            }
+            s_i32_0 = l9;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 74usize, s_i32_0, host);
+            vm.exit_call();
+            let __t214 = __call_res?;
+            s_i32_0 = __t214;
+            l170 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2213i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2199i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 316i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l161;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l170;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            vm.deduct(host, 1)?;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l160;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l164;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            s_i64_1 = 0i64;
+            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+            'blk_139: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l12;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                    'blk_140: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l15;
+                            s_i64_11 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                            vm.exit_call();
+                            let __t215 = __call_res?;
+                            s_i32_10 = __t215;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                            s_i32_0 = l0;
+                            s_i32_1 = 2454i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        }
+                    }
+                } else {
+                    s_i32_0 = l12;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                    'blk_141: {
+                        if s_i32_0 != 0 {
+                            s_i64_0 = 0i64;
+                            l171 = s_i64_0;
+                            'blk_142: {
+                                'blk_143: loop {
+                                    vm.deduct(host, 1)?;
+                                    s_i64_0 = l171;
+                                    s_i32_1 = l164;
+                                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                                    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                                    if s_i32_0 != 0 {
+                                        break 'blk_142;
+                                    }
+                                    s_i32_0 = l169;
+                                    s_i64_1 = l171;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i64(vm, 6usize, s_i32_0, s_i64_1, host);
+                                    vm.exit_call();
+                                    let __t216 = __call_res?;
+                                    s_i64_0 = __t216;
+                                    l172 = s_i64_0;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = 2448i32;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = l162;
+                                    s_i32_2 = l170;
+                                    s_i64_3 = l172;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i64_3, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = l1;
+                                    s_i32_2 = l2;
+                                    s_i32_3 = l3;
+                                    s_i32_4 = l4;
+                                    s_i32_5 = l5;
+                                    s_i32_6 = l6;
+                                    s_i32_7 = l7;
+                                    s_i32_8 = l8;
+                                    s_i32_9 = l9;
+                                    s_i32_10 = l170;
+                                    s_i32_11 = l163;
+                                    s_i64_12 = l172;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+                                    vm.exit_call();
+                                    let __t217 = __call_res?;
+                                    s_i32_11 = __t217;
+                                    s_i32_12 = l164;
+                                    s_i64_13 = l171;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_12, s_i64_13, host);
+                                    vm.exit_call();
+                                    let __t218 = __call_res?;
+                                    s_i32_12 = __t218;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, s_i32_12, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i64_0 = l171;
+                                    s_i64_1 = 1i64;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                                    vm.exit_call();
+                                    let __t219 = __call_res?;
+                                    s_i64_0 = __t219;
+                                    l171 = s_i64_0;
+                                    continue 'blk_143;
+                                    break 'blk_143;
+                                }
+                            }
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l15;
+                            s_i64_11 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                            vm.exit_call();
+                            let __t220 = __call_res?;
+                            s_i32_10 = __t220;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                            s_i32_0 = l164;
+                            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 2usize, s_i64_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t221 = __call_res?;
+                            s_i64_0 = __t221;
+                            l173 = s_i64_0;
+                            s_i64_0 = 0i64;
+                            l174 = s_i64_0;
+                            'blk_144: {
+                                'blk_145: loop {
+                                    vm.deduct(host, 1)?;
+                                    s_i64_0 = l174;
+                                    s_i64_1 = l173;
+                                    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                                    if s_i32_0 != 0 {
+                                        break 'blk_144;
+                                    }
+                                    s_i32_0 = l169;
+                                    s_i64_1 = l174;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i64(vm, 6usize, s_i32_0, s_i64_1, host);
+                                    vm.exit_call();
+                                    let __t222 = __call_res?;
+                                    s_i64_0 = __t222;
+                                    l175 = s_i64_0;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = 2448i32;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = l162;
+                                    s_i32_2 = l170;
+                                    s_i64_3 = l175;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i64_3, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = l1;
+                                    s_i32_2 = l2;
+                                    s_i32_3 = l3;
+                                    s_i32_4 = l4;
+                                    s_i32_5 = l5;
+                                    s_i32_6 = l6;
+                                    s_i32_7 = l7;
+                                    s_i32_8 = l8;
+                                    s_i32_9 = l9;
+                                    s_i32_10 = l170;
+                                    s_i32_11 = l163;
+                                    s_i64_12 = l175;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+                                    vm.exit_call();
+                                    let __t223 = __call_res?;
+                                    s_i32_11 = __t223;
+                                    s_i32_12 = l164;
+                                    s_i64_13 = l174;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_12, s_i64_13, host);
+                                    vm.exit_call();
+                                    let __t224 = __call_res?;
+                                    s_i32_12 = __t224;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, s_i32_12, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i64_0 = l174;
+                                    s_i64_1 = 1i64;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                                    vm.exit_call();
+                                    let __t225 = __call_res?;
+                                    s_i64_0 = __t225;
+                                    l174 = s_i64_0;
+                                    continue 'blk_145;
+                                    break 'blk_145;
+                                }
+                            }
+                            s_i32_0 = l169;
+                            s_i64_1 = l173;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i64(vm, 6usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t226 = __call_res?;
+                            s_i64_0 = __t226;
+                            l176 = s_i64_0;
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l170;
+                            s_i32_11 = l163;
+                            s_i64_12 = l176;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+                            vm.exit_call();
+                            let __t227 = __call_res?;
+                            s_i32_11 = __t227;
+                            s_i32_12 = l164;
+                            s_i64_13 = l173;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_12, s_i64_13, host);
+                            vm.exit_call();
+                            let __t228 = __call_res?;
+                            s_i32_12 = __t228;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, s_i32_12, host);
+                            vm.exit_call();
+                            __call_res?;
+                        }
+                    }
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2214i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 40i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t229 = __call_res?;
+    s_i32_0 = __t229;
+    'blk_146: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t230 = __call_res?;
+            s_i32_0 = __t230;
+            l177 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l177;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t231 = __call_res?;
+            s_i32_0 = __t231;
+            l178 = s_i32_0;
+            s_i32_0 = l178;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t232 = __call_res?;
+            s_i32_0 = __t232;
+            'blk_147: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l177;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l179 = s_i32_0;
+            s_i32_0 = l9;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 74usize, s_i32_0, host);
+            vm.exit_call();
+            let __t233 = __call_res?;
+            s_i32_0 = __t233;
+            l180 = s_i32_0;
+            s_i32_0 = l178;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 19i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t234 = __call_res?;
+            s_i32_0 = __t234;
+            'blk_148: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 2213i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2199i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 316i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l4;
+                    s_i32_4 = l5;
+                    s_i32_5 = l6;
+                    s_i32_6 = l7;
+                    s_i32_7 = l8;
+                    s_i32_8 = l178;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l180;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l177;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2448i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2532i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2547i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l180;
+                    vm.deduct(host, 1)?;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i64_1 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2453i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l179;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = 19i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t235 = __call_res?;
+                    s_i32_0 = __t235;
+                    'blk_149: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i32_1 = 2215i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i64_1 = 2i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 0i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 312i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l4;
+                            s_i32_4 = l5;
+                            s_i32_5 = l6;
+                            s_i32_6 = l7;
+                            s_i32_7 = l8;
+                            s_i32_8 = l179;
+                            s_i32_8 = ops::i32_load(vm, 0, s_i32_8, 8u32)?;
+                            s_i64_9 = 0i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_8, s_i64_9, host);
+                            vm.exit_call();
+                            let __t236 = __call_res?;
+                            s_i32_8 = __t236;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2216i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                            s_i32_0 = l179;
+                            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                            s_i32_1 = 20i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            let __t237 = __call_res?;
+                            s_i32_0 = __t237;
+                            'blk_150: {
+                                if s_i32_0 != 0 {
+                                    s_i32_0 = l179;
+                                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+                                    s_i64_1 = 0i64;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                                    vm.exit_call();
+                                    let __t238 = __call_res?;
+                                    s_i32_0 = __t238;
+                                    l181 = s_i32_0;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = 2215i32;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i32_0 = l181;
+                                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                                    s_i32_1 = 0i32;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                                    vm.exit_call();
+                                    let __t239 = __call_res?;
+                                    s_i32_0 = __t239;
+                                    'blk_151: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = l0;
+                                            s_i64_1 = 2i64;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = 0i32;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = 312i32;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = 203i32;
+                                            s_i64_2 = 7i64;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                        } else {
+                                            s_i32_0 = l0;
+                                            s_i64_1 = 3i64;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = 0i32;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = 312i32;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = l1;
+                                            s_i32_2 = l2;
+                                            s_i32_3 = l4;
+                                            s_i32_4 = l5;
+                                            s_i32_5 = l6;
+                                            s_i32_6 = l7;
+                                            s_i32_7 = l8;
+                                            s_i32_8 = l181;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = 312i32;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = 203i32;
+                                            s_i64_2 = 7i64;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                        }
+                                    }
+                                    s_i32_0 = l0;
+                                    s_i32_1 = 2216i32;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                } else {
+                                    return Err(WasmTrap::Unreachable);
+                                }
+                            }
+                        }
+                    }
+                    s_i32_0 = l0;
+                    s_i32_1 = 2455i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2547i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l180;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i64_1 = 1i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2214i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l178;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 20i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t240 = __call_res?;
+            s_i32_0 = __t240;
+            'blk_152: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l179;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = 20i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t241 = __call_res?;
+                    s_i32_0 = __t241;
+                    'blk_153: {
+                        if s_i32_0 != 0 {
+                            return Err(WasmTrap::Unreachable);
+                        } else {
+                        }
+                    }
+                    s_i32_0 = l178;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+                    s_i64_1 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t242 = __call_res?;
+                    s_i32_0 = __t242;
+                    l182 = s_i32_0;
+                    s_i32_0 = l179;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+                    s_i64_1 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t243 = __call_res?;
+                    s_i32_0 = __t243;
+                    l183 = s_i32_0;
+                    s_i32_0 = l182;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = 0i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t244 = __call_res?;
+                    s_i32_0 = __t244;
+                    'blk_154: {
+                        if s_i32_0 != 0 {
+                            s_i64_0 = 1i64;
+                        } else {
+                            s_i64_0 = 2i64;
+                        }
+                    }
+                    l184 = s_i64_0;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2213i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2199i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 316i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l4;
+                    s_i32_4 = l5;
+                    s_i32_5 = l6;
+                    s_i32_6 = l7;
+                    s_i32_7 = l8;
+                    vm.deduct(host, 1)?;
+                    s_i32_8 = l178;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l180;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l177;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2448i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2532i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2547i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l180;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i64_1 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2453i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2215i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l183;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = 0i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t245 = __call_res?;
+                    s_i32_0 = __t245;
+                    'blk_155: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i64_1 = 2i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 0i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 312i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2547i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l180;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i64_1 = l184;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                            s_i32_0 = l0;
+                            s_i64_1 = 3i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 0i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 312i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l4;
+                            s_i32_4 = l5;
+                            s_i32_5 = l6;
+                            s_i32_6 = l7;
+                            s_i32_7 = l8;
+                            s_i32_8 = l183;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 312i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2547i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l180;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i64_1 = l184;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        }
+                    }
+                    s_i32_0 = l0;
+                    s_i32_1 = 2216i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2455i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l182;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = 0i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t246 = __call_res?;
+                    s_i32_0 = __t246;
+                    'blk_156: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i32_1 = 2547i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l180;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                        }
+                    }
+                    s_i32_0 = l0;
+                    s_i32_1 = 2214i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            return Err(WasmTrap::Unreachable);
+        } else {
+        }
+    }
+    return Err(WasmTrap::Unreachable);
+    }
+
+    fn fn_293(vm: &mut SubstituteVm, p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+        let step = SubstituteInstance::fn_293_step(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, host)?;
+        SubstituteInstance::tail_dispatch_void(vm, step, host)
+    }
+
+}
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+impl WasmSubstituteInstance for SubstituteInstance {
+    fn meta(&self) -> SubstituteModuleMeta {
+        MODULE_META
+    }
+
+    fn vm(&self) -> &SubstituteVm {
+        &self.vm
+    }
+
+    fn vm_mut(&mut self) -> &mut SubstituteVm {
+        &mut self.vm
+    }
+
+    fn exported_memory_index(&self) -> Option<usize> {
+        Some(0usize)
+    }
+
+    fn exported_global_i32(&self, name: &str) -> Option<i32> {
+        match name {
+            "__sl_inited" => self.vm.globals_i32.get(0usize).copied(),
+            "__c_0" => self.vm.globals_i32.get(1usize).copied(),
+            "__c_1" => self.vm.globals_i32.get(2usize).copied(),
+            "__c_2" => self.vm.globals_i32.get(3usize).copied(),
+            "__c_3" => self.vm.globals_i32.get(4usize).copied(),
+            "__c_4" => self.vm.globals_i32.get(5usize).copied(),
+            "__c_5" => self.vm.globals_i32.get(6usize).copied(),
+            "__c_6" => self.vm.globals_i32.get(7usize).copied(),
+            "__c_7" => self.vm.globals_i32.get(8usize).copied(),
+            "__c_8" => self.vm.globals_i32.get(9usize).copied(),
+            "__c_9" => self.vm.globals_i32.get(10usize).copied(),
+            "__c_10" => self.vm.globals_i32.get(11usize).copied(),
+            "__c_11" => self.vm.globals_i32.get(12usize).copied(),
+            "__c_12" => self.vm.globals_i32.get(13usize).copied(),
+            "__c_13" => self.vm.globals_i32.get(14usize).copied(),
+            "__c_14" => self.vm.globals_i32.get(15usize).copied(),
+            "__c_15" => self.vm.globals_i32.get(16usize).copied(),
+            "__c_16" => self.vm.globals_i32.get(17usize).copied(),
+            "__c_17" => self.vm.globals_i32.get(18usize).copied(),
+            "__c_18" => self.vm.globals_i32.get(19usize).copied(),
+            "__c_19" => self.vm.globals_i32.get(20usize).copied(),
+            "__c_20" => self.vm.globals_i32.get(21usize).copied(),
+            "__c_21" => self.vm.globals_i32.get(22usize).copied(),
+            "__c_22" => self.vm.globals_i32.get(23usize).copied(),
+            "__heap_ptr" => Some(self.vm.heap_ptr),
+            _ => None,
+        }
+    }
+
+    fn exported_global_i64(&self, name: &str) -> Option<i64> {
+        match name {
+            _ => None,
+        }
+    }
+
+    fn set_heap_ptr(&mut self, val: i32) -> bool {
+        self.vm.heap_ptr = val;
+        true
+    }
+
+    fn call_start(&mut self, _host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+        Ok(())
+    }
+
+    fn call_entry(&mut self, in_ptr: i32, in_len: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+        let _ = (in_ptr, in_len);
+        let vm = &mut self.vm;
+        vm.enter_call()?;
+        let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 3usize, host);
+        vm.exit_call();
+        res
+    }
+}
+
+#[must_use]
+pub(crate) fn descriptor() -> WasmSubstituteDescriptor {
+    WasmSubstituteDescriptor {
+        meta: MODULE_META,
+        instantiate: instantiate_substitute,
+    }
+}
+}
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+pub(crate) mod desc_1 {
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
+use crate::utilities::*;
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Generated descriptor submodule imports"
+)]
+use super::*;
+
+const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize];
+const FN_0_CALLEES: &[u32] = &[92u32];
+const FN_1_CALLEES: &[u32] = &[0u32, 24u32];
+const FN_2_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_3_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_4_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_5_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_7_GLOBALS: &[usize] = &[14usize];
+const FN_7_CALLEES: &[u32] = &[0u32, 110u32];
+const FN_8_CALLEES: &[u32] = &[0u32, 0u32];
+const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
+const FN_10_CALLEES: &[u32] = &[0u32, 111u32];
+const FN_11_CALLEES: &[u32] = &[0u32, 111u32];
+const FN_12_CALLEES: &[u32] = &[0u32, 25u32];
+const FN_13_CALLEES: &[u32] = &[0u32, 110u32];
+const FN_14_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_15_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_16_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_17_CALLEES: &[u32] = &[0u32, 13u32];
+const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
+const FN_19_CALLEES: &[u32] = &[0u32, 13u32];
+const FN_20_CALLEES: &[u32] = &[0u32];
+const FN_21_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_22_CALLEES: &[u32] = &[0u32, 27u32];
+const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 1u32, 1u32, 92u32];
+const FN_24_CALLEES: &[u32] = &[0u32, 110u32];
+const FN_25_CALLEES: &[u32] = &[0u32, 111u32];
+const FN_26_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_27_CALLEES: &[u32] = &[0u32, 32u32, 112u32, 33u32, 2u32];
+const FN_28_CALLEES: &[u32] = &[0u32, 33u32, 112u32, 32u32, 2u32];
+const FN_29_CALLEES: &[u32] = &[0u32, 28u32];
+const FN_30_CALLEES: &[u32] = &[0u32, 29u32];
+const FN_31_CALLEES: &[u32] = &[0u32, 30u32];
+const FN_32_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 92u32];
+const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 92u32];
+const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_35_CALLEES: &[u32] = &[0u32, 2u32, 92u32];
+const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_36_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
+const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 92u32];
+const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 92u32];
+const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_39_CALLEES: &[u32] = &[0u32, 92u32, 32u32];
+const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_40_CALLEES: &[u32] = &[0u32, 92u32, 33u32];
+const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 92u32];
+const FN_42_GLOBALS: &[usize] = &[9usize];
+const FN_42_CALLEES: &[u32] = &[0u32, 10u32, 92u32];
+const FN_43_GLOBALS: &[usize] = &[9usize];
+const FN_43_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_44_GLOBALS: &[usize] = &[9usize];
+const FN_44_CALLEES: &[u32] = &[0u32, 11u32, 92u32];
+const FN_45_GLOBALS: &[usize] = &[9usize];
+const FN_45_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_46_GLOBALS: &[usize] = &[9usize];
+const FN_46_CALLEES: &[u32] = &[0u32, 12u32, 92u32];
+const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
+const FN_47_CALLEES: &[u32] = &[0u32, 110u32, 92u32, 13u32, 93u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 113u32];
+const FN_48_CALLEES: &[u32] = &[0u32];
+const FN_49_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_50_CALLEES: &[u32] = &[0u32, 1u32, 112u32, 0u32, 92u32];
+const FN_51_CALLEES: &[u32] = &[0u32, 0u32, 112u32, 1u32, 92u32];
+const FN_52_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_53_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
+const FN_54_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_55_CALLEES: &[u32] = &[0u32, 0u32, 112u32];
+const FN_56_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 112u32];
+const FN_57_CALLEES: &[u32] = &[0u32, 18u32];
+const FN_58_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_59_GLOBALS: &[usize] = &[15usize];
+const FN_59_CALLEES: &[u32] = &[0u32, 16u32, 2u32, 11u32];
+const FN_60_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_61_CALLEES: &[u32] = &[0u32];
+const FN_62_CALLEES: &[u32] = &[0u32];
+const FN_63_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_64_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_65_GLOBALS: &[usize] = &[15usize];
+const FN_65_CALLEES: &[u32] = &[0u32, 17u32, 2u32, 11u32];
+const FN_66_CALLEES: &[u32] = &[0u32, 1u32];
+const FN_67_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_68_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 22u32, 114u32, 92u32, 13u32, 115u32, 116u32, 117u32, 1u32, 0u32, 94u32];
+const FN_69_CALLEES: &[u32] = &[0u32, 2u32, 92u32, 22u32, 114u32, 1u32, 118u32, 117u32, 119u32, 0u32, 32u32, 2u32, 120u32, 111u32, 13u32, 15u32, 1u32];
+const FN_70_GLOBALS: &[usize] = &[14usize];
+const FN_70_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 92u32, 32u32, 0u32, 2u32];
+const FN_71_CALLEES: &[u32] = &[0u32, 9u32, 12u32, 14u32, 0u32, 0u32, 94u32];
+const FN_72_CALLEES: &[u32] = &[0u32, 1u32, 9u32, 0u32, 94u32];
+const FN_73_CALLEES: &[u32] = &[0u32, 19u32];
+const FN_74_CALLEES: &[u32] = &[0u32, 20u32, 1u32, 112u32, 111u32, 1u32];
+const FN_75_CALLEES: &[u32] = &[0u32, 2u32, 92u32, 23u32, 19u32, 1u32];
+const FN_76_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 92u32, 1u32, 5u32, 23u32, 9u32, 94u32, 112u32, 95u32, 121u32, 119u32, 14u32];
+const FN_77_CALLEES: &[u32] = &[0u32, 1u32, 2u32, 92u32, 23u32, 19u32, 13u32, 94u32, 13u32];
+const FN_78_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 92u32, 9u32, 1u32, 94u32, 12u32, 14u32];
+const FN_79_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 23u32, 19u32, 16u32, 14u32, 9u32, 94u32, 112u32, 95u32, 14u32];
+const FN_80_CALLEES: &[u32] = &[0u32, 23u32, 26u32, 1u32];
+const FN_81_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 1u32];
+const FN_82_CALLEES: &[u32] = &[0u32, 19u32, 18u32, 92u32];
+const FN_83_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 13u32, 18u32, 13u32, 2u32, 15u32, 22u32, 119u32, 111u32, 121u32, 2u32, 94u32];
+const FN_84_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
+const FN_85_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 18u32, 13u32, 19u32, 94u32];
+const FN_86_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 18u32, 13u32, 22u32, 21u32, 19u32, 16u32, 94u32];
+const FN_87_CALLEES: &[u32] = &[0u32, 27u32, 18u32, 92u32];
+const FN_88_GLOBALS: &[usize] = &[14usize];
+const FN_88_CALLEES: &[u32] = &[0u32, 110u32, 18u32, 13u32, 92u32, 13u32, 13u32, 14u32, 11u32, 111u32, 16u32, 33u32, 2u32, 24u32, 94u32];
+const FN_89_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
+const FN_90_CALLEES: &[u32] = &[0u32, 92u32, 0u32, 122u32, 9u32, 22u32, 17u32, 0u32, 94u32];
+const FN_91_CALLEES: &[u32] = &[0u32, 12u32, 14u32, 120u32, 0u32, 112u32, 111u32, 20u32, 1u32, 33u32, 95u32, 121u32];
+const FN_92_CALLEES: &[u32] = &[0u32, 22u32, 114u32, 118u32, 117u32, 119u32];
+const FN_93_GLOBALS: &[usize] = &[14usize];
+const FN_93_CALLEES: &[u32] = &[0u32, 40u32, 43u32, 36u32];
+const FN_94_CALLEES: &[u32] = &[0u32, 62u32];
+const FN_95_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_96_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_97_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_98_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_99_CALLEES: &[u32] = &[0u32, 70u32];
+const FN_100_GLOBALS: &[usize] = &[20usize, 17usize, 18usize];
+const FN_100_CALLEES: &[u32] = &[0u32, 123u32];
+const FN_101_GLOBALS: &[usize] = &[20usize];
+const FN_101_CALLEES: &[u32] = &[0u32, 123u32, 31u32, 6u32, 35u32, 40u32, 1u32, 12u32];
+const FN_102_GLOBALS: &[usize] = &[17usize];
+const FN_102_CALLEES: &[u32] = &[0u32, 123u32];
+const FN_103_CALLEES: &[u32] = &[0u32, 72u32];
+const FN_104_CALLEES: &[u32] = &[0u32, 43u32, 1u32];
+const FN_105_CALLEES: &[u32] = &[0u32, 43u32, 2u32];
+const FN_106_CALLEES: &[u32] = &[0u32, 63u32];
+const FN_107_CALLEES: &[u32] = &[0u32, 123u32];
+const FN_108_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_109_CALLEES: &[u32] = &[0u32, 3u32];
+const FN_110_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_111_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_112_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_113_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_114_CALLEES: &[u32] = &[0u32, 53u32];
+const FN_115_CALLEES: &[u32] = &[0u32, 53u32];
+const FN_116_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_117_CALLEES: &[u32] = &[0u32];
+const FN_118_CALLEES: &[u32] = &[0u32, 53u32];
+const FN_119_CALLEES: &[u32] = &[0u32];
+const FN_120_CALLEES: &[u32] = &[0u32, 64u32];
+const FN_121_CALLEES: &[u32] = &[0u32, 65u32];
+const FN_122_CALLEES: &[u32] = &[0u32, 123u32];
+const FN_123_CALLEES: &[u32] = &[0u32, 45u32];
+const FN_124_CALLEES: &[u32] = &[0u32, 43u32, 5u32];
+const FN_125_CALLEES: &[u32] = &[0u32, 45u32, 69u32];
+const FN_126_CALLEES: &[u32] = &[0u32, 66u32];
+const FN_127_CALLEES: &[u32] = &[0u32, 67u32];
+const FN_128_CALLEES: &[u32] = &[0u32, 68u32];
+const FN_129_CALLEES: &[u32] = &[0u32, 1u32];
+const FN_130_CALLEES: &[u32] = &[0u32, 69u32];
+const FN_131_GLOBALS: &[usize] = &[20usize, 9usize];
+const FN_131_CALLEES: &[u32] = &[0u32, 44u32, 70u32, 92u32];
+const FN_132_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize, 9usize];
+const FN_132_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 31u32, 31u32, 39u32, 40u32, 52u32];
+const FN_133_GLOBALS: &[usize] = &[20usize, 9usize];
+const FN_133_CALLEES: &[u32] = &[0u32, 39u32, 92u32];
+const FN_134_CALLEES: &[u32] = &[0u32, 69u32, 40u32, 92u32, 70u32, 72u32];
+const FN_135_GLOBALS: &[usize] = &[20usize, 9usize];
+const FN_135_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 92u32];
+const FN_136_GLOBALS: &[usize] = &[17usize, 20usize, 9usize];
+const FN_136_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 52u32];
+const FN_137_GLOBALS: &[usize] = &[20usize, 9usize];
+const FN_137_CALLEES: &[u32] = &[0u32, 92u32, 43u32, 32u32, 39u32];
+const FN_138_GLOBALS: &[usize] = &[20usize, 9usize];
+const FN_138_CALLEES: &[u32] = &[0u32, 92u32, 0u32, 112u32, 1u32, 2u32];
+const FN_139_GLOBALS: &[usize] = &[20usize, 9usize];
+const FN_139_CALLEES: &[u32] = &[0u32, 47u32, 72u32, 92u32];
+const FN_140_GLOBALS: &[usize] = &[9usize];
+const FN_140_CALLEES: &[u32] = &[0u32, 47u32, 92u32, 15u32];
+const FN_141_GLOBALS: &[usize] = &[9usize];
+const FN_141_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_142_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_142_CALLEES: &[u32] = &[0u32, 40u32, 92u32, 43u32];
+const FN_143_GLOBALS: &[usize] = &[9usize];
+const FN_143_CALLEES: &[u32] = &[0u32, 11u32, 92u32];
+const FN_144_GLOBALS: &[usize] = &[9usize];
+const FN_144_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_145_GLOBALS: &[usize] = &[9usize];
+const FN_145_CALLEES: &[u32] = &[0u32, 12u32, 92u32];
+const FN_146_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize];
+const FN_146_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 31u32, 31u32, 39u32, 40u32, 52u32];
+const FN_147_CALLEES: &[u32] = &[0u32, 43u32, 34u32, 39u32];
+const FN_148_CALLEES: &[u32] = &[0u32, 43u32, 35u32, 39u32];
+const FN_149_GLOBALS: &[usize] = &[20usize];
+const FN_149_CALLEES: &[u32] = &[0u32, 72u32];
+const FN_150_CALLEES: &[u32] = &[0u32, 43u32, 36u32, 39u32];
+const FN_151_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_152_GLOBALS: &[usize] = &[23usize];
+const FN_152_CALLEES: &[u32] = &[0u32, 98u32, 87u32, 97u32, 99u32];
+const FN_153_CALLEES: &[u32] = &[0u32];
+const FN_154_CALLEES: &[u32] = &[0u32, 60u32];
+const FN_155_CALLEES: &[u32] = &[0u32];
+const FN_156_CALLEES: &[u32] = &[0u32];
+const FN_157_CALLEES: &[u32] = &[0u32];
+const FN_158_CALLEES: &[u32] = &[0u32, 97u32, 96u32];
+const FN_159_CALLEES: &[u32] = &[0u32, 94u32];
+const FN_160_CALLEES: &[u32] = &[0u32, 124u32];
+const FN_161_GLOBALS: &[usize] = &[23usize];
+const FN_161_CALLEES: &[u32] = &[0u32, 11u32, 0u32, 92u32];
+const FN_162_GLOBALS: &[usize] = &[23usize];
+const FN_162_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_163_CALLEES: &[u32] = &[0u32, 55u32];
+const FN_164_CALLEES: &[u32] = &[0u32, 11u32, 0u32, 92u32, 87u32];
+const FN_165_CALLEES: &[u32] = &[0u32, 31u32, 57u32, 40u32, 87u32];
+const FN_166_CALLEES: &[u32] = &[0u32, 5u32, 87u32, 0u32];
+const FN_167_CALLEES: &[u32] = &[0u32, 6u32];
+const FN_168_CALLEES: &[u32] = &[0u32, 102u32, 87u32];
+const FN_169_CALLEES: &[u32] = &[0u32, 78u32];
+const FN_170_CALLEES: &[u32] = &[0u32, 78u32];
+const FN_171_CALLEES: &[u32] = &[0u32, 1u32, 14u32, 24u32, 1u32, 11u32, 1u32, 0u32, 16u32, 94u32, 87u32];
+const FN_172_CALLEES: &[u32] = &[0u32];
+const FN_173_CALLEES: &[u32] = &[0u32, 78u32];
+const FN_174_CALLEES: &[u32] = &[0u32, 78u32];
+const FN_175_GLOBALS: &[usize] = &[23usize];
+const FN_175_CALLEES: &[u32] = &[0u32, 69u32, 92u32];
+const FN_176_CALLEES: &[u32] = &[0u32, 95u32];
+const FN_177_CALLEES: &[u32] = &[0u32, 100u32, 87u32];
+const FN_178_CALLEES: &[u32] = &[0u32, 124u32];
+const FN_179_GLOBALS: &[usize] = &[23usize];
+const FN_179_CALLEES: &[u32] = &[0u32, 60u32, 92u32];
+const FN_180_CALLEES: &[u32] = &[0u32, 96u32];
+const FN_181_CALLEES: &[u32] = &[0u32, 61u32, 73u32];
+const FN_182_CALLEES: &[u32] = &[0u32, 96u32];
+const FN_183_GLOBALS: &[usize] = &[23usize, 1usize];
+const FN_183_CALLEES: &[u32] = &[0u32, 60u32, 92u32, 102u32, 87u32];
+const FN_184_CALLEES: &[u32] = &[0u32, 96u32, 53u32, 73u32, 92u32];
+const FN_185_GLOBALS: &[usize] = &[20usize, 9usize, 17usize];
+const FN_185_CALLEES: &[u32] = &[0u32, 70u32, 92u32, 1u32, 110u32, 44u32, 45u32];
+const FN_186_GLOBALS: &[usize] = &[9usize];
+const FN_186_CALLEES: &[u32] = &[0u32, 62u32, 92u32, 46u32];
+const FN_187_GLOBALS: &[usize] = &[9usize];
+const FN_187_CALLEES: &[u32] = &[0u32, 62u32, 92u32, 47u32];
+const FN_188_GLOBALS: &[usize] = &[14usize, 9usize];
+const FN_188_CALLEES: &[u32] = &[0u32, 92u32, 70u32];
+const FN_189_GLOBALS: &[usize] = &[9usize];
+const FN_189_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 9u32];
+const FN_190_GLOBALS: &[usize] = &[9usize];
+const FN_190_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 10u32];
+const FN_191_GLOBALS: &[usize] = &[9usize];
+const FN_191_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 11u32];
+const FN_192_GLOBALS: &[usize] = &[23usize, 1usize];
+const FN_192_CALLEES: &[u32] = &[0u32, 60u32, 92u32, 102u32, 87u32];
+const FN_193_CALLEES: &[u32] = &[0u32, 2u32, 25u32, 1u32];
+const FN_194_GLOBALS: &[usize] = &[14usize];
+const FN_194_CALLEES: &[u32] = &[0u32, 92u32, 25u32, 1u32, 1u32];
+const FN_195_CALLEES: &[u32] = &[0u32, 2u32, 25u32];
+const FN_196_CALLEES: &[u32] = &[0u32, 1u32, 14u32, 25u32, 11u32, 16u32, 0u32, 94u32];
+const FN_197_CALLEES: &[u32] = &[0u32, 14u32, 25u32, 1u32, 2u32, 11u32, 16u32, 94u32, 69u32];
+const FN_198_CALLEES: &[u32] = &[0u32, 92u32, 1u32, 26u32, 25u32, 24u32, 0u32, 11u32, 1u32, 0u32, 94u32, 69u32];
+const FN_199_CALLEES: &[u32] = &[0u32, 24u32, 2u32, 25u32];
+const FN_200_CALLEES: &[u32] = &[0u32, 97u32, 92u32, 25u32, 26u32, 2u32, 1u32, 11u32, 1u32, 94u32, 69u32, 1u32, 112u32, 0u32, 0u32, 126u32, 24u32, 127u32, 101u32];
+const FN_201_CALLEES: &[u32] = &[0u32, 22u32, 89u32, 24u32];
+const FN_202_CALLEES: &[u32] = &[0u32, 2u32];
+const FN_203_CALLEES: &[u32] = &[0u32, 2u32];
+const FN_204_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
+const FN_205_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_206_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_207_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_208_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_209_CALLEES: &[u32] = &[0u32, 0u32, 92u32, 1u32, 0u32];
+const FN_210_CALLEES: &[u32] = &[0u32, 92u32, 1u32];
+const FN_211_CALLEES: &[u32] = &[0u32, 18u32, 13u32];
+const FN_212_CALLEES: &[u32] = &[0u32, 13u32, 13u32];
+const FN_213_CALLEES: &[u32] = &[0u32, 1u32];
+const FN_214_CALLEES: &[u32] = &[0u32, 27u32, 15u32];
+const FN_215_CALLEES: &[u32] = &[0u32, 39u32, 15u32];
+const FN_216_CALLEES: &[u32] = &[0u32, 29u32, 15u32];
+const FN_217_CALLEES: &[u32] = &[0u32, 4u32, 6u32];
+const FN_218_CALLEES: &[u32] = &[0u32, 2u32, 15u32];
+const FN_219_CALLEES: &[u32] = &[0u32, 6u32, 15u32];
+const FN_220_CALLEES: &[u32] = &[0u32, 92u32, 9u32, 12u32, 128u32, 14u32, 2u32, 27u32, 94u32];
+const FN_221_CALLEES: &[u32] = &[0u32, 5u32, 1u32, 0u32, 92u32, 8u32, 129u32];
+const FN_222_CALLEES: &[u32] = &[0u32, 9u32, 14u32, 23u32, 12u32, 0u32, 1u32, 94u32];
+const FN_223_CALLEES: &[u32] = &[0u32, 1u32, 2u32, 18u32, 23u32, 38u32, 15u32, 1u32];
+const FN_224_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32];
+const FN_225_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 92u32];
+const FN_226_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 0u32, 92u32, 1u32, 1u32];
+const FN_227_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 92u32];
+const FN_228_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 9u32, 0u32, 92u32, 1u32];
+const FN_229_CALLEES: &[u32] = &[0u32, 0u32, 5u32, 23u32, 92u32];
+const FN_230_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 14u32, 1u32, 0u32, 19u32, 13u32, 3u32, 13u32, 94u32, 92u32];
+const FN_231_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 16u32, 19u32];
+const FN_232_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 2u32, 14u32];
+const FN_233_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 1u32, 16u32, 14u32, 72u32, 92u32, 19u32, 0u32, 1u32, 11u32, 2u32, 13u32, 13u32, 94u32, 10u32];
+const FN_234_CALLEES: &[u32] = &[0u32, 92u32, 130u32];
+const FN_235_CALLEES: &[u32] = &[0u32];
+const FN_236_CALLEES: &[u32] = &[0u32];
+const FN_237_CALLEES: &[u32] = &[0u32];
+const FN_238_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 92u32, 1u32, 5u32, 0u32, 1u32, 0u32, 2u32, 3u32, 9u32, 76u32, 14u32, 13u32, 13u32, 94u32, 11u32, 13u32, 2u32, 0u32, 11u32, 10u32, 8u32, 16u32, 2u32, 77u32, 78u32, 79u32, 72u32];
+const FN_239_CALLEES: &[u32] = &[0u32, 0u32, 7u32, 8u32, 14u32, 9u32, 13u32, 0u32, 23u32, 19u32, 1u32, 92u32, 13u32, 15u32, 94u32, 2u32];
+const FN_240_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 5u32, 2u32, 14u32, 11u32, 13u32, 2u32, 0u32, 10u32, 9u32, 8u32, 4u32];
+const FN_241_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 23u32, 19u32, 1u32, 2u32];
+const FN_242_CALLEES: &[u32] = &[0u32, 0u32, 92u32, 23u32, 19u32, 1u32, 12u32, 75u32, 0u32, 13u32, 10u32, 9u32, 13u32, 94u32];
+const FN_243_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 13u32, 0u32, 23u32, 19u32, 1u32, 7u32, 8u32, 9u32, 14u32, 92u32, 13u32, 94u32, 3u32, 2u32, 21u32];
+const FN_244_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 13u32, 0u32, 23u32, 19u32, 1u32, 7u32, 8u32, 14u32, 9u32, 92u32, 13u32, 94u32, 72u32, 15u32, 16u32];
+const FN_245_CALLEES: &[u32] = &[0u32, 131u32];
+const FN_246_CALLEES: &[u32] = &[0u32, 104u32, 28u32, 131u32, 1u32, 92u32, 13u32];
+const FN_247_CALLEES: &[u32] = &[0u32, 7u32, 0u32, 4u32];
+const FN_248_CALLEES: &[u32] = &[0u32, 104u32, 28u32, 131u32, 1u32, 92u32, 13u32];
+const FN_249_CALLEES: &[u32] = &[0u32, 28u32, 118u32, 1u32, 92u32, 8u32, 129u32, 13u32];
+const FN_250_CALLEES: &[u32] = &[0u32, 118u32, 92u32];
+const FN_251_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32];
+const FN_252_CALLEES: &[u32] = &[0u32, 3u32, 6u32, 23u32, 0u32, 4u32, 2u32, 0u32];
+const FN_253_CALLEES: &[u32] = &[0u32, 118u32, 2u32, 1u32, 0u32, 23u32, 1u32, 117u32, 115u32, 116u32, 132u32, 0u32];
+const FN_254_CALLEES: &[u32] = &[0u32, 118u32, 3u32, 0u32, 1u32, 0u32, 2u32, 23u32, 0u32, 0u32, 1u32, 0u32];
+const FN_255_CALLEES: &[u32] = &[0u32, 23u32, 131u32, 11u32, 92u32, 1u32, 130u32, 116u32, 133u32, 128u32];
+const FN_256_CALLEES: &[u32] = &[0u32, 116u32, 73u32, 115u32, 13u32, 118u32, 13u32, 94u32, 92u32, 0u32];
+const FN_257_CALLEES: &[u32] = &[0u32, 118u32, 73u32, 23u32, 117u32, 1u32];
+const FN_258_CALLEES: &[u32] = &[0u32, 23u32, 4u32, 1u32];
+const FN_259_CALLEES: &[u32] = &[0u32, 118u32, 115u32, 116u32, 132u32, 1u32, 1u32];
+const FN_260_CALLEES: &[u32] = &[0u32];
+const FN_261_CALLEES: &[u32] = &[0u32, 20u32, 92u32, 134u32, 0u32, 12u32, 16u32, 118u32, 23u32, 9u32, 94u32];
+const FN_262_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 0u32, 1u32];
+const FN_263_CALLEES: &[u32] = &[0u32, 17u32, 13u32, 23u32, 11u32, 130u32, 1u32, 18u32, 13u32, 92u32, 73u32, 94u32, 131u32, 1u32, 118u32, 0u32, 28u32, 6u32, 135u32, 5u32, 8u32, 129u32, 90u32, 29u32, 30u32, 2u32, 15u32];
+const FN_264_CALLEES: &[u32] = &[0u32, 115u32, 116u32];
+const FN_265_CALLEES: &[u32] = &[0u32, 115u32, 116u32];
+const FN_266_CALLEES: &[u32] = &[0u32, 118u32];
+const FN_267_CALLEES: &[u32] = &[0u32, 136u32, 118u32, 23u32, 82u32, 115u32, 116u32];
+const FN_268_CALLEES: &[u32] = &[0u32, 118u32, 136u32];
+const FN_269_CALLEES: &[u32] = &[0u32, 118u32, 136u32];
+const FN_270_CALLEES: &[u32] = &[0u32, 131u32, 2u32, 23u32, 130u32, 118u32];
+const FN_271_CALLEES: &[u32] = &[0u32, 23u32, 106u32, 1u32];
+const FN_272_CALLEES: &[u32] = &[0u32, 23u32, 131u32, 108u32, 11u32, 92u32, 1u32, 2u32, 130u32, 73u32, 111u32, 118u32];
+const FN_273_CALLEES: &[u32] = &[0u32, 73u32];
+const FN_274_CALLEES: &[u32] = &[0u32, 118u32, 73u32, 84u32, 103u32, 23u32, 1u32, 13u32, 13u32, 94u32, 92u32, 2u32, 115u32, 116u32, 1u32, 137u32, 107u32, 83u32, 81u32, 105u32, 0u32, 117u32, 130u32];
+const FN_275_CALLEES: &[u32] = &[0u32, 118u32];
+const FN_276_CALLEES: &[u32] = &[0u32, 118u32];
+const FN_277_CALLEES: &[u32] = &[0u32, 118u32, 1u32, 0u32, 15u32];
+const FN_278_CALLEES: &[u32] = &[0u32, 85u32, 1u32, 0u32, 15u32];
+const FN_279_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 6u32, 0u32];
+const FN_280_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 85u32, 0u32];
+const FN_281_CALLEES: &[u32] = &[0u32, 1u32, 6u32];
+const FN_282_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
+const FN_283_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
+const FN_284_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
+const FN_285_CALLEES: &[u32] = &[0u32, 116u32, 118u32, 115u32];
+const FN_286_CALLEES: &[u32] = &[0u32, 84u32, 1u32, 0u32, 3u32, 2u32, 0u32, 23u32, 1u32, 12u32, 0u32, 15u32];
+const FN_287_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 105u32, 0u32, 116u32, 1u32, 85u32, 2u32, 0u32, 74u32, 6u32, 83u32, 12u32, 0u32, 1u32, 0u32, 15u32, 0u32, 3u32, 1u32];
+const FN_288_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 0u32, 1u32, 116u32, 0u32, 74u32, 85u32, 2u32, 6u32, 12u32, 10u32, 1u32, 0u32, 3u32, 0u32];
+const FN_289_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 118u32, 74u32, 0u32, 6u32, 116u32, 0u32, 112u32, 1u32, 0u32, 0u32, 0u32, 85u32, 2u32, 83u32, 12u32, 0u32, 1u32, 0u32, 1u32, 0u32, 15u32, 3u32, 10u32, 11u32, 86u32, 23u32, 1u32];
+const FN_290_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 0u32, 74u32, 1u32, 0u32, 6u32, 0u32, 2u32, 12u32, 0u32, 3u32, 1u32, 23u32, 0u32];
+const FN_291_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
+const FN_292_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+fn bound_adapter_293(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+    SubstituteInstance::fn_293(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, host)
+}
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+fn bound_adapter_294(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+    SubstituteInstance::fn_294(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, host)
+}
+
+const FN_295_CALLEES: &[u32] = &[0u32, 1u32, 118u32, 1u32, 3u32, 5u32, 0u32, 6u32, 13u32, 92u32, 13u32, 73u32, 0u32, 94u32];
+const FN_296_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 1u32, 3u32, 5u32, 6u32, 0u32, 2u32, 73u32, 92u32, 1u32, 0u32, 13u32, 94u32, 23u32, 2u32, 1u32, 8u32, 130u32, 7u32, 15u32];
+const FN_297_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 23u32, 19u32, 18u32, 13u32, 19u32, 94u32];
+const FN_298_CALLEES: &[u32] = &[0u32, 88u32, 80u32, 13u32, 23u32, 1u32, 2u32, 15u32, 1u32, 94u32];
+const FN_299_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32, 73u32];
+const FN_300_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
+const FN_301_CALLEES: &[u32] = &[0u32, 118u32, 1u32, 12u32, 0u32, 0u32];
+const FN_302_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 23u32, 19u32, 1u32, 9u32, 3u32, 2u32, 5u32, 2u32, 10u32, 0u32, 92u32, 0u32, 13u32, 1u32, 94u32];
+const FN_303_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32, 130u32, 73u32, 13u32, 13u32, 94u32];
+const FN_304_CALLEES: &[u32] = &[0u32, 92u32, 2u32, 1u32, 22u32, 115u32, 116u32, 128u32, 117u32];
+const FN_305_CALLEES: &[u32] = &[0u32, 71u32];
+const FN_306_CALLEES: &[u32] = &[92u32];
+const FN_324_CALLEES: &[u32] = &[92u32];
+const FN_327_CALLEES: &[u32] = &[92u32];
+const FN_335_CALLEES: &[u32] = &[92u32];
+const FN_339_CALLEES: &[u32] = &[92u32];
+const FN_340_CALLEES: &[u32] = &[92u32];
+const FN_341_CALLEES: &[u32] = &[92u32];
+const FN_343_CALLEES: &[u32] = &[92u32];
+const FN_345_CALLEES: &[u32] = &[92u32];
+const FN_350_CALLEES: &[u32] = &[125u32];
+const FN_354_CALLEES: &[u32] = &[92u32];
+const FN_355_CALLEES: &[u32] = &[92u32];
+const FN_362_CALLEES: &[u32] = &[92u32];
+const FN_368_CALLEES: &[u32] = &[92u32];
+const FN_369_CALLEES: &[u32] = &[92u32];
+const FN_370_CALLEES: &[u32] = &[92u32];
+const FN_371_CALLEES: &[u32] = &[92u32];
+const FN_372_CALLEES: &[u32] = &[92u32];
+const FN_373_CALLEES: &[u32] = &[136u32];
+const FN_374_CALLEES: &[u32] = &[118u32, 135u32];
+const FN_378_CALLEES: &[u32] = &[92u32];
+const FN_380_CALLEES: &[u32] = &[92u32];
+const FN_381_CALLEES: &[u32] = &[92u32];
+const FN_382_CALLEES: &[u32] = &[0u32, 92u32, 91u32];
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_fb85927bc70e, globals: &[], callees: FN_290_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_0ddbd2a0c6c7, globals: &[], callees: FN_289_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: bound_adapter_293, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_0de184ba6ec2, globals: &[], callees: FN_287_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_e5a24c0994c8, globals: &[], callees: FN_288_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_b57655dd8811, globals: &[], callees: FN_295_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_I32: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_i32] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_fa4dc0503a8b, globals: &[], callees: FN_208_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: bound_adapter_294, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_80a2700dc508, globals: &[], callees: FN_253_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_4378ebc74725, globals: &[], callees: FN_254_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_feae86872b3d, globals: &[], callees: FN_252_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_35bad47882b3, globals: &[], callees: FN_286_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I64_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_25739df0feb1, globals: &[], callees: FN_284_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I64_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_94c88a2903c6, globals: &[], callees: FN_283_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I64_I32_I32_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_92fa18052c43, globals: &[], callees: FN_282_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_I64_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_i64_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_i64_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_328ca2525ad7, globals: &[], callees: FN_247_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_RET_I32: &[crate::Bound_p_i32_i32_i32_i32_i32_ret_i32] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_d8a1c3db4e50, globals: &[], callees: FN_249_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_8d22ec1cb834, globals: &[], callees: FN_272_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_cc1738e8df7d, globals: &[], callees: FN_246_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_RET_I32: &[crate::Bound_p_i32_i32_i32_i32_ret_i32] = &[
+    crate::Bound_p_i32_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_a399b3396057, globals: &[], callees: FN_255_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_a8cea86e738a, globals: &[], callees: FN_256_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_33b2fc4bf28a, globals: &[], callees: FN_270_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_68f5a5c019f9, globals: &[], callees: FN_274_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_6622fa28880e, globals: &[], callees: FN_248_CALLEES },
+    crate::Bound_p_i32_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_3620625fc347, globals: &[], callees: FN_296_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_I64_RET_VOID: &[crate::Bound_p_i32_i32_i32_i64_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_i64_ret_void { func: crate::c_85899_88792_2::ChunkFns::f_f99da218d0da, globals: &[], callees: FN_301_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_RET_I32: &[crate::Bound_p_i32_i32_i32_ret_i32] = &[
+    crate::Bound_p_i32_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_0ba96dccaf47, globals: FN_88_GLOBALS, callees: FN_88_CALLEES },
+    crate::Bound_p_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_5f4fb9f2e183, globals: &[], callees: FN_209_CALLEES },
+    crate::Bound_p_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_f9bb68ae965b, globals: &[], callees: FN_250_CALLEES },
+    crate::Bound_p_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_82f90329ff03, globals: &[], callees: FN_251_CALLEES },
+    crate::Bound_p_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_0af41756144f, globals: &[], callees: FN_257_CALLEES },
+    crate::Bound_p_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_5839f7669fdd, globals: &[], callees: FN_258_CALLEES },
+    crate::Bound_p_i32_i32_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_218b53dab712, globals: &[], callees: FN_303_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_5724ff66e1fb, globals: &[], callees: FN_279_CALLEES },
+    crate::Bound_p_i32_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_2022ad61dbb9, globals: &[], callees: FN_280_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_I64_RET_VOID: &[crate::Bound_p_i32_i32_i64_ret_void] = &[
+    crate::Bound_p_i32_i32_i64_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_46ce1170568e, globals: &[], callees: FN_219_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_RET_I32: &[crate::Bound_p_i32_i32_ret_i32] = &[
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_1_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_27aaa3cb9114, globals: &[], callees: FN_2_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f2340190950c, globals: &[], callees: FN_4_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_0ece3b1734d5, globals: &[], callees: FN_5_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_803fb230173c, globals: &[], callees: FN_6_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_8ed247cfa309, globals: FN_7_GLOBALS, callees: FN_7_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_a9acae168912, globals: &[], callees: FN_8_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_dcce91d2e133, globals: &[], callees: FN_9_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_12_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1e6ff4c83b62, globals: &[], callees: FN_13_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_da0e89bc9783, globals: &[], callees: FN_17_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_6df8689f059b, globals: &[], callees: FN_18_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f9ce687d90ae, globals: &[], callees: FN_19_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_30ec60d4302a, globals: &[], callees: FN_20_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_21_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_22_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_da0e89bc9783, globals: &[], callees: FN_24_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_26_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7e58af41e27d, globals: &[], callees: FN_27_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7e58af41e27d, globals: &[], callees: FN_28_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_29_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_30_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_31_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_32_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_ace0563243a6, globals: FN_33_GLOBALS, callees: FN_33_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_c69686cacf82, globals: &[], callees: FN_34_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1a5f3f7571e2, globals: &[], callees: FN_37_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f1c0a657afaa, globals: FN_38_GLOBALS, callees: FN_38_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_acb2a186ecef, globals: FN_39_GLOBALS, callees: FN_39_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_acb2a186ecef, globals: FN_40_GLOBALS, callees: FN_40_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f1c0a657afaa, globals: FN_41_GLOBALS, callees: FN_41_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_5cfd1c966ee0, globals: FN_47_GLOBALS, callees: FN_47_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_c1a365c57784, globals: &[], callees: FN_50_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f15f52fd10ac, globals: &[], callees: FN_51_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_b9ec3478b1be, globals: &[], callees: FN_52_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f5ab0dd84882, globals: &[], callees: FN_53_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_a07d59a0459c, globals: &[], callees: FN_54_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_998c31a576d2, globals: &[], callees: FN_56_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_b238ded6c3fe, globals: &[], callees: FN_85_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_fbaa521b0850, globals: &[], callees: FN_87_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_94_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_27aaa3cb9114, globals: &[], callees: FN_95_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f2340190950c, globals: &[], callees: FN_97_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_0ece3b1734d5, globals: &[], callees: FN_98_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f8850b1df958, globals: &[], callees: FN_99_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_609b70a572c5, globals: FN_100_GLOBALS, callees: FN_100_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f148b5f5c14f, globals: FN_101_GLOBALS, callees: FN_101_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_e23aae24b862, globals: &[], callees: FN_103_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_106_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1e6ff4c83b62, globals: &[], callees: FN_107_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_da0e89bc9783, globals: &[], callees: FN_114_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_6df8689f059b, globals: &[], callees: FN_115_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f9ce687d90ae, globals: &[], callees: FN_118_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7ec8bf846782, globals: &[], callees: FN_119_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_120_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_121_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_da0e89bc9783, globals: &[], callees: FN_122_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_293ae2a09ea3, globals: &[], callees: FN_125_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_126_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_127_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_128_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_130_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f1c0a657afaa, globals: FN_131_GLOBALS, callees: FN_131_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_28a9f52b5bce, globals: FN_132_GLOBALS, callees: FN_132_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_4cf93470be08, globals: &[], callees: FN_134_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f1c0a657afaa, globals: FN_135_GLOBALS, callees: FN_135_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1acc39445a44, globals: FN_137_GLOBALS, callees: FN_137_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_5230ac976967, globals: FN_138_GLOBALS, callees: FN_138_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f1c0a657afaa, globals: FN_139_GLOBALS, callees: FN_139_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_3c62ec56fda8, globals: FN_146_GLOBALS, callees: FN_146_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f90a3e72a759, globals: &[], callees: FN_147_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f90a3e72a759, globals: &[], callees: FN_148_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f90a3e72a759, globals: &[], callees: FN_150_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_40871f360722, globals: FN_152_GLOBALS, callees: FN_152_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_84192::ChunkFns::f_4f573e6f88cb, globals: &[], callees: FN_153_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_67329667d7fd, globals: &[], callees: FN_154_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_84192::ChunkFns::f_4f573e6f88cb, globals: &[], callees: FN_155_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_84192::ChunkFns::f_4f573e6f88cb, globals: &[], callees: FN_157_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_ca8d871e077c, globals: &[], callees: FN_158_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_159_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1e6ff4c83b62, globals: &[], callees: FN_160_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_3594571ef794, globals: &[], callees: FN_168_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_e02bb7a5ce3b, globals: &[], callees: FN_169_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_868a5fcb144d, globals: &[], callees: FN_170_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_94c31aaa12fa, globals: &[], callees: FN_171_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_c56c009f41de, globals: &[], callees: FN_173_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_cfe54f4f1606, globals: &[], callees: FN_174_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_da603e0969cb, globals: FN_175_GLOBALS, callees: FN_175_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_176_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_0364226cb1e8, globals: &[], callees: FN_177_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_da0e89bc9783, globals: &[], callees: FN_178_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_180_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_194f062f76fc, globals: &[], callees: FN_181_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7c1b3db89f36, globals: &[], callees: FN_182_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_4a4ae773c3d4, globals: FN_183_GLOBALS, callees: FN_183_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_1592393fe606, globals: &[], callees: FN_184_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_04c43103713a, globals: FN_192_GLOBALS, callees: FN_192_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_2af4fe9e7d26, globals: &[], callees: FN_195_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_8a603a474721, globals: &[], callees: FN_196_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_08e07943209e, globals: &[], callees: FN_197_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_188a11564f14, globals: &[], callees: FN_198_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_d3a85f461ba8, globals: &[], callees: FN_199_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_a70135e4cf19, globals: &[], callees: FN_200_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_67f993fba1d7, globals: &[], callees: FN_207_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_b418d4374260, globals: &[], callees: FN_245_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_78753a2673fb, globals: &[], callees: FN_267_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_d9603289a8ca, globals: &[], callees: FN_268_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_ddd48519a13a, globals: &[], callees: FN_269_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_7315cbab4f66, globals: &[], callees: FN_271_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_798409933840, globals: &[], callees: FN_299_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_03e481579af4, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_c6e97ee70046, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_5015758bb709, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_3948a84700b8, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_2c680f88091b, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_140fb33a5afe, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_32917fc773d9, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_7d1f4d7fcad4, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_fa57b0c2b6ab, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a74c85b451e0, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_3f75c31e0aa0, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_aba70ab0b976, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_deffe42432b7, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_03e481579af4, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_162b60a1a7e7, globals: &[], callees: FN_350_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_11c79f5620b0, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_ea4faf22326d, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a43a5ae7b21f, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_24d45d64e33e, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_ffb3b9e53e54, globals: &[], callees: FN_362_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_5591fa286389, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_03e481579af4, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_55b7914f10c8, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_c065076ec71a, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_89b68888cc06, globals: &[], callees: FN_369_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_f96a9e02e90e, globals: &[], callees: FN_373_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_0630896cabfc, globals: &[], callees: FN_374_CALLEES },
+    crate::Bound_p_i32_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_ec7fee50bb79, globals: &[], callees: FN_378_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_RET_I64: &[crate::Bound_p_i32_i32_ret_i64] = &[
+    crate::Bound_p_i32_i32_ret_i64 { func: crate::c_85899_88792::ChunkFns::f_3abc88984867, globals: &[], callees: FN_55_CALLEES },
+    crate::Bound_p_i32_i32_ret_i64 { func: crate::c_85899_88792_1::ChunkFns::f_96f81305eb6c, globals: &[], callees: FN_291_CALLEES },
+    crate::Bound_p_i32_i32_ret_i64 { func: crate::c_85899_88792_1::ChunkFns::f_96f81305eb6c, globals: &[], callees: FN_292_CALLEES },
+    crate::Bound_p_i32_i32_ret_i64 { func: crate::c_85899_88792_1::ChunkFns::f_4647751d7ce5, globals: &[], callees: FN_300_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I32_RET_VOID: &[crate::Bound_p_i32_i32_ret_void] = &[
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792::ChunkFns::f_c55926dd782d, globals: &[], callees: FN_91_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_cf4e33c75e7a, globals: &[], callees: FN_211_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_cf4e33c75e7a, globals: &[], callees: FN_212_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_b1d8e3ac9a9f, globals: &[], callees: FN_213_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_cf4e33c75e7a, globals: &[], callees: FN_214_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_047b1849ed1a, globals: &[], callees: FN_215_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_cf4e33c75e7a, globals: &[], callees: FN_216_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_c9c4551c7a8c, globals: &[], callees: FN_217_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_ddb69a9786ee, globals: &[], callees: FN_223_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_02437646707f, globals: &[], callees: FN_259_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_460683591453, globals: &[], callees: FN_277_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_be20c4fb76e1, globals: &[], callees: FN_278_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_f4d10bf21ca1, globals: &[], callees: FN_281_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_71d8a2d6235d, globals: &[], callees: FN_327_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_e79c4e116bfd, globals: &[], callees: FN_335_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_bc6c808270d1, globals: &[], callees: FN_339_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_71d8a2d6235d, globals: &[], callees: FN_341_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_88792::ChunkFns::f_8fa562cbc853, globals: &[], callees: FN_345_CALLEES },
+    crate::Bound_p_i32_i32_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_e79c4e116bfd, globals: &[], callees: FN_372_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_I32_RET_I64: &[crate::Bound_p_i32_i64_i32_ret_i64] = &[
+    crate::Bound_p_i32_i64_i32_ret_i64 { func: crate::c_85899_88792_1::ChunkFns::f_b80f92b0d759, globals: &[], callees: FN_224_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_I32_RET_VOID: &[crate::Bound_p_i32_i64_i32_ret_void] = &[
+    crate::Bound_p_i32_i64_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_86b3566ebf56, globals: &[], callees: FN_261_CALLEES },
+    crate::Bound_p_i32_i64_i32_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_0a0fecb79fc7, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_i32_ret_void { func: crate::c_85899_84192::ChunkFns::f_a46dcb1ea662, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_I64_RET_I32: &[crate::Bound_p_i32_i64_i64_ret_i32] = &[
+    crate::Bound_p_i32_i64_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_9607d677c9db, globals: &[], callees: FN_343_CALLEES },
+    crate::Bound_p_i32_i64_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_9adecba56606, globals: &[], callees: FN_354_CALLEES },
+    crate::Bound_p_i32_i64_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_9adecba56606, globals: &[], callees: FN_381_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_I64_RET_I64: &[crate::Bound_p_i32_i64_i64_ret_i64] = &[
+    crate::Bound_p_i32_i64_i64_ret_i64 { func: crate::c_85899_88792::ChunkFns::f_31af32cb558c, globals: &[], callees: FN_92_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_I64_RET_VOID: &[crate::Bound_p_i32_i64_i64_ret_void] = &[
+    crate::Bound_p_i32_i64_i64_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_3b6f3fbbb4a3, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_RET_I32: &[crate::Bound_p_i32_i64_ret_i32] = &[
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f0da2366c908, globals: &[], callees: FN_69_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_6952202a54be, globals: &[], callees: FN_75_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_deaf01e451f9, globals: &[], callees: FN_76_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_e47cbb0bbd9e, globals: &[], callees: FN_77_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1161eced000b, globals: &[], callees: FN_78_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_b96282108807, globals: &[], callees: FN_79_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_419c292e1d24, globals: &[], callees: FN_89_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_1582af309d21, globals: &[], callees: FN_225_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_02dee31d1867, globals: &[], callees: FN_226_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_013015c130b5, globals: &[], callees: FN_227_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_028bfdb14936, globals: &[], callees: FN_228_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_6f8281821e65, globals: &[], callees: FN_229_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_287c71e8b52e, globals: &[], callees: FN_230_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_0fef82c2ddad, globals: &[], callees: FN_231_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_303072035b05, globals: &[], callees: FN_233_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_0f986d1edbac, globals: &[], callees: FN_238_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_f77f83a1e7f6, globals: &[], callees: FN_239_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_0d962ba5619b, globals: &[], callees: FN_242_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_0ea497ca9a06, globals: &[], callees: FN_243_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_7b1073a144d8, globals: &[], callees: FN_244_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_d6afbc2ad994, globals: &[], callees: FN_260_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_3c777e7664b4, globals: &[], callees: FN_302_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_87279bd968a2, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a4027a2778a0, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a4027a2778a0, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a4027a2778a0, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_e849c87b3008, globals: &[], callees: FN_355_CALLEES },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_87279bd968a2, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a4027a2778a0, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_87279bd968a2, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_87279bd968a2, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_RET_I64: &[crate::Bound_p_i32_i64_ret_i64] = &[
+    crate::Bound_p_i32_i64_ret_i64 { func: crate::c_85899_88792::ChunkFns::f_2bae3ae8abdb, globals: &[], callees: FN_80_CALLEES },
+    crate::Bound_p_i32_i64_ret_i64 { func: crate::c_85899_88792::ChunkFns::f_241fa345f31b, globals: &[], callees: FN_81_CALLEES },
+    crate::Bound_p_i32_i64_ret_i64 { func: crate::c_85899_88792_1::ChunkFns::f_5fb930408646, globals: &[], callees: FN_232_CALLEES },
+    crate::Bound_p_i32_i64_ret_i64 { func: crate::c_85899_88792_1::ChunkFns::f_eab38bf24e65, globals: &[], callees: FN_240_CALLEES },
+    crate::Bound_p_i32_i64_ret_i64 { func: crate::c_85899_88792_1::ChunkFns::f_24614f7f550b, globals: &[], callees: FN_241_CALLEES },
+    crate::Bound_p_i32_i64_ret_i64 { func: crate::c_85899_83092_2::ChunkFns::f_853e96823915, globals: &[], callees: &[] },
+    crate::Bound_p_i32_i64_ret_i64 { func: crate::c_85899_83092_2::ChunkFns::f_853e96823915, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_I64_RET_VOID: &[crate::Bound_p_i32_i64_ret_void] = &[
+    crate::Bound_p_i32_i64_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_676808e9a54c, globals: &[], callees: FN_218_CALLEES },
+    crate::Bound_p_i32_i64_ret_void { func: crate::c_85899_83092_2::ChunkFns::f_90383cde56ba, globals: &[], callees: FN_368_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_RET_I32: &[crate::Bound_p_i32_ret_i32] = &[
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1d111f94255c, globals: &[], callees: FN_3_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7eb29a59d915, globals: &[], callees: FN_10_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_fab6c7792bec, globals: &[], callees: FN_11_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_a45a26c14c17, globals: &[], callees: FN_15_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_8f0ec661a804, globals: &[], callees: FN_16_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_3979fdeb44f5, globals: &[], callees: FN_25_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_de050b4b81f1, globals: FN_35_GLOBALS, callees: FN_35_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_327504b23599, globals: FN_42_GLOBALS, callees: FN_42_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_703887b4ca0f, globals: FN_43_GLOBALS, callees: FN_43_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_671a96cacef8, globals: FN_44_GLOBALS, callees: FN_44_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f1674ef8dccc, globals: FN_45_GLOBALS, callees: FN_45_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_e75c24ce5706, globals: FN_46_GLOBALS, callees: FN_46_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_2a1df693f599, globals: &[], callees: FN_57_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_428301bbe702, globals: &[], callees: FN_58_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_16b21026a7f2, globals: FN_59_GLOBALS, callees: FN_59_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_0e5bb44a1e78, globals: &[], callees: FN_60_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_ffdee7c93cbe, globals: &[], callees: FN_61_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_3eb654e927a1, globals: &[], callees: FN_62_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_3927290801c7, globals: &[], callees: FN_64_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_d89853f7c7c5, globals: FN_65_GLOBALS, callees: FN_65_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_49de3a4260ff, globals: &[], callees: FN_66_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_a45a26c14c17, globals: &[], callees: FN_67_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_5e048dbe7c1f, globals: &[], callees: FN_68_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f26f1b9b1ce2, globals: FN_70_GLOBALS, callees: FN_70_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_a4b8b05c5fad, globals: &[], callees: FN_71_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_45817b7043dc, globals: &[], callees: FN_72_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_fdb0906f56bb, globals: &[], callees: FN_73_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_bdc4fb2aaab1, globals: &[], callees: FN_82_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_990600c4a836, globals: &[], callees: FN_83_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_34a49f345dca, globals: &[], callees: FN_86_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_638e3fd61a80, globals: &[], callees: FN_90_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_7d101c2d913a, globals: FN_93_GLOBALS, callees: FN_93_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1d111f94255c, globals: &[], callees: FN_96_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_c65ede4802f8, globals: FN_102_GLOBALS, callees: FN_102_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_005520f212f5, globals: &[], callees: FN_104_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_005520f212f5, globals: &[], callees: FN_105_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1e881702eb44, globals: &[], callees: FN_109_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_a45a26c14c17, globals: &[], callees: FN_111_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_8f0ec661a804, globals: &[], callees: FN_112_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_0e5bb44a1e78, globals: &[], callees: FN_113_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_0cbcbc1ef76e, globals: &[], callees: FN_117_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_9d92c7701c67, globals: &[], callees: FN_123_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_005520f212f5, globals: &[], callees: FN_124_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_49de3a4260ff, globals: &[], callees: FN_129_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_e32d590b954e, globals: FN_133_GLOBALS, callees: FN_133_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_329f5ce01511, globals: FN_136_GLOBALS, callees: FN_136_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_dbe6bf1cc46b, globals: FN_140_GLOBALS, callees: FN_140_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_0fabceb05d99, globals: FN_141_GLOBALS, callees: FN_141_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_b6a8cfd6ecb8, globals: FN_142_GLOBALS, callees: FN_142_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_671a96cacef8, globals: FN_143_GLOBALS, callees: FN_143_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_f1674ef8dccc, globals: FN_144_GLOBALS, callees: FN_144_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_e75c24ce5706, globals: FN_145_GLOBALS, callees: FN_145_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_b828c3bb90f0, globals: FN_149_GLOBALS, callees: FN_149_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_70644cf2f7cf, globals: &[], callees: FN_151_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_84192::ChunkFns::f_7931de08c6d9, globals: &[], callees: FN_156_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_64d7099dbc77, globals: FN_162_GLOBALS, callees: FN_162_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_358231fcf579, globals: &[], callees: FN_163_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_d421c25ba8cd, globals: &[], callees: FN_164_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_22fbbfe4115b, globals: &[], callees: FN_165_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_1e881702eb44, globals: &[], callees: FN_167_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_f1d61f915b91, globals: &[], callees: FN_172_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_f6699ee6758d, globals: FN_179_GLOBALS, callees: FN_179_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_56b1ab258317, globals: FN_185_GLOBALS, callees: FN_185_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_e8394947df8a, globals: FN_186_GLOBALS, callees: FN_186_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_a01f25005cd0, globals: FN_187_GLOBALS, callees: FN_187_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_ac9ed96b8296, globals: FN_188_GLOBALS, callees: FN_188_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_e8394947df8a, globals: FN_189_GLOBALS, callees: FN_189_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_a01f25005cd0, globals: FN_190_GLOBALS, callees: FN_190_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_3f199480863a, globals: FN_191_GLOBALS, callees: FN_191_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_4374122c356c, globals: &[], callees: FN_193_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_93af815d1803, globals: FN_194_GLOBALS, callees: FN_194_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_163a32094abe, globals: &[], callees: FN_201_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_e86045ad31a0, globals: &[], callees: FN_205_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_88569aa9a1c6, globals: &[], callees: FN_206_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_047d303782bf, globals: &[], callees: FN_221_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_a92adf80bbbf, globals: &[], callees: FN_222_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_1d097db891aa, globals: &[], callees: FN_234_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_1e94c8b8eb01, globals: &[], callees: FN_235_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_616e80fddb7d, globals: &[], callees: FN_236_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_f11d21470a04, globals: &[], callees: FN_237_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_01bdc838c8fa, globals: &[], callees: FN_263_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_aca28ed8fa04, globals: &[], callees: FN_264_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_58c4f47d7594, globals: &[], callees: FN_265_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_888e62342555, globals: &[], callees: FN_266_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_52731d599874, globals: &[], callees: FN_273_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_bfcee6bdb4da, globals: &[], callees: FN_275_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_d4971c544120, globals: &[], callees: FN_276_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_9cd6f86bba78, globals: &[], callees: FN_285_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_9e42a1d834c3, globals: &[], callees: FN_297_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_e4c126eb465c, globals: &[], callees: FN_298_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_9361c4e9179a, globals: &[], callees: FN_304_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_88792_2::ChunkFns::f_61a16d9614ba, globals: &[], callees: FN_305_CALLEES },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_5e1271fe89af, globals: &[], callees: &[] },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_3dd4bf2481ba, globals: &[], callees: &[] },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_cbe0184bd9b5, globals: &[], callees: &[] },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_1a71d29336df, globals: &[], callees: &[] },
+    crate::Bound_p_i32_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_c47bb8df9be0, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_RET_I64: &[crate::Bound_p_i32_ret_i64] = &[
+    crate::Bound_p_i32_ret_i64 { func: crate::c_85899_88792_2::ChunkFns::f_cb1aa58541c6, globals: &[], callees: FN_48_CALLEES },
+    crate::Bound_p_i32_ret_i64 { func: crate::c_85899_88792::ChunkFns::f_6f07359304f0, globals: &[], callees: FN_74_CALLEES },
+    crate::Bound_p_i32_ret_i64 { func: crate::c_85899_83092_2::ChunkFns::f_c239f066ccbc, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I32_RET_VOID: &[crate::Bound_p_i32_ret_void] = &[
+    crate::Bound_p_i32_ret_void { func: crate::c_85899_88792_1::ChunkFns::f_7eb39c01608f, globals: &[], callees: FN_262_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I64_I32_RET_I64: &[crate::Bound_p_i64_i32_ret_i64] = &[
+    crate::Bound_p_i64_i32_ret_i64 { func: crate::c_85899_83092_1::ChunkFns::f_79815729aec3, globals: &[], callees: &[] },
+    crate::Bound_p_i64_i32_ret_i64 { func: crate::c_85899_83092_1::ChunkFns::f_16e5e69025c5, globals: &[], callees: &[] },
+    crate::Bound_p_i64_i32_ret_i64 { func: crate::c_85899_83092_2::ChunkFns::f_53b864d8a1de, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I64_I64_RET_I32: &[crate::Bound_p_i64_i64_ret_i32] = &[
+    crate::Bound_p_i64_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_470053343055, globals: &[], callees: FN_23_CALLEES },
+    crate::Bound_p_i64_i64_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_bb85b13eb8ff, globals: &[], callees: FN_49_CALLEES },
+    crate::Bound_p_i64_i64_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_bb85b13eb8ff, globals: &[], callees: FN_63_CALLEES },
+    crate::Bound_p_i64_i64_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_bb85b13eb8ff, globals: &[], callees: FN_116_CALLEES },
+    crate::Bound_p_i64_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_ce7a44b7f744, globals: &[], callees: FN_380_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I64_I64_RET_I64: &[crate::Bound_p_i64_i64_ret_i64] = &[
+    crate::Bound_p_i64_i64_ret_i64 { func: crate::c_85899_83092_1::ChunkFns::f_2b59315b7818, globals: &[], callees: &[] },
+    crate::Bound_p_i64_i64_ret_i64 { func: crate::c_85899_83092_1::ChunkFns::f_0de929be56dc, globals: &[], callees: &[] },
+    crate::Bound_p_i64_i64_ret_i64 { func: crate::c_85899_83092_2::ChunkFns::f_a5a79dab7242, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I64_RET_I32: &[crate::Bound_p_i64_ret_i32] = &[
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_3002f0cd1024, globals: &[], callees: FN_14_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_8d4ef5bbec94, globals: FN_36_GLOBALS, callees: FN_36_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_4ce1c3955399, globals: &[], callees: FN_84_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_16a5c648c247, globals: &[], callees: FN_108_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092::ChunkFns::f_3002f0cd1024, globals: &[], callees: FN_110_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_88792::ChunkFns::f_956ac04c06f0, globals: FN_161_GLOBALS, callees: FN_161_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_a80be209ca01, globals: &[], callees: FN_166_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_9f6eb86571b2, globals: &[], callees: FN_203_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_80366ba4ed0c, globals: &[], callees: FN_220_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_ee190614c423, globals: &[], callees: FN_306_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_15ed6333638e, globals: &[], callees: &[] },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a95199099e27, globals: &[], callees: &[] },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_609444ff4048, globals: &[], callees: &[] },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_3961cde2a530, globals: &[], callees: FN_324_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_3961cde2a530, globals: &[], callees: FN_340_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_f36d2b83b7ff, globals: &[], callees: &[] },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a6e1bc397641, globals: &[], callees: FN_370_CALLEES },
+    crate::Bound_p_i64_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_ee190614c423, globals: &[], callees: FN_371_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_I64_RET_I64: &[crate::Bound_p_i64_ret_i64] = &[
+    crate::Bound_p_i64_ret_i64 { func: crate::c_85899_83092_2::ChunkFns::f_554f71c39a7a, globals: &[], callees: &[] },
+    crate::Bound_p_i64_ret_i64 { func: crate::c_85899_83092_2::ChunkFns::f_554f71c39a7a, globals: &[], callees: &[] },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_UNIT_RET_I32: &[crate::Bound_p_unit_ret_i32] = &[
+    crate::Bound_p_unit_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_1d7de35b2d8a, globals: &[], callees: FN_202_CALLEES },
+    crate::Bound_p_unit_ret_i32 { func: crate::c_85899_83092_1::ChunkFns::f_1291541a6166, globals: &[], callees: FN_204_CALLEES },
+    crate::Bound_p_unit_ret_i32 { func: crate::c_85899_88792_1::ChunkFns::f_7ac932a19aae, globals: &[], callees: FN_210_CALLEES },
+    crate::Bound_p_unit_ret_i32 { func: crate::c_85899_83092_2::ChunkFns::f_a6a8842e4b04, globals: &[], callees: FN_382_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static BOUND_SIG_P_UNIT_RET_VOID: &[crate::Bound_p_unit_ret_void] = &[
+    crate::Bound_p_unit_ret_void { func: crate::c_85899_84192::ChunkFns::f_da48ed3929f4, globals: FN_0_GLOBALS, callees: FN_0_CALLEES },
+];
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+static DISPATCH: crate::ModuleDispatch = crate::ModuleDispatch {
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_i32: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_I32,
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_i32: &[],
+    sig_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i32_i32_ret_i32: &[],
+    sig_p_i32_i32_i32_i32_i32_i32_i32_ret_void: &[],
+    sig_p_i32_i32_i32_i32_i32_i32_ret_i32: &[],
+    sig_p_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I64_I32_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I64_I32_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i64_i32_i32_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I64_I32_I32_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_i64_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_I64_RET_VOID,
+    sig_p_i32_i32_i32_i32_i32_ret_i32: BOUND_SIG_P_I32_I32_I32_I32_I32_RET_I32,
+    sig_p_i32_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i32_ret_i32: BOUND_SIG_P_I32_I32_I32_I32_RET_I32,
+    sig_p_i32_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i32_i64_ret_void: BOUND_SIG_P_I32_I32_I32_I64_RET_VOID,
+    sig_p_i32_i32_i32_ret_i32: BOUND_SIG_P_I32_I32_I32_RET_I32,
+    sig_p_i32_i32_i32_ret_void: BOUND_SIG_P_I32_I32_I32_RET_VOID,
+    sig_p_i32_i32_i64_i32_i32_ret_i32: &[],
+    sig_p_i32_i32_i64_ret_void: BOUND_SIG_P_I32_I32_I64_RET_VOID,
+    sig_p_i32_i32_ret_i32: BOUND_SIG_P_I32_I32_RET_I32,
+    sig_p_i32_i32_ret_i64: BOUND_SIG_P_I32_I32_RET_I64,
+    sig_p_i32_i32_ret_void: BOUND_SIG_P_I32_I32_RET_VOID,
+    sig_p_i32_i64_i32_i32_ret_i32: &[],
+    sig_p_i32_i64_i32_i32_ret_i64: &[],
+    sig_p_i32_i64_i32_ret_i32: &[],
+    sig_p_i32_i64_i32_ret_i64: BOUND_SIG_P_I32_I64_I32_RET_I64,
+    sig_p_i32_i64_i32_ret_void: BOUND_SIG_P_I32_I64_I32_RET_VOID,
+    sig_p_i32_i64_i64_ret_i32: BOUND_SIG_P_I32_I64_I64_RET_I32,
+    sig_p_i32_i64_i64_ret_i64: BOUND_SIG_P_I32_I64_I64_RET_I64,
+    sig_p_i32_i64_i64_ret_void: BOUND_SIG_P_I32_I64_I64_RET_VOID,
+    sig_p_i32_i64_ret_i32: BOUND_SIG_P_I32_I64_RET_I32,
+    sig_p_i32_i64_ret_i64: BOUND_SIG_P_I32_I64_RET_I64,
+    sig_p_i32_i64_ret_void: BOUND_SIG_P_I32_I64_RET_VOID,
+    sig_p_i32_ret_i32: BOUND_SIG_P_I32_RET_I32,
+    sig_p_i32_ret_i64: BOUND_SIG_P_I32_RET_I64,
+    sig_p_i32_ret_void: BOUND_SIG_P_I32_RET_VOID,
+    sig_p_i64_i32_ret_i64: BOUND_SIG_P_I64_I32_RET_I64,
+    sig_p_i64_i64_ret_i32: BOUND_SIG_P_I64_I64_RET_I32,
+    sig_p_i64_i64_ret_i64: BOUND_SIG_P_I64_I64_RET_I64,
+    sig_p_i64_ret_i32: BOUND_SIG_P_I64_RET_I32,
+    sig_p_i64_ret_i64: BOUND_SIG_P_I64_RET_I64,
+    sig_p_unit_ret_i32: BOUND_SIG_P_UNIT_RET_I32,
+    sig_p_unit_ret_void: BOUND_SIG_P_UNIT_RET_VOID,
+};
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+struct SubstituteInstance {
+    vm: SubstituteVm,
+}
+
+const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
+    name: "85899_88792/f1681@l8589994064",
+    accounting_version: 2u32,
+    wasm_sha256: [0xfe, 0xc8, 0xc2, 0x85, 0xe0, 0x99, 0x07, 0xf6, 0xbd, 0x52, 0xe6, 0x2f, 0x59, 0x00, 0x3c, 0x73, 0x27, 0x18, 0x3c, 0x71, 0x8d, 0x66, 0x06, 0x8f, 0xa3, 0x0d, 0x12, 0x41, 0x1e, 0xc9, 0x5d, 0x84],
+    entry_func_name: "step",
+    has_start_func: false,
+    initial_memory_pages: 1usize,
+    initial_table_elements: 0usize,
+    static_data_end: 0usize,
+    num_memories: 1usize,
+    num_tables: 0usize,
+};
+
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+fn instantiate_substitute() -> Box<dyn WasmSubstituteInstance> {
+    let g0: i32 = 0i32;
+    let g1: i32 = 0i32;
+    let g2: i32 = 0i32;
+    let g3: i32 = 0i32;
+    let g4: i32 = 0i32;
+    let g5: i32 = 0i32;
+    let g6: i32 = 0i32;
+    let g7: i32 = 0i32;
+    let g8: i32 = 0i32;
+    let g9: i32 = 0i32;
+    let g10: i32 = 0i32;
+    let g11: i32 = 0i32;
+    let g12: i32 = 0i32;
+    let g13: i32 = 0i32;
+    let g14: i32 = 0i32;
+    let g15: i32 = 0i32;
+    let g16: i32 = 0i32;
+    let g17: i32 = 0i32;
+    let g18: i32 = 0i32;
+    let g19: i32 = 0i32;
+    let g20: i32 = 0i32;
+    let g21: i32 = 0i32;
+    let g22: i32 = 0i32;
+    let g23: i32 = 0i32;
+    let g24: i32 = 256i32;
+    let memories = vec![
+        WasmLinearMemory::new(1u32, None),
+    ];
+    let tables = vec![
+    ];
+    let passive_data: Vec<Option<&'static [u8]>> = vec![
+    ];
+    let passive_elems: Vec<Option<&'static [Option<u32>]>> = vec![
+    ];
+    let mut vm = SubstituteVm::new(memories, tables, passive_data, passive_elems);
+    vm.heap_ptr = g24;
+    vm.has_heap_ptr = true;
+    vm.globals_i32 = vec![g0, g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11, g12, g13, g14, g15, g16, g17, g18, g19, g20, g21, g22, g23];
+    Box::new(SubstituteInstance { vm })
+}
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+enum TailTarget_void {
+    Func294(i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32),
+}
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+enum TailStep_void {
+    Done(()),
+    Tail(TailTarget_void),
+}
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+impl SubstituteInstance {
+    #[inline(never)]
+    fn tail_dispatch_void(vm: &mut SubstituteVm, mut step_val: TailStep_void, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+        loop {
+            match step_val {
+                TailStep_void::Done(res) => return Ok(res),
+                TailStep_void::Tail(target) => match target {
+                    TailTarget_void::Func294(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10) => step_val = SubstituteInstance::fn_294_step(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, host)?,
+                },
+            }
+        }
+    }
+
+}
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+impl SubstituteInstance {
+    #[inline(never)]
+    fn fn_293(vm: &mut SubstituteVm, p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+    let mut l0: i32 = p0;
+    let mut l1: i32 = p1;
+    let mut l2: i32 = p2;
+    let mut l3: i32 = p3;
+    let mut l4: i32 = p4;
+    let mut l5: i32 = p5;
+    let mut l6: i32 = p6;
+    let mut l7: i32 = p7;
+    let mut l8: i32 = p8;
+    let mut l9: i32 = p9;
+    let mut l10: i32 = p10;
+    let mut l11: i32 = p11;
+    let mut l12: i32 = p12;
+    let mut l13: i32 = 0i32;
+    let mut l14: i32 = 0i32;
+    let mut l15: i64 = 0i64;
+    let mut l16: i32 = 0i32;
+    let mut l17: i32 = 0i32;
+    let mut l18: i32 = 0i32;
+    let mut l19: i32 = 0i32;
+    let mut l20: i32 = 0i32;
+    let mut l21: i32 = 0i32;
+    let mut l22: i32 = 0i32;
+    let mut l23: i32 = 0i32;
+    let mut l24: i32 = 0i32;
+    let mut l25: i32 = 0i32;
+    let mut l26: i32 = 0i32;
+    let mut s_i32_0: i32 = 0i32;
+    let mut s_i64_0: i64 = 0i64;
+    let mut s_i32_1: i32 = 0i32;
+    let mut s_i64_1: i64 = 0i64;
+    let mut s_i32_2: i32 = 0i32;
+    let mut s_i32_3: i32 = 0i32;
+    let mut s_i32_4: i32 = 0i32;
+    let mut s_i32_5: i32 = 0i32;
+    let mut s_i32_6: i32 = 0i32;
+    let mut s_i32_7: i32 = 0i32;
+    let mut s_i32_8: i32 = 0i32;
+    let mut s_i32_9: i32 = 0i32;
+    let mut s_i32_10: i32 = 0i32;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
+    vm.exit_call();
+    __call_res?;
+    s_i32_0 = l12;
+    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
+    'blk_1: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l11;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
+            s_i32_0 = ops::i32_eqz(s_i32_0);
+            'blk_2: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l12;
+            s_i32_3 = ops::i32_load(vm, 0, s_i32_3, 8u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t0 = __call_res?;
+            s_i32_0 = __t0;
+            l13 = s_i32_0;
+            s_i32_0 = l13;
+            s_i32_1 = l11;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 8u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 136usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t1 = __call_res?;
+            s_i32_0 = __t1;
+            s_i32_0 = ops::i32_eqz(s_i32_0);
+            'blk_3: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l12;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 12u32)?;
+            l14 = s_i32_0;
+            s_i64_0 = 1i64;
+            s_i32_1 = l11;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+            vm.exit_call();
+            let __t2 = __call_res?;
+            s_i64_0 = __t2;
+            l15 = s_i64_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2213i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2199i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 316i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l13;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l14;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2547i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l10;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = l15;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i32_1 = l14;
+            l16 = s_i32_1;
+            s_i32_1 = l13;
+            l17 = s_i32_1;
+            s_i32_1 = 8i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+            vm.exit_call();
+            let __t3 = __call_res?;
+            s_i32_1 = __t3;
+            l18 = s_i32_1;
+            s_i32_1 = l18;
+            s_i32_2 = l16;
+            ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l18;
+            s_i32_2 = l17;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l18;
+            l19 = s_i32_1;
+            s_i32_1 = 20i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+            vm.exit_call();
+            let __t4 = __call_res?;
+            s_i32_1 = __t4;
+            l20 = s_i32_1;
+            s_i32_1 = l20;
+            s_i32_2 = l20;
+            s_i32_3 = 16i32;
+            s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+            ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l20;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l20;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+            s_i32_1 = l20;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+            s_i32_1 = l20;
+            s_i32_2 = l19;
+            ops::i32_store(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+            s_i32_1 = l20;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 137usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t5 = __call_res?;
+            s_i32_0 = __t5;
+            l21 = s_i32_0;
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l22 = s_i32_0;
+            s_i32_0 = l21;
+            l23 = s_i32_0;
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+            l24 = s_i32_0;
+            s_i32_0 = 12i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_0, host);
+            vm.exit_call();
+            let __t6 = __call_res?;
+            s_i32_0 = __t6;
+            l25 = s_i32_0;
+            s_i32_0 = l25;
+            s_i32_1 = l22;
+            ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+            s_i32_0 = l25;
+            s_i32_1 = l23;
+            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+            s_i32_0 = l25;
+            s_i32_1 = l24;
+            ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+            s_i32_0 = l25;
+            l26 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l26;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l12;
+            s_i32_10 = ops::i32_load(vm, 0, s_i32_10, 16u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2214i32;
+            let __t7 = s_i32_0;
+            let __t8 = s_i32_1;
+            return DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, __t7, __t8, host);
+        } else {
+            s_i32_0 = l11;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
+            'blk_4: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l12;
+            s_i32_10 = ops::i32_load(vm, 0, s_i32_10, 16u32)?;
+            let __t9 = s_i32_0;
+            let __t10 = s_i32_1;
+            let __t11 = s_i32_2;
+            let __t12 = s_i32_3;
+            let __t13 = s_i32_4;
+            let __t14 = s_i32_5;
+            let __t15 = s_i32_6;
+            let __t16 = s_i32_7;
+            let __t17 = s_i32_8;
+            let __t18 = s_i32_9;
+            let __t19 = s_i32_10;
+            return SubstituteInstance::tail_dispatch_void(vm, TailStep_void::Tail(TailTarget_void::Func294(__t9, __t10, __t11, __t12, __t13, __t14, __t15, __t16, __t17, __t18, __t19)), host);
+        }
+    }
+    return Err(WasmTrap::Unreachable);
+    }
+
+    #[inline(never)]
+    fn fn_294_step(vm: &mut SubstituteVm, p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<TailStep_void, WasmTrap> {
+    let mut l0: i32 = p0;
+    let mut l1: i32 = p1;
+    let mut l2: i32 = p2;
+    let mut l3: i32 = p3;
+    let mut l4: i32 = p4;
+    let mut l5: i32 = p5;
+    let mut l6: i32 = p6;
+    let mut l7: i32 = p7;
+    let mut l8: i32 = p8;
+    let mut l9: i32 = p9;
+    let mut l10: i32 = p10;
+    let mut l11: i32 = 0i32;
+    let mut l12: i32 = 0i32;
+    let mut l13: i32 = 0i32;
+    let mut l14: i32 = 0i32;
+    let mut l15: i32 = 0i32;
+    let mut l16: i32 = 0i32;
+    let mut l17: i32 = 0i32;
+    let mut l18: i32 = 0i32;
+    let mut l19: i32 = 0i32;
+    let mut l20: i32 = 0i32;
+    let mut l21: i32 = 0i32;
+    let mut l22: i32 = 0i32;
+    let mut l23: i32 = 0i32;
+    let mut l24: i32 = 0i32;
+    let mut l25: i32 = 0i32;
+    let mut l26: i32 = 0i32;
+    let mut l27: i64 = 0i64;
+    let mut l28: i32 = 0i32;
+    let mut l29: i32 = 0i32;
+    let mut l30: i32 = 0i32;
+    let mut l31: i32 = 0i32;
+    let mut l32: i32 = 0i32;
+    let mut l33: i32 = 0i32;
+    let mut l34: i32 = 0i32;
+    let mut l35: i32 = 0i32;
+    let mut l36: i32 = 0i32;
+    let mut l37: i32 = 0i32;
+    let mut l38: i32 = 0i32;
+    let mut l39: i32 = 0i32;
+    let mut l40: i32 = 0i32;
+    let mut l41: i32 = 0i32;
+    let mut l42: i32 = 0i32;
+    let mut l43: i32 = 0i32;
+    let mut l44: i32 = 0i32;
+    let mut l45: i32 = 0i32;
+    let mut l46: i32 = 0i32;
+    let mut l47: i32 = 0i32;
+    let mut l48: i32 = 0i32;
+    let mut l49: i32 = 0i32;
+    let mut l50: i32 = 0i32;
+    let mut l51: i32 = 0i32;
+    let mut l52: i32 = 0i32;
+    let mut l53: i32 = 0i32;
+    let mut l54: i32 = 0i32;
+    let mut l55: i32 = 0i32;
+    let mut l56: i32 = 0i32;
+    let mut l57: i32 = 0i32;
+    let mut l58: i32 = 0i32;
+    let mut l59: i32 = 0i32;
+    let mut l60: i32 = 0i32;
+    let mut l61: i32 = 0i32;
+    let mut l62: i32 = 0i32;
+    let mut l63: i32 = 0i32;
+    let mut l64: i32 = 0i32;
+    let mut l65: i32 = 0i32;
+    let mut l66: i32 = 0i32;
+    let mut l67: i32 = 0i32;
+    let mut l68: i32 = 0i32;
+    let mut l69: i32 = 0i32;
+    let mut l70: i32 = 0i32;
+    let mut l71: i32 = 0i32;
+    let mut l72: i32 = 0i32;
+    let mut l73: i32 = 0i32;
+    let mut l74: i32 = 0i32;
+    let mut l75: i32 = 0i32;
+    let mut l76: i32 = 0i32;
+    let mut l77: i32 = 0i32;
+    let mut l78: i32 = 0i32;
+    let mut l79: i32 = 0i32;
+    let mut l80: i32 = 0i32;
+    let mut l81: i32 = 0i32;
+    let mut l82: i32 = 0i32;
+    let mut l83: i32 = 0i32;
+    let mut l84: i32 = 0i32;
+    let mut l85: i32 = 0i32;
+    let mut l86: i32 = 0i32;
+    let mut l87: i32 = 0i32;
+    let mut l88: i32 = 0i32;
+    let mut l89: i32 = 0i32;
+    let mut l90: i32 = 0i32;
+    let mut l91: i32 = 0i32;
+    let mut l92: i32 = 0i32;
+    let mut l93: i32 = 0i32;
+    let mut l94: i32 = 0i32;
+    let mut l95: i32 = 0i32;
+    let mut l96: i32 = 0i32;
+    let mut l97: i32 = 0i32;
+    let mut l98: i32 = 0i32;
+    let mut l99: i32 = 0i32;
+    let mut l100: i32 = 0i32;
+    let mut l101: i32 = 0i32;
+    let mut l102: i32 = 0i32;
+    let mut l103: i32 = 0i32;
+    let mut l104: i32 = 0i32;
+    let mut l105: i32 = 0i32;
+    let mut l106: i32 = 0i32;
+    let mut l107: i64 = 0i64;
+    let mut l108: i64 = 0i64;
+    let mut l109: i64 = 0i64;
+    let mut l110: i32 = 0i32;
+    let mut l111: i32 = 0i32;
+    let mut l112: i64 = 0i64;
+    let mut l113: i32 = 0i32;
+    let mut l114: i32 = 0i32;
+    let mut l115: i64 = 0i64;
+    let mut l116: i64 = 0i64;
+    let mut l117: i32 = 0i32;
+    let mut l118: i64 = 0i64;
+    let mut l119: i32 = 0i32;
+    let mut l120: i64 = 0i64;
+    let mut l121: i32 = 0i32;
+    let mut l122: i64 = 0i64;
+    let mut l123: i32 = 0i32;
+    let mut l124: i32 = 0i32;
+    let mut l125: i32 = 0i32;
+    let mut l126: i32 = 0i32;
+    let mut l127: i64 = 0i64;
+    let mut l128: i32 = 0i32;
+    let mut l129: i32 = 0i32;
+    let mut l130: i32 = 0i32;
+    let mut l131: i64 = 0i64;
+    let mut l132: i32 = 0i32;
+    let mut l133: i32 = 0i32;
+    let mut l134: i32 = 0i32;
+    let mut l135: i64 = 0i64;
+    let mut l136: i32 = 0i32;
+    let mut l137: i32 = 0i32;
+    let mut l138: i32 = 0i32;
+    let mut l139: i64 = 0i64;
+    let mut l140: i32 = 0i32;
+    let mut l141: i32 = 0i32;
+    let mut l142: i32 = 0i32;
+    let mut l143: i64 = 0i64;
+    let mut l144: i32 = 0i32;
+    let mut l145: i32 = 0i32;
+    let mut l146: i32 = 0i32;
+    let mut l147: i32 = 0i32;
+    let mut l148: i32 = 0i32;
+    let mut l149: i32 = 0i32;
+    let mut l150: i32 = 0i32;
+    let mut l151: i32 = 0i32;
+    let mut l152: i32 = 0i32;
+    let mut l153: i32 = 0i32;
+    let mut l154: i32 = 0i32;
+    let mut l155: i32 = 0i32;
+    let mut l156: i32 = 0i32;
+    let mut l157: i32 = 0i32;
+    let mut l158: i32 = 0i32;
+    let mut l159: i32 = 0i32;
+    let mut l160: i32 = 0i32;
+    let mut l161: i32 = 0i32;
+    let mut l162: i32 = 0i32;
+    let mut l163: i32 = 0i32;
+    let mut l164: i32 = 0i32;
+    let mut l165: i32 = 0i32;
+    let mut l166: i64 = 0i64;
+    let mut l167: i64 = 0i64;
+    let mut l168: i64 = 0i64;
+    let mut l169: i32 = 0i32;
+    let mut l170: i32 = 0i32;
+    let mut l171: i64 = 0i64;
+    let mut l172: i64 = 0i64;
+    let mut l173: i64 = 0i64;
+    let mut l174: i64 = 0i64;
+    let mut l175: i64 = 0i64;
+    let mut l176: i64 = 0i64;
+    let mut l177: i32 = 0i32;
+    let mut l178: i32 = 0i32;
+    let mut l179: i32 = 0i32;
+    let mut l180: i32 = 0i32;
+    let mut l181: i32 = 0i32;
+    let mut l182: i32 = 0i32;
+    let mut l183: i32 = 0i32;
+    let mut l184: i64 = 0i64;
+    let mut s_i32_0: i32 = 0i32;
+    let mut s_i64_0: i64 = 0i64;
+    let mut s_i32_1: i32 = 0i32;
+    let mut s_i64_1: i64 = 0i64;
+    let mut s_i32_2: i32 = 0i32;
+    let mut s_i64_2: i64 = 0i64;
+    let mut s_i32_3: i32 = 0i32;
+    let mut s_i64_3: i64 = 0i64;
+    let mut s_i32_4: i32 = 0i32;
+    let mut s_i64_4: i64 = 0i64;
+    let mut s_i32_5: i32 = 0i32;
+    let mut s_i64_5: i64 = 0i64;
+    let mut s_i32_6: i32 = 0i32;
+    let mut s_i32_7: i32 = 0i32;
+    let mut s_i32_8: i32 = 0i32;
+    let mut s_i32_9: i32 = 0i32;
+    let mut s_i64_9: i64 = 0i64;
+    let mut s_i32_10: i32 = 0i32;
+    let mut s_i32_11: i32 = 0i32;
+    let mut s_i64_11: i64 = 0i64;
+    let mut s_i32_12: i32 = 0i32;
+    let mut s_i64_12: i64 = 0i64;
+    let mut s_i32_13: i32 = 0i32;
+    let mut s_i64_13: i64 = 0i64;
+    let mut s_i32_14: i32 = 0i32;
+    let mut s_i64_14: i64 = 0i64;
+    let mut s_i64_15: i64 = 0i64;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
+    vm.exit_call();
+    __call_res?;
+    s_i32_0 = l10;
+    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+    l11 = s_i32_0;
+    s_i32_0 = l10;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+    l12 = s_i32_0;
+    s_i32_0 = l10;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 20u32)?;
+    l13 = s_i32_0;
+    s_i32_0 = l10;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 24u32)?;
+    l14 = s_i32_0;
+    s_i32_0 = l10;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 28u32)?;
+    l15 = s_i32_0;
+    s_i32_0 = l11;
+    s_i32_1 = 0i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t0 = __call_res?;
+    s_i32_0 = __t0;
+    'blk_1: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = l12;
+            s_i32_2 = 0i32;
+            s_i32_1 = ops::i32_ne(s_i32_1, s_i32_2);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 1i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t1 = __call_res?;
+    s_i32_0 = __t1;
+    'blk_2: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = l4;
+            s_i32_2 = l5;
+            s_i32_3 = l6;
+            s_i32_4 = l12;
+            s_i32_5 = l10;
+            s_i32_5 = ops::i32_load(vm, 0, s_i32_5, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 2i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t2 = __call_res?;
+    s_i32_0 = __t2;
+    'blk_3: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 28usize, s_i32_1, host);
+            vm.exit_call();
+            let __t3 = __call_res?;
+            s_i32_1 = __t3;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 15usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 3i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t4 = __call_res?;
+    s_i32_0 = __t4;
+    'blk_4: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2578i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2673i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l6;
+            s_i32_2 = l4;
+            s_i32_3 = l5;
+            s_i32_4 = 0i32;
+            s_i64_5 = 8589980641i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i64_5, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l10;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+            l16 = s_i32_0;
+            s_i32_0 = l16;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l17 = s_i32_0;
+            s_i32_0 = l16;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l18 = s_i32_0;
+            s_i32_0 = 0i32;
+            l19 = s_i32_0;
+            'blk_5: {
+                'blk_6: loop {
+                    vm.deduct(host, 1)?;
+                    s_i32_0 = l19;
+                    s_i32_1 = l18;
+                    s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                    if s_i32_0 != 0 {
+                        break 'blk_5;
+                    }
+                    s_i32_0 = l17;
+                    s_i32_1 = l19;
+                    s_i32_2 = 4i32;
+                    s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l20 = s_i32_0;
+                    'blk_7: {
+                        s_i32_0 = l0;
+                        s_i32_1 = 2219i32;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                        vm.exit_call();
+                        __call_res?;
+                        s_i32_0 = l0;
+                        s_i32_1 = l6;
+                        s_i32_2 = l4;
+                        s_i32_3 = l5;
+                        s_i32_4 = 0i32;
+                        s_i64_5 = 8589980641i64;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i64_5, host);
+                        vm.exit_call();
+                        __call_res?;
+                        s_i32_0 = l0;
+                        s_i32_1 = 209i32;
+                        s_i32_2 = l20;
+                        s_i64_2 = ops::i64_load(vm, 0, s_i32_2, 0u32)?;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+                        vm.exit_call();
+                        __call_res?;
+                        s_i32_0 = l0;
+                        s_i32_1 = 209i32;
+                        s_i32_2 = l20;
+                        s_i64_2 = ops::i64_load(vm, 0, s_i32_2, 8u32)?;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+                        vm.exit_call();
+                        __call_res?;
+                        s_i32_0 = l0;
+                        s_i32_1 = 2220i32;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                        vm.exit_call();
+                        __call_res?;
+                    }
+                    s_i32_0 = l19;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    l19 = s_i32_0;
+                    continue 'blk_6;
+                    break 'blk_6;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2579i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 4i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t5 = __call_res?;
+    s_i32_0 = __t5;
+    'blk_8: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l10;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+            l21 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2219i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l6;
+            s_i32_2 = l4;
+            s_i32_3 = l5;
+            s_i32_4 = 0i32;
+            s_i64_5 = 8589980641i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i64_5, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 209i32;
+            s_i32_2 = l21;
+            s_i64_2 = ops::i64_load(vm, 0, s_i32_2, 0u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 209i32;
+            s_i32_2 = l21;
+            s_i64_2 = ops::i64_load(vm, 0, s_i32_2, 8u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2220i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 5i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t6 = __call_res?;
+    s_i32_0 = __t6;
+    'blk_9: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 203i32;
+            s_i32_2 = l12;
+            s_i64_2 = ops::i64_extend_i32_u(s_i32_2);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 6i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t7 = __call_res?;
+    s_i32_0 = __t7;
+    'blk_10: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2578i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l1;
+            s_i32_9 = l2;
+            s_i32_10 = 1i32;
+            s_i32_11 = l14;
+            s_i64_12 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+            vm.exit_call();
+            let __t8 = __call_res?;
+            s_i32_11 = __t8;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+            vm.exit_call();
+            let __t9 = __call_res?;
+            s_i32_8 = __t9;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l15;
+            l22 = s_i32_0;
+            s_i32_0 = l22;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l23 = s_i32_0;
+            s_i32_0 = l22;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l24 = s_i32_0;
+            s_i32_0 = 0i32;
+            l25 = s_i32_0;
+            'blk_11: {
+                'blk_12: loop {
+                    vm.deduct(host, 1)?;
+                    s_i32_0 = l25;
+                    s_i32_1 = l24;
+                    s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                    if s_i32_0 != 0 {
+                        break 'blk_11;
+                    }
+                    s_i32_0 = l23;
+                    s_i32_1 = l25;
+                    s_i32_2 = 4i32;
+                    s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l26 = s_i32_0;
+                    'blk_13: {
+                        s_i32_0 = l0;
+                        s_i32_1 = l1;
+                        s_i32_2 = l2;
+                        s_i32_3 = l3;
+                        s_i32_4 = l4;
+                        s_i32_5 = l5;
+                        s_i32_6 = l6;
+                        s_i32_7 = l7;
+                        s_i32_8 = l8;
+                        s_i32_9 = l9;
+                        s_i32_10 = l26;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                        vm.exit_call();
+                        __call_res?;
+                    }
+                    s_i32_0 = l25;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    l25 = s_i32_0;
+                    continue 'blk_12;
+                    break 'blk_12;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2579i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 7i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t10 = __call_res?;
+    s_i32_0 = __t10;
+    'blk_14: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2215i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l15;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i64_0 = 0i64;
+            l27 = s_i64_0;
+            'blk_15: {
+                'blk_16: loop {
+                    vm.deduct(host, 1)?;
+                    s_i64_0 = l27;
+                    s_i32_1 = l15;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                    if s_i32_0 != 0 {
+                        break 'blk_15;
+                    }
+                    s_i64_0 = l27;
+                    s_i64_1 = 0i64;
+                    s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
+                    'blk_17: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i32_1 = 312i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                        }
+                    }
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l15;
+                    s_i64_11 = l27;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                    vm.exit_call();
+                    let __t11 = __call_res?;
+                    s_i32_10 = __t11;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i64_0 = l27;
+                    s_i64_1 = 1i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t12 = __call_res?;
+                    s_i64_0 = __t12;
+                    l27 = s_i64_0;
+                    continue 'blk_16;
+                    break 'blk_16;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2216i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 8i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t13 = __call_res?;
+    s_i32_0 = __t13;
+    'blk_18: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2547i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t14 = __call_res?;
+            s_i32_10 = __t14;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l12;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 9i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t15 = __call_res?;
+    s_i32_0 = __t15;
+    'blk_19: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2548i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t16 = __call_res?;
+            s_i32_10 = __t16;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l12;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 1i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t17 = __call_res?;
+            s_i32_10 = __t17;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 10i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t18 = __call_res?;
+    s_i32_0 = __t18;
+    'blk_20: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2580i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            vm.deduct(host, 1)?;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l1;
+            s_i32_9 = l2;
+            s_i32_10 = 1i32;
+            s_i32_11 = l14;
+            s_i64_12 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+            vm.exit_call();
+            let __t19 = __call_res?;
+            s_i32_11 = __t19;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+            vm.exit_call();
+            let __t20 = __call_res?;
+            s_i32_8 = __t20;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t21 = __call_res?;
+            s_i32_10 = __t21;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 11i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t22 = __call_res?;
+    s_i32_0 = __t22;
+    'blk_21: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2202i32;
+            vm.deduct(host, 1)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l14;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            s_i64_1 = 0i64;
+            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+            'blk_22: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 316i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                } else {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l4;
+                    s_i32_4 = l5;
+                    s_i32_5 = l6;
+                    s_i32_6 = l7;
+                    s_i32_7 = l8;
+                    s_i32_8 = l1;
+                    s_i32_9 = l2;
+                    s_i32_10 = 1i32;
+                    s_i32_11 = l14;
+                    s_i64_12 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+                    vm.exit_call();
+                    let __t23 = __call_res?;
+                    s_i32_11 = __t23;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+                    vm.exit_call();
+                    let __t24 = __call_res?;
+                    s_i32_8 = __t24;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                    vm.exit_call();
+                    __call_res?;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = l13;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 7usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 12i32;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t25 = __call_res?;
+    s_i32_0 = __t25;
+    'blk_23: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2198i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l1;
+            s_i32_9 = l2;
+            s_i32_10 = 1i32;
+            s_i32_11 = l14;
+            s_i64_12 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+            vm.exit_call();
+            let __t26 = __call_res?;
+            s_i32_11 = __t26;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+            vm.exit_call();
+            let __t27 = __call_res?;
+            s_i32_8 = __t27;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l15;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            s_i64_1 = 0i64;
+            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+            'blk_24: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 316i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                } else {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l15;
+                    s_i64_11 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                    vm.exit_call();
+                    let __t28 = __call_res?;
+                    s_i32_10 = __t28;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                }
+            }
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 13i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t29 = __call_res?;
+    s_i32_0 = __t29;
+    'blk_25: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l14;
+            s_i64_4 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+            vm.exit_call();
+            let __t30 = __call_res?;
+            s_i32_3 = __t30;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t31 = __call_res?;
+            s_i32_0 = __t31;
+            l28 = s_i32_0;
+            s_i32_0 = l28;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 17i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t32 = __call_res?;
+            s_i32_0 = __t32;
+            'blk_26: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2199i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l12;
+            s_i32_2 = 0i32;
+            s_i32_1 = ops::i32_ne(s_i32_1, s_i32_2);
+            l29 = s_i32_1;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 8u32)?;
+            l30 = s_i32_1;
+            s_i32_1 = 8i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+            vm.exit_call();
+            let __t33 = __call_res?;
+            s_i32_1 = __t33;
+            l31 = s_i32_1;
+            s_i32_1 = l31;
+            s_i32_2 = l29;
+            ops::i32_store8(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l31;
+            s_i32_2 = l30;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l31;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 5usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l28;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t34 = __call_res?;
+            s_i32_10 = __t34;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 14i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t35 = __call_res?;
+    s_i32_0 = __t35;
+    'blk_27: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2201i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l14;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            s_i64_1 = 0i64;
+            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+            'blk_28: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 316i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                } else {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l4;
+                    s_i32_4 = l5;
+                    s_i32_5 = l6;
+                    s_i32_6 = l7;
+                    s_i32_7 = l8;
+                    s_i32_8 = l1;
+                    s_i32_9 = l2;
+                    s_i32_10 = 1i32;
+                    s_i32_11 = l14;
+                    s_i64_12 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+                    vm.exit_call();
+                    let __t36 = __call_res?;
+                    s_i32_11 = __t36;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+                    vm.exit_call();
+                    let __t37 = __call_res?;
+                    s_i32_8 = __t37;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                    vm.exit_call();
+                    __call_res?;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t38 = __call_res?;
+            s_i32_10 = __t38;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 15i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t39 = __call_res?;
+    s_i32_0 = __t39;
+    'blk_29: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l10;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 40u32)?;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t40 = __call_res?;
+            s_i32_0 = __t40;
+            l32 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_3 = ops::i32_load(vm, 0, s_i32_3, 8u32)?;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l32;
+            s_i32_11 = l32;
+            s_i32_11 = ops::i32_load(vm, 0, s_i32_11, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 2usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 16i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t41 = __call_res?;
+    s_i32_0 = __t41;
+    'blk_30: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i64_ret_i32(vm, 13usize, s_i64_0, host);
+            vm.exit_call();
+            let __t42 = __call_res?;
+            s_i32_0 = __t42;
+            l33 = s_i32_0;
+            s_i32_0 = l15;
+            l34 = s_i32_0;
+            s_i32_0 = l34;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l35 = s_i32_0;
+            s_i32_0 = l34;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l36 = s_i32_0;
+            s_i32_0 = 0i32;
+            l37 = s_i32_0;
+            'blk_31: {
+                'blk_32: loop {
+                    vm.deduct(host, 1)?;
+                    s_i32_0 = l37;
+                    s_i32_1 = l36;
+                    s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                    if s_i32_0 != 0 {
+                        break 'blk_31;
+                    }
+                    s_i32_0 = l35;
+                    s_i32_1 = l37;
+                    s_i32_2 = 4i32;
+                    s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l38 = s_i32_0;
+                    'blk_33: {
+                        s_i32_0 = l33;
+                        s_i32_1 = l1;
+                        s_i32_2 = l2;
+                        s_i32_3 = l3;
+                        s_i32_4 = l38;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_1, s_i32_2, s_i32_3, s_i32_4, host);
+                        vm.exit_call();
+                        let __t43 = __call_res?;
+                        s_i32_1 = __t43;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 13usize, s_i32_0, s_i32_1, host);
+                        vm.exit_call();
+                        __call_res?;
+                    }
+                    s_i32_0 = l37;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    l37 = s_i32_0;
+                    continue 'blk_32;
+                    break 'blk_32;
+                }
+            }
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l13;
+            s_i32_4 = l33;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 94usize, s_i32_4, host);
+            vm.exit_call();
+            let __t44 = __call_res?;
+            s_i32_4 = __t44;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, host);
+            vm.exit_call();
+            let __t45 = __call_res?;
+            s_i32_0 = __t45;
+            l39 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2211i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l39;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            'blk_34: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l13;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 8u32)?;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                } else {
+                    s_i32_0 = l39;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                    l40 = s_i32_0;
+                    s_i32_0 = l1;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 32u32)?;
+                    s_i32_1 = l40;
+                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t46 = __call_res?;
+                    s_i32_0 = __t46;
+                    l41 = s_i32_0;
+                    s_i32_0 = l41;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l42 = s_i32_0;
+                    s_i32_0 = l41;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+                    l43 = s_i32_0;
+                    s_i32_0 = l41;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 12u32)?;
+                    l44 = s_i32_0;
+                    s_i32_0 = l41;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+                    l45 = s_i32_0;
+                    s_i32_0 = l13;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    'blk_35: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l42;
+                            s_i32_1 = l2;
+                            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+                            s_i32_0 = ops::i32_ne(s_i32_0, s_i32_1);
+                            'blk_36: {
+                                if s_i32_0 != 0 {
+                                    s_i32_0 = l7;
+                                    s_i32_1 = l5;
+                                    s_i32_2 = l1;
+                                    s_i32_2 = ops::i32_load(vm, 0, s_i32_2, 4u32)?;
+                                    s_i32_3 = l42;
+                                    vm.deduct(host, 1)?;
+                                    s_i64_3 = ops::i64_extend_i32_u(s_i32_3);
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_2, s_i64_3, host);
+                                    vm.exit_call();
+                                    let __t47 = __call_res?;
+                                    s_i32_2 = __t47;
+                                    s_i32_3 = l13;
+                                    s_i32_3 = ops::i32_load(vm, 0, s_i32_3, 4u32)?;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                } else {
+                                }
+                            }
+                            s_i32_0 = l0;
+                            s_i32_1 = l13;
+                            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 4usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                            s_i32_0 = l42;
+                            s_i32_1 = l2;
+                            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                            'blk_37: {
+                                if s_i32_0 != 0 {
+                                    s_i32_0 = l0;
+                                    s_i32_1 = l45;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                } else {
+                                    s_i32_0 = l43;
+                                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                                    'blk_38: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = l7;
+                                            s_i32_1 = l5;
+                                            vm.deduct(host, 1)?;
+                                            s_i32_2 = l1;
+                                            s_i32_2 = ops::i32_load(vm, 0, s_i32_2, 4u32)?;
+                                            s_i32_3 = l42;
+                                            s_i64_3 = ops::i64_extend_i32_u(s_i32_3);
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_2, s_i64_3, host);
+                                            vm.exit_call();
+                                            let __t48 = __call_res?;
+                                            s_i32_2 = __t48;
+                                            s_i32_3 = l43;
+                                            s_i32_3 = ops::i32_load(vm, 0, s_i32_3, 4u32)?;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = l43;
+                                            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 4usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                        } else {
+                                            s_i32_0 = l45;
+                                            s_i32_1 = l44;
+                                            vm.deduct(host, 1)?;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 130usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            let __t49 = __call_res?;
+                                            s_i32_0 = __t49;
+                                            'blk_39: {
+                                                if s_i32_0 != 0 {
+                                                    s_i32_0 = l0;
+                                                    s_i32_1 = l13;
+                                                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 8u32)?;
+                                                    vm.enter_call()?;
+                                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+                                                    vm.exit_call();
+                                                    __call_res?;
+                                                } else {
+                                                    s_i32_0 = l1;
+                                                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                                                    s_i32_1 = l42;
+                                                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                                                    vm.enter_call()?;
+                                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                                                    vm.exit_call();
+                                                    let __t50 = __call_res?;
+                                                    s_i32_0 = __t50;
+                                                    l46 = s_i32_0;
+                                                    s_i32_0 = l0;
+                                                    s_i32_1 = l8;
+                                                    s_i32_2 = 5i32;
+                                                    s_i32_3 = l40;
+                                                    s_i32_4 = l46;
+                                                    s_i32_5 = l45;
+                                                    vm.enter_call()?;
+                                                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_ret_i32(vm, 0usize, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, host);
+                                                    vm.exit_call();
+                                                    let __t51 = __call_res?;
+                                                    s_i32_1 = __t51;
+                                                    vm.enter_call()?;
+                                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+                                                    vm.exit_call();
+                                                    __call_res?;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            s_i32_0 = l15;
+            vm.deduct(host, 1)?;
+            l47 = s_i32_0;
+            s_i32_0 = l47;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l48 = s_i32_0;
+            s_i32_0 = l47;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l49 = s_i32_0;
+            s_i32_0 = 0i32;
+            l50 = s_i32_0;
+            'blk_40: {
+                'blk_41: loop {
+                    vm.deduct(host, 1)?;
+                    s_i32_0 = l50;
+                    s_i32_1 = l49;
+                    s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                    if s_i32_0 != 0 {
+                        break 'blk_40;
+                    }
+                    s_i32_0 = l48;
+                    s_i32_1 = l50;
+                    s_i32_2 = 4i32;
+                    s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l51 = s_i32_0;
+                    'blk_42: {
+                        s_i32_0 = l0;
+                        s_i32_1 = l1;
+                        s_i32_2 = l2;
+                        s_i32_3 = l3;
+                        s_i32_4 = l4;
+                        s_i32_5 = l5;
+                        s_i32_6 = l6;
+                        s_i32_7 = l7;
+                        s_i32_8 = l8;
+                        s_i32_9 = l9;
+                        s_i32_10 = l51;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                        vm.exit_call();
+                        __call_res?;
+                    }
+                    s_i32_0 = l50;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    l50 = s_i32_0;
+                    continue 'blk_41;
+                    break 'blk_41;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2212i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 17i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t52 = __call_res?;
+    s_i32_0 = __t52;
+    'blk_43: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l52 = s_i32_0;
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+            l53 = s_i32_0;
+            s_i32_0 = l15;
+            l54 = s_i32_0;
+            s_i32_0 = l54;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l55 = s_i32_0;
+            s_i32_0 = l54;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l56 = s_i32_0;
+            s_i32_0 = 0i32;
+            l57 = s_i32_0;
+            'blk_44: {
+                'blk_45: loop {
+                    vm.deduct(host, 1)?;
+                    s_i32_0 = l57;
+                    s_i32_1 = l56;
+                    s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                    if s_i32_0 != 0 {
+                        break 'blk_44;
+                    }
+                    s_i32_0 = l55;
+                    s_i32_1 = l57;
+                    s_i32_2 = 4i32;
+                    s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l58 = s_i32_0;
+                    'blk_46: {
+                        s_i32_0 = l58;
+                        s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                        s_i32_1 = 15i32;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                        vm.exit_call();
+                        let __t53 = __call_res?;
+                        s_i32_0 = __t53;
+                        'blk_47: {
+                            if s_i32_0 != 0 {
+                                s_i32_0 = l58;
+                                s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 40u32)?;
+                                s_i64_1 = 0i64;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                                vm.exit_call();
+                                let __t54 = __call_res?;
+                                s_i32_0 = __t54;
+                                l59 = s_i32_0;
+                                s_i32_0 = l59;
+                                s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+                                s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                                s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i64_ret_i32(vm, 13usize, s_i64_0, host);
+                                vm.exit_call();
+                                let __t55 = __call_res?;
+                                s_i32_0 = __t55;
+                                l60 = s_i32_0;
+                                s_i32_0 = l59;
+                                s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+                                l61 = s_i32_0;
+                                s_i32_0 = l61;
+                                s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                                l62 = s_i32_0;
+                                s_i32_0 = l61;
+                                s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                                l63 = s_i32_0;
+                                s_i32_0 = 0i32;
+                                l64 = s_i32_0;
+                                'blk_48: {
+                                    'blk_49: loop {
+                                        vm.deduct(host, 1)?;
+                                        s_i32_0 = l64;
+                                        s_i32_1 = l63;
+                                        s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                                        if s_i32_0 != 0 {
+                                            break 'blk_48;
+                                        }
+                                        s_i32_0 = l62;
+                                        s_i32_1 = l64;
+                                        s_i32_2 = 4i32;
+                                        s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                                        s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                                        s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                                        l65 = s_i32_0;
+                                        'blk_50: {
+                                            s_i32_0 = l60;
+                                            s_i32_1 = l1;
+                                            s_i32_2 = l2;
+                                            s_i32_3 = 1i32;
+                                            s_i32_4 = l65;
+                                            s_i32_4 = ops::i32_load(vm, 0, s_i32_4, 0u32)?;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_1, s_i32_2, s_i32_3, s_i32_4, host);
+                                            vm.exit_call();
+                                            let __t56 = __call_res?;
+                                            s_i32_1 = __t56;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 13usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                        }
+                                        s_i32_0 = l64;
+                                        s_i32_1 = 1i32;
+                                        s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                                        l64 = s_i32_0;
+                                        continue 'blk_49;
+                                        break 'blk_49;
+                                    }
+                                }
+                                s_i32_0 = l53;
+                                s_i32_1 = l59;
+                                s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+                                l66 = s_i32_1;
+                                s_i32_1 = l1;
+                                s_i32_2 = l2;
+                                s_i32_3 = 1i32;
+                                s_i32_4 = l59;
+                                s_i32_4 = ops::i32_load(vm, 0, s_i32_4, 8u32)?;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_1, s_i32_2, s_i32_3, s_i32_4, host);
+                                vm.exit_call();
+                                let __t57 = __call_res?;
+                                s_i32_1 = __t57;
+                                l67 = s_i32_1;
+                                s_i32_1 = l60;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 94usize, s_i32_1, host);
+                                vm.exit_call();
+                                let __t58 = __call_res?;
+                                s_i32_1 = __t58;
+                                l68 = s_i32_1;
+                                s_i32_1 = 12i32;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+                                vm.exit_call();
+                                let __t59 = __call_res?;
+                                s_i32_1 = __t59;
+                                l69 = s_i32_1;
+                                s_i32_1 = l69;
+                                s_i32_2 = l66;
+                                ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+                                s_i32_1 = l69;
+                                s_i32_2 = l67;
+                                ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+                                s_i32_1 = l69;
+                                s_i32_2 = l68;
+                                ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+                                s_i32_1 = l69;
+                                l70 = s_i32_1;
+                                s_i32_1 = 20i32;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+                                vm.exit_call();
+                                let __t60 = __call_res?;
+                                s_i32_1 = __t60;
+                                l71 = s_i32_1;
+                                s_i32_1 = l71;
+                                s_i32_2 = l71;
+                                s_i32_3 = 16i32;
+                                s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+                                ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+                                s_i32_1 = l71;
+                                s_i32_2 = 1i32;
+                                ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+                                s_i32_1 = l71;
+                                s_i32_2 = 1i32;
+                                ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+                                s_i32_1 = l71;
+                                s_i32_2 = 1i32;
+                                ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+                                s_i32_1 = l71;
+                                s_i32_2 = l70;
+                                ops::i32_store(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+                                s_i32_1 = l71;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 137usize, s_i32_0, s_i32_1, host);
+                                vm.exit_call();
+                                let __t61 = __call_res?;
+                                s_i32_0 = __t61;
+                                l53 = s_i32_0;
+                            } else {
+                            }
+                        }
+                    }
+                    s_i32_0 = l57;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    l57 = s_i32_0;
+                    continue 'blk_45;
+                    break 'blk_45;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2213i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l15;
+            l72 = s_i32_0;
+            s_i32_0 = l72;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l73 = s_i32_0;
+            s_i32_0 = l72;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l74 = s_i32_0;
+            s_i32_0 = 0i32;
+            l75 = s_i32_0;
+            'blk_51: {
+                'blk_52: loop {
+                    vm.deduct(host, 1)?;
+                    s_i32_0 = l75;
+                    s_i32_1 = l74;
+                    s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
+                    if s_i32_0 != 0 {
+                        break 'blk_51;
+                    }
+                    s_i32_0 = l73;
+                    s_i32_1 = l75;
+                    s_i32_2 = 4i32;
+                    s_i32_1 = ops::i32_mul(s_i32_1, s_i32_2);
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l76 = s_i32_0;
+                    'blk_53: {
+                        s_i32_0 = l3;
+                        s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                        l77 = s_i32_0;
+                        s_i32_0 = l52;
+                        l78 = s_i32_0;
+                        s_i32_0 = l53;
+                        l79 = s_i32_0;
+                        s_i32_0 = 12i32;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_0, host);
+                        vm.exit_call();
+                        let __t62 = __call_res?;
+                        s_i32_0 = __t62;
+                        l80 = s_i32_0;
+                        s_i32_0 = l80;
+                        s_i32_1 = l77;
+                        ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                        s_i32_0 = l80;
+                        s_i32_1 = l78;
+                        ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+                        s_i32_0 = l80;
+                        s_i32_1 = l79;
+                        ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+                        s_i32_0 = l80;
+                        l81 = s_i32_0;
+                        s_i32_0 = l0;
+                        s_i32_1 = l1;
+                        s_i32_2 = l2;
+                        s_i32_3 = l81;
+                        s_i32_4 = l4;
+                        s_i32_5 = l5;
+                        s_i32_6 = l6;
+                        s_i32_7 = l7;
+                        s_i32_8 = l8;
+                        s_i32_9 = l9;
+                        s_i32_10 = l76;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                        vm.exit_call();
+                        __call_res?;
+                        s_i32_0 = l76;
+                        s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                        l82 = s_i32_0;
+                        s_i32_0 = l82;
+                        s_i32_1 = 12i32;
+                        vm.enter_call()?;
+                        let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                        vm.exit_call();
+                        let __t63 = __call_res?;
+                        s_i32_0 = __t63;
+                        'blk_54: {
+                            if s_i32_0 != 0 {
+                                s_i32_0 = 1i32;
+                            } else {
+                                s_i32_0 = l82;
+                                s_i32_1 = 13i32;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                                vm.exit_call();
+                                let __t64 = __call_res?;
+                                s_i32_0 = __t64;
+                            }
+                        }
+                        'blk_55: {
+                            if s_i32_0 != 0 {
+                                s_i32_0 = l1;
+                                s_i32_1 = l2;
+                                s_i32_2 = 1i32;
+                                s_i32_3 = l76;
+                                s_i32_3 = ops::i32_load(vm, 0, s_i32_3, 24u32)?;
+                                s_i64_4 = 0i64;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+                                vm.exit_call();
+                                let __t65 = __call_res?;
+                                s_i32_3 = __t65;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+                                vm.exit_call();
+                                let __t66 = __call_res?;
+                                s_i32_0 = __t66;
+                                l83 = s_i32_0;
+                                s_i32_0 = l52;
+                                s_i32_1 = l76;
+                                s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+                                l84 = s_i32_1;
+                                s_i32_1 = l83;
+                                l85 = s_i32_1;
+                                s_i32_1 = 8i32;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+                                vm.exit_call();
+                                let __t67 = __call_res?;
+                                s_i32_1 = __t67;
+                                l86 = s_i32_1;
+                                s_i32_1 = l86;
+                                s_i32_2 = l84;
+                                ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+                                s_i32_1 = l86;
+                                s_i32_2 = l85;
+                                ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+                                s_i32_1 = l86;
+                                l87 = s_i32_1;
+                                s_i32_1 = 20i32;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+                                vm.exit_call();
+                                let __t68 = __call_res?;
+                                s_i32_1 = __t68;
+                                l88 = s_i32_1;
+                                s_i32_1 = l88;
+                                s_i32_2 = l88;
+                                s_i32_3 = 16i32;
+                                s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+                                ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+                                s_i32_1 = l88;
+                                s_i32_2 = 1i32;
+                                ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+                                s_i32_1 = l88;
+                                s_i32_2 = 1i32;
+                                ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+                                s_i32_1 = l88;
+                                s_i32_2 = 1i32;
+                                ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+                                s_i32_1 = l88;
+                                s_i32_2 = l87;
+                                ops::i32_store(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+                                s_i32_1 = l88;
+                                vm.enter_call()?;
+                                let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 137usize, s_i32_0, s_i32_1, host);
+                                vm.exit_call();
+                                let __t69 = __call_res?;
+                                s_i32_0 = __t69;
+                                l52 = s_i32_0;
+                            } else {
+                            }
+                        }
+                    }
+                    s_i32_0 = l75;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
+                    l75 = s_i32_0;
+                    continue 'blk_52;
+                    break 'blk_52;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2214i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 18i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t70 = __call_res?;
+    s_i32_0 = __t70;
+    'blk_56: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2448i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t71 = __call_res?;
+            s_i32_10 = __t71;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            vm.deduct(host, 1)?;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 1i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t72 = __call_res?;
+            s_i32_10 = __t72;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 2i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t73 = __call_res?;
+            s_i32_10 = __t73;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 19i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t74 = __call_res?;
+    s_i32_0 = __t74;
+    'blk_57: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2449i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t75 = __call_res?;
+            s_i32_10 = __t75;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            vm.deduct(host, 1)?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 1i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t76 = __call_res?;
+            s_i32_10 = __t76;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 20i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t77 = __call_res?;
+    s_i32_0 = __t77;
+    'blk_58: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l14;
+            s_i64_4 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+            vm.exit_call();
+            let __t78 = __call_res?;
+            s_i32_3 = __t78;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t79 = __call_res?;
+            s_i32_0 = __t79;
+            l89 = s_i32_0;
+            s_i32_0 = l10;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 12u32)?;
+            l90 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2450i32;
+            vm.deduct(host, 1)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l89;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l90;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t80 = __call_res?;
+            s_i32_10 = __t80;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i32_1 = l90;
+            l91 = s_i32_1;
+            s_i32_1 = l89;
+            l92 = s_i32_1;
+            s_i32_1 = 8i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+            vm.exit_call();
+            let __t81 = __call_res?;
+            s_i32_1 = __t81;
+            l93 = s_i32_1;
+            s_i32_1 = l93;
+            s_i32_2 = l91;
+            ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l93;
+            s_i32_2 = l92;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l93;
+            l94 = s_i32_1;
+            s_i32_1 = 20i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_1, host);
+            vm.exit_call();
+            let __t82 = __call_res?;
+            s_i32_1 = __t82;
+            l95 = s_i32_1;
+            s_i32_1 = l95;
+            s_i32_2 = l95;
+            s_i32_3 = 16i32;
+            s_i32_2 = ops::i32_add(s_i32_2, s_i32_3);
+            ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
+            s_i32_1 = l95;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
+            s_i32_1 = l95;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
+            s_i32_1 = l95;
+            s_i32_2 = 1i32;
+            ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
+            s_i32_1 = l95;
+            s_i32_2 = l94;
+            ops::i32_store(vm, 0, s_i32_1, 16u32, s_i32_2)?;
+            s_i32_1 = l95;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 137usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t83 = __call_res?;
+            s_i32_0 = __t83;
+            l96 = s_i32_0;
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l97 = s_i32_0;
+            s_i32_0 = l96;
+            l98 = s_i32_0;
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+            l99 = s_i32_0;
+            s_i32_0 = 12i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 92usize, s_i32_0, host);
+            vm.exit_call();
+            let __t84 = __call_res?;
+            s_i32_0 = __t84;
+            l100 = s_i32_0;
+            s_i32_0 = l100;
+            s_i32_1 = l97;
+            ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
+            s_i32_0 = l100;
+            s_i32_1 = l98;
+            ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
+            s_i32_0 = l100;
+            s_i32_1 = l99;
+            ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
+            s_i32_0 = l100;
+            l101 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l101;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 1i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t85 = __call_res?;
+            s_i32_10 = __t85;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 21i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t86 = __call_res?;
+    s_i32_0 = __t86;
+    'blk_59: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2451i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 22i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t87 = __call_res?;
+    s_i32_0 = __t87;
+    'blk_60: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            vm.deduct(host, 1)?;
+            s_i32_1 = 2452i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    vm.deduct(host, 1)?;
+    s_i32_1 = 23i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t88 = __call_res?;
+    s_i32_0 = __t88;
+    'blk_61: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2453i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l15;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            s_i64_1 = 0i64;
+            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+            'blk_62: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 316i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                } else {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l15;
+                    s_i64_11 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                    vm.exit_call();
+                    let __t89 = __call_res?;
+                    s_i32_10 = __t89;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                }
+            }
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 24i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t90 = __call_res?;
+    s_i32_0 = __t90;
+    'blk_63: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = 2455i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 25i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t91 = __call_res?;
+    s_i32_0 = __t91;
+    'blk_64: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l12;
+            s_i32_11 = l15;
+            s_i64_12 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+            vm.exit_call();
+            let __t92 = __call_res?;
+            s_i32_11 = __t92;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 26i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t93 = __call_res?;
+    s_i32_0 = __t93;
+    'blk_65: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l12;
+            s_i32_11 = l15;
+            s_i64_12 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+            vm.exit_call();
+            let __t94 = __call_res?;
+            s_i32_11 = __t94;
+            s_i32_12 = l15;
+            s_i64_13 = 1i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_12, s_i64_13, host);
+            vm.exit_call();
+            let __t95 = __call_res?;
+            s_i32_12 = __t95;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, s_i32_12, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 27i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t96 = __call_res?;
+    s_i32_0 = __t96;
+    'blk_66: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l12;
+            s_i32_11 = l15;
+            s_i64_12 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+            vm.exit_call();
+            let __t97 = __call_res?;
+            s_i32_11 = __t97;
+            s_i32_12 = l15;
+            s_i64_13 = 1i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_12, s_i64_13, host);
+            vm.exit_call();
+            let __t98 = __call_res?;
+            s_i32_12 = __t98;
+            s_i32_13 = l15;
+            s_i64_14 = 2i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_13, s_i64_14, host);
+            vm.exit_call();
+            let __t99 = __call_res?;
+            s_i32_13 = __t99;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, s_i32_12, s_i32_13, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 28i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t100 = __call_res?;
+    s_i32_0 = __t100;
+    'blk_67: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t101 = __call_res?;
+            s_i32_10 = __t101;
+            s_i32_11 = l1;
+            s_i32_12 = l2;
+            s_i32_13 = 1i32;
+            s_i32_14 = l14;
+            s_i64_15 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_14, s_i64_15, host);
+            vm.exit_call();
+            let __t102 = __call_res?;
+            s_i32_14 = __t102;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_11, s_i32_12, s_i32_13, s_i32_14, host);
+            vm.exit_call();
+            let __t103 = __call_res?;
+            s_i32_11 = __t103;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 29i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t104 = __call_res?;
+    s_i32_0 = __t104;
+    'blk_68: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l13;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t105 = __call_res?;
+            s_i32_0 = __t105;
+            l102 = s_i32_0;
+            s_i32_0 = l102;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 22i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t106 = __call_res?;
+            s_i32_0 = __t106;
+            'blk_69: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l102;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l103 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+            s_i32_1 = l103;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t107 = __call_res?;
+            s_i32_0 = __t107;
+            l104 = s_i32_0;
+            s_i32_0 = l104;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+            l105 = s_i32_0;
+            s_i32_0 = l10;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 32u32)?;
+            l106 = s_i32_0;
+            s_i32_0 = l105;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            l107 = s_i64_0;
+            s_i32_0 = l106;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            s_i64_1 = l107;
+            s_i32_0 = ops::i64_ne(s_i64_0, s_i64_1);
+            'blk_70: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i64_0 = 0i64;
+            l108 = s_i64_0;
+            'blk_71: {
+                'blk_72: loop {
+                    vm.deduct(host, 1)?;
+                    s_i64_0 = l108;
+                    s_i64_1 = l107;
+                    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                    if s_i32_0 != 0 {
+                        break 'blk_71;
+                    }
+                    s_i64_0 = 0i64;
+                    l109 = s_i64_0;
+                    'blk_73: {
+                        'blk_74: loop {
+                            vm.deduct(host, 1)?;
+                            s_i64_0 = l109;
+                            s_i64_1 = l108;
+                            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                            s_i32_0 = ops::i32_eqz(s_i32_0);
+                            if s_i32_0 != 0 {
+                                break 'blk_73;
+                            }
+                            s_i32_0 = l106;
+                            s_i64_1 = l109;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t108 = __call_res?;
+                            s_i32_0 = __t108;
+                            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                            s_i32_1 = l106;
+                            s_i64_2 = l108;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_1, s_i64_2, host);
+                            vm.exit_call();
+                            let __t109 = __call_res?;
+                            s_i32_1 = __t109;
+                            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 130usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            let __t110 = __call_res?;
+                            s_i32_0 = __t110;
+                            'blk_75: {
+                                if s_i32_0 != 0 {
+                                    return Err(WasmTrap::Unreachable);
+                                } else {
+                                }
+                            }
+                            s_i64_0 = l109;
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t111 = __call_res?;
+                            s_i64_0 = __t111;
+                            l109 = s_i64_0;
+                            continue 'blk_74;
+                            break 'blk_74;
+                        }
+                    }
+                    s_i64_0 = l108;
+                    s_i64_1 = 1i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t112 = __call_res?;
+                    s_i64_0 = __t112;
+                    l108 = s_i64_0;
+                    continue 'blk_72;
+                    break 'blk_72;
+                }
+            }
+            s_i64_0 = l107;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i64_ret_i32(vm, 16usize, s_i64_0, host);
+            vm.exit_call();
+            let __t113 = __call_res?;
+            s_i32_0 = __t113;
+            l110 = s_i32_0;
+            s_i32_0 = 1i32;
+            l111 = s_i32_0;
+            s_i64_0 = 0i64;
+            l112 = s_i64_0;
+            'blk_76: {
+                'blk_77: loop {
+                    vm.deduct(host, 1)?;
+                    s_i64_0 = l112;
+                    s_i64_1 = l107;
+                    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                    if s_i32_0 != 0 {
+                        break 'blk_76;
+                    }
+                    s_i32_0 = l105;
+                    s_i64_1 = l112;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t114 = __call_res?;
+                    s_i32_0 = __t114;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    l113 = s_i32_0;
+                    s_i32_0 = 0i32;
+                    l114 = s_i32_0;
+                    s_i64_0 = 0i64;
+                    l115 = s_i64_0;
+                    s_i64_0 = 0i64;
+                    l116 = s_i64_0;
+                    'blk_78: {
+                        'blk_79: loop {
+                            vm.deduct(host, 1)?;
+                            s_i64_0 = l116;
+                            s_i64_1 = l107;
+                            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                            s_i32_0 = ops::i32_eqz(s_i32_0);
+                            if s_i32_0 != 0 {
+                                break 'blk_78;
+                            }
+                            s_i32_0 = l106;
+                            s_i64_1 = l116;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t115 = __call_res?;
+                            s_i32_0 = __t115;
+                            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                            s_i32_1 = l113;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 130usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            let __t116 = __call_res?;
+                            s_i32_0 = __t116;
+                            'blk_80: {
+                                if s_i32_0 != 0 {
+                                    s_i32_0 = 1i32;
+                                    l114 = s_i32_0;
+                                    s_i64_0 = l116;
+                                    l115 = s_i64_0;
+                                } else {
+                                }
+                            }
+                            s_i64_0 = l116;
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t117 = __call_res?;
+                            s_i64_0 = __t117;
+                            l116 = s_i64_0;
+                            continue 'blk_79;
+                            break 'blk_79;
+                        }
+                    }
+                    s_i32_0 = l114;
+                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                    'blk_81: {
+                        if s_i32_0 != 0 {
+                            return Err(WasmTrap::Unreachable);
+                        } else {
+                        }
+                    }
+                    s_i64_0 = l115;
+                    s_i64_1 = l112;
+                    s_i32_0 = ops::i64_ne(s_i64_0, s_i64_1);
+                    'blk_82: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = 0i32;
+                            l111 = s_i32_0;
+                        } else {
+                        }
+                    }
+                    s_i32_0 = l110;
+                    s_i64_1 = l115;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 1usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i64_0 = l112;
+                    s_i64_1 = 1i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t118 = __call_res?;
+                    s_i64_0 = __t118;
+                    l112 = s_i64_0;
+                    continue 'blk_77;
+                    break 'blk_77;
+                }
+            }
+            s_i32_0 = l110;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 94usize, s_i32_0, host);
+            vm.exit_call();
+            let __t119 = __call_res?;
+            s_i32_0 = __t119;
+            l117 = s_i32_0;
+            s_i32_0 = l111;
+            'blk_83: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = 1i32;
+                } else {
+                    s_i32_0 = l10;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 87usize, s_i32_0, host);
+                    vm.exit_call();
+                    let __t120 = __call_res?;
+                    s_i32_0 = __t120;
+                }
+            }
+            'blk_84: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 2219i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l5;
+                    s_i32_4 = l7;
+                    s_i32_5 = l8;
+                    s_i32_6 = 1i32;
+                    s_i32_7 = l103;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i64_0 = 0i64;
+                    l118 = s_i64_0;
+                    'blk_85: {
+                        'blk_86: loop {
+                            vm.deduct(host, 1)?;
+                            s_i64_0 = l118;
+                            s_i64_1 = l107;
+                            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                            s_i32_0 = ops::i32_eqz(s_i32_0);
+                            if s_i32_0 != 0 {
+                                break 'blk_85;
+                            }
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l106;
+                            s_i32_11 = l117;
+                            s_i64_12 = l118;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i64(vm, 6usize, s_i32_11, s_i64_12, host);
+                            vm.exit_call();
+                            let __t121 = __call_res?;
+                            s_i64_11 = __t121;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                            vm.exit_call();
+                            let __t122 = __call_res?;
+                            s_i32_10 = __t122;
+                            s_i32_10 = ops::i32_load(vm, 0, s_i32_10, 4u32)?;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i64_0 = l118;
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t123 = __call_res?;
+                            s_i64_0 = __t123;
+                            l118 = s_i64_0;
+                            continue 'blk_86;
+                            break 'blk_86;
+                        }
+                    }
+                    s_i32_0 = l0;
+                    s_i32_1 = 2220i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                    s_i64_0 = l107;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i64_ret_i32(vm, 13usize, s_i64_0, host);
+                    vm.exit_call();
+                    let __t124 = __call_res?;
+                    s_i32_0 = __t124;
+                    l119 = s_i32_0;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2213i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i64_0 = 0i64;
+                    l120 = s_i64_0;
+                    'blk_87: {
+                        'blk_88: loop {
+                            vm.deduct(host, 1)?;
+                            s_i64_0 = l120;
+                            s_i64_1 = l107;
+                            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                            s_i32_0 = ops::i32_eqz(s_i32_0);
+                            if s_i32_0 != 0 {
+                                break 'blk_87;
+                            }
+                            s_i32_0 = l106;
+                            s_i64_1 = l120;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t125 = __call_res?;
+                            s_i32_0 = __t125;
+                            l121 = s_i32_0;
+                            s_i32_0 = l104;
+                            s_i32_1 = l121;
+                            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i64(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            let __t126 = __call_res?;
+                            s_i64_0 = __t126;
+                            l122 = s_i64_0;
+                            s_i32_0 = l105;
+                            s_i64_1 = l122;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t127 = __call_res?;
+                            s_i32_0 = __t127;
+                            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                            l123 = s_i32_0;
+                            s_i32_0 = l1;
+                            s_i32_1 = l2;
+                            s_i32_2 = l3;
+                            s_i32_3 = l121;
+                            s_i32_3 = ops::i32_load(vm, 0, s_i32_3, 4u32)?;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+                            vm.exit_call();
+                            let __t128 = __call_res?;
+                            s_i32_0 = __t128;
+                            l124 = s_i32_0;
+                            s_i32_0 = l124;
+                            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                            s_i32_1 = 1i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            let __t129 = __call_res?;
+                            s_i32_0 = __t129;
+                            'blk_89: {
+                                if s_i32_0 != 0 {
+                                    s_i32_0 = l0;
+                                    s_i32_1 = l1;
+                                    s_i32_2 = l2;
+                                    s_i32_3 = l3;
+                                    s_i32_4 = l4;
+                                    s_i32_5 = l5;
+                                    s_i32_6 = l6;
+                                    s_i32_7 = l7;
+                                    s_i32_8 = l8;
+                                    s_i32_9 = l9;
+                                    s_i32_10 = l121;
+                                    s_i32_10 = ops::i32_load(vm, 0, s_i32_10, 4u32)?;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = 2214i32;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    return Ok(TailStep_void::Done(()));
+                                } else {
+                                }
+                            }
+                            s_i32_0 = l9;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 74usize, s_i32_0, host);
+                            vm.exit_call();
+                            let __t130 = __call_res?;
+                            s_i32_0 = __t130;
+                            l125 = s_i32_0;
+                            s_i32_0 = l119;
+                            s_i32_1 = l125;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 13usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2199i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 316i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l4;
+                            s_i32_4 = l5;
+                            s_i32_5 = l6;
+                            s_i32_6 = l7;
+                            s_i32_7 = l8;
+                            s_i32_8 = l123;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l125;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l121;
+                            s_i32_10 = ops::i32_load(vm, 0, s_i32_10, 4u32)?;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i64_0 = l120;
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t131 = __call_res?;
+                            s_i64_0 = __t131;
+                            l120 = s_i64_0;
+                            continue 'blk_88;
+                            break 'blk_88;
+                        }
+                    }
+                    s_i32_0 = l119;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 94usize, s_i32_0, host);
+                    vm.exit_call();
+                    let __t132 = __call_res?;
+                    s_i32_0 = __t132;
+                    l126 = s_i32_0;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2219i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l5;
+                    s_i32_4 = l7;
+                    s_i32_5 = l8;
+                    s_i32_6 = 1i32;
+                    s_i32_7 = l103;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i64_0 = 0i64;
+                    l127 = s_i64_0;
+                    'blk_90: {
+                        'blk_91: loop {
+                            vm.deduct(host, 1)?;
+                            s_i64_0 = l127;
+                            s_i64_1 = l107;
+                            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                            s_i32_0 = ops::i32_eqz(s_i32_0);
+                            if s_i32_0 != 0 {
+                                break 'blk_90;
+                            }
+                            s_i32_0 = l0;
+                            s_i32_1 = l126;
+                            s_i32_2 = l117;
+                            s_i64_3 = l127;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i64(vm, 6usize, s_i32_2, s_i64_3, host);
+                            vm.exit_call();
+                            let __t133 = __call_res?;
+                            s_i64_2 = __t133;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_1, s_i64_2, host);
+                            vm.exit_call();
+                            let __t134 = __call_res?;
+                            s_i32_1 = __t134;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i64_0 = l127;
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t135 = __call_res?;
+                            s_i64_0 = __t135;
+                            l127 = s_i64_0;
+                            continue 'blk_91;
+                            break 'blk_91;
+                        }
+                    }
+                    s_i32_0 = l0;
+                    s_i32_1 = 2220i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2214i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                }
+            }
+            return Err(WasmTrap::Unreachable);
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 30i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t136 = __call_res?;
+    s_i32_0 = __t136;
+    'blk_92: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t137 = __call_res?;
+            s_i32_0 = __t137;
+            l128 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l128;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t138 = __call_res?;
+            s_i32_0 = __t138;
+            l129 = s_i32_0;
+            s_i32_0 = l129;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t139 = __call_res?;
+            s_i32_0 = __t139;
+            'blk_93: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l128;
+                    vm.deduct(host, 1)?;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l129;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 22i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t140 = __call_res?;
+            s_i32_0 = __t140;
+            'blk_94: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l1;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+            s_i32_1 = l129;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.deduct(host, 1)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t141 = __call_res?;
+            s_i32_0 = __t141;
+            l130 = s_i32_0;
+            s_i32_0 = l130;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i64(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t142 = __call_res?;
+            s_i64_0 = __t142;
+            l131 = s_i64_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2547i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l128;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = l131;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 31i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t143 = __call_res?;
+    s_i32_0 = __t143;
+    'blk_95: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t144 = __call_res?;
+            s_i32_0 = __t144;
+            l132 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l132;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t145 = __call_res?;
+            s_i32_0 = __t145;
+            l133 = s_i32_0;
+            s_i32_0 = l133;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t146 = __call_res?;
+            s_i32_0 = __t146;
+            'blk_96: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    vm.deduct(host, 1)?;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l132;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l133;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 22i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t147 = __call_res?;
+            s_i32_0 = __t147;
+            'blk_97: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l1;
+            vm.deduct(host, 1)?;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+            s_i32_1 = l133;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t148 = __call_res?;
+            s_i32_0 = __t148;
+            l134 = s_i32_0;
+            s_i32_0 = l134;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i64(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t149 = __call_res?;
+            s_i64_0 = __t149;
+            l135 = s_i64_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2548i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l132;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = l135;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l15;
+            s_i64_11 = 1i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+            vm.exit_call();
+            let __t150 = __call_res?;
+            s_i32_10 = __t150;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 32i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t151 = __call_res?;
+    s_i32_0 = __t151;
+    'blk_98: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l13;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t152 = __call_res?;
+            s_i32_0 = __t152;
+            l136 = s_i32_0;
+            s_i32_0 = l136;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 24i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t153 = __call_res?;
+            s_i32_0 = __t153;
+            'blk_99: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l136;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            l137 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 24u32)?;
+            s_i32_1 = l137;
+            vm.deduct(host, 1)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t154 = __call_res?;
+            s_i32_0 = __t154;
+            l138 = s_i32_0;
+            s_i32_0 = l138;
+            s_i32_1 = l10;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i64(vm, 2usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t155 = __call_res?;
+            s_i64_0 = __t155;
+            l139 = s_i64_0;
+            s_i32_0 = l138;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
+            s_i64_1 = l139;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t156 = __call_res?;
+            s_i32_0 = __t156;
+            l140 = s_i32_0;
+            s_i32_0 = l140;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
+            'blk_100: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l15;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                    s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+                    s_i64_1 = 1i64;
+                    s_i32_0 = ops::i64_ne(s_i64_0, s_i64_1);
+                    'blk_101: {
+                        if s_i32_0 != 0 {
+                            return Err(WasmTrap::Unreachable);
+                        } else {
+                        }
+                    }
+                    s_i32_0 = l1;
+                    s_i32_1 = l2;
+                    s_i32_2 = l3;
+                    s_i32_3 = l15;
+                    s_i64_4 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+                    vm.exit_call();
+                    let __t157 = __call_res?;
+                    s_i32_3 = __t157;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+                    vm.exit_call();
+                    let __t158 = __call_res?;
+                    s_i32_0 = __t158;
+                    l141 = s_i32_0;
+                    s_i32_0 = l141;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = 1i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t159 = __call_res?;
+                    s_i32_0 = __t159;
+                    'blk_102: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l15;
+                            s_i64_11 = 0i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                            vm.exit_call();
+                            let __t160 = __call_res?;
+                            s_i32_10 = __t160;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                            vm.exit_call();
+                            __call_res?;
+                            return Ok(TailStep_void::Done(()));
+                        } else {
+                        }
+                    }
+                    s_i32_0 = l141;
+                    s_i32_1 = l140;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 8u32)?;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 106usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t161 = __call_res?;
+                    s_i32_0 = __t161;
+                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                    'blk_103: {
+                        if s_i32_0 != 0 {
+                            return Err(WasmTrap::Unreachable);
+                        } else {
+                        }
+                    }
+                } else {
+                    s_i32_0 = l15;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                    s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+                    s_i64_1 = 0i64;
+                    s_i32_0 = ops::i64_ne(s_i64_0, s_i64_1);
+                    'blk_104: {
+                        if s_i32_0 != 0 {
+                            return Err(WasmTrap::Unreachable);
+                        } else {
+                        }
+                    }
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2219i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l5;
+            s_i32_4 = l7;
+            s_i32_5 = l8;
+            s_i32_6 = 3i32;
+            s_i32_7 = l137;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 207i32;
+            s_i64_2 = l139;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l138;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 20u32)?;
+            l142 = s_i32_0;
+            s_i64_0 = 0i64;
+            l143 = s_i64_0;
+            'blk_105: {
+                'blk_106: loop {
+                    vm.deduct(host, 1)?;
+                    s_i64_0 = l143;
+                    s_i32_1 = l142;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                    if s_i32_0 != 0 {
+                        break 'blk_105;
+                    }
+                    s_i32_0 = l140;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
+                    'blk_107: {
+                        if s_i32_0 != 0 {
+                            s_i64_0 = l143;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_ret_i32(vm, 11usize, s_i64_0, host);
+                            vm.exit_call();
+                            let __t162 = __call_res?;
+                            s_i32_0 = __t162;
+                            s_i32_1 = l140;
+                            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 12u32)?;
+                            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                        } else {
+                            s_i32_0 = 0i32;
+                        }
+                    }
+                    'blk_108: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l15;
+                            s_i64_11 = 0i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                            vm.exit_call();
+                            let __t163 = __call_res?;
+                            s_i32_10 = __t163;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l4;
+                            s_i32_4 = l5;
+                            s_i32_5 = l6;
+                            s_i32_6 = l7;
+                            s_i32_7 = l8;
+                            s_i32_8 = l142;
+                            s_i64_9 = l143;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_8, s_i64_9, host);
+                            vm.exit_call();
+                            let __t164 = __call_res?;
+                            s_i32_8 = __t164;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                            vm.exit_call();
+                            __call_res?;
+                        }
+                    }
+                    s_i64_0 = l143;
+                    s_i64_1 = 1i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t165 = __call_res?;
+                    s_i64_0 = __t165;
+                    l143 = s_i64_0;
+                    continue 'blk_106;
+                    break 'blk_106;
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2220i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 33i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t166 = __call_res?;
+    s_i32_0 = __t166;
+    'blk_109: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l14;
+            s_i64_4 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+            vm.exit_call();
+            let __t167 = __call_res?;
+            s_i32_3 = __t167;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t168 = __call_res?;
+            s_i32_0 = __t168;
+            l144 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2215i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = 2i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            vm.deduct(host, 1)?;
+            s_i32_0 = l0;
+            s_i32_1 = 0i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 312i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l144;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2216i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 34i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t169 = __call_res?;
+    s_i32_0 = __t169;
+    'blk_110: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t170 = __call_res?;
+            s_i32_0 = __t170;
+            l145 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l145;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t171 = __call_res?;
+            s_i32_0 = __t171;
+            l146 = s_i32_0;
+            vm.deduct(host, 1)?;
+            s_i32_0 = l146;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t172 = __call_res?;
+            s_i32_0 = __t172;
+            'blk_111: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l145;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2215i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = 2i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 312i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l145;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2216i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 35i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t173 = __call_res?;
+    s_i32_0 = __t173;
+    'blk_112: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l14;
+            s_i64_4 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+            vm.exit_call();
+            let __t174 = __call_res?;
+            s_i32_3 = __t174;
+            vm.deduct(host, 1)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t175 = __call_res?;
+            s_i32_0 = __t175;
+            l147 = s_i32_0;
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t176 = __call_res?;
+            s_i32_0 = __t176;
+            l148 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l148;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t177 = __call_res?;
+            s_i32_0 = __t177;
+            l149 = s_i32_0;
+            s_i32_0 = l149;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t178 = __call_res?;
+            s_i32_0 = __t178;
+            'blk_113: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l148;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l147;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 0i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t179 = __call_res?;
+            s_i32_0 = __t179;
+            'blk_114: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l148;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = 24i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t180 = __call_res?;
+                    s_i32_0 = __t180;
+                    'blk_115: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i32_1 = 2215i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i64_1 = 2i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 1i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 312i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 203i32;
+                            s_i64_2 = 0i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2216i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                            s_i32_0 = l0;
+                            s_i32_1 = 2213i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l148;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2215i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i64_1 = 2i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 1i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 312i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 203i32;
+                            s_i64_2 = 0i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2216i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2214i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        }
+                    }
+                } else {
+                    s_i32_0 = l0;
+                    s_i32_1 = 2215i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i64_1 = 3i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 1i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 312i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l148;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 312i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 203i32;
+                    s_i64_2 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2216i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                }
+            }
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 36i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t181 = __call_res?;
+    s_i32_0 = __t181;
+    'blk_116: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            vm.deduct(host, 1)?;
+            s_i32_2 = 1i32;
+            s_i32_3 = l14;
+            s_i64_4 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+            vm.exit_call();
+            let __t182 = __call_res?;
+            s_i32_3 = __t182;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t183 = __call_res?;
+            s_i32_0 = __t183;
+            l150 = s_i32_0;
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t184 = __call_res?;
+            s_i32_0 = __t184;
+            l151 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l151;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t185 = __call_res?;
+            s_i32_0 = __t185;
+            l152 = s_i32_0;
+            s_i32_0 = l152;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t186 = __call_res?;
+            s_i32_0 = __t186;
+            'blk_117: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l151;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l150;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 0i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t187 = __call_res?;
+            s_i32_0 = __t187;
+            'blk_118: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 2215i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i64_1 = 2i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 0i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 312i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l151;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2216i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                } else {
+                    s_i32_0 = l0;
+                    s_i32_1 = 2215i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i64_1 = 3i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 0i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 312i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l4;
+                    s_i32_4 = l5;
+                    s_i32_5 = l6;
+                    s_i32_6 = l7;
+                    s_i32_7 = l8;
+                    s_i32_8 = l150;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 312i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l151;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2216i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                }
+            }
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 37i32;
+    vm.deduct(host, 1)?;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t188 = __call_res?;
+    s_i32_0 = __t188;
+    'blk_119: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = 1i32;
+            s_i32_3 = l14;
+            s_i64_4 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_3, s_i64_4, host);
+            vm.exit_call();
+            let __t189 = __call_res?;
+            s_i32_3 = __t189;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t190 = __call_res?;
+            s_i32_0 = __t190;
+            l153 = s_i32_0;
+            s_i32_0 = l153;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 23i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t191 = __call_res?;
+            s_i32_0 = __t191;
+            'blk_120: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l1;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 20u32)?;
+            s_i32_1 = l153;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t192 = __call_res?;
+            s_i32_0 = __t192;
+            l154 = s_i32_0;
+            s_i32_0 = l154;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 5u32)?;
+            'blk_121: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l154;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = l2;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+                    s_i32_0 = ops::i32_ne(s_i32_0, s_i32_1);
+                } else {
+                    s_i32_0 = 0i32;
+                }
+            }
+            'blk_122: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t193 = __call_res?;
+            s_i32_0 = __t193;
+            l155 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l155;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t194 = __call_res?;
+            s_i32_0 = __t194;
+            l156 = s_i32_0;
+            s_i32_0 = l156;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t195 = __call_res?;
+            s_i32_0 = __t195;
+            'blk_123: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l155;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2219i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l5;
+            s_i32_4 = l7;
+            s_i32_5 = l8;
+            s_i32_6 = 2i32;
+            s_i32_7 = l153;
+            s_i32_7 = ops::i32_load(vm, 0, s_i32_7, 4u32)?;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l155;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2220i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 38i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t196 = __call_res?;
+    s_i32_0 = __t196;
+    'blk_124: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t197 = __call_res?;
+            s_i32_0 = __t197;
+            l157 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l157;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t198 = __call_res?;
+            s_i32_0 = __t198;
+            l158 = s_i32_0;
+            s_i32_0 = l158;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t199 = __call_res?;
+            s_i32_0 = __t199;
+            'blk_125: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l157;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l158;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 23i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t200 = __call_res?;
+            s_i32_0 = __t200;
+            'blk_126: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l1;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 20u32)?;
+            s_i32_1 = l158;
+            s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+            s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t201 = __call_res?;
+            s_i32_0 = __t201;
+            l159 = s_i32_0;
+            s_i32_0 = l159;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 5u32)?;
+            'blk_127: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l159;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = l2;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+                    s_i32_0 = ops::i32_ne(s_i32_0, s_i32_1);
+                } else {
+                    s_i32_0 = 0i32;
+                }
+            }
+            'blk_128: {
+                if s_i32_0 != 0 {
+                    return Err(WasmTrap::Unreachable);
+                } else {
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2547i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l157;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 39i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t202 = __call_res?;
+    s_i32_0 = __t202;
+    'blk_129: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t203 = __call_res?;
+            s_i32_0 = __t203;
+            l160 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l160;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t204 = __call_res?;
+            s_i32_0 = __t204;
+            l161 = s_i32_0;
+            s_i32_0 = l161;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t205 = __call_res?;
+            s_i32_0 = __t205;
+            'blk_130: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l160;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l161;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            l162 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l161;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 109usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t206 = __call_res?;
+            s_i32_0 = __t206;
+            l163 = s_i32_0;
+            s_i32_0 = l10;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 36u32)?;
+            l164 = s_i32_0;
+            s_i32_0 = l164;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i64_ret_i32(vm, 16usize, s_i64_0, host);
+            vm.exit_call();
+            let __t207 = __call_res?;
+            s_i32_0 = __t207;
+            l165 = s_i32_0;
+            s_i64_0 = 0i64;
+            l166 = s_i64_0;
+            'blk_131: {
+                'blk_132: loop {
+                    vm.deduct(host, 1)?;
+                    s_i64_0 = l166;
+                    s_i32_1 = l164;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                    if s_i32_0 != 0 {
+                        break 'blk_131;
+                    }
+                    s_i32_0 = l163;
+                    s_i32_1 = l164;
+                    s_i64_2 = l166;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_1, s_i64_2, host);
+                    vm.exit_call();
+                    let __t208 = __call_res?;
+                    s_i32_1 = __t208;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i64(vm, 3usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t209 = __call_res?;
+                    s_i64_0 = __t209;
+                    l167 = s_i64_0;
+                    s_i64_0 = 0i64;
+                    l168 = s_i64_0;
+                    'blk_133: {
+                        'blk_134: loop {
+                            vm.deduct(host, 1)?;
+                            s_i64_0 = l168;
+                            s_i64_1 = l166;
+                            s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                            s_i32_0 = ops::i32_eqz(s_i32_0);
+                            if s_i32_0 != 0 {
+                                break 'blk_133;
+                            }
+                            s_i32_0 = l165;
+                            s_i64_1 = l168;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i64(vm, 5usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t210 = __call_res?;
+                            s_i64_0 = __t210;
+                            s_i64_1 = l167;
+                            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+                            'blk_135: {
+                                if s_i32_0 != 0 {
+                                    return Err(WasmTrap::Unreachable);
+                                } else {
+                                }
+                            }
+                            s_i64_0 = l168;
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t211 = __call_res?;
+                            s_i64_0 = __t211;
+                            l168 = s_i64_0;
+                            continue 'blk_134;
+                            break 'blk_134;
+                        }
+                    }
+                    s_i32_0 = l165;
+                    s_i64_1 = l167;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 1usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i64_0 = l166;
+                    s_i64_1 = 1i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t212 = __call_res?;
+                    s_i64_0 = __t212;
+                    l166 = s_i64_0;
+                    continue 'blk_132;
+                    break 'blk_132;
+                }
+            }
+            s_i32_0 = l165;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 94usize, s_i32_0, host);
+            vm.exit_call();
+            let __t213 = __call_res?;
+            s_i32_0 = __t213;
+            l169 = s_i32_0;
+            s_i32_0 = l12;
+            s_i32_1 = 1i32;
+            s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+            'blk_136: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l164;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                    s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+                    s_i32_1 = l163;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                    s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+                    'blk_137: {
+                        if s_i32_0 != 0 {
+                            return Err(WasmTrap::Unreachable);
+                        } else {
+                        }
+                    }
+                } else {
+                    s_i32_0 = l164;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                    s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+                    s_i32_1 = l163;
+                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                    s_i32_0 = ops::i64_ne(s_i64_0, s_i64_1);
+                    'blk_138: {
+                        if s_i32_0 != 0 {
+                            return Err(WasmTrap::Unreachable);
+                        } else {
+                        }
+                    }
+                }
+            }
+            s_i32_0 = l9;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 74usize, s_i32_0, host);
+            vm.exit_call();
+            let __t214 = __call_res?;
+            s_i32_0 = __t214;
+            l170 = s_i32_0;
+            s_i32_0 = l0;
+            s_i32_1 = 2213i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 2199i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = 316i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l4;
+            s_i32_4 = l5;
+            s_i32_5 = l6;
+            s_i32_6 = l7;
+            s_i32_7 = l8;
+            s_i32_8 = l161;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            s_i32_1 = l170;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l0;
+            vm.deduct(host, 1)?;
+            s_i32_1 = l1;
+            s_i32_2 = l2;
+            s_i32_3 = l3;
+            s_i32_4 = l4;
+            s_i32_5 = l5;
+            s_i32_6 = l6;
+            s_i32_7 = l7;
+            s_i32_8 = l8;
+            s_i32_9 = l9;
+            s_i32_10 = l160;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+            vm.exit_call();
+            __call_res?;
+            s_i32_0 = l164;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+            s_i64_1 = 0i64;
+            s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
+            'blk_139: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l12;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                    'blk_140: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l15;
+                            s_i64_11 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                            vm.exit_call();
+                            let __t215 = __call_res?;
+                            s_i32_10 = __t215;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                            s_i32_0 = l0;
+                            s_i32_1 = 2454i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        }
+                    }
+                } else {
+                    s_i32_0 = l12;
+                    s_i32_1 = 1i32;
+                    s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
+                    'blk_141: {
+                        if s_i32_0 != 0 {
+                            s_i64_0 = 0i64;
+                            l171 = s_i64_0;
+                            'blk_142: {
+                                'blk_143: loop {
+                                    vm.deduct(host, 1)?;
+                                    s_i64_0 = l171;
+                                    s_i32_1 = l164;
+                                    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
+                                    s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
+                                    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                                    if s_i32_0 != 0 {
+                                        break 'blk_142;
+                                    }
+                                    s_i32_0 = l169;
+                                    s_i64_1 = l171;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i64(vm, 6usize, s_i32_0, s_i64_1, host);
+                                    vm.exit_call();
+                                    let __t216 = __call_res?;
+                                    s_i64_0 = __t216;
+                                    l172 = s_i64_0;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = 2448i32;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = l162;
+                                    s_i32_2 = l170;
+                                    s_i64_3 = l172;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i64_3, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = l1;
+                                    s_i32_2 = l2;
+                                    s_i32_3 = l3;
+                                    s_i32_4 = l4;
+                                    s_i32_5 = l5;
+                                    s_i32_6 = l6;
+                                    s_i32_7 = l7;
+                                    s_i32_8 = l8;
+                                    s_i32_9 = l9;
+                                    s_i32_10 = l170;
+                                    s_i32_11 = l163;
+                                    s_i64_12 = l172;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+                                    vm.exit_call();
+                                    let __t217 = __call_res?;
+                                    s_i32_11 = __t217;
+                                    s_i32_12 = l164;
+                                    s_i64_13 = l171;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_12, s_i64_13, host);
+                                    vm.exit_call();
+                                    let __t218 = __call_res?;
+                                    s_i32_12 = __t218;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, s_i32_12, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i64_0 = l171;
+                                    s_i64_1 = 1i64;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                                    vm.exit_call();
+                                    let __t219 = __call_res?;
+                                    s_i64_0 = __t219;
+                                    l171 = s_i64_0;
+                                    continue 'blk_143;
+                                    break 'blk_143;
+                                }
+                            }
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l15;
+                            s_i64_11 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_10, s_i64_11, host);
+                            vm.exit_call();
+                            let __t220 = __call_res?;
+                            s_i32_10 = __t220;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                            s_i32_0 = l164;
+                            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
+                            s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 2usize, s_i64_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t221 = __call_res?;
+                            s_i64_0 = __t221;
+                            l173 = s_i64_0;
+                            s_i64_0 = 0i64;
+                            l174 = s_i64_0;
+                            'blk_144: {
+                                'blk_145: loop {
+                                    vm.deduct(host, 1)?;
+                                    s_i64_0 = l174;
+                                    s_i64_1 = l173;
+                                    s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
+                                    s_i32_0 = ops::i32_eqz(s_i32_0);
+                                    if s_i32_0 != 0 {
+                                        break 'blk_144;
+                                    }
+                                    s_i32_0 = l169;
+                                    s_i64_1 = l174;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i64(vm, 6usize, s_i32_0, s_i64_1, host);
+                                    vm.exit_call();
+                                    let __t222 = __call_res?;
+                                    s_i64_0 = __t222;
+                                    l175 = s_i64_0;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = 2448i32;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = l162;
+                                    s_i32_2 = l170;
+                                    s_i64_3 = l175;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i64_3, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = l1;
+                                    s_i32_2 = l2;
+                                    s_i32_3 = l3;
+                                    s_i32_4 = l4;
+                                    s_i32_5 = l5;
+                                    s_i32_6 = l6;
+                                    s_i32_7 = l7;
+                                    s_i32_8 = l8;
+                                    s_i32_9 = l9;
+                                    s_i32_10 = l170;
+                                    s_i32_11 = l163;
+                                    s_i64_12 = l175;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+                                    vm.exit_call();
+                                    let __t223 = __call_res?;
+                                    s_i32_11 = __t223;
+                                    s_i32_12 = l164;
+                                    s_i64_13 = l174;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_12, s_i64_13, host);
+                                    vm.exit_call();
+                                    let __t224 = __call_res?;
+                                    s_i32_12 = __t224;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, s_i32_12, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i64_0 = l174;
+                                    s_i64_1 = 1i64;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i64(vm, 1usize, s_i64_0, s_i64_1, host);
+                                    vm.exit_call();
+                                    let __t225 = __call_res?;
+                                    s_i64_0 = __t225;
+                                    l174 = s_i64_0;
+                                    continue 'blk_145;
+                                    break 'blk_145;
+                                }
+                            }
+                            s_i32_0 = l169;
+                            s_i64_1 = l173;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i64(vm, 6usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            let __t226 = __call_res?;
+                            s_i64_0 = __t226;
+                            l176 = s_i64_0;
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l3;
+                            s_i32_4 = l4;
+                            s_i32_5 = l5;
+                            s_i32_6 = l6;
+                            s_i32_7 = l7;
+                            s_i32_8 = l8;
+                            s_i32_9 = l9;
+                            s_i32_10 = l170;
+                            s_i32_11 = l163;
+                            s_i64_12 = l176;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_11, s_i64_12, host);
+                            vm.exit_call();
+                            let __t227 = __call_res?;
+                            s_i32_11 = __t227;
+                            s_i32_12 = l164;
+                            s_i64_13 = l173;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_12, s_i64_13, host);
+                            vm.exit_call();
+                            let __t228 = __call_res?;
+                            s_i32_12 = __t228;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, s_i32_11, s_i32_12, host);
+                            vm.exit_call();
+                            __call_res?;
+                        }
+                    }
+                }
+            }
+            s_i32_0 = l0;
+            s_i32_1 = 2214i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            __call_res?;
+            return Ok(TailStep_void::Done(()));
+        } else {
+        }
+    }
+    s_i32_0 = l11;
+    s_i32_1 = 40i32;
+    vm.enter_call()?;
+    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+    vm.exit_call();
+    let __t229 = __call_res?;
+    s_i32_0 = __t229;
+    'blk_146: {
+        if s_i32_0 != 0 {
+            s_i32_0 = l15;
+            s_i64_1 = 0i64;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+            vm.exit_call();
+            let __t230 = __call_res?;
+            s_i32_0 = __t230;
+            l177 = s_i32_0;
+            s_i32_0 = l1;
+            s_i32_1 = l2;
+            s_i32_2 = l3;
+            s_i32_3 = l177;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 3usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
+            vm.exit_call();
+            let __t231 = __call_res?;
+            s_i32_0 = __t231;
+            l178 = s_i32_0;
+            s_i32_0 = l178;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 1i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t232 = __call_res?;
+            s_i32_0 = __t232;
+            'blk_147: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l177;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l3;
+            s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
+            l179 = s_i32_0;
+            s_i32_0 = l9;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_ret_i32(vm, 74usize, s_i32_0, host);
+            vm.exit_call();
+            let __t233 = __call_res?;
+            s_i32_0 = __t233;
+            l180 = s_i32_0;
+            s_i32_0 = l178;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 19i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t234 = __call_res?;
+            s_i32_0 = __t234;
+            'blk_148: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l0;
+                    s_i32_1 = 2213i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2199i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 316i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l4;
+                    s_i32_4 = l5;
+                    s_i32_5 = l6;
+                    s_i32_6 = l7;
+                    s_i32_7 = l8;
+                    s_i32_8 = l178;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l180;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l177;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2448i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2532i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2547i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l180;
+                    vm.deduct(host, 1)?;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i64_1 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2453i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l179;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = 19i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t235 = __call_res?;
+                    s_i32_0 = __t235;
+                    'blk_149: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i32_1 = 2215i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i64_1 = 2i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 0i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 312i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l4;
+                            s_i32_4 = l5;
+                            s_i32_5 = l6;
+                            s_i32_6 = l7;
+                            s_i32_7 = l8;
+                            s_i32_8 = l179;
+                            s_i32_8 = ops::i32_load(vm, 0, s_i32_8, 8u32)?;
+                            s_i64_9 = 0i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_8, s_i64_9, host);
+                            vm.exit_call();
+                            let __t236 = __call_res?;
+                            s_i32_8 = __t236;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2216i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                            s_i32_0 = l179;
+                            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                            s_i32_1 = 20i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            let __t237 = __call_res?;
+                            s_i32_0 = __t237;
+                            'blk_150: {
+                                if s_i32_0 != 0 {
+                                    s_i32_0 = l179;
+                                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+                                    s_i64_1 = 0i64;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                                    vm.exit_call();
+                                    let __t238 = __call_res?;
+                                    s_i32_0 = __t238;
+                                    l181 = s_i32_0;
+                                    s_i32_0 = l0;
+                                    s_i32_1 = 2215i32;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                    s_i32_0 = l181;
+                                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                                    s_i32_1 = 0i32;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                                    vm.exit_call();
+                                    let __t239 = __call_res?;
+                                    s_i32_0 = __t239;
+                                    'blk_151: {
+                                        if s_i32_0 != 0 {
+                                            s_i32_0 = l0;
+                                            s_i64_1 = 2i64;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = 0i32;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = 312i32;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = 203i32;
+                                            s_i64_2 = 7i64;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                        } else {
+                                            s_i32_0 = l0;
+                                            s_i64_1 = 3i64;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = 0i32;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = 312i32;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = l1;
+                                            s_i32_2 = l2;
+                                            s_i32_3 = l4;
+                                            s_i32_4 = l5;
+                                            s_i32_5 = l6;
+                                            s_i32_6 = l7;
+                                            s_i32_7 = l8;
+                                            s_i32_8 = l181;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = 312i32;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                            s_i32_0 = l0;
+                                            s_i32_1 = 203i32;
+                                            s_i64_2 = 7i64;
+                                            vm.enter_call()?;
+                                            let __call_res = DISPATCH.call_direct_p_i32_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i64_2, host);
+                                            vm.exit_call();
+                                            __call_res?;
+                                        }
+                                    }
+                                    s_i32_0 = l0;
+                                    s_i32_1 = 2216i32;
+                                    vm.enter_call()?;
+                                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                                    vm.exit_call();
+                                    __call_res?;
+                                } else {
+                                    return Err(WasmTrap::Unreachable);
+                                }
+                            }
+                        }
+                    }
+                    s_i32_0 = l0;
+                    s_i32_1 = 2455i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2547i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l180;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i64_1 = 1i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2214i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            s_i32_0 = l178;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+            s_i32_1 = 20i32;
+            vm.enter_call()?;
+            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+            vm.exit_call();
+            let __t240 = __call_res?;
+            s_i32_0 = __t240;
+            'blk_152: {
+                if s_i32_0 != 0 {
+                    s_i32_0 = l179;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = 20i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t241 = __call_res?;
+                    s_i32_0 = __t241;
+                    'blk_153: {
+                        if s_i32_0 != 0 {
+                            return Err(WasmTrap::Unreachable);
+                        } else {
+                        }
+                    }
+                    s_i32_0 = l178;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+                    s_i64_1 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t242 = __call_res?;
+                    s_i32_0 = __t242;
+                    l182 = s_i32_0;
+                    s_i32_0 = l179;
+                    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
+                    s_i64_1 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    let __t243 = __call_res?;
+                    s_i32_0 = __t243;
+                    l183 = s_i32_0;
+                    s_i32_0 = l182;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = 0i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t244 = __call_res?;
+                    s_i32_0 = __t244;
+                    'blk_154: {
+                        if s_i32_0 != 0 {
+                            s_i64_0 = 1i64;
+                        } else {
+                            s_i64_0 = 2i64;
+                        }
+                    }
+                    l184 = s_i64_0;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2213i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2199i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 316i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l4;
+                    s_i32_4 = l5;
+                    s_i32_5 = l6;
+                    s_i32_6 = l7;
+                    s_i32_7 = l8;
+                    vm.deduct(host, 1)?;
+                    s_i32_8 = l178;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l180;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 6usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l1;
+                    s_i32_2 = l2;
+                    s_i32_3 = l3;
+                    s_i32_4 = l4;
+                    s_i32_5 = l5;
+                    s_i32_6 = l6;
+                    s_i32_7 = l7;
+                    s_i32_8 = l8;
+                    s_i32_9 = l9;
+                    s_i32_10 = l177;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2448i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2532i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2547i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = l180;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i64_1 = 0i64;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2453i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2215i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l183;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = 0i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t245 = __call_res?;
+                    s_i32_0 = __t245;
+                    'blk_155: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i64_1 = 2i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 0i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 312i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2547i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l180;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i64_1 = l184;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                            s_i32_0 = l0;
+                            s_i64_1 = 3i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 0i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 312i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l1;
+                            s_i32_2 = l2;
+                            s_i32_3 = l4;
+                            s_i32_4 = l5;
+                            s_i32_5 = l6;
+                            s_i32_6 = l7;
+                            s_i32_7 = l8;
+                            s_i32_8 = l183;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 312i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = 2547i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l180;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i64_1 = l184;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        }
+                    }
+                    s_i32_0 = l0;
+                    s_i32_1 = 2216i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l0;
+                    s_i32_1 = 2455i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    s_i32_0 = l182;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
+                    s_i32_1 = 0i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 117usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    let __t246 = __call_res?;
+                    s_i32_0 = __t246;
+                    'blk_156: {
+                        if s_i32_0 != 0 {
+                            s_i32_0 = l0;
+                            s_i32_1 = 2547i32;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i32_1 = l180;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                            s_i32_0 = l0;
+                            s_i64_1 = 1i64;
+                            vm.enter_call()?;
+                            let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
+                            vm.exit_call();
+                            __call_res?;
+                        } else {
+                        }
+                    }
+                    s_i32_0 = l0;
+                    s_i32_1 = 2214i32;
+                    vm.enter_call()?;
+                    let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
+                    vm.exit_call();
+                    __call_res?;
+                    return Ok(TailStep_void::Done(()));
+                } else {
+                }
+            }
+            return Err(WasmTrap::Unreachable);
+        } else {
+        }
+    }
+    return Err(WasmTrap::Unreachable);
+    }
+
+    fn fn_294(vm: &mut SubstituteVm, p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+        let step = SubstituteInstance::fn_294_step(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, host)?;
+        SubstituteInstance::tail_dispatch_void(vm, step, host)
+    }
+
+}
+
+#[allow(
+dead_code,
+non_camel_case_types,
+unused_mut,
+unused_variables,
+unused_assignments,
+unreachable_code,
+clippy::too_many_lines,
+clippy::cognitive_complexity,
+clippy::needless_continue,
+clippy::redundant_else,
+clippy::collapsible_if,
+clippy::collapsible_else_if,
+clippy::unnecessary_wraps,
+clippy::match_same_arms,
+clippy::single_match_else,
+clippy::too_many_arguments,
+clippy::let_and_return,
+clippy::manual_let_else,
+clippy::shadow_unrelated,
+clippy::type_complexity,
+clippy::almost_swapped,
+reason = "Generated WASM-to-Rust substitute function"
+)]
+impl WasmSubstituteInstance for SubstituteInstance {
+    fn meta(&self) -> SubstituteModuleMeta {
+        MODULE_META
+    }
+
+    fn vm(&self) -> &SubstituteVm {
+        &self.vm
+    }
+
+    fn vm_mut(&mut self) -> &mut SubstituteVm {
+        &mut self.vm
+    }
+
+    fn exported_memory_index(&self) -> Option<usize> {
+        Some(0usize)
+    }
+
+    fn exported_global_i32(&self, name: &str) -> Option<i32> {
+        match name {
+            "__sl_inited" => self.vm.globals_i32.get(0usize).copied(),
+            "__c_0" => self.vm.globals_i32.get(1usize).copied(),
+            "__c_1" => self.vm.globals_i32.get(2usize).copied(),
+            "__c_2" => self.vm.globals_i32.get(3usize).copied(),
+            "__c_3" => self.vm.globals_i32.get(4usize).copied(),
+            "__c_4" => self.vm.globals_i32.get(5usize).copied(),
+            "__c_5" => self.vm.globals_i32.get(6usize).copied(),
+            "__c_6" => self.vm.globals_i32.get(7usize).copied(),
+            "__c_7" => self.vm.globals_i32.get(8usize).copied(),
+            "__c_8" => self.vm.globals_i32.get(9usize).copied(),
+            "__c_9" => self.vm.globals_i32.get(10usize).copied(),
+            "__c_10" => self.vm.globals_i32.get(11usize).copied(),
+            "__c_11" => self.vm.globals_i32.get(12usize).copied(),
+            "__c_12" => self.vm.globals_i32.get(13usize).copied(),
+            "__c_13" => self.vm.globals_i32.get(14usize).copied(),
+            "__c_14" => self.vm.globals_i32.get(15usize).copied(),
+            "__c_15" => self.vm.globals_i32.get(16usize).copied(),
+            "__c_16" => self.vm.globals_i32.get(17usize).copied(),
+            "__c_17" => self.vm.globals_i32.get(18usize).copied(),
+            "__c_18" => self.vm.globals_i32.get(19usize).copied(),
+            "__c_19" => self.vm.globals_i32.get(20usize).copied(),
+            "__c_20" => self.vm.globals_i32.get(21usize).copied(),
+            "__c_21" => self.vm.globals_i32.get(22usize).copied(),
+            "__c_22" => self.vm.globals_i32.get(23usize).copied(),
+            "__heap_ptr" => Some(self.vm.heap_ptr),
+            _ => None,
+        }
+    }
+
+    fn exported_global_i64(&self, name: &str) -> Option<i64> {
+        match name {
+            _ => None,
+        }
+    }
+
+    fn set_heap_ptr(&mut self, val: i32) -> bool {
+        self.vm.heap_ptr = val;
+        true
+    }
+
+    fn call_start(&mut self, _host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+        Ok(())
+    }
+
+    fn call_entry(&mut self, in_ptr: i32, in_len: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+        let _ = (in_ptr, in_len);
+        let vm = &mut self.vm;
+        vm.enter_call()?;
+        let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 3usize, host);
+        vm.exit_call();
+        res
+    }
+}
+
+#[must_use]
+pub(crate) fn descriptor() -> WasmSubstituteDescriptor {
+    WasmSubstituteDescriptor {
+        meta: MODULE_META,
+        instantiate: instantiate_substitute,
+    }
+}
+}
+

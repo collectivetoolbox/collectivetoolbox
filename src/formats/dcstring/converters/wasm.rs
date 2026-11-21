@@ -6456,8 +6456,8 @@ fn compile_and_cache_graph_stager_dcs_routine_to_wasm_bytes(
     static GRAPH_STAGER_ROUTINE_WASM_CACHE: std::sync::OnceLock<
         std::sync::Mutex<std::collections::HashMap<[u8; 32], std::sync::Arc<Vec<u8>>>>,
     > = std::sync::OnceLock::new();
-    static GRAPH_STAGER_ROUTINE_COMPILE_LOCK: std::sync::OnceLock<
-        std::sync::Mutex<()>,
+    static GRAPH_STAGER_ROUTINE_COMPILE_SHARDS: std::sync::OnceLock<
+        [std::sync::Mutex<()>; 64],
     > = std::sync::OnceLock::new();
 
     let routine_sh = DcShorthand::from_global_id(routine_dc.to_u128());
@@ -6502,12 +6502,15 @@ fn compile_and_cache_graph_stager_dcs_routine_to_wasm_bytes(
         return Ok(Some(hit));
     }
 
-    let _compile_guard = GRAPH_STAGER_ROUTINE_COMPILE_LOCK
-        .get_or_init(|| std::sync::Mutex::new(()))
-        .lock()
-        .map_err(|_| {
-            anyhow!("GRAPH_STAGER_ROUTINE_COMPILE_LOCK mutex poisoned")
-        })?;
+    let shards = GRAPH_STAGER_ROUTINE_COMPILE_SHARDS
+        .get_or_init(|| std::array::from_fn(|_| std::sync::Mutex::new(())));
+    let shard_idx = usize::from(cache_key[0]) & 63;
+    let shard_mutex = shards
+        .get(shard_idx)
+        .context("StageR compile shard index out of bounds")?;
+    let _compile_guard = shard_mutex.lock().map_err(|_| {
+        anyhow!("GRAPH_STAGER_ROUTINE_COMPILE_SHARDS mutex poisoned")
+    })?;
     if let Some(hit) = cache
         .lock()
         .map_err(|_| anyhow!("GRAPH_STAGER_ROUTINE_WASM_CACHE mutex poisoned"))?
