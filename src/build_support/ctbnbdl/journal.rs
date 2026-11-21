@@ -66,15 +66,11 @@ pub fn decode_unicode_string_tokens(tokens: &[DcShorthand]) -> Option<String> {
     Some(out)
 }
 
-/// Resolves the 16 `CtbnbdlFramingDcs` from an in-memory slice of `.ctbnodes` [`LedgerNode`]s
-/// by bootstrapping from the `"ProgrammaticIdentifier"` string value node.
-///
-/// # Errors
-/// Returns an error if `"ProgrammaticIdentifier"` or any required framing Dc identifier
-/// cannot be resolved from `nodes`.
-pub fn resolve_ctbnbdl_framing_dcs_from_nodes(
+/// Resolves active `@ident(...)` short-Dc bindings from an in-memory slice of
+/// `.ctbnodes` [`LedgerNode`]s by bootstrapping from `"ProgrammaticIdentifier"`.
+fn resolve_active_short_idents_from_nodes(
     nodes: &[LedgerNode],
-) -> Result<CtbnbdlFramingDcs> {
+) -> Result<(HashMap<String, DcShorthand>, DcShorthand, DcShorthand, DcShorthand)> {
     let mut strings_by_id: HashMap<u128, String> = HashMap::new();
     let mut tokens_by_id: HashMap<u128, &[DcShorthand]> =
         HashMap::with_capacity(nodes.len());
@@ -182,7 +178,7 @@ pub fn resolve_ctbnbdl_framing_dcs_from_nodes(
         }
     }
 
-    let mut active_ident_to_short: HashMap<&str, DcShorthand> = HashMap::new();
+    let mut active_ident_to_short: HashMap<String, DcShorthand> = HashMap::new();
     for node in nodes {
         if inactive_ids.contains(&node.id) {
             continue;
@@ -195,13 +191,33 @@ pub fn resolve_ctbnbdl_framing_dcs_from_nodes(
                     if let Some(subj) = extract_prog_ident_subj(claim_tokens) {
                         if let Some(ident_str) = strings_by_id.get(&str_id) {
                             active_ident_to_short
-                                .insert(ident_str.as_str(), subj);
+                                .insert(ident_str.clone(), subj);
                         }
                     }
                 }
             }
         }
     }
+
+    Ok((
+        active_ident_to_short,
+        sh_supersedes,
+        sh_retracts,
+        sh_enclosing_doc,
+    ))
+}
+
+/// Resolves the 16 `CtbnbdlFramingDcs` from an in-memory slice of `.ctbnodes` [`LedgerNode`]s
+/// by bootstrapping from the `"ProgrammaticIdentifier"` string value node.
+///
+/// # Errors
+/// Returns an error if `"ProgrammaticIdentifier"` or any required framing Dc identifier
+/// cannot be resolved from `nodes`.
+pub fn resolve_ctbnbdl_framing_dcs_from_nodes(
+    nodes: &[LedgerNode],
+) -> Result<CtbnbdlFramingDcs> {
+    let (active_ident_to_short, sh_supersedes, sh_retracts, sh_enclosing_doc) =
+        resolve_active_short_idents_from_nodes(nodes)?;
 
     let get_req = |ident: &str| -> Result<DcShorthand> {
         active_ident_to_short.get(ident).copied().with_context(|| {
@@ -1391,8 +1407,265 @@ fn reprotect_shadow_chunks(shadow_dir: &Path) {
     }
 }
 
-/// Executes standalone recovery of any open `BATCH_PENDING` record or torn journal line in
-/// `<repo_root>/src/formats/dcdata/data-src/nodes/allocated/ledger-journal.jsonl`.
+/// When `ledger-journal.jsonl` has no open `BATCH_PENDING` record (for example, if
+/// `ledger-journal.jsonl` was reverted while kernel append-only flags preserved
+/// `assets/data/graph/*.ctbnodes` and `built/graph-ledger/highwater/*.ctbnodes`),
+/// checks whether `.ctbnodes` has a strictly appended suffix beyond
+/// `last_committed.final_last_id` and, if so, verifies all four recovery invariants
+/// before synthesizing the missing `BATCH_PENDING` record:
+/// 1. The `.ctbnodes` prefix `<= last_committed.final_last_id` matches both
+///    `last_committed.final_last_id` and `last_committed.final_ledger_sha256`.
+/// 2. The appended `.ctbnodes` suffix has no torn line and strictly contiguous IDs.
+/// 3. At least one non-empty high-water shadow ledger (`built/graph-ledger/highwater`)
+///    corroborates the exact full `.ctbnodes` sequence line-for-line.
+/// 4. Every appended node ID is covered by an in-graph
+///    `CollectiveToolboxDcCsvSeedDatabase` provenance pair within the appended suffix.
+fn try_synthesize_pending_for_verified_csv_tail(
+    repo_root: &Path,
+    parsed: &ParsedJournal,
+    required_manifest_present: bool,
+) -> Result<Option<JournalRecord>> {
+    if parsed.open_pending.is_some() || required_manifest_present {
+        return Ok(None);
+    }
+    let Some(last_committed) = &parsed.last_committed else {
+        return Ok(None);
+    };
+
+    let graph_dir = repo_root.join("assets/data/graph");
+    if !graph_dir.is_dir() {
+        return Ok(None);
+    }
+
+    let (disk_nodes, torn_tail) =
+        load_nodes_from_dir_allowing_torn_tail(&graph_dir)?;
+    let Some(last_disk_node) = disk_nodes.last() else {
+        return Ok(None);
+    };
+    if last_disk_node.id <= last_committed.final_last_id {
+        return Ok(None);
+    }
+
+    ensure!(
+        torn_tail.is_none(),
+        "CRITICAL: {} has nodes beyond latest BATCH_COMMITTED (l{}) AND an unterminated trailing line, with no open BATCH_PENDING record in ledger-journal.jsonl",
+        graph_dir.display(),
+        last_committed.final_last_id
+    );
+
+    let baseline_count = disk_nodes
+        .iter()
+        .take_while(|n| n.id <= last_committed.final_last_id)
+        .count();
+    let baseline_nodes = disk_nodes
+        .get(..baseline_count)
+        .context("Invalid baseline prefix slice during journal tail recovery")?;
+    let appended_nodes = disk_nodes
+        .get(baseline_count..)
+        .context("Invalid appended suffix slice during journal tail recovery")?;
+
+    let actual_baseline_last_id = match baseline_nodes.last() {
+        Some(node) => node.id,
+        None => 0,
+    };
+    let actual_baseline_sha = compute_nodes_slice_ledger_sha256(baseline_nodes);
+    ensure!(
+        actual_baseline_last_id == last_committed.final_last_id
+            && actual_baseline_sha == last_committed.final_ledger_sha256,
+        "CRITICAL: {} prefix (<= l{}, sha256={}) does not match latest BATCH_COMMITTED ({}, final_last_id=l{}, sha256={}); refusing automatic journal recovery",
+        graph_dir.display(),
+        actual_baseline_last_id,
+        actual_baseline_sha,
+        last_committed.batch_id,
+        last_committed.final_last_id,
+        last_committed.final_ledger_sha256
+    );
+
+    let mut expected_id = last_committed
+        .final_last_id
+        .checked_add(1)
+        .context("Overflow computing expected appended node ID")?;
+    for node in appended_nodes {
+        ensure!(
+            node.id == expected_id,
+            "CRITICAL: Appended .ctbnodes tail in {} has non-contiguous node ID l{} (expected l{}); refusing automatic journal recovery",
+            graph_dir.display(),
+            node.id,
+            expected_id
+        );
+        expected_id = expected_id
+            .checked_add(1)
+            .context("Overflow advancing expected appended node ID")?;
+    }
+
+    let mut corroborated_by_shadow = false;
+    for (label, shadow_dir) in highwater_shadow_dirs(repo_root) {
+        if shadow_dir.is_dir() && !list_chunk_files(&shadow_dir)?.is_empty() {
+            let shadow_nodes = load_ledger_nodes_from_dir_raw(&shadow_dir)
+                .with_context(|| {
+                    format!("Failed to load {label} from {}", shadow_dir.display())
+                })?;
+            verify_nodes_append_only_against_baseline(
+                &label,
+                &shadow_nodes,
+                &disk_nodes,
+            )?;
+            if shadow_nodes.len() == disk_nodes.len() {
+                corroborated_by_shadow = true;
+            }
+        }
+    }
+    ensure!(
+        corroborated_by_shadow,
+        "CRITICAL: {} has {} node(s) beyond latest BATCH_COMMITTED (l{}..=l{}), but high-water shadow ledger does not corroborate the appended tail; refusing automatic journal recovery",
+        graph_dir.display(),
+        appended_nodes.len(),
+        last_committed.final_last_id.saturating_add(1),
+        last_disk_node.id
+    );
+
+    let (active_ident_to_short, _, _, _) =
+        resolve_active_short_idents_from_nodes(&disk_nodes)?;
+    let get_req = |ident: &str| -> Result<DcShorthand> {
+        active_ident_to_short.get(ident).copied().with_context(|| {
+            format!(
+                "Missing required @ident(\"{ident}\") in system graph for CSV provenance recovery"
+            )
+        })
+    };
+    let sh_dist = get_req("DistributeStatementOverEach")?;
+    let sh_has_a = get_req("HasA")?;
+    let sh_this_elem = get_req("ThisElement")?;
+    let sh_data_source = get_req("CollectiveToolboxSeedGraphDataSource")?;
+    let sh_begin_list = get_req("BeginList")?;
+    let sh_type_atom = get_req("TypeAtomDc")?;
+    let sh_sep = get_req("ListElementSeparator")?;
+    let sh_end_list = get_req("EndList")?;
+    let sh_has_value = get_req("HasValue")?;
+    let sh_csv_db = get_req("CollectiveToolboxDcCsvSeedDatabase")?;
+
+    let mut claim_targets_by_id: HashMap<u128, Vec<u128>> = HashMap::new();
+    for node in appended_nodes {
+        let toks = node.tokens.as_slice();
+        if let &[ha, DcShorthand::Long(target_id), prop] = toks
+            && ha == sh_has_a
+            && prop == sh_data_source
+        {
+            claim_targets_by_id.insert(node.id, vec![target_id]);
+            continue;
+        }
+        if let &[dist, ha, te, prop, DcShorthand::Long(target_id)] = toks
+            && dist == sh_dist
+            && ha == sh_has_a
+            && te == sh_this_elem
+            && prop == sh_data_source
+        {
+            claim_targets_by_id.insert(node.id, vec![target_id]);
+            continue;
+        }
+        if toks.len() >= 8
+            && toks.get(0) == Some(&sh_dist)
+            && toks.get(1) == Some(&sh_has_a)
+            && toks.get(2) == Some(&sh_this_elem)
+            && toks.get(3) == Some(&sh_data_source)
+            && toks.get(4) == Some(&sh_begin_list)
+            && toks.get(5) == Some(&sh_type_atom)
+            && toks.last() == Some(&sh_end_list)
+        {
+            let end_idx = toks.len().saturating_sub(1);
+            let mut idx = 6usize;
+            let mut targets: Vec<u128> = Vec::new();
+            let mut valid = true;
+            while idx < end_idx {
+                let Some(&DcShorthand::Long(target_id)) = toks.get(idx) else {
+                    valid = false;
+                    break;
+                };
+                targets.push(target_id);
+                idx = idx.saturating_add(1);
+                if idx < end_idx {
+                    if toks.get(idx) != Some(&sh_sep) {
+                        valid = false;
+                        break;
+                    }
+                    idx = idx.saturating_add(1);
+                    if idx >= end_idx {
+                        valid = false;
+                        break;
+                    }
+                }
+            }
+            if valid && !targets.is_empty() {
+                claim_targets_by_id.insert(node.id, targets);
+            }
+        }
+    }
+
+    let mut csv_provenanced_ids: HashSet<u128> = HashSet::new();
+    for node in appended_nodes {
+        if let &[hv, DcShorthand::Long(claim_id), db] = node.tokens.as_slice()
+            && hv == sh_has_value
+            && db == sh_csv_db
+            && let Some(targets) = claim_targets_by_id.get(&claim_id)
+        {
+            csv_provenanced_ids.insert(claim_id);
+            csv_provenanced_ids.insert(node.id);
+            for &target_id in targets {
+                csv_provenanced_ids.insert(target_id);
+            }
+        }
+    }
+
+    for node in appended_nodes {
+        ensure!(
+            csv_provenanced_ids.contains(&node.id),
+            "CRITICAL: Appended node l{} in {} lacks verified in-graph CollectiveToolboxDcCsvSeedDatabase provenance; refusing automatic journal recovery",
+            node.id,
+            graph_dir.display()
+        );
+    }
+
+    let final_last_id = last_disk_node.id;
+    let final_ledger_sha256 = compute_nodes_slice_ledger_sha256(&disk_nodes);
+    let items: Vec<PlannedLedgerItem> = appended_nodes
+        .iter()
+        .map(|node| PlannedLedgerItem {
+            node_id: node.id,
+            raw_line: node.format_line(),
+            target_chunk: chunk_filename_for_node_id(node.id),
+            tokens: Vec::new(),
+            comment: String::new(),
+            provenance: "csv".to_string(),
+            rationale: None,
+            allow_duplicate_of: Vec::new(),
+            inbox_name: None,
+            allocated_name: None,
+            inbox_sha256: None,
+            dcsh_content: None,
+        })
+        .collect();
+
+    Ok(Some(JournalRecord {
+        state: "BATCH_PENDING".to_string(),
+        batch_id: format!(
+            "csv-reconcile-recovered-{}-{final_last_id}",
+            last_committed.final_last_id
+        ),
+        kind: "csv_reconciliation".to_string(),
+        baseline_last_id: last_committed.final_last_id,
+        baseline_ledger_sha256: last_committed.final_ledger_sha256.clone(),
+        final_last_id,
+        final_ledger_sha256,
+        manifest_sha256: None,
+        items,
+        active_bundles_sha256: BTreeMap::new(),
+        history_bundles_sha256: BTreeMap::new(),
+        record_sha256: String::new(),
+    }))
+}
+
+/// Executes standalone recovery of any open `BATCH_PENDING` record, torn journal line, or
+/// verified CSV-provenanced `.ctbnodes` tail ahead of `ledger-journal.jsonl`.
 ///
 /// This function lives in `ctb_build_support` so it can be built and invoked via
 /// `ctb-lint recover-ledger-journal` even when `ctb-formats-dcdata/build.rs` is blocked by an
@@ -1446,6 +1719,20 @@ pub fn recover_pending_ledger_journal_with_guard(
         }
         repair_torn_journal_suffix(&journal_path, parsed.valid_prefix_len)?;
         parsed = inspect_ledger_journal(&journal_path)?;
+    }
+
+    if parsed.open_pending.is_none() {
+        if let Some(synth_pending) = try_synthesize_pending_for_verified_csv_tail(
+            repo_root,
+            &parsed,
+            required_manifest.is_some(),
+        )? {
+            if dry_run {
+                return Ok(true);
+            }
+            append_journal_record(&journal_path, &synth_pending, fault)?;
+            parsed = inspect_ledger_journal(&journal_path)?;
+        }
     }
 
     let Some(pending) = parsed.open_pending else {
@@ -2050,7 +2337,7 @@ pub fn ensure_ledger_journal_clean(
     let actual_ledger_sha = compute_ledger_dir_sha256(&graph_dir)?;
     ensure!(
         actual_ledger_sha == last_committed.final_ledger_sha256,
-        "CRITICAL: On-disk .ctbnodes ledger SHA-256 {} in {} does not match latest BATCH_COMMITTED ({}) final_ledger_sha256 {}",
+        "CRITICAL: On-disk .ctbnodes ledger SHA-256 {} in {} does not match latest BATCH_COMMITTED ({}) final_ledger_sha256 {}; if ledger-journal.jsonl fell behind an append-only CSV write, run `ctb-lint recover-ledger-journal`.",
         actual_ledger_sha,
         graph_dir.display(),
         last_committed.batch_id,
@@ -2731,6 +3018,172 @@ mod tests {
                 || err_gate
                     .to_string()
                     .contains("do not match expected active partition")
+        );
+    }
+
+    #[test]
+    fn test_recover_journal_from_verified_csv_tail_and_reject_unprovenanced_tail()
+     {
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let real_root = crate::find_repository_root_from(manifest_dir).unwrap();
+        let tmp = TempDir::new("csv_tail_recovery");
+        let root = tmp.path();
+
+        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::write(root.join(".ctoolbox_workspace_root"), b"").unwrap();
+        fs::write(root.join("Cargo.toml"), b"[workspace]\n").unwrap();
+        fs::create_dir_all(
+            root.join("src/formats/dcdata/data-src/nodes/inbox"),
+        )
+        .unwrap();
+        fs::create_dir_all(
+            root.join("src/formats/dcdata/data-src/nodes/allocated"),
+        )
+        .unwrap();
+
+        let all_nodes = load_ledger_nodes_from_dir_raw(
+            &real_root.join("assets/data/graph"),
+        )
+        .unwrap();
+        // Take first 42_100 nodes so all CSV provenance Dcs (including 638 DistributeStatementOverEach) are defined.
+        let baseline_nodes: Vec<LedgerNode> =
+            all_nodes.into_iter().take(42_100).collect();
+        let last_base_id = baseline_nodes.last().unwrap().id;
+
+        let graph_dst = root.join("assets/data/graph");
+        let shadow_dst = root.join(crate::ctbnbdl::HIGHWATER_LEDGER_REL_PATH);
+        fs::create_dir_all(graph_dst.join("system")).unwrap();
+        fs::create_dir_all(&shadow_dst).unwrap();
+        for chunk in baseline_nodes.chunks(100) {
+            let chunk_name = format_chunk_filename(chunk[0].id);
+            let mut buf = String::new();
+            for n in chunk {
+                buf.push_str(&n.format_line());
+                buf.push('\n');
+            }
+            fs::write(graph_dst.join(&chunk_name), &buf).unwrap();
+            fs::write(shadow_dst.join(&chunk_name), &buf).unwrap();
+        }
+        {
+            let write_guard = LedgerWriteGuard::acquire(root).unwrap();
+            let framing =
+                resolve_ctbnbdl_framing_dcs_from_nodes(&baseline_nodes)
+                    .unwrap();
+            compile_nodes_slice_to_ctbnbdl_with_write_guard(
+                &write_guard,
+                &baseline_nodes,
+                &graph_dst,
+                framing,
+            )
+            .unwrap();
+        }
+        write_initial_checkpoint_for_test(root, true).unwrap();
+
+        // Snapshot journal + bundles before appending a verified CSV batch to .ctbnodes + highwater.
+        let journal_path = root.join(LEDGER_JOURNAL_REL_PATH);
+        let saved_journal = fs::read(&journal_path).unwrap();
+
+        let (idents, _, _, sh_enclosing_doc) =
+            resolve_active_short_idents_from_nodes(&baseline_nodes).unwrap();
+        let n1 = last_base_id + 1;
+        let n2 = last_base_id + 2;
+        let n3 = last_base_id + 3;
+        let mut extended_nodes = baseline_nodes.clone();
+        extended_nodes.push(LedgerNode {
+            id: n1,
+            tokens: vec![
+                idents["IsInstanceOf"],
+                sh_enclosing_doc,
+                idents["TypeRoutine"],
+            ],
+            comment: "test routine entity".to_string(),
+        });
+        extended_nodes.push(LedgerNode {
+            id: n2,
+            tokens: vec![
+                idents["DistributeStatementOverEach"],
+                idents["HasA"],
+                idents["ThisElement"],
+                idents["CollectiveToolboxSeedGraphDataSource"],
+                idents["BeginList"],
+                idents["TypeAtomDc"],
+                DcShorthand::Long(n1),
+                idents["EndList"],
+            ],
+            comment: "for each provenance".to_string(),
+        });
+        extended_nodes.push(LedgerNode {
+            id: n3,
+            tokens: vec![
+                idents["HasValue"],
+                DcShorthand::Long(n2),
+                idents["CollectiveToolboxDcCsvSeedDatabase"],
+            ],
+            comment: "has value csv seed db".to_string(),
+        });
+
+        for dir in [&graph_dst, &shadow_dst] {
+            for chunk in extended_nodes.chunks(100) {
+                if chunk.last().unwrap().id <= last_base_id {
+                    continue;
+                }
+                let chunk_name = format_chunk_filename(chunk[0].id);
+                let mut buf = String::new();
+                for n in chunk {
+                    buf.push_str(&n.format_line());
+                    buf.push('\n');
+                }
+                fs::write(dir.join(chunk_name), buf).unwrap();
+            }
+        }
+        // Keep stale journal at `last_base_id`: gated reader must block, dry_run must detect, and recovery must succeed.
+        fs::write(&journal_path, &saved_journal).unwrap();
+        {
+            let rg = LedgerReadGuard::acquire(root).unwrap();
+            assert!(ensure_ledger_journal_clean(root, &rg).is_err());
+        }
+        assert!(recover_pending_ledger_journal(root, None, true).unwrap());
+        assert!(recover_pending_ledger_journal(root, None, false).unwrap());
+        {
+            let rg = LedgerReadGuard::acquire(root).unwrap();
+            ensure_ledger_journal_clean(root, &rg).unwrap();
+        }
+
+        // Now append an unprovenanced node `n4` (even with matching highwater!) and verify recovery refuses!
+        let saved_journal_after_n3 = fs::read(&journal_path).unwrap();
+        let n4 = n3 + 1;
+        extended_nodes.push(LedgerNode {
+            id: n4,
+            tokens: vec![DcShorthand::Unicode(65)],
+            comment: "unprovenanced".to_string(),
+        });
+        for dir in [&graph_dst, &shadow_dst] {
+            let last_chunk = extended_nodes.chunks(100).last().unwrap();
+            let chunk_name = format_chunk_filename(last_chunk[0].id);
+            let mut buf = String::new();
+            for n in last_chunk {
+                buf.push_str(&n.format_line());
+                buf.push('\n');
+            }
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let p = dir.join(&chunk_name);
+                if p.exists() {
+                    let _ =
+                        fs::set_permissions(&p, fs::Permissions::from_mode(0o644));
+                }
+            }
+            fs::write(dir.join(chunk_name), buf).unwrap();
+        }
+        fs::write(&journal_path, &saved_journal_after_n3).unwrap();
+        let err_unprov =
+            recover_pending_ledger_journal(root, None, false).unwrap_err();
+        assert!(
+            err_unprov
+                .to_string()
+                .contains("lacks verified in-graph CollectiveToolboxDcCsvSeedDatabase provenance"),
+            "Unexpected error: {err_unprov}"
         );
     }
 }

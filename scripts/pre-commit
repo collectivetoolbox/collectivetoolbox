@@ -47,3 +47,36 @@ while IFS= read -r rel_path; do
     fi
     rm "${head_tmp}"
 done < <(git ls-tree --name-only HEAD -- assets/data/graph/ | grep '\.ctbnodes$' || true)
+
+JOURNAL_PATH="${REPO_ROOT}/src/formats/dcdata/data-src/nodes/allocated/ledger-journal.jsonl"
+if [ -f "${JOURNAL_PATH}" ]; then
+    python3 - "${REPO_ROOT}/assets/data/graph" "${JOURNAL_PATH}" << 'PY'
+import glob, json, os, sys
+graph_dir, journal_path = sys.argv[1], sys.argv[2]
+max_node_id = 0
+for path in sorted(glob.glob(os.path.join(graph_dir, "*.ctbnodes"))):
+    with open(path, "rb") as f:
+        for raw in f:
+            line = raw.strip()
+            if line:
+                nid_s = line.split(b":", 1)[0]
+                if nid_s.startswith(b"l"):
+                    nid = int(nid_s[1:])
+                    if nid > max_node_id:
+                        max_node_id = nid
+with open(journal_path, "r", encoding="utf-8") as jf:
+    lines = [ln.strip() for ln in jf if ln.strip()]
+if not lines:
+    print("FATAL [pre-commit]: ledger-journal.jsonl is empty!", file=sys.stderr)
+    sys.exit(1)
+last = json.loads(lines[-1])
+if last.get("state") != "BATCH_COMMITTED" or last.get("final_last_id") != max_node_id:
+    print(
+        f"FATAL [pre-commit]: ledger-journal.jsonl ({last.get('state')}, final_last_id=l{last.get('final_last_id')}) "
+        f"is out of sync with assets/data/graph/*.ctbnodes (max=l{max_node_id})! "
+        "Run `ctb-lint recover-ledger-journal` before committing.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+PY
+fi
