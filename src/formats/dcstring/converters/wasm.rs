@@ -340,7 +340,12 @@ impl<'a> TokenCursor<'a> {
                     if self.token_fills_role(name_ch, DcRole::EndIdentifier) {
                         break;
                     }
-                    if self.token_fills_role(name_ch, DcRole::Escape) {
+                    if self.token_fills_role(name_ch, DcRole::Escape)
+                        || self.token_fills_role(
+                            name_ch,
+                            DcRole::QuoteFollowingDcAsAtom,
+                        )
+                    {
                         let _ = self.next()?;
                     }
                 }
@@ -412,13 +417,22 @@ impl<'a> TokenCursor<'a> {
                 closed = true;
                 break;
             }
-            if self.token_fills_role(ch, DcRole::Escape) {
+            let mut suppress_expand = false;
+            if self.token_fills_role(ch, DcRole::QuoteFollowingDcAsAtom) {
+                suppress_expand = true;
+                ch = self.next()?;
+                if self.token_fills_role(ch, DcRole::Escape) {
+                    ch = self.next()?;
+                }
+            } else if self.token_fills_role(ch, DcRole::Escape) {
+                suppress_expand = true;
                 ch = self.next()?;
             }
-            if let ctb_storage_minimal::shorthand::DcShorthand::Long(node_id) =
-                ctb_storage_minimal::shorthand::DcShorthand::from_global_id(
-                    ch.to_u128(),
-                )
+            if !suppress_expand
+                && let ctb_storage_minimal::shorthand::DcShorthand::Long(node_id) =
+                    ctb_storage_minimal::shorthand::DcShorthand::from_global_id(
+                        ch.to_u128(),
+                    )
                 && let Some(sg) = self.resolver.seed_graph()
                 && let Some(s) = sg.get_string(
                     ctb_storage_minimal::shorthand::DcShorthand::Long(node_id),
@@ -1756,18 +1770,29 @@ pub fn dcstring_to_wasm_with_resolver(
         first_raw.to_u128(),
         DcRole::GlobalGraphSystemBlockMostRecentNodeId,
     ) {
-        let pin_dc = raw_tokens.get(1).copied().context(
+        let first_pin_tok = raw_tokens.get(1).copied().context(
             "Missing System-block node ID operand after Dc 641 in Dc-WASM document",
         )?;
         ensure!(
-            !resolver.token_fills_role(pin_dc.to_u128(), DcRole::Escape),
+            !resolver.token_fills_role(first_pin_tok.to_u128(), DcRole::Escape),
             "Escaped operand after Dc 641 is not a valid System-block snapshot pin in Dc-WASM document"
         );
+        let (pin_dc, pin_end_idx) = if resolver.token_fills_role(
+            first_pin_tok.to_u128(),
+            DcRole::QuoteFollowingDcAsAtom,
+        ) {
+            let quoted_pin = raw_tokens.get(2).copied().context(
+                "Dangling Dc 2239 in Dc 641 pin_description in Dc-WASM document",
+            )?;
+            (quoted_pin, 3usize)
+        } else {
+            (first_pin_tok, 2usize)
+        };
         let pinned = ctb_formats_dcdata::syntax::syntax_resolver_at_most_recent(
             pin_dc.to_u128(),
         )?;
-        // Reason for fallback: an exhausted slice after the 2-token pin header yields an empty slice that fails validation below.
-        let rest = raw_tokens.get(2..).unwrap_or(&[]);
+        // Reason for fallback: an exhausted slice after the pin header yields an empty slice that fails validation below.
+        let rest = raw_tokens.get(pin_end_idx..).unwrap_or(&[]);
         (Some(pinned), rest)
     } else {
         (None, raw_tokens.as_slice())
@@ -5739,13 +5764,15 @@ fn expand_graph_wasm_shorthands(
         let gid = sh
             .to_global_id()
             .map_err(|e| anyhow!("Invalid graph WASM shorthand {sh}: {e}"))?;
-        if resolver.token_fills_role(gid, DcRole::Escape) {
+        if resolver.token_fills_role(gid, DcRole::Escape)
+            || resolver.token_fills_role(gid, DcRole::QuoteFollowingDcAsAtom)
+        {
             out_doc.push_char(DcChar::from_u128(gid));
             let escaped_sh = frame
                 .iter
                 .next()
                 .copied()
-                .context("Dangling escape in graph WASM definition")?;
+                .context("Dangling escape or atom quote in graph WASM definition")?;
             let escaped_gid = escaped_sh.to_global_id().map_err(|e| {
                 anyhow!(
                     "Invalid escaped graph WASM shorthand {escaped_sh}: {e}"

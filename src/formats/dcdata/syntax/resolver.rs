@@ -371,15 +371,17 @@ pub trait SyntaxRuleResolver {
         if let Some(SyntaxPattern::Alternation(branches)) =
             self.resolve_named_type("atom_dc")
         {
-            if let Some(SyntaxPattern::Sequence(elems)) = branches.get(1) {
-                if let Some(SyntaxElement {
-                    term:
-                        SyntaxTerm::CharSet {
-                            negated: true,
-                            members,
-                        },
-                    ..
-                }) = elems.first()
+            for branch in branches {
+                if let SyntaxPattern::Sequence(elems) = branch
+                    && elems.len() == 1
+                    && let Some(SyntaxElement {
+                        term:
+                            SyntaxTerm::CharSet {
+                                negated: true,
+                                members,
+                            },
+                        ..
+                    }) = elems.first()
                 {
                     return !members
                         .iter()
@@ -1041,6 +1043,7 @@ impl DatasetRuleResolver {
             DcRole::IsEqualTo,
             DcRole::HasValue,
             DcRole::EvaluateValueAsAtom,
+            DcRole::QuoteFollowingDcAsAtom,
         ] {
             if self.token_fills_role(token, role) {
                 return false;
@@ -1553,15 +1556,17 @@ impl DatasetRuleResolver {
         if let Some(SyntaxPattern::Alternation(branches)) =
             self.named_types.get("atom_dc")
         {
-            if let Some(SyntaxPattern::Sequence(elems)) = branches.get(1) {
-                if let Some(SyntaxElement {
-                    term:
-                        SyntaxTerm::CharSet {
-                            negated: true,
-                            members,
-                        },
-                    ..
-                }) = elems.first()
+            for branch in branches {
+                if let SyntaxPattern::Sequence(elems) = branch
+                    && elems.len() == 1
+                    && let Some(SyntaxElement {
+                        term:
+                            SyntaxTerm::CharSet {
+                                negated: true,
+                                members,
+                            },
+                        ..
+                    }) = elems.first()
                 {
                     for member in members {
                         let m_tok = member.to_u128();
@@ -1580,6 +1585,7 @@ impl DatasetRuleResolver {
                             self.excluded_atom_dc_tokens.insert(alias);
                         }
                     }
+                    break;
                 }
             }
         }
@@ -2302,15 +2308,17 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         if let Some(SyntaxPattern::Alternation(branches)) =
             self.resolve_named_type("atom_dc")
         {
-            if let Some(SyntaxPattern::Sequence(elems)) = branches.get(1) {
-                if let Some(SyntaxElement {
-                    term:
-                        SyntaxTerm::CharSet {
-                            negated: true,
-                            members,
-                        },
-                    ..
-                }) = elems.first()
+            for branch in branches {
+                if let SyntaxPattern::Sequence(elems) = branch
+                    && elems.len() == 1
+                    && let Some(SyntaxElement {
+                        term:
+                            SyntaxTerm::CharSet {
+                                negated: true,
+                                members,
+                            },
+                        ..
+                    }) = elems.first()
                 {
                     return !members
                         .iter()

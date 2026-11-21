@@ -83,7 +83,8 @@ use crate::dc::{
     DC_BEGIN_GRAPH_NODE_DEFINITION, DC_BEGIN_IDENTIFIER, DC_BEGIN_LIST,
     DC_BEGIN_LITERAL, DC_BEGIN_NUMBER, DC_BEGIN_PARAMETER,
     DC_BEGIN_SINGLE_LINE_COMMENT, DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE,
-    DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE, DC_CANONICAL_COMBINING_CLASS,
+    DC_BEGIN_TYPE_DEF, DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE,
+    DC_CANONICAL_COMBINING_CLASS,
     DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER,
     DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
     DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE,
@@ -96,7 +97,8 @@ use crate::dc::{
     DC_DISTRIBUTE_STATEMENT_OVER_EACH, DC_ENCLOSING_DOCUMENT,
     DC_END_ASSOCIATIVITY_GROUP, DC_END_BLOCK_COMMENT,
     DC_END_GRAPH_NODE_DEFINITION, DC_END_IDENTIFIER, DC_END_LIST,
-    DC_END_LITERAL, DC_END_NUMBER, DC_END_SINGLE_LINE_COMMENT, DC_ENTITY_TYPE, DC_ESCAPE,
+    DC_END_LITERAL, DC_END_NUMBER, DC_END_SINGLE_LINE_COMMENT, DC_END_TYPE_DEF,
+    DC_ENTITY_TYPE, DC_ESCAPE,
     DC_EVALUATE_VALUE_AS_ATOM, DC_EXCLUSIVE_RANGE_ENDPOINT, DC_FORMAL_ALIAS,
     DC_FORMAT_VARIATION_ASPECT, DC_GENERAL_FORMAT_EXPORT_SUPPORT,
     DC_GENERAL_FORMAT_IMPORT_SUPPORT, DC_GENERAL_FORMAT_TEST_COVERAGE,
@@ -107,15 +109,18 @@ use crate::dc::{
     DC_MAGIC_SIGNATURE, DC_MANUAL_ENTRY, DC_NEGATED_PATTERN, DC_NEGATIVE,
     DC_NICKNAME, DC_OPTIONAL_ABSENT, DC_PATTERN_ALTERNATION,
     DC_PATTERN_CAPTURE, DC_PATTERN_REPETITION, DC_PATTERN_REPLACEMENT,
-    DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
+    DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_QUOTE_FOLLOWING_DC_AS_ATOM,
+    DC_RANGE,
     DC_REFERENCE_BOUND_VALUE, DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT,
     DC_RETRACTS, DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE,
     DC_SEMANTIC_DECOMPOSITION, DC_START_ENCAPSULATION_BINARY,
-    DC_SUBPATTERN_MATCH, DC_SUPERSEDES, DC_SUPPORT_COMPLETE,
+    DC_START_ENCAPSULATION_UTF8, DC_SUBPATTERN_MATCH, DC_SUPERSEDES,
+    DC_SUPPORT_COMPLETE,
     DC_SUPPORT_LOSSLESS_ROUNDTRIP, DC_SUPPORT_LOSSLESS_STRICT_VALIDATION,
     DC_SUPPORT_NOT_APPLICABLE, DC_SUPPORT_PARTIAL, DC_SUPPORT_WORK_IN_PROGRESS,
     DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ATOM_DC, DC_TYPE_NUMBER,
-    DC_TYPE_ROUTINE, DC_TYPE_UNION, DC_UNICODE_SCRIPT, DC_VALUE_RANGE, DcChar,
+    DC_TYPE_ROUTINE, DC_TYPE_STRING, DC_TYPE_UNION, DC_UNICODE_SCRIPT,
+    DC_VALUE_RANGE, DcChar,
 };
 use crate::dc_def::DcDefn;
 use crate::dc_number_minimal::u128_to_dc_number_chars;
@@ -645,6 +650,7 @@ fn build_initial_token_labels(
         (DC_SEMANTIC_DECOMPOSITION, "Semantic decomposition"),
         (DC_ENCLOSING_DOCUMENT, "Enclosing document"),
         (DC_EVALUATE_VALUE_AS_ATOM, "Evaluate value as atom"),
+        (DC_QUOTE_FOLLOWING_DC_AS_ATOM, "Quote following Dc as atom"),
         (
             DC_BEGIN_GRAPH_NODE_DEFINITION,
             "Begin graph node definition",
@@ -800,6 +806,7 @@ fn describe_atom_dc_tokens_with(
     if tok == sh(DC_START_ENCAPSULATION_BINARY)
         || tok == sh(DC_ESCAPE)
         || tok == sh(DC_EVALUATE_VALUE_AS_ATOM)
+        || tok == sh(DC_QUOTE_FOLLOWING_DC_AS_ATOM)
     {
         format!(
             "{}, {}",
@@ -1318,11 +1325,65 @@ impl LedgerBuilder {
             )
     }
 
-    fn internable_frame_end(
+    fn unescape_frame_payload_for_bare_node(
+        raw_inner: &[DcShorthand],
+    ) -> Vec<DcShorthand> {
+        let sh_escape = sh(DC_ESCAPE);
+        let sh_quote_atom = sh(DC_QUOTE_FOLLOWING_DC_AS_ATOM);
+        let mut out = Vec::with_capacity(raw_inner.len());
+        let mut cur = 0usize;
+        while let Some(&tok) = raw_inner.get(cur) {
+            if tok == sh_quote_atom {
+                out.push(tok);
+                if let Some(&next_tok) = raw_inner.get(cur.saturating_add(1)) {
+                    if next_tok == sh_escape
+                        && let Some(&esc_tok) =
+                            raw_inner.get(cur.saturating_add(2))
+                    {
+                        if esc_tok == sh_escape || esc_tok == sh_quote_atom {
+                            out.push(sh_escape);
+                        }
+                        out.push(esc_tok);
+                        cur = cur.saturating_add(3);
+                        continue;
+                    }
+                    out.push(next_tok);
+                    cur = cur.saturating_add(2);
+                } else {
+                    cur = cur.saturating_add(1);
+                }
+                continue;
+            }
+            if tok == sh_escape {
+                if let Some(&escaped) = raw_inner.get(cur.saturating_add(1)) {
+                    if escaped == sh_escape || escaped == sh_quote_atom {
+                        out.push(sh_escape);
+                    }
+                    out.push(escaped);
+                    cur = cur.saturating_add(2);
+                } else {
+                    out.push(tok);
+                    cur = cur.saturating_add(1);
+                }
+                continue;
+            }
+            out.push(tok);
+            cur = cur.saturating_add(1);
+        }
+        out
+    }
+
+    /// Returns `(end_idx, Option<header_end_for_bare_or_zero_for_whole_frame>)`:
+    /// - `Some((end_idx, None))` -> copy `tokens[idx..=end_idx]` verbatim without interning.
+    /// - `Some((end_idx, Some(0)))` -> intern whole `tokens[idx..=end_idx]` frame (e.g. `.WASM` `Routine` inside `1927..1928`).
+    /// - `Some((end_idx, Some(header_end)))` (`header_end > idx`) -> keep `tokens[idx..header_end]` + `tokens[end_idx]` in parent and intern bare unescaped payload `tokens[header_end..end_idx]`.
+    fn classify_internable_frame(
         tokens: &[DcShorthand],
         idx: usize,
         include_comments_and_idents: bool,
-    ) -> Option<(usize, bool)> {
+    ) -> Option<(usize, Option<usize>)> {
+        use crate::seed_graph::SeedGraphIndex;
+
         let tok = *tokens.get(idx)?;
         let sh_lit_open = sh(DC_BEGIN_LITERAL);
         let sh_lit_close = sh(DC_END_LITERAL);
@@ -1336,81 +1397,132 @@ impl LedgerBuilder {
         let sh_blk_close = sh(DC_END_BLOCK_COMMENT);
         let sh_escape = sh(DC_ESCAPE);
 
-        let close_tok = if tok == sh_lit_open {
-            sh_lit_close
-        } else if include_comments_and_idents
-            && (tok == sh_cmt_inline || tok == sh_cmt_nl)
-        {
-            sh_cmt_close
-        } else if include_comments_and_idents
-            && (tok == sh_blk_inline || tok == sh_blk_nl)
-        {
-            sh_blk_close
-        } else if include_comments_and_idents && tok == sh_ident_open {
-            sh_ident_close
-        } else {
-            return None;
-        };
-
-        let end_idx =
-            find_closed_delimited_span(tokens, idx, close_tok, sh_escape)?;
-        let slice = tokens.get(idx..=end_idx)?;
-        let can_intern = if tok == sh_ident_open {
-            crate::seed_graph::SeedGraphIndex::is_closed_identifier_node(slice)
-        } else {
-            true
-        };
-        Some((end_idx, can_intern))
-    }
-
-    /// Read-only mirror of `intern_embedded_frames_in_value_node`: substitutes
-    /// eligible embedded frames only when every matching frame node already
-    /// exists in `self.value_node_by_tokens`, allocating zero nodes.
-    fn try_intern_frames_readonly(
-        &self,
-        tokens: &[DcShorthand],
-        include_comments_and_idents: bool,
-    ) -> Option<Vec<DcShorthand>> {
-        if Self::is_standalone_internable_frame(tokens) {
-            return Some(tokens.to_vec());
-        }
-        let sh_escape = sh(DC_ESCAPE);
-        let sh_atom = sh(DC_EVALUATE_VALUE_AS_ATOM);
-        let mut out = Vec::with_capacity(tokens.len());
-        let mut idx = 0usize;
-        while let Some(&tok) = tokens.get(idx) {
-            if tok == sh_escape {
-                out.push(tok);
-                if let Some(&escaped) = tokens.get(idx.saturating_add(1)) {
-                    out.push(escaped);
-                    idx = idx.saturating_add(2);
-                } else {
-                    idx = idx.saturating_add(1);
-                }
-                continue;
-            }
-            if out.last().copied() != Some(sh_atom)
-                && let Some((end_idx, can_intern)) = Self::internable_frame_end(
-                    tokens,
-                    idx,
-                    include_comments_and_idents,
-                )
-                && let Some(frame_slice) = tokens.get(idx..=end_idx)
+        if tok == sh_lit_open {
+            let end_idx =
+                find_closed_delimited_span(tokens, idx, sh_lit_close, sh_escape)?;
+            if tokens.get(idx.saturating_add(1)) == Some(&sh(DC_BEGIN_TYPE_DEF))
+                && tokens.get(idx.saturating_add(2))
+                    == Some(&sh(DC_TYPE_ROUTINE))
             {
-                if can_intern {
-                    let &existing_id =
-                        self.value_node_by_tokens.get(frame_slice)?;
-                    out.push(DcShorthand::Long(existing_id));
-                } else {
-                    out.extend_from_slice(frame_slice);
-                }
-                idx = end_idx.saturating_add(1);
-                continue;
+                return Some((end_idx, Some(0)));
             }
-            out.push(tok);
-            idx = idx.saturating_add(1);
+            if SeedGraphIndex::is_atom_dc_literal_header(tokens, idx) {
+                return Some((end_idx, None));
+            }
+            let header_end = if tokens.get(idx.saturating_add(1))
+                == Some(&sh(DC_BEGIN_TYPE_DEF))
+            {
+                let Some(type_end) = SeedGraphIndex::find_matching_type_def_end(
+                    tokens,
+                    idx.saturating_add(1),
+                    end_idx,
+                ) else {
+                    return Some((end_idx, None));
+                };
+                type_end.saturating_add(1)
+            } else if let Some(&nx1) = tokens.get(idx.saturating_add(1))
+                && (nx1 == sh(DC_TYPE_STRING)
+                    || matches!(nx1, DcShorthand::Format(_)))
+                && idx.saturating_add(2) <= end_idx
+            {
+                idx.saturating_add(2)
+            } else {
+                idx.saturating_add(1)
+            };
+            let raw_inner = tokens.get(header_end..end_idx)?;
+            if raw_inner.is_empty()
+                || raw_inner.first() == Some(&sh(DC_START_ENCAPSULATION_UTF8))
+                || (raw_inner.len() == 1
+                    && matches!(raw_inner.first(), Some(DcShorthand::Long(_))))
+            {
+                return Some((end_idx, None));
+            }
+            let bare_preview = Self::unescape_frame_payload_for_bare_node(raw_inner);
+            if !SeedGraphIndex::is_bare_payload_value_node(&bare_preview) {
+                return Some((end_idx, None));
+            }
+            return Some((end_idx, Some(header_end)));
         }
-        Some(out)
+
+        if tok == sh_cmt_inline
+            || tok == sh_cmt_nl
+            || tok == sh_blk_inline
+            || tok == sh_blk_nl
+        {
+            if !include_comments_and_idents {
+                return None;
+            }
+            let close_tok = if tok == sh_cmt_inline || tok == sh_cmt_nl {
+                sh_cmt_close
+            } else {
+                sh_blk_close
+            };
+            let end_idx =
+                find_closed_delimited_span(tokens, idx, close_tok, sh_escape)?;
+            let header_end = idx.saturating_add(1);
+            let raw_inner = tokens.get(header_end..end_idx)?;
+            if raw_inner.is_empty()
+                || (raw_inner.len() == 1
+                    && matches!(raw_inner.first(), Some(DcShorthand::Long(_))))
+            {
+                return Some((end_idx, None));
+            }
+            let bare_preview = Self::unescape_frame_payload_for_bare_node(raw_inner);
+            if !SeedGraphIndex::is_bare_payload_value_node(&bare_preview) {
+                return Some((end_idx, None));
+            }
+            return Some((end_idx, Some(header_end)));
+        }
+
+        if tok == sh_ident_open {
+            if !include_comments_and_idents {
+                return None;
+            }
+            let end_idx = find_closed_delimited_span(
+                tokens,
+                idx,
+                sh_ident_close,
+                sh_escape,
+            )?;
+            let slice = tokens.get(idx..=end_idx)?;
+            if !SeedGraphIndex::is_closed_identifier_node(slice) {
+                return Some((end_idx, None));
+            }
+            let header_end = if let Some(&fmt_tok) =
+                tokens.get(idx.saturating_add(1))
+                && matches!(fmt_tok, DcShorthand::Format(_))
+                && idx.saturating_add(2) < end_idx
+            {
+                idx.saturating_add(2)
+            } else if tokens.get(idx.saturating_add(1))
+                == Some(&sh(DC_BEGIN_TYPE_DEF))
+                && let Some(type_end) =
+                    SeedGraphIndex::find_matching_type_def_end(
+                        tokens,
+                        idx.saturating_add(1),
+                        end_idx,
+                    )
+                && type_end.saturating_add(1) < end_idx
+            {
+                type_end.saturating_add(1)
+            } else {
+                idx.saturating_add(1)
+            };
+            let raw_inner = tokens.get(header_end..end_idx)?;
+            if raw_inner.is_empty()
+                || (raw_inner.len() == 1
+                    && matches!(raw_inner.first(), Some(DcShorthand::Long(_))))
+            {
+                return Some((end_idx, None));
+            }
+            let bare_preview = Self::unescape_frame_payload_for_bare_node(raw_inner);
+            if !SeedGraphIndex::is_bare_payload_value_node(&bare_preview) {
+                return Some((end_idx, None));
+            }
+            return Some((end_idx, Some(header_end)));
+        }
+
+        None
     }
 
     fn intern_embedded_frames_in_value_node(
@@ -1424,6 +1536,7 @@ impl LedgerBuilder {
         let sh_blk_inline = sh(DC_BEGIN_BLOCK_COMMENT);
         let sh_blk_nl = sh(DC_BEGIN_BLOCK_COMMENT_NEW_LINE);
         let sh_escape = sh(DC_ESCAPE);
+        let sh_quote_atom = sh(DC_QUOTE_FOLLOWING_DC_AS_ATOM);
         let sh_atom = sh(DC_EVALUATE_VALUE_AS_ATOM);
 
         // Standalone `[string]` (`Dc 260..261`), standalone comment
@@ -1446,7 +1559,7 @@ impl LedgerBuilder {
         let mut out = Vec::with_capacity(tokens.len());
         let mut idx = 0usize;
         while let Some(&tok) = tokens.get(idx) {
-            if tok == sh_escape {
+            if tok == sh_escape || tok == sh_quote_atom {
                 out.push(tok);
                 if let Some(&escaped) = tokens.get(idx.saturating_add(1)) {
                     out.push(escaped);
@@ -1457,19 +1570,41 @@ impl LedgerBuilder {
                 continue;
             }
             if out.last().copied() != Some(sh_atom)
-                && let Some((end_idx, can_intern)) =
-                    Self::internable_frame_end(tokens, idx, true)
+                && let Some((end_idx, mode)) =
+                    Self::classify_internable_frame(tokens, idx, true)
                 && let Some(frame_slice) = tokens.get(idx..=end_idx)
             {
-                if can_intern {
-                    let summary = self.format_tokens_comment(frame_slice);
-                    let interned_id = self.get_or_insert_value_node(
-                        frame_slice.to_vec(),
-                        summary,
-                    )?;
-                    out.push(DcShorthand::Long(interned_id));
-                } else {
-                    out.extend_from_slice(frame_slice);
+                match mode {
+                    None => out.extend_from_slice(frame_slice),
+                    Some(0) => {
+                        let summary = self.format_tokens_comment(frame_slice);
+                        let interned_id = self.get_or_insert_value_node(
+                            frame_slice.to_vec(),
+                            summary,
+                        )?;
+                        out.push(DcShorthand::Long(interned_id));
+                    }
+                    Some(header_end) => {
+                        let header_slice = tokens
+                            .get(idx..header_end)
+                            .context("Invalid frame header slice")?;
+                        let raw_inner = tokens
+                            .get(header_end..end_idx)
+                            .context("Invalid frame inner slice")?;
+                        let closer_tok = *tokens
+                            .get(end_idx)
+                            .context("Invalid frame closer index")?;
+                        let bare_tokens =
+                            Self::unescape_frame_payload_for_bare_node(raw_inner);
+                        let summary = self.format_tokens_comment(&bare_tokens);
+                        let interned_id = self.get_or_insert_value_node(
+                            bare_tokens,
+                            summary,
+                        )?;
+                        out.extend_from_slice(header_slice);
+                        out.push(DcShorthand::Long(interned_id));
+                        out.push(closer_tok);
+                    }
                 }
                 idx = end_idx.saturating_add(1);
                 continue;
@@ -1478,6 +1613,51 @@ impl LedgerBuilder {
             idx = idx.saturating_add(1);
         }
         Ok(out)
+    }
+
+    fn canonicalize_multi_prop_value_tok(
+        &self,
+        subj: DcShorthand,
+        prop: DcShorthand,
+        val_tok: DcShorthand,
+    ) -> DcShorthand {
+        if self
+            .multi_props_all_by_key
+            .contains_key(&(subj, prop, val_tok))
+        {
+            return val_tok;
+        }
+        for &(s, p, existing_val) in self.multi_props_all_by_key.keys() {
+            if s == subj
+                && p == prop
+                && self
+                    .write_state
+                    .are_active_values_equivalent(existing_val, val_tok)
+            {
+                return existing_val;
+            }
+        }
+        val_tok
+    }
+
+    fn canonicalize_preferred_value_tok(
+        &self,
+        subj: DcShorthand,
+        val_tok: DcShorthand,
+    ) -> DcShorthand {
+        if self.active_preferred.contains_key(&(subj, val_tok)) {
+            return val_tok;
+        }
+        for &(s, existing_val) in self.active_preferred.keys() {
+            if s == subj
+                && self
+                    .write_state
+                    .are_active_values_equivalent(existing_val, val_tok)
+            {
+                return existing_val;
+            }
+        }
+        val_tok
     }
 
     fn resolve_value_spec(&mut self, spec: &ValueSpec) -> Result<DcShorthand> {
@@ -1498,32 +1678,9 @@ impl LedgerBuilder {
                     return Ok(DcShorthand::Long(existing_id));
                 }
 
-                // 2. Exact read-only string-only interned match (zero churn on
-                // untouched pre-Phase-2 Stage 0 / FilePath / StageL nodes).
-                if let Some(str_only) =
-                    self.try_intern_frames_readonly(tokens, false)
-                    && let Some(&existing_id) =
-                        self.value_node_by_tokens.get(&str_only)
-                {
-                    self.token_labels
-                        .entry(DcShorthand::Long(existing_id))
-                        .or_insert_with(|| comment.clone());
-                    return Ok(DcShorthand::Long(existing_id));
-                }
-
-                // 3. Exact read-only full-interned match (string+comment+ident).
-                if let Some(full) =
-                    self.try_intern_frames_readonly(tokens, true)
-                    && let Some(&existing_id) =
-                        self.value_node_by_tokens.get(&full)
-                {
-                    self.token_labels
-                        .entry(DcShorthand::Long(existing_id))
-                        .or_insert_with(|| comment.clone());
-                    return Ok(DcShorthand::Long(existing_id));
-                }
-
-                // 4. Expanded-equivalence active match (prefers newest/compact ID).
+                // 2. Expanded-equivalence active match (prefers newest active ID
+                // across whole-frame and bare-payload representations, guaranteeing
+                // zero churn on untouched historical graph nodes).
                 let expanded = self.write_state.expand_tokens_active(tokens);
                 if let Some(existing_id) = self
                     .write_state
@@ -1535,7 +1692,7 @@ impl LedgerBuilder {
                     return Ok(DcShorthand::Long(existing_id));
                 }
 
-                // 5. Expanded-equivalence retracted match (cancel Dc 592).
+                // 3. Expanded-equivalence retracted match (cancel Dc 592).
                 let token_labels = &self.token_labels;
                 if let Some((reactivated_id, _)) = self
                     .write_state
@@ -2276,10 +2433,12 @@ impl LedgerBuilder {
                 && !cands.is_empty()
             {
                 cands.sort_by_key(|&(_, has_val_id, _)| has_val_id);
-                // Reason for fallback: if no candidate already has `val_tok`, supersede the earliest candidate.
+                // Reason for fallback: if no candidate already has an active-equivalent value to `val_tok`, supersede the earliest candidate.
                 let keep_idx = cands
                     .iter()
-                    .position(|&(_, _, v)| v == val_tok)
+                    .position(|&(_, _, v)| {
+                        self.write_state.are_active_values_equivalent(v, val_tok)
+                    })
                     .unwrap_or(0);
                 let kept_has_a_id = cands.get(keep_idx).map(|&(id, _, _)| id);
                 for (idx, &(other_has_a_id, other_has_val_id, _)) in
@@ -2323,7 +2482,10 @@ impl LedgerBuilder {
                             (subj, prop),
                             (new_has_a_id, new_has_val_id, val_tok),
                         );
-                    } else if old_val_tok == val_tok {
+                    } else if self
+                        .write_state
+                        .are_active_values_equivalent(old_val_tok, val_tok)
+                    {
                         self.active_single_props.insert(
                             (subj, prop),
                             (has_a_id, old_has_val_id, old_val_tok),
@@ -2372,7 +2534,12 @@ impl LedgerBuilder {
             (Option<String>, String),
         > = BTreeMap::new();
         for ((subj, prop, val_spec), comment) in &desired.multi_properties {
-            let val_tok = self.resolve_value_spec(val_spec)?;
+            let raw_val_tok = self.resolve_value_spec(val_spec)?;
+            let val_tok = self.canonicalize_multi_prop_value_tok(
+                *subj,
+                *prop,
+                raw_val_tok,
+            );
             let raw_source = match val_spec {
                 ValueSpec::PatternNode { rule, .. } => Some(rule.raw.clone()),
                 _ => None,
@@ -2387,7 +2554,12 @@ impl LedgerBuilder {
             DcShorthand,
         )> = BTreeSet::new();
         for (subj, prop, val_spec) in &desired.preferred_multi_properties {
-            let val_tok = self.resolve_value_spec(val_spec)?;
+            let raw_val_tok = self.resolve_value_spec(val_spec)?;
+            let val_tok = self.canonicalize_multi_prop_value_tok(
+                *subj,
+                *prop,
+                raw_val_tok,
+            );
             resolved_multi_pref.insert((*subj, *prop, val_tok));
         }
 
@@ -2398,7 +2570,12 @@ impl LedgerBuilder {
         for (((subj, prop, val_spec), qual_prop), (qual_val_spec, comment)) in
             &desired.multi_property_single_qualifiers
         {
-            let val_tok = self.resolve_value_spec(val_spec)?;
+            let raw_val_tok = self.resolve_value_spec(val_spec)?;
+            let val_tok = self.canonicalize_multi_prop_value_tok(
+                *subj,
+                *prop,
+                raw_val_tok,
+            );
             let qual_val_tok = self.resolve_value_spec(qual_val_spec)?;
             desired_multi_quals.insert(
                 ((*subj, *prop, val_tok), *qual_prop),
@@ -2430,9 +2607,13 @@ impl LedgerBuilder {
                                     *qual_prop,
                                 ))
                                 .is_some_and(|q_cands| {
-                                    q_cands
-                                        .iter()
-                                        .any(|&(_, _, v)| v == *desired_q_val)
+                                    q_cands.iter().any(|&(_, _, v)| {
+                                        self.write_state
+                                            .are_active_values_equivalent(
+                                                v,
+                                                *desired_q_val,
+                                            )
+                                    })
                                 })
                         {
                             score = score.saturating_add(1);
@@ -2793,10 +2974,13 @@ impl LedgerBuilder {
                 && !cands.is_empty()
             {
                 cands.sort_by_key(|&(_, has_val_id, _)| has_val_id);
-                // Reason for fallback: if no candidate already has `qual_val_tok`, supersede the earliest candidate.
+                // Reason for fallback: if no candidate already has an active-equivalent value to `qual_val_tok`, supersede the earliest candidate.
                 let keep_idx = cands
                     .iter()
-                    .position(|&(_, _, v)| v == qual_val_tok)
+                    .position(|&(_, _, v)| {
+                        self.write_state
+                            .are_active_values_equivalent(v, qual_val_tok)
+                    })
                     .unwrap_or(0);
                 let kept_has_a_id = cands.get(keep_idx).map(|&(id, _, _)| id);
                 for (idx, &(other_has_a_id, other_has_val_id, _)) in
@@ -2816,7 +3000,10 @@ impl LedgerBuilder {
                     cands.get(keep_idx)
                 {
                     let has_a_id = kept_has_a_id;
-                    if old_val_tok == qual_val_tok {
+                    if self
+                        .write_state
+                        .are_active_values_equivalent(old_val_tok, qual_val_tok)
+                    {
                         self.active_single_props.insert(
                             (qual_subj, qual_prop),
                             (has_a_id, old_has_val_id, old_val_tok),
@@ -2893,7 +3080,9 @@ impl LedgerBuilder {
             String,
         > = BTreeMap::new();
         for ((subj, val_spec), comment) in &desired.preferred_replacements {
-            let val_tok = self.resolve_value_spec(val_spec)?;
+            let raw_val_tok = self.resolve_value_spec(val_spec)?;
+            let val_tok =
+                self.canonicalize_preferred_value_tok(*subj, raw_val_tok);
             resolved_preferred.insert((*subj, val_tok), comment.clone());
         }
 
@@ -6033,8 +6222,8 @@ mod tests {
             standalone_ident
         );
 
-        // Compound node interns identifier (`270..271`), single-line/block
-        // comments (`246..248`, `249..251`), and `[string]` (`260..261`).
+        // Compound node interns bare payloads inside identifier (`270..271`),
+        // single-line/block comments (`246..248`, `249..251`), and `[string]` (`260..261`).
         let compound = vec![
             DcShorthand::Short(270),
             DcShorthand::Unicode(0x41),
@@ -6056,12 +6245,42 @@ mod tests {
         ];
         let interned_compound =
             builder.intern_embedded_frames_in_value_node(&compound)?;
-        assert_eq!(interned_compound.len(), 5);
-        assert!(matches!(interned_compound.first(), Some(DcShorthand::Long(_))));
-        assert!(matches!(interned_compound.get(1), Some(DcShorthand::Long(_))));
-        assert!(matches!(interned_compound.get(2), Some(DcShorthand::Long(_))));
-        assert!(matches!(interned_compound.get(3), Some(DcShorthand::Long(_))));
-        assert_eq!(interned_compound.get(4), Some(&DcShorthand::Short(2204)));
+        assert_eq!(interned_compound.len(), 13);
+        let (
+            Some(&DcShorthand::Long(ab_id)),
+            Some(&DcShorthand::Long(c_id)),
+            Some(&DcShorthand::Long(b_id)),
+            Some(&DcShorthand::Long(str_payload_id)),
+        ) = (
+            interned_compound.get(1),
+            interned_compound.get(4),
+            interned_compound.get(7),
+            interned_compound.get(10),
+        )
+        else {
+            bail!("Expected bare Long payload IDs inside interned frames");
+        };
+        assert_eq!(
+            builder.get_node(ab_id).unwrap().tokens,
+            vec![DcShorthand::Unicode(0x41), DcShorthand::Unicode(0x42)]
+        );
+        assert_eq!(
+            builder.get_node(c_id).unwrap().tokens,
+            vec![DcShorthand::Unicode(0x63)]
+        );
+        assert_eq!(
+            builder.get_node(b_id).unwrap().tokens,
+            vec![DcShorthand::Unicode(0x62)]
+        );
+        assert_eq!(
+            builder.get_node(str_payload_id).unwrap().tokens,
+            vec![
+                DcShorthand::Short(2580),
+                DcShorthand::Unicode(0xD800),
+                DcShorthand::Short(261),
+            ]
+        );
+        assert_eq!(interned_compound.get(12), Some(&DcShorthand::Short(2204)));
 
         // Historical pure-Unicode interned run node (`4ffe190f3`-era ledger chunks)
         // must still expand inline, while `dc/l<id>` atom references stay intact.
@@ -6176,8 +6395,14 @@ mod tests {
         );
         assert_eq!(builder.write_state.nodes.len(), count_before_equiv);
 
-        // Edited nodes intern identifiers & comments into shared nodes and
-        // reuse those interned nodes across multiple edited declarations.
+        // Property strings (`make_string_value_spec("foo")`), `[string]` literals,
+        // identifiers, and comments all share one bare `"foo"` node!
+        let DcShorthand::Long(foo_bare_id) =
+            builder.resolve_value_spec(&make_string_value_spec("foo"))?
+        else {
+            bail!("Expected Long node ID for property string \"foo\"");
+        };
+        let count_after_foo = builder.write_state.nodes.len();
         let edited1 = vec![
             DcShorthand::Short(270),
             DcShorthand::Unicode(0x66),
@@ -6187,6 +6412,14 @@ mod tests {
             DcShorthand::Short(246),
             DcShorthand::Unicode(0x7a),
             DcShorthand::Short(248),
+            DcShorthand::Short(260),
+            DcShorthand::Short(262),
+            DcShorthand::Short(264),
+            DcShorthand::Short(263),
+            DcShorthand::Unicode(0x66),
+            DcShorthand::Unicode(0x6f),
+            DcShorthand::Unicode(0x6f),
+            DcShorthand::Short(261),
             DcShorthand::Short(2205),
         ];
         let edited2 = vec![
@@ -6196,7 +6429,9 @@ mod tests {
             DcShorthand::Unicode(0x6f),
             DcShorthand::Short(271),
             DcShorthand::Short(246),
-            DcShorthand::Unicode(0x7a),
+            DcShorthand::Unicode(0x66),
+            DcShorthand::Unicode(0x6f),
+            DcShorthand::Unicode(0x6f),
             DcShorthand::Short(248),
             DcShorthand::Short(2206),
         ];
@@ -6209,8 +6444,8 @@ mod tests {
             bail!("Expected Long node ID for edited1");
         };
         let after_e1 = builder.write_state.nodes.len();
-        // Allocated: ident("foo"), cmt("z"), and e1 container = 3 nodes.
-        assert_eq!(after_e1 - count_before_equiv, 3);
+        // Reused bare "foo" for both ident and string; allocated only bare "z" + e1 = 2 nodes!
+        assert_eq!(after_e1 - count_after_foo, 2);
         let DcShorthand::Long(e2_id) =
             builder.resolve_value_spec(&ValueSpec::ValueNode {
                 tokens: edited2,
@@ -6219,15 +6454,18 @@ mod tests {
         else {
             bail!("Expected Long node ID for edited2");
         };
-        // Reused ident("foo") & cmt("z") -> only +1 node!
+        // Reused bare "foo" for both ident and comment -> only +1 node!
         assert_eq!(builder.write_state.nodes.len() - after_e1, 1);
         let e1_toks = &builder.get_node(e1_id).unwrap().tokens;
         let e2_toks = &builder.get_node(e2_id).unwrap().tokens;
-        assert_eq!(&e1_toks[0..2], &e2_toks[0..2]);
+        assert_eq!(e1_toks.get(1), Some(&DcShorthand::Long(foo_bare_id)));
+        assert_eq!(e1_toks.get(10), Some(&DcShorthand::Long(foo_bare_id)));
+        assert_eq!(e2_toks.get(1), Some(&DcShorthand::Long(foo_bare_id)));
+        assert_eq!(e2_toks.get(4), Some(&DcShorthand::Long(foo_bare_id)));
 
-        // StageL list of atom Dcs (`l/dc: dc:260 ::`) has `Dc 640` as the list
-        // element type BEFORE `Dc 260`. It must intern `[260 262 640 263 260 261]`
-        // cleanly as a single literal without corrupting the inner `260 261`.
+        // StageL list of atom Dcs (`l/dc: dc:260 ::`) keeps `[260 262 640 263 260 261]`
+        // unnormalized verbatim, while `.WASM` `Routine` literals (`260 262 280 .. 261`)
+        // inside `1927..1928` still intern as complete routine nodes.
         let list_atom_tokens = vec![
             DcShorthand::Short(2578),
             DcShorthand::Short(640),
@@ -6241,9 +6479,22 @@ mod tests {
         ];
         let interned_list_atom =
             builder.intern_embedded_frames_in_value_node(&list_atom_tokens)?;
-        assert_eq!(interned_list_atom.len(), 4);
+        assert_eq!(interned_list_atom, list_atom_tokens);
+        let wasm_prog_tokens = vec![
+            DcShorthand::Short(1927),
+            DcShorthand::Short(260),
+            DcShorthand::Short(262),
+            DcShorthand::Short(280),
+            DcShorthand::Format(208),
+            DcShorthand::Short(263),
+            DcShorthand::Short(261),
+            DcShorthand::Short(1928),
+        ];
+        let interned_wasm_prog =
+            builder.intern_embedded_frames_in_value_node(&wasm_prog_tokens)?;
+        assert_eq!(interned_wasm_prog.len(), 3);
         assert!(matches!(
-            interned_list_atom.get(2),
+            interned_wasm_prog.get(1),
             Some(DcShorthand::Long(_))
         ));
         let idx_after_atom = crate::seed_graph::SeedGraphIndex::from_nodes(
@@ -6252,6 +6503,10 @@ mod tests {
         assert_eq!(
             idx_after_atom.expand_interned_string_nodes(&interned_list_atom),
             list_atom_tokens
+        );
+        assert_eq!(
+            idx_after_atom.expand_interned_string_nodes(&interned_wasm_prog),
+            wasm_prog_tokens
         );
 
         // When two active nodes share identical expanded tokens (an older

@@ -567,9 +567,12 @@ v/u64/skipAllComments l/dc/tokens u64/pos
         let b/closed false.
         while lt /i /n do
             const u32/inSid dcShortId dcAtOr /tokens /i /dcZero.
-            if eq /inSid u32:255
+            if or eq /inSid u32:255 eq /inSid u32:2239
                 do
-                    set /i wrapAdd /i u64:2.
+                    const u64/i1 wrapAdd /i u64:1.
+                    if and eq /inSid u32:2239 and lt /i1 /n eq dcShortId dcAtOr /tokens /i1 /dcZero u32:255
+                        set /i wrapAdd /i u64:3
+                        set /i wrapAdd /i u64:2.
                     if gt /i /n
                         set /i /n
                         nop.
@@ -711,6 +714,9 @@ v/strStepRes/readStringLiteralAt l/dc/tokens u64/pos
     test
         in l/dc: dc:260 dc:u66 dc:261 :: u64:0
         out strStepRes:ok structNew strStep: payload l/dc: dc:u66 :: nextPos u64:3 ::.
+    test
+        in l/dc: dc:260 dc:2239 dc:255 dc:261 dc:261 :: u64:0
+        out strStepRes:ok structNew strStep: payload l/dc: dc:261 :: nextPos u64:5 ::.
     const u64/n len /tokens.
     if ge /pos /n
         return strStepRes:err errRecord b"ConvertDcStringToWasm requires a [string] literal argument"
@@ -740,19 +746,40 @@ v/strStepRes/readStringLiteralAt l/dc/tokens u64/pos
                 break.
             ::
             nop.
-        if eq /ch dc:255
+        if eq /ch dc:2239
             do
                 const u64/ni wrapAdd /i u64:1.
                 if ge /ni /n
-                    return strStepRes:err errRecord b"Dangling Dc 255 escape in [string] literal"
+                    return strStepRes:err errRecord b"Dangling Dc 2239 atom quote in [string] literal"
                     nop.
-                bufPush /out dcAtOr /tokens /ni dc:0.
-                set /i wrapAdd /ni u64:1.
+                const dc/qch dcAtOr /tokens /ni dc:0.
+                if eq /qch dc:255
+                    do
+                        const u64/ni2 wrapAdd /i u64:2.
+                        if ge /ni2 /n
+                            return strStepRes:err errRecord b"Dangling Dc 255 escape after Dc 2239 in [string] literal"
+                            nop.
+                        bufPush /out dcAtOr /tokens /ni2 dc:0.
+                        set /i wrapAdd /ni2 u64:1.
+                    ::
+                    do
+                        bufPush /out /qch.
+                        set /i wrapAdd /ni u64:1.
+                    ::.
             ::
-            do
-                bufPush /out /ch.
-                set /i wrapAdd /i u64:1.
-            ::.
+            if eq /ch dc:255
+                do
+                    const u64/ni wrapAdd /i u64:1.
+                    if ge /ni /n
+                        return strStepRes:err errRecord b"Dangling Dc 255 escape in [string] literal"
+                        nop.
+                    bufPush /out dcAtOr /tokens /ni dc:0.
+                    set /i wrapAdd /ni u64:1.
+                ::
+                do
+                    bufPush /out /ch.
+                    set /i wrapAdd /i u64:1.
+                ::.
     ::.
     if not /closed
         return strStepRes:err errRecord b"Unclosed [string] literal argument"
@@ -928,7 +955,7 @@ v/b/isBuiltInWasmOrSyntaxShortU32 u32/sid
     if or eq /sid u32:565 or and ge /sid u32:584 le /sid u32:585 eq /sid u32:610
         return true
         nop.
-    or eq /sid u32:616 eq /sid u32:638.
+    or eq /sid u32:616 or eq /sid u32:638 eq /sid u32:2239.
 
 : @dc l8589993559
 v/b/isBuiltInWasmOrSyntaxFormatU32 u32/fid
@@ -1081,6 +1108,9 @@ v/optU128Step/parsePinDescriptionAt l/dc/tokens u64/pos
     test
         in l/dc: dc:641 dc:255 dcFromU128 u128:8589934592 :: u64:0
         out optU128Step:some structNew u128Step: val u128:8589934592 nextPos u64:3 ::.
+    test
+        in l/dc: dc:641 dc:2239 dcFromU128 u128:8589934592 :: u64:0
+        out optU128Step:some structNew u128Step: val u128:8589934592 nextPos u64:3 ::.
     const u64/n len /tokens.
     if ge /pos /n
         return optU128Step:none
@@ -1095,11 +1125,11 @@ v/optU128Step/parsePinDescriptionAt l/dc/tokens u64/pos
     const dc/tok1 dcAtOr /tokens /p1 dc:0.
     let u128/pinId u128:0.
     let u64/nextP wrapAdd /p1 u64:1.
-    if eq /tok1 dc:255
+    if or eq /tok1 dc:255 eq /tok1 dc:2239
         do
             const u64/p2 wrapAdd /p1 u64:1.
             if ge /p2 /n
-                return optU128Step:err errRecord b"Dangling escape in Dc 641 pin_description"
+                return optU128Step:err errRecord b"Dangling escape or atom quote in Dc 641 pin_description"
                 nop.
             set /pinId u128FromDc dcAtOr /tokens /p2 dc:0.
             set /nextP wrapAdd /p2 u64:1.
@@ -1123,7 +1153,7 @@ v/optU128Step/parsePinDescriptionAt l/dc/tokens u64/pos
 v/l/dc/encodeCapAtom l/dc/outPrefix dc/c b/escapeWildcard
     let buf/dc/out bufNew dc wrapAdd len /outPrefix u64:2.
     bufExtend /out /outPrefix.
-    if or eq /c dc:203 or eq /c dc:255 or eq /c dc:616 and /escapeWildcard eq /c dc:600
+    if or eq /c dc:203 or eq /c dc:255 or eq /c dc:616 or eq /c dc:2239 and /escapeWildcard eq /c dc:600
         bufPush /out dc:255
         nop.
     bufPush /out /c.
@@ -1132,13 +1162,23 @@ v/l/dc/encodeCapAtom l/dc/outPrefix dc/c b/escapeWildcard
 : @dc l8589992819
 v/capAtomStep/consumeCapAtom l/dc/tokens u64/pos
     const dc/first dcAtOr /tokens /pos dc:0.
-    if eq /first dc:255
+    if or eq /first dc:255 eq /first dc:2239
         do
             const u64/p1 wrapAdd /pos u64:1.
             if ge /p1 len /tokens
                 return structNew capAtomStep: ch dc:0 escaped true nextPos len /tokens ::
                 nop.
-            return structNew capAtomStep: ch dcAtOr /tokens /p1 dc:0 escaped true nextPos wrapAdd /p1 u64:1 ::
+            const dc/nx dcAtOr /tokens /p1 dc:0.
+            if and eq /first dc:2239 eq /nx dc:255
+                do
+                    const u64/p2 wrapAdd /pos u64:2.
+                    if ge /p2 len /tokens
+                        return structNew capAtomStep: ch dc:0 escaped true nextPos len /tokens ::
+                        nop.
+                    return structNew capAtomStep: ch dcAtOr /tokens /p2 dc:0 escaped true nextPos wrapAdd /p2 u64:1 ::
+                ::
+                nop.
+            return structNew capAtomStep: ch /nx escaped true nextPos wrapAdd /p1 u64:1 ::
         ::
         nop.
     structNew capAtomStep: ch /first escaped false nextPos wrapAdd /pos u64:1 ::.
@@ -1326,6 +1366,8 @@ v/capOptNodeRes/expandInternedNodesInner capClient/cli l/dc/tokens l/u128/visIds
     let b/inComment false.
     let u32/commentCloseSid u32:0.
     let b/inIdent false.
+    let b/identHasType false.
+    let b/identHasPayload false.
     let b/inLit false.
     let b/litIsAtomDc false.
     let u32/prevSid /noRegionId.
@@ -1334,7 +1376,7 @@ v/capOptNodeRes/expandInternedNodesInner capClient/cli l/dc/tokens l/u128/visIds
     while lt /i /n do
         const dc/tok dcAtOr /tokens /i /dcZero.
         const u32/sid dcShortId /tok.
-        if eq /sid u32:255
+        if or eq /sid u32:255 eq /sid u32:2239
             do
                 bufPush /out /tok.
                 const u64/i1 wrapAdd /i u64:1.
@@ -1347,114 +1389,162 @@ v/capOptNodeRes/expandInternedNodesInner capClient/cli l/dc/tokens l/u128/visIds
                         set /i wrapAdd /i1 u64:1.
                     ::
                     do
-                        set /prevSid u32:255.
+                        set /prevSid /sid.
                         set /hasPrev true.
                         set /i /i1.
                     ::.
+                if /inIdent
+                    set /identHasPayload true
+                    nop.
                 continue.
             ::
             nop.
-        if /inComment
+        if or /inComment or /inIdent /inLit
             do
-                if eq /sid /commentCloseSid
+                const u32/frameCloseSid if /inComment /commentCloseSid if /inIdent u32:271 u32:261.
+                if eq /sid /frameCloseSid
                     do
                         set /inComment false.
-                        bufPush /out /tok.
-                    ::
-                    do
-                        if and eq /sid /noRegionId isSysRegionDc /tok
-                            do
-                                const u128/u u128FromDc /tok.
-                                if not listContainsU128 /visIds /u
-                                    do
-                                        const capOptNodeRes/nr queryNodeRaw /curCli /u.
-                                        set /curCli field /nr cli.
-                                        if eq field /nr tag u8:2
-                                            return /nr
-                                            nop.
-                                        if and eq field /nr tag u8:1 isLegacyUnicodeRunNode field /nr payload
-                                            do
-                                                bufExtend /out field /nr payload.
-                                                set /prevSid /noRegionId.
-                                                set /hasPrev true.
-                                                set /i wrapAdd /i u64:1.
-                                                continue.
-                                            ::
-                                            nop.
-                                    ::
-                                    nop.
-                            ::
-                            nop.
-                        bufPush /out /tok.
-                    ::.
-                set /prevSid /sid.
-                set /hasPrev true.
-                set /i wrapAdd /i u64:1.
-                continue.
-            ::
-            nop.
-        if /inIdent
-            do
-                if eq /sid u32:271
-                    do
                         set /inIdent false.
-                        bufPush /out /tok.
-                    ::
-                    do
-                        if and eq /sid /noRegionId isSysRegionDc /tok
-                            do
-                                const u128/u u128FromDc /tok.
-                                if not listContainsU128 /visIds /u
-                                    do
-                                        const capOptNodeRes/nr queryNodeRaw /curCli /u.
-                                        set /curCli field /nr cli.
-                                        if eq field /nr tag u8:2
-                                            return /nr
-                                            nop.
-                                        if and eq field /nr tag u8:1 isLegacyUnicodeRunNode field /nr payload
-                                            do
-                                                bufExtend /out field /nr payload.
-                                                set /prevSid /noRegionId.
-                                                set /hasPrev true.
-                                                set /i wrapAdd /i u64:1.
-                                                continue.
-                                            ::
-                                            nop.
-                                    ::
-                                    nop.
-                            ::
-                            nop.
-                        bufPush /out /tok.
-                    ::.
-                set /prevSid /sid.
-                set /hasPrev true.
-                set /i wrapAdd /i u64:1.
-                continue.
-            ::
-            nop.
-        if /inLit
-            do
-                if eq /sid u32:261
-                    do
+                        set /identHasType false.
+                        set /identHasPayload false.
                         set /inLit false.
                         set /litIsAtomDc false.
                         bufPush /out /tok.
+                        set /prevSid /sid.
+                        set /hasPrev true.
+                        set /i wrapAdd /i u64:1.
+                        continue.
                     ::
+                    nop.
+                const b/allowInFrame and or /inComment or /inIdent not /litIsAtomDc and eq /sid /noRegionId and isSysRegionDc /tok or not /inLit or not /hasPrev and ne /prevSid u32:616 ne /prevSid u32:640.
+                if /allowInFrame
                     do
-                        if and not /litIsAtomDc and eq /sid /noRegionId isSysRegionDc /tok
+                        const u128/u u128FromDc /tok.
+                        if not listContainsU128 /visIds /u
                             do
-                                const u128/u u128FromDc /tok.
-                                const b/allowExpand and not listContainsU128 /visIds /u or not /hasPrev and ne /prevSid u32:616 ne /prevSid u32:640.
-                                if /allowExpand
+                                const capOptNodeRes/nr queryNodeRaw /curCli /u.
+                                set /curCli field /nr cli.
+                                if eq field /nr tag u8:2
+                                    return /nr
+                                    nop.
+                                if eq field /nr tag u8:1
                                     do
-                                        const capOptNodeRes/nr queryNodeRaw /curCli /u.
-                                        set /curCli field /nr cli.
-                                        if eq field /nr tag u8:2
-                                            return /nr
-                                            nop.
-                                        if and eq field /nr tag u8:1 isLegacyUnicodeRunNode field /nr payload
+                                        const l/dc/child field /nr payload.
+                                        const u64/clen len /child.
+                                        const u32/csid0 dcShortId dcAtOr /child u64:0 /dcZero.
+                                        const b/isStmtVerb or and ge /csid0 u32:584 le /csid0 u32:593 or eq /csid0 u32:610 or eq /csid0 u32:627 or eq /csid0 u32:638 or eq /csid0 u32:645 eq /csid0 u32:646.
+                                        const b/isTopDecl or eq /csid0 u32:2192 or eq /csid0 u32:2221 or eq /csid0 u32:2203 or eq /csid0 u32:2217 or eq /csid0 u32:2223 or eq /csid0 u32:2224 or eq /csid0 u32:2230 or eq /csid0 u32:2199 eq /csid0 u32:2200.
+                                        const b/isBare and gt /clen u64:0 and not /isStmtVerb and not /isTopDecl and not tokensStartWasmDefinition /child and not isClosedStringLiteralNode /child and not isClosedCommentNode /child not isClosedIdentifierNode /child.
+                                        if /isBare
                                             do
-                                                bufExtend /out field /nr payload.
+                                                const l/u128/nextVis appendUniqueU128 /visIds /u.
+                                                let l/dc/expChild /child.
+                                                if hasAnySysRegionToken /child
+                                                    do
+                                                        let buf/dc/ebuf bufNew dc /clen.
+                                                        let u64/ci u64:0.
+                                                        while lt /ci /clen do
+                                                            const dc/ct dcAtOr /child /ci /dcZero.
+                                                            const u32/csid dcShortId /ct.
+                                                            if or eq /csid u32:255 eq /csid u32:2239
+                                                                do
+                                                                    bufPush /ebuf /ct.
+                                                                    const u64/ci1 wrapAdd /ci u64:1.
+                                                                    if lt /ci1 /clen
+                                                                        do
+                                                                            bufPush /ebuf dcAtOr /child /ci1 /dcZero.
+                                                                            set /ci wrapAdd /ci1 u64:1.
+                                                                        ::
+                                                                        set /ci /ci1.
+                                                                    continue.
+                                                                ::
+                                                                nop.
+                                                            if and eq /csid /noRegionId isSysRegionDc /ct
+                                                                do
+                                                                    const u128/cu u128FromDc /ct.
+                                                                    if not listContainsU128 /nextVis /cu
+                                                                        do
+                                                                            const capOptNodeRes/subNr expandInternedNodesInner /curCli l/dc: dc:260 /ct dc:261 :: /nextVis.
+                                                                            set /curCli field /subNr cli.
+                                                                            if eq field /subNr tag u8:2
+                                                                                return /subNr
+                                                                                nop.
+                                                                            if eq field /subNr tag u8:1
+                                                                                match readStringLiteralAt field /subNr payload u64:0
+                                                                                    case ok strStep/st
+                                                                                        do
+                                                                                            bufExtend /ebuf field /st payload.
+                                                                                            set /ci wrapAdd /ci u64:1.
+                                                                                            continue.
+                                                                                        ::
+                                                                                    case err l/dc/_e nop.
+                                                                                ::
+                                                                                nop.
+                                                                        ::
+                                                                        nop.
+                                                                ::
+                                                                nop.
+                                                            bufPush /ebuf /ct.
+                                                            set /ci wrapAdd /ci u64:1.
+                                                        ::.
+                                                        set /expChild bufFreeze /ebuf.
+                                                    ::
+                                                    nop.
+                                                const b/escLeadType and /inIdent and not /identHasType not /identHasPayload.
+                                                const u64/elen len /expChild.
+                                                let u64/ri u64:0.
+                                                while lt /ri /elen do
+                                                    const dc/rt dcAtOr /expChild /ri /dcZero.
+                                                    const u32/rsid dcShortId /rt.
+                                                    if eq /rsid u32:2239
+                                                        do
+                                                            bufPush /out /rt.
+                                                            const u64/ri1 wrapAdd /ri u64:1.
+                                                            if lt /ri1 /elen
+                                                                do
+                                                                    const dc/rnx dcAtOr /expChild /ri1 /dcZero.
+                                                                    if and eq dcShortId /rnx u32:255 lt wrapAdd /ri u64:2 /elen
+                                                                        do
+                                                                            bufPush /out dc:255.
+                                                                            bufPush /out dcAtOr /expChild wrapAdd /ri u64:2 /dcZero.
+                                                                            set /ri wrapAdd /ri u64:3.
+                                                                            continue.
+                                                                        ::
+                                                                        nop.
+                                                                    if eq dcShortId /rnx /frameCloseSid
+                                                                        bufPush /out dc:255
+                                                                        nop.
+                                                                    bufPush /out /rnx.
+                                                                    set /ri wrapAdd /ri1 u64:1.
+                                                                ::
+                                                                set /ri /ri1.
+                                                            continue.
+                                                        ::
+                                                        nop.
+                                                    if eq /rsid u32:255
+                                                        do
+                                                            bufPush /out /rt.
+                                                            const u64/ri1 wrapAdd /ri u64:1.
+                                                            if lt /ri1 /elen
+                                                                do
+                                                                    bufPush /out dcAtOr /expChild /ri1 /dcZero.
+                                                                    set /ri wrapAdd /ri1 u64:1.
+                                                                ::
+                                                                set /ri /ri1.
+                                                            continue.
+                                                        ::
+                                                        nop.
+                                                    const b/needEsc or eq /rsid /frameCloseSid and /escLeadType and eq /ri u64:0 or ne dcFormatId /rt /noRegionId eq /rsid u32:262.
+                                                    if /needEsc
+                                                        bufPush /out dc:255
+                                                        nop.
+                                                    bufPush /out /rt.
+                                                    set /ri wrapAdd /ri u64:1.
+                                                ::.
+                                                if /inIdent
+                                                    set /identHasPayload true
+                                                    nop.
                                                 set /prevSid /noRegionId.
                                                 set /hasPrev true.
                                                 set /i wrapAdd /i u64:1.
@@ -1465,8 +1555,12 @@ v/capOptNodeRes/expandInternedNodesInner capClient/cli l/dc/tokens l/u128/visIds
                                     nop.
                             ::
                             nop.
-                        bufPush /out /tok.
-                    ::.
+                    ::
+                    nop.
+                bufPush /out /tok.
+                if /inIdent
+                    set /identHasPayload true
+                    nop.
                 set /prevSid /sid.
                 set /hasPrev true.
                 set /i wrapAdd /i u64:1.
@@ -1487,16 +1581,144 @@ v/capOptNodeRes/expandInternedNodesInner capClient/cli l/dc/tokens l/u128/visIds
                 ::
                 if eq /sid u32:270
                     do
-                        set /inIdent true.
                         bufPush /out /tok.
+                        set /inIdent true.
+                        set /identHasType false.
+                        set /identHasPayload false.
+                        let u64/scanEnd /n.
+                        let u64/si wrapAdd /i u64:1.
+                        while lt /si /n do
+                            const u32/ssid dcShortId dcAtOr /tokens /si /dcZero.
+                            if eq /ssid u32:255
+                                set /si wrapAdd /si u64:2
+                                if eq /ssid u32:271
+                                    do
+                                        set /scanEnd /si.
+                                        break.
+                                    ::
+                                    set /si wrapAdd /si u64:1.
+                        ::.
+                        if lt /scanEnd /n
+                            do
+                                const dc/nx1Tok dcAtOr /tokens wrapAdd /i u64:1 /dcZero.
+                                if and ne dcFormatId /nx1Tok /noRegionId lt wrapAdd /i u64:2 /scanEnd
+                                    do
+                                        bufPush /out /nx1Tok.
+                                        set /identHasType true.
+                                        set /prevSid /noRegionId.
+                                        set /hasPrev true.
+                                        set /i wrapAdd /i u64:2.
+                                        continue.
+                                    ::
+                                    if eq dcShortId /nx1Tok u32:262
+                                        do
+                                            let u64/td u64:1.
+                                            let u64/ti wrapAdd /i u64:2.
+                                            let u64/tEnd /n.
+                                            while and lt /ti /scanEnd gt /td u64:0 do
+                                                const u32/tsid dcShortId dcAtOr /tokens /ti /dcZero.
+                                                if eq /tsid u32:255
+                                                    set /ti wrapAdd /ti u64:2
+                                                    do
+                                                        if eq /tsid u32:262
+                                                            set /td wrapAdd /td u64:1
+                                                            if eq /tsid u32:263
+                                                                do
+                                                                    set /td wrapSub /td u64:1.
+                                                                    if eq /td u64:0
+                                                                        set /tEnd /ti
+                                                                        nop.
+                                                                ::
+                                                                nop.
+                                                        set /ti wrapAdd /ti u64:1.
+                                                    ::.
+                                            ::.
+                                            if lt wrapAdd /tEnd u64:1 /scanEnd
+                                                do
+                                                    let u64/ci wrapAdd /i u64:1.
+                                                    while le /ci /tEnd do
+                                                        bufPush /out dcAtOr /tokens /ci /dcZero.
+                                                        set /ci wrapAdd /ci u64:1.
+                                                    ::.
+                                                    set /identHasType true.
+                                                    set /prevSid u32:263.
+                                                    set /hasPrev true.
+                                                    set /i wrapAdd /tEnd u64:1.
+                                                    continue.
+                                                ::
+                                                nop.
+                                        ::
+                                        nop.
+                            ::
+                            nop.
                     ::
                     if eq /sid u32:260
                         do
-                            set /inLit true.
                             const u32/nx1 dcShortId dcAtOr /tokens wrapAdd /i u64:1 /dcZero.
                             const u32/nx2 dcShortId dcAtOr /tokens wrapAdd /i u64:2 /dcZero.
-                            set /litIsAtomDc or eq /nx1 u32:640 and eq /nx1 u32:262 eq /nx2 u32:640.
+                            const u32/nx3 dcShortId dcAtOr /tokens wrapAdd /i u64:3 /dcZero.
                             bufPush /out /tok.
+                            if not and eq /nx1 u32:262 eq /nx2 u32:280
+                                do
+                                    set /inLit true.
+                                    set /litIsAtomDc or eq /nx1 u32:640 and eq /nx1 u32:262 or eq /nx2 u32:640 and eq /nx2 u32:310 eq /nx3 u32:640.
+                                    if and not /litIsAtomDc eq /nx1 u32:262
+                                        do
+                                            let u64/scanEnd /n.
+                                            let u64/si wrapAdd /i u64:1.
+                                            while lt /si /n do
+                                                const u32/ssid dcShortId dcAtOr /tokens /si /dcZero.
+                                                if eq /ssid u32:255
+                                                    set /si wrapAdd /si u64:2
+                                                    if eq /ssid u32:261
+                                                        do
+                                                            set /scanEnd /si.
+                                                            break.
+                                                        ::
+                                                        set /si wrapAdd /si u64:1.
+                                            ::.
+                                            if lt /scanEnd /n
+                                                do
+                                                    let u64/td u64:1.
+                                                    let u64/ti wrapAdd /i u64:2.
+                                                    let u64/tEnd /n.
+                                                    while and lt /ti /scanEnd gt /td u64:0 do
+                                                        const u32/tsid dcShortId dcAtOr /tokens /ti /dcZero.
+                                                        if eq /tsid u32:255
+                                                            set /ti wrapAdd /ti u64:2
+                                                            do
+                                                                if eq /tsid u32:262
+                                                                    set /td wrapAdd /td u64:1
+                                                                    if eq /tsid u32:263
+                                                                        do
+                                                                            set /td wrapSub /td u64:1.
+                                                                            if eq /td u64:0
+                                                                                set /tEnd /ti
+                                                                                nop.
+                                                                        ::
+                                                                        nop.
+                                                                set /ti wrapAdd /ti u64:1.
+                                                            ::.
+                                                    ::.
+                                                    if lt /tEnd /scanEnd
+                                                        do
+                                                            let u64/ci wrapAdd /i u64:1.
+                                                            while le /ci /tEnd do
+                                                                bufPush /out dcAtOr /tokens /ci /dcZero.
+                                                                set /ci wrapAdd /ci u64:1.
+                                                            ::.
+                                                            set /prevSid u32:263.
+                                                            set /hasPrev true.
+                                                            set /i wrapAdd /tEnd u64:1.
+                                                            continue.
+                                                        ::
+                                                        nop.
+                                                ::
+                                                nop.
+                                        ::
+                                        nop.
+                                ::
+                                nop.
                         ::
                         do
                             if and eq /sid /noRegionId isSysRegionDc /tok
@@ -1515,7 +1737,12 @@ v/capOptNodeRes/expandInternedNodesInner capClient/cli l/dc/tokens l/u128/visIds
                                                     const l/dc/child field /nr payload.
                                                     if or isClosedStringLiteralNode /child or isClosedCommentNode /child or isClosedIdentifierNode /child isLegacyUnicodeRunNode /child
                                                         do
-                                                            bufExtend /out /child.
+                                                            const capOptNodeRes/expC expandInternedNodesInner /curCli /child appendUniqueU128 /visIds /u.
+                                                            set /curCli field /expC cli.
+                                                            if eq field /expC tag u8:2
+                                                                return /expC
+                                                                nop.
+                                                            bufExtend /out field /expC payload.
                                                             set /prevSid /noRegionId.
                                                             set /hasPrev true.
                                                             set /i wrapAdd /i u64:1.
@@ -2356,7 +2583,7 @@ v/capCallRes/expandWasmTokensInner capClient/cli l/dc/tokens u64/wasmDepth l/u12
     while lt /i /n do
         const dc/tok dcAtOr /tokens /i /dcZero.
         const u32/sid dcShortId /tok.
-        if eq /sid u32:255
+        if or eq /sid u32:255 eq /sid u32:2239
             do
                 bufPush /out /tok.
                 const u64/i1 wrapAdd /i u64:1.
@@ -2406,7 +2633,7 @@ v/capCallRes/expandWasmTokensInner capClient/cli l/dc/tokens u64/wasmDepth l/u12
                 while lt /i /n do
                     const dc/it dcAtOr /tokens /i /dcZero.
                     const u32/itSid dcShortId /it.
-                    if eq /itSid u32:255
+                    if or eq /itSid u32:255 eq /itSid u32:2239
                         do
                             bufPush /out /it.
                             const u64/i1 wrapAdd /i u64:1.
@@ -2596,7 +2823,7 @@ v/b/needsWasmTokenExpansion l/dc/tokens
     while lt /i /n do
         const dc/tok dcAtOr /tokens /i /dcZero.
         const u32/sid dcShortId /tok.
-        if eq /sid u32:255
+        if or eq /sid u32:255 eq /sid u32:2239
             do
                 const u64/i1 wrapAdd /i u64:1.
                 set /i if lt /i1 /n wrapAdd /i1 u64:1 /i1.
@@ -2634,7 +2861,7 @@ v/b/needsWasmTokenExpansion l/dc/tokens
                 set /i wrapAdd /i u64:1.
                 while lt /i /n do
                     const u32/isid dcShortId dcAtOr /tokens /i /dcZero.
-                    if eq /isid u32:255
+                    if or eq /isid u32:255 eq /isid u32:2239
                         do
                             const u64/i1 wrapAdd /i u64:1.
                             set /i if lt /i1 /n wrapAdd /i1 u64:1 /i1.
@@ -6276,8 +6503,19 @@ v/convListRes/findDirectOneHopConverter capClient/cli l/u128/srcEqIds dc/dst
     structNew convListRes: cli /curCli ok true steps l/convStep: :: errTokens l/dc: :: ::.
 
 : @dc l8589992882
-v/dcRes/runConvertDcStringToWasm l/dc/inputTokens
+v/dcRes/runConvertDcStringToWasm l/dc/rawInputTokens
     let capClient/cli emptyClient.
+    let l/dc/inputTokens /rawInputTokens.
+    if hasAnySysRegionToken /inputTokens
+        do
+            const capOptNodeRes/expIn expandInternedNodesInner /cli /inputTokens l/u128: ::.
+            set /cli field /expIn cli.
+            if eq field /expIn tag u8:2
+                return dcRes:err field /expIn payload
+                nop.
+            set /inputTokens field /expIn payload.
+        ::
+        nop.
 
     : 1. Parse call prefix `[Dc 2608, <parameter?> [string]]`.
     let u64/pos skipAllComments /inputTokens u64:0.
@@ -6305,7 +6543,7 @@ v/dcRes/runConvertDcStringToWasm l/dc/inputTokens
         ::
         nop.
     const strStepRes/litRes readStringLiteralAt /inputTokens /pos.
-    const l/dc/rawTarget match /litRes
+    let l/dc/rawTarget match /litRes
         case ok strStep/st
             do
                 set /pos skipAllComments /inputTokens field /st nextPos.
@@ -6323,6 +6561,16 @@ v/dcRes/runConvertDcStringToWasm l/dc/inputTokens
         nop.
     if ne /pos len /inputTokens
         return failMsg b"Unexpected trailing tokens after ConvertDcStringToWasm [string] argument"
+        nop.
+    if hasAnySysRegionToken /rawTarget
+        do
+            const capOptNodeRes/expTgt expandInternedNodesInner /cli /rawTarget l/u128: ::.
+            set /cli field /expTgt cli.
+            if eq field /expTgt tag u8:2
+                return dcRes:err field /expTgt payload
+                nop.
+            set /rawTarget field /expTgt payload.
+        ::
         nop.
 
     : 2. Strip leading comments in unescaped target document & handle inner `Dc 641` pin.

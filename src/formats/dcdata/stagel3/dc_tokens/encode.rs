@@ -58,6 +58,7 @@ use crate::dc::{
     DC_END_TEST_CASE, DC_END_TUPLE, DC_END_TYPE_DEF, DC_END_USE_IMPORT,
     DC_ENUM_VARIANT_DECL, DC_ENUM_VARIANT_VALUE, DC_ERROR_TAG_VALUE, DC_ESCAPE,
     DC_EVALUATE_VALUE_AS_ATOM, DC_FAULT_TRAP, DC_FILE_PATH_DELIMITER,
+    DC_QUOTE_FOLLOWING_DC_AS_ATOM,
     DC_FOR_EACH, DC_GET_NAMED_FIELD_OP, DC_GET_POSITIONAL_FIELD_OP,
     DC_IF_CONDITIONAL, DC_LIST_ELEMENT_SEPARATOR, DC_MATCH_CASE_ARM,
     DC_NAMED_STRUCT_FIELD_DECL, DC_NAMED_STRUCT_FIELD_INIT, DC_NAMESPACE_DECL,
@@ -201,7 +202,10 @@ fn push_escaped_literal_frame(
     out.push(type_dc);
     out.push(DC_END_TYPE_DEF);
     for ch in payload {
-        if ch == DC_END_LITERAL || ch == DC_ESCAPE {
+        if ch == DC_END_LITERAL
+            || ch == DC_ESCAPE
+            || ch == DC_QUOTE_FOLLOWING_DC_AS_ATOM
+        {
             out.push(DC_ESCAPE);
         }
         out.push(ch);
@@ -320,7 +324,10 @@ fn push_comment(out: &mut Vec<DcChar>, comment: &Comment) {
     } else {
         for ch in comment.text.chars() {
             let dc = DcChar::from_char(ch);
-            if dc == DC_END_SINGLE_LINE_COMMENT || dc == DC_ESCAPE {
+            if dc == DC_END_SINGLE_LINE_COMMENT
+                || dc == DC_ESCAPE
+                || dc == DC_QUOTE_FOLLOWING_DC_AS_ATOM
+            {
                 out.push(DC_ESCAPE);
             }
             out.push(dc);
@@ -333,6 +340,7 @@ fn push_atom_dc(out: &mut Vec<DcChar>, dc: DcChar) {
     if dc == DC_START_ENCAPSULATION_BINARY
         || dc == DC_ESCAPE
         || dc == DC_EVALUATE_VALUE_AS_ATOM
+        || dc == DC_QUOTE_FOLLOWING_DC_AS_ATOM
     {
         out.push(DC_ESCAPE);
     }
@@ -352,6 +360,7 @@ fn push_identifier(out: &mut Vec<DcChar>, name: &str) -> Result<()> {
     for (idx, ch) in name.chars().enumerate() {
         let dc = DcChar::from_char(ch);
         if dc == DC_ESCAPE
+            || dc == DC_QUOTE_FOLLOWING_DC_AS_ATOM
             || dc == DC_END_IDENTIFIER
             || (idx == 0 && (dc.is_format() || dc == DC_BEGIN_TYPE_DEF))
         {

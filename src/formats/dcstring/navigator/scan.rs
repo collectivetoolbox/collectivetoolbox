@@ -1635,6 +1635,37 @@ impl<'a> DcDocumentNavigator<'a> {
             if ch.fills_role_with(DcRole::EndLiteral, resolver) {
                 break;
             }
+            if ch.fills_role_with(DcRole::QuoteFollowingDcAsAtom, resolver) {
+                if let Some(quoted) = self.pop_next_token()? {
+                    ch = quoted;
+                    if ch.fills_role_with(DcRole::Escape, resolver) {
+                        if let Some(escaped) = self.pop_next_token()? {
+                            ch = escaped;
+                        } else {
+                            self.syntax_issue(
+                                policy,
+                                self.cursor,
+                                format!(
+                                    "Dangling escape Dc 255 after Dc 2239 in literal at offset {}",
+                                    self.cursor
+                                ),
+                            )?;
+                            break;
+                        }
+                    }
+                    decoded.push_char(ch);
+                    continue;
+                }
+                self.syntax_issue(
+                    policy,
+                    self.cursor,
+                    format!(
+                        "Dangling Dc 2239 in literal at offset {}",
+                        self.cursor
+                    ),
+                )?;
+                break;
+            }
             if ch.fills_role_with(DcRole::Escape, resolver) {
                 if let Some(escaped) = self.pop_next_token()? {
                     ch = escaped;
@@ -1752,6 +1783,37 @@ impl<'a> DcDocumentNavigator<'a> {
         let mut name = DcMstring::new();
         while let Some(mut ch) = self.pop_next_token()? {
             if ch.fills_role_with(DcRole::EndIdentifier, resolver) {
+                break;
+            }
+            if ch.fills_role_with(DcRole::QuoteFollowingDcAsAtom, resolver) {
+                if let Some(quoted) = self.pop_next_token()? {
+                    ch = quoted;
+                    if ch.fills_role_with(DcRole::Escape, resolver) {
+                        if let Some(escaped) = self.pop_next_token()? {
+                            ch = escaped;
+                        } else {
+                            self.syntax_issue(
+                                policy,
+                                self.cursor,
+                                format!(
+                                    "Dangling escape Dc 255 after Dc 2239 in identifier at offset {}",
+                                    self.cursor
+                                ),
+                            )?;
+                            break;
+                        }
+                    }
+                    name.push_char(ch);
+                    continue;
+                }
+                self.syntax_issue(
+                    policy,
+                    self.cursor,
+                    format!(
+                        "Dangling Dc 2239 in identifier at offset {}",
+                        self.cursor
+                    ),
+                )?;
                 break;
             }
             if ch.fills_role_with(DcRole::Escape, resolver) {

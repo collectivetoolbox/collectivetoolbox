@@ -401,6 +401,34 @@ impl SystemGraphWriteState {
             .max()
     }
 
+    /// Returns `true` if `a` and `b` are identical tokens or both reference
+    /// active value nodes with identical expanded token sequences.
+    #[must_use]
+    pub(crate) fn are_active_values_equivalent(
+        &self,
+        a: DcShorthand,
+        b: DcShorthand,
+    ) -> bool {
+        if a == b {
+            return true;
+        }
+        let (DcShorthand::Long(id_a), DcShorthand::Long(id_b)) = (a, b) else {
+            return false;
+        };
+        if self.inactive_ids.contains(&id_a)
+            || self.inactive_ids.contains(&id_b)
+        {
+            return false;
+        }
+        let Some(exp_a) = self.expanded_tokens_by_value_id.get(&id_a) else {
+            return false;
+        };
+        let Some(exp_b) = self.expanded_tokens_by_value_id.get(&id_b) else {
+            return false;
+        };
+        exp_a == exp_b
+    }
+
     /// Returns the node with `node_id`, if present.
     #[must_use]
     pub(crate) fn get_node(&self, node_id: u128) -> Option<&LedgerNode> {

@@ -44,26 +44,28 @@ use ctb_utilities::format_id::DC_COLLECTIVE_TOOLBOX;
 use crate::dc::{
     DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP,
     DC_BEGIN_BLOCK_COMMENT, DC_BEGIN_BLOCK_COMMENT_NEW_LINE,
-    DC_BEGIN_IDENTIFIER, DC_BEGIN_LIST, DC_BEGIN_LITERAL, DC_BEGIN_MODULE,
-    DC_BEGIN_ROUTINE_DECL, DC_BEGIN_SINGLE_LINE_COMMENT,
-    DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE, DC_BEGIN_STAGER_MODULE,
-    DC_BEGIN_TYPE_DEF, DC_BEGIN_WASM_PROGRAM, DC_BIDIRECTIONAL_CLASS,
-    DC_BOOLEAN_TRUE, DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME,
-    DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
+    DC_BEGIN_ENUM_DECL, DC_BEGIN_IDENTIFIER, DC_BEGIN_LIST, DC_BEGIN_LITERAL,
+    DC_BEGIN_MODULE, DC_BEGIN_NAMED_STRUCT_DECL,
+    DC_BEGIN_POSITIONAL_STRUCT_DECL, DC_BEGIN_ROUTINE_DECL,
+    DC_BEGIN_SINGLE_LINE_COMMENT, DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE,
+    DC_BEGIN_STAGER_MODULE, DC_BEGIN_TYPE_DEF, DC_BEGIN_WASM_PROGRAM,
+    DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE, DC_CANONICAL_DECOMPOSITION,
+    DC_CANONICAL_NAME, DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
     DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE,
     DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE, DC_DATA_FORMAT_DESCRIPTION,
-    DC_DC_DOCUMENT_EXECUTION_KERNEL, DC_DC_GENERAL_CATEGORY, DC_DECLARE_CONST,
-    DC_DECLARE_PUB, DC_DECOMPOSITION, DC_ENCLOSING_DOCUMENT,
-    DC_END_ASSOCIATIVITY_GROUP, DC_END_BLOCK_COMMENT, DC_END_IDENTIFIER,
-    DC_END_LIST, DC_END_LITERAL, DC_END_SINGLE_LINE_COMMENT,
-    DC_END_WASM_PROGRAM, DC_ENTITY_TYPE, DC_ESCAPE, DC_EVALUATE_VALUE_AS_ATOM,
+    DC_DC_DOCUMENT_EXECUTION_KERNEL, DC_DC_GENERAL_CATEGORY,
+    DC_DECLARE_BRAND_TYPE, DC_DECLARE_CONST, DC_DECLARE_PUB, DC_DECOMPOSITION,
+    DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP, DC_END_BLOCK_COMMENT,
+    DC_END_IDENTIFIER, DC_END_LIST, DC_END_LITERAL, DC_END_SINGLE_LINE_COMMENT,
+    DC_END_TYPE_DEF, DC_END_WASM_PROGRAM, DC_ENTITY_TYPE, DC_ESCAPE,
+    DC_EVALUATE_VALUE_AS_ATOM,
     DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID, DC_HAS_A, DC_HAS_VALUE,
     DC_IN_CONTEXT_OF, DC_IS_BASED_ON, DC_IS_INSTANCE_OF, DC_IS_STABLE,
     DC_MANUAL_ENTRY, DC_PATTERN_REPLACEMENT, DC_PREFERRED,
-    DC_PROGRAMMATIC_IDENTIFIER, DC_REPLACEMENT, DC_RETRACTS,
-    DC_SEMANTIC_DECOMPOSITION, DC_SUPERSEDES, DC_SYNTAX_RULE, DC_THIS_ELEMENT,
-    DC_TYPE_ANY, DC_TYPE_ATOM_DC, DC_TYPE_CONVERSION, DC_TYPE_ROUTINE,
-    DC_UNICODE_SCRIPT, DcChar,
+    DC_PROGRAMMATIC_IDENTIFIER, DC_QUOTE_FOLLOWING_DC_AS_ATOM, DC_REPLACEMENT,
+    DC_RETRACTS, DC_SEMANTIC_DECOMPOSITION, DC_SUPERSEDES, DC_SYNTAX_RULE,
+    DC_THIS_ELEMENT, DC_TYPE_ANY, DC_TYPE_ATOM_DC, DC_TYPE_CONVERSION,
+    DC_TYPE_ROUTINE, DC_UNICODE_SCRIPT, DcChar,
 };
 use crate::graph_ledger::{
     LedgerNode, MAX_NODES_PER_CHUNK, SeedEntityKey, chunk_filename_for_node_id,
@@ -3138,10 +3140,211 @@ impl SeedGraphIndex {
             && tokens.iter().all(|t| matches!(t, DcShorthand::Unicode(_)))
     }
 
-    /// Expands interned `[string]` (`260..261`), comment (`246/247..248`,
-    /// `249/250..251`), identifier (`270..271`), and legacy pure-Unicode run
-    /// node references using an arbitrary node-token lookup closure with cycle
-    /// protection.
+    /// Returns `true` when `tokens` at `type_open_idx` starts with `Dc 262 "Begin type definition"`
+    /// and finds its matching `Dc 263 "End type definition"` strictly before `limit_idx`.
+    #[must_use]
+    pub(crate) fn find_matching_type_def_end(
+        tokens: &[DcShorthand],
+        type_open_idx: usize,
+        limit_idx: usize,
+    ) -> Option<usize> {
+        let sh_open = sh(DC_BEGIN_TYPE_DEF);
+        let sh_close = sh(DC_END_TYPE_DEF);
+        let sh_escape = sh(DC_ESCAPE);
+        if tokens.get(type_open_idx) != Some(&sh_open) {
+            return None;
+        }
+        let mut depth = 1usize;
+        let mut cur = type_open_idx.saturating_add(1);
+        while cur < limit_idx {
+            let tok = *tokens.get(cur)?;
+            if tok == sh_escape {
+                cur = cur.saturating_add(2);
+                continue;
+            }
+            if tok == sh_open {
+                depth = depth.saturating_add(1);
+            } else if tok == sh_close {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    return Some(cur);
+                }
+            }
+            cur = cur.saturating_add(1);
+        }
+        None
+    }
+
+    /// Returns `true` when the `Dc 260 "Begin literal value"` frame at `lit_open_idx`
+    /// declares `Dc 640 "Built-in type identifier: Atom Dc (unevaluated Document Character reference)"`
+    /// (or `[list:atom_dc]`), suppressing normalization across its payload.
+    #[must_use]
+    pub(crate) fn is_atom_dc_literal_header(
+        tokens: &[DcShorthand],
+        lit_open_idx: usize,
+    ) -> bool {
+        let sh_type_atom_dc = sh(DC_TYPE_ATOM_DC);
+        let sh_type_open = sh(DC_BEGIN_TYPE_DEF);
+        let sh_list_open = sh(DC_BEGIN_LIST);
+        let nx1 = tokens.get(lit_open_idx.saturating_add(1));
+        if nx1 == Some(&sh_type_atom_dc) {
+            return true;
+        }
+        if nx1 == Some(&sh_type_open) {
+            let nx2 = tokens.get(lit_open_idx.saturating_add(2));
+            if nx2 == Some(&sh_type_atom_dc) {
+                return true;
+            }
+            if nx2 == Some(&sh_list_open)
+                && tokens.get(lit_open_idx.saturating_add(3))
+                    == Some(&sh_type_atom_dc)
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Returns `true` when `tokens` is a bare sequence value node (without outer
+    /// string/comment/identifier framing, statements, or module/WASM headers)
+    /// eligible to splice inline inside `[string]`, comment, and `[identifier]` frames.
+    #[must_use]
+    pub(crate) fn is_bare_payload_value_node(tokens: &[DcShorthand]) -> bool {
+        let Some(&first) = tokens.first() else {
+            return false;
+        };
+        if parse_statement_tokens(tokens).is_some()
+            || parse_for_each_statement_tokens(tokens).is_some()
+            || parse_ambiguous_values_tokens(tokens).is_some()
+            || Self::tokens_start_wasm_definition(tokens)
+            || Self::is_closed_string_literal_node(tokens)
+            || Self::is_closed_comment_node(tokens)
+            || Self::is_closed_identifier_node(tokens)
+        {
+            return false;
+        }
+        !matches!(
+            first,
+            t if t == sh(DC_BEGIN_MODULE)
+                || t == sh(DC_BEGIN_STAGER_MODULE)
+                || t == sh(DC_BEGIN_ROUTINE_DECL)
+                || t == sh(DC_DECLARE_CONST)
+                || t == sh(DC_DECLARE_PUB)
+                || t == sh(DC_BEGIN_POSITIONAL_STRUCT_DECL)
+                || t == sh(DC_DECLARE_BRAND_TYPE)
+                || t == sh(DC_BEGIN_NAMED_STRUCT_DECL)
+                || t == sh(DC_BEGIN_ENUM_DECL)
+        )
+    }
+
+    fn expand_bare_payload_with_lookup_inner<'a, F>(
+        tokens: &[DcShorthand],
+        lookup: &F,
+        visiting: &mut HashSet<u128>,
+    ) -> Vec<DcShorthand>
+    where
+        F: Fn(u128) -> Option<&'a [DcShorthand]>,
+    {
+        let sh_escape = sh(DC_ESCAPE);
+        let sh_quote_atom = sh(DC_QUOTE_FOLLOWING_DC_AS_ATOM);
+        let mut out = Vec::with_capacity(tokens.len());
+        let mut i = 0usize;
+        while let Some(&tok) = tokens.get(i) {
+            if tok == sh_escape || tok == sh_quote_atom {
+                out.push(tok);
+                if let Some(&next_tok) = tokens.get(i.saturating_add(1)) {
+                    out.push(next_tok);
+                    i = i.saturating_add(2);
+                } else {
+                    i = i.saturating_add(1);
+                }
+                continue;
+            }
+            if let DcShorthand::Long(child_id) = tok
+                && !visiting.contains(&child_id)
+                && let Some(child_tokens) = lookup(child_id)
+                && Self::is_bare_payload_value_node(child_tokens)
+            {
+                visiting.insert(child_id);
+                let expanded = Self::expand_bare_payload_with_lookup_inner(
+                    child_tokens,
+                    lookup,
+                    visiting,
+                );
+                visiting.remove(&child_id);
+                out.extend(expanded);
+            } else {
+                out.push(tok);
+            }
+            i = i.saturating_add(1);
+        }
+        out
+    }
+
+    fn push_re_escaped_for_frame(
+        out: &mut Vec<DcShorthand>,
+        expanded_payload: &[DcShorthand],
+        frame_closer: DcShorthand,
+        escape_leading_type_or_format: bool,
+    ) {
+        let sh_escape = sh(DC_ESCAPE);
+        let sh_quote_atom = sh(DC_QUOTE_FOLLOWING_DC_AS_ATOM);
+        let sh_type_open = sh(DC_BEGIN_TYPE_DEF);
+        let mut idx = 0usize;
+        while let Some(&tok) = expanded_payload.get(idx) {
+            if tok == sh_quote_atom {
+                out.push(tok);
+                if let Some(&next_tok) =
+                    expanded_payload.get(idx.saturating_add(1))
+                {
+                    if next_tok == sh_escape
+                        && let Some(&esc_tok) =
+                            expanded_payload.get(idx.saturating_add(2))
+                    {
+                        out.push(sh_escape);
+                        out.push(esc_tok);
+                        idx = idx.saturating_add(3);
+                        continue;
+                    }
+                    if next_tok == frame_closer {
+                        out.push(sh_escape);
+                    }
+                    out.push(next_tok);
+                    idx = idx.saturating_add(2);
+                } else {
+                    idx = idx.saturating_add(1);
+                }
+                continue;
+            }
+            if tok == sh_escape {
+                out.push(tok);
+                if let Some(&next_tok) = expanded_payload.get(idx.saturating_add(1))
+                {
+                    out.push(next_tok);
+                    idx = idx.saturating_add(2);
+                } else {
+                    idx = idx.saturating_add(1);
+                }
+                continue;
+            }
+            let needs_escape = tok == frame_closer
+                || (escape_leading_type_or_format
+                    && idx == 0
+                    && (matches!(tok, DcShorthand::Format(_))
+                        || tok == sh_type_open));
+            if needs_escape {
+                out.push(sh_escape);
+            }
+            out.push(tok);
+            idx = idx.saturating_add(1);
+        }
+    }
+
+    /// Expands interned bare sequence payloads inside `[string]`, comment, and
+    /// `[identifier]` frames, as well as historical closed `[string]` (`260..261`),
+    /// comment (`246/247..248`, `249/250..251`), identifier (`270..271`), and
+    /// pure-Unicode run node references, honoring `Dc 2239` (`Quote following Dc as atom`)
+    /// with cycle protection.
     #[must_use]
     pub(crate) fn expand_interned_nodes_with_lookup<'a, F>(
         tokens: &[DcShorthand],
@@ -3168,6 +3371,7 @@ impl SeedGraphIndex {
     {
         let sh_escape = sh(DC_ESCAPE);
         let sh_atom = sh(DC_EVALUATE_VALUE_AS_ATOM);
+        let sh_quote_atom = sh(DC_QUOTE_FOLLOWING_DC_AS_ATOM);
         let sh_type_atom_dc = sh(DC_TYPE_ATOM_DC);
         let sh_lit_open = sh(DC_BEGIN_LITERAL);
         let sh_lit_close = sh(DC_END_LITERAL);
@@ -3184,16 +3388,21 @@ impl SeedGraphIndex {
         let mut in_lit = false;
         let mut lit_is_atom_dc = false;
         let mut in_ident = false;
+        let mut ident_has_type = false;
+        let mut ident_has_payload = false;
         let mut comment_close: Option<DcShorthand> = None;
         let mut i = 0usize;
         while let Some(&tok) = tokens.get(i) {
-            if tok == sh_escape {
+            if tok == sh_escape || tok == sh_quote_atom {
                 out.push(tok);
                 if let Some(&next_tok) = tokens.get(i.saturating_add(1)) {
                     out.push(next_tok);
                     i = i.saturating_add(2);
                 } else {
                     i = i.saturating_add(1);
+                }
+                if in_ident {
+                    ident_has_payload = true;
                 }
                 continue;
             }
@@ -3204,9 +3413,22 @@ impl SeedGraphIndex {
                 } else if let DcShorthand::Long(child_id) = tok
                     && !visiting.contains(&child_id)
                     && let Some(child_tokens) = lookup(child_id)
-                    && Self::is_legacy_unicode_run_node(child_tokens)
+                    && Self::is_bare_payload_value_node(child_tokens)
                 {
-                    out.extend_from_slice(child_tokens);
+                    visiting.insert(child_id);
+                    let expanded_child =
+                        Self::expand_bare_payload_with_lookup_inner(
+                            child_tokens,
+                            lookup,
+                            visiting,
+                        );
+                    visiting.remove(&child_id);
+                    Self::push_re_escaped_for_frame(
+                        &mut out,
+                        &expanded_child,
+                        close_tok,
+                        false,
+                    );
                 } else {
                     out.push(tok);
                 }
@@ -3216,15 +3438,32 @@ impl SeedGraphIndex {
             if in_ident {
                 if tok == sh_ident_close {
                     in_ident = false;
+                    ident_has_type = false;
+                    ident_has_payload = false;
                     out.push(tok);
                 } else if let DcShorthand::Long(child_id) = tok
                     && !visiting.contains(&child_id)
                     && let Some(child_tokens) = lookup(child_id)
-                    && Self::is_legacy_unicode_run_node(child_tokens)
+                    && Self::is_bare_payload_value_node(child_tokens)
                 {
-                    out.extend_from_slice(child_tokens);
+                    visiting.insert(child_id);
+                    let expanded_child =
+                        Self::expand_bare_payload_with_lookup_inner(
+                            child_tokens,
+                            lookup,
+                            visiting,
+                        );
+                    visiting.remove(&child_id);
+                    Self::push_re_escaped_for_frame(
+                        &mut out,
+                        &expanded_child,
+                        sh_ident_close,
+                        !ident_has_type && !ident_has_payload,
+                    );
+                    ident_has_payload = true;
                 } else {
                     out.push(tok);
+                    ident_has_payload = true;
                 }
                 i = i.saturating_add(1);
                 continue;
@@ -3242,9 +3481,22 @@ impl SeedGraphIndex {
                     )
                     && !visiting.contains(&child_id)
                     && let Some(child_tokens) = lookup(child_id)
-                    && Self::is_legacy_unicode_run_node(child_tokens)
+                    && Self::is_bare_payload_value_node(child_tokens)
                 {
-                    out.extend_from_slice(child_tokens);
+                    visiting.insert(child_id);
+                    let expanded_child =
+                        Self::expand_bare_payload_with_lookup_inner(
+                            child_tokens,
+                            lookup,
+                            visiting,
+                        );
+                    visiting.remove(&child_id);
+                    Self::push_re_escaped_for_frame(
+                        &mut out,
+                        &expanded_child,
+                        sh_lit_close,
+                        false,
+                    );
                 } else {
                     out.push(tok);
                 }
@@ -3259,17 +3511,72 @@ impl SeedGraphIndex {
                 comment_close = Some(sh_blk_close);
                 out.push(tok);
             } else if tok == sh_ident_open {
+                out.push(tok);
                 in_ident = true;
-                out.push(tok);
-            } else if tok == sh_lit_open {
-                in_lit = true;
-                lit_is_atom_dc = tokens.get(i.saturating_add(1))
-                    == Some(&sh_type_atom_dc)
-                    || (tokens.get(i.saturating_add(1))
+                ident_has_type = false;
+                ident_has_payload = false;
+                if let Some(end_idx) = find_closed_delimited_span(
+                    tokens,
+                    i,
+                    sh_ident_close,
+                    sh_escape,
+                ) {
+                    if let Some(&fmt_tok) = tokens.get(i.saturating_add(1))
+                        && matches!(fmt_tok, DcShorthand::Format(_))
+                        && i.saturating_add(2) < end_idx
+                    {
+                        out.push(fmt_tok);
+                        ident_has_type = true;
+                        i = i.saturating_add(2);
+                        continue;
+                    } else if tokens.get(i.saturating_add(1))
                         == Some(&sh(DC_BEGIN_TYPE_DEF))
-                        && tokens.get(i.saturating_add(2))
-                            == Some(&sh_type_atom_dc));
+                        && let Some(type_end) = Self::find_matching_type_def_end(
+                            tokens,
+                            i.saturating_add(1),
+                            end_idx,
+                        )
+                        && type_end.saturating_add(1) < end_idx
+                        && let Some(type_slice) =
+                            tokens.get(i.saturating_add(1)..=type_end)
+                    {
+                        out.extend_from_slice(type_slice);
+                        ident_has_type = true;
+                        i = type_end.saturating_add(1);
+                        continue;
+                    }
+                }
+            } else if tok == sh_lit_open {
+                let is_routine_lit = tokens.get(i.saturating_add(1))
+                    == Some(&sh(DC_BEGIN_TYPE_DEF))
+                    && tokens.get(i.saturating_add(2))
+                        == Some(&sh(DC_TYPE_ROUTINE));
                 out.push(tok);
+                if !is_routine_lit {
+                    in_lit = true;
+                    lit_is_atom_dc = Self::is_atom_dc_literal_header(tokens, i);
+                    if !lit_is_atom_dc
+                        && tokens.get(i.saturating_add(1))
+                            == Some(&sh(DC_BEGIN_TYPE_DEF))
+                        && let Some(end_idx) = find_closed_delimited_span(
+                            tokens,
+                            i,
+                            sh_lit_close,
+                            sh_escape,
+                        )
+                        && let Some(type_end) = Self::find_matching_type_def_end(
+                            tokens,
+                            i.saturating_add(1),
+                            end_idx,
+                        )
+                        && let Some(type_slice) =
+                            tokens.get(i.saturating_add(1)..=type_end)
+                    {
+                        out.extend_from_slice(type_slice);
+                        i = type_end.saturating_add(1);
+                        continue;
+                    }
+                }
             } else if let DcShorthand::Long(child_id) = tok
                 && out.last().copied() != Some(sh_atom)
                 && !visiting.contains(&child_id)
@@ -6609,6 +6916,79 @@ mod tests {
         ];
 
         assert_eq!(idx.expand_interned_string_nodes(&input), expected);
+
+        // Bare payload nodes shared across `[string]`, comments, and `[identifier]`,
+        // plus `Dc 2239 "Quote following Dc as atom"` suppression & idempotence.
+        let bare_hello_id = SYSTEM_REGION_START + 10;
+        let bare_delim_id = SYSTEM_REGION_START + 11;
+        let nodes_bare = vec![
+            LedgerNode {
+                id: bare_hello_id,
+                tokens: vec![
+                    DcShorthand::Unicode(0x48),
+                    DcShorthand::Unicode(0x69),
+                ],
+                comment: "\"Hi\"".to_string(),
+            },
+            LedgerNode {
+                id: bare_delim_id,
+                tokens: vec![
+                    DcShorthand::Unicode(0x61),
+                    sh(DC_END_LITERAL),
+                    sh(DC_END_IDENTIFIER),
+                    DcShorthand::Unicode(0x62),
+                ],
+                comment: "delim".to_string(),
+            },
+        ];
+        let idx_bare = SeedGraphIndex::from_nodes(nodes_bare);
+        let bare_input = vec![
+            sh(DC_BEGIN_LITERAL),
+            sh(DC_BEGIN_TYPE_DEF),
+            DcShorthand::Short(264),
+            sh(DC_END_TYPE_DEF),
+            DcShorthand::Long(bare_hello_id),
+            sh(DC_QUOTE_FOLLOWING_DC_AS_ATOM),
+            DcShorthand::Long(bare_hello_id),
+            DcShorthand::Long(bare_delim_id),
+            sh(DC_END_LITERAL),
+            sh(DC_BEGIN_IDENTIFIER),
+            DcShorthand::Long(bare_delim_id),
+            sh(DC_END_IDENTIFIER),
+            sh(DC_BEGIN_SINGLE_LINE_COMMENT),
+            DcShorthand::Long(bare_hello_id),
+            sh(DC_END_SINGLE_LINE_COMMENT),
+        ];
+        let bare_expected = vec![
+            sh(DC_BEGIN_LITERAL),
+            sh(DC_BEGIN_TYPE_DEF),
+            DcShorthand::Short(264),
+            sh(DC_END_TYPE_DEF),
+            DcShorthand::Unicode(0x48),
+            DcShorthand::Unicode(0x69),
+            sh(DC_QUOTE_FOLLOWING_DC_AS_ATOM),
+            DcShorthand::Long(bare_hello_id),
+            DcShorthand::Unicode(0x61),
+            sh(DC_ESCAPE),
+            sh(DC_END_LITERAL),
+            sh(DC_END_IDENTIFIER),
+            DcShorthand::Unicode(0x62),
+            sh(DC_END_LITERAL),
+            sh(DC_BEGIN_IDENTIFIER),
+            DcShorthand::Unicode(0x61),
+            sh(DC_END_LITERAL),
+            sh(DC_ESCAPE),
+            sh(DC_END_IDENTIFIER),
+            DcShorthand::Unicode(0x62),
+            sh(DC_END_IDENTIFIER),
+            sh(DC_BEGIN_SINGLE_LINE_COMMENT),
+            DcShorthand::Unicode(0x48),
+            DcShorthand::Unicode(0x69),
+            sh(DC_END_SINGLE_LINE_COMMENT),
+        ];
+        let once = idx_bare.expand_interned_string_nodes(&bare_input);
+        assert_eq!(once, bare_expected);
+        assert_eq!(idx_bare.expand_interned_string_nodes(&once), bare_expected);
         Ok(())
     }
 }

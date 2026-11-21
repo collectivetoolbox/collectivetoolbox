@@ -132,8 +132,8 @@ fn fingerprint_seed_graph(sg: Option<&SeedGraphIndex>) -> SeedGraphFingerprint {
 }
 
 /// Encodes `chars` as a typed `[string]` literal
-/// (`Dc 260 262 264 263 <payload> 261`), protecting any payload `Dc 261` or
-/// `Dc 255` with `Dc 255`.
+/// (`Dc 260 262 264 263 <payload> 261`), protecting any payload `Dc 261`,
+/// `Dc 255`, or `Dc 2239` with `Dc 255`.
 #[must_use]
 pub fn encode_dc_string_literal(chars: &[DcChar]) -> DcMstring {
     let mut out = DcMstring::new();
@@ -142,7 +142,10 @@ pub fn encode_dc_string_literal(chars: &[DcChar]) -> DcMstring {
     out.push_char(DC_TYPE_STRING);
     out.push_char(DC_END_TYPE_DEF);
     for &ch in chars {
-        if ch == DC_END_LITERAL || ch == DC_ESCAPE {
+        if ch == DC_END_LITERAL
+            || ch == DC_ESCAPE
+            || ch == ctb_formats_dcdata::dc::DC_QUOTE_FOLLOWING_DC_AS_ATOM
+        {
             out.push_char(DC_ESCAPE);
         }
         out.push_char(ch);
@@ -177,6 +180,7 @@ fn encode_atom_dc(
     if resolver.token_fills_role(u, DcRole::StartEncapsulationBinary)
         || resolver.token_fills_role(u, DcRole::Escape)
         || resolver.token_fills_role(u, DcRole::EvaluateValueAsAtom)
+        || resolver.token_fills_role(u, DcRole::QuoteFollowingDcAsAtom)
     {
         out.push_char(DC_ESCAPE);
     }
@@ -190,16 +194,20 @@ fn consume_atom_dc(
 ) -> Result<(DcChar, bool, usize)> {
     let &first = tokens.get(pos).context("Unexpected EOF reading [atom_dc]")?;
     let first_u = first.to_u128();
-    if resolver.token_fills_role(first_u, DcRole::Escape) {
+    if resolver.token_fills_role(first_u, DcRole::Escape)
+        || resolver.token_fills_role(first_u, DcRole::QuoteFollowingDcAsAtom)
+    {
         let next_pos = pos.saturating_add(1);
         let &escaped = tokens
             .get(next_pos)
-            .context("Dangling Dc 255 escape in [atom_dc]")?;
+            .context("Dangling Dc 255/2239 escape in [atom_dc]")?;
         return Ok((escaped, true, next_pos.saturating_add(1)));
     }
     ensure!(
         !resolver.token_fills_role(first_u, DcRole::StartEncapsulationBinary)
-            && !resolver.token_fills_role(first_u, DcRole::EvaluateValueAsAtom),
+            && !resolver.token_fills_role(first_u, DcRole::EvaluateValueAsAtom)
+            && !resolver
+                .token_fills_role(first_u, DcRole::QuoteFollowingDcAsAtom),
         "Unsupported non-atomic Dc {first} in minimal [atom_dc] operand"
     );
     Ok((first, false, pos.saturating_add(1)))

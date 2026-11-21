@@ -337,15 +337,17 @@ pub(crate) fn extract_pin_node_id_from_pin_description(
         .first()
         .copied()
         .context("Missing System-block node ID operand after Dc 641")?;
-    if second.fills_role_with(DcRole::Escape, resolver) {
+    if second.fills_role_with(DcRole::Escape, resolver)
+        || second.fills_role_with(DcRole::QuoteFollowingDcAsAtom, resolver)
+    {
         ensure!(
             operand_slice.len() == 2,
-            "Trailing tokens in escaped Dc 641 atom_dc operand"
+            "Trailing tokens in escaped/quoted Dc 641 atom_dc operand"
         );
         let escaped = operand_slice
             .get(1)
             .copied()
-            .context("Dangling escape in Dc 641 atom_dc operand")?;
+            .context("Dangling escape/quote in Dc 641 atom_dc operand")?;
         return Ok(escaped.to_u128());
     }
     if second.fills_role_with(DcRole::EvaluateValueAsAtom, resolver) {

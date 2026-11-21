@@ -868,18 +868,36 @@ pub v/u64/skipComments l/dcVal/tokens u64/pos
     ::.
     /cur.
 
-: Reads one atom `dcVal` (with optional `Dc 255` escape) at `pos` -> `(ok, atom, nextPos)`.
+: Reads one atom `dcVal` (with optional `Dc 255` escape or `Dc 2239` atom quote) at `pos` -> `(ok, atom, nextPos)`.
 : @dc l8589980676
 pub v/tup: b dcVal u64 ::/readAtomDc l/dcVal/tokens u64/pos
     test
         in l/dcVal: structNew dcVal: u64:1114367 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: :: u64:0
         out tupNew: true structNew dcVal: u64:1114315 u64:0 :: u64:2 ::.
+    test
+        in l/dcVal: structNew dcVal: u64:1116351 u64:0 :: structNew dcVal: u64:0 u64:2 :: :: u64:0
+        out tupNew: true structNew dcVal: u64:0 u64:2 :: u64:2 ::.
     const u64/tlen len /tokens.
     if ge /pos /tlen
         return tupNew: false dcNew u64:0 u64:0 /pos ::
         nop.
     const dcVal/first get /tokens /pos.
-    if eq dcShortId /first u32:255
+    const u32/fsid dcShortId /first.
+    if eq /fsid u32:2239
+        do
+            const u64/p1 add /pos u64:1.
+            if ge /p1 /tlen
+                return tupNew: false dcNew u64:0 u64:0 /pos ::
+                nop.
+            const dcVal/nx get /tokens /p1.
+            if eq dcShortId /nx u32:255
+                if ge add /pos u64:2 /tlen
+                    return tupNew: false dcNew u64:0 u64:0 /pos ::
+                    return tupNew: true get /tokens add /pos u64:2 add /pos u64:3 ::
+                return tupNew: true /nx add /pos u64:2 ::.
+        ::
+        nop.
+    if eq /fsid u32:255
         if ge add /pos u64:1 /tlen
             tupNew: false dcNew u64:0 u64:0 /pos ::
             tupNew: true get /tokens add /pos u64:1 add /pos u64:2 ::
@@ -891,6 +909,9 @@ pub v/tup: b l/u8 u64 ::/readIdentBytes l/dcVal/tokens u64/pos
     test
         in l/dcVal: structNew dcVal: u64:1114382 u64:0 :: structNew dcVal: u64:120 u64:0 :: structNew dcVal: u64:49 u64:0 :: structNew dcVal: u64:1114383 u64:0 :: :: u64:0
         out tupNew: true b"x1" u64:4 ::.
+    test
+        in l/dcVal: structNew dcVal: u64:1114382 u64:0 :: structNew dcVal: u64:1116351 u64:0 :: structNew dcVal: u64:120 u64:0 :: structNew dcVal: u64:1114383 u64:0 :: :: u64:0
+        out tupNew: true b"x" u64:4 ::.
     const u64/tlen len /tokens.
     if or ge /pos /tlen ne dcShortId get /tokens /pos u32:270
         return tupNew: false b"" /pos ::
@@ -904,15 +925,31 @@ pub v/tup: b l/u8 u64 ::/readIdentBytes l/dcVal/tokens u64/pos
             return tupNew: true bufFreeze /chars add /i u64:1 ::
             nop.
         let dcVal/ch /tok.
-        if eq /sid u32:255
+        if eq /sid u32:2239
             do
                 if ge add /i u64:1 /tlen
                     return tupNew: false b"" /pos ::
                     nop.
                 set /ch get /tokens add /i u64:1.
-                set /i add /i u64:2.
+                if eq dcShortId /ch u32:255
+                    do
+                        if ge add /i u64:2 /tlen
+                            return tupNew: false b"" /pos ::
+                            nop.
+                        set /ch get /tokens add /i u64:2.
+                        set /i add /i u64:3.
+                    ::
+                    set /i add /i u64:2.
             ::
-            set /i add /i u64:1.
+            if eq /sid u32:255
+                do
+                    if ge add /i u64:1 /tlen
+                        return tupNew: false b"" /pos ::
+                        nop.
+                    set /ch get /tokens add /i u64:1.
+                    set /i add /i u64:2.
+                ::
+                set /i add /i u64:1.
         if or ne field /ch u32:1 u64:0 gt field /ch u32:0 u64:127
             return tupNew: false b"" /pos ::
             nop.
@@ -926,6 +963,9 @@ pub v/tup: b dcVal l/dcVal u64 ::/readEscapedLiteral l/dcVal/tokens u64/pos
     test
         in l/dcVal: structNew dcVal: u64:1114372 u64:0 :: structNew dcVal: u64:1114374 u64:0 :: structNew dcVal: u64:1114752 u64:0 :: structNew dcVal: u64:1114375 u64:0 :: structNew dcVal: u64:1114367 u64:0 :: structNew dcVal: u64:1114373 u64:0 :: structNew dcVal: u64:1114373 u64:0 :: :: u64:0
         out tupNew: true structNew dcVal: u64:1114752 u64:0 :: l/dcVal: structNew dcVal: u64:1114373 u64:0 :: :: u64:7 ::.
+    test
+        in l/dcVal: structNew dcVal: u64:1114372 u64:0 :: structNew dcVal: u64:1114374 u64:0 :: structNew dcVal: u64:1114376 u64:0 :: structNew dcVal: u64:1114375 u64:0 :: structNew dcVal: u64:1116351 u64:0 :: structNew dcVal: u64:0 u64:2 :: structNew dcVal: u64:1114373 u64:0 :: :: u64:0
+        out tupNew: true structNew dcVal: u64:1114376 u64:0 :: l/dcVal: structNew dcVal: u64:0 u64:2 :: :: u64:7 ::.
     const u64/tlen len /tokens.
     if gt add /pos u64:5 /tlen
         return tupNew: false dcNew u64:0 u64:0 l/dcVal: :: /pos ::
@@ -942,19 +982,40 @@ pub v/tup: b dcVal l/dcVal u64 ::/readEscapedLiteral l/dcVal/tokens u64/pos
         if eq /sid u32:261
             return tupNew: true /typeDc bufFreeze /payload wrapAdd /i u64:1 ::
             nop.
-        if eq /sid u32:255
+        if eq /sid u32:2239
             do
                 const u64/i1 wrapAdd /i u64:1.
                 if ge /i1 /tlen
                     return tupNew: false dcNew u64:0 u64:0 l/dcVal: :: /pos ::
                     nop.
-                bufPush /payload get /tokens /i1.
-                set /i wrapAdd /i u64:2.
+                const dcVal/nx get /tokens /i1.
+                if eq dcShortId /nx u32:255
+                    do
+                        const u64/i2 wrapAdd /i u64:2.
+                        if ge /i2 /tlen
+                            return tupNew: false dcNew u64:0 u64:0 l/dcVal: :: /pos ::
+                            nop.
+                        bufPush /payload get /tokens /i2.
+                        set /i wrapAdd /i u64:3.
+                    ::
+                    do
+                        bufPush /payload /nx.
+                        set /i wrapAdd /i u64:2.
+                    ::.
             ::
-            do
-                bufPush /payload /tok.
-                set /i wrapAdd /i u64:1.
-            ::.
+            if eq /sid u32:255
+                do
+                    const u64/i1 wrapAdd /i u64:1.
+                    if ge /i1 /tlen
+                        return tupNew: false dcNew u64:0 u64:0 l/dcVal: :: /pos ::
+                        nop.
+                    bufPush /payload get /tokens /i1.
+                    set /i wrapAdd /i u64:2.
+                ::
+                do
+                    bufPush /payload /tok.
+                    set /i wrapAdd /i u64:1.
+                ::.
     ::.
     tupNew: false dcNew u64:0 u64:0 l/dcVal: :: /pos ::.
 

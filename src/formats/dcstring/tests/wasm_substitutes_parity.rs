@@ -34,7 +34,11 @@ use anyhow::{Context, Result, bail, ensure};
 use ctb_formats_dcdata::SeedGraphIndex;
 use ctb_formats_dcdata::DcShorthand;
 use ctb_formats_dcdata::dc::{
-    DC_CONVERT_DC_STRING_TO_WASM, DC_DC_DOCUMENT_EXECUTION_KERNEL,
+    DC_BEGIN_IDENTIFIER, DC_BEGIN_LITERAL, DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE,
+    DC_BEGIN_TYPE_DEF, DC_CONVERT_DC_STRING_TO_WASM,
+    DC_DC_DOCUMENT_EXECUTION_KERNEL, DC_END_IDENTIFIER, DC_END_LITERAL,
+    DC_END_SINGLE_LINE_COMMENT, DC_END_TYPE_DEF, DC_QUOTE_FOLLOWING_DC_AS_ATOM,
+    DC_TYPE_STRING,
 };
 use ctb_formats_dcdata::seed_graph::{
     SystemWasmSubstituteTargetKind, discover_graph_wasm_substitute_snapshots,
@@ -49,7 +53,7 @@ use ctb_formats_dcstring::converters::wasm::{
     DcWasmExecutionBackend, DcWasmResourceLimits, DcWasmSession,
     WasmResourceInterruption, WasmStepOutcome,
     compile_graph_substitute_snapshot_wasm_bytes,
-    compile_system_subject_wasm_bytes,
+    compile_system_subject_wasm_bytes, dcstring_to_wasm_with_resolver,
 };
 use ctb_formats_dcstring::converters::wasm_capabilities::eval_pure_graph_capability_request;
 use ctb_formats_dcstring::{DcChar, DcMstr, DcMstring};
@@ -394,6 +398,159 @@ fn test_substitute_parity_dc_2608_option_b_capabilities() -> Result<()> {
         "Dc 2608 instruction count mismatch: {} vs {}",
         s_auto.total_instructions_executed(),
         s_tw.total_instructions_executed()
+    );
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_substitute_parity_dc_2608_bare_string_extraction_and_dc_2239_quote_atom()
+-> Result<()> {
+    let resolver = default_syntax_resolver();
+    let sg = SeedGraphIndex::shared()?;
+    let dc_2608_wasm = compile_system_subject_wasm_bytes(
+        DcShorthand::from_global_id(DC_CONVERT_DC_STRING_TO_WASM.to_u128()),
+        resolver.as_ref(),
+    )?;
+
+    // Locate active bare-payload string value nodes ("step" and "tokens") in the
+    // System graph (verifying neither node includes framing Dcs 260/261/270/271).
+    let find_bare_str_id = |target: &str| -> Result<u128> {
+        let want: Vec<DcShorthand> = target
+            .chars()
+            .map(|c| DcShorthand::Unicode(u32::from(c)))
+            .collect();
+        let node = sg
+            .nodes()
+            .iter()
+            .find(|n| sg.get_active_node(n.id).is_some() && n.tokens == want)
+            .with_context(|| {
+                format!("Expected active bare string node for {target:?} in SeedGraphIndex")
+            })?;
+        Ok(node.id)
+    };
+    let bare_step_id = find_bare_str_id("step")?;
+    let bare_tokens_id = find_bare_str_id("tokens")?;
+    let bare_step_dc = DcChar::from_u128(bare_step_id);
+    let bare_tokens_dc = DcChar::from_u128(bare_tokens_id);
+
+    // Build a StageL 3 module returning `dcs` ("X"), then splice:
+    // 1) a bare-payload comment (`247 l<bare_tokens_id> 248`),
+    // 2) a bare-payload routine identifier (`270 l<bare_step_id> 271`), and
+    // 3) a `dcs` literal `[260, 262, 264, 263, 2239, l<bare_tokens_id>, l<bare_tokens_id>, 261]`
+    //    where the first `l<bare_tokens_id>` is quoted as an atom via `Dc 2239`
+    //    and the second `l<bare_tokens_id>` normalizes/expands to `"tokens"`.
+    let template_sl3 = "v/dcs/step dcs/input :: dcs\"X\".\n";
+    let base_tokens = sl3_to_dc_tokens_with_seed_graph(template_sl3, sg)?;
+    let mut spliced = Vec::with_capacity(base_tokens.len().saturating_add(12));
+    spliced.push(DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE);
+    spliced.push(bare_tokens_dc);
+    spliced.push(DC_END_SINGLE_LINE_COMMENT);
+
+    let step_ident: Vec<DcChar> = vec![
+        DC_BEGIN_IDENTIFIER,
+        DcChar::from_char('s'),
+        DcChar::from_char('t'),
+        DcChar::from_char('e'),
+        DcChar::from_char('p'),
+        DC_END_IDENTIFIER,
+    ];
+    let x_lit: Vec<DcChar> = vec![
+        DC_BEGIN_LITERAL,
+        DC_BEGIN_TYPE_DEF,
+        DC_TYPE_STRING,
+        DC_END_TYPE_DEF,
+        DcChar::from_char('X'),
+        DC_END_LITERAL,
+    ];
+    let mut replaced_ident = false;
+    let mut replaced_lit = false;
+    let mut i = 0usize;
+    while i < base_tokens.len() {
+        if !replaced_ident
+            && base_tokens.get(i..i.saturating_add(step_ident.len()))
+                == Some(step_ident.as_slice())
+        {
+            spliced.extend([
+                DC_BEGIN_IDENTIFIER,
+                bare_step_dc,
+                DC_END_IDENTIFIER,
+            ]);
+            replaced_ident = true;
+            i = i.saturating_add(step_ident.len());
+            continue;
+        }
+        if !replaced_lit
+            && base_tokens.get(i..i.saturating_add(x_lit.len()))
+                == Some(x_lit.as_slice())
+        {
+            spliced.extend([
+                DC_BEGIN_LITERAL,
+                DC_BEGIN_TYPE_DEF,
+                DC_TYPE_STRING,
+                DC_END_TYPE_DEF,
+                DC_QUOTE_FOLLOWING_DC_AS_ATOM,
+                bare_tokens_dc,
+                bare_tokens_dc,
+                DC_END_LITERAL,
+            ]);
+            replaced_lit = true;
+            i = i.saturating_add(x_lit.len());
+            continue;
+        }
+        if let Some(&ch) = base_tokens.get(i) {
+            spliced.push(ch);
+        }
+        i = i.saturating_add(1);
+    }
+    ensure!(replaced_ident && replaced_lit, "Template splice failed");
+
+    let encoded_doc_lit = encode_dc_string_literal(&spliced);
+    let mut call_tokens = vec![DC_CONVERT_DC_STRING_TO_WASM];
+    call_tokens.extend(encoded_doc_lit.to_dc_string()?.chars());
+    let input_doc = tokens_to_dcmstring(&call_tokens);
+
+    let limits = DcWasmResourceLimits::default()
+        .with_max_instructions_per_step(4_000_000_000)
+        .with_max_memory_pages(2048)
+        .with_max_step_output_bytes(32 * 1024 * 1024)
+        .with_max_session_output_bytes(64 * 1024 * 1024)
+        .with_max_capability_payload_bytes(32 * 1024 * 1024);
+
+    let (mut s_auto, mut s_tw) =
+        create_pair_sessions(&dc_2608_wasm, &input_doc, limits)?;
+    let (out_auto, reqs_auto) =
+        drive_pure_session_with_capabilities(&mut s_auto, resolver.as_ref())?;
+    let (out_tw, reqs_tw) =
+        drive_pure_session_with_capabilities(&mut s_tw, resolver.as_ref())?;
+    ensure!(reqs_auto == reqs_tw, "Capability request parity mismatch");
+    ensure!(out_auto == out_tw, "Dc 2608 output parity mismatch");
+    ensure!(
+        s_auto.total_instructions_executed()
+            == s_tw.total_instructions_executed(),
+        "Dc 2608 instruction count parity mismatch"
+    );
+
+    // Assemble and run the compiled WASM module, verifying that the Dc 2239-quoted
+    // atom stayed unnormalized (`bare_tokens_dc`) while the unquoted reference
+    // expanded to `"tokens"`.
+    let compiled_dc_str = out_auto.to_dc_string()?;
+    let compiled_wasm =
+        dcstring_to_wasm_with_resolver(&compiled_dc_str, resolver.as_ref())?;
+    let empty_in = DcMstring::new();
+    let mut run_sess = DcWasmSession::from_wasm_bytes_with_limits_and_backend(
+        &compiled_wasm,
+        &empty_in,
+        None,
+        limits,
+        DcWasmExecutionBackend::ForceTinyWasm,
+    )?;
+    let run_out = run_single_complete_step(&mut run_sess)?;
+    let out_chars: Vec<DcChar> = run_out.to_dc_string()?.chars().collect();
+    let mut expected_chars = vec![bare_tokens_dc];
+    expected_chars.extend("tokens".chars().map(DcChar::from_char));
+    ensure!(
+        out_chars == expected_chars,
+        "Expected [quoted atom {bare_tokens_dc}, 't','o','k','e','n','s'], got {out_chars:?}"
     );
     Ok(())
 }

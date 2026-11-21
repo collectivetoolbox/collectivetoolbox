@@ -2107,17 +2107,28 @@ impl<'a> DcDocumentNavigator<'a> {
                         resolver,
                     )
                     || escaped_tok
-                        == ctb_formats_dcdata::dc::DC_EVALUATE_VALUE_AS_ATOM
-                    || resolver.is_equivalent_to(
-                        escaped_tok.to_u128(),
-                        ctb_formats_dcdata::dc::DC_EVALUATE_VALUE_AS_ATOM
-                            .to_u128(),
+                        .fills_role_with(DcRole::EvaluateValueAsAtom, resolver)
+                    || escaped_tok.fills_role_with(
+                        DcRole::QuoteFollowingDcAsAtom,
+                        resolver,
                     )
                 {
                     offset = after_escaped;
                 } else {
                     return Ok(None);
                 }
+            } else if tok
+                .fills_role_with(DcRole::QuoteFollowingDcAsAtom, resolver)
+            {
+                if after_tok >= self.active_span.end {
+                    return Ok(None);
+                }
+                let Some((_quoted_tok, after_quoted)) =
+                    self.read_token_or_binary_at(after_tok)?
+                else {
+                    return Ok(None);
+                };
+                offset = after_quoted;
             } else if tok == ctb_formats_dcdata::dc::DC_EVALUATE_VALUE_AS_ATOM
                 || resolver.is_equivalent_to(
                     tok.to_u128(),
