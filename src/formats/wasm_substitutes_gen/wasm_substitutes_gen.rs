@@ -18,7 +18,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! Offline generator for Guix-style native safe-Rust WebAssembly substitutes of
-//! System-graph routines (`Dc 1936`, `Dc f1680`, `Dc f1681`, `Dc 2608`).
+//! auto-discovered runnable System-graph routines (`Dc 1936`, active converters,
+//! and standalone StageL/StageR `pub dc/` entrypoints).
 
 #[allow(
     unused_imports,
@@ -27,29 +28,25 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ctb_formats_dcdata::syntax::default_syntax_resolver;
-use ctb_formats_dcstring::converters::wasm::compile_system_target_wasm_bytes;
+use ctb_formats_dcdata::seed_graph::SYSTEM_WASM_SUBSTITUTE_DISCOVERY_VERSION;
+use ctb_formats_dcdata::syntax::{SyntaxRuleResolver, default_syntax_resolver};
+use ctb_formats_dcstring::converters::wasm::compile_system_substitute_target_wasm_bytes;
 use ctb_formats_dcstring::converters::wasm_to_rust::{
-    TranspileWasmOptions, transpile_wasm_to_safe_rust,
-    transpiler_fingerprint_sha256,
+    transpile_wasm_bundle_to_safe_rust, transpiler_fingerprint_sha256,
 };
 use sha2::{Digest, Sha256};
-
-/// Ordered list of System-graph targets compiled to native substitutes.
-pub const SUBSTITUTE_TARGETS: &[&str] = &["dc_1936", "f1680", "f1681", "dc_2608"];
 
 /// Configuration parsed from CLI flags for [`run_generator`].
 #[derive(Debug, Clone, Default)]
 pub struct GenerateOptions {
-    /// Regenerate targets even when `// input-sha256:` matches on disk.
+    /// Regenerate targets even when `// input-sha256:` and file set match on disk.
     pub force: bool,
-    /// Fail instead of writing if any generated file is missing or stale.
+    /// Fail instead of writing if any generated file is missing, orphaned, or stale.
     pub check: bool,
-    /// Optional single target name filter (defaults to all [`SUBSTITUTE_TARGETS`]).
-    pub target_filter: Option<String>,
 }
 
 fn encode_hex_lower(bytes: &[u8]) -> String {
@@ -62,8 +59,7 @@ fn encode_hex_lower(bytes: &[u8]) -> String {
     out
 }
 
-fn read_recorded_input_sha256(path: &Path) -> Option<String> {
-    let content = fs::read_to_string(path).ok()?;
+fn read_recorded_input_sha256_from_str(content: &str) -> Option<String> {
     for line in content.lines().take(32) {
         if let Some(rest) = line.strip_prefix("// input-sha256: ") {
             return Some(rest.trim().to_owned());
@@ -72,12 +68,58 @@ fn read_recorded_input_sha256(path: &Path) -> Option<String> {
     None
 }
 
-fn target_output_path(repo_root: &Path, target: &str) -> PathBuf {
+fn parse_registry_expected_files(registry_content: &str) -> Option<BTreeSet<String>> {
+    let mut files = BTreeSet::new();
+    files.insert("registry.generated.rs".to_owned());
+    let mut mod_count = 0usize;
+    for line in registry_content.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("#[path = \"")
+            && let Some(end) = rest.find("\"]")
+            && let Some(filename) = rest.get(..end)
+            && !filename.is_empty()
+            && !filename.contains('/')
+            && !filename.contains('\\')
+        {
+            files.insert(filename.to_owned());
+            mod_count = mod_count.saturating_add(1);
+        }
+    }
+    (mod_count > 0).then_some(files)
+}
+
+fn substitutes_output_dir(repo_root: &Path) -> PathBuf {
     repo_root
         .join("src")
         .join("formats")
         .join("wasm_substitutes")
-        .join(format!("{target}.generated.rs"))
+}
+
+fn list_disk_generated_rs_files(out_dir: &Path) -> Result<BTreeSet<String>> {
+    let mut files = BTreeSet::new();
+    if !out_dir.exists() {
+        return Ok(files);
+    }
+    let entries = fs::read_dir(out_dir).with_context(|| {
+        format!(
+            "Failed to read substitute output directory {}",
+            out_dir.display()
+        )
+    })?;
+    for entry_res in entries {
+        let entry = entry_res?;
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+        let name_os = entry.file_name();
+        let Some(name) = name_os.to_str() else {
+            continue;
+        };
+        if name.ends_with(".generated.rs") {
+            files.insert(name.to_owned());
+        }
+    }
+    Ok(files)
 }
 
 fn write_atomic(path: &Path, content: &str) -> Result<()> {
@@ -155,15 +197,14 @@ fn compute_system_graph_bundles_sha256(repo_root: &Path) -> Result<[u8; 32]> {
     Ok(hasher.finalize().into())
 }
 
-fn compute_target_input_hash(
+fn compute_bundle_input_hash(
     graph_digest: &[u8; 32],
     transpiler_digest: &[u8; 32],
-    target: &str,
 ) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"ctb-wasm-substitute-input-v2");
-    hasher.update(target.as_bytes());
-    hasher.update([0u8]);
+    hasher.update(b"ctb-wasm-substitute-bundle-v3");
+    hasher.update(SYSTEM_WASM_SUBSTITUTE_DISCOVERY_VERSION.to_le_bytes());
+    hasher.update(include_bytes!("wasm_substitutes_gen.rs"));
     hasher.update(transpiler_digest);
     hasher.update(graph_digest);
     hasher.finalize().into()
@@ -172,94 +213,132 @@ fn compute_target_input_hash(
 /// Runs the substitute generator over `repo_root` with the given [`GenerateOptions`].
 ///
 /// # Errors
-/// Returns an error if any target is unknown, if `--check` finds missing or stale
-/// generated files, or if WASM lowering, transpilation, or atomic file write fails.
+/// Returns an error if `--check` finds missing, orphaned, or stale generated
+/// files, or if target discovery, WASM lowering, bundle transpilation, or file
+/// synchronization fails.
 pub fn run_generator(
     repo_root: &Path,
     opts: &GenerateOptions,
 ) -> Result<()> {
-    let targets: Vec<&str> = match &opts.target_filter {
-        Some(single) => {
-            ensure!(
-                SUBSTITUTE_TARGETS.contains(&single.as_str()),
-                "Unknown substitute target '{single}'; expected one of {SUBSTITUTE_TARGETS:?}"
-            );
-            vec![
-                SUBSTITUTE_TARGETS
-                    .iter()
-                    .copied()
-                    .find(|&t| t == single)
-                    .context("Target filter lookup failed")?,
-            ]
-        }
-        None => SUBSTITUTE_TARGETS.to_vec(),
-    };
-
+    let out_dir = substitutes_output_dir(repo_root);
+    let registry_path = out_dir.join("registry.generated.rs");
     let graph_digest = compute_system_graph_bundles_sha256(repo_root)?;
     let transpiler_digest = transpiler_fingerprint_sha256();
+    let bundle_hash =
+        compute_bundle_input_hash(&graph_digest, &transpiler_digest);
+    let bundle_hex = encode_hex_lower(&bundle_hash);
+    // Reason for fallback: SHA-256 hex digest is always 64 ASCII chars.
+    let short_hex = bundle_hex.get(..12).unwrap_or(&bundle_hex);
 
-    for target in targets {
-        let out_path = target_output_path(repo_root, target);
-        let input_hash = compute_target_input_hash(
-            &graph_digest,
-            &transpiler_digest,
-            target,
+    if !opts.force
+        && !opts.check
+        && let Ok(reg_content) = fs::read_to_string(&registry_path)
+        && read_recorded_input_sha256_from_str(&reg_content).as_deref()
+            == Some(bundle_hex.as_str())
+        && let Some(expected_files) = parse_registry_expected_files(&reg_content)
+        && list_disk_generated_rs_files(&out_dir)? == expected_files
+    {
+        println!(
+            "[generate-wasm-substitutes] bundle up-to-date ({short_hex}, {} files)",
+            expected_files.len(),
         );
-        let input_hex = encode_hex_lower(&input_hash);
+        return Ok(());
+    }
 
-        if !opts.force
-            && !opts.check
-            && read_recorded_input_sha256(&out_path).as_deref()
-                == Some(input_hex.as_str())
-        {
-            // Reason for fallback: SHA-256 hex digest is always 64 ASCII chars.
-            let short_hex = input_hex.get(..12).unwrap_or(&input_hex);
-            println!(
-                "[generate-wasm-substitutes] {target}: up-to-date ({short_hex})",
-            );
-            continue;
-        }
+    let active_resolver = default_syntax_resolver();
+    let sg = active_resolver
+        .seed_graph()
+        .context("Default SyntaxRuleResolver has no SeedGraphIndex")?;
+    let targets = sg.discover_system_wasm_substitute_targets()?;
+    ensure!(
+        !targets.is_empty(),
+        "No runnable System-block WASM substitute targets discovered in SeedGraphIndex"
+    );
 
-        let active_resolver = default_syntax_resolver().as_ref();
-        let wasm_bytes =
-            compile_system_target_wasm_bytes(target, active_resolver)
-                .with_context(|| {
-                    format!("Failed lowering target '{target}' to WASM")
-                })?;
-        let generated_rs = transpile_wasm_to_safe_rust(
-            &wasm_bytes,
-            &TranspileWasmOptions {
-                name: target,
-                input_sha256_hex: Some(&input_hex),
-            },
+    let mut compiled: Vec<(String, Vec<u8>)> =
+        Vec::with_capacity(targets.len());
+    for target in &targets {
+        let wasm_bytes = compile_system_substitute_target_wasm_bytes(
+            target,
+            active_resolver.as_ref(),
         )
         .with_context(|| {
-            format!("Failed transpiling target '{target}' to Rust")
+            format!(
+                "Failed lowering discovered target '{}' ({}) to WASM",
+                target.module_stem, target.subject
+            )
         })?;
+        compiled.push((target.module_stem.clone(), wasm_bytes));
+    }
+    let module_slices: Vec<(&str, &[u8])> = compiled
+        .iter()
+        .map(|(stem, bytes)| (stem.as_str(), bytes.as_slice()))
+        .collect();
+    let generated_files =
+        transpile_wasm_bundle_to_safe_rust(&module_slices, Some(&bundle_hex))?;
 
-        if opts.check {
-            let existing = fs::read_to_string(&out_path).with_context(|| {
+    let expected_files: BTreeSet<String> =
+        generated_files.keys().cloned().collect();
+    let disk_files = list_disk_generated_rs_files(&out_dir)?;
+
+    if opts.check {
+        let missing: Vec<&str> = expected_files
+            .difference(&disk_files)
+            .map(String::as_str)
+            .collect();
+        let orphaned: Vec<&str> = disk_files
+            .difference(&expected_files)
+            .map(String::as_str)
+            .collect();
+        ensure!(
+            missing.is_empty() && orphaned.is_empty(),
+            "Generated substitute file set mismatch in {}: missing={missing:?}, orphaned={orphaned:?}; run ./scripts/generate-wasm-substitutes",
+            out_dir.display()
+        );
+        for (rel_name, expected_src) in &generated_files {
+            let file_path = out_dir.join(rel_name);
+            let existing = fs::read_to_string(&file_path).with_context(|| {
                 format!(
                     "Substitute file missing during --check: {}",
-                    out_path.display()
+                    file_path.display()
                 )
             })?;
             ensure!(
-                existing == generated_rs,
+                existing == *expected_src,
                 "Generated substitute '{}' is out of date; run ./scripts/generate-wasm-substitutes",
-                out_path.display()
-            );
-            println!("[generate-wasm-substitutes] {target}: verified clean");
-        } else {
-            write_atomic(&out_path, &generated_rs)?;
-            println!(
-                "[generate-wasm-substitutes] {target}: wrote {} ({} bytes)",
-                out_path.display(),
-                generated_rs.len()
+                file_path.display()
             );
         }
+        println!(
+            "[generate-wasm-substitutes] bundle verified clean ({short_hex}, {} files, {} targets)",
+            generated_files.len(),
+            targets.len(),
+        );
+        return Ok(());
     }
 
+    let mut total_bytes = 0usize;
+    for (rel_name, content) in &generated_files {
+        let out_path = out_dir.join(rel_name);
+        write_atomic(&out_path, content)?;
+        total_bytes = total_bytes.saturating_add(content.len());
+    }
+    for old_name in &disk_files {
+        if !expected_files.contains(old_name) {
+            let orphan_path = out_dir.join(old_name);
+            fs::remove_file(&orphan_path).with_context(|| {
+                format!(
+                    "Failed to remove orphaned generated substitute file {}",
+                    orphan_path.display()
+                )
+            })?;
+        }
+    }
+    println!(
+        "[generate-wasm-substitutes] wrote {} files ({total_bytes} bytes across {} targets; {short_hex})",
+        generated_files.len(),
+        targets.len(),
+    );
     Ok(())
 }
 
@@ -269,20 +348,13 @@ pub fn run_generator(
 /// Returns an error on invalid CLI arguments or generator failure.
 pub fn run_cli() -> Result<()> {
     let mut opts = GenerateOptions::default();
-    let mut args = std::env::args().skip(1);
-    while let Some(arg) = args.next() {
+    for arg in std::env::args().skip(1) {
         match arg.as_str() {
             "--force" => opts.force = true,
             "--check" => opts.check = true,
-            "--target" => {
-                let val = args
-                    .next()
-                    .context("Expected target name after `--target`")?;
-                opts.target_filter = Some(val);
-            }
             "--offline" => {}
             other => bail!(
-                "Unknown flag '{other}'; supported: --force, --check, --target <name>"
+                "Unknown flag '{other}'; supported: --force, --check, --offline"
             ),
         }
     }

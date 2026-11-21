@@ -19,7 +19,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Generated native Rust WebAssembly substitute for `dc_1936`.
 //! Do not edit by hand; regenerate via `./scripts/generate-wasm-substitutes`.
-// input-sha256: 910312675d3032767c5846d706be173b02d4823b4c8d52016dc57a20314e33cc
 
 #[allow(
     unused_imports,
@@ -28,9 +27,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+#[allow(
+    unused_imports,
+    reason = "Generated substitute runtime imports"
+)]
 use ctb_wasm_substitute_rt::{
-    SubstituteModuleMeta, SubstituteVm, WasmLinearMemory, WasmSubstituteDescriptor,
-    WasmSubstituteHost, WasmSubstituteInstance, WasmTable, WasmTrap, ops,
+    InitFnPtr, SubstituteModuleMeta, SubstituteVm, WasmLinearMemory,
+    WasmSubstituteDescriptor, WasmSubstituteHost, WasmSubstituteInstance,
+    WasmTable, WasmTrap, ops,
 };
 
 #[allow(
@@ -108,9 +112,7 @@ fn instantiate_substitute() -> Box<dyn WasmSubstituteInstance> {
     let passive_elems: Vec<Option<&'static [Option<u32>]>> = vec![
     ];
     let mut vm = SubstituteVm::new(memories, tables, passive_data, passive_elems);
-    Box::new(SubstituteInstance {
-        vm,
-    })
+    Box::new(SubstituteInstance { vm })
 }
 
 #[allow(
@@ -138,7 +140,7 @@ reason = "Generated WASM-to-Rust substitute function"
 )]
 impl SubstituteInstance {
     #[inline(never)]
-    fn fn_0(&mut self, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    fn fn_0(vm: &mut SubstituteVm, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = 0i32;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -149,20 +151,20 @@ impl SubstituteInstance {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    self.vm.deduct(host, 1)?;
+    vm.deduct(host, 1)?;
     s_i32_0 = 0i32;
-    s_i32_0 = ops::i32_load(&self.vm, 0, s_i32_0, 0u32)?;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
     l0 = s_i32_0;
     s_i32_0 = l0;
     s_i32_1 = 4i32;
-    s_i32_1 = ops::i32_load(&self.vm, 0, s_i32_1, 0u32)?;
+    s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 0u32)?;
     s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
     l1 = s_i32_0;
     s_i32_0 = l1;
     l4 = s_i32_0;
     s_i32_0 = 8i32;
     s_i32_1 = l4;
-    ops::i32_store(&mut self.vm, 0, s_i32_0, 0u32, s_i32_1)?;
+    ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
     s_i32_0 = l0;
     s_i32_1 = l1;
     s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
@@ -170,40 +172,40 @@ impl SubstituteInstance {
         if s_i32_0 != 0 {
             s_i32_0 = 64i32;
             s_i32_1 = 2i32;
-            ops::i32_store(&mut self.vm, 0, s_i32_0, 0u32, s_i32_1)?;
+            ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
             s_i32_0 = 68i32;
             s_i64_1 = 10000000i64;
-            ops::i64_store(&mut self.vm, 0, s_i32_0, 0u32, s_i64_1)?;
+            ops::i64_store(vm, 0, s_i32_0, 0u32, s_i64_1)?;
             s_i32_0 = 76i32;
             s_i64_1 = 256i64;
-            ops::i64_store(&mut self.vm, 0, s_i32_0, 0u32, s_i64_1)?;
+            ops::i64_store(vm, 0, s_i32_0, 0u32, s_i64_1)?;
             s_i32_0 = 84i32;
             s_i64_1 = -1i64;
-            ops::i64_store(&mut self.vm, 0, s_i32_0, 0u32, s_i64_1)?;
+            ops::i64_store(vm, 0, s_i32_0, 0u32, s_i64_1)?;
             s_i32_0 = 92i32;
             s_i64_1 = 65536i64;
-            ops::i64_store(&mut self.vm, 0, s_i32_0, 0u32, s_i64_1)?;
+            ops::i64_store(vm, 0, s_i32_0, 0u32, s_i64_1)?;
             s_i32_0 = 100i32;
             s_i64_1 = -1i64;
-            ops::i64_store(&mut self.vm, 0, s_i32_0, 0u32, s_i64_1)?;
+            ops::i64_store(vm, 0, s_i32_0, 0u32, s_i64_1)?;
             s_i32_0 = 108i32;
             s_i64_1 = 4194304i64;
-            ops::i64_store(&mut self.vm, 0, s_i32_0, 0u32, s_i64_1)?;
+            ops::i64_store(vm, 0, s_i32_0, 0u32, s_i64_1)?;
             s_i32_0 = 116i32;
             s_i64_1 = 16777216i64;
-            ops::i64_store(&mut self.vm, 0, s_i32_0, 0u32, s_i64_1)?;
+            ops::i64_store(vm, 0, s_i32_0, 0u32, s_i64_1)?;
             s_i32_0 = 124i32;
             s_i64_1 = 1048576i64;
-            ops::i64_store(&mut self.vm, 0, s_i32_0, 0u32, s_i64_1)?;
+            ops::i64_store(vm, 0, s_i32_0, 0u32, s_i64_1)?;
             s_i32_0 = 132i32;
             s_i64_1 = 16777216i64;
-            ops::i64_store(&mut self.vm, 0, s_i32_0, 0u32, s_i64_1)?;
+            ops::i64_store(vm, 0, s_i32_0, 0u32, s_i64_1)?;
         } else {
             s_i32_0 = 0i32;
             l2 = s_i32_0;
             'blk_2: {
                 'blk_3: loop {
-                    self.vm.deduct(host, 1)?;
+                    vm.deduct(host, 1)?;
                     s_i32_0 = l0;
                     s_i32_1 = l1;
                     s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
@@ -219,7 +221,7 @@ impl SubstituteInstance {
                         }
                     }
                     s_i32_0 = l0;
-                    s_i32_0 = ops::i32_load8_u(&self.vm, 0, s_i32_0, 0u32)?;
+                    s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                     l3 = s_i32_0;
                     s_i32_0 = l3;
                     s_i32_1 = 128i32;
@@ -257,7 +259,7 @@ impl SubstituteInstance {
                             s_i32_1 = 6i32;
                             s_i32_0 = ops::i32_shl(s_i32_0, s_i32_1);
                             s_i32_1 = l0;
-                            s_i32_1 = ops::i32_load8_u(&self.vm, 0, s_i32_1, 1u32)?;
+                            s_i32_1 = ops::i32_load8_u(vm, 0, s_i32_1, 1u32)?;
                             s_i32_2 = 63i32;
                             s_i32_1 = ops::i32_and(s_i32_1, s_i32_2);
                             s_i32_0 = ops::i32_or(s_i32_0, s_i32_1);
@@ -270,7 +272,7 @@ impl SubstituteInstance {
                     }
                     s_i32_0 = l2;
                     s_i32_1 = l3;
-                    ops::i32_store8(&mut self.vm, 0, s_i32_0, 64u32, s_i32_1)?;
+                    ops::i32_store8(vm, 0, s_i32_0, 64u32, s_i32_1)?;
                     s_i32_0 = l2;
                     s_i32_1 = 1i32;
                     s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
@@ -290,7 +292,7 @@ impl SubstituteInstance {
         }
     }
     s_i32_0 = 64i32;
-    s_i32_0 = ops::i32_load(&self.vm, 0, s_i32_0, 0u32)?;
+    s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
     s_i32_1 = 2i32;
     s_i32_0 = ops::i32_ne(s_i32_0, s_i32_1);
     'blk_9: {
@@ -299,7 +301,7 @@ impl SubstituteInstance {
         }
     }
     s_i32_0 = 68i32;
-    s_i64_0 = ops::i64_load(&self.vm, 0, s_i32_0, 0u32)?;
+    s_i64_0 = ops::i64_load(vm, 0, s_i32_0, 0u32)?;
     s_i32_0 = ops::i64_eqz(s_i64_0);
     'blk_10: {
         if s_i32_0 != 0 {
@@ -307,7 +309,7 @@ impl SubstituteInstance {
         }
     }
     s_i32_0 = 76i32;
-    s_i64_0 = ops::i64_load(&self.vm, 0, s_i32_0, 0u32)?;
+    s_i64_0 = ops::i64_load(vm, 0, s_i32_0, 0u32)?;
     s_i32_0 = ops::i64_eqz(s_i64_0);
     'blk_11: {
         if s_i32_0 != 0 {
@@ -318,7 +320,7 @@ impl SubstituteInstance {
     l2 = s_i32_0;
     'blk_12: {
         'blk_13: loop {
-            self.vm.deduct(host, 1)?;
+            vm.deduct(host, 1)?;
             s_i32_0 = l2;
             s_i32_1 = 76i32;
             s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
@@ -326,7 +328,7 @@ impl SubstituteInstance {
                 break 'blk_12;
             }
             s_i32_0 = l2;
-            s_i32_0 = ops::i32_load8_u(&self.vm, 0, s_i32_0, 64u32)?;
+            s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 64u32)?;
             l3 = s_i32_0;
             s_i32_0 = l3;
             s_i32_1 = 128i32;
@@ -335,7 +337,7 @@ impl SubstituteInstance {
                 if s_i32_0 != 0 {
                     s_i32_0 = l4;
                     s_i32_1 = l3;
-                    ops::i32_store8(&mut self.vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                    ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                     s_i32_0 = l4;
                     s_i32_1 = 1i32;
                     s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
@@ -347,14 +349,14 @@ impl SubstituteInstance {
                     s_i32_1 = ops::i32_shr_u(s_i32_1, s_i32_2);
                     s_i32_2 = 192i32;
                     s_i32_1 = ops::i32_or(s_i32_1, s_i32_2);
-                    ops::i32_store8(&mut self.vm, 0, s_i32_0, 0u32, s_i32_1)?;
+                    ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                     s_i32_0 = l4;
                     s_i32_1 = l3;
                     s_i32_2 = 63i32;
                     s_i32_1 = ops::i32_and(s_i32_1, s_i32_2);
                     s_i32_2 = 128i32;
                     s_i32_1 = ops::i32_or(s_i32_1, s_i32_2);
-                    ops::i32_store8(&mut self.vm, 0, s_i32_0, 1u32, s_i32_1)?;
+                    ops::i32_store8(vm, 0, s_i32_0, 1u32, s_i32_1)?;
                     s_i32_0 = l4;
                     s_i32_1 = 2i32;
                     s_i32_0 = ops::i32_add(s_i32_0, s_i32_1);
@@ -373,7 +375,7 @@ impl SubstituteInstance {
     s_i32_1 = l4;
     s_i32_2 = l1;
     s_i32_1 = ops::i32_sub(s_i32_1, s_i32_2);
-    ops::i32_store(&mut self.vm, 0, s_i32_0, 0u32, s_i32_1)?;
+    ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
     s_i32_0 = 0i32;
     return Ok(s_i32_0);
     }
@@ -442,9 +444,10 @@ impl WasmSubstituteInstance for SubstituteInstance {
 
     fn call_entry(&mut self, in_ptr: i32, in_len: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
         let _ = (in_ptr, in_len);
-        self.vm.enter_call()?;
-        let res = self.fn_0(host);
-        self.vm.exit_call();
+        let vm = &mut self.vm;
+        vm.enter_call()?;
+        let res = SubstituteInstance::fn_0(vm, host);
+        vm.exit_call();
         res
     }
 }

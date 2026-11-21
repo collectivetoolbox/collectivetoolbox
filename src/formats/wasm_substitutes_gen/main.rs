@@ -18,8 +18,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! CLI entrypoint for generating Guix-style native safe-Rust WebAssembly
-//! substitutes for System-graph routines (`Dc 1936`, `Dc f1680`, `Dc f1681`,
-//! `Dc 2608`).
+//! substitutes for auto-discovered runnable System-graph routines.
 
 use std::process::ExitCode;
 

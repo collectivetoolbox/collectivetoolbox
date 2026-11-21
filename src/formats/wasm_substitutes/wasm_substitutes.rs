@@ -17,8 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Generated native safe-Rust WebAssembly substitutes for hot System-graph
-//! routines (`Dc 1936`, `Dc f1680`, `Dc f1681`, `Dc 2608`).
+//! Generated Guix-style native safe-Rust WebAssembly substitutes for
+//! auto-discovered runnable System-graph routines.
 
 #[allow(
     unused_imports,
@@ -29,24 +29,12 @@ pub(crate) use ctb_utilities::*;
 
 use std::sync::OnceLock;
 
-#[path = "dc_1936.generated.rs"]
-mod dc_1936;
-#[path = "dc_2608.generated.rs"]
-mod dc_2608;
-#[path = "f1680.generated.rs"]
-mod f1680;
-#[path = "f1681.generated.rs"]
-mod f1681;
+include!("registry.generated.rs");
 
 static SUBSTITUTES_REGISTERED: OnceLock<()> = OnceLock::new();
 
-/// Registers all generated native WebAssembly substitutes with
+/// Registers all auto-discovered native WebAssembly substitutes with
 /// [`ctb_wasm_substitute_rt`] once per process.
 pub fn ensure_registered() {
-    SUBSTITUTES_REGISTERED.get_or_init(|| {
-        ctb_wasm_substitute_rt::register_substitute(dc_1936::descriptor());
-        ctb_wasm_substitute_rt::register_substitute(f1680::descriptor());
-        ctb_wasm_substitute_rt::register_substitute(f1681::descriptor());
-        ctb_wasm_substitute_rt::register_substitute(dc_2608::descriptor());
-    });
+    SUBSTITUTES_REGISTERED.get_or_init(register_all_substitutes);
 }
