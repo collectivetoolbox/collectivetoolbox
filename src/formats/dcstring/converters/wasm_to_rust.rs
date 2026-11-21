@@ -510,7 +510,9 @@ struct CallGraphSummary {
     distinct_callers: Vec<BTreeSet<usize>>,
 }
 
-fn tarjan_scc_bottom_up(adj: &[Vec<usize>]) -> (Vec<usize>, Vec<usize>, Vec<Vec<usize>>) {
+fn tarjan_scc_bottom_up(
+    adj: &[Vec<usize>],
+) -> Result<(Vec<usize>, Vec<usize>, Vec<Vec<usize>>)> {
     struct Frame {
         u: usize,
         edge_pos: usize,
@@ -563,7 +565,10 @@ fn tarjan_scc_bottom_up(adj: &[Vec<usize>]) -> (Vec<usize>, Vec<usize>, Vec<Vec<
                     }
                     stack.push(v);
                     call_stack.push(Frame { u: v, edge_pos: 0 });
-                } else if on_stack.get(v).copied().unwrap_or(false) {
+                } else if *on_stack
+                    .get(v)
+                    .context("Tarjan SCC neighbor out of bounds in on_stack")?
+                {
                     if let Some(v_idx) = index.get(v).copied().flatten()
                         && let Some(u_low) = lowlink.get_mut(u)
                     {
@@ -577,13 +582,19 @@ fn tarjan_scc_bottom_up(adj: &[Vec<usize>]) -> (Vec<usize>, Vec<usize>, Vec<Vec<
             let Some(Frame { u, .. }) = finished else {
                 break;
             };
-            let u_low = lowlink.get(u).copied().unwrap_or(0);
+            let u_low = *lowlink
+                .get(u)
+                .context("Tarjan SCC node out of bounds in lowlink")?;
             if let Some(parent) = call_stack.last()
                 && let Some(p_low) = lowlink.get_mut(parent.u)
             {
                 *p_low = (*p_low).min(u_low);
             }
-            let u_idx = index.get(u).copied().flatten().unwrap_or(0);
+            let u_idx = index
+                .get(u)
+                .copied()
+                .flatten()
+                .context("Tarjan SCC node missing DFS index")?;
             if u_low == u_idx {
                 let id = sccs.len();
                 let mut component = Vec::new();
@@ -613,7 +624,7 @@ fn tarjan_scc_bottom_up(adj: &[Vec<usize>]) -> (Vec<usize>, Vec<usize>, Vec<Vec<
             }
         }
     }
-    (scc_id, scc_size, sccs)
+    Ok((scc_id, scc_size, sccs))
 }
 
 fn compute_call_graph_and_sccs(
@@ -717,7 +728,7 @@ fn compute_call_graph_and_sccs(
         .into_iter()
         .map(|s| s.into_iter().collect())
         .collect();
-    let (scc_id, scc_size, topo_sccs_bottom_up) = tarjan_scc_bottom_up(&adj);
+    let (scc_id, scc_size, topo_sccs_bottom_up) = tarjan_scc_bottom_up(&adj)?;
 
     let mut tail_target_fns = indirect_tail_targets;
     for (caller, target) in cross_return_edges {
@@ -743,11 +754,18 @@ fn select_init_fn_idx(
     start_func: Option<usize>,
     cap_yield_func_idx: Option<usize>,
     tail_target_fns: &BTreeSet<usize>,
-) -> Option<usize> {
-    fn_sigs
+) -> Result<Option<usize>> {
+    ensure!(
+        fn_sigs.len() == distinct_callers.len(),
+        "Function signature count ({}) does not match distinct caller count ({})",
+        fn_sigs.len(),
+        distinct_callers.len()
+    );
+    Ok(fn_sigs
         .iter()
+        .zip(distinct_callers.iter())
         .enumerate()
-        .filter(|(idx, sig)| {
+        .filter(|(idx, (sig, _))| {
             sig.params.is_empty()
                 && sig.results.is_empty()
                 && *idx != entry_idx
@@ -755,12 +773,12 @@ fn select_init_fn_idx(
                 && Some(*idx) != cap_yield_func_idx
                 && !tail_target_fns.contains(idx)
         })
-        .filter_map(|(idx, _)| {
-            let count = distinct_callers.get(idx).map_or(0, BTreeSet::len);
+        .filter_map(|(idx, (_, callers))| {
+            let count = callers.len();
             (count >= 2).then_some((count, Reverse(idx), idx))
         })
         .max_by_key(|&(count, rev_idx, _)| (count, rev_idx))
-        .map(|(_, _, idx)| idx)
+        .map(|(_, _, idx)| idx))
 }
 
 #[allow(
@@ -1119,7 +1137,7 @@ fn analyze_module<'a>(
         start_idx,
         cap_yield_func_idx,
         &cg.tail_target_fns,
-    );
+    )?;
     let merkle_info = compute_module_merkle_info(
         &code_bodies,
         &fn_sigs,
@@ -3544,8 +3562,10 @@ fn emit_analyzed_module_source(
                 .context("Function signature out of bounds during emission")?;
             let ret_slug = ret_sig_slug(&sig.results);
             let is_cross_tail_step = module.tail_target_fns.contains(&fn_idx);
-            let use_self_tail =
-                module.has_self_tail.get(fn_idx).copied().unwrap_or(false);
+            let use_self_tail = *module
+                .has_self_tail
+                .get(fn_idx)
+                .context("Function index out of bounds in has_self_tail")?;
 
             let mut params_decl = vec!["vm: &mut SubstituteVm".to_owned()];
             let mut forward_args =
@@ -3704,8 +3724,10 @@ fn emit_shared_shard_source(
             global_pos_map,
         };
 
-        let use_self_tail =
-            module.has_self_tail.get(fn_idx).copied().unwrap_or(false);
+        let use_self_tail = *module
+            .has_self_tail
+            .get(fn_idx)
+            .context("Function index out of bounds in has_self_tail")?;
         let mut lowerer = FuncLowerer::new(
             fn_idx,
             module,
