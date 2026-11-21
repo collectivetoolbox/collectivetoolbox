@@ -790,6 +790,75 @@ v/b/isClosedStringLiteralNode l/dc/tokens
     ::.
     false.
 
+: @dc l8589994094
+v/b/isClosedCommentNode l/dc/tokens
+    test
+        in l/dc: dc:246 dc:u65 dc:248 ::
+        out true.
+    test
+        in l/dc: dc:249 dc:u65 dc:251 ::
+        out true.
+    test
+        in l/dc: dc:246 dc:u65 dc:251 ::
+        out false.
+    const u64/n len /tokens.
+    if lt /n u64:2
+        return false
+        nop.
+    const u32/first dcShortId dcAtOr /tokens u64:0 /dcZero.
+    const u32/closeSid if or eq /first u32:246 eq /first u32:247 u32:248 if or eq /first u32:249 eq /first u32:250 u32:251 u32:0.
+    if eq /closeSid u32:0
+        return false
+        nop.
+    let u64/i u64:1.
+    while lt /i /n do
+        const u32/sid dcShortId dcAtOr /tokens /i /dcZero.
+        if eq /sid u32:255
+            do
+                set /i wrapAdd /i u64:2.
+                if gt /i /n
+                    return false
+                    nop.
+            ::
+            if eq /sid /closeSid
+                return eq wrapAdd /i u64:1 /n
+                set /i wrapAdd /i u64:1.
+    ::.
+    false.
+
+: @dc l8589994095
+v/b/isClosedIdentifierNode l/dc/tokens
+    test
+        in l/dc: dc:270 dc:u65 dc:271 ::
+        out true.
+    test
+        in l/dc: dc:270 dc:271 ::
+        out false.
+    const u64/n len /tokens.
+    if lt /n u64:3
+        return false
+        nop.
+    if ne dcShortId dcAtOr /tokens u64:0 /dcZero u32:270
+        return false
+        nop.
+    let u64/i u64:1.
+    while lt /i /n do
+        const u32/sid dcShortId dcAtOr /tokens /i /dcZero.
+        if eq /sid u32:255
+            do
+                set /i wrapAdd /i u64:2.
+                if gt /i /n
+                    return false
+                    nop.
+            ::
+            if eq /sid u32:271
+                return eq wrapAdd /i u64:1 /n
+                if eq /sid u32:270
+                    return false
+                    set /i wrapAdd /i u64:1.
+    ::.
+    false.
+
 : @dc l8589992813
 v/b/isLegacyUnicodeRunNode l/dc/tokens
     if eq len /tokens u64:0
@@ -870,28 +939,10 @@ v/b/isBuiltInWasmOrSyntaxFormatU32 u32/fid
 
 : @dc l8589993560
 v/b/isEntityIdPrefixShortU32 u32/sid
-    if or eq /sid u32:2211 or eq /sid u32:2673 or eq /sid u32:2679 eq /sid u32:2202
+    if or eq /sid u32:517 or eq /sid u32:518 eq /sid u32:584
         return true
         nop.
-    if or eq /sid u32:2219 or eq /sid u32:2227 or eq /sid u32:2233 eq /sid u32:2197
-        return true
-        nop.
-    if or eq /sid u32:2199 or eq /sid u32:2200 or eq /sid u32:517 eq /sid u32:518
-        return true
-        nop.
-    if or eq /sid u32:584 or eq /sid u32:586 or eq /sid u32:610 eq /sid u32:646
-        return true
-        nop.
-    if or eq /sid u32:2198 or eq /sid u32:2201 or eq /sid u32:2205 eq /sid u32:2226
-        return true
-        nop.
-    if or eq /sid u32:2232 or eq /sid u32:2234 or eq /sid u32:2235 eq /sid u32:2236
-        return true
-        nop.
-    if or eq /sid u32:2237 or eq /sid u32:2450 or eq /sid u32:2576 eq /sid u32:2577
-        return true
-        nop.
-    or eq /sid u32:2578 or eq /sid u32:2580 or eq /sid u32:2674 eq /sid u32:2675.
+    or eq /sid u32:586 or eq /sid u32:610 eq /sid u32:646.
 
 : @dc l8589993561
 v/b/isStageLBuiltinShortU32 u32/sid
@@ -1462,7 +1513,7 @@ v/capOptNodeRes/expandInternedNodesInner capClient/cli l/dc/tokens l/u128/visIds
                                             if eq field /nr tag u8:1
                                                 do
                                                     const l/dc/child field /nr payload.
-                                                    if or isClosedStringLiteralNode /child isLegacyUnicodeRunNode /child
+                                                    if or isClosedStringLiteralNode /child or isClosedCommentNode /child or isClosedIdentifierNode /child isLegacyUnicodeRunNode /child
                                                         do
                                                             bufExtend /out /child.
                                                             set /prevSid /noRegionId.

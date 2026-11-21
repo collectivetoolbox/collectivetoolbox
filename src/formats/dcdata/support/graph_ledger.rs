@@ -79,6 +79,7 @@ use write_state::{DuplicatePolicy, SystemGraphWriteState};
 
 use crate::dc::{
     DC_ANNOTATION, DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP,
+    DC_BEGIN_BLOCK_COMMENT, DC_BEGIN_BLOCK_COMMENT_NEW_LINE,
     DC_BEGIN_GRAPH_NODE_DEFINITION, DC_BEGIN_IDENTIFIER, DC_BEGIN_LIST,
     DC_BEGIN_LITERAL, DC_BEGIN_NUMBER, DC_BEGIN_PARAMETER,
     DC_BEGIN_SINGLE_LINE_COMMENT, DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE,
@@ -93,9 +94,9 @@ use crate::dc::{
     DC_DC_FORMAT_VARIATION_NICKNAME, DC_DC_GENERAL_CATEGORY,
     DC_DEFAULT_FORMAT_VARIANT, DC_DESCRIPTION,
     DC_DISTRIBUTE_STATEMENT_OVER_EACH, DC_ENCLOSING_DOCUMENT,
-    DC_END_ASSOCIATIVITY_GROUP, DC_END_GRAPH_NODE_DEFINITION,
-    DC_END_IDENTIFIER, DC_END_LIST, DC_END_LITERAL, DC_END_NUMBER,
-    DC_END_SINGLE_LINE_COMMENT, DC_ENTITY_TYPE, DC_ESCAPE,
+    DC_END_ASSOCIATIVITY_GROUP, DC_END_BLOCK_COMMENT,
+    DC_END_GRAPH_NODE_DEFINITION, DC_END_IDENTIFIER, DC_END_LIST,
+    DC_END_LITERAL, DC_END_NUMBER, DC_END_SINGLE_LINE_COMMENT, DC_ENTITY_TYPE, DC_ESCAPE,
     DC_EVALUATE_VALUE_AS_ATOM, DC_EXCLUSIVE_RANGE_ENDPOINT, DC_FORMAL_ALIAS,
     DC_FORMAT_VARIATION_ASPECT, DC_GENERAL_FORMAT_EXPORT_SUPPORT,
     DC_GENERAL_FORMAT_IMPORT_SUPPORT, DC_GENERAL_FORMAT_TEST_COVERAGE,
@@ -1304,10 +1305,25 @@ impl LedgerBuilder {
         Ok(entity_id)
     }
 
-    fn intern_embedded_strings_in_value_node(
-        &mut self,
+    fn is_standalone_internable_frame(tokens: &[DcShorthand]) -> bool {
+        let sh_lit_open = sh(DC_BEGIN_LITERAL);
+        let sh_lit_close = sh(DC_END_LITERAL);
+        let sh_escape = sh(DC_ESCAPE);
+        (tokens.first() == Some(&sh_lit_open)
+            && find_closed_delimited_span(tokens, 0, sh_lit_close, sh_escape)
+                == Some(tokens.len().saturating_sub(1)))
+            || crate::seed_graph::SeedGraphIndex::is_closed_comment_node(tokens)
+            || crate::seed_graph::SeedGraphIndex::is_closed_identifier_node(
+                tokens,
+            )
+    }
+
+    fn internable_frame_end(
         tokens: &[DcShorthand],
-    ) -> Result<Vec<DcShorthand>> {
+        idx: usize,
+        include_comments_and_idents: bool,
+    ) -> Option<(usize, bool)> {
+        let tok = *tokens.get(idx)?;
         let sh_lit_open = sh(DC_BEGIN_LITERAL);
         let sh_lit_close = sh(DC_END_LITERAL);
         let sh_ident_open = sh(DC_BEGIN_IDENTIFIER);
@@ -1315,16 +1331,115 @@ impl LedgerBuilder {
         let sh_cmt_inline = sh(DC_BEGIN_SINGLE_LINE_COMMENT);
         let sh_cmt_nl = sh(DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE);
         let sh_cmt_close = sh(DC_END_SINGLE_LINE_COMMENT);
+        let sh_blk_inline = sh(DC_BEGIN_BLOCK_COMMENT);
+        let sh_blk_nl = sh(DC_BEGIN_BLOCK_COMMENT_NEW_LINE);
+        let sh_blk_close = sh(DC_END_BLOCK_COMMENT);
         let sh_escape = sh(DC_ESCAPE);
 
-        // Standalone `[string]` node (`Dc 260 .. Dc 261`): keep verbatim rather than self-interning.
-        if tokens.first() == Some(&sh_lit_open)
-            && find_closed_delimited_span(tokens, 0, sh_lit_close, sh_escape)
-                == Some(tokens.len().saturating_sub(1))
+        let close_tok = if tok == sh_lit_open {
+            sh_lit_close
+        } else if include_comments_and_idents
+            && (tok == sh_cmt_inline || tok == sh_cmt_nl)
         {
+            sh_cmt_close
+        } else if include_comments_and_idents
+            && (tok == sh_blk_inline || tok == sh_blk_nl)
+        {
+            sh_blk_close
+        } else if include_comments_and_idents && tok == sh_ident_open {
+            sh_ident_close
+        } else {
+            return None;
+        };
+
+        let end_idx =
+            find_closed_delimited_span(tokens, idx, close_tok, sh_escape)?;
+        let slice = tokens.get(idx..=end_idx)?;
+        let can_intern = if tok == sh_ident_open {
+            crate::seed_graph::SeedGraphIndex::is_closed_identifier_node(slice)
+        } else {
+            true
+        };
+        Some((end_idx, can_intern))
+    }
+
+    /// Read-only mirror of `intern_embedded_frames_in_value_node`: substitutes
+    /// eligible embedded frames only when every matching frame node already
+    /// exists in `self.value_node_by_tokens`, allocating zero nodes.
+    fn try_intern_frames_readonly(
+        &self,
+        tokens: &[DcShorthand],
+        include_comments_and_idents: bool,
+    ) -> Option<Vec<DcShorthand>> {
+        if Self::is_standalone_internable_frame(tokens) {
+            return Some(tokens.to_vec());
+        }
+        let sh_escape = sh(DC_ESCAPE);
+        let sh_atom = sh(DC_EVALUATE_VALUE_AS_ATOM);
+        let mut out = Vec::with_capacity(tokens.len());
+        let mut idx = 0usize;
+        while let Some(&tok) = tokens.get(idx) {
+            if tok == sh_escape {
+                out.push(tok);
+                if let Some(&escaped) = tokens.get(idx.saturating_add(1)) {
+                    out.push(escaped);
+                    idx = idx.saturating_add(2);
+                } else {
+                    idx = idx.saturating_add(1);
+                }
+                continue;
+            }
+            if out.last().copied() != Some(sh_atom)
+                && let Some((end_idx, can_intern)) = Self::internable_frame_end(
+                    tokens,
+                    idx,
+                    include_comments_and_idents,
+                )
+                && let Some(frame_slice) = tokens.get(idx..=end_idx)
+            {
+                if can_intern {
+                    let &existing_id =
+                        self.value_node_by_tokens.get(frame_slice)?;
+                    out.push(DcShorthand::Long(existing_id));
+                } else {
+                    out.extend_from_slice(frame_slice);
+                }
+                idx = end_idx.saturating_add(1);
+                continue;
+            }
+            out.push(tok);
+            idx = idx.saturating_add(1);
+        }
+        Some(out)
+    }
+
+    fn intern_embedded_frames_in_value_node(
+        &mut self,
+        tokens: &[DcShorthand],
+    ) -> Result<Vec<DcShorthand>> {
+        let sh_lit_open = sh(DC_BEGIN_LITERAL);
+        let sh_ident_open = sh(DC_BEGIN_IDENTIFIER);
+        let sh_cmt_inline = sh(DC_BEGIN_SINGLE_LINE_COMMENT);
+        let sh_cmt_nl = sh(DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE);
+        let sh_blk_inline = sh(DC_BEGIN_BLOCK_COMMENT);
+        let sh_blk_nl = sh(DC_BEGIN_BLOCK_COMMENT_NEW_LINE);
+        let sh_escape = sh(DC_ESCAPE);
+        let sh_atom = sh(DC_EVALUATE_VALUE_AS_ATOM);
+
+        // Standalone `[string]` (`Dc 260..261`), standalone comment
+        // (`246/247..248`, `249/250..251`), or standalone identifier (`270..271`)
+        // nodes must keep their frame verbatim rather than self-interning.
+        if Self::is_standalone_internable_frame(tokens) {
             return Ok(tokens.to_vec());
         }
-        if !tokens.contains(&sh_lit_open) {
+        if !tokens.iter().any(|&t| {
+            t == sh_lit_open
+                || t == sh_ident_open
+                || t == sh_cmt_inline
+                || t == sh_cmt_nl
+                || t == sh_blk_inline
+                || t == sh_blk_nl
+        }) {
             return Ok(tokens.to_vec());
         }
 
@@ -1341,47 +1456,21 @@ impl LedgerBuilder {
                 }
                 continue;
             }
-            if tok == sh_ident_open
-                && let Some(end_idx) = find_closed_delimited_span(
-                    tokens,
-                    idx,
-                    sh_ident_close,
-                    sh_escape,
-                )
-                && let Some(span) = tokens.get(idx..=end_idx)
+            if out.last().copied() != Some(sh_atom)
+                && let Some((end_idx, can_intern)) =
+                    Self::internable_frame_end(tokens, idx, true)
+                && let Some(frame_slice) = tokens.get(idx..=end_idx)
             {
-                out.extend_from_slice(span);
-                idx = end_idx.saturating_add(1);
-                continue;
-            }
-            if (tok == sh_cmt_inline || tok == sh_cmt_nl)
-                && let Some(end_idx) = find_closed_delimited_span(
-                    tokens,
-                    idx,
-                    sh_cmt_close,
-                    sh_escape,
-                )
-                && let Some(span) = tokens.get(idx..=end_idx)
-            {
-                out.extend_from_slice(span);
-                idx = end_idx.saturating_add(1);
-                continue;
-            }
-            if tok == sh_lit_open
-                && let Some(end_idx) = find_closed_delimited_span(
-                    tokens,
-                    idx,
-                    sh_lit_close,
-                    sh_escape,
-                )
-                && let Some(lit_slice) = tokens.get(idx..=end_idx)
-            {
-                let summary = self.format_tokens_comment(lit_slice);
-                let str_node_id = self.get_or_insert_value_node(
-                    lit_slice.to_vec(),
-                    summary,
-                )?;
-                out.push(DcShorthand::Long(str_node_id));
+                if can_intern {
+                    let summary = self.format_tokens_comment(frame_slice);
+                    let interned_id = self.get_or_insert_value_node(
+                        frame_slice.to_vec(),
+                        summary,
+                    )?;
+                    out.push(DcShorthand::Long(interned_id));
+                } else {
+                    out.extend_from_slice(frame_slice);
+                }
                 idx = end_idx.saturating_add(1);
                 continue;
             }
@@ -1399,8 +1488,86 @@ impl LedgerBuilder {
                 Ok(DcShorthand::Long(id))
             }
             ValueSpec::ValueNode { tokens, comment } => {
+                // 1. Exact raw token match.
+                if let Some(&existing_id) =
+                    self.value_node_by_tokens.get(tokens)
+                {
+                    self.token_labels
+                        .entry(DcShorthand::Long(existing_id))
+                        .or_insert_with(|| comment.clone());
+                    return Ok(DcShorthand::Long(existing_id));
+                }
+
+                // 2. Exact read-only string-only interned match (zero churn on
+                // untouched pre-Phase-2 Stage 0 / FilePath / StageL nodes).
+                if let Some(str_only) =
+                    self.try_intern_frames_readonly(tokens, false)
+                    && let Some(&existing_id) =
+                        self.value_node_by_tokens.get(&str_only)
+                {
+                    self.token_labels
+                        .entry(DcShorthand::Long(existing_id))
+                        .or_insert_with(|| comment.clone());
+                    return Ok(DcShorthand::Long(existing_id));
+                }
+
+                // 3. Exact read-only full-interned match (string+comment+ident).
+                if let Some(full) =
+                    self.try_intern_frames_readonly(tokens, true)
+                    && let Some(&existing_id) =
+                        self.value_node_by_tokens.get(&full)
+                {
+                    self.token_labels
+                        .entry(DcShorthand::Long(existing_id))
+                        .or_insert_with(|| comment.clone());
+                    return Ok(DcShorthand::Long(existing_id));
+                }
+
+                // 4. Expanded-equivalence active match (prefers newest/compact ID).
+                let expanded = self.write_state.expand_tokens_active(tokens);
+                if let Some(existing_id) = self
+                    .write_state
+                    .find_active_value_by_expanded_tokens(&expanded)
+                {
+                    self.token_labels
+                        .entry(DcShorthand::Long(existing_id))
+                        .or_insert_with(|| comment.clone());
+                    return Ok(DcShorthand::Long(existing_id));
+                }
+
+                // 5. Expanded-equivalence retracted match (cancel Dc 592).
+                let token_labels = &self.token_labels;
+                if let Some((reactivated_id, _)) = self
+                    .write_state
+                    .try_unretract_matching_expanded_value_node(
+                        &expanded,
+                        NodeProvenance::Csv,
+                        &|toks| format_tokens_comment_with(token_labels, toks),
+                    )?
+                {
+                    self.appended_count = self.appended_count.saturating_add(1);
+                    self.retracted_count =
+                        self.retracted_count.saturating_add(1);
+                    if let Some(reactivated_tokens) =
+                        self.get_node(reactivated_id).map(|n| n.tokens.clone())
+                    {
+                        self.value_node_by_tokens
+                            .insert(reactivated_tokens.clone(), reactivated_id);
+                        if let Some(decoded_str) =
+                            decode_string_value_tokens(&reactivated_tokens)
+                        {
+                            self.string_by_node_id
+                                .insert(reactivated_id, decoded_str);
+                        }
+                    }
+                    self.token_labels
+                        .insert(DcShorthand::Long(reactivated_id), comment.clone());
+                    return Ok(DcShorthand::Long(reactivated_id));
+                }
+
+                // 6. Genuinely new or edited value node: intern frames and append.
                 let normalized_tokens =
-                    self.intern_embedded_strings_in_value_node(tokens)?;
+                    self.intern_embedded_frames_in_value_node(tokens)?;
                 let id = self.get_or_insert_value_node(
                     normalized_tokens,
                     comment.clone(),
@@ -5828,7 +5995,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_intern_embedded_strings_uses_260_261_and_keeps_identifiers_inline()
+    fn test_intern_embedded_frames_interns_strings_comments_identifiers_and_dedups()
     -> Result<()> {
         let mut builder = LedgerBuilder::from_existing(
             Vec::new(),
@@ -5843,17 +6010,42 @@ mod tests {
             DcShorthand::Short(261),
             DcShorthand::Short(261),
         ];
-        let interned_standalone =
-            builder.intern_embedded_strings_in_value_node(&standalone)?;
-        assert_eq!(interned_standalone, standalone);
+        assert_eq!(
+            builder.intern_embedded_frames_in_value_node(&standalone)?,
+            standalone
+        );
+        let standalone_cmt = vec![
+            DcShorthand::Short(246),
+            DcShorthand::Unicode(0x63),
+            DcShorthand::Short(248),
+        ];
+        assert_eq!(
+            builder.intern_embedded_frames_in_value_node(&standalone_cmt)?,
+            standalone_cmt
+        );
+        let standalone_ident = vec![
+            DcShorthand::Short(270),
+            DcShorthand::Unicode(0x78),
+            DcShorthand::Short(271),
+        ];
+        assert_eq!(
+            builder.intern_embedded_frames_in_value_node(&standalone_ident)?,
+            standalone_ident
+        );
 
-        // Identifiers (`270..271`) must stay verbatim while embedded `[string]`
-        // (`260..261`) literals over arbitrary 128-bit Dcs are interned.
+        // Compound node interns identifier (`270..271`), single-line/block
+        // comments (`246..248`, `249..251`), and `[string]` (`260..261`).
         let compound = vec![
             DcShorthand::Short(270),
             DcShorthand::Unicode(0x41),
             DcShorthand::Unicode(0x42),
             DcShorthand::Short(271),
+            DcShorthand::Short(246),
+            DcShorthand::Unicode(0x63),
+            DcShorthand::Short(248),
+            DcShorthand::Short(249),
+            DcShorthand::Unicode(0x62),
+            DcShorthand::Short(251),
             DcShorthand::Short(260),
             DcShorthand::Short(2580),
             DcShorthand::Unicode(0xD800),
@@ -5863,19 +6055,13 @@ mod tests {
             DcShorthand::Short(2204),
         ];
         let interned_compound =
-            builder.intern_embedded_strings_in_value_node(&compound)?;
-        assert_eq!(
-            &interned_compound[0..4],
-            &[
-                DcShorthand::Short(270),
-                DcShorthand::Unicode(0x41),
-                DcShorthand::Unicode(0x42),
-                DcShorthand::Short(271),
-            ]
-        );
-        assert!(matches!(interned_compound.get(4), Some(DcShorthand::Long(_))));
-        assert_eq!(interned_compound.get(5), Some(&DcShorthand::Short(2204)));
-        assert_eq!(interned_compound.len(), 6);
+            builder.intern_embedded_frames_in_value_node(&compound)?;
+        assert_eq!(interned_compound.len(), 5);
+        assert!(matches!(interned_compound.first(), Some(DcShorthand::Long(_))));
+        assert!(matches!(interned_compound.get(1), Some(DcShorthand::Long(_))));
+        assert!(matches!(interned_compound.get(2), Some(DcShorthand::Long(_))));
+        assert!(matches!(interned_compound.get(3), Some(DcShorthand::Long(_))));
+        assert_eq!(interned_compound.get(4), Some(&DcShorthand::Short(2204)));
 
         // Historical pure-Unicode interned run node (`4ffe190f3`-era ledger chunks)
         // must still expand inline, while `dc/l<id>` atom references stay intact.
@@ -5920,7 +6106,7 @@ mod tests {
         ];
 
         let index = crate::seed_graph::SeedGraphIndex::from_nodes(
-            builder.write_state.nodes,
+            builder.write_state.nodes.clone(),
         );
         let expanded = index.expand_interned_string_nodes(&interned_compound);
         assert_eq!(expanded, compound);
@@ -5928,6 +6114,199 @@ mod tests {
             index.expand_interned_string_nodes(&legacy_ident_with_atom),
             expected_legacy
         );
+
+        // Zero-churn expanded-equivalence check + shared interned frame reuse:
+        // An existing active un-interned compound node must be returned as-is
+        // (zero churn), while new/edited nodes intern & reuse comments/idents.
+        let untouched_tokens = vec![
+            DcShorthand::Short(270),
+            DcShorthand::Unicode(0x66),
+            DcShorthand::Unicode(0x6f),
+            DcShorthand::Unicode(0x6f),
+            DcShorthand::Short(271),
+            DcShorthand::Short(246),
+            DcShorthand::Unicode(0x7a),
+            DcShorthand::Short(248),
+            DcShorthand::Short(2204),
+        ];
+        let untouched_id = builder.get_or_insert_value_node(
+            untouched_tokens.clone(),
+            "untouched".to_string(),
+        )?;
+        let count_before_reuse = builder.write_state.nodes.len();
+        let resolved_untouched = builder.resolve_value_spec(&ValueSpec::ValueNode {
+            tokens: untouched_tokens,
+            comment: "untouched".to_string(),
+        })?;
+        assert_eq!(resolved_untouched, DcShorthand::Long(untouched_id));
+        assert_eq!(builder.write_state.nodes.len(), count_before_reuse);
+
+        // Also when an existing active node had interned strings only, matching
+        // its expanded tokens prevents re-interning or superseding it!
+        let existing_str_interned_tokens = vec![
+            DcShorthand::Short(270),
+            DcShorthand::Unicode(0x66),
+            DcShorthand::Unicode(0x6f),
+            DcShorthand::Unicode(0x6f),
+            DcShorthand::Short(271),
+            DcShorthand::Long(atom_str_id),
+        ];
+        let existing_str_interned_id = builder.get_or_insert_value_node(
+            existing_str_interned_tokens,
+            "str-interned-only".to_string(),
+        )?;
+        let expanded_equivalent = vec![
+            DcShorthand::Short(270),
+            DcShorthand::Unicode(0x66),
+            DcShorthand::Unicode(0x6f),
+            DcShorthand::Unicode(0x6f),
+            DcShorthand::Short(271),
+            DcShorthand::Short(260),
+            DcShorthand::Unicode(0x78),
+            DcShorthand::Short(261),
+        ];
+        let count_before_equiv = builder.write_state.nodes.len();
+        let resolved_equiv = builder.resolve_value_spec(&ValueSpec::ValueNode {
+            tokens: expanded_equivalent,
+            comment: "equiv".to_string(),
+        })?;
+        assert_eq!(
+            resolved_equiv,
+            DcShorthand::Long(existing_str_interned_id)
+        );
+        assert_eq!(builder.write_state.nodes.len(), count_before_equiv);
+
+        // Edited nodes intern identifiers & comments into shared nodes and
+        // reuse those interned nodes across multiple edited declarations.
+        let edited1 = vec![
+            DcShorthand::Short(270),
+            DcShorthand::Unicode(0x66),
+            DcShorthand::Unicode(0x6f),
+            DcShorthand::Unicode(0x6f),
+            DcShorthand::Short(271),
+            DcShorthand::Short(246),
+            DcShorthand::Unicode(0x7a),
+            DcShorthand::Short(248),
+            DcShorthand::Short(2205),
+        ];
+        let edited2 = vec![
+            DcShorthand::Short(270),
+            DcShorthand::Unicode(0x66),
+            DcShorthand::Unicode(0x6f),
+            DcShorthand::Unicode(0x6f),
+            DcShorthand::Short(271),
+            DcShorthand::Short(246),
+            DcShorthand::Unicode(0x7a),
+            DcShorthand::Short(248),
+            DcShorthand::Short(2206),
+        ];
+        let DcShorthand::Long(e1_id) =
+            builder.resolve_value_spec(&ValueSpec::ValueNode {
+                tokens: edited1,
+                comment: "edited1".to_string(),
+            })?
+        else {
+            bail!("Expected Long node ID for edited1");
+        };
+        let after_e1 = builder.write_state.nodes.len();
+        // Allocated: ident("foo"), cmt("z"), and e1 container = 3 nodes.
+        assert_eq!(after_e1 - count_before_equiv, 3);
+        let DcShorthand::Long(e2_id) =
+            builder.resolve_value_spec(&ValueSpec::ValueNode {
+                tokens: edited2,
+                comment: "edited2".to_string(),
+            })?
+        else {
+            bail!("Expected Long node ID for edited2");
+        };
+        // Reused ident("foo") & cmt("z") -> only +1 node!
+        assert_eq!(builder.write_state.nodes.len() - after_e1, 1);
+        let e1_toks = &builder.get_node(e1_id).unwrap().tokens;
+        let e2_toks = &builder.get_node(e2_id).unwrap().tokens;
+        assert_eq!(&e1_toks[0..2], &e2_toks[0..2]);
+
+        // StageL list of atom Dcs (`l/dc: dc:260 ::`) has `Dc 640` as the list
+        // element type BEFORE `Dc 260`. It must intern `[260 262 640 263 260 261]`
+        // cleanly as a single literal without corrupting the inner `260 261`.
+        let list_atom_tokens = vec![
+            DcShorthand::Short(2578),
+            DcShorthand::Short(640),
+            DcShorthand::Short(260),
+            DcShorthand::Short(262),
+            DcShorthand::Short(640),
+            DcShorthand::Short(263),
+            DcShorthand::Short(260),
+            DcShorthand::Short(261),
+            DcShorthand::Short(2579),
+        ];
+        let interned_list_atom =
+            builder.intern_embedded_frames_in_value_node(&list_atom_tokens)?;
+        assert_eq!(interned_list_atom.len(), 4);
+        assert!(matches!(
+            interned_list_atom.get(2),
+            Some(DcShorthand::Long(_))
+        ));
+        let idx_after_atom = crate::seed_graph::SeedGraphIndex::from_nodes(
+            builder.write_state.nodes.clone(),
+        );
+        assert_eq!(
+            idx_after_atom.expand_interned_string_nodes(&interned_list_atom),
+            list_atom_tokens
+        );
+
+        // When two active nodes share identical expanded tokens (an older
+        // legacy-unicode node `old_dup_id` and a newer string-interned node
+        // `newer_dup_id`), `resolve_value_spec` must select `newer_dup_id`
+        // (zero churn on string-interned nodes!).
+        let y_legacy_id = builder.get_or_insert_value_node(
+            vec![DcShorthand::Unicode(0x79)],
+            "legacy y".to_string(),
+        )?;
+        let _old_dup_id = builder.get_or_insert_value_node(
+            vec![
+                DcShorthand::Short(270),
+                DcShorthand::Unicode(0x6e),
+                DcShorthand::Short(271),
+                DcShorthand::Short(260),
+                DcShorthand::Long(y_legacy_id),
+                DcShorthand::Short(261),
+                DcShorthand::Short(2207),
+            ],
+            "old-legacy".to_string(),
+        )?;
+        let y_str_id = builder.get_or_insert_value_node(
+            vec![
+                DcShorthand::Short(260),
+                DcShorthand::Unicode(0x79),
+                DcShorthand::Short(261),
+            ],
+            "\"y\"".to_string(),
+        )?;
+        let newer_dup_id = builder.get_or_insert_value_node(
+            vec![
+                DcShorthand::Short(270),
+                DcShorthand::Unicode(0x6e),
+                DcShorthand::Short(271),
+                DcShorthand::Long(y_str_id),
+                DcShorthand::Short(2207),
+            ],
+            "newer-str-interned".to_string(),
+        )?;
+        let count_before_dup_check = builder.write_state.nodes.len();
+        let resolved_dup = builder.resolve_value_spec(&ValueSpec::ValueNode {
+            tokens: vec![
+                DcShorthand::Short(270),
+                DcShorthand::Unicode(0x6e),
+                DcShorthand::Short(271),
+                DcShorthand::Short(260),
+                DcShorthand::Unicode(0x79),
+                DcShorthand::Short(261),
+                DcShorthand::Short(2207),
+            ],
+            comment: "check-priority".to_string(),
+        })?;
+        assert_eq!(resolved_dup, DcShorthand::Long(newer_dup_id));
+        assert_eq!(builder.write_state.nodes.len(), count_before_dup_check);
         Ok(())
     }
 

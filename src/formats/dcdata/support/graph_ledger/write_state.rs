@@ -84,6 +84,11 @@ pub(crate) struct SystemGraphWriteState {
     pub(crate) retracted_by: HashMap<u128, u128>,
     pub(crate) active_nodes_by_tokens: HashMap<Vec<DcShorthand>, Vec<u128>>,
     pub(crate) retracted_nodes_by_tokens: HashMap<Vec<DcShorthand>, Vec<u128>>,
+    pub(crate) expanded_tokens_by_value_id: HashMap<u128, Vec<DcShorthand>>,
+    pub(crate) active_value_by_expanded_tokens:
+        HashMap<Vec<DcShorthand>, Vec<u128>>,
+    pub(crate) retracted_value_by_expanded_tokens:
+        HashMap<Vec<DcShorthand>, Vec<u128>>,
     pub(crate) referrers_by_id: HashMap<u128, Vec<u128>>,
     pub(crate) framing: CtbnbdlFramingDcs,
 }
@@ -138,13 +143,19 @@ impl SystemGraphWriteState {
 
         let (inactive_ids, superseded_by, retracted_by) =
             compute_effective_inactive_ids(&index.nodes);
-        let (active_nodes_by_tokens, retracted_nodes_by_tokens) =
-            Self::build_token_indices(
-                &index.nodes,
-                &inactive_ids,
-                &superseded_by,
-                &retracted_by,
-            );
+        let (
+            active_nodes_by_tokens,
+            retracted_nodes_by_tokens,
+            expanded_tokens_by_value_id,
+            active_value_by_expanded_tokens,
+            retracted_value_by_expanded_tokens,
+        ) = Self::build_token_indices(
+            &index.nodes,
+            &node_index_by_id,
+            &inactive_ids,
+            &superseded_by,
+            &retracted_by,
+        );
 
         Self {
             nodes: index.nodes.clone(),
@@ -160,6 +171,9 @@ impl SystemGraphWriteState {
             retracted_by,
             active_nodes_by_tokens,
             retracted_nodes_by_tokens,
+            expanded_tokens_by_value_id,
+            active_value_by_expanded_tokens,
+            retracted_value_by_expanded_tokens,
             referrers_by_id,
             framing: default_ctbnbdl_framing_dcs(),
         }
@@ -181,13 +195,19 @@ impl SystemGraphWriteState {
 
         let (inactive_ids, superseded_by, retracted_by) =
             compute_effective_inactive_ids(nodes);
-        let (active_nodes_by_tokens, retracted_nodes_by_tokens) =
-            Self::build_token_indices(
-                nodes,
-                &inactive_ids,
-                &superseded_by,
-                &retracted_by,
-            );
+        let (
+            active_nodes_by_tokens,
+            retracted_nodes_by_tokens,
+            expanded_tokens_by_value_id,
+            active_value_by_expanded_tokens,
+            retracted_value_by_expanded_tokens,
+        ) = Self::build_token_indices(
+            nodes,
+            &node_index_by_id,
+            &inactive_ids,
+            &superseded_by,
+            &retracted_by,
+        );
 
         Self {
             nodes: nodes.to_vec(),
@@ -203,6 +223,9 @@ impl SystemGraphWriteState {
             retracted_by,
             active_nodes_by_tokens,
             retracted_nodes_by_tokens,
+            expanded_tokens_by_value_id,
+            active_value_by_expanded_tokens,
+            retracted_value_by_expanded_tokens,
             referrers_by_id,
             framing: default_ctbnbdl_framing_dcs(),
         }
@@ -255,12 +278,44 @@ impl SystemGraphWriteState {
             .is_some_and(|(v, _, _)| v == sh_sup || v == sh_ret)
     }
 
+    #[must_use]
+    pub(crate) fn is_value_node_tokens(tokens: &[DcShorthand]) -> bool {
+        parse_statement_tokens(tokens).is_none()
+            && parse_for_each_statement_tokens(tokens).is_none()
+            && parse_ambiguous_values_tokens(tokens).is_none()
+    }
+
+    fn expand_tokens_from_parts(
+        tokens: &[DcShorthand],
+        nodes: &[LedgerNode],
+        node_index_by_id: &HashMap<u128, usize>,
+        inactive_ids: &HashSet<u128>,
+    ) -> Vec<DcShorthand> {
+        SeedGraphIndex::expand_interned_nodes_with_lookup(tokens, &|child_id| {
+            if inactive_ids.contains(&child_id) {
+                return None;
+            }
+            node_index_by_id
+                .get(&child_id)
+                .and_then(|&idx| nodes.get(idx))
+                .map(|n| n.tokens.as_slice())
+        })
+    }
+
+    #[allow(
+        clippy::type_complexity,
+        reason = "Private index tuple keeps exact/expanded and active/retracted build pass cohesive"
+    )]
     fn build_token_indices(
         nodes: &[LedgerNode],
+        node_index_by_id: &HashMap<u128, usize>,
         inactive_ids: &HashSet<u128>,
         superseded_by: &HashMap<u128, u128>,
         retracted_by: &HashMap<u128, u128>,
     ) -> (
+        HashMap<Vec<DcShorthand>, Vec<u128>>,
+        HashMap<Vec<DcShorthand>, Vec<u128>>,
+        HashMap<u128, Vec<DcShorthand>>,
         HashMap<Vec<DcShorthand>, Vec<u128>>,
         HashMap<Vec<DcShorthand>, Vec<u128>>,
     ) {
@@ -268,19 +323,82 @@ impl SystemGraphWriteState {
             HashMap::with_capacity(nodes.len());
         let mut retracted: HashMap<Vec<DcShorthand>, Vec<u128>> =
             HashMap::new();
+        let mut expanded_by_value_id: HashMap<u128, Vec<DcShorthand>> =
+            HashMap::new();
+        let mut active_expanded: HashMap<Vec<DcShorthand>, Vec<u128>> =
+            HashMap::new();
+        let mut retracted_expanded: HashMap<Vec<DcShorthand>, Vec<u128>> =
+            HashMap::new();
         for n in nodes {
             if Self::is_revision_tokens(&n.tokens) {
                 continue;
             }
+            let is_val = Self::is_value_node_tokens(&n.tokens);
             if !inactive_ids.contains(&n.id) {
                 active.entry(n.tokens.clone()).or_default().push(n.id);
+                if is_val {
+                    let expanded = Self::expand_tokens_from_parts(
+                        &n.tokens,
+                        nodes,
+                        node_index_by_id,
+                        inactive_ids,
+                    );
+                    expanded_by_value_id.insert(n.id, expanded.clone());
+                    active_expanded.entry(expanded).or_default().push(n.id);
+                }
             } else if retracted_by.contains_key(&n.id)
                 && !superseded_by.contains_key(&n.id)
             {
                 retracted.entry(n.tokens.clone()).or_default().push(n.id);
+                if is_val {
+                    let expanded = Self::expand_tokens_from_parts(
+                        &n.tokens,
+                        nodes,
+                        node_index_by_id,
+                        inactive_ids,
+                    );
+                    expanded_by_value_id.insert(n.id, expanded.clone());
+                    retracted_expanded.entry(expanded).or_default().push(n.id);
+                }
             }
         }
-        (active, retracted)
+        (
+            active,
+            retracted,
+            expanded_by_value_id,
+            active_expanded,
+            retracted_expanded,
+        )
+    }
+
+    /// Expands interned `[string]`, comment, and identifier nodes within
+    /// `tokens` against currently active nodes in this write state.
+    #[must_use]
+    pub(crate) fn expand_tokens_active(
+        &self,
+        tokens: &[DcShorthand],
+    ) -> Vec<DcShorthand> {
+        Self::expand_tokens_from_parts(
+            tokens,
+            &self.nodes,
+            &self.node_index_by_id,
+            &self.inactive_ids,
+        )
+    }
+
+    /// Finds the highest (newest/most-compact) active value node ID whose
+    /// expanded token stream equals `expanded`, if any.
+    #[must_use]
+    pub(crate) fn find_active_value_by_expanded_tokens(
+        &self,
+        expanded: &[DcShorthand],
+    ) -> Option<u128> {
+        self.active_value_by_expanded_tokens
+            .get(expanded)?
+            .iter()
+            .copied()
+            .filter(|id| !self.inactive_ids.contains(id))
+            .max()
     }
 
     /// Returns the node with `node_id`, if present.
@@ -654,6 +772,19 @@ impl SystemGraphWriteState {
         Ok(())
     }
 
+    fn remove_id_from_token_map(
+        map: &mut HashMap<Vec<DcShorthand>, Vec<u128>>,
+        key: &[DcShorthand],
+        target_id: u128,
+    ) {
+        if let Some(ids) = map.get_mut(key) {
+            ids.retain(|&id| id != target_id);
+            if ids.is_empty() {
+                map.remove(key);
+            }
+        }
+    }
+
     fn update_indices_after_append(
         &mut self,
         next_id: u128,
@@ -661,6 +792,15 @@ impl SystemGraphWriteState {
         is_revision_stmt: bool,
     ) {
         if !is_revision_stmt {
+            if Self::is_value_node_tokens(&tokens) {
+                let expanded = self.expand_tokens_active(&tokens);
+                self.expanded_tokens_by_value_id
+                    .insert(next_id, expanded.clone());
+                self.active_value_by_expanded_tokens
+                    .entry(expanded)
+                    .or_default()
+                    .push(next_id);
+            }
             self.active_nodes_by_tokens
                 .entry(tokens)
                 .or_default()
@@ -681,37 +821,63 @@ impl SystemGraphWriteState {
             self.inactive_ids = re_inactive;
             self.superseded_by = re_sup;
             self.retracted_by = re_ret;
-            let (re_active, re_retracted_map) = Self::build_token_indices(
+            let (
+                re_active,
+                re_retracted_map,
+                re_expanded_by_val,
+                re_active_expanded,
+                re_retracted_expanded,
+            ) = Self::build_token_indices(
                 &self.nodes,
+                &self.node_index_by_id,
                 &self.inactive_ids,
                 &self.superseded_by,
                 &self.retracted_by,
             );
             self.active_nodes_by_tokens = re_active;
             self.retracted_nodes_by_tokens = re_retracted_map;
+            self.expanded_tokens_by_value_id = re_expanded_by_val;
+            self.active_value_by_expanded_tokens = re_active_expanded;
+            self.retracted_value_by_expanded_tokens = re_retracted_expanded;
             return;
         }
 
         self.inactive_ids.insert(old_id);
-        if let Some(old_tokens) = self.get_node(old_id).map(|n| n.tokens.clone())
-            && let Some(ids) = self.active_nodes_by_tokens.get_mut(&old_tokens)
-        {
-            ids.retain(|&id| id != old_id);
-            if ids.is_empty() {
-                self.active_nodes_by_tokens.remove(&old_tokens);
-            }
+        let old_tokens_opt = self.get_node(old_id).map(|n| n.tokens.clone());
+        if let Some(ref old_tokens) = old_tokens_opt {
+            Self::remove_id_from_token_map(
+                &mut self.active_nodes_by_tokens,
+                old_tokens,
+                old_id,
+            );
         }
+        let old_expanded_opt =
+            self.expanded_tokens_by_value_id.get(&old_id).cloned();
+        if let Some(ref old_expanded) = old_expanded_opt {
+            Self::remove_id_from_token_map(
+                &mut self.active_value_by_expanded_tokens,
+                old_expanded,
+                old_id,
+            );
+        }
+
         if verb == sh(DC_SUPERSEDES) {
             if let DcShorthand::Long(new_id) = subj {
                 self.superseded_by.insert(old_id, new_id);
+                self.expanded_tokens_by_value_id.remove(&old_id);
             }
         } else if verb == sh(DC_RETRACTS) {
             self.retracted_by.insert(old_id, next_id);
-            if let Some(old_tokens) =
-                self.get_node(old_id).map(|n| n.tokens.clone())
+            if let Some(old_tokens) = old_tokens_opt
                 && !Self::is_revision_tokens(&old_tokens)
                 && !self.superseded_by.contains_key(&old_id)
             {
+                if let Some(old_expanded) = old_expanded_opt {
+                    self.retracted_value_by_expanded_tokens
+                        .entry(old_expanded)
+                        .or_default()
+                        .push(old_id);
+                }
                 self.retracted_nodes_by_tokens
                     .entry(old_tokens)
                     .or_default()
@@ -792,19 +958,19 @@ impl SystemGraphWriteState {
         Some(retract_stmt_id)
     }
 
-    /// Attempts to reactivate an earlier retracted node whose exact tokens match
-    /// `tokens` by appending `Dc 592 "Retracts" Dc 615 "Enclosing document" l<retract_stmt_id>`.
-    pub(crate) fn try_unretract_matching_node(
+    fn try_unretract_first_safe_candidate(
         &mut self,
-        tokens: &[DcShorthand],
+        cands: &[u128],
+        descending: bool,
         actor_prov: NodeProvenance,
         format_comment: &dyn Fn(&[DcShorthand]) -> String,
     ) -> Result<Option<(u128, u128)>> {
-        let Some(cands) = self.retracted_nodes_by_tokens.get(tokens) else {
-            return Ok(None);
-        };
-        let mut candidates = cands.clone();
+        let mut candidates = cands.to_vec();
         candidates.sort_unstable();
+        candidates.dedup();
+        if descending {
+            candidates.reverse();
+        }
 
         for target_id in candidates {
             if let Some(retract_stmt_id) =
@@ -828,6 +994,48 @@ impl SystemGraphWriteState {
             }
         }
         Ok(None)
+    }
+
+    /// Attempts to reactivate an earlier retracted node whose exact tokens match
+    /// `tokens` by appending `Dc 592 "Retracts" Dc 615 "Enclosing document" l<retract_stmt_id>`.
+    pub(crate) fn try_unretract_matching_node(
+        &mut self,
+        tokens: &[DcShorthand],
+        actor_prov: NodeProvenance,
+        format_comment: &dyn Fn(&[DcShorthand]) -> String,
+    ) -> Result<Option<(u128, u128)>> {
+        let Some(cands) = self.retracted_nodes_by_tokens.get(tokens).cloned()
+        else {
+            return Ok(None);
+        };
+        self.try_unretract_first_safe_candidate(
+            &cands,
+            false,
+            actor_prov,
+            format_comment,
+        )
+    }
+
+    /// Attempts to reactivate an earlier retracted value node whose expanded
+    /// tokens match `expanded` by cancelling its active `Dc 592` retraction,
+    /// preferring newer compact retracted nodes over older legacy duplicates.
+    pub(crate) fn try_unretract_matching_expanded_value_node(
+        &mut self,
+        expanded: &[DcShorthand],
+        actor_prov: NodeProvenance,
+        format_comment: &dyn Fn(&[DcShorthand]) -> String,
+    ) -> Result<Option<(u128, u128)>> {
+        let Some(cands) =
+            self.retracted_value_by_expanded_tokens.get(expanded).cloned()
+        else {
+            return Ok(None);
+        };
+        self.try_unretract_first_safe_candidate(
+            &cands,
+            true,
+            actor_prov,
+            format_comment,
+        )
     }
 
     /// Attempts to reactivate a previously retracted `(584 subj prop, 610 l<ha> val_tok)`

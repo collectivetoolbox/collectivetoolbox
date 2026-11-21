@@ -43,6 +43,7 @@ use ctb_utilities::format_id::DC_COLLECTIVE_TOOLBOX;
 
 use crate::dc::{
     DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP,
+    DC_BEGIN_BLOCK_COMMENT, DC_BEGIN_BLOCK_COMMENT_NEW_LINE,
     DC_BEGIN_IDENTIFIER, DC_BEGIN_LIST, DC_BEGIN_LITERAL, DC_BEGIN_MODULE,
     DC_BEGIN_ROUTINE_DECL, DC_BEGIN_SINGLE_LINE_COMMENT,
     DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE, DC_BEGIN_TYPE_DEF,
@@ -53,9 +54,9 @@ use crate::dc::{
     DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE, DC_DATA_FORMAT_DESCRIPTION,
     DC_DC_DOCUMENT_EXECUTION_KERNEL, DC_DC_GENERAL_CATEGORY, DC_DECLARE_CONST,
     DC_DECLARE_PUB, DC_DECOMPOSITION, DC_ENCLOSING_DOCUMENT,
-    DC_END_ASSOCIATIVITY_GROUP, DC_END_IDENTIFIER, DC_END_LIST,
-    DC_END_LITERAL, DC_END_SINGLE_LINE_COMMENT, DC_END_WASM_PROGRAM,
-    DC_ENTITY_TYPE, DC_ESCAPE, DC_EVALUATE_VALUE_AS_ATOM,
+    DC_END_ASSOCIATIVITY_GROUP, DC_END_BLOCK_COMMENT, DC_END_IDENTIFIER,
+    DC_END_LIST, DC_END_LITERAL, DC_END_SINGLE_LINE_COMMENT,
+    DC_END_WASM_PROGRAM, DC_ENTITY_TYPE, DC_ESCAPE, DC_EVALUATE_VALUE_AS_ATOM,
     DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID, DC_HAS_A, DC_HAS_VALUE,
     DC_IN_CONTEXT_OF, DC_IS_BASED_ON, DC_IS_INSTANCE_OF, DC_IS_STABLE,
     DC_MANUAL_ENTRY, DC_PATTERN_REPLACEMENT, DC_PREFERRED,
@@ -2895,7 +2896,7 @@ impl SeedGraphIndex {
         Ok(None)
     }
 
-    fn is_closed_string_literal_node(tokens: &[DcShorthand]) -> bool {
+    pub(crate) fn is_closed_string_literal_node(tokens: &[DcShorthand]) -> bool {
         tokens.first() == Some(&sh(DC_BEGIN_LITERAL))
             && find_closed_delimited_span(
                 tokens,
@@ -2905,18 +2906,101 @@ impl SeedGraphIndex {
             ) == Some(tokens.len().saturating_sub(1))
     }
 
-    fn is_legacy_unicode_run_node(tokens: &[DcShorthand]) -> bool {
+    /// Returns `true` when `tokens` is a single self-contained single-line or
+    /// block comment frame (`246`/`247`..`248` or `249`/`250`..`251`).
+    #[must_use]
+    pub(crate) fn is_closed_comment_node(tokens: &[DcShorthand]) -> bool {
+        if tokens.len() < 2 {
+            return false;
+        }
+        let sh_escape = sh(DC_ESCAPE);
+        let Some(&first) = tokens.first() else {
+            return false;
+        };
+        let close = if first == sh(DC_BEGIN_SINGLE_LINE_COMMENT)
+            || first == sh(DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE)
+        {
+            sh(DC_END_SINGLE_LINE_COMMENT)
+        } else if first == sh(DC_BEGIN_BLOCK_COMMENT)
+            || first == sh(DC_BEGIN_BLOCK_COMMENT_NEW_LINE)
+        {
+            sh(DC_END_BLOCK_COMMENT)
+        } else {
+            return false;
+        };
+        find_closed_delimited_span(tokens, 0, close, sh_escape)
+            == Some(tokens.len().saturating_sub(1))
+    }
+
+    /// Returns `true` when `tokens` is a single self-contained identifier frame
+    /// (`Dc 270 .. Dc 271`, length >= 3) without unescaped nested `270` openers.
+    #[must_use]
+    pub(crate) fn is_closed_identifier_node(tokens: &[DcShorthand]) -> bool {
+        if tokens.len() < 3 {
+            return false;
+        }
+        let sh_open = sh(DC_BEGIN_IDENTIFIER);
+        let sh_close = sh(DC_END_IDENTIFIER);
+        let sh_escape = sh(DC_ESCAPE);
+        if tokens.first() != Some(&sh_open) {
+            return false;
+        }
+        let end_pos = tokens.len().saturating_sub(1);
+        if find_closed_delimited_span(tokens, 0, sh_close, sh_escape)
+            != Some(end_pos)
+        {
+            return false;
+        }
+        let mut idx = 1usize;
+        while idx < end_pos {
+            let Some(&tok) = tokens.get(idx) else {
+                break;
+            };
+            if tok == sh_escape {
+                idx = idx.saturating_add(2);
+                continue;
+            }
+            if tok == sh_open {
+                return false;
+            }
+            idx = idx.saturating_add(1);
+        }
+        true
+    }
+
+    pub(crate) fn is_legacy_unicode_run_node(tokens: &[DcShorthand]) -> bool {
         !tokens.is_empty()
             && tokens.iter().all(|t| matches!(t, DcShorthand::Unicode(_)))
     }
 
-    /// Expands interned `[string]` node references (`Dc 260 .. Dc 261`) and
-    /// legacy pre-cleanup pure-Unicode run nodes back into inline Dc tokens.
+    /// Expands interned `[string]` (`260..261`), comment (`246/247..248`,
+    /// `249/250..251`), identifier (`270..271`), and legacy pure-Unicode run
+    /// node references using an arbitrary node-token lookup closure with cycle
+    /// protection.
     #[must_use]
-    pub fn expand_interned_string_nodes(
-        &self,
+    pub(crate) fn expand_interned_nodes_with_lookup<'a, F>(
         tokens: &[DcShorthand],
-    ) -> Vec<DcShorthand> {
+        lookup: &F,
+    ) -> Vec<DcShorthand>
+    where
+        F: Fn(u128) -> Option<&'a [DcShorthand]>,
+    {
+        let mut visiting = HashSet::new();
+        Self::expand_interned_nodes_with_lookup_inner(
+            tokens,
+            lookup,
+            &mut visiting,
+        )
+    }
+
+    fn expand_interned_nodes_with_lookup_inner<'a, F>(
+        tokens: &[DcShorthand],
+        lookup: &F,
+        visiting: &mut HashSet<u128>,
+    ) -> Vec<DcShorthand>
+    where
+        F: Fn(u128) -> Option<&'a [DcShorthand]>,
+    {
         let sh_escape = sh(DC_ESCAPE);
         let sh_atom = sh(DC_EVALUATE_VALUE_AS_ATOM);
         let sh_type_atom_dc = sh(DC_TYPE_ATOM_DC);
@@ -2927,12 +3011,15 @@ impl SeedGraphIndex {
         let sh_cmt_inline = sh(DC_BEGIN_SINGLE_LINE_COMMENT);
         let sh_cmt_nl = sh(DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE);
         let sh_cmt_close = sh(DC_END_SINGLE_LINE_COMMENT);
+        let sh_blk_inline = sh(DC_BEGIN_BLOCK_COMMENT);
+        let sh_blk_nl = sh(DC_BEGIN_BLOCK_COMMENT_NEW_LINE);
+        let sh_blk_close = sh(DC_END_BLOCK_COMMENT);
 
         let mut out = Vec::with_capacity(tokens.len());
         let mut in_lit = false;
         let mut lit_is_atom_dc = false;
         let mut in_ident = false;
-        let mut in_comment = false;
+        let mut comment_close: Option<DcShorthand> = None;
         let mut i = 0usize;
         while let Some(&tok) = tokens.get(i) {
             if tok == sh_escape {
@@ -2945,15 +3032,16 @@ impl SeedGraphIndex {
                 }
                 continue;
             }
-            if in_comment {
-                if tok == sh_cmt_close {
-                    in_comment = false;
+            if let Some(close_tok) = comment_close {
+                if tok == close_tok {
+                    comment_close = None;
                     out.push(tok);
                 } else if let DcShorthand::Long(child_id) = tok
-                    && let Some(child_node) = self.get_active_node(child_id)
-                    && Self::is_legacy_unicode_run_node(&child_node.tokens)
+                    && !visiting.contains(&child_id)
+                    && let Some(child_tokens) = lookup(child_id)
+                    && Self::is_legacy_unicode_run_node(child_tokens)
                 {
-                    out.extend_from_slice(&child_node.tokens);
+                    out.extend_from_slice(child_tokens);
                 } else {
                     out.push(tok);
                 }
@@ -2965,10 +3053,11 @@ impl SeedGraphIndex {
                     in_ident = false;
                     out.push(tok);
                 } else if let DcShorthand::Long(child_id) = tok
-                    && let Some(child_node) = self.get_active_node(child_id)
-                    && Self::is_legacy_unicode_run_node(&child_node.tokens)
+                    && !visiting.contains(&child_id)
+                    && let Some(child_tokens) = lookup(child_id)
+                    && Self::is_legacy_unicode_run_node(child_tokens)
                 {
-                    out.extend_from_slice(&child_node.tokens);
+                    out.extend_from_slice(child_tokens);
                 } else {
                     out.push(tok);
                 }
@@ -2986,10 +3075,11 @@ impl SeedGraphIndex {
                         out.last().copied(),
                         Some(t) if t == sh_atom || t == sh_type_atom_dc
                     )
-                    && let Some(child_node) = self.get_active_node(child_id)
-                    && Self::is_legacy_unicode_run_node(&child_node.tokens)
+                    && !visiting.contains(&child_id)
+                    && let Some(child_tokens) = lookup(child_id)
+                    && Self::is_legacy_unicode_run_node(child_tokens)
                 {
-                    out.extend_from_slice(&child_node.tokens);
+                    out.extend_from_slice(child_tokens);
                 } else {
                     out.push(tok);
                 }
@@ -2998,7 +3088,10 @@ impl SeedGraphIndex {
             }
 
             if tok == sh_cmt_inline || tok == sh_cmt_nl {
-                in_comment = true;
+                comment_close = Some(sh_cmt_close);
+                out.push(tok);
+            } else if tok == sh_blk_inline || tok == sh_blk_nl {
+                comment_close = Some(sh_blk_close);
                 out.push(tok);
             } else if tok == sh_ident_open {
                 in_ident = true;
@@ -3014,17 +3107,40 @@ impl SeedGraphIndex {
                 out.push(tok);
             } else if let DcShorthand::Long(child_id) = tok
                 && out.last().copied() != Some(sh_atom)
-                && let Some(child_node) = self.get_active_node(child_id)
-                && (Self::is_closed_string_literal_node(&child_node.tokens)
-                    || Self::is_legacy_unicode_run_node(&child_node.tokens))
+                && !visiting.contains(&child_id)
+                && let Some(child_tokens) = lookup(child_id)
+                && (Self::is_closed_string_literal_node(child_tokens)
+                    || Self::is_closed_comment_node(child_tokens)
+                    || Self::is_closed_identifier_node(child_tokens)
+                    || Self::is_legacy_unicode_run_node(child_tokens))
             {
-                out.extend_from_slice(&child_node.tokens);
+                visiting.insert(child_id);
+                let expanded_child = Self::expand_interned_nodes_with_lookup_inner(
+                    child_tokens,
+                    lookup,
+                    visiting,
+                );
+                visiting.remove(&child_id);
+                out.extend(expanded_child);
             } else {
                 out.push(tok);
             }
             i = i.saturating_add(1);
         }
         out
+    }
+
+    /// Expands interned `[string]` (`Dc 260 .. Dc 261`), comment
+    /// (`Dc 246/247..248`, `Dc 249/250..251`), identifier (`Dc 270..271`), and
+    /// legacy pre-cleanup pure-Unicode run nodes back into inline Dc tokens.
+    #[must_use]
+    pub fn expand_interned_string_nodes(
+        &self,
+        tokens: &[DcShorthand],
+    ) -> Vec<DcShorthand> {
+        Self::expand_interned_nodes_with_lookup(tokens, &|child_id| {
+            self.get_active_node(child_id).map(|n| n.tokens.as_slice())
+        })
     }
 
     /// Returns `true` if `raw_tokens` (after expanding interned `[string]`
@@ -5485,6 +5601,122 @@ mod tests {
             targets[3].kind,
             SystemWasmSubstituteTargetKind::StageLConverter { .. }
         ));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_expand_interned_nodes_expands_comments_identifiers_and_blocks_literals_atoms_cycles()
+    -> Result<()> {
+        let str_id = SYSTEM_REGION_START;
+        let sl_cmt_id = SYSTEM_REGION_START + 1;
+        let blk_cmt_id = SYSTEM_REGION_START + 2;
+        let ident_id = SYSTEM_REGION_START + 3;
+        let cyc_id = SYSTEM_REGION_START + 4;
+
+        let nodes = vec![
+            LedgerNode {
+                id: str_id,
+                tokens: vec![
+                    sh(DC_BEGIN_LITERAL),
+                    DcShorthand::Unicode(0x61),
+                    sh(DC_END_LITERAL),
+                ],
+                comment: "\"a\"".to_string(),
+            },
+            LedgerNode {
+                id: sl_cmt_id,
+                tokens: vec![
+                    sh(DC_BEGIN_SINGLE_LINE_COMMENT),
+                    DcShorthand::Unicode(0x63),
+                    sh(DC_END_SINGLE_LINE_COMMENT),
+                ],
+                comment: "// c".to_string(),
+            },
+            LedgerNode {
+                id: blk_cmt_id,
+                tokens: vec![
+                    sh(DC_BEGIN_BLOCK_COMMENT_NEW_LINE),
+                    DcShorthand::Unicode(0x62),
+                    sh(DC_END_BLOCK_COMMENT),
+                ],
+                comment: "/* b */".to_string(),
+            },
+            LedgerNode {
+                id: ident_id,
+                tokens: vec![
+                    sh(DC_BEGIN_IDENTIFIER),
+                    DcShorthand::Unicode(0x78),
+                    sh(DC_END_IDENTIFIER),
+                ],
+                comment: "x".to_string(),
+            },
+            LedgerNode {
+                id: cyc_id,
+                tokens: vec![
+                    sh(DC_BEGIN_IDENTIFIER),
+                    DcShorthand::Long(cyc_id),
+                    sh(DC_END_IDENTIFIER),
+                ],
+                comment: "cycle".to_string(),
+            },
+        ];
+
+        let idx = SeedGraphIndex::from_nodes(nodes);
+        let input = vec![
+            DcShorthand::Long(sl_cmt_id),
+            DcShorthand::Long(blk_cmt_id),
+            DcShorthand::Long(ident_id),
+            sh(DC_TYPE_ATOM_DC),
+            DcShorthand::Long(ident_id),
+            sh(DC_EVALUATE_VALUE_AS_ATOM),
+            DcShorthand::Long(sl_cmt_id),
+            sh(DC_ESCAPE),
+            DcShorthand::Long(str_id),
+            sh(DC_BEGIN_LITERAL),
+            sh(DC_TYPE_ATOM_DC),
+            DcShorthand::Long(ident_id),
+            sh(DC_END_LITERAL),
+            sh(DC_BEGIN_LITERAL),
+            DcShorthand::Long(ident_id),
+            DcShorthand::Long(sl_cmt_id),
+            DcShorthand::Long(str_id),
+            sh(DC_END_LITERAL),
+            DcShorthand::Long(cyc_id),
+        ];
+
+        let expected = vec![
+            sh(DC_BEGIN_SINGLE_LINE_COMMENT),
+            DcShorthand::Unicode(0x63),
+            sh(DC_END_SINGLE_LINE_COMMENT),
+            sh(DC_BEGIN_BLOCK_COMMENT_NEW_LINE),
+            DcShorthand::Unicode(0x62),
+            sh(DC_END_BLOCK_COMMENT),
+            sh(DC_BEGIN_IDENTIFIER),
+            DcShorthand::Unicode(0x78),
+            sh(DC_END_IDENTIFIER),
+            sh(DC_TYPE_ATOM_DC),
+            sh(DC_BEGIN_IDENTIFIER),
+            DcShorthand::Unicode(0x78),
+            sh(DC_END_IDENTIFIER),
+            sh(DC_EVALUATE_VALUE_AS_ATOM),
+            DcShorthand::Long(sl_cmt_id),
+            sh(DC_ESCAPE),
+            DcShorthand::Long(str_id),
+            sh(DC_BEGIN_LITERAL),
+            sh(DC_TYPE_ATOM_DC),
+            DcShorthand::Long(ident_id),
+            sh(DC_END_LITERAL),
+            sh(DC_BEGIN_LITERAL),
+            DcShorthand::Long(ident_id),
+            DcShorthand::Long(sl_cmt_id),
+            DcShorthand::Long(str_id),
+            sh(DC_END_LITERAL),
+            sh(DC_BEGIN_IDENTIFIER),
+            DcShorthand::Long(cyc_id),
+            sh(DC_END_IDENTIFIER),
+        ];
+
+        assert_eq!(idx.expand_interned_string_nodes(&input), expected);
         Ok(())
     }
 }
