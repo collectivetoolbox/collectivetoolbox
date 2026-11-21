@@ -272,17 +272,50 @@ impl WasmTable {
     }
 }
 
+/// Function pointer wrapper for a substitute module's shared initializer.
+#[derive(Clone, Copy)]
+pub struct InitFnPtr(
+    pub  fn(
+        &mut SubstituteVm,
+        &mut dyn WasmSubstituteHost,
+    ) -> std::result::Result<(), WasmTrap>,
+);
+
+impl std::fmt::Debug for InitFnPtr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("InitFnPtr(..)")
+    }
+}
+
 /// Complete WebAssembly VM state and V2 metering globals for a substitute instance.
 #[derive(Debug, Clone)]
 pub struct SubstituteVm {
-    /// Linear memories declared by the module.
-    pub memories: Vec<WasmLinearMemory>,
+    /// Inline fast-path storage for linear memory `0`.
+    pub mem0: Option<WasmLinearMemory>,
+    /// Linear memories `1..` declared by multi-memory modules.
+    pub extra_memories: Vec<WasmLinearMemory>,
     /// Tables declared by the module.
     pub tables: Vec<WasmTable>,
     /// Passive data segments (cleared to `None` on `data.drop`).
     pub passive_data: Vec<Option<&'static [u8]>>,
     /// Passive element segments (cleared to `None` on `elem.drop`).
     pub passive_elems: Vec<Option<&'static [Option<u32>]>>,
+    /// Dedicated guest `__heap_ptr` linear-memory bump pointer global (`i32`).
+    pub heap_ptr: i32,
+    /// Whether the instantiated module declares an exported mutable `__heap_ptr`.
+    pub has_heap_ptr: bool,
+    /// Module-private mutable/immutable `i32` globals (excluding `__heap_ptr`).
+    pub globals_i32: Vec<i32>,
+    /// Module-private `i64` globals.
+    pub globals_i64: Vec<i64>,
+    /// Module-private `f32` globals.
+    pub globals_f32: Vec<f32>,
+    /// Module-private `f64` globals.
+    pub globals_f64: Vec<f64>,
+    /// Module-private reference globals (`funcref` / `externref`).
+    pub globals_ref: Vec<Option<u32>>,
+    /// Optional module-specific shared initializer hook (e.g. `__init_top_vals`).
+    pub init_fn: Option<InitFnPtr>,
     /// Active non-tail call depth.
     pub call_depth: u32,
     /// Remaining compute quota units (`__ctb_quota_remaining`).
@@ -329,11 +362,23 @@ impl SubstituteVm {
             // Reason for fallback: WASM table size is u32 and always fits in u64.
             acc.saturating_add(u64::try_from(t.size()).unwrap_or(0))
         });
+        let mut mem_iter = memories.into_iter();
+        let mem0 = mem_iter.next();
+        let extra_memories: Vec<WasmLinearMemory> = mem_iter.collect();
         Self {
-            memories,
+            mem0,
+            extra_memories,
             tables,
             passive_data,
             passive_elems,
+            heap_ptr: 0,
+            has_heap_ptr: false,
+            globals_i32: Vec::new(),
+            globals_i64: Vec::new(),
+            globals_f32: Vec::new(),
+            globals_f64: Vec::new(),
+            globals_ref: Vec::new(),
+            init_fn: None,
             call_depth: 0,
             quota_remaining: u64::MAX >> 1,
             quota_consumed: 0,
@@ -349,6 +394,163 @@ impl SubstituteVm {
             phys_max_table_elems: 65_536,
             resume_target_op: 0,
         }
+    }
+
+    /// Returns a shared reference to linear memory `mem_idx` (`0` uses inline `mem0`).
+    #[inline(always)]
+    pub fn memory(&self, mem_idx: usize) -> Option<&WasmLinearMemory> {
+        if mem_idx == 0 {
+            self.mem0.as_ref()
+        } else {
+            mem_idx
+                .checked_sub(1)
+                .and_then(|i| self.extra_memories.get(i))
+        }
+    }
+
+    /// Returns a mutable reference to linear memory `mem_idx` (`0` uses inline `mem0`).
+    #[inline(always)]
+    pub fn memory_mut(&mut self, mem_idx: usize) -> Option<&mut WasmLinearMemory> {
+        if mem_idx == 0 {
+            self.mem0.as_mut()
+        } else {
+            mem_idx
+                .checked_sub(1)
+                .and_then(|i| self.extra_memories.get_mut(i))
+        }
+    }
+
+    /// Reads an `i32` global from `globals_i32[slot]`.
+    #[inline(always)]
+    pub fn get_i32(&self, slot: usize) -> std::result::Result<i32, WasmTrap> {
+        self.globals_i32
+            .get(slot)
+            .copied()
+            .ok_or(WasmTrap::Unreachable)
+    }
+
+    /// Writes `val` to `globals_i32[slot]`.
+    #[inline(always)]
+    pub fn set_i32(
+        &mut self,
+        slot: usize,
+        val: i32,
+    ) -> std::result::Result<(), WasmTrap> {
+        let entry = self
+            .globals_i32
+            .get_mut(slot)
+            .ok_or(WasmTrap::Unreachable)?;
+        *entry = val;
+        Ok(())
+    }
+
+    /// Reads an `i64` global from `globals_i64[slot]`.
+    #[inline(always)]
+    pub fn get_i64(&self, slot: usize) -> std::result::Result<i64, WasmTrap> {
+        self.globals_i64
+            .get(slot)
+            .copied()
+            .ok_or(WasmTrap::Unreachable)
+    }
+
+    /// Writes `val` to `globals_i64[slot]`.
+    #[inline(always)]
+    pub fn set_i64(
+        &mut self,
+        slot: usize,
+        val: i64,
+    ) -> std::result::Result<(), WasmTrap> {
+        let entry = self
+            .globals_i64
+            .get_mut(slot)
+            .ok_or(WasmTrap::Unreachable)?;
+        *entry = val;
+        Ok(())
+    }
+
+    /// Reads an `f32` global from `globals_f32[slot]`.
+    #[inline(always)]
+    pub fn get_f32(&self, slot: usize) -> std::result::Result<f32, WasmTrap> {
+        self.globals_f32
+            .get(slot)
+            .copied()
+            .ok_or(WasmTrap::Unreachable)
+    }
+
+    /// Writes `val` to `globals_f32[slot]`.
+    #[inline(always)]
+    pub fn set_f32(
+        &mut self,
+        slot: usize,
+        val: f32,
+    ) -> std::result::Result<(), WasmTrap> {
+        let entry = self
+            .globals_f32
+            .get_mut(slot)
+            .ok_or(WasmTrap::Unreachable)?;
+        *entry = val;
+        Ok(())
+    }
+
+    /// Reads an `f64` global from `globals_f64[slot]`.
+    #[inline(always)]
+    pub fn get_f64(&self, slot: usize) -> std::result::Result<f64, WasmTrap> {
+        self.globals_f64
+            .get(slot)
+            .copied()
+            .ok_or(WasmTrap::Unreachable)
+    }
+
+    /// Writes `val` to `globals_f64[slot]`.
+    #[inline(always)]
+    pub fn set_f64(
+        &mut self,
+        slot: usize,
+        val: f64,
+    ) -> std::result::Result<(), WasmTrap> {
+        let entry = self
+            .globals_f64
+            .get_mut(slot)
+            .ok_or(WasmTrap::Unreachable)?;
+        *entry = val;
+        Ok(())
+    }
+
+    /// Reads a reference global from `globals_ref[slot]`.
+    #[inline(always)]
+    pub fn get_ref(
+        &self,
+        slot: usize,
+    ) -> std::result::Result<Option<u32>, WasmTrap> {
+        self.globals_ref
+            .get(slot)
+            .copied()
+            .ok_or(WasmTrap::Unreachable)
+    }
+
+    /// Writes `val` to `globals_ref[slot]`.
+    #[inline(always)]
+    pub fn set_ref(
+        &mut self,
+        slot: usize,
+        val: Option<u32>,
+    ) -> std::result::Result<(), WasmTrap> {
+        let entry = self
+            .globals_ref
+            .get_mut(slot)
+            .ok_or(WasmTrap::Unreachable)?;
+        *entry = val;
+        Ok(())
+    }
+
+    /// Invokes the module's registered shared initializer hook, if present.
+    #[inline(always)]
+    pub fn call_init(
+        &mut self,
+        host: &mut dyn WasmSubstituteHost,
+    ) -> std::result::Result<(), WasmTrap> {
+        let init = self.init_fn.ok_or(WasmTrap::Unreachable)?;
+        (init.0)(self, host)
     }
 
     /// Deducts `cost` compute units under exact V2 `deduct-before-effect`
@@ -412,8 +614,7 @@ impl SubstituteVm {
         mem_idx: usize,
     ) -> std::result::Result<i32, WasmTrap> {
         let mem = self
-            .memories
-            .get(mem_idx)
+            .memory(mem_idx)
             .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
         // Reason for fallback: page_count <= 65_536 always fits in i32.
         Ok(i32::try_from(mem.page_count()).unwrap_or(i32::MAX))
@@ -428,8 +629,7 @@ impl SubstituteVm {
     ) -> std::result::Result<i32, WasmTrap> {
         let (cur_pages, declared_max) = {
             let mem = self
-                .memories
-                .get(mem_idx)
+                .memory(mem_idx)
                 .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
             (
                 // Reason for fallback: page_count <= 65_536 always fits in u64.
@@ -456,8 +656,7 @@ impl SubstituteVm {
             return Err(WasmTrap::Unreachable);
         }
         let mem = self
-            .memories
-            .get_mut(mem_idx)
+            .memory_mut(mem_idx)
             .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
         let old = mem.grow_raw(delta_u32);
         if old < 0 {
@@ -469,7 +668,7 @@ impl SubstituteVm {
         Ok(old)
     }
 
-    /// Initializes active data bytes in `memories[mem_idx]` at startup.
+    /// Initializes active data bytes in linear memory `mem_idx` at startup.
     pub fn init_active_data(
         &mut self,
         mem_idx: usize,
@@ -477,8 +676,7 @@ impl SubstituteVm {
         bytes: &[u8],
     ) -> std::result::Result<(), WasmTrap> {
         let mem = self
-            .memories
-            .get_mut(mem_idx)
+            .memory_mut(mem_idx)
             .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
         mem.init_active(offset, bytes)
     }
@@ -625,8 +823,7 @@ impl SubstituteVm {
             .checked_add(n_usize)
             .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
         let mem = self
-            .memories
-            .get_mut(mem_idx)
+            .memory_mut(mem_idx)
             .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
         let target = mem
             .as_mut_slice()
@@ -665,8 +862,7 @@ impl SubstituteVm {
 
         if dst_mem == src_mem {
             let mem = self
-                .memories
-                .get_mut(dst_mem)
+                .memory_mut(dst_mem)
                 .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
             let buf = mem.as_mut_slice();
             if src_end > buf.len() || dst_end > buf.len() {
@@ -676,8 +872,7 @@ impl SubstituteVm {
         } else {
             let copied = {
                 let s_mem = self
-                    .memories
-                    .get(src_mem)
+                    .memory(src_mem)
                     .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
                 s_mem
                     .as_slice()
@@ -686,8 +881,7 @@ impl SubstituteVm {
                     .to_vec()
             };
             let d_mem = self
-                .memories
-                .get_mut(dst_mem)
+                .memory_mut(dst_mem)
                 .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
             d_mem.store_bytes(dst_usize, &copied)?;
         }
@@ -726,8 +920,7 @@ impl SubstituteVm {
             .get(src_usize..src_end)
             .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
         let mem = self
-            .memories
-            .get_mut(mem_idx)
+            .memory_mut(mem_idx)
             .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
         mem.store_bytes(dst_usize, slice)
     }
@@ -883,7 +1076,7 @@ impl SubstituteVm {
         }
     }
 
-    /// Reads 1 byte from `memories[0]` with `(addr_u32 + offset)` bounds checking.
+    /// Reads 1 byte from linear memory `mem_idx` with `(addr_u32 + offset)` bounds checking.
     #[inline(always)]
     pub fn load_u8(
         &self,
@@ -898,8 +1091,7 @@ impl SubstituteVm {
         let idx =
             usize::try_from(eff).map_err(|_| WasmTrap::OutOfBoundsMemoryAccess)?;
         let mem = self
-            .memories
-            .get(mem_idx)
+            .memory(mem_idx)
             .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
         mem.as_slice()
             .get(idx)
@@ -907,7 +1099,7 @@ impl SubstituteVm {
             .ok_or(WasmTrap::OutOfBoundsMemoryAccess)
     }
 
-    /// Reads `N` little-endian bytes from `memories[mem_idx]`.
+    /// Reads `N` little-endian bytes from linear memory `mem_idx`.
     #[inline(always)]
     pub fn load_bytes_n<const N: usize>(
         &self,
@@ -925,8 +1117,7 @@ impl SubstituteVm {
             .checked_add(N)
             .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
         let mem = self
-            .memories
-            .get(mem_idx)
+            .memory(mem_idx)
             .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
         let slice = mem
             .as_slice()
@@ -937,7 +1128,7 @@ impl SubstituteVm {
             .map_err(|_| WasmTrap::OutOfBoundsMemoryAccess)
     }
 
-    /// Writes `N` little-endian bytes into `memories[mem_idx]`.
+    /// Writes `N` little-endian bytes into linear memory `mem_idx`.
     #[inline(always)]
     pub fn store_bytes_n<const N: usize>(
         &mut self,
@@ -956,8 +1147,7 @@ impl SubstituteVm {
             .checked_add(N)
             .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
         let mem = self
-            .memories
-            .get_mut(mem_idx)
+            .memory_mut(mem_idx)
             .ok_or(WasmTrap::OutOfBoundsMemoryAccess)?;
         let slice = mem
             .as_mut_slice()
@@ -987,6 +1177,7 @@ mod tests {
         suspend_calls: usize,
         last_interrupted: u64,
         last_required: u64,
+        capability_calls: usize,
     }
 
     impl WasmSubstituteHost for MockHost {
@@ -1009,9 +1200,12 @@ mod tests {
 
         fn request_capability(
             &mut self,
-            _vm: &mut SubstituteVm,
-            _heap_ptr: Option<&mut i32>,
+            vm: &mut SubstituteVm,
         ) -> std::result::Result<(), WasmTrap> {
+            self.capability_calls += 1;
+            if vm.has_heap_ptr {
+                vm.heap_ptr = vm.heap_ptr.saturating_add(8);
+            }
             Ok(())
         }
     }
@@ -1026,6 +1220,7 @@ mod tests {
             suspend_calls: 0,
             last_interrupted: 0,
             last_required: 0,
+            capability_calls: 0,
         };
 
         // Ordinals 1 and 2 are skipped before hitting resume_target_op=3.
@@ -1063,6 +1258,7 @@ mod tests {
             suspend_calls: 0,
             last_interrupted: 0,
             last_required: 0,
+            capability_calls: 0,
         };
 
         // Logical denial (> max_mem_pages=3) costs 1 and returns -1.
@@ -1105,10 +1301,11 @@ mod tests {
             suspend_calls: 0,
             last_interrupted: 0,
             last_required: 0,
+            capability_calls: 0,
         };
 
         vm.memory_init(0, 0, 16, 1, 3, &mut host).unwrap();
-        assert_eq!(&vm.memories[0].as_slice()[16..19], b"ell");
+        assert_eq!(&vm.memory(0).unwrap().as_slice()[16..19], b"ell");
         vm.data_drop(0);
         assert_eq!(
             vm.memory_init(0, 0, 0, 0, 1, &mut host),
@@ -1118,7 +1315,7 @@ mod tests {
 
         vm.memory_fill(0, 32, 0xAB, 4, &mut host).unwrap();
         vm.memory_copy(0, 0, 34, 32, 4, &mut host).unwrap();
-        assert_eq!(&vm.memories[0].as_slice()[32..38], &[0xAB; 6]);
+        assert_eq!(&vm.memory(0).unwrap().as_slice()[32..38], &[0xAB; 6]);
 
         vm.table_init(0, 0, 1, 0, 3, &mut host).unwrap();
         assert_eq!(vm.tables[0].get(1).unwrap(), Some(10));
@@ -1139,7 +1336,7 @@ mod tests {
         vm.enter_call().unwrap();
 
         assert_eq!(vm.init_active_data(0, 64, b"hi"), Ok(()));
-        assert_eq!(vm.memories[0].load_bytes(64, 2).unwrap(), b"hi");
+        assert_eq!(vm.memory(0).unwrap().load_bytes(64, 2).unwrap(), b"hi");
         assert_eq!(vm.init_active_elem(0, 0, &[Some(7), None]), Ok(()));
         assert_eq!(vm.call_indirect_target(0, 0), Ok(7));
         assert_eq!(
@@ -1156,6 +1353,100 @@ mod tests {
             vm.table_get(0, 99),
             Err(WasmTrap::OutOfBoundsTableAccess)
         );
-        assert_eq!(vm.memories[0].grow_host(1), Some(1));
+        assert_eq!(vm.memory_mut(0).unwrap().grow_host(1), Some(1));
+    }
+
+    #[crate::ctb_test]
+    fn test_mem0_fast_path_extra_memories_and_typed_globals() {
+        fn sample_init(
+            vm: &mut SubstituteVm,
+            _host: &mut dyn WasmSubstituteHost,
+        ) -> std::result::Result<(), WasmTrap> {
+            let cur = vm.get_i32(0)?;
+            vm.set_i32(0, cur.wrapping_add(42))?;
+            Ok(())
+        }
+
+        let mut vm = SubstituteVm::new(
+            vec![
+                WasmLinearMemory::new(1, Some(3)),
+                WasmLinearMemory::new(2, Some(4)),
+            ],
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        let mut host = MockHost {
+            suspend_refill: None,
+            suspend_calls: 0,
+            last_interrupted: 0,
+            last_required: 0,
+            capability_calls: 0,
+        };
+
+        assert_eq!(vm.memory_size(0), Ok(1));
+        assert_eq!(vm.memory_size(1), Ok(2));
+        assert_eq!(vm.memory_size(2), Err(WasmTrap::OutOfBoundsMemoryAccess));
+        assert!(vm.memory(0).is_some());
+        assert!(vm.memory(1).is_some());
+        assert!(vm.memory(2).is_none());
+
+        vm.store_bytes_n(0, 10, 0, [0xDE, 0xAD, 0xBE, 0xEF]).unwrap();
+        assert_eq!(
+            vm.load_bytes_n::<4>(0, 10, 0),
+            Ok([0xDE, 0xAD, 0xBE, 0xEF])
+        );
+        assert_eq!(vm.load_u8(0, 10, 1), Ok(0xAD));
+
+        // Copy across mem0 -> mem1 and read back from extra_memories.
+        vm.memory_copy(1, 0, 128, 10, 4, &mut host).unwrap();
+        assert_eq!(
+            vm.load_bytes_n::<4>(1, 128, 0),
+            Ok([0xDE, 0xAD, 0xBE, 0xEF])
+        );
+        assert_eq!(vm.load_u8(1, 128, 2), Ok(0xBE));
+        assert_eq!(vm.load_u8(2, 0, 0), Err(WasmTrap::OutOfBoundsMemoryAccess));
+        assert_eq!(
+            vm.memory_grow(1, 1, &mut host),
+            Ok(2)
+        );
+        assert_eq!(vm.memory_size(1), Ok(3));
+        assert_eq!(
+            vm.memory_grow(2, 1, &mut host),
+            Err(WasmTrap::OutOfBoundsMemoryAccess)
+        );
+
+        // Typed globals + init_fn + heap_ptr.
+        assert_eq!(vm.call_init(&mut host), Err(WasmTrap::Unreachable));
+        vm.globals_i32 = vec![10];
+        vm.globals_i64 = vec![100];
+        vm.globals_f32 = vec![1.5];
+        vm.globals_f64 = vec![2.5];
+        vm.globals_ref = vec![Some(7)];
+        vm.has_heap_ptr = true;
+        vm.heap_ptr = 256;
+        vm.init_fn = Some(InitFnPtr(sample_init));
+
+        vm.call_init(&mut host).unwrap();
+        assert_eq!(vm.get_i32(0), Ok(52));
+        vm.set_i64(0, -99).unwrap();
+        assert_eq!(vm.get_i64(0), Ok(-99));
+        vm.set_f32(0, -3.25).unwrap();
+        assert_eq!(vm.get_f32(0), Ok(-3.25));
+        vm.set_f64(0, 9.75).unwrap();
+        assert_eq!(vm.get_f64(0), Ok(9.75));
+        vm.set_ref(0, None).unwrap();
+        assert_eq!(vm.get_ref(0), Ok(None));
+
+        assert_eq!(vm.get_i32(1), Err(WasmTrap::Unreachable));
+        assert_eq!(vm.set_i32(1, 5), Err(WasmTrap::Unreachable));
+        assert_eq!(vm.get_i64(1), Err(WasmTrap::Unreachable));
+        assert_eq!(vm.set_f32(1, 0.0), Err(WasmTrap::Unreachable));
+        assert_eq!(vm.get_f64(1), Err(WasmTrap::Unreachable));
+        assert_eq!(vm.set_ref(1, None), Err(WasmTrap::Unreachable));
+
+        host.request_capability(&mut vm).unwrap();
+        assert_eq!(host.capability_calls, 1);
+        assert_eq!(vm.heap_ptr, 264);
     }
 }

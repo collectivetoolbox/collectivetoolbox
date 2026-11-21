@@ -37,7 +37,8 @@ pub use registry::{
     WasmSubstituteDescriptor, lookup_substitute, register_substitute,
 };
 pub use vm::{
-    MAX_CALL_DEPTH, SubstituteVm, WASM_PAGE_BYTES, WasmLinearMemory, WasmTable,
+    InitFnPtr, MAX_CALL_DEPTH, SubstituteVm, WASM_PAGE_BYTES, WasmLinearMemory,
+    WasmTable,
 };
 
 /// Deterministic WebAssembly execution trap raised by native substitutes.
@@ -136,7 +137,6 @@ pub trait WasmSubstituteHost {
     fn request_capability(
         &mut self,
         vm: &mut SubstituteVm,
-        heap_ptr: Option<&mut i32>,
     ) -> std::result::Result<(), WasmTrap>;
 }
 

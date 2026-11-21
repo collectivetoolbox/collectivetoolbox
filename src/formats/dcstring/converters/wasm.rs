@@ -3105,7 +3105,6 @@ fn read_vm_ctb_global_u64(vm: &SubstituteVm, name: &str) -> Option<u64> {
 fn native_vm_handle_query(
     vm: &mut SubstituteVm,
     mem_export_idx: Option<usize>,
-    heap_ptr: Option<&i32>,
     cmd: WorkerCommand,
 ) -> Option<WorkerCommand> {
     match cmd {
@@ -3118,7 +3117,7 @@ fn native_vm_handle_query(
             let val = if let Some(v) = read_vm_ctb_global_i32(vm, &name) {
                 Some(v)
             } else if name == "__heap_ptr" {
-                heap_ptr.copied()
+                vm.has_heap_ptr.then_some(vm.heap_ptr)
             } else {
                 None
             };
@@ -3136,7 +3135,7 @@ fn native_vm_handle_query(
                 let mem_idx = mem_export_idx.context(
                     "Failed to access WASM exported 'memory'",
                 )?;
-                let mem = vm.memories.get(mem_idx).context(
+                let mem = vm.memory(mem_idx).context(
                     "WASM exported memory index out of bounds",
                 )?;
                 mem.load_bytes(offset, len)
@@ -3156,7 +3155,7 @@ fn native_vm_handle_query(
                 let mem_idx = mem_export_idx.context(
                     "Failed to access WASM exported 'memory'",
                 )?;
-                let mem = vm.memories.get(mem_idx).context(
+                let mem = vm.memory(mem_idx).context(
                     "WASM exported memory index out of bounds",
                 )?;
                 read_output_mailbox_header_from_mem(mem)
@@ -3169,7 +3168,7 @@ fn native_vm_handle_query(
                 let mem_idx = mem_export_idx.context(
                     "Failed to access WASM exported 'memory'",
                 )?;
-                let _ = vm.memories.get(mem_idx).context(
+                let _ = vm.memory(mem_idx).context(
                     "WASM exported memory index out of bounds",
                 )?;
                 Ok(usize::try_from(vm.total_mem_pages)?)
@@ -3190,7 +3189,7 @@ fn native_vm_handle_query(
                 let mem_idx = mem_export_idx.context(
                     "Failed to access WASM exported 'memory'",
                 )?;
-                let mem = vm.memories.get(mem_idx).context(
+                let mem = vm.memory(mem_idx).context(
                     "WASM exported memory index out of bounds",
                 )?;
                 Ok(mem.page_count())
@@ -3216,7 +3215,7 @@ fn native_vm_handle_query(
                 let mem_idx = mem_export_idx.context(
                     "Failed to access WASM exported 'memory'",
                 )?;
-                let mem = vm.memories.get_mut(mem_idx).context(
+                let mem = vm.memory_mut(mem_idx).context(
                     "WASM exported memory index out of bounds",
                 )?;
                 let new_total_store_pages = write_input_on_memory(
@@ -3275,7 +3274,7 @@ impl WasmSubstituteHost for WorkerSubstituteHost<'_> {
                 return Err(WasmTrap::HostAbort);
             };
             let Some(ctrl) =
-                native_vm_handle_query(vm, self.mem_export_idx, None, cmd)
+                native_vm_handle_query(vm, self.mem_export_idx, cmd)
             else {
                 continue;
             };
@@ -3303,14 +3302,13 @@ impl WasmSubstituteHost for WorkerSubstituteHost<'_> {
     fn request_capability(
         &mut self,
         vm: &mut SubstituteVm,
-        mut heap_ptr: Option<&mut i32>,
     ) -> std::result::Result<(), WasmTrap> {
         if !self.allow_suspend {
             return Err(WasmTrap::HostAbort);
         }
         let mem_idx = self.mem_export_idx.ok_or(WasmTrap::HostAbort)?;
         let (out_ptr, out_len) = {
-            let mem = vm.memories.get(mem_idx).ok_or(WasmTrap::HostAbort)?;
+            let mem = vm.memory(mem_idx).ok_or(WasmTrap::HostAbort)?;
             read_output_mailbox_header_from_mem(mem)
                 .map_err(|_| WasmTrap::HostAbort)?
         };
@@ -3332,9 +3330,8 @@ impl WasmSubstituteHost for WorkerSubstituteHost<'_> {
                 *self.shutdown_requested = true;
                 return Err(WasmTrap::HostAbort);
             };
-            let hp_ref = heap_ptr.as_deref();
             let Some(ctrl) =
-                native_vm_handle_query(vm, self.mem_export_idx, hp_ref, cmd)
+                native_vm_handle_query(vm, self.mem_export_idx, cmd)
             else {
                 continue;
             };
@@ -3350,11 +3347,11 @@ impl WasmSubstituteHost for WorkerSubstituteHost<'_> {
                     vm.interrupted_op = 0;
                     vm.required_cost = 0;
                     vm.resume_target_op = 0;
-                    let heap_ptr_usize = match heap_ptr.as_deref() {
-                        Some(&v) => {
-                            usize::try_from(v).map_err(|_| WasmTrap::HostAbort)?
-                        }
-                        None => 0,
+                    let heap_ptr_usize = if vm.has_heap_ptr {
+                        usize::try_from(vm.heap_ptr)
+                            .map_err(|_| WasmTrap::HostAbort)?
+                    } else {
+                        0
                     };
                     let total_store_pages = usize::try_from(vm.total_mem_pages)
                         .map_err(|_| WasmTrap::HostAbort)?;
@@ -3362,8 +3359,7 @@ impl WasmSubstituteHost for WorkerSubstituteHost<'_> {
                         .max_memory_pages
                         .min(limits.physical_max_memory_pages);
                     let mem = vm
-                        .memories
-                        .get_mut(mem_idx)
+                        .memory_mut(mem_idx)
                         .ok_or(WasmTrap::HostAbort)?;
                     let (new_total_pages_opt, resp_end_aligned) =
                         match apply_capability_response_on_memory(
@@ -3386,8 +3382,8 @@ impl WasmSubstituteHost for WorkerSubstituteHost<'_> {
                         vm.total_mem_pages = u64::try_from(new_total)
                             .map_err(|_| WasmTrap::HostAbort)?;
                     }
-                    if let Some(hp_slot) = heap_ptr.as_deref_mut() {
-                        *hp_slot = i32::try_from(resp_end_aligned)
+                    if vm.has_heap_ptr {
+                        vm.heap_ptr = i32::try_from(resp_end_aligned)
                             .map_err(|_| WasmTrap::HostAbort)?;
                     }
                     return Ok(());
@@ -3965,8 +3961,7 @@ fn spawn_session_worker(
                             )?;
                             let mem = inst
                                 .vm()
-                                .memories
-                                .get(mem_idx)
+                                .memory(mem_idx)
                                 .context("WASM exported memory index out of bounds")?;
                             let last_nonzero_end =
                                 last_nonzero_memory_end_on_slice(mem.as_slice());
@@ -4107,7 +4102,6 @@ fn spawn_session_worker(
                     evt_tx: tx,
                 } => {
                     while let Ok(cmd) = rx.recv() {
-                        let hp_opt = inst.exported_global_i32("__heap_ptr");
                         let ctrl_opt = match &cmd {
                             WorkerCommand::ExportedGlobalI32 { name, .. } => {
                                 if let Some(v) = inst.exported_global_i32(name) {
@@ -4123,7 +4117,6 @@ fn spawn_session_worker(
                                     native_vm_handle_query(
                                         inst.vm_mut(),
                                         *mem_export_idx,
-                                        hp_opt.as_ref(),
                                         cmd,
                                     )
                                 }
@@ -4142,7 +4135,6 @@ fn spawn_session_worker(
                                     native_vm_handle_query(
                                         inst.vm_mut(),
                                         *mem_export_idx,
-                                        hp_opt.as_ref(),
                                         cmd,
                                     )
                                 }
@@ -4150,7 +4142,6 @@ fn spawn_session_worker(
                             _ => native_vm_handle_query(
                                 inst.vm_mut(),
                                 *mem_export_idx,
-                                hp_opt.as_ref(),
                                 cmd,
                             ),
                         };
@@ -4170,7 +4161,7 @@ fn spawn_session_worker(
                                     let vm = inst.vm_mut();
                                     configure_vm_limits(vm, &limits);
                                     if let Some(mem_idx) = *mem_export_idx
-                                        && let Some(mem) = vm.memories.get_mut(mem_idx)
+                                        && let Some(mem) = vm.memory_mut(mem_idx)
                                     {
                                         reset_output_mailbox_on_mem(
                                             mem,
