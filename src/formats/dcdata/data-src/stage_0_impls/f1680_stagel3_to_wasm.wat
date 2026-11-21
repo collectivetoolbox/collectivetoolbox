@@ -851,11 +851,50 @@
     (call $buf_push_bytes $out $ptr (i32.sub $after $ptr))
     (get $after))
 
+  ;; Reads either a `Dc 6..7` numeric index or a `Dc 270..271` symbolic identifier at `[$ptr .. $end)`,
+  ;; looks up symbolic names in `($names_ptr, $names_len)`, sets `$ret_aux = after_ptr`,
+  ;; and returns the 0-based local index.
+  (func $read_wasm_reloc_idx_at
+    (param $ptr i32) (param $end i32) (param $names_ptr i32) (param $names_len i32) (result i32)
+    (local $after   i32)
+    (local $sym_ptr i32)
+    (local $sym_len i32)
+    (local $cnt     i32)
+    (local $i       i32)
+
+    (drop (call $raw_decode_at $ptr $end))
+    (if (i32.eq $dec_cp $DC_BEGIN_IDENTIFIER)
+      (then
+        (set $after (call $parse_wasm_ident $ptr $end))
+        (when (i32.ne (i32.load offset=4 $ret_aux) 0) (unreachable))
+        (set $sym_ptr $ret_ptr)
+        (set $sym_len $ret_len)
+        (set $cnt (call $buf_count_i32 $names_ptr))
+        (set $i 0)
+        (block $found
+          (loop $lp
+            (when (i32.ge_u $i $cnt) (unreachable))
+            (when
+              (call $slice_eq
+                $sym_ptr $sym_len
+                (call $buf_get_i32 $names_ptr $i)
+                (call $buf_get_i32 $names_len $i))
+              (br $found))
+            (set $i (i32.add $i 1))
+            (br $lp)))
+        (global.set $ret_aux $after)
+        (return $i))
+      (else))
+    (call $read_wasm_u32_at $ptr $end))
+
   ;; Relocates `call` (`0x10`), `return_call` (`0x12`), `ref.func` (`0xD2`),
   ;; `global.get` (`0x23`), and `global.set` (`0x24`) inside a `Dc 260..261` `.WASM` routine.
   ;; Returns `(reloc_ptr)` and sets `$ret_len`.
   (func $relocate_wasm_routine
-    (param $r_ptr i32) (param $r_len i32) (param $func_remap i32) (param $glob_remap i32) (result i32)
+    (param $r_ptr i32) (param $r_len i32)
+    (param $func_remap i32) (param $func_names_ptr i32) (param $func_names_len i32)
+    (param $glob_remap i32) (param $glob_names_ptr i32) (param $glob_names_len i32)
+    (result i32)
     (local $end      i32)
     (local $body_end i32)
     (local $ptr      i32)
@@ -904,14 +943,14 @@
               (else
                 (if (i32.or (i32.or (i32.eq $sub 0x10) (i32.eq $sub 0x12)) (i32.eq $sub 0xD2))
                   (then
-                    (set $old_idx (call $read_wasm_u32_at $ptr $body_end))
+                    (set $old_idx (call $read_wasm_reloc_idx_at $ptr $body_end $func_names_ptr $func_names_len))
                     (set $ptr $ret_aux)
                     (set $new_idx (call $buf_get_i32 $func_remap $old_idx))
                     (call $emit_u64_dc_num $out (i64.extend_i32_u $new_idx)))
                   (else
                     (if (i32.or (i32.eq $sub 0x23) (i32.eq $sub 0x24))
                       (then
-                        (set $old_idx (call $read_wasm_u32_at $ptr $body_end))
+                        (set $old_idx (call $read_wasm_reloc_idx_at $ptr $body_end $glob_names_ptr $glob_names_len))
                         (set $ptr $ret_aux)
                         (set $new_idx (call $buf_get_i32 $glob_remap $old_idx))
                         (call $emit_u64_dc_num $out (i64.extend_i32_u $new_idx)))
@@ -1134,9 +1173,13 @@
     (local $in_end     i32)
     (local $len        i32)
     (local $cp         i32)
-    (local $glob_remap i32)
-    (local $func_remap i32)
-    (local $pend_idx   i32)
+    (local $glob_remap     i32)
+    (local $glob_names_ptr i32)
+    (local $glob_names_len i32)
+    (local $func_remap     i32)
+    (local $func_names_ptr i32)
+    (local $func_names_len i32)
+    (local $pend_idx       i32)
     (local $pend_ptr   i32)
     (local $pend_len   i32)
     (local $n_ptr      i32)
@@ -1192,7 +1235,11 @@
     (set $in_ptr (call $skip_wasm_type_expr $in_ptr $in_end))
 
     (set $glob_remap (call $buf_new 16))
+    (set $glob_names_ptr (call $buf_new 16))
+    (set $glob_names_len (call $buf_new 16))
     (set $func_remap (call $buf_new 16))
+    (set $func_names_ptr (call $buf_new 16))
+    (set $func_names_len (call $buf_new 16))
     (set $pend_idx (call $buf_new 16))
     (set $pend_ptr (call $buf_new 16))
     (set $pend_len (call $buf_new 16))
@@ -1220,6 +1267,8 @@
         (if (i32.eq $cp $DC_BEGIN_NUMBER)
           (then
             (set $after (call $skip_wasm_balanced $in_ptr $in_end $DC_BEGIN_NUMBER $DC_END_NUMBER))
+            (call $buf_push_i32 $glob_names_ptr $n_ptr)
+            (call $buf_push_i32 $glob_names_len $n_len)
             (call $buf_push_i32
               $glob_remap
               (call $ensure_global_raw
@@ -1230,6 +1279,9 @@
           (else
             (when (i32.ne $cp $DC_BEGIN_LITERAL) (unreachable))
             (set $after (call $skip_wasm_balanced $in_ptr $in_end $DC_BEGIN_LITERAL $DC_END_LITERAL))
+            ;; Record the original `Dc 559` key identifier (including `"main"`) BEFORE renaming `"main"` to `$sym_ptr`.
+            (call $buf_push_i32 $func_names_ptr $n_ptr)
+            (call $buf_push_i32 $func_names_len $n_len)
             (set $is_main (call $slice_eq $n_ptr $n_len $main_lit 4))
             (if $is_main
               (then
@@ -1260,8 +1312,8 @@
           (call $relocate_wasm_routine
             (call $buf_get_i32 $pend_ptr $i)
             (call $buf_get_i32 $pend_len $i)
-            $func_remap
-            $glob_remap))
+            $func_remap $func_names_ptr $func_names_len
+            $glob_remap $glob_names_ptr $glob_names_len))
         (call $define_routine (call $buf_get_i32 $pend_idx $i) $rel_ptr $ret_len)
         (set $i (i32.add $i 1))
         (br $rel_lp)))

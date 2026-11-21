@@ -562,8 +562,11 @@ impl WasmModuleLinker {
         let expanded = sg.expand_interned_string_nodes(&raw_tokens);
         let parsed = parse_system_wasm_unit(&expanded)?;
 
+        let mut local_global_name_to_idx: HashMap<String, usize> =
+            HashMap::with_capacity(parsed.globals.len());
         let mut global_remap = Vec::with_capacity(parsed.globals.len());
-        for g in parsed.globals {
+        for (local_g_idx, g) in parsed.globals.into_iter().enumerate() {
+            local_global_name_to_idx.insert(g.name.clone(), local_g_idx);
             let new_g_idx = if let Some(&existing_g) =
                 self.global_by_name.get(&g.name)
             {
@@ -578,11 +581,14 @@ impl WasmModuleLinker {
             global_remap.push(new_g_idx);
         }
 
+        let mut local_func_name_to_idx: HashMap<String, usize> =
+            HashMap::with_capacity(parsed.routines.len());
         let mut func_remap = Vec::with_capacity(parsed.routines.len());
         let mut pending_defs: Vec<(u32, Vec<DcShorthand>)> = Vec::new();
         let mut main_func_idx: Option<u32> = None;
 
-        for r in parsed.routines {
+        for (local_f_idx, r) in parsed.routines.into_iter().enumerate() {
+            local_func_name_to_idx.insert(r.name.clone(), local_f_idx);
             let target_name = if r.name == "main" {
                 symbol_key.to_owned()
             } else {
@@ -607,7 +613,9 @@ impl WasmModuleLinker {
             let relocated = relocate_routine_immediates(
                 &raw_routine,
                 &func_remap,
+                &local_func_name_to_idx,
                 &global_remap,
+                &local_global_name_to_idx,
             )?;
             self.define_routine(target_idx, relocated)?;
         }
@@ -935,12 +943,14 @@ fn copy_number_at(
 }
 
 /// Relocates `call` (`0x10`), `return_call` (`0x12`), `ref.func` (`0xD2`),
-/// `global.get` (`0x23`), and `global.set` (`0x24`) immediate indices inside a
-/// `.WASM` routine (`Dc 260`..`Dc 261`).
+/// `global.get` (`0x23`), and `global.set` (`0x24`) immediate indices or symbolic
+/// `Dc 270..271` identifiers inside a `.WASM` routine (`Dc 260`..`Dc 261`).
 fn relocate_routine_immediates(
     routine_tokens: &[DcShorthand],
     func_remap: &[u32],
+    func_name_to_idx: &HashMap<String, usize>,
     global_remap: &[u32],
+    global_name_to_idx: &HashMap<String, usize>,
 ) -> Result<Vec<DcShorthand>> {
     let sh_lit_open = dc_to_sh(DC_BEGIN_LITERAL);
     let sh_lit_close = dc_to_sh(DC_END_LITERAL);
@@ -994,33 +1004,73 @@ fn relocate_routine_immediates(
                     out.extend_from_slice(bt_slice);
                     pos = after_bt;
                 }
-                // call, return_call, ref.func -> remap funcidx
+                // call, return_call, ref.func -> remap funcidx or symbolic identifier
                 0x10 | 0x12 | 0xD2 => {
-                    let (old_idx, after_num) =
-                        read_u32_number_at(routine_tokens, pos)?;
-                    let old_usize = usize::try_from(old_idx)
-                        .context("funcidx exceeds usize")?;
+                    let (old_usize, after_imm) = if routine_tokens.get(pos)
+                        == Some(&dc_to_sh(DC_BEGIN_IDENTIFIER))
+                    {
+                        let (sym, key_ty, after_id) =
+                            parse_identifier_at(routine_tokens, pos)?;
+                        ensure!(
+                            key_ty.is_empty(),
+                            "Symbolic WASM function target '{sym}' in built-in cannot carry an inline type"
+                        );
+                        let &idx = func_name_to_idx.get(&sym).with_context(
+                            || {
+                                format!(
+                                    "Unknown symbolic function target '{sym}' in built-in"
+                                )
+                            },
+                        )?;
+                        (idx, after_id)
+                    } else {
+                        let (old_idx, after_num) =
+                            read_u32_number_at(routine_tokens, pos)?;
+                        let idx = usize::try_from(old_idx)
+                            .context("funcidx exceeds usize")?;
+                        (idx, after_num)
+                    };
                     let &new_idx = func_remap.get(old_usize).with_context(
-                        || format!("Out-of-bounds funcidx {old_idx} in built-in"),
+                        || format!("Out-of-bounds funcidx {old_usize} in built-in"),
                     )?;
                     out.extend(encode_u128_dc_shorthands(u128::from(new_idx)));
-                    pos = after_num;
+                    pos = after_imm;
                 }
-                // global.get, global.set -> remap globalidx
+                // global.get, global.set -> remap globalidx or symbolic identifier
                 0x23 | 0x24 => {
-                    let (old_idx, after_num) =
-                        read_u32_number_at(routine_tokens, pos)?;
-                    let old_usize = usize::try_from(old_idx)
-                        .context("globalidx exceeds usize")?;
+                    let (old_usize, after_imm) = if routine_tokens.get(pos)
+                        == Some(&dc_to_sh(DC_BEGIN_IDENTIFIER))
+                    {
+                        let (sym, key_ty, after_id) =
+                            parse_identifier_at(routine_tokens, pos)?;
+                        ensure!(
+                            key_ty.is_empty(),
+                            "Symbolic WASM global target '{sym}' in built-in cannot carry an inline type"
+                        );
+                        let &idx = global_name_to_idx.get(&sym).with_context(
+                            || {
+                                format!(
+                                    "Unknown symbolic global target '{sym}' in built-in"
+                                )
+                            },
+                        )?;
+                        (idx, after_id)
+                    } else {
+                        let (old_idx, after_num) =
+                            read_u32_number_at(routine_tokens, pos)?;
+                        let idx = usize::try_from(old_idx)
+                            .context("globalidx exceeds usize")?;
+                        (idx, after_num)
+                    };
                     let &new_idx = global_remap.get(old_usize).with_context(
                         || {
                             format!(
-                                "Out-of-bounds globalidx {old_idx} in built-in"
+                                "Out-of-bounds globalidx {old_usize} in built-in"
                             )
                         },
                     )?;
                     out.extend(encode_u128_dc_shorthands(u128::from(new_idx)));
-                    pos = after_num;
+                    pos = after_imm;
                 }
                 // 1 numeric immediate: br, br_if, local.get/set/tee, memory.size/grow, *.const
                 0x0C | 0x0D | 0x20..=0x22 | 0x3F | 0x40 | 0x41..=0x44 => {

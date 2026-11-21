@@ -780,8 +780,10 @@ fn lookup_wat_instruction(mnemonic: &str) -> Option<(u32, WatImmediateKind)> {
 #[derive(Debug, Default)]
 struct FuncCompileCtx {
     func_indices: BTreeMap<String, u32>,
+    func_symbols: Option<Vec<String>>,
     func_param_types: Vec<Vec<WatValType>>,
     global_indices: BTreeMap<String, u32>,
+    global_symbols: Option<Vec<String>>,
     global_types: Vec<WatValType>,
     local_indices: BTreeMap<String, u32>,
     local_types: Vec<WatValType>,
@@ -790,6 +792,28 @@ struct FuncCompileCtx {
 }
 
 impl FuncCompileCtx {
+    fn emit_func_target(&self, fn_idx: u32, out: &mut Vec<DcShorthand>) {
+        if let Some(syms) = &self.func_symbols
+            && let Ok(idx_usize) = usize::try_from(fn_idx)
+            && let Some(sym) = syms.get(idx_usize)
+        {
+            push_identifier_shorthands(sym, &[], out);
+        } else {
+            out.extend(encode_u128_dc_shorthands(u128::from(fn_idx)));
+        }
+    }
+
+    fn emit_global_target(&self, glob_idx: u32, out: &mut Vec<DcShorthand>) {
+        if let Some(syms) = &self.global_symbols
+            && let Ok(idx_usize) = usize::try_from(glob_idx)
+            && let Some(sym) = syms.get(idx_usize)
+        {
+            push_identifier_shorthands(sym, &[], out);
+        } else {
+            out.extend(encode_u128_dc_shorthands(u128::from(glob_idx)));
+        }
+    }
+
     fn resolve_local(&self, tok: &str) -> Result<u32> {
         if tok.starts_with('$') {
             self.local_indices
@@ -1193,7 +1217,7 @@ fn compile_folded_operand(
                     let (dc, _) = lookup_wat_instruction("global.get")
                         .context("Missing global.get opcode")?;
                     out.push(DcShorthand::Short(dc));
-                    out.extend(encode_u128_dc_shorthands(u128::from(glob_idx)));
+                    ctx.emit_global_target(glob_idx, out);
                     return Ok(());
                 }
                 if ctx.const_values.contains_key(atom) {
@@ -1572,7 +1596,7 @@ fn emit_non_control_instruction_with_immediates(
                 })?;
             *cursor = cursor.saturating_add(1);
             let fn_idx = ctx.resolve_func(fn_tok)?;
-            out.extend(encode_u128_dc_shorthands(u128::from(fn_idx)));
+            ctx.emit_func_target(fn_idx, out);
         }
         WatImmediateKind::CallIndirect => {
             let ty_tok = items
@@ -1614,7 +1638,7 @@ fn emit_non_control_instruction_with_immediates(
                 })?;
             *cursor = cursor.saturating_add(1);
             let glob_idx = ctx.resolve_global(glob_tok)?;
-            out.extend(encode_u128_dc_shorthands(u128::from(glob_idx)));
+            ctx.emit_global_target(glob_idx, out);
         }
         WatImmediateKind::TableIdx | WatImmediateKind::MemIdx => {
             let idx_val = if let Some(SExpr::Atom(a)) = items.get(*cursor)
@@ -2053,11 +2077,17 @@ fn validate_memory_decl(items: &[SExpr]) -> Result<()> {
     Ok(())
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Carries module-level function/global symbol tables and types into routine emission"
+)]
 fn emit_wasm_routine_shorthands(
     func: &ParsedWatFunc,
     func_indices: &BTreeMap<String, u32>,
+    func_symbols: Option<&[String]>,
     func_param_types: &[Vec<WatValType>],
     global_indices: &BTreeMap<String, u32>,
+    global_symbols: Option<&[String]>,
     global_types: &[WatValType],
     out: &mut Vec<DcShorthand>,
 ) -> Result<()> {
@@ -2123,8 +2153,10 @@ fn emit_wasm_routine_shorthands(
 
     let mut ctx = FuncCompileCtx {
         func_indices: func_indices.clone(),
+        func_symbols: func_symbols.map(<[String]>::to_vec),
         func_param_types: func_param_types.to_vec(),
         global_indices: global_indices.clone(),
+        global_symbols: global_symbols.map(<[String]>::to_vec),
         global_types: global_types.to_vec(),
         local_indices,
         local_types,
@@ -2267,8 +2299,10 @@ fn emit_parsed_wat_module(
         emit_wasm_routine_shorthands(
             only_fn,
             &func_indices,
+            None,
             &func_param_types,
             &global_indices,
+            None,
             &global_types,
             &mut out,
         )?;
@@ -2276,19 +2310,17 @@ fn emit_parsed_wat_module(
         return Ok(out);
     }
 
-    // Multi-member module emits an ordered key-value array (`Dc 559`..`Dc 560`)
-    out.push(dc_to_sh(DC_BEGIN_KV_MAP));
-    out.push(dc_to_sh(DC_TYPE_ANY));
-    out.push(dc_to_sh(DC_TYPE_ANY));
-
+    // Precompute exact KV member symbol names so multi-member modules emit symbolic
+    // `Dc 270 <name> Dc 271` immediates immune to helper/global index shifts.
+    let mut seen_global_names = std::collections::BTreeSet::new();
     for d in datas {
-        out.push(dc_to_sh(DC_BEGIN_KV_PAIR));
-        push_identifier_shorthands(&d.name, &[], &mut out);
-        out.push(dc_to_sh(DC_LIST_ELEMENT_SEPARATOR));
-        out.extend(encode_binary_data_shorthands(&d.bytes));
-        out.push(dc_to_sh(DC_END_KV_PAIR));
+        ensure!(
+            seen_global_names.insert(d.name.clone()),
+            "Duplicate WAT data/global member symbol '{}'",
+            d.name
+        );
     }
-
+    let mut global_kv_names = Vec::with_capacity(globals.len());
     for (idx, g) in globals.iter().enumerate() {
         let gname = g
             .export_name
@@ -2299,17 +2331,15 @@ fn emit_parsed_wat_module(
             })
             // Reason for fallback: unnamed global defaults to synthetic global_{idx} identifier.
             .unwrap_or_else(|| format!("global_{idx}"));
-        out.push(dc_to_sh(DC_BEGIN_KV_PAIR));
-        push_identifier_shorthands(
-            &gname,
-            &[g.valtype.to_shorthand()],
-            &mut out,
+        ensure!(
+            seen_global_names.insert(gname.clone()),
+            "Duplicate WAT data/global member symbol '{gname}'"
         );
-        out.push(dc_to_sh(DC_LIST_ELEMENT_SEPARATOR));
-        out.extend(encode_i64_dc_shorthands(g.init_val));
-        out.push(dc_to_sh(DC_END_KV_PAIR));
+        global_kv_names.push(gname);
     }
 
+    let mut seen_func_names = std::collections::BTreeSet::new();
+    let mut func_kv_names = Vec::with_capacity(funcs.len());
     for (idx, f) in funcs.iter().enumerate() {
         let fname = f
             .export_name
@@ -2326,14 +2356,49 @@ fn emit_parsed_wat_module(
                     format!("func_{idx}")
                 }
             });
+        ensure!(
+            seen_func_names.insert(fname.clone()),
+            "Duplicate WAT function member symbol '{fname}'"
+        );
+        func_kv_names.push(fname);
+    }
+
+    // Multi-member module emits an ordered key-value array (`Dc 559`..`Dc 560`)
+    out.push(dc_to_sh(DC_BEGIN_KV_MAP));
+    out.push(dc_to_sh(DC_TYPE_ANY));
+    out.push(dc_to_sh(DC_TYPE_ANY));
+
+    for d in datas {
         out.push(dc_to_sh(DC_BEGIN_KV_PAIR));
-        push_identifier_shorthands(&fname, &[], &mut out);
+        push_identifier_shorthands(&d.name, &[], &mut out);
+        out.push(dc_to_sh(DC_LIST_ELEMENT_SEPARATOR));
+        out.extend(encode_binary_data_shorthands(&d.bytes));
+        out.push(dc_to_sh(DC_END_KV_PAIR));
+    }
+
+    for (g, gname) in globals.iter().zip(global_kv_names.iter()) {
+        out.push(dc_to_sh(DC_BEGIN_KV_PAIR));
+        push_identifier_shorthands(
+            gname,
+            &[g.valtype.to_shorthand()],
+            &mut out,
+        );
+        out.push(dc_to_sh(DC_LIST_ELEMENT_SEPARATOR));
+        out.extend(encode_i64_dc_shorthands(g.init_val));
+        out.push(dc_to_sh(DC_END_KV_PAIR));
+    }
+
+    for (f, fname) in funcs.iter().zip(func_kv_names.iter()) {
+        out.push(dc_to_sh(DC_BEGIN_KV_PAIR));
+        push_identifier_shorthands(fname, &[], &mut out);
         out.push(dc_to_sh(DC_LIST_ELEMENT_SEPARATOR));
         emit_wasm_routine_shorthands(
             f,
             &func_indices,
+            Some(&func_kv_names),
             &func_param_types,
             &global_indices,
+            Some(&global_kv_names),
             &global_types,
             &mut out,
         )?;
@@ -3552,6 +3617,55 @@ mod tests {
             Some((DcShorthand::Short(2192), DcShorthand::Short(1927)))
         );
         assert_eq!(loaded[1].target, DcShorthand::Short(256));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_wat_multi_member_emits_symbolic_call_and_global_targets_immune_to_helper_insertion()
+     -> Result<()> {
+        let wat_v1 = r#"
+            (module
+              (memory (export "memory") 1)
+              (global $g_acc (mut i32) (i32.const 10))
+              (func $helper (param $x i32) (result i32)
+                (i32.add $x $g_acc))
+              (func (export "main") (param $n i32) (result i32)
+                (global.set $g_acc (call $helper $n))
+                (return_call $helper (global.get $g_acc))))
+        "#;
+        let wat_v2 = r#"
+            (module
+              (memory (export "memory") 1)
+              (global $g_extra (mut i32) (i32.const 99))
+              (global $g_acc (mut i32) (i32.const 10))
+              (func $inserted_before (param $z i32) (result i32)
+                (i32.sub $z $g_extra))
+              (func $helper (param $x i32) (result i32)
+                (i32.add $x $g_acc))
+              (func (export "main") (param $n i32) (result i32)
+                (global.set $g_acc (call $helper $n))
+                (return_call $helper (global.get $g_acc))))
+        "#;
+        let toks_v1 = wat_to_dc_shorthands(wat_v1)?;
+        let toks_v2 = wat_to_dc_shorthands(wat_v2)?;
+
+        // Extract the trailing `(export "main")` `Dc 260..261` routine literal from both modules:
+        // despite shifting both `$g_acc` (0 -> 1) and `$helper` (0 -> 1), `main`'s Dc routine is identical!
+        let extract_last_routine = |toks: &[DcShorthand]| -> Vec<DcShorthand> {
+            let start = toks
+                .iter()
+                .rposition(|&t| t == dc_to_sh(DC_BEGIN_LITERAL))
+                .unwrap();
+            let end = toks[start..]
+                .iter()
+                .position(|&t| t == dc_to_sh(DC_END_LITERAL))
+                .unwrap();
+            toks[start..=start + end].to_vec()
+        };
+        let main_v1 = extract_last_routine(&toks_v1);
+        let main_v2 = extract_last_routine(&toks_v2);
+        assert_eq!(main_v1, main_v2);
+        assert!(main_v1.contains(&dc_to_sh(DC_BEGIN_IDENTIFIER)));
         Ok(())
     }
 }

@@ -132,12 +132,17 @@ const WASM_OPCODE_IF: u32 = 0x04;
 const WASM_OPCODE_ELSE: u32 = 0x05;
 const WASM_OPCODE_END: u32 = 0x0B;
 const WASM_OPCODE_BR_TABLE: u32 = 0x0E;
+const WASM_OPCODE_CALL: u32 = 0x10;
+const WASM_OPCODE_RETURN_CALL: u32 = 0x12;
 const WASM_OPCODE_SELECT_T: u32 = 0x1C;
 const WASM_OPCODE_TRY_TABLE: u32 = 0x1F;
+const WASM_OPCODE_GLOBAL_GET: u32 = 0x23;
+const WASM_OPCODE_GLOBAL_SET: u32 = 0x24;
 const WASM_OPCODE_I32_CONST: u32 = 0x41;
 const WASM_OPCODE_I64_CONST: u32 = 0x42;
 const WASM_OPCODE_F32_CONST: u32 = 0x43;
 const WASM_OPCODE_F64_CONST: u32 = 0x44;
+const WASM_OPCODE_REF_FUNC: u32 = 0xD2;
 
 const WASM_FD_V128_CONST: u32 = 0x0C;
 const WASM_FD_I8X16_SHUFFLE: u32 = 0x0D;
@@ -692,11 +697,84 @@ fn emit_memarg(
     Ok(())
 }
 
+#[derive(Debug, Default)]
+struct WasmSymbolTable {
+    func_by_name: std::collections::HashMap<String, u32>,
+    global_by_name: std::collections::HashMap<String, u32>,
+}
+
+fn syntax_term_allows_identifier(term: &SyntaxTerm) -> bool {
+    match term {
+        SyntaxTerm::NamedConstruct { name, .. } => name == "identifier",
+        SyntaxTerm::Group(SyntaxPattern::Alternation(branches)) => {
+            branches.iter().any(|branch| match branch {
+                SyntaxPattern::Sequence(elems) if elems.len() == 1 => elems
+                    .first()
+                    .is_some_and(|e| syntax_term_allows_identifier(&e.term)),
+                _ => false,
+            })
+        }
+        SyntaxTerm::Group(SyntaxPattern::Sequence(elems))
+            if elems.len() == 1 =>
+        {
+            elems
+                .first()
+                .is_some_and(|e| syntax_term_allows_identifier(&e.term))
+        }
+        _ => false,
+    }
+}
+
+fn read_index_or_symbol_u32(
+    cursor: &mut TokenCursor<'_>,
+    instr_dc: DcChar,
+    allows_ident: bool,
+    sym_table: &std::collections::HashMap<String, u32>,
+    target_kind: &str,
+) -> Result<u32> {
+    let peek = cursor
+        .peek()
+        .with_context(|| format!("Missing {target_kind} target after {instr_dc}"))?;
+    if cursor.token_fills_role(peek, DcRole::BeginNumber) {
+        let num = cursor.read_number()?;
+        u32::try_from(&num).map_err(|_| {
+            anyhow!("WASM {target_kind} index {num} for {instr_dc} out of u32 range")
+        })
+    } else if allows_ident
+        && cursor.token_fills_role(peek, DcRole::BeginIdentifier)
+    {
+        let (sym_name, key_ty) = cursor.read_identifier_with_type()?;
+        ensure!(
+            matches!(key_ty, ParsedKeyType::None),
+            "Symbolic WASM {target_kind} target '{sym_name}' on {instr_dc} cannot carry an inline type header"
+        );
+        sym_table.get(&sym_name).copied().with_context(|| {
+            format!(
+                "Unknown symbolic WASM {target_kind} target '{sym_name}' on {instr_dc}"
+            )
+        })
+    } else {
+        bail!(
+            "Expected numeric index{} after {instr_dc}, found {peek}",
+            if allows_ident {
+                " or symbolic Dc 270..271 identifier"
+            } else {
+                ""
+            }
+        );
+    }
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "Dispatches structured control flow and immediate encodings across all WebAssembly opcodes"
+)]
 fn assemble_instruction_sequence(
     cursor: &mut TokenCursor<'_>,
     stop_predicate: fn(&TokenCursor<'_>, DcChar) -> bool,
     allow_else: bool,
     enforce_kernel_v1_gate: bool,
+    syms: &WasmSymbolTable,
     out: &mut Vec<u8>,
 ) -> Result<DcChar> {
     let mut seen_else = false;
@@ -781,6 +859,7 @@ fn assemble_instruction_sequence(
                 },
                 is_if,
                 enforce_kernel_v1_gate,
+                syms,
                 out,
             )?;
             out.push(0x0B);
@@ -809,6 +888,36 @@ fn assemble_instruction_sequence(
 
         // Special immediate encodings determined by standard WebAssembly opcode + rule shape
         match (prefix_opt, subopcode, operand_elems.len()) {
+            (
+                None,
+                WASM_OPCODE_CALL | WASM_OPCODE_RETURN_CALL | WASM_OPCODE_REF_FUNC,
+                1,
+            ) => {
+                let allows_ident = operand_elems
+                    .first()
+                    .is_some_and(|el| syntax_term_allows_identifier(&el.term));
+                let idx = read_index_or_symbol_u32(
+                    cursor,
+                    instr_dc,
+                    allows_ident,
+                    &syms.func_by_name,
+                    "function",
+                )?;
+                push_uleb128_u32(idx, out);
+            }
+            (None, WASM_OPCODE_GLOBAL_GET | WASM_OPCODE_GLOBAL_SET, 1) => {
+                let allows_ident = operand_elems
+                    .first()
+                    .is_some_and(|el| syntax_term_allows_identifier(&el.term));
+                let idx = read_index_or_symbol_u32(
+                    cursor,
+                    instr_dc,
+                    allows_ident,
+                    &syms.global_by_name,
+                    "global",
+                )?;
+                push_uleb128_u32(idx, out);
+            }
             (None, WASM_OPCODE_I32_CONST, 1) => {
                 let num = cursor.read_number()?;
                 let val = i32::try_from(&num).or_else(|_| {
@@ -1167,10 +1276,61 @@ fn extract_routine_header_layout(
     })
 }
 
+fn skip_wasm_routine_from_cursor(
+    cursor: &mut TokenCursor<'_>,
+    layout: &RoutineHeaderLayout,
+) -> Result<(usize, usize)> {
+    let start_pos = cursor.pos;
+    for hdr in &layout.prefix_tokens {
+        if hdr.optional {
+            if let Some(peek) = cursor.peek()
+                && (peek == hdr.token
+                    || cursor.resolver.is_equivalent_to(
+                        peek.to_u128(),
+                        hdr.token.to_u128(),
+                    ))
+            {
+                let _ = cursor.next()?;
+            }
+        } else {
+            let actual = cursor.next()?;
+            ensure!(
+                actual == hdr.token
+                    || cursor.resolver.is_equivalent_to(
+                        actual.to_u128(),
+                        hdr.token.to_u128(),
+                    ),
+                "Expected leading routine header token {} required by active graph grammar, found {actual}",
+                hdr.token
+            );
+        }
+    }
+    let lit_open = cursor.next()?;
+    ensure!(
+        cursor.token_fills_role(lit_open, DcRole::BeginLiteral),
+        "Expected Dc 260 (Begin literal value) starting wasm_routine, found {lit_open}"
+    );
+    let mut depth = 1usize;
+    while depth > 0 {
+        let tok = cursor.next()?;
+        if cursor.token_fills_role(tok, DcRole::Escape) {
+            let _ = cursor.next()?;
+            continue;
+        }
+        if cursor.token_fills_role(tok, DcRole::BeginLiteral) {
+            depth = depth.saturating_add(1);
+        } else if cursor.token_fills_role(tok, DcRole::EndLiteral) {
+            depth = depth.saturating_sub(1);
+        }
+    }
+    Ok((start_pos, cursor.pos))
+}
+
 fn parse_wasm_routine_from_cursor(
     cursor: &mut TokenCursor<'_>,
     name: String,
     external_sig: Option<WasmFuncSignature>,
+    syms: &WasmSymbolTable,
 ) -> Result<WasmRoutineDef> {
     let routine_start = cursor.pos;
     let layout = extract_routine_header_layout(cursor.resolver)?;
@@ -1272,6 +1432,7 @@ fn parse_wasm_routine_from_cursor(
         |cur, ch| cur.token_fills_role(ch, DcRole::EndLiteral),
         false,
         true,
+        syms,
         &mut body_bytes,
     )?;
     body_bytes.push(0x0B); // End of function body
@@ -1513,6 +1674,7 @@ pub fn assemble_wasm_instructions(
     tokens.push(end_dc);
 
     let mut cursor = TokenCursor::new(&tokens, resolver);
+    let empty_syms = WasmSymbolTable::default();
     let mut out = Vec::new();
     let _ = assemble_instruction_sequence(
         &mut cursor,
@@ -1523,6 +1685,7 @@ pub fn assemble_wasm_instructions(
         },
         false,
         false,
+        &empty_syms,
         &mut out,
     )?;
     ensure!(
@@ -1655,8 +1818,14 @@ pub fn dcstring_to_wasm_with_resolver(
 
     // Case 1: Standalone `wasm_routine` literal (`Dc 260`..`Dc 261`)
     if routine_layout.token_starts_routine(first, active_resolver) {
-        let routine =
-            parse_wasm_routine_from_cursor(&mut cursor, "main".to_owned(), None)?;
+        let mut syms = WasmSymbolTable::default();
+        syms.func_by_name.insert("main".to_owned(), 0);
+        let routine = parse_wasm_routine_from_cursor(
+            &mut cursor,
+            "main".to_owned(),
+            None,
+            &syms,
+        )?;
         ensure!(
             cursor.is_eof(),
             "Trailing tokens after standalone wasm_routine literal"
@@ -1708,6 +1877,15 @@ pub fn dcstring_to_wasm_with_resolver(
             }
         }
 
+        // Pass 1: Scan `Dc 559` entries to populate globals, data segments, and the complete
+        // module-wide `WasmSymbolTable` (enabling forward and recursive symbolic calls).
+        let mut syms = WasmSymbolTable::default();
+        let mut pending_routines: Vec<(
+            String,
+            Option<WasmFuncSignature>,
+            usize,
+            usize,
+        )> = Vec::new();
         let mut next_data_offset = DC_WASM_MAILBOX_HEADER_LEN;
         while let Some(pair_peek) = cursor.peek() {
             if cursor.token_fills_role(pair_peek, DcRole::EndKvMap) {
@@ -1737,9 +1915,15 @@ pub fn dcstring_to_wasm_with_resolver(
                         "WASM routine member '{name}' has a non-Routine key type"
                     ),
                 };
-                let routine =
-                    parse_wasm_routine_from_cursor(&mut cursor, name, ext_sig)?;
-                routines.push(routine);
+                let (r_start, r_end) =
+                    skip_wasm_routine_from_cursor(&mut cursor, &routine_layout)?;
+                let func_idx = u32::try_from(pending_routines.len())
+                    .context("WASM routine count exceeds u32")?;
+                ensure!(
+                    syms.func_by_name.insert(name.clone(), func_idx).is_none(),
+                    "Duplicate WASM routine member symbol '{name}'"
+                );
+                pending_routines.push((name, ext_sig, r_start, r_end));
             } else if cursor.token_fills_role(val_peek, DcRole::BeginNumber) {
                 let num = cursor.read_number()?;
                 let init_val = i64::try_from(&num).map_err(|_| {
@@ -1760,6 +1944,12 @@ pub fn dcstring_to_wasm_with_resolver(
                         "WASM numeric global '{name}' cannot have a Routine key type"
                     ),
                 };
+                let glob_idx = u32::try_from(globals.len())
+                    .context("WASM global count exceeds u32")?;
+                ensure!(
+                    syms.global_by_name.insert(name.clone(), glob_idx).is_none(),
+                    "Duplicate WASM global/data member symbol '{name}'"
+                );
                 globals.push(WasmGlobalDef {
                     name,
                     valtype,
@@ -1779,6 +1969,12 @@ pub fn dcstring_to_wasm_with_resolver(
                 data_segments.push(WasmDataDef { offset, bytes });
                 // Also export an immutable i32 global with the segment's base offset under `name`
                 let offset_i64 = i64::from(offset);
+                let glob_idx = u32::try_from(globals.len())
+                    .context("WASM global count exceeds u32")?;
+                ensure!(
+                    syms.global_by_name.insert(name.clone(), glob_idx).is_none(),
+                    "Duplicate WASM global/data member symbol '{name}'"
+                );
                 globals.push(WasmGlobalDef {
                     name,
                     valtype: WASM_VALTYPE_I32,
@@ -1803,14 +1999,37 @@ pub fn dcstring_to_wasm_with_resolver(
             cursor.token_fills_role(prog_close, DcRole::EndWasmProgram),
             "Expected Dc 1928 (End WASM program), found {prog_close}"
         );
+
+        // Pass 2: Assemble all routine bodies with complete function and global symbol tables.
+        routines.reserve(pending_routines.len());
+        for (name, ext_sig, r_start, r_end) in pending_routines {
+            let r_slice = unwrapped_tokens
+                .get(r_start..r_end)
+                .context("Invalid deferred routine slice bounds")?;
+            let mut r_cursor = TokenCursor::new(r_slice, active_resolver);
+            let routine = parse_wasm_routine_from_cursor(
+                &mut r_cursor,
+                name,
+                ext_sig,
+                &syms,
+            )?;
+            ensure!(
+                r_cursor.is_eof(),
+                "Unconsumed tokens inside deferred WASM routine"
+            );
+            routines.push(routine);
+        }
     } else {
         // Direct sequence of instructions inside `Dc 1927`..`Dc 1928`
+        let mut syms = WasmSymbolTable::default();
+        syms.func_by_name.insert("main".to_owned(), 0);
         let mut body_bytes = Vec::new();
         let _prog_close = assemble_instruction_sequence(
             &mut cursor,
             |cur, ch| cur.token_fills_role(ch, DcRole::EndWasmProgram),
             false,
             true,
+            &syms,
             &mut body_bytes,
         )?;
         body_bytes.push(0x0B);
@@ -10829,6 +11048,68 @@ mod tests {
         assert!(
             instrument_wasm_module_bytes(&bad_wasm).is_err(),
             "__ctb_capability_yield with non-() signature must fail instrumentation"
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_symbolic_wasm_call_and_global_targets_forward_refs_and_unknown_error()
+     -> Result<()> {
+        // Forward-calling WAT module where `main` precedes `$forward_helper` and a data segment
+        // precedes `$g_count` (testing both forward function resolution and data+global index order).
+        let wat = r#"
+            (module
+              (memory (export "memory") 1)
+              (data $banner "OK")
+              (global $g_count (mut i32) (i32.const 5))
+              (func (export "main") (result i32)
+                (global.set $g_count (call $forward_helper (global.get $g_count)))
+                (i32.store (i32.const 8) (i32.const 512))
+                (if (i32.eq (global.get $g_count) (i32.const 42))
+                  (then
+                    (i32.store8 (i32.const 512) (i32.load8_u (i32.const 32)))
+                    (i32.store8 (i32.const 513) (i32.load8_u (i32.const 33)))
+                    (i32.store (i32.const 12) (i32.const 2)))
+                  (else
+                    (unreachable)))
+                (i32.const 0))
+              (func $forward_helper (param $x i32) (result i32)
+                (i32.add (local.get $x) (i32.const 37))))
+        "#;
+        let mk_dcmst = |s: &str| -> DcMstring {
+            let mut m = DcMstring::new();
+            for ch in s.chars() {
+                m.push_char(DcChar::from_unicode(u32::from(ch)).unwrap());
+            }
+            m
+        };
+        let wasm_bytes = crate::converters::wat::wat_to_wasm(wat)?;
+        let mut sess =
+            DcWasmSession::from_wasm_bytes(&wasm_bytes, &mk_dcmst(""), None)?;
+        let WasmStepOutcome::Complete(out) = sess.step()? else {
+            bail!("Expected Complete from symbolic forward-calling WAT test");
+        };
+        assert_eq!(out, mk_dcmst("OK"));
+
+        // Corrupt a symbolic call target to an unknown identifier and verify descriptive error.
+        let mut shorthands =
+            ctb_formats_dcdata::support::wat::wat_to_dc_shorthands(wat)?;
+        // Replace Unicode 'f' (`u66`) in `forward_helper` call target inside `main` with 'z' (`u7a`).
+        let first_f_pos = shorthands
+            .iter()
+            .position(|&t| t == ctb_storage_minimal::shorthand::DcShorthand::Unicode(u32::from(b'f')))
+            .unwrap();
+        shorthands[first_f_pos] =
+            ctb_storage_minimal::shorthand::DcShorthand::Unicode(u32::from(b'z'));
+        let mut bad_mstr = DcMstring::new();
+        for sh in shorthands {
+            bad_mstr.push_char(DcChar::from_u128(sh.to_global_id()?));
+        }
+        let err = dcmstring_to_wasm(&bad_mstr).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("Unknown symbolic WASM function target 'zorward_helper'"),
+            "Unexpected error: {err}"
         );
         Ok(())
     }
