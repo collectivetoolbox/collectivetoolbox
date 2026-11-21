@@ -31,7 +31,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::Path;
 use std::sync::{Arc, OnceLock};
 
@@ -51,11 +51,11 @@ use crate::dc::{
     DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
     DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE,
     DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE, DC_DATA_FORMAT_DESCRIPTION,
-    DC_DC_GENERAL_CATEGORY, DC_DECLARE_CONST, DC_DECLARE_PUB,
-    DC_DECOMPOSITION, DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP,
-    DC_END_IDENTIFIER, DC_END_LIST, DC_END_LITERAL,
-    DC_END_SINGLE_LINE_COMMENT, DC_END_WASM_PROGRAM, DC_ENTITY_TYPE,
-    DC_ESCAPE, DC_EVALUATE_VALUE_AS_ATOM,
+    DC_DC_DOCUMENT_EXECUTION_KERNEL, DC_DC_GENERAL_CATEGORY, DC_DECLARE_CONST,
+    DC_DECLARE_PUB, DC_DECOMPOSITION, DC_ENCLOSING_DOCUMENT,
+    DC_END_ASSOCIATIVITY_GROUP, DC_END_IDENTIFIER, DC_END_LIST,
+    DC_END_LITERAL, DC_END_SINGLE_LINE_COMMENT, DC_END_WASM_PROGRAM,
+    DC_ENTITY_TYPE, DC_ESCAPE, DC_EVALUATE_VALUE_AS_ATOM,
     DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID, DC_HAS_A, DC_HAS_VALUE,
     DC_IN_CONTEXT_OF, DC_IS_BASED_ON, DC_IS_INSTANCE_OF, DC_IS_STABLE,
     DC_MANUAL_ENTRY, DC_PATTERN_REPLACEMENT, DC_PREFERRED,
@@ -129,6 +129,82 @@ pub struct ActiveConverterStep<'a> {
     pub is_preferred: bool,
     /// Executable `.WASM` or StageL Token-Dc body.
     pub body: ActiveConverterBody<'a>,
+}
+
+/// Version tag mixed into offline native substitute bundle fingerprints whenever
+/// [`SeedGraphIndex::discover_system_wasm_substitute_targets`] selection rules change.
+pub const SYSTEM_WASM_SUBSTITUTE_DISCOVERY_VERSION: u32 = 1;
+
+/// Classification of an auto-discovered runnable System-block Dc eligible for
+/// Guix-style native safe-Rust substitute compilation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SystemWasmSubstituteTargetKind {
+    /// Trusted System execution kernel (`Dc 1936`), compiled via
+    /// [`SeedGraphIndex::resolve_trusted_system_supervisor_bootstrap_tokens`].
+    SupervisorKernel,
+    /// Standalone uncontextualized `.WASM` module decomposition.
+    StandaloneWasm,
+    /// Active `[Dc 302 src dst]` converter implemented directly as `.WASM`.
+    WasmConverter {
+        /// Converter source format or starter Dc shorthand.
+        src: DcShorthand,
+        /// Converter destination format or starter Dc shorthand.
+        dst: DcShorthand,
+    },
+    /// Active `[Dc 302 src dst]` converter implemented in StageL 3 (`l/u8 -> l/u8`).
+    StageLConverter {
+        /// Converter source format or starter Dc shorthand.
+        src: DcShorthand,
+        /// Converter destination format or starter Dc shorthand.
+        dst: DcShorthand,
+    },
+    /// Active `[Dc 302 src dst]` converter implemented in StageR 3 (`l/u8 -> l/u8`).
+    StageRConverter {
+        /// Converter source format or starter Dc shorthand.
+        src: DcShorthand,
+        /// Converter destination format or starter Dc shorthand.
+        dst: DcShorthand,
+    },
+    /// Standalone StageL 3 `pub dc/<shorthand>` routine (`l/u8 -> l/u8`).
+    StageLRoutineBytes,
+    /// Standalone StageL 3 `pub dc/<shorthand>` routine (`dcs -> dcs`).
+    StageLRoutineDcs,
+    /// Standalone StageR 3 `pub dc/<shorthand>` routine (`l/u8 -> l/u8`).
+    StageRRoutineBytes,
+    /// Standalone StageR 3 `pub dc/<shorthand>` routine (`dcs -> dcs`).
+    StageRRoutineDcs,
+}
+
+/// Single auto-discovered System-block target eligible for native safe-Rust
+/// WebAssembly substitute compilation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SystemWasmSubstituteTarget {
+    /// Canonical subject shorthand identifying this System-block routine or converter.
+    pub subject: DcShorthand,
+    /// Resolved 128-bit global Document Character ID.
+    pub global_id: u128,
+    /// Deterministic Rust module stem (`dc_1936`, `f1680`, `l...`).
+    pub module_stem: String,
+    /// How this target should be lowered to an uninstrumented `.wasm` module.
+    pub kind: SystemWasmSubstituteTargetKind,
+}
+
+/// Formats the deterministic substitute Rust module stem for `subj`
+/// (`Short(n)` -> `dc_<n>`, `Format(n)` -> `f<n>`, `Long(n)` -> `l<n>`).
+///
+/// # Errors
+/// Returns an error if `subj` is not a `Short`, `Format`, or `Long` shorthand.
+pub fn substitute_module_stem_for_shorthand(
+    subj: DcShorthand,
+) -> Result<String> {
+    match subj {
+        DcShorthand::Short(n) => Ok(format!("dc_{n}")),
+        DcShorthand::Format(n) => Ok(format!("f{n}")),
+        DcShorthand::Long(n) => Ok(format!("l{n}")),
+        other => bail!(
+            "Unsupported DcShorthand variant for WASM substitute module stem: {other:?}"
+        ),
+    }
 }
 
 /// Runtime index over the System-block seed graph (`8589934592..=12884901887`).
@@ -3797,6 +3873,185 @@ impl SeedGraphIndex {
             definition_tokens,
         })
     }
+
+    /// Auto-discovers all runnable System-block Dcs (`Dc 1936`, active `.WASM`/StageL/StageR
+    /// `[Dc 302 src dst]` converters, standalone uncontextualized `.WASM` modules, and
+    /// standalone `pub dc/<shorthand>` StageL/StageR routines with `(l/u8 -> l/u8)` or
+    /// `(dcs -> dcs)` signatures), sorted deterministically by ascending `global_id`.
+    ///
+    /// # Errors
+    /// Returns an error if any discovered target fails shorthand global-ID resolution
+    /// or decomposition inspection.
+    pub fn discover_system_wasm_substitute_targets(
+        &self,
+    ) -> Result<Vec<SystemWasmSubstituteTarget>> {
+        use crate::stagel3::ast::{StageDialect, StageLType};
+
+        fn is_bytes_list_ty(ty: &StageLType) -> bool {
+            matches!(ty, StageLType::List(inner) if matches!(inner.as_ref(), StageLType::U8))
+        }
+
+        let mut targets: Vec<SystemWasmSubstituteTarget> = Vec::new();
+        let mut seen_subjects: BTreeSet<DcShorthand> = BTreeSet::new();
+
+        // 1. Active single-step converters (`list_all_active_converter_steps`).
+        for step in self.list_all_active_converter_steps()? {
+            if !seen_subjects.insert(step.subject) {
+                continue;
+            }
+            let kind = match step.body {
+                ActiveConverterBody::Wasm(_) => {
+                    SystemWasmSubstituteTargetKind::WasmConverter {
+                        src: step.src,
+                        dst: step.dst,
+                    }
+                }
+                ActiveConverterBody::StageL(tokens) => {
+                    let stripped =
+                        crate::stagel3::dc_tokens::strip_comment_frames(
+                            &tokens,
+                        );
+                    let is_stager = stripped.first().copied().is_some_and(|t| {
+                        self.token_fills_canonical_or_equiv_role(
+                            t.to_u128(),
+                            crate::syntax::DcRole::BeginStagerModule,
+                        )
+                    });
+                    if is_stager {
+                        SystemWasmSubstituteTargetKind::StageRConverter {
+                            src: step.src,
+                            dst: step.dst,
+                        }
+                    } else {
+                        SystemWasmSubstituteTargetKind::StageLConverter {
+                            src: step.src,
+                            dst: step.dst,
+                        }
+                    }
+                }
+            };
+            targets.push(SystemWasmSubstituteTarget {
+                subject: step.subject,
+                global_id: step.subject.to_global_id()?,
+                module_stem: substitute_module_stem_for_shorthand(step.subject)?,
+                kind,
+            });
+        }
+
+        // Collect all active subjects owning a canonical/decomposition/semantic decomposition.
+        let mut decomp_subjects: BTreeSet<DcShorthand> = BTreeSet::new();
+        for (&(subj, prop, _), &(has_a_id, has_val_id)) in
+            &self.active_multi_props
+        {
+            if prop != sh(DC_CANONICAL_DECOMPOSITION)
+                && prop != sh(DC_DECOMPOSITION)
+                && prop != sh(DC_SEMANTIC_DECOMPOSITION)
+            {
+                continue;
+            }
+            if let Some(pin_id) = self.system_block_most_recent_node_id
+                && (has_a_id > pin_id || has_val_id > pin_id)
+            {
+                continue;
+            }
+            if let DcShorthand::Long(nid) = subj
+                && let Some(pin_id) = self.system_block_most_recent_node_id
+                && nid > pin_id
+            {
+                continue;
+            }
+            decomp_subjects.insert(subj);
+        }
+
+        // 2. Standalone uncontextualized `.WASM` System-block modules.
+        let kernel_sh = sh(DC_DC_DOCUMENT_EXECUTION_KERNEL);
+        for &subj in &decomp_subjects {
+            if seen_subjects.contains(&subj) {
+                continue;
+            }
+            let Some((direct_node_id, tokens)) =
+                self.resolve_wasm_helper_shorthand(subj)?
+            else {
+                continue;
+            };
+            if direct_node_id.is_none() || !Self::tokens_start_wasm_definition(tokens)
+            {
+                continue;
+            }
+            if let DcShorthand::Long(nid) = subj
+                && let Some(pin_id) = self.system_block_most_recent_node_id
+                && nid > pin_id
+            {
+                continue;
+            }
+            seen_subjects.insert(subj);
+            let kind = if subj == kernel_sh {
+                SystemWasmSubstituteTargetKind::SupervisorKernel
+            } else {
+                SystemWasmSubstituteTargetKind::StandaloneWasm
+            };
+            targets.push(SystemWasmSubstituteTarget {
+                subject: subj,
+                global_id: subj.to_global_id()?,
+                module_stem: substitute_module_stem_for_shorthand(subj)?,
+                kind,
+            });
+        }
+
+        // 3. Standalone Short / Format `pub dc/<shorthand>` StageL/StageR entrypoints.
+        for &subj in &decomp_subjects {
+            if seen_subjects.contains(&subj)
+                || !matches!(subj, DcShorthand::Short(_) | DcShorthand::Format(_))
+            {
+                continue;
+            }
+            let Some((dialect, routine)) =
+                crate::stagel3::seed_linker::inspect_standalone_graph_routine_signature(
+                    self, subj,
+                )?
+            else {
+                continue;
+            };
+            let [param] = routine.params.as_slice() else {
+                continue;
+            };
+            let kind = if is_bytes_list_ty(&param.ty)
+                && is_bytes_list_ty(&routine.return_type)
+            {
+                match dialect {
+                    StageDialect::StageL3 => {
+                        SystemWasmSubstituteTargetKind::StageLRoutineBytes
+                    }
+                    StageDialect::StageR3 => {
+                        SystemWasmSubstituteTargetKind::StageRRoutineBytes
+                    }
+                }
+            } else if param.ty == StageLType::Dcs
+                && routine.return_type == StageLType::Dcs
+            {
+                match dialect {
+                    StageDialect::StageL3 => {
+                        SystemWasmSubstituteTargetKind::StageLRoutineDcs
+                    }
+                    StageDialect::StageR3 => {
+                        SystemWasmSubstituteTargetKind::StageRRoutineDcs
+                    }
+                }
+            } else {
+                continue;
+            };
+            seen_subjects.insert(subj);
+            targets.push(SystemWasmSubstituteTarget {
+                subject: subj,
+                global_id: subj.to_global_id()?,
+                module_stem: substitute_module_stem_for_shorthand(subj)?,
+                kind,
+            });
+        }
+
+        targets.sort_by_key(|t| t.global_id);
+        Ok(targets)
+    }
 }
 
 #[cfg(test)]
@@ -5203,6 +5458,33 @@ mod tests {
             ]
         );
 
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_discover_system_wasm_substitute_targets_on_default_seed_graph()
+    -> Result<()> {
+        let sg = SeedGraphIndex::shared()?;
+        let targets = sg.discover_system_wasm_substitute_targets()?;
+        let stems: Vec<&str> =
+            targets.iter().map(|t| t.module_stem.as_str()).collect();
+        assert_eq!(stems, vec!["dc_1936", "dc_2608", "f1680", "f1681"]);
+        assert_eq!(
+            targets[0].kind,
+            SystemWasmSubstituteTargetKind::SupervisorKernel
+        );
+        assert_eq!(
+            targets[1].kind,
+            SystemWasmSubstituteTargetKind::StageRRoutineDcs
+        );
+        assert!(matches!(
+            targets[2].kind,
+            SystemWasmSubstituteTargetKind::WasmConverter { .. }
+        ));
+        assert!(matches!(
+            targets[3].kind,
+            SystemWasmSubstituteTargetKind::StageLConverter { .. }
+        ));
         Ok(())
     }
 }

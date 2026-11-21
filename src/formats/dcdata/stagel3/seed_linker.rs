@@ -3017,6 +3017,91 @@ pub fn build_entry_module_for_graph_routine_dc(
     sl3_to_dc_tokens_with_seed_graph(&src, seed_graph)
 }
 
+/// Synthesizes a minimal StageR 3 Token-Dc entry module (`v/l/u8/step l/u8/input`)
+/// that delegates directly to `routine_dc` (`pub dc/<shorthand> v/l/u8/... l/u8/input`)
+/// in `seed_graph`.
+///
+/// # Errors
+/// Returns an error if `routine_dc` cannot be resolved in `seed_graph` or fails
+/// StageR 3 validation.
+pub fn build_stager_bytes_entry_module_for_graph_routine_dc(
+    routine_dc: DcChar,
+    seed_graph: &SeedGraphIndex,
+) -> Result<Vec<DcChar>> {
+    let sh = super::ast::format_dc_shorthand(routine_dc);
+    let src = format!("v/l/u8/step l/u8/input :: dc/{sh} /input.\n");
+    sr3_to_dc_tokens_with_seed_graph(&src, seed_graph)
+}
+
+/// Inspects a standalone StageL 3 / StageR 3 decomposition attached to `target_sh`,
+/// returning `(dialect, routine)` when `target_sh` exposes an unambiguous public
+/// routine declaration.
+///
+/// # Errors
+/// Returns an error if reading or decoding the decomposition tokens fails.
+pub(crate) fn inspect_standalone_graph_routine_signature(
+    seed_graph: &SeedGraphIndex,
+    target_sh: DcShorthand,
+) -> Result<Option<(StageDialect, RoutineDecl)>> {
+    let Ok(target_gid) = target_sh.to_global_id() else {
+        return Ok(None);
+    };
+    let target_dc = DcChar::from_u128(target_gid);
+    let Some((_, entry)) =
+        decode_graph_stagel_entry_at_line(seed_graph, target_sh, 1)?
+    else {
+        return Ok(None);
+    };
+    let (mod_dialect, routine_opt) = match entry {
+        EitherDeclOrModule::Decl(TopDecl::Routine(r)) => {
+            if r.is_pub && (r.dc_id == Some(target_dc) || r.dc_id.is_none()) {
+                (StageDialect::StageL3, Some(r))
+            } else {
+                (StageDialect::StageL3, None)
+            }
+        }
+        EitherDeclOrModule::Decl(_) => (StageDialect::StageL3, None),
+        EitherDeclOrModule::Module(m) => {
+            let mod_dialect = m.dialect;
+            let mut explicit_matches = Vec::new();
+            let mut non_comment_count = 0usize;
+            let mut single_unnamed_pub = None;
+            for item in m.items {
+                if matches!(item, TopDecl::Comment(_)) {
+                    continue;
+                }
+                non_comment_count = non_comment_count.saturating_add(1);
+                if let TopDecl::Routine(r) = item {
+                    if r.is_pub && r.dc_id == Some(target_dc) {
+                        explicit_matches.push(r);
+                    } else if r.is_pub && r.dc_id.is_none() {
+                        single_unnamed_pub = Some(r);
+                    }
+                }
+            }
+            let picked = if explicit_matches.len() == 1 {
+                explicit_matches.pop()
+            } else if explicit_matches.is_empty() && non_comment_count == 1 {
+                single_unnamed_pub
+            } else {
+                None
+            };
+            (mod_dialect, picked)
+        }
+    };
+    let Some(routine) = routine_opt else {
+        return Ok(None);
+    };
+    let uses_stager = mod_dialect == StageDialect::StageR3
+        || top_decl_uses_stager(&TopDecl::Routine(routine.clone()));
+    let dialect = if uses_stager {
+        StageDialect::StageR3
+    } else {
+        StageDialect::StageL3
+    };
+    Ok(Some((dialect, routine)))
+}
+
 /// Synthesizes a minimal StageR 3 Token-Dc entry module (`v/l/u8/step
 /// l/u8/input`) that decodes DcTF bytes into `dcs` and delegates to
 /// `routine_dc` (`pub dc/<shorthand> v/dcs/... dcs/input`) in `seed_graph`.
