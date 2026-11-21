@@ -514,6 +514,8 @@ pub const DC_RESULT_OK_VALUE: DcChar = DcChar::from_short(2236);
 pub const DC_RESULT_ERR_VALUE: DcChar = DcChar::from_short(2237);
 /// Constructs a structured diagnostic error value identified by its tag identifier. (Dc 2238).
 pub const DC_ERROR_TAG_VALUE: DcChar = DcChar::from_short(2238);
+/// Quotes the single immediately following Document Character as an unnormalized and unevaluated atom without decomposing or evaluating it. (Dc 2239).
+pub const DC_QUOTE_FOLLOWING_DC_AS_ATOM: DcChar = DcChar::from_short(2239);
 /// Evaluates a boolean condition expression and branches to either the second operand (then) or third operand (else). (Dc 2448).
 pub const DC_IF_CONDITIONAL: DcChar = DcChar::from_short(2448);
 /// Repeatedly evaluates the boolean condition expression and executes the void body expression while true. (Dc 2449).

@@ -516,6 +516,8 @@ pub enum DcRole {
     ResultErrValue,
     /// Constructs a structured diagnostic error value identified by its tag identifier. (`2238`).
     ErrorTagValue,
+    /// Quotes the single immediately following Document Character as an unnormalized and unevaluated atom without decomposing or evaluating it. (`2239`).
+    QuoteFollowingDcAsAtom,
     /// Evaluates a boolean condition expression and branches to either the second operand (then) or third operand (else). (`2448`).
     IfConditional,
     /// Repeatedly evaluates the boolean condition expression and executes the void body expression while true. (`2449`).
@@ -969,6 +971,7 @@ match self {
             Self::ResultOkValue => Some(2236),
             Self::ResultErrValue => Some(2237),
             Self::ErrorTagValue => Some(2238),
+            Self::QuoteFollowingDcAsAtom => Some(2239),
             Self::IfConditional => Some(2448),
             Self::WhileLoop => Some(2449),
             Self::ForEach => Some(2450),
@@ -1325,6 +1328,7 @@ match self {
             Self::ResultOkValue => short == Some(2236),
             Self::ResultErrValue => short == Some(2237),
             Self::ErrorTagValue => short == Some(2238),
+            Self::QuoteFollowingDcAsAtom => short == Some(2239),
             Self::IfConditional => short == Some(2448),
             Self::WhileLoop => short == Some(2449),
             Self::ForEach => short == Some(2450),
