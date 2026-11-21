@@ -4160,16 +4160,13 @@ mod tests {
     #[crate::ctb_test]
     fn test_transpile_wasm_bundle_merkle_dedup_and_global_remapping()
     -> Result<()> {
-        // Module A: $cnt at typed i32 slot 0, $other unused, $__heap_ptr at global 1,
+        // Module A: $cnt at typed i32 slot 0, $__heap_ptr at global 1,
         // $init_vals sets $cnt, and $sum_rec + $work share structure with Module B.
         let wat_a = r#"(module
-            (type $t_init (func))
-            (type $t_blk (func (param i32) (result i32)))
-            (type $t_step (func (result i32)))
             (memory (export "memory") 1)
             (global $cnt (mut i32) (i32.const 10))
             (global $__heap_ptr (export "__heap_ptr") (mut i32) (i32.const 256))
-            (func $init_vals (type $t_init)
+            (func $init_vals
                 (global.set $cnt (i32.const 20))
             )
             (func $sum_rec (param $n i32) (param $acc i32) (result i32)
@@ -4185,30 +4182,30 @@ mod tests {
             )
             (func $work (param $x i32) (result i32)
                 (call $init_vals)
-                (local.get $x)
-                (block (type $t_blk) (param i32) (result i32)
-                    (i32.add (global.get $cnt))
+                (block (result i32)
+                    (i32.add (local.get $x) (global.get $cnt))
                     (global.set $__heap_ptr (i32.add (global.get $__heap_ptr) (i32.const 8)))
                 )
                 (return_call $sum_rec (i32.const 4))
             )
-            (func (export "step") (type $t_step)
+            (func (export "step") (result i32)
                 (call $init_vals)
                 (i32.add (call $work (i32.const 5)) (global.get $cnt))
             )
         )"#;
 
-        // Module B: reordered globals ($__heap_ptr first, extra unused $pad before $cnt -> $cnt is typed slot 1!)
-        // and reordered type indices (block type is type index 0 instead of 1) + unique step.
+        // Module B: introduces a leading unique signature ($extra_sig) so all
+        // WASM type indices shift, reorders globals ($__heap_ptr first, extra $pad
+        // at typed slot 0 -> $cnt is typed slot 1!), plus unique step body.
         let wat_b = r#"(module
-            (type $t_blk (func (param i32) (result i32)))
-            (type $t_init (func))
-            (type $t_step (func (result i32)))
             (memory (export "memory") 1)
             (global $__heap_ptr (export "__heap_ptr") (mut i32) (i32.const 512))
             (global $pad (mut i32) (i32.const 99))
             (global $cnt (mut i32) (i32.const 30))
-            (func $init_vals_b (type $t_init)
+            (func $extra_sig (param $v i64) (result i64)
+                (i64.add (local.get $v) (i64.const 1))
+            )
+            (func $init_vals_b
                 (global.set $cnt (i32.add (global.get $pad) (i32.const 1)))
             )
             (func $sum_rec (param $n i32) (param $acc i32) (result i32)
@@ -4224,15 +4221,15 @@ mod tests {
             )
             (func $work (param $x i32) (result i32)
                 (call $init_vals_b)
-                (local.get $x)
-                (block (type $t_blk) (param i32) (result i32)
-                    (i32.add (global.get $cnt))
+                (block (result i32)
+                    (i32.add (local.get $x) (global.get $cnt))
                     (global.set $__heap_ptr (i32.add (global.get $__heap_ptr) (i32.const 8)))
                 )
                 (return_call $sum_rec (i32.const 4))
             )
-            (func (export "step") (type $t_step)
+            (func (export "step") (result i32)
                 (call $init_vals_b)
+                (drop (call $extra_sig (i64.const 7)))
                 (i32.mul (call $work (i32.const 6)) (i32.const 2))
             )
         )"#;
