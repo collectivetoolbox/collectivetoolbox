@@ -18,8 +18,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! Offline generator for Guix-style native safe-Rust WebAssembly substitutes of
-//! auto-discovered runnable System-graph routines (`Dc 1936`, active converters,
-//! and standalone StageL/StageR `pub dc/` entrypoints).
+//! arbitrary [`LedgerNode`] sets across all historical revisions and current
+//! graph snapshots.
 
 #[allow(
     unused_imports,
@@ -28,15 +28,20 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
+use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 
-use ctb_formats_dcdata::seed_graph::SYSTEM_WASM_SUBSTITUTE_DISCOVERY_VERSION;
-use ctb_formats_dcdata::syntax::{SyntaxRuleResolver, default_syntax_resolver};
-use ctb_formats_dcstring::converters::wasm::compile_system_substitute_target_wasm_bytes;
+use ctb_formats_dcdata::graph_ledger::LedgerNode;
+use ctb_formats_dcdata::seed_graph::{
+    SYSTEM_WASM_SUBSTITUTE_DISCOVERY_VERSION, SeedGraphIndex,
+    discover_graph_wasm_substitute_snapshots,
+};
+use ctb_formats_dcstring::converters::wasm::compile_graph_substitute_snapshot_wasm_bytes;
 use ctb_formats_dcstring::converters::wasm_to_rust::{
-    transpile_wasm_bundle_to_safe_rust, transpiler_fingerprint_sha256,
+    SubstituteBundleInput, transpile_wasm_bundle_to_safe_rust,
+    transpiler_fingerprint_sha256,
 };
 use sha2::{Digest, Sha256};
 
@@ -155,15 +160,20 @@ pub fn default_repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn compute_system_graph_bundles_sha256(repo_root: &Path) -> Result<[u8; 32]> {
-    let graph_dir = repo_root.join("assets").join("data").join("graph");
-    let entries = fs::read_dir(&graph_dir).with_context(|| {
+fn collect_ctbnbdl_files_in_dir(
+    dir: &Path,
+    rel_prefix: &str,
+    out: &mut Vec<(String, PathBuf)>,
+) -> Result<()> {
+    if !dir.exists() {
+        return Ok(());
+    }
+    let entries = fs::read_dir(dir).with_context(|| {
         format!(
             "Failed to read system graph bundle directory {}",
-            graph_dir.display()
+            dir.display()
         )
     })?;
-    let mut bundles: Vec<(String, PathBuf)> = Vec::new();
     for entry_res in entries {
         let entry = entry_res?;
         if !entry.file_type()?.is_file() {
@@ -174,9 +184,26 @@ fn compute_system_graph_bundles_sha256(repo_root: &Path) -> Result<[u8; 32]> {
             continue;
         };
         if name.ends_with(".ctbnbdl") {
-            bundles.push((name.to_owned(), entry.path()));
+            let key = if rel_prefix.is_empty() {
+                name.to_owned()
+            } else {
+                format!("{rel_prefix}/{name}")
+            };
+            out.push((key, entry.path()));
         }
     }
+    Ok(())
+}
+
+fn compute_system_graph_bundles_sha256(repo_root: &Path) -> Result<[u8; 32]> {
+    let graph_dir = repo_root.join("assets").join("data").join("graph");
+    let mut bundles: Vec<(String, PathBuf)> = Vec::new();
+    collect_ctbnbdl_files_in_dir(&graph_dir, "", &mut bundles)?;
+    collect_ctbnbdl_files_in_dir(
+        &graph_dir.join("system"),
+        "system",
+        &mut bundles,
+    )?;
     ensure!(
         !bundles.is_empty(),
         "No .ctbnbdl system graph bundles found in {}",
@@ -202,7 +229,7 @@ fn compute_bundle_input_hash(
     transpiler_digest: &[u8; 32],
 ) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"ctb-wasm-substitute-bundle-v3");
+    hasher.update(b"ctb-wasm-substitute-bundle-v4");
     hasher.update(SYSTEM_WASM_SUBSTITUTE_DISCOVERY_VERSION.to_le_bytes());
     hasher.update(include_bytes!("wasm_substitutes_gen.rs"));
     hasher.update(transpiler_digest);
@@ -210,11 +237,116 @@ fn compute_bundle_input_hash(
     hasher.finalize().into()
 }
 
+/// Discovers, lowers, and transpiles all runnable WebAssembly snapshots present
+/// across an arbitrary [`LedgerNode`] slice into uniform `.ctbnodes`-prefixed
+/// safe-Rust files plus `registry.generated.rs`.
+///
+/// # Errors
+/// Returns an error if snapshot discovery fails, if any active snapshot fails
+/// lowering, or if WASM-to-safe-Rust transpilation fails.
+pub fn generate_substitutes_for_nodes(
+    nodes: &[LedgerNode],
+    input_sha256_hex: Option<&str>,
+) -> Result<(BTreeMap<String, String>, usize)> {
+    let mut ordered_nodes: Vec<LedgerNode> = nodes.to_vec();
+    ordered_nodes.sort_by_key(|n| n.id);
+    let snapshots = discover_graph_wasm_substitute_snapshots(&ordered_nodes)?;
+    ensure!(
+        !snapshots.is_empty(),
+        "No runnable WASM substitute snapshots discovered in supplied LedgerNode slice"
+    );
+
+    // Reason for fallback: Default to 4 worker threads when host parallelism cannot be queried.
+    let worker_count = std::thread::available_parallelism()
+        .map(NonZeroUsize::get)
+        .unwrap_or(4)
+        .min(8)
+        .min(snapshots.len())
+        .max(1);
+    let chunk_size = snapshots
+        .len()
+        .saturating_add(worker_count.saturating_sub(1))
+        .checked_div(worker_count)
+        // Reason for fallback: worker_count >= 1 above so checked_div never divides by zero.
+        .unwrap_or(snapshots.len())
+        .max(1);
+
+    let ordered_ref = &ordered_nodes;
+    let lowered_batches: Vec<Result<Vec<(usize, Option<Vec<u8>>)>>> =
+        std::thread::scope(|scope| {
+            let mut handles = Vec::new();
+            for (batch_idx, batch) in snapshots.chunks(chunk_size).enumerate() {
+                let base_idx = batch_idx.saturating_mul(chunk_size);
+                handles.push(scope.spawn(move || {
+                    let mut out = Vec::with_capacity(batch.len());
+                    for (offset, snap) in batch.iter().enumerate() {
+                        let wasm_opt =
+                            compile_graph_substitute_snapshot_wasm_bytes(
+                                ordered_ref,
+                                snap,
+                            )?;
+                        out.push((base_idx.saturating_add(offset), wasm_opt));
+                    }
+                    Ok(out)
+                }));
+            }
+            let mut results = Vec::with_capacity(handles.len());
+            for handle in handles {
+                let batch_res = handle.join().map_err(|_| {
+                    anyhow::anyhow!(
+                        "Worker thread panicked during WASM snapshot lowering"
+                    )
+                })?;
+                results.push(batch_res);
+            }
+            Ok::<_, anyhow::Error>(results)
+        })?;
+
+    let mut compiled: Vec<(String, String, Vec<u8>)> =
+        Vec::with_capacity(snapshots.len());
+    for batch_res in lowered_batches {
+        for (snap_idx, wasm_opt) in batch_res? {
+            let Some(wasm_bytes) = wasm_opt else {
+                continue;
+            };
+            let snap = snapshots
+                .get(snap_idx)
+                .context("Snapshot index out of bounds")?;
+            let label = format!(
+                "{}/{}@l{}",
+                snap.target.chunk_prefix, snap.target.subject, snap.pin_node_id
+            );
+            compiled.push((
+                snap.target.chunk_prefix.clone(),
+                label,
+                wasm_bytes,
+            ));
+        }
+    }
+    ensure!(
+        !compiled.is_empty(),
+        "Zero snapshots compiled to WASM across discovered substitute snapshots"
+    );
+
+    let bundle_inputs: Vec<SubstituteBundleInput<'_>> = compiled
+        .iter()
+        .map(|(chunk_prefix, label, wasm_bytes)| SubstituteBundleInput {
+            chunk_prefix: chunk_prefix.as_str(),
+            label: label.as_str(),
+            wasm_bytes: wasm_bytes.as_slice(),
+        })
+        .collect();
+    let compiled_count = bundle_inputs.len();
+    let files =
+        transpile_wasm_bundle_to_safe_rust(&bundle_inputs, input_sha256_hex)?;
+    Ok((files, compiled_count))
+}
+
 /// Runs the substitute generator over `repo_root` with the given [`GenerateOptions`].
 ///
 /// # Errors
 /// Returns an error if `--check` finds missing, orphaned, or stale generated
-/// files, or if target discovery, WASM lowering, bundle transpilation, or file
+/// files, or if snapshot discovery, WASM lowering, bundle transpilation, or file
 /// synchronization fails.
 pub fn run_generator(
     repo_root: &Path,
@@ -245,37 +377,11 @@ pub fn run_generator(
         return Ok(());
     }
 
-    let active_resolver = default_syntax_resolver();
-    let sg = active_resolver
-        .seed_graph()
-        .context("Default SyntaxRuleResolver has no SeedGraphIndex")?;
-    let targets = sg.discover_system_wasm_substitute_targets()?;
-    ensure!(
-        !targets.is_empty(),
-        "No runnable System-block WASM substitute targets discovered in SeedGraphIndex"
-    );
-
-    let mut compiled: Vec<(String, Vec<u8>)> =
-        Vec::with_capacity(targets.len());
-    for target in &targets {
-        let wasm_bytes = compile_system_substitute_target_wasm_bytes(
-            target,
-            active_resolver.as_ref(),
-        )
-        .with_context(|| {
-            format!(
-                "Failed lowering discovered target '{}' ({}) to WASM",
-                target.module_stem, target.subject
-            )
-        })?;
-        compiled.push((target.module_stem.clone(), wasm_bytes));
-    }
-    let module_slices: Vec<(&str, &[u8])> = compiled
-        .iter()
-        .map(|(stem, bytes)| (stem.as_str(), bytes.as_slice()))
-        .collect();
-    let generated_files =
-        transpile_wasm_bundle_to_safe_rust(&module_slices, Some(&bundle_hex))?;
+    let graph_dir = repo_root.join("assets").join("data").join("graph");
+    let merged_nodes =
+        SeedGraphIndex::load_merged_nodes_from_disk_graph_dir(&graph_dir)?;
+    let (generated_files, compiled_count) =
+        generate_substitutes_for_nodes(&merged_nodes, Some(&bundle_hex))?;
 
     let expected_files: BTreeSet<String> =
         generated_files.keys().cloned().collect();
@@ -310,9 +416,8 @@ pub fn run_generator(
             );
         }
         println!(
-            "[generate-wasm-substitutes] bundle verified clean ({short_hex}, {} files, {} targets)",
+            "[generate-wasm-substitutes] bundle verified clean ({short_hex}, {} files, {compiled_count} snapshots)",
             generated_files.len(),
-            targets.len(),
         );
         return Ok(());
     }
@@ -335,9 +440,8 @@ pub fn run_generator(
         }
     }
     println!(
-        "[generate-wasm-substitutes] wrote {} files ({total_bytes} bytes across {} targets; {short_hex})",
+        "[generate-wasm-substitutes] wrote {} files ({total_bytes} bytes across {compiled_count} snapshots; {short_hex})",
         generated_files.len(),
-        targets.len(),
     );
     Ok(())
 }

@@ -5797,7 +5797,7 @@ pub v/l/u8/step l/u8/input
     #[crate::ctb_test]
     fn test_wasm_substitute_cross_backend_trace_replay_parity() -> Result<()> {
         use ctb_formats_dcstring::converters::wasm::{
-            DcWasmExecutionBackend, compile_system_target_wasm_bytes,
+            DcWasmExecutionBackend, compile_system_subject_wasm_bytes,
         };
         use ctb_formats_dcstring::stagel3::seed_linker::{
             bundle_dc_module_for_wasm_converter,
@@ -5809,8 +5809,10 @@ pub v/l/u8/step l/u8/input
         ctb_wasm_substitutes::ensure_registered();
         let resolver = default_syntax_resolver();
         let sg = SeedGraphIndex::shared()?;
-        let f1680_wasm =
-            compile_system_target_wasm_bytes("f1680", resolver.as_ref())?;
+        let f1680_wasm = compile_system_subject_wasm_bytes(
+            DcShorthand::Format(1680),
+            resolver.as_ref(),
+        )?;
 
         let tiny_sl3 = "v/l/u8/step l/u8/input :: concat b\"ok:\" /input.\n";
         let entry_tokens = sl3_to_dc_tokens_with_seed_graph(tiny_sl3, sg)?;

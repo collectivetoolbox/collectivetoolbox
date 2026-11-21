@@ -32,7 +32,14 @@ use ctb_utilities::*;
 
 use anyhow::{Context, Result, bail, ensure};
 use ctb_formats_dcdata::SeedGraphIndex;
-use ctb_formats_dcdata::dc::DC_CONVERT_DC_STRING_TO_WASM;
+use ctb_formats_dcdata::DcShorthand;
+use ctb_formats_dcdata::dc::{
+    DC_CONVERT_DC_STRING_TO_WASM, DC_DC_DOCUMENT_EXECUTION_KERNEL,
+};
+use ctb_formats_dcdata::seed_graph::{
+    SeedGraphIndex, SystemWasmSubstituteTargetKind,
+    discover_graph_wasm_substitute_snapshots,
+};
 use ctb_formats_dcdata::stagel3::seed_linker::{
     bundle_dc_module_dependencies, bundle_dc_module_for_wasm_converter,
     sl3_to_dc_tokens_with_seed_graph, sr3_to_dc_tokens_with_seed_graph,
@@ -42,7 +49,8 @@ use ctb_formats_dcstring::converters::encode_dc_string_literal;
 use ctb_formats_dcstring::converters::wasm::{
     DcWasmExecutionBackend, DcWasmResourceLimits, DcWasmSession,
     WasmResourceInterruption, WasmStepOutcome,
-    compile_system_target_wasm_bytes,
+    compile_graph_substitute_snapshot_wasm_bytes,
+    compile_system_subject_wasm_bytes,
 };
 use ctb_formats_dcstring::converters::wasm_capabilities::eval_pure_graph_capability_request;
 use ctb_formats_dcstring::{DcChar, DcMstr, DcMstring};
@@ -126,8 +134,10 @@ fn run_single_complete_step(session: &mut DcWasmSession) -> Result<DcMstring> {
 #[crate::ctb_test]
 fn test_substitute_parity_dc_1936_and_dc_641_fallback() -> Result<()> {
     let resolver = default_syntax_resolver();
-    let dc_1936_wasm =
-        compile_system_target_wasm_bytes("dc_1936", resolver.as_ref())?;
+    let dc_1936_wasm = compile_system_subject_wasm_bytes(
+        DcShorthand::from_global_id(DC_DC_DOCUMENT_EXECUTION_KERNEL.to_u128()),
+        resolver.as_ref(),
+    )?;
     let limits = DcWasmResourceLimits::default()
         .with_max_instructions_per_step(5_000_000)
         .with_max_memory_pages(64)
@@ -203,8 +213,10 @@ fn test_substitute_parity_dc_1936_and_dc_641_fallback() -> Result<()> {
 fn test_substitute_parity_f1680_and_tight_quota_resume() -> Result<()> {
     let resolver = default_syntax_resolver();
     let sg = SeedGraphIndex::shared()?;
-    let f1680_wasm =
-        compile_system_target_wasm_bytes("f1680", resolver.as_ref())?;
+    let f1680_wasm = compile_system_subject_wasm_bytes(
+        DcShorthand::Format(1680),
+        resolver.as_ref(),
+    )?;
 
     let sl3_src = "v/l/u8/step l/u8/input :: concat b\"ok:\" /input.\n";
     let entry_tokens = sl3_to_dc_tokens_with_seed_graph(sl3_src, sg)?;
@@ -301,8 +313,10 @@ fn test_substitute_parity_f1680_and_tight_quota_resume() -> Result<()> {
 fn test_substitute_parity_f1681() -> Result<()> {
     let resolver = default_syntax_resolver();
     let sg = SeedGraphIndex::shared()?;
-    let f1681_wasm =
-        compile_system_target_wasm_bytes("f1681", resolver.as_ref())?;
+    let f1681_wasm = compile_system_subject_wasm_bytes(
+        DcShorthand::Format(1681),
+        resolver.as_ref(),
+    )?;
 
     let sr3_src = r#"ns app/parity_f1681.
 
@@ -339,8 +353,10 @@ pub v/l/u8/step l/u8/input
 fn test_substitute_parity_dc_2608_option_b_capabilities() -> Result<()> {
     let resolver = default_syntax_resolver();
     let sg = SeedGraphIndex::shared()?;
-    let dc_2608_wasm =
-        compile_system_target_wasm_bytes("dc_2608", resolver.as_ref())?;
+    let dc_2608_wasm = compile_system_subject_wasm_bytes(
+        DcShorthand::from_global_id(DC_CONVERT_DC_STRING_TO_WASM.to_u128()),
+        resolver.as_ref(),
+    )?;
 
     let tiny_sl3 = "v/l/u8/step l/u8/input :: concat b\"ok:\" /input.\n";
     let sl3_tokens = sl3_to_dc_tokens_with_seed_graph(tiny_sl3, sg)?;
@@ -379,6 +395,121 @@ fn test_substitute_parity_dc_2608_option_b_capabilities() -> Result<()> {
         "Dc 2608 instruction count mismatch: {} vs {}",
         s_auto.total_instructions_executed(),
         s_tw.total_instructions_executed()
+    );
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_substitute_parity_historical_dc_641_pin() -> Result<()> {
+    let full_hist = SeedGraphIndex::load_with_history_from_asset_bundle()?;
+    let head_wasm_f1680 = compile_system_subject_wasm_bytes(
+        DcShorthand::Format(1680),
+        default_syntax_resolver().as_ref(),
+    )?;
+    let snapshots =
+        discover_graph_wasm_substitute_snapshots(full_hist.nodes())?;
+    let mut checked_historical_count = 0usize;
+
+    let resolver = default_syntax_resolver();
+    let sg = SeedGraphIndex::shared()?;
+    let sl3_src = "v/l/u8/step l/u8/input :: concat b\"hist:\" /input.\n";
+    let entry_tokens = sl3_to_dc_tokens_with_seed_graph(sl3_src, sg)?;
+    let bundled = bundle_dc_module_for_wasm_converter(
+        &entry_tokens,
+        sg,
+        resolver.as_ref(),
+    )?;
+    let f1680_input_doc = tokens_to_dcmstring(&bundled);
+
+    let limits = DcWasmResourceLimits::default()
+        .with_max_instructions_per_step(50_000_000)
+        .with_max_memory_pages(512)
+        .with_max_step_output_bytes(8 * 1024 * 1024)
+        .with_max_session_output_bytes(16 * 1024 * 1024);
+
+    for snap in &snapshots {
+        if snap.is_head {
+            continue;
+        }
+        let Some(hist_wasm) = compile_graph_substitute_snapshot_wasm_bytes(
+            full_hist.nodes(),
+            snap,
+        )?
+        else {
+            continue;
+        };
+        match snap.target.kind {
+            SystemWasmSubstituteTargetKind::SupervisorKernel => {
+                let empty_doc = DcMstring::new();
+                let (mut s_auto, mut s_tw) =
+                    create_pair_sessions(&hist_wasm, &empty_doc, limits)?;
+                let out_auto = run_single_complete_step(&mut s_auto)?;
+                let out_tw = run_single_complete_step(&mut s_tw)?;
+                ensure!(
+                    out_auto == out_tw,
+                    "Historical Dc 1936 @ l{} output mismatch",
+                    snap.pin_node_id
+                );
+                ensure!(
+                    s_auto.total_instructions_executed()
+                        == s_tw.total_instructions_executed(),
+                    "Historical Dc 1936 @ l{} instruction count mismatch",
+                    snap.pin_node_id
+                );
+                checked_historical_count =
+                    checked_historical_count.saturating_add(1);
+            }
+            SystemWasmSubstituteTargetKind::WasmConverter { .. }
+                if snap.target.subject == DcShorthand::Format(1680) =>
+            {
+                let _ = &head_wasm_f1680;
+                let (mut s_auto, mut s_tw) = create_pair_sessions(
+                    &hist_wasm,
+                    &f1680_input_doc,
+                    limits,
+                )?;
+                let out_auto = run_single_complete_step(&mut s_auto)?;
+                let out_tw = run_single_complete_step(&mut s_tw)?;
+                ensure!(
+                    out_auto == out_tw,
+                    "Historical f1680 @ l{} output mismatch",
+                    snap.pin_node_id
+                );
+                ensure!(
+                    s_auto.total_instructions_executed()
+                        == s_tw.total_instructions_executed(),
+                    "Historical f1680 @ l{} instruction count mismatch",
+                    snap.pin_node_id
+                );
+                checked_historical_count =
+                    checked_historical_count.saturating_add(1);
+            }
+            _ => {
+                // Still verify every compiled historical snapshot registers as a native substitute hit!
+                let empty_doc = DcMstring::new();
+                let s_auto =
+                    DcWasmSession::from_wasm_bytes_with_limits_and_backend(
+                        &hist_wasm,
+                        &empty_doc,
+                        Some(snap.pin_node_id),
+                        limits,
+                        DcWasmExecutionBackend::Auto,
+                    )?;
+                ensure!(
+                    s_auto.used_native_substitute(),
+                    "Expected historical snapshot {} @ l{} to hit native substitute registry",
+                    snap.target.subject,
+                    snap.pin_node_id
+                );
+                checked_historical_count =
+                    checked_historical_count.saturating_add(1);
+            }
+        }
+    }
+
+    ensure!(
+        checked_historical_count > 0,
+        "Expected at least one historical superseded revision snapshot in system_graph_history.rsrc"
     );
     Ok(())
 }

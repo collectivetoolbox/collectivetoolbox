@@ -27,7 +27,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
@@ -45,17 +44,27 @@ use super::wasm_quota::{
     read_byte, read_memarg, read_sleb_i32, read_sleb_i64, read_uleb_u32,
 };
 
-const MAX_SHARED_GLOBAL_PARAMS: usize = 8;
-const MAX_SHARED_FNS_PER_SHARD: usize = 120;
+const MAX_ITEMS_PER_CHUNK_FILE: usize = 120;
 const INLINE_NEVER_BYTECODE_THRESHOLD: usize = 128;
 
 /// Options controlling generated Rust module metadata and source hashing.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TranspileWasmOptions<'a> {
-    /// Human-readable substitute label (e.g. `"dc_1936"`, `"f1680"`).
+    /// Human-readable substitute label (e.g. `"85899_75792"`).
     pub name: &'a str,
     /// Optional generator input fingerprint emitted as `// input-sha256: <hex>`.
     pub input_sha256_hex: Option<&'a str>,
+}
+
+/// Single compiled WebAssembly snapshot fed into [`transpile_wasm_bundle_to_safe_rust`].
+#[derive(Debug, Clone, Copy)]
+pub struct SubstituteBundleInput<'a> {
+    /// Uniform `.ctbnodes` chunk stem owning this snapshot (e.g. `"85899_75792"`).
+    pub chunk_prefix: &'a str,
+    /// Human-readable diagnostic label stored in `SubstituteModuleMeta::name`.
+    pub label: &'a str,
+    /// Uninstrumented canonical `.wasm` binary bytes.
+    pub wasm_bytes: &'a [u8],
 }
 
 /// Returns a deterministic SHA-256 fingerprint of the transpiler and V2 metering
@@ -63,7 +72,7 @@ pub struct TranspileWasmOptions<'a> {
 #[must_use]
 pub fn transpiler_fingerprint_sha256() -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"ctb-wasm-to-rust-v2");
+    hasher.update(b"ctb-wasm-to-rust-v3");
     hasher.update(WASM_RESOURCE_ACCOUNTING_VERSION.to_le_bytes());
     hasher.update(include_bytes!("wasm_to_rust.rs"));
     hasher.update(include_bytes!("wasm_quota.rs"));
@@ -185,6 +194,16 @@ fn ret_sig_slug(results: &[RustValTy]) -> String {
     }
 }
 
+fn full_fn_sig_slug(sig: &FnSigInfo) -> String {
+    let params_part = if sig.params.is_empty() {
+        "unit".to_owned()
+    } else {
+        let parts: Vec<&str> = sig.params.iter().map(|t| t.slug()).collect();
+        parts.join("_")
+    };
+    format!("p_{params_part}__r_{}", ret_sig_slug(&sig.results))
+}
+
 fn rust_i32_literal(v: i32) -> String {
     if v == i32::MIN {
         "i32::MIN".to_owned()
@@ -260,18 +279,20 @@ fn emit_agpl_header(
     );
 }
 
-fn emit_shared_header(out: &mut String, shard_idx: usize) {
+fn emit_chunk_file_header(out: &mut String, file_stem: &str) {
     emit_agpl_banner(out);
     let _ = writeln!(
         out,
-        "//! Generated shared Merkle-deduplicated WASM substitute functions (shard {shard_idx})."
+        "//! Generated native Rust WebAssembly substitute chunk `{file_stem}`."
     );
     out.push_str(
         "//! Do not edit by hand; regenerate via `./scripts/generate-wasm-substitutes`.\n\n\
          #[allow(\n    unused_imports,\n    clippy::wildcard_imports,\n    reason = \"Standard workspace module prelude\"\n)]\nuse crate::utilities::*;\n\n\
-         #[allow(\n    unused_imports,\n    reason = \"Generated shared substitute runtime imports\"\n)]\n\
+         #[allow(\n    unused_imports,\n    reason = \"Generated substitute chunk runtime imports\"\n)]\n\
          use ctb_wasm_substitute_rt::{\n\
-         \x20   SubstituteVm, WasmSubstituteHost, WasmTrap, ops,\n\
+         \x20   SubstituteModuleMeta, SubstituteVm, WasmLinearMemory,\n\
+         \x20   WasmSubstituteDescriptor, WasmSubstituteHost, WasmSubstituteInstance,\n\
+         \x20   WasmTable, WasmTrap, ops,\n\
          };\n\n",
     );
 }
@@ -285,7 +306,12 @@ fn emit_registry_header(out: &mut String, input_sha256_hex: Option<&str>) {
     if let Some(hex) = input_sha256_hex {
         let _ = writeln!(out, "// input-sha256: {hex}");
     }
-    out.push('\n');
+    out.push_str(
+        "\n#[allow(\n    unused_imports,\n    reason = \"Generated substitute registry runtime imports\"\n)]\n\
+         use ctb_wasm_substitute_rt::{\n\
+         \x20   SubstituteVm, WasmSubstituteHost, WasmTrap,\n\
+         };\n\n",
+    );
 }
 
 fn emit_bytes_const(out: &mut String, const_name: &str, bytes: &[u8]) {
@@ -462,22 +488,23 @@ enum GlobalSlot {
 }
 
 #[derive(Debug, Clone)]
-struct FuncMerkleInfo {
+struct FuncNormalizedInfo {
     hash: [u8; 32],
-    used_globals: Vec<(RustValTy, usize)>,
-    callee_hashes: Vec<[u8; 32]>,
+    own_globals: Vec<(RustValTy, usize)>,
+    own_callees: Vec<usize>,
 }
 
-struct PromotedSharedTarget {
+struct NormalizedFnTarget {
     hash: [u8; 32],
     symbol_name: String,
-    shard_idx: usize,
-    shard_mod: String,
+    file_stem: String,
+    rust_mod_ident: String,
     repr_mod_idx: usize,
     repr_fn_idx: usize,
 }
 
 struct AnalyzedModule<'a> {
+    chunk_prefix: &'a str,
     name: &'a str,
     wasm_sha256: [u8; 32],
     parsed: TinyWasmModule,
@@ -497,17 +524,14 @@ struct AnalyzedModule<'a> {
     scc_id: Vec<usize>,
     tail_target_fns: BTreeSet<usize>,
     has_self_tail: Vec<bool>,
-    init_fn_idx: Option<usize>,
-    merkle_info: Vec<Option<FuncMerkleInfo>>,
+    norm_info: Vec<Option<FuncNormalizedInfo>>,
+    bound_idx_by_fn: Vec<Option<(String, usize)>>,
 }
 
 struct CallGraphSummary {
     scc_id: Vec<usize>,
-    scc_size: Vec<usize>,
-    topo_sccs_bottom_up: Vec<Vec<usize>>,
     tail_target_fns: BTreeSet<usize>,
     has_self_tail: Vec<bool>,
-    distinct_callers: Vec<BTreeSet<usize>>,
 }
 
 fn tarjan_scc_bottom_up(
@@ -728,7 +752,8 @@ fn compute_call_graph_and_sccs(
         .into_iter()
         .map(|s| s.into_iter().collect())
         .collect();
-    let (scc_id, scc_size, topo_sccs_bottom_up) = tarjan_scc_bottom_up(&adj)?;
+    let (scc_id, _scc_size, _topo_sccs_bottom_up) = tarjan_scc_bottom_up(&adj)?;
+    let _ = distinct_callers;
 
     let mut tail_target_fns = indirect_tail_targets;
     for (caller, target) in cross_return_edges {
@@ -739,64 +764,27 @@ fn compute_call_graph_and_sccs(
 
     Ok(CallGraphSummary {
         scc_id,
-        scc_size,
-        topo_sccs_bottom_up,
         tail_target_fns,
         has_self_tail,
-        distinct_callers,
     })
-}
-
-fn select_init_fn_idx(
-    fn_sigs: &[FnSigInfo],
-    distinct_callers: &[BTreeSet<usize>],
-    entry_idx: usize,
-    start_func: Option<usize>,
-    cap_yield_func_idx: Option<usize>,
-    tail_target_fns: &BTreeSet<usize>,
-) -> Result<Option<usize>> {
-    ensure!(
-        fn_sigs.len() == distinct_callers.len(),
-        "Function signature count ({}) does not match distinct caller count ({})",
-        fn_sigs.len(),
-        distinct_callers.len()
-    );
-    Ok(fn_sigs
-        .iter()
-        .zip(distinct_callers.iter())
-        .enumerate()
-        .filter(|(idx, (sig, _))| {
-            sig.params.is_empty()
-                && sig.results.is_empty()
-                && *idx != entry_idx
-                && Some(*idx) != start_func
-                && Some(*idx) != cap_yield_func_idx
-                && !tail_target_fns.contains(idx)
-        })
-        .filter_map(|(idx, (_, callers))| {
-            let count = callers.len();
-            (count >= 2).then_some((count, Reverse(idx), idx))
-        })
-        .max_by_key(|&(count, rev_idx, _)| (count, rev_idx))
-        .map(|(_, _, idx)| idx))
 }
 
 #[allow(
     clippy::too_many_arguments,
-    reason = "Canonicalizes one WASM function body into a collision-free Merkle hash"
+    reason = "Canonicalizes one WASM function body into a signature-normalized SHA-256 hash"
 )]
 fn canonicalize_and_hash_function(
     fn_idx: usize,
     sig: &FnSigInfo,
     body: &CodeBodyRaw<'_>,
+    fn_sigs: &[FnSigInfo],
     block_types: &[FnSigInfo],
     global_slots: &[GlobalSlot],
     cap_yield_func_idx: Option<usize>,
-    init_fn_idx: Option<usize>,
-    merkle_info: &[Option<FuncMerkleInfo>],
-) -> Result<Option<FuncMerkleInfo>> {
+    scc_id: &[usize],
+) -> Result<Option<FuncNormalizedInfo>> {
     let mut hasher = Sha256::new();
-    hasher.update(b"ctb-wasm-merkle-v1");
+    hasher.update(b"ctb-wasm-norm-v3");
     hasher.update(u64::try_from(sig.params.len())?.to_le_bytes());
     for p in &sig.params {
         hasher.update([p.wire_tag()]);
@@ -810,27 +798,25 @@ fn canonicalize_and_hash_function(
         hasher.update([l.wire_tag()]);
     }
 
-    let mut used_globals: Vec<(RustValTy, usize)> = Vec::new();
+    let mut own_globals: Vec<(RustValTy, usize)> = Vec::new();
     let mut global_pos_map: BTreeMap<(RustValTy, usize), usize> = BTreeMap::new();
-    let mut callee_hashes: Vec<[u8; 32]> = Vec::new();
+    let mut own_callees: Vec<usize> = Vec::new();
+    let mut callee_pos_map: BTreeMap<usize, usize> = BTreeMap::new();
     let bytes = body.code_bytes;
     let mut pos = 0usize;
 
     let register_global = |ty: RustValTy,
                            slot: usize,
-                           used_globals: &mut Vec<(RustValTy, usize)>,
+                           own_globals: &mut Vec<(RustValTy, usize)>,
                            pos_map: &mut BTreeMap<(RustValTy, usize), usize>|
-     -> Option<usize> {
+     -> usize {
         if let Some(&existing) = pos_map.get(&(ty, slot)) {
-            return Some(existing);
+            return existing;
         }
-        if used_globals.len() >= MAX_SHARED_GLOBAL_PARAMS {
-            return None;
-        }
-        let next_idx = used_globals.len();
-        used_globals.push((ty, slot));
+        let next_idx = own_globals.len();
+        own_globals.push((ty, slot));
         pos_map.insert((ty, slot), next_idx);
-        Some(next_idx)
+        next_idx
     };
 
     while pos < bytes.len() {
@@ -882,26 +868,37 @@ fn canonicalize_and_hash_function(
                     hasher.update([0x01]);
                 } else if Some(target_idx) == cap_yield_func_idx {
                     hasher.update([0x02]);
-                } else if Some(target_idx) == init_fn_idx {
-                    hasher.update([0x03]);
+                } else if opcode == 0x12
+                    && scc_id.get(fn_idx) == scc_id.get(target_idx)
+                {
+                    return Ok(None);
                 } else {
-                    let Some(Some(callee_info)) = merkle_info.get(target_idx)
-                    else {
-                        return Ok(None);
+                    let callee_sig = fn_sigs.get(target_idx).with_context(|| {
+                        format!("WASM callee index {target_idx} out of bounds")
+                    })?;
+                    let local_c_pos = if let Some(&existing) =
+                        callee_pos_map.get(&target_idx)
+                    {
+                        existing
+                    } else {
+                        let next_c = own_callees.len();
+                        own_callees.push(target_idx);
+                        callee_pos_map.insert(target_idx, next_c);
+                        next_c
                     };
                     hasher.update([0x04]);
-                    hasher.update(callee_info.hash);
-                    callee_hashes.push(callee_info.hash);
-                    for &(c_ty, c_slot) in &callee_info.used_globals {
-                        let Some(mapped_pos) = register_global(
-                            c_ty,
-                            c_slot,
-                            &mut used_globals,
-                            &mut global_pos_map,
-                        ) else {
-                            return Ok(None);
-                        };
-                        hasher.update(u32::try_from(mapped_pos)?.to_le_bytes());
+                    hasher.update(u32::try_from(local_c_pos)?.to_le_bytes());
+                    hasher.update(
+                        u64::try_from(callee_sig.params.len())?.to_le_bytes(),
+                    );
+                    for p in &callee_sig.params {
+                        hasher.update([p.wire_tag()]);
+                    }
+                    hasher.update(
+                        u64::try_from(callee_sig.results.len())?.to_le_bytes(),
+                    );
+                    for r in &callee_sig.results {
+                        hasher.update([r.wire_tag()]);
                     }
                 }
             }
@@ -923,14 +920,12 @@ fn canonicalize_and_hash_function(
                         hasher.update([0x10]);
                     }
                     GlobalSlot::Typed(ty, per_type_slot) => {
-                        let Some(mapped_pos) = register_global(
+                        let mapped_pos = register_global(
                             *ty,
                             *per_type_slot,
-                            &mut used_globals,
+                            &mut own_globals,
                             &mut global_pos_map,
-                        ) else {
-                            return Ok(None);
-                        };
+                        );
                         hasher.update([0x11, ty.wire_tag()]);
                         hasher.update(u32::try_from(mapped_pos)?.to_le_bytes());
                     }
@@ -1002,66 +997,52 @@ fn canonicalize_and_hash_function(
         }
     }
 
-    hasher.update(u64::try_from(used_globals.len())?.to_le_bytes());
-    for &(g_ty, _) in &used_globals {
+    hasher.update(u64::try_from(own_globals.len())?.to_le_bytes());
+    for &(g_ty, _) in &own_globals {
         hasher.update([g_ty.wire_tag()]);
     }
-    Ok(Some(FuncMerkleInfo {
+    Ok(Some(FuncNormalizedInfo {
         hash: hasher.finalize().into(),
-        used_globals,
-        callee_hashes,
+        own_globals,
+        own_callees,
     }))
 }
 
 #[allow(
     clippy::too_many_arguments,
-    reason = "Computes bottom-up Merkle hashes for every eligible 1-node SCC in module"
+    reason = "Computes signature-normalized per-function hashes across module functions"
 )]
-fn compute_module_merkle_info(
+fn compute_module_normalized_info(
     code_bodies: &[CodeBodyRaw<'_>],
     fn_sigs: &[FnSigInfo],
     block_types: &[FnSigInfo],
     global_slots: &[GlobalSlot],
     cap_yield_func_idx: Option<usize>,
-    init_fn_idx: Option<usize>,
     tail_target_fns: &BTreeSet<usize>,
-    scc_size: &[usize],
-    topo_sccs_bottom_up: &[Vec<usize>],
-) -> Result<Vec<Option<FuncMerkleInfo>>> {
-    let mut info: Vec<Option<FuncMerkleInfo>> = vec![None; code_bodies.len()];
-    for scc in topo_sccs_bottom_up {
-        if scc.len() != 1 {
-            continue;
-        }
-        let Some(&fn_idx) = scc.first() else {
-            continue;
-        };
-        if scc_size.get(fn_idx).copied() != Some(1)
-            || Some(fn_idx) == cap_yield_func_idx
-            || Some(fn_idx) == init_fn_idx
+    scc_id: &[usize],
+) -> Result<Vec<Option<FuncNormalizedInfo>>> {
+    let mut info: Vec<Option<FuncNormalizedInfo>> =
+        Vec::with_capacity(code_bodies.len());
+    for (fn_idx, body) in code_bodies.iter().enumerate() {
+        if Some(fn_idx) == cap_yield_func_idx
             || tail_target_fns.contains(&fn_idx)
         {
+            info.push(None);
             continue;
         }
         let sig = fn_sigs
             .get(fn_idx)
             .with_context(|| format!("Function signature {fn_idx} missing"))?;
-        let body = code_bodies
-            .get(fn_idx)
-            .with_context(|| format!("Code body {fn_idx} missing"))?;
-        let computed = canonicalize_and_hash_function(
+        info.push(canonicalize_and_hash_function(
             fn_idx,
             sig,
             body,
+            fn_sigs,
             block_types,
             global_slots,
             cap_yield_func_idx,
-            init_fn_idx,
-            &info,
-        )?;
-        if let Some(slot) = info.get_mut(fn_idx) {
-            *slot = computed;
-        }
+            scc_id,
+        )?);
     }
     Ok(info)
 }
@@ -1091,6 +1072,7 @@ fn build_global_slots(
 }
 
 fn analyze_module<'a>(
+    chunk_prefix: &'a str,
     name: &'a str,
     wasm_bytes: &'a [u8],
 ) -> Result<AnalyzedModule<'a>> {
@@ -1126,34 +1108,36 @@ fn analyze_module<'a>(
     let global_slots = build_global_slots(&parsed.globals, heap_ptr_global_idx)?;
     let cg =
         compute_call_graph_and_sccs(&code_bodies, &fn_sigs, &block_types)?;
-    let start_idx = parsed
-        .start_func
-        .map(usize::try_from)
-        .transpose()?;
-    let init_fn_idx = select_init_fn_idx(
-        &fn_sigs,
-        &cg.distinct_callers,
-        entry_idx,
-        start_idx,
-        cap_yield_func_idx,
-        &cg.tail_target_fns,
-    )?;
-    let merkle_info = compute_module_merkle_info(
+    let norm_info = compute_module_normalized_info(
         &code_bodies,
         &fn_sigs,
         &block_types,
         &global_slots,
         cap_yield_func_idx,
-        init_fn_idx,
         &cg.tail_target_fns,
-        &cg.scc_size,
-        &cg.topo_sccs_bottom_up,
+        &cg.scc_id,
     )?;
+
+    let mut per_sig_counts: BTreeMap<String, usize> = BTreeMap::new();
+    let mut bound_idx_by_fn: Vec<Option<(String, usize)>> =
+        Vec::with_capacity(fn_sigs.len());
+    for (fn_idx, sig) in fn_sigs.iter().enumerate() {
+        if Some(fn_idx) == cap_yield_func_idx {
+            bound_idx_by_fn.push(None);
+        } else {
+            let slug = full_fn_sig_slug(sig);
+            let slot_entry = per_sig_counts.entry(slug.clone()).or_insert(0);
+            let assigned = *slot_entry;
+            *slot_entry = assigned.saturating_add(1);
+            bound_idx_by_fn.push(Some((slug, assigned)));
+        }
+    }
 
     let wasm_sha256: [u8; 32] = Sha256::digest(wasm_bytes).into();
     let static_data_end = compute_static_data_end(&parsed);
 
     Ok(AnalyzedModule {
+        chunk_prefix,
         name,
         wasm_sha256,
         parsed,
@@ -1173,8 +1157,8 @@ fn analyze_module<'a>(
         scc_id: cg.scc_id,
         tail_target_fns: cg.tail_target_fns,
         has_self_tail: cg.has_self_tail,
-        init_fn_idx,
-        merkle_info,
+        norm_info,
+        bound_idx_by_fn,
     })
 }
 
@@ -1275,127 +1259,112 @@ struct CtrlFrame {
     unreachable: bool,
 }
 
-struct SharedEmitContext<'a> {
-    self_shard_idx: usize,
-    self_symbol_name: &'a str,
-    global_pos_map: BTreeMap<(RustValTy, usize), usize>,
+enum BundleCallMode<'a> {
+    StandaloneSingleModule,
+    BundleDescriptorLocal,
+    NormalizedChunkFn {
+        self_symbol_name: &'a str,
+        global_pos_map: BTreeMap<(RustValTy, usize), usize>,
+        callee_pos_map: BTreeMap<usize, usize>,
+    },
 }
 
 fn format_call_invocation(
     target_idx: usize,
     arg_exprs: &[String],
     module: &AnalyzedModule<'_>,
-    promoted_by_hash: &BTreeMap<[u8; 32], PromotedSharedTarget>,
-    shared_ctx: Option<&SharedEmitContext<'_>>,
+    call_mode: &BundleCallMode<'_>,
     caller_fn_idx: Option<usize>,
 ) -> Result<String> {
     if Some(target_idx) == module.cap_yield_func_idx {
         return Ok("host.request_capability(vm)".to_owned());
     }
-    if Some(target_idx) == module.init_fn_idx
-        && caller_fn_idx != Some(target_idx)
-    {
-        return Ok("vm.call_init(host)".to_owned());
-    }
 
-    if let Some(ctx) = shared_ctx {
-        if caller_fn_idx == Some(target_idx) {
-            let num_globals = ctx.global_pos_map.len();
+    match call_mode {
+        BundleCallMode::StandaloneSingleModule => {
             let mut call_args =
-                Vec::with_capacity(arg_exprs.len().saturating_add(num_globals).saturating_add(2));
+                Vec::with_capacity(arg_exprs.len().saturating_add(2));
             call_args.push("vm".to_owned());
             call_args.extend(arg_exprs.iter().cloned());
-            for g_pos in 0..num_globals {
-                call_args.push(format!("g{g_pos}"));
-            }
             call_args.push("host".to_owned());
-            return Ok(format!(
-                "Self::{}({})",
-                ctx.self_symbol_name,
+            Ok(format!(
+                "SubstituteInstance::fn_{target_idx}({})",
                 call_args.join(", ")
-            ));
+            ))
         }
-
-        let callee_merkle = module
-            .merkle_info
-            .get(target_idx)
-            .and_then(Option::as_ref)
-            .with_context(|| {
-                format!("Shared function called non-Merkle callee fn_{target_idx}")
-            })?;
-        let target = promoted_by_hash
-            .get(&callee_merkle.hash)
-            .with_context(|| {
-                format!(
-                    "Shared callee fn_{target_idx} missing from promoted transitive closure"
-                )
-            })?;
-        let mut call_args = Vec::with_capacity(
-            arg_exprs
-                .len()
-                .saturating_add(callee_merkle.used_globals.len())
-                .saturating_add(2),
-        );
-        call_args.push("vm".to_owned());
-        call_args.extend(arg_exprs.iter().cloned());
-        for &g_key in &callee_merkle.used_globals {
-            let g_pos = ctx.global_pos_map.get(&g_key).copied().with_context(|| {
-                format!("Shared caller missing transitive global slot {g_key:?}")
-            })?;
-            call_args.push(format!("g{g_pos}"));
+        BundleCallMode::BundleDescriptorLocal => {
+            let (sig_slug, bound_idx) = module
+                .bound_idx_by_fn
+                .get(target_idx)
+                .and_then(Option::as_ref)
+                .with_context(|| {
+                    format!(
+                        "Callee fn_{target_idx} missing from module dispatch table"
+                    )
+                })?;
+            let mut call_args =
+                Vec::with_capacity(arg_exprs.len().saturating_add(3));
+            call_args.push("vm".to_owned());
+            call_args.push(format!("{bound_idx}usize"));
+            call_args.extend(arg_exprs.iter().cloned());
+            call_args.push("host".to_owned());
+            Ok(format!(
+                "DISPATCH.call_direct_{sig_slug}({})",
+                call_args.join(", ")
+            ))
         }
-        call_args.push("host".to_owned());
-        let prefix = if target.shard_idx == ctx.self_shard_idx {
-            "Self".to_owned()
-        } else {
-            format!("crate::{}::Shared", target.shard_mod)
-        };
-        return Ok(format!(
-            "{prefix}::{}({})",
-            target.symbol_name,
-            call_args.join(", ")
-        ));
+        BundleCallMode::NormalizedChunkFn {
+            self_symbol_name,
+            callee_pos_map,
+            ..
+        } => {
+            if caller_fn_idx == Some(target_idx) {
+                let mut call_args =
+                    Vec::with_capacity(arg_exprs.len().saturating_add(5));
+                call_args.push("vm".to_owned());
+                call_args.push("dispatch".to_owned());
+                call_args.push("g_map".to_owned());
+                call_args.push("c_map".to_owned());
+                call_args.extend(arg_exprs.iter().cloned());
+                call_args.push("host".to_owned());
+                return Ok(format!(
+                    "Self::{self_symbol_name}({})",
+                    call_args.join(", ")
+                ));
+            }
+            let local_c_pos = callee_pos_map
+                .get(&target_idx)
+                .copied()
+                .with_context(|| {
+                    format!(
+                        "Normalized function missing local callee slot for fn_{target_idx}"
+                    )
+                })?;
+            let callee_sig =
+                module.fn_sigs.get(target_idx).with_context(|| {
+                    format!("Callee signature fn_{target_idx} out of bounds")
+                })?;
+            let sig_slug = full_fn_sig_slug(callee_sig);
+            let mut call_args =
+                Vec::with_capacity(arg_exprs.len().saturating_add(4));
+            call_args.push("vm".to_owned());
+            call_args.push("c_map".to_owned());
+            call_args.push(format!("{local_c_pos}usize"));
+            call_args.extend(arg_exprs.iter().cloned());
+            call_args.push("host".to_owned());
+            Ok(format!(
+                "dispatch.call_{sig_slug}({})",
+                call_args.join(", ")
+            ))
+        }
     }
-
-    if let Some(Some(callee_merkle)) = module.merkle_info.get(target_idx)
-        && let Some(target) = promoted_by_hash.get(&callee_merkle.hash)
-    {
-        let mut call_args = Vec::with_capacity(
-            arg_exprs
-                .len()
-                .saturating_add(callee_merkle.used_globals.len())
-                .saturating_add(2),
-        );
-        call_args.push("vm".to_owned());
-        call_args.extend(arg_exprs.iter().cloned());
-        for &(_ty, slot) in &callee_merkle.used_globals {
-            call_args.push(format!("{slot}usize"));
-        }
-        call_args.push("host".to_owned());
-        return Ok(format!(
-            "crate::{}::Shared::{}({})",
-            target.shard_mod,
-            target.symbol_name,
-            call_args.join(", ")
-        ));
-    }
-
-    let mut call_args = Vec::with_capacity(arg_exprs.len().saturating_add(2));
-    call_args.push("vm".to_owned());
-    call_args.extend(arg_exprs.iter().cloned());
-    call_args.push("host".to_owned());
-    Ok(format!(
-        "SubstituteInstance::fn_{target_idx}({})",
-        call_args.join(", ")
-    ))
 }
 
 struct FuncLowerer<'a> {
     fn_idx: usize,
     fn_results: Vec<RustValTy>,
     module: &'a AnalyzedModule<'a>,
-    promoted_by_hash: &'a BTreeMap<[u8; 32], PromotedSharedTarget>,
-    shared_ctx: Option<&'a SharedEmitContext<'a>>,
+    call_mode: &'a BundleCallMode<'a>,
     locals: Vec<RustValTy>,
     num_params: usize,
     val_stack: Vec<RustValTy>,
@@ -1413,8 +1382,7 @@ impl<'a> FuncLowerer<'a> {
     fn new(
         fn_idx: usize,
         module: &'a AnalyzedModule<'a>,
-        promoted_by_hash: &'a BTreeMap<[u8; 32], PromotedSharedTarget>,
-        shared_ctx: Option<&'a SharedEmitContext<'a>>,
+        call_mode: &'a BundleCallMode<'a>,
         is_cross_tail_step: bool,
         use_self_tail_loop: bool,
     ) -> Result<Self> {
@@ -1447,8 +1415,7 @@ impl<'a> FuncLowerer<'a> {
             fn_idx,
             fn_results,
             module,
-            promoted_by_hash,
-            shared_ctx,
+            call_mode,
             locals,
             num_params,
             val_stack: Vec::new(),
@@ -2244,8 +2211,7 @@ impl<'a> FuncLowerer<'a> {
                     fn_idx,
                     &arg_slots,
                     self.module,
-                    self.promoted_by_hash,
-                    self.shared_ctx,
+                    self.call_mode,
                     Some(self.fn_idx),
                 )?;
                 self.emit_call_and_push_results(&expr, &callee_sig.results);
@@ -2295,8 +2261,7 @@ impl<'a> FuncLowerer<'a> {
                             cand_idx,
                             &temps,
                             self.module,
-                            self.promoted_by_hash,
-                            self.shared_ctx,
+                            self.call_mode,
                             None,
                         )?;
                         self.emit_line_at(
@@ -2366,10 +2331,6 @@ impl<'a> FuncLowerer<'a> {
                     self.emit_line("host.request_capability(vm)?;");
                     let done_expr = self.return_expr_from_slots(&[]);
                     self.emit_line(&format!("return Ok({done_expr});"));
-                } else if Some(target_idx) == self.module.init_fn_idx {
-                    self.emit_line("vm.call_init(host)?;");
-                    let done_expr = self.return_expr_from_slots(&[]);
-                    self.emit_line(&format!("return Ok({done_expr});"));
                 } else {
                     let caller_scc = self.module.scc_id.get(self.fn_idx);
                     let target_scc = self.module.scc_id.get(target_idx);
@@ -2393,8 +2354,7 @@ impl<'a> FuncLowerer<'a> {
                             target_idx,
                             &temps,
                             self.module,
-                            self.promoted_by_hash,
-                            self.shared_ctx,
+                            self.call_mode,
                             Some(self.fn_idx),
                         )?;
                         if self.is_cross_tail_step {
@@ -2551,13 +2511,19 @@ impl<'a> FuncLowerer<'a> {
                         self.push_val(RustValTy::I32, "vm.heap_ptr");
                     }
                     GlobalSlot::Typed(ty, per_type_slot) => {
-                        let expr = if let Some(ctx) = self.shared_ctx {
-                            let param_pos = ctx
-                                .global_pos_map
+                        let expr = if let BundleCallMode::NormalizedChunkFn {
+                            global_pos_map,
+                            ..
+                        } = self.call_mode
+                        {
+                            let param_pos = global_pos_map
                                 .get(&(*ty, *per_type_slot))
                                 .copied()
-                                .context("Shared global.get slot missing")?;
-                            format!("vm.get_{}(g{param_pos})?", ty.slug())
+                                .context("Normalized global.get slot missing")?;
+                            format!(
+                                "vm.get_{}(*g_map.get({param_pos}usize).ok_or(WasmTrap::Unreachable)?)?",
+                                ty.slug()
+                            )
                         } else {
                             format!("vm.get_{}({per_type_slot}usize)?", ty.slug())
                         };
@@ -2579,14 +2545,17 @@ impl<'a> FuncLowerer<'a> {
                     }
                     GlobalSlot::Typed(ty, per_type_slot) => {
                         let (val, _) = self.pop_val(Some(*ty))?;
-                        if let Some(ctx) = self.shared_ctx {
-                            let param_pos = ctx
-                                .global_pos_map
+                        if let BundleCallMode::NormalizedChunkFn {
+                            global_pos_map,
+                            ..
+                        } = self.call_mode
+                        {
+                            let param_pos = global_pos_map
                                 .get(&(*ty, *per_type_slot))
                                 .copied()
-                                .context("Shared global.set slot missing")?;
+                                .context("Normalized global.set slot missing")?;
                             self.emit_line(&format!(
-                                "vm.set_{}(g{param_pos}, {val})?;",
+                                "vm.set_{}(*g_map.get({param_pos}usize).ok_or(WasmTrap::Unreachable)?, {val})?;",
                                 ty.slug()
                             ));
                         } else {
@@ -2952,6 +2921,7 @@ fn emit_generated_allows(out: &mut String, indent: usize) {
     out.push_str(
         "#[allow(\n\
          dead_code,\n\
+         non_camel_case_types,\n\
          unused_mut,\n\
          unused_variables,\n\
          unused_assignments,\n\
@@ -3339,13 +3309,6 @@ fn emit_struct_and_instantiate(
         }
     }
 
-    if let Some(init_idx) = module.init_fn_idx {
-        let _ = writeln!(
-            out,
-            "    vm.init_fn = Some(InitFnPtr(SubstituteInstance::fn_{init_idx}));"
-        );
-    }
-
     for (i, seg) in module.parsed.data.iter().enumerate() {
         if let DataKind::Active { mem, offset } = &seg.kind {
             let off = eval_const_usize_expr(offset, &module.parsed.globals)?;
@@ -3372,7 +3335,7 @@ fn emit_struct_and_instantiate(
 fn emit_trait_impl(
     out: &mut String,
     module: &AnalyzedModule<'_>,
-    promoted_by_hash: &BTreeMap<[u8; 32], PromotedSharedTarget>,
+    call_mode: &BundleCallMode<'_>,
 ) -> Result<()> {
     emit_generated_allows(out, 0);
     out.push_str("impl WasmSubstituteInstance for SubstituteInstance {\n");
@@ -3460,8 +3423,7 @@ fn emit_trait_impl(
                 start_idx,
                 &[],
                 module,
-                promoted_by_hash,
-                None,
+                call_mode,
                 None,
             )?;
             let _ = writeln!(
@@ -3494,8 +3456,7 @@ fn emit_trait_impl(
         module.entry_idx,
         &raw_entry_args,
         module,
-        promoted_by_hash,
-        None,
+        call_mode,
         None,
     )?;
     let entry_body = match module.entry_sig {
@@ -3521,12 +3482,102 @@ fn emit_trait_impl(
     Ok(())
 }
 
-fn emit_analyzed_module_source(
+fn emit_local_functions_impl(
+    out: &mut String,
     module: &AnalyzedModule<'_>,
-    promoted_by_hash: &BTreeMap<[u8; 32], PromotedSharedTarget>,
+    local_fn_indices: &[usize],
+    call_mode: &BundleCallMode<'_>,
+) -> Result<()> {
+    if local_fn_indices.is_empty() {
+        return Ok(());
+    }
+    emit_generated_allows(out, 0);
+    out.push_str("impl SubstituteInstance {\n");
+    for &fn_idx in local_fn_indices {
+        let body = module
+            .code_bodies
+            .get(fn_idx)
+            .context("Code body out of bounds during emission")?;
+        let sig = module
+            .fn_sigs
+            .get(fn_idx)
+            .context("Function signature out of bounds during emission")?;
+        let ret_slug = ret_sig_slug(&sig.results);
+        let is_cross_tail_step = module.tail_target_fns.contains(&fn_idx);
+        let use_self_tail = *module
+            .has_self_tail
+            .get(fn_idx)
+            .context("Function index out of bounds in has_self_tail")?;
+
+        let mut params_decl = vec!["vm: &mut SubstituteVm".to_owned()];
+        let mut forward_args =
+            Vec::with_capacity(sig.params.len().saturating_add(2));
+        forward_args.push("vm".to_owned());
+        for (i, pt) in sig.params.iter().enumerate() {
+            params_decl.push(format!("p{i}: {}", pt.rust_ty()));
+            forward_args.push(format!("p{i}"));
+        }
+        params_decl.push("host: &mut dyn WasmSubstituteHost".to_owned());
+        forward_args.push("host".to_owned());
+
+        let ret_ty = ret_type_expr(&sig.results);
+        let mut lowerer = FuncLowerer::new(
+            fn_idx,
+            module,
+            call_mode,
+            is_cross_tail_step,
+            use_self_tail,
+        )?;
+        let lowered_body = lowerer.lower_body(body.code_bytes)?;
+
+        if is_cross_tail_step {
+            out.push_str("    #[inline(never)]\n");
+            let _ = writeln!(
+                out,
+                "    fn fn_{fn_idx}_step({}) -> std::result::Result<TailStep_{ret_slug}, WasmTrap> {{",
+                params_decl.join(", ")
+            );
+            out.push_str(&lowered_body);
+            out.push_str("    }\n\n");
+
+            let _ = writeln!(
+                out,
+                "    fn fn_{fn_idx}({}) -> std::result::Result<{ret_ty}, WasmTrap> {{",
+                params_decl.join(", ")
+            );
+            let _ = writeln!(
+                out,
+                "        let step = SubstituteInstance::fn_{fn_idx}_step({})?;",
+                forward_args.join(", ")
+            );
+            let _ = writeln!(
+                out,
+                "        SubstituteInstance::tail_dispatch_{ret_slug}(vm, step, host)"
+            );
+            out.push_str("    }\n\n");
+        } else {
+            if body.code_bytes.len() > INLINE_NEVER_BYTECODE_THRESHOLD {
+                out.push_str("    #[inline(never)]\n");
+            }
+            let _ = writeln!(
+                out,
+                "    fn fn_{fn_idx}({}) -> std::result::Result<{ret_ty}, WasmTrap> {{",
+                params_decl.join(", ")
+            );
+            out.push_str(&lowered_body);
+            out.push_str("    }\n\n");
+        }
+    }
+    out.push_str("}\n\n");
+    Ok(())
+}
+
+fn emit_standalone_module_source(
+    module: &AnalyzedModule<'_>,
     input_sha256_hex: Option<&str>,
 ) -> Result<String> {
-    let mut out = String::with_capacity(module.code_bodies.len().saturating_mul(256));
+    let mut out =
+        String::with_capacity(module.code_bodies.len().saturating_mul(256));
     emit_agpl_header(&mut out, module.name, input_sha256_hex);
     emit_data_and_elem_consts(&mut out, &module.parsed);
     emit_struct_and_instantiate(&mut out, module)?;
@@ -3536,101 +3587,10 @@ fn emit_analyzed_module_source(
         &module.fn_sigs,
     );
 
-    let mut local_fn_indices: Vec<usize> = Vec::new();
-    for fn_idx in 0..module.code_bodies.len() {
-        let is_promoted = module
-            .merkle_info
-            .get(fn_idx)
-            .and_then(Option::as_ref)
-            .is_some_and(|m| promoted_by_hash.contains_key(&m.hash));
-        if !is_promoted {
-            local_fn_indices.push(fn_idx);
-        }
-    }
-
-    if !local_fn_indices.is_empty() {
-        emit_generated_allows(&mut out, 0);
-        out.push_str("impl SubstituteInstance {\n");
-        for fn_idx in local_fn_indices {
-            let body = module
-                .code_bodies
-                .get(fn_idx)
-                .context("Code body out of bounds during emission")?;
-            let sig = module
-                .fn_sigs
-                .get(fn_idx)
-                .context("Function signature out of bounds during emission")?;
-            let ret_slug = ret_sig_slug(&sig.results);
-            let is_cross_tail_step = module.tail_target_fns.contains(&fn_idx);
-            let use_self_tail = *module
-                .has_self_tail
-                .get(fn_idx)
-                .context("Function index out of bounds in has_self_tail")?;
-
-            let mut params_decl = vec!["vm: &mut SubstituteVm".to_owned()];
-            let mut forward_args =
-                Vec::with_capacity(sig.params.len().saturating_add(2));
-            forward_args.push("vm".to_owned());
-            for (i, pt) in sig.params.iter().enumerate() {
-                params_decl.push(format!("p{i}: {}", pt.rust_ty()));
-                forward_args.push(format!("p{i}"));
-            }
-            params_decl.push("host: &mut dyn WasmSubstituteHost".to_owned());
-            forward_args.push("host".to_owned());
-
-            let ret_ty = ret_type_expr(&sig.results);
-            let mut lowerer = FuncLowerer::new(
-                fn_idx,
-                module,
-                promoted_by_hash,
-                None,
-                is_cross_tail_step,
-                use_self_tail,
-            )?;
-            let lowered_body = lowerer.lower_body(body.code_bytes)?;
-
-            if is_cross_tail_step {
-                out.push_str("    #[inline(never)]\n");
-                let _ = writeln!(
-                    out,
-                    "    fn fn_{fn_idx}_step({}) -> std::result::Result<TailStep_{ret_slug}, WasmTrap> {{",
-                    params_decl.join(", ")
-                );
-                out.push_str(&lowered_body);
-                out.push_str("    }\n\n");
-
-                let _ = writeln!(
-                    out,
-                    "    fn fn_{fn_idx}({}) -> std::result::Result<{ret_ty}, WasmTrap> {{",
-                    params_decl.join(", ")
-                );
-                let _ = writeln!(
-                    out,
-                    "        let step = SubstituteInstance::fn_{fn_idx}_step({})?;",
-                    forward_args.join(", ")
-                );
-                let _ = writeln!(
-                    out,
-                    "        SubstituteInstance::tail_dispatch_{ret_slug}(vm, step, host)"
-                );
-                out.push_str("    }\n\n");
-            } else {
-                if body.code_bytes.len() > INLINE_NEVER_BYTECODE_THRESHOLD {
-                    out.push_str("    #[inline(never)]\n");
-                }
-                let _ = writeln!(
-                    out,
-                    "    fn fn_{fn_idx}({}) -> std::result::Result<{ret_ty}, WasmTrap> {{",
-                    params_decl.join(", ")
-                );
-                out.push_str(&lowered_body);
-                out.push_str("    }\n\n");
-            }
-        }
-        out.push_str("}\n\n");
-    }
-
-    emit_trait_impl(&mut out, module, promoted_by_hash)?;
+    let all_fn_indices: Vec<usize> = (0..module.code_bodies.len()).collect();
+    let call_mode = BundleCallMode::StandaloneSingleModule;
+    emit_local_functions_impl(&mut out, module, &all_fn_indices, &call_mode)?;
+    emit_trait_impl(&mut out, module, &call_mode)?;
 
     let _ = writeln!(
         out,
@@ -3659,177 +3619,482 @@ fn encode_hex_prefix_lower(bytes: &[u8], hex_chars: usize) -> String {
     out
 }
 
-fn validate_bundle_module_stem(stem: &str) -> Result<()> {
+fn validate_bundle_chunk_prefix(prefix: &str) -> Result<()> {
     ensure!(
-        !stem.is_empty(),
-        "Substitute bundle module stem must not be empty"
+        !prefix.is_empty(),
+        "Substitute bundle chunk prefix must not be empty"
     );
     ensure!(
-        stem != "registry" && !stem.starts_with("shared_"),
-        "Reserved substitute bundle module stem '{stem}'"
-    );
-    let mut chars = stem.chars();
-    let Some(first) = chars.next() else {
-        bail!("Empty substitute module stem");
-    };
-    ensure!(
-        first.is_ascii_alphabetic() || first == '_',
-        "Substitute module stem '{stem}' must start with ASCII letter or '_'"
+        prefix != "registry" && !prefix.starts_with("shared_"),
+        "Reserved substitute bundle chunk prefix '{prefix}'"
     );
     ensure!(
-        chars.all(|c| c.is_ascii_alphanumeric() || c == '_'),
-        "Substitute module stem '{stem}' contains invalid identifier characters"
+        !prefix.starts_with('_') && !prefix.ends_with('_'),
+        "Substitute bundle chunk prefix '{prefix}' must not start or end with '_'"
+    );
+    ensure!(
+        prefix
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_'),
+        "Substitute bundle chunk prefix '{prefix}' contains invalid characters"
     );
     Ok(())
 }
 
-fn emit_shared_shard_source(
-    shard_idx: usize,
-    targets: &[&PromotedSharedTarget],
-    analyzed_modules: &[AnalyzedModule<'_>],
-    promoted_by_hash: &BTreeMap<[u8; 32], PromotedSharedTarget>,
-) -> Result<String> {
-    let mut out = String::with_capacity(targets.len().saturating_mul(256));
-    emit_shared_header(&mut out, shard_idx);
-    out.push_str("/// Shared Merkle-deduplicated WebAssembly function container.\npub(crate) struct Shared;\n\n");
-    emit_generated_allows(&mut out, 0);
-    out.push_str("impl Shared {\n");
-    for target in targets {
-        let module = analyzed_modules
-            .get(target.repr_mod_idx)
-            .context("Representative module index out of bounds")?;
-        let fn_idx = target.repr_fn_idx;
-        let body = module
-            .code_bodies
-            .get(fn_idx)
-            .context("Representative code body out of bounds")?;
-        let sig = module
-            .fn_sigs
-            .get(fn_idx)
-            .context("Representative signature out of bounds")?;
-        let merkle = module
-            .merkle_info
-            .get(fn_idx)
-            .and_then(Option::as_ref)
-            .context("Promoted shared target missing Merkle metadata")?;
+fn emit_bundle_descriptor_submodule(
+    out: &mut String,
+    local_desc_idx: usize,
+    module: &AnalyzedModule<'_>,
+    norm_by_hash: &BTreeMap<[u8; 32], NormalizedFnTarget>,
+    bundle_sigs: &BTreeMap<String, FnSigInfo>,
+) -> Result<()> {
+    emit_generated_allows(out, 0);
+    let _ = writeln!(out, "pub(crate) mod desc_{local_desc_idx} {{");
+    out.push_str(
+        "#[allow(\n    unused_imports,\n    clippy::wildcard_imports,\n    reason = \"Standard workspace module prelude\"\n)]\nuse crate::utilities::*;\n\
+         #[allow(\n    unused_imports,\n    clippy::wildcard_imports,\n    reason = \"Generated descriptor submodule imports\"\n)]\nuse super::*;\n\n",
+    );
 
-        let mut global_pos_map: BTreeMap<(RustValTy, usize), usize> =
-            BTreeMap::new();
-        for (pos, &g_key) in merkle.used_globals.iter().enumerate() {
-            global_pos_map.insert(g_key, pos);
-        }
-        let shared_ctx = SharedEmitContext {
-            self_shard_idx: shard_idx,
-            self_symbol_name: &target.symbol_name,
-            global_pos_map,
-        };
+    let mut inner =
+        String::with_capacity(module.code_bodies.len().saturating_mul(128));
+    emit_data_and_elem_consts(&mut inner, &module.parsed);
 
-        let use_self_tail = *module
-            .has_self_tail
-            .get(fn_idx)
-            .context("Function index out of bounds in has_self_tail")?;
-        let mut lowerer = FuncLowerer::new(
-            fn_idx,
-            module,
-            promoted_by_hash,
-            Some(&shared_ctx),
-            false,
-            use_self_tail,
-        )?;
-        let lowered_body = lowerer.lower_body(body.code_bytes)?;
-
-        let mut params_decl = vec!["vm: &mut SubstituteVm".to_owned()];
-        for (i, pt) in sig.params.iter().enumerate() {
-            params_decl.push(format!("p{i}: {}", pt.rust_ty()));
+    let mut local_fn_indices: Vec<usize> = Vec::new();
+    for fn_idx in 0..module.code_bodies.len() {
+        if Some(fn_idx) == module.cap_yield_func_idx {
+            continue;
         }
-        for pos in 0..merkle.used_globals.len() {
-            params_decl.push(format!("g{pos}: usize"));
+        if let Some(Some(norm)) = module.norm_info.get(fn_idx) {
+            if !norm.own_globals.is_empty() {
+                let g_vals: Vec<String> = norm
+                    .own_globals
+                    .iter()
+                    .map(|&(_ty, slot)| format!("{slot}usize"))
+                    .collect();
+                let _ = writeln!(
+                    inner,
+                    "const FN_{fn_idx}_GLOBALS: &[usize] = &[{}];",
+                    g_vals.join(", ")
+                );
+            }
+            if !norm.own_callees.is_empty() {
+                let mut c_vals: Vec<String> =
+                    Vec::with_capacity(norm.own_callees.len());
+                for &callee_fn_idx in &norm.own_callees {
+                    let (_, bound_idx) = module
+                        .bound_idx_by_fn
+                        .get(callee_fn_idx)
+                        .and_then(Option::as_ref)
+                        .with_context(|| {
+                            format!(
+                                "Normalized callee fn_{callee_fn_idx} missing bound dispatch slot"
+                            )
+                        })?;
+                    c_vals.push(format!("{}u32", u32::try_from(*bound_idx)?));
+                }
+                let _ = writeln!(
+                    inner,
+                    "const FN_{fn_idx}_CALLEES: &[u32] = &[{}];",
+                    c_vals.join(", ")
+                );
+            }
+        } else {
+            local_fn_indices.push(fn_idx);
+            let sig = module
+                .fn_sigs
+                .get(fn_idx)
+                .context("Local function signature out of bounds")?;
+            let mut adapter_params = vec![
+                "vm: &mut SubstituteVm".to_owned(),
+                "_dispatch: &'static crate::ModuleDispatch".to_owned(),
+                "_g_map: &'static [usize]".to_owned(),
+                "_c_map: &'static [u32]".to_owned(),
+            ];
+            let mut fwd_args =
+                Vec::with_capacity(sig.params.len().saturating_add(2));
+            fwd_args.push("vm".to_owned());
+            for (i, pt) in sig.params.iter().enumerate() {
+                adapter_params.push(format!("p{i}: {}", pt.rust_ty()));
+                fwd_args.push(format!("p{i}"));
+            }
+            adapter_params
+                .push("host: &mut dyn WasmSubstituteHost".to_owned());
+            fwd_args.push("host".to_owned());
+            let ret_ty = ret_type_expr(&sig.results);
+            emit_generated_allows(&mut inner, 0);
+            let _ = writeln!(
+                inner,
+                "fn bound_adapter_{fn_idx}({}) -> std::result::Result<{ret_ty}, WasmTrap> {{\n    SubstituteInstance::fn_{fn_idx}({})\n}}\n",
+                adapter_params.join(", "),
+                fwd_args.join(", ")
+            );
         }
-        params_decl.push("host: &mut dyn WasmSubstituteHost".to_owned());
-
-        let ret_ty = ret_type_expr(&sig.results);
-        if body.code_bytes.len() > INLINE_NEVER_BYTECODE_THRESHOLD {
-            out.push_str("    #[inline(never)]\n");
-        }
-        let _ = writeln!(
-            out,
-            "    pub(crate) fn {}({}) -> std::result::Result<{ret_ty}, WasmTrap> {{",
-            target.symbol_name,
-            params_decl.join(", ")
-        );
-        out.push_str(&lowered_body);
-        out.push_str("    }\n\n");
     }
-    out.push_str("}\n");
+
+    for sig_slug in bundle_sigs.keys() {
+        let mut entries: Vec<String> = Vec::new();
+        for fn_idx in 0..module.fn_sigs.len() {
+            let Some((f_slug, _)) =
+                module.bound_idx_by_fn.get(fn_idx).and_then(Option::as_ref)
+            else {
+                continue;
+            };
+            if f_slug != sig_slug {
+                continue;
+            }
+            if let Some(Some(norm)) = module.norm_info.get(fn_idx) {
+                let target = norm_by_hash.get(&norm.hash).with_context(|| {
+                    format!(
+                        "Normalized hash missing for fn_{fn_idx} in '{}'",
+                        module.name
+                    )
+                })?;
+                let g_ref = if norm.own_globals.is_empty() {
+                    "&[]".to_owned()
+                } else {
+                    format!("FN_{fn_idx}_GLOBALS")
+                };
+                let c_ref = if norm.own_callees.is_empty() {
+                    "&[]".to_owned()
+                } else {
+                    format!("FN_{fn_idx}_CALLEES")
+                };
+                entries.push(format!(
+                    "    crate::Bound_{sig_slug} {{ func: crate::{}::ChunkFns::{}, globals: {g_ref}, callees: {c_ref} }},",
+                    target.rust_mod_ident, target.symbol_name
+                ));
+            } else {
+                entries.push(format!(
+                    "    crate::Bound_{sig_slug} {{ func: bound_adapter_{fn_idx}, globals: &[], callees: &[] }},"
+                ));
+            }
+        }
+        if !entries.is_empty() {
+            emit_generated_allows(&mut inner, 0);
+            let _ = writeln!(
+                inner,
+                "static BOUND_SIG_{sig_slug}: &[crate::Bound_{sig_slug}] = &[\n{}\n];\n",
+                entries.join("\n")
+            );
+        }
+    }
+
+    emit_generated_allows(&mut inner, 0);
+    inner.push_str("static DISPATCH: crate::ModuleDispatch = crate::ModuleDispatch {\n");
+    for sig_slug in bundle_sigs.keys() {
+        let has_any = module
+            .bound_idx_by_fn
+            .iter()
+            .flatten()
+            .any(|(s, _)| s == sig_slug);
+        if has_any {
+            let _ = writeln!(
+                inner,
+                "    sig_{sig_slug}: BOUND_SIG_{sig_slug},"
+            );
+        } else {
+            let _ = writeln!(inner, "    sig_{sig_slug}: &[],");
+        }
+    }
+    inner.push_str("};\n\n");
+
+    emit_struct_and_instantiate(&mut inner, module)?;
+    emit_tail_call_types_and_dispatch(
+        &mut inner,
+        &module.tail_target_fns,
+        &module.fn_sigs,
+    );
+    let call_mode = BundleCallMode::BundleDescriptorLocal;
+    emit_local_functions_impl(&mut inner, module, &local_fn_indices, &call_mode)?;
+    emit_trait_impl(&mut inner, module, &call_mode)?;
+
+    let _ = writeln!(
+        inner,
+        "#[must_use]\n\
+         pub(crate) fn descriptor() -> WasmSubstituteDescriptor {{\n\
+         \x20   WasmSubstituteDescriptor {{\n\
+         \x20       meta: MODULE_META,\n\
+         \x20       instantiate: instantiate_substitute,\n\
+         \x20   }}\n\
+         }}"
+    );
+
+    out.push_str(&inner);
+    out.push_str("}\n\n");
+    Ok(())
+}
+
+fn emit_chunk_shard_source(
+    file_stem: &str,
+    fn_targets: &[&NormalizedFnTarget],
+    desc_mod_indices: &[usize],
+    analyzed_modules: &[AnalyzedModule<'_>],
+    norm_by_hash: &BTreeMap<[u8; 32], NormalizedFnTarget>,
+    bundle_sigs: &BTreeMap<String, FnSigInfo>,
+) -> Result<String> {
+    let mut out = String::with_capacity(
+        fn_targets
+            .len()
+            .saturating_add(desc_mod_indices.len())
+            .saturating_mul(256),
+    );
+    emit_chunk_file_header(&mut out, file_stem);
+
+    if !fn_targets.is_empty() {
+        out.push_str(
+            "/// Signature-normalized deduplicated WebAssembly functions first defined in this `.ctbnodes` chunk.\npub(crate) struct ChunkFns;\n\n",
+        );
+        emit_generated_allows(&mut out, 0);
+        out.push_str("impl ChunkFns {\n");
+        for target in fn_targets {
+            let module = analyzed_modules
+                .get(target.repr_mod_idx)
+                .context("Representative module index out of bounds")?;
+            let fn_idx = target.repr_fn_idx;
+            let body = module
+                .code_bodies
+                .get(fn_idx)
+                .context("Representative code body out of bounds")?;
+            let sig = module
+                .fn_sigs
+                .get(fn_idx)
+                .context("Representative signature out of bounds")?;
+            let norm = module
+                .norm_info
+                .get(fn_idx)
+                .and_then(Option::as_ref)
+                .context("Normalized function missing metadata")?;
+
+            let mut global_pos_map: BTreeMap<(RustValTy, usize), usize> =
+                BTreeMap::new();
+            for (pos, &g_key) in norm.own_globals.iter().enumerate() {
+                global_pos_map.insert(g_key, pos);
+            }
+            let mut callee_pos_map: BTreeMap<usize, usize> = BTreeMap::new();
+            for (pos, &c_idx) in norm.own_callees.iter().enumerate() {
+                callee_pos_map.insert(c_idx, pos);
+            }
+            let call_mode = BundleCallMode::NormalizedChunkFn {
+                self_symbol_name: &target.symbol_name,
+                global_pos_map,
+                callee_pos_map,
+            };
+
+            let use_self_tail = *module
+                .has_self_tail
+                .get(fn_idx)
+                .context("Function index out of bounds in has_self_tail")?;
+            let mut lowerer = FuncLowerer::new(
+                fn_idx,
+                module,
+                &call_mode,
+                false,
+                use_self_tail,
+            )?;
+            let lowered_body = lowerer.lower_body(body.code_bytes)?;
+
+            let mut params_decl = vec![
+                "vm: &mut SubstituteVm".to_owned(),
+                "dispatch: &'static crate::ModuleDispatch".to_owned(),
+                "g_map: &'static [usize]".to_owned(),
+                "c_map: &'static [u32]".to_owned(),
+            ];
+            for (i, pt) in sig.params.iter().enumerate() {
+                params_decl.push(format!("p{i}: {}", pt.rust_ty()));
+            }
+            params_decl.push("host: &mut dyn WasmSubstituteHost".to_owned());
+
+            let ret_ty = ret_type_expr(&sig.results);
+            if body.code_bytes.len() > INLINE_NEVER_BYTECODE_THRESHOLD {
+                out.push_str("    #[inline(never)]\n");
+            }
+            let _ = writeln!(
+                out,
+                "    pub(crate) fn {}({}) -> std::result::Result<{ret_ty}, WasmTrap> {{",
+                target.symbol_name,
+                params_decl.join(", ")
+            );
+            out.push_str(&lowered_body);
+            out.push_str("    }\n\n");
+        }
+        out.push_str("}\n\n");
+    }
+
+    for (local_desc_idx, &mod_idx) in desc_mod_indices.iter().enumerate() {
+        let module = analyzed_modules
+            .get(mod_idx)
+            .context("Descriptor module index out of bounds")?;
+        emit_bundle_descriptor_submodule(
+            &mut out,
+            local_desc_idx,
+            module,
+            norm_by_hash,
+            bundle_sigs,
+        )?;
+    }
+
     Ok(out)
 }
 
-/// Transpiles a bundle of uninstrumented canonical WebAssembly modules into
-/// composable, Merkle-deduplicated safe-Rust files plus a generated
-/// `registry.generated.rs` manifest.
+fn emit_registry_dispatch_types(
+    reg_out: &mut String,
+    bundle_sigs: &BTreeMap<String, FnSigInfo>,
+) {
+    for (sig_slug, sig) in bundle_sigs {
+        let mut fn_ptr_params = vec![
+            "&mut SubstituteVm".to_owned(),
+            "&'static ModuleDispatch".to_owned(),
+            "&'static [usize]".to_owned(),
+            "&'static [u32]".to_owned(),
+        ];
+        for pt in &sig.params {
+            fn_ptr_params.push(pt.rust_ty().to_owned());
+        }
+        fn_ptr_params.push("&mut dyn WasmSubstituteHost".to_owned());
+        let ret_ty = ret_type_expr(&sig.results);
+        emit_generated_allows(reg_out, 0);
+        let _ = writeln!(
+            reg_out,
+            "pub(crate) type Callee_{sig_slug} = fn({}) -> std::result::Result<{ret_ty}, WasmTrap>;\n",
+            fn_ptr_params.join(", ")
+        );
+        emit_generated_allows(reg_out, 0);
+        let _ = writeln!(
+            reg_out,
+            "#[derive(Clone, Copy)]\npub(crate) struct Bound_{sig_slug} {{\n    pub(crate) func: Callee_{sig_slug},\n    pub(crate) globals: &'static [usize],\n    pub(crate) callees: &'static [u32],\n}}\n"
+        );
+    }
+
+    emit_generated_allows(reg_out, 0);
+    reg_out.push_str("pub(crate) struct ModuleDispatch {\n");
+    for sig_slug in bundle_sigs.keys() {
+        let _ = writeln!(
+            reg_out,
+            "    pub(crate) sig_{sig_slug}: &'static [Bound_{sig_slug}],",
+        );
+    }
+    reg_out.push_str("}\n\n");
+
+    if !bundle_sigs.is_empty() {
+        emit_generated_allows(reg_out, 0);
+        reg_out.push_str("impl ModuleDispatch {\n");
+        for (sig_slug, sig) in bundle_sigs {
+            let ret_ty = ret_type_expr(&sig.results);
+            let mut call_params = vec![
+                "&self".to_owned(),
+                "vm: &mut SubstituteVm".to_owned(),
+                "c_map: &'static [u32]".to_owned(),
+                "local_slot: usize".to_owned(),
+            ];
+            let mut direct_params = vec![
+                "&self".to_owned(),
+                "vm: &mut SubstituteVm".to_owned(),
+                "bound_idx: usize".to_owned(),
+            ];
+            let mut invoke_args = vec![
+                "vm".to_owned(),
+                "self".to_owned(),
+                "bound.globals".to_owned(),
+                "bound.callees".to_owned(),
+            ];
+            for (i, pt) in sig.params.iter().enumerate() {
+                let p_decl = format!("p{i}: {}", pt.rust_ty());
+                call_params.push(p_decl.clone());
+                direct_params.push(p_decl);
+                invoke_args.push(format!("p{i}"));
+            }
+            call_params.push("host: &mut dyn WasmSubstituteHost".to_owned());
+            direct_params.push("host: &mut dyn WasmSubstituteHost".to_owned());
+            invoke_args.push("host".to_owned());
+            let invoke_str = invoke_args.join(", ");
+
+            let _ = writeln!(
+                reg_out,
+                "    #[inline(always)]\n    pub(crate) fn call_{sig_slug}({}) -> std::result::Result<{ret_ty}, WasmTrap> {{\n        let idx = usize::try_from(*c_map.get(local_slot).ok_or(WasmTrap::Unreachable)?).map_err(|_| WasmTrap::Unreachable)?;\n        let bound = self.sig_{sig_slug}.get(idx).ok_or(WasmTrap::Unreachable)?;\n        (bound.func)({invoke_str})\n    }}\n",
+                call_params.join(", ")
+            );
+            let _ = writeln!(
+                reg_out,
+                "    #[inline(always)]\n    pub(crate) fn call_direct_{sig_slug}({}) -> std::result::Result<{ret_ty}, WasmTrap> {{\n        let bound = self.sig_{sig_slug}.get(bound_idx).ok_or(WasmTrap::Unreachable)?;\n        (bound.func)({invoke_str})\n    }}\n",
+                direct_params.join(", ")
+            );
+        }
+        reg_out.push_str("}\n\n");
+    }
+}
+
+/// Transpiles a bundle of uninstrumented canonical WebAssembly snapshots into
+/// uniform `.ctbnodes`-prefixed safe-Rust chunk files (`<chunk_prefix>.generated.rs`)
+/// plus a generated `registry.generated.rs` manifest.
+///
+/// Functions across historical and current snapshots are deduplicated by
+/// signature-normalized SHA-256 (`ctb-wasm-norm-v3`) and dispatched via static
+/// per-module [`ModuleDispatch`] tables with zero leaf-edit hash cascade and
+/// zero cross-revision LLVM inlining hazard.
 ///
 /// # Errors
-/// Returns an error if any module stem is invalid or duplicated, if any module
-/// fails parsing or validation, or if codegen encounters unsupported opcodes.
+/// Returns an error if any chunk prefix is invalid, if any module fails parsing
+/// or validation, or if codegen encounters unsupported opcodes.
 pub fn transpile_wasm_bundle_to_safe_rust(
-    modules: &[(&str, &[u8])],
+    inputs: &[SubstituteBundleInput<'_>],
     input_sha256_hex: Option<&str>,
 ) -> Result<BTreeMap<String, String>> {
-    let mut seen_stems: BTreeSet<&str> = BTreeSet::new();
-    let mut analyzed_modules: Vec<AnalyzedModule<'_>> =
-        Vec::with_capacity(modules.len());
-    for &(stem, bytes) in modules {
-        validate_bundle_module_stem(stem)?;
-        ensure!(
-            seen_stems.insert(stem),
-            "Duplicate substitute module stem '{stem}'"
-        );
-        analyzed_modules.push(analyze_module(stem, bytes)?);
+    #[derive(Clone, Copy)]
+    enum ChunkItem {
+        NormFn([u8; 32]),
+        Descriptor(usize),
     }
 
-    // Count Merkle hashes across all modules and remember the first occurrence
-    // as the deterministic representative for shared code emission.
-    let mut counts: BTreeMap<[u8; 32], usize> = BTreeMap::new();
+    let mut seen_wasm_sha256: BTreeSet<[u8; 32]> = BTreeSet::new();
+    let mut analyzed_modules: Vec<AnalyzedModule<'_>> =
+        Vec::with_capacity(inputs.len());
+    for input in inputs {
+        validate_bundle_chunk_prefix(input.chunk_prefix)?;
+        let digest: [u8; 32] = Sha256::digest(input.wasm_bytes).into();
+        if !seen_wasm_sha256.insert(digest) {
+            continue;
+        }
+        analyzed_modules.push(analyze_module(
+            input.chunk_prefix,
+            input.label,
+            input.wasm_bytes,
+        )?);
+    }
+
+    let mut bundle_sigs: BTreeMap<String, FnSigInfo> = BTreeMap::new();
     let mut first_repr: BTreeMap<[u8; 32], (usize, usize)> = BTreeMap::new();
-    let mut callees_by_hash: BTreeMap<[u8; 32], Vec<[u8; 32]>> = BTreeMap::new();
+    let mut chunk_items_by_prefix: BTreeMap<String, Vec<ChunkItem>> =
+        BTreeMap::new();
 
     for (mod_idx, m) in analyzed_modules.iter().enumerate() {
-        for (fn_idx, info_opt) in m.merkle_info.iter().enumerate() {
-            if let Some(info) = info_opt {
-                let c = counts.entry(info.hash).or_insert(0);
-                *c = c.saturating_add(1);
-                first_repr.entry(info.hash).or_insert((mod_idx, fn_idx));
-                callees_by_hash
-                    .entry(info.hash)
-                    .or_insert_with(|| info.callee_hashes.clone());
+        for (fn_idx, sig) in m.fn_sigs.iter().enumerate() {
+            if Some(fn_idx) != m.cap_yield_func_idx {
+                let slug = full_fn_sig_slug(sig);
+                bundle_sigs.entry(slug).or_insert_with(|| sig.clone());
             }
         }
-    }
-
-    // Promote every hash occurring >= 2 times plus the transitive closure of
-    // its Merkle callees so shared functions never call private module code.
-    let mut promoted_hashes: BTreeSet<[u8; 32]> = BTreeSet::new();
-    let mut queue: Vec<[u8; 32]> = Vec::new();
-    for (&hash, &count) in &counts {
-        if count >= 2 && promoted_hashes.insert(hash) {
-            queue.push(hash);
-        }
-    }
-    while let Some(h) = queue.pop() {
-        if let Some(callees) = callees_by_hash.get(&h) {
-            for &ch in callees {
-                if promoted_hashes.insert(ch) {
-                    queue.push(ch);
-                }
+        for (fn_idx, info_opt) in m.norm_info.iter().enumerate() {
+            if let Some(info) = info_opt
+                && !first_repr.contains_key(&info.hash)
+            {
+                first_repr.insert(info.hash, (mod_idx, fn_idx));
+                chunk_items_by_prefix
+                    .entry(m.chunk_prefix.to_owned())
+                    .or_default()
+                    .push(ChunkItem::NormFn(info.hash));
             }
         }
+        chunk_items_by_prefix
+            .entry(m.chunk_prefix.to_owned())
+            .or_default()
+            .push(ChunkItem::Descriptor(mod_idx));
     }
 
-    let sorted_promoted: Vec<[u8; 32]> = promoted_hashes.into_iter().collect();
+    let all_norm_hashes: Vec<[u8; 32]> = first_repr.keys().copied().collect();
     let mut prefix_hex_len = 12usize;
     for candidate_len in [12usize, 16, 24, 64] {
         let mut names_check: BTreeSet<String> = BTreeSet::new();
-        let all_unique = sorted_promoted.iter().all(|h| {
+        let all_unique = all_norm_hashes.iter().all(|h| {
             names_check.insert(encode_hex_prefix_lower(h, candidate_len))
         });
         if all_unique {
@@ -3838,88 +4103,107 @@ pub fn transpile_wasm_bundle_to_safe_rust(
         }
     }
 
-    let mut promoted_by_hash: BTreeMap<[u8; 32], PromotedSharedTarget> =
+    // Partition each `.ctbnodes` chunk's items into <= MAX_ITEMS_PER_CHUNK_FILE shards.
+    struct PlannedShard {
+        file_stem: String,
+        rust_mod_ident: String,
+        fn_hashes: Vec<[u8; 32]>,
+        desc_mod_indices: Vec<usize>,
+    }
+
+    let mut planned_shards: Vec<PlannedShard> = Vec::new();
+    let mut norm_by_hash: BTreeMap<[u8; 32], NormalizedFnTarget> =
         BTreeMap::new();
-    for (ordinal, &hash) in sorted_promoted.iter().enumerate() {
-        let shard_idx = ordinal
-            .checked_div(MAX_SHARED_FNS_PER_SHARD)
-            .context("Invalid shard size")?;
-        let shard_mod = format!("shared_{shard_idx}");
-        let hex_prefix = encode_hex_prefix_lower(&hash, prefix_hex_len);
-        let symbol_name = format!("s_{hex_prefix}");
-        let &(repr_mod_idx, repr_fn_idx) = first_repr
-            .get(&hash)
-            .context("Promoted hash missing representative module/function")?;
-        promoted_by_hash.insert(
-            hash,
-            PromotedSharedTarget {
-                hash,
-                symbol_name,
-                shard_idx,
-                shard_mod,
-                repr_mod_idx,
-                repr_fn_idx,
-            },
-        );
+
+    for (chunk_prefix, items) in &chunk_items_by_prefix {
+        for (sub_idx, slice) in items.chunks(MAX_ITEMS_PER_CHUNK_FILE).enumerate()
+        {
+            let file_stem = if sub_idx == 0 {
+                chunk_prefix.clone()
+            } else {
+                format!("{chunk_prefix}_{sub_idx}")
+            };
+            let rust_mod_ident = format!("c_{file_stem}");
+            let mut fn_hashes = Vec::new();
+            let mut desc_mod_indices = Vec::new();
+            for &item in slice {
+                match item {
+                    ChunkItem::NormFn(hash) => {
+                        let &(repr_mod_idx, repr_fn_idx) = first_repr
+                            .get(&hash)
+                            .context("Normalized hash missing representative")?;
+                        let hex_prefix =
+                            encode_hex_prefix_lower(&hash, prefix_hex_len);
+                        norm_by_hash.insert(
+                            hash,
+                            NormalizedFnTarget {
+                                hash,
+                                symbol_name: format!("f_{hex_prefix}"),
+                                file_stem: file_stem.clone(),
+                                rust_mod_ident: rust_mod_ident.clone(),
+                                repr_mod_idx,
+                                repr_fn_idx,
+                            },
+                        );
+                        fn_hashes.push(hash);
+                    }
+                    ChunkItem::Descriptor(mod_idx) => {
+                        desc_mod_indices.push(mod_idx);
+                    }
+                }
+            }
+            planned_shards.push(PlannedShard {
+                file_stem,
+                rust_mod_ident,
+                fn_hashes,
+                desc_mod_indices,
+            });
+        }
     }
 
     let mut files: BTreeMap<String, String> = BTreeMap::new();
+    let mut reg_descriptors: Vec<(String, usize)> = Vec::new();
 
-    // Emit shared shards sorted deterministically.
-    let mut shard_buckets: BTreeMap<usize, Vec<&PromotedSharedTarget>> =
-        BTreeMap::new();
-    for target in promoted_by_hash.values() {
-        shard_buckets
-            .entry(target.shard_idx)
-            .or_default()
-            .push(target);
-    }
-    let mut shard_mods: Vec<String> = Vec::with_capacity(shard_buckets.len());
-    for (shard_idx, targets) in &shard_buckets {
-        let shard_mod = format!("shared_{shard_idx}");
-        let shard_file = format!("{shard_mod}.generated.rs");
-        let src = emit_shared_shard_source(
-            *shard_idx,
-            targets,
+    for shard in &planned_shards {
+        let mut fn_targets: Vec<&NormalizedFnTarget> =
+            Vec::with_capacity(shard.fn_hashes.len());
+        for h in &shard.fn_hashes {
+            fn_targets.push(
+                norm_by_hash
+                    .get(h)
+                    .context("Planned normalized hash missing target entry")?,
+            );
+        }
+        let src = emit_chunk_shard_source(
+            &shard.file_stem,
+            &fn_targets,
+            &shard.desc_mod_indices,
             &analyzed_modules,
-            &promoted_by_hash,
+            &norm_by_hash,
+            &bundle_sigs,
         )?;
-        files.insert(shard_file, src);
-        shard_mods.push(shard_mod);
+        files.insert(format!("{}.generated.rs", shard.file_stem), src);
+        for local_d in 0..shard.desc_mod_indices.len() {
+            reg_descriptors.push((shard.rust_mod_ident.clone(), local_d));
+        }
     }
 
-    // Emit each module file.
-    for m in &analyzed_modules {
-        let mod_file = format!("{}.generated.rs", m.name);
-        let src =
-            emit_analyzed_module_source(m, &promoted_by_hash, None)?;
-        files.insert(mod_file, src);
-    }
-
-    // Emit registry.generated.rs manifest included by wasm_substitutes.rs.
     let mut reg_out = String::new();
     emit_registry_header(&mut reg_out, input_sha256_hex);
-    for shard_mod in &shard_mods {
+    emit_registry_dispatch_types(&mut reg_out, &bundle_sigs);
+    for shard in &planned_shards {
         let _ = writeln!(
             reg_out,
-            "#[path = \"{shard_mod}.generated.rs\"]\nmod {shard_mod};"
+            "#[path = \"{}.generated.rs\"]\nmod {};",
+            shard.file_stem, shard.rust_mod_ident
         );
     }
-    for m in &analyzed_modules {
-        let stem = m.name;
+    emit_generated_allows(&mut reg_out, 0);
+    reg_out.push_str("\nfn register_all_substitutes() {\n");
+    for (rust_mod_ident, local_d) in &reg_descriptors {
         let _ = writeln!(
             reg_out,
-            "#[path = \"{stem}.generated.rs\"]\nmod {stem};"
-        );
-    }
-    reg_out.push_str(
-        "\nfn register_all_substitutes() {\n",
-    );
-    for m in &analyzed_modules {
-        let _ = writeln!(
-            reg_out,
-            "    ctb_wasm_substitute_rt::register_substitute({}::descriptor());",
-            m.name
+            "    ctb_wasm_substitute_rt::register_substitute({rust_mod_ident}::desc_{local_d}::descriptor());"
         );
     }
     reg_out.push_str("}\n");
@@ -3940,13 +4224,8 @@ pub fn transpile_wasm_to_safe_rust(
     wasm_bytes: &[u8],
     opts: &TranspileWasmOptions<'_>,
 ) -> Result<String> {
-    let analyzed = analyze_module(opts.name, wasm_bytes)?;
-    let empty_promoted = BTreeMap::new();
-    emit_analyzed_module_source(
-        &analyzed,
-        &empty_promoted,
-        opts.input_sha256_hex,
-    )
+    let analyzed = analyze_module(opts.name, opts.name, wasm_bytes)?;
+    emit_standalone_module_source(&analyzed, opts.input_sha256_hex)
 }
 
 #[cfg(test)]
@@ -4259,7 +4538,18 @@ mod tests {
         let wasm_a = wat_to_wasm(wat_a)?;
         let wasm_b = wat_to_wasm(wat_b)?;
         let files = transpile_wasm_bundle_to_safe_rust(
-            &[("mod_a", &wasm_a), ("mod_b", &wasm_b)],
+            &[
+                SubstituteBundleInput {
+                    chunk_prefix: "85899_34592",
+                    label: "85899_34592/rev1",
+                    wasm_bytes: &wasm_a,
+                },
+                SubstituteBundleInput {
+                    chunk_prefix: "85899_34692",
+                    label: "85899_34692/rev2",
+                    wasm_bytes: &wasm_b,
+                },
+            ],
             Some("bundle123"),
         )?;
 
@@ -4267,45 +4557,54 @@ mod tests {
         assert_eq!(
             keys,
             vec![
-                "mod_a.generated.rs",
-                "mod_b.generated.rs",
+                "85899_34592.generated.rs",
+                "85899_34692.generated.rs",
                 "registry.generated.rs",
-                "shared_0.generated.rs",
             ]
         );
 
-        let shared_rs = files
-            .get("shared_0.generated.rs")
-            .context("Missing shared_0.generated.rs")?;
-        assert_clean_rust_common(shared_rs);
-        assert!(shared_rs.contains("pub(crate) struct Shared;"));
-        assert!(shared_rs.contains("pub(crate) fn s_"));
-        assert!(shared_rs.contains("vm.call_init(host)"));
-        assert!(shared_rs.contains("vm.heap_ptr"));
-        assert!(shared_rs.contains("'self_tail: loop"));
-
-        let mod_a_rs = files
-            .get("mod_a.generated.rs")
-            .context("Missing mod_a.generated.rs")?;
-        let mod_b_rs = files
-            .get("mod_b.generated.rs")
-            .context("Missing mod_b.generated.rs")?;
-        assert_clean_generated_rust(mod_a_rs);
-        assert_clean_generated_rust(mod_b_rs);
-        assert!(mod_a_rs.contains("crate::shared_0::Shared::s_"));
-        assert!(mod_b_rs.contains("crate::shared_0::Shared::s_"));
-        // Module A passes typed i32 slot `0usize` for `$cnt`; Module B passes `1usize`.
-        assert!(mod_a_rs.contains(", 0usize, host)"));
-        assert!(mod_b_rs.contains(", 1usize, host)"));
+        let chunk_a_rs = files
+            .get("85899_34592.generated.rs")
+            .context("Missing 85899_34592.generated.rs")?;
+        let chunk_b_rs = files
+            .get("85899_34692.generated.rs")
+            .context("Missing 85899_34692.generated.rs")?;
+        assert_clean_rust_common(chunk_a_rs);
+        assert_clean_rust_common(chunk_b_rs);
+        assert!(chunk_a_rs.contains("pub(crate) struct ChunkFns;"));
+        assert!(chunk_b_rs.contains("pub(crate) struct ChunkFns;"));
+        assert!(chunk_a_rs.contains("vm.heap_ptr"));
+        assert!(chunk_a_rs.contains("'self_tail: loop"));
+        // Zero leaf-edit cascade: `$sum_rec` and `$work` are emitted ONCE in chunk A's
+        // `ChunkFns` (4 functions total: `$init_vals`, `$sum_rec`, `$work`, `step_a`)
+        // and NOT re-emitted in chunk B's `ChunkFns` (only 3 new functions: `$extra_sig`,
+        // `$init_vals_b`, `step_b`) even though `$init_vals_b` changed its body,
+        // `$extra_sig` shifted all function indices, and `$pad` shifted `$cnt` global slot!
+        let (chunk_a_fns, _) = chunk_a_rs
+            .split_once("pub(crate) mod desc_0")
+            .context("Missing desc_0 in chunk A")?;
+        let (chunk_b_fns, _) = chunk_b_rs
+            .split_once("pub(crate) mod desc_0")
+            .context("Missing desc_0 in chunk B")?;
+        assert_eq!(chunk_a_fns.matches("pub(crate) fn f_").count(), 4);
+        assert_eq!(chunk_b_fns.matches("pub(crate) fn f_").count(), 3);
+        assert!(!chunk_b_rs.contains("'self_tail: loop"));
+        assert!(!chunk_b_fns.contains("vm.heap_ptr"));
+        assert!(chunk_b_rs.contains("crate::c_85899_34592::ChunkFns::f_"));
+        // Module A maps `$cnt` to typed i32 slot `0usize`; Module B maps `$cnt` to `1usize`.
+        assert!(chunk_a_rs.contains("&[0usize]"));
+        assert!(chunk_b_rs.contains("&[1usize]"));
 
         let reg_rs = files
             .get("registry.generated.rs")
             .context("Missing registry.generated.rs")?;
         assert!(reg_rs.contains("// @generated by ctb-wasm-substitutes-gen"));
         assert!(reg_rs.contains("// input-sha256: bundle123"));
-        assert!(reg_rs.contains("#[path = \"shared_0.generated.rs\"]"));
-        assert!(reg_rs.contains("register_substitute(mod_a::descriptor());"));
-        assert!(reg_rs.contains("register_substitute(mod_b::descriptor());"));
+        assert!(reg_rs.contains("pub(crate) struct ModuleDispatch"));
+        assert!(reg_rs.contains("#[path = \"85899_34592.generated.rs\"]\nmod c_85899_34592;"));
+        assert!(reg_rs.contains("#[path = \"85899_34692.generated.rs\"]\nmod c_85899_34692;"));
+        assert!(reg_rs.contains("register_substitute(c_85899_34592::desc_0::descriptor());"));
+        assert!(reg_rs.contains("register_substitute(c_85899_34692::desc_0::descriptor());"));
         Ok(())
     }
 

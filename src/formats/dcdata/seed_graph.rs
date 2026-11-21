@@ -46,9 +46,9 @@ use crate::dc::{
     DC_BEGIN_BLOCK_COMMENT, DC_BEGIN_BLOCK_COMMENT_NEW_LINE,
     DC_BEGIN_IDENTIFIER, DC_BEGIN_LIST, DC_BEGIN_LITERAL, DC_BEGIN_MODULE,
     DC_BEGIN_ROUTINE_DECL, DC_BEGIN_SINGLE_LINE_COMMENT,
-    DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE, DC_BEGIN_TYPE_DEF,
-    DC_BEGIN_WASM_PROGRAM, DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE,
-    DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME,
+    DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE, DC_BEGIN_STAGER_MODULE,
+    DC_BEGIN_TYPE_DEF, DC_BEGIN_WASM_PROGRAM, DC_BIDIRECTIONAL_CLASS,
+    DC_BOOLEAN_TRUE, DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME,
     DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
     DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE,
     DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE, DC_DATA_FORMAT_DESCRIPTION,
@@ -66,11 +66,12 @@ use crate::dc::{
     DC_UNICODE_SCRIPT, DcChar,
 };
 use crate::graph_ledger::{
-    LedgerNode, SeedEntityKey, decode_ctbnbdl_bundle,
-    decode_integer_value_tokens, decode_string_value_tokens,
-    find_closed_delimited_span, format_chunk_bundle_filename,
+    LedgerNode, MAX_NODES_PER_CHUNK, SeedEntityKey, chunk_filename_for_node_id,
+    decode_ctbnbdl_bundle, decode_integer_value_tokens,
+    decode_string_value_tokens, find_closed_delimited_span,
+    format_chunk_bundle_filename, format_chunk_filename,
     parse_chunk_bundle_filename_start_id, parse_for_each_statement_tokens,
-    parse_statement_tokens, single_valued_property_set,
+    parse_statement_tokens, sha256_bytes_hex, single_valued_property_set,
 };
 pub use crate::support::seed_graph_reconstruct::ReconstructedNamedType;
 
@@ -133,18 +134,24 @@ pub struct ActiveConverterStep<'a> {
 }
 
 /// Version tag mixed into offline native substitute bundle fingerprints whenever
+/// [`discover_graph_wasm_substitute_snapshots`] or
 /// [`SeedGraphIndex::discover_system_wasm_substitute_targets`] selection rules change.
-pub const SYSTEM_WASM_SUBSTITUTE_DISCOVERY_VERSION: u32 = 1;
+pub const SYSTEM_WASM_SUBSTITUTE_DISCOVERY_VERSION: u32 = 2;
 
-/// Classification of an auto-discovered runnable System-block Dc eligible for
+/// Classification of an auto-discovered runnable graph node or Dc eligible for
 /// Guix-style native safe-Rust substitute compilation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SystemWasmSubstituteTargetKind {
     /// Trusted System execution kernel (`Dc 1936`), compiled via
     /// [`SeedGraphIndex::resolve_trusted_system_supervisor_bootstrap_tokens`].
     SupervisorKernel,
-    /// Standalone uncontextualized `.WASM` module decomposition.
+    /// Standalone uncontextualized `.WASM` module decomposition on a subject Dc.
     StandaloneWasm,
+    /// Standalone unowned `.WASM` value node (`Dc 1927..Dc 1928`) directly in `LedgerNode`.
+    StandaloneWasmValueNode {
+        /// Global node ID of the `.WASM` value node.
+        node_id: u128,
+    },
     /// Active `[Dc 302 src dst]` converter implemented directly as `.WASM`.
     WasmConverter {
         /// Converter source format or starter Dc shorthand.
@@ -176,36 +183,61 @@ pub enum SystemWasmSubstituteTargetKind {
     StageRRoutineDcs,
 }
 
-/// Single auto-discovered System-block target eligible for native safe-Rust
-/// WebAssembly substitute compilation.
+/// Single auto-discovered graph target eligible for native safe-Rust
+/// WebAssembly substitute compilation at a given snapshot.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SystemWasmSubstituteTarget {
-    /// Canonical subject shorthand identifying this System-block routine or converter.
+    /// Canonical subject shorthand identifying this routine, converter, or value node.
     pub subject: DcShorthand,
     /// Resolved 128-bit global Document Character ID.
     pub global_id: u128,
-    /// Deterministic Rust module stem (`dc_1936`, `f1680`, `l...`).
-    pub module_stem: String,
+    /// Defining graph value/statement node ID attributing this revision to a `.ctbnodes` chunk.
+    pub defining_node_id: u128,
+    /// Uniform `.ctbnodes` chunk stem (e.g. `"85899_75792"` -> `"85899_75792.generated.rs"`).
+    pub chunk_prefix: String,
     /// How this target should be lowered to an uninstrumented `.wasm` module.
     pub kind: SystemWasmSubstituteTargetKind,
 }
 
-/// Formats the deterministic substitute Rust module stem for `subj`
-/// (`Short(n)` -> `dc_<n>`, `Format(n)` -> `f<n>`, `Long(n)` -> `l<n>`).
+/// Vantage-point-agnostic runnable WebAssembly snapshot discovered across all
+/// revisions present in an arbitrary [`LedgerNode`] slice.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GraphWasmSubstituteSnapshot {
+    /// Discovered runnable target and its `.ctbnodes` chunk attribution.
+    pub target: SystemWasmSubstituteTarget,
+    /// Snapshot watermark node ID at which this exact revision closure is evaluated.
+    pub pin_node_id: u128,
+    /// Whether this exact revision closure is active at the final node of the input slice.
+    pub is_head: bool,
+    /// Deterministic SHA-256 hex digest of this target's semantic source + compiler closure.
+    pub revision_sha256_hex: String,
+}
+
+/// Returns the uniform `.ctbnodes` chunk stem (e.g. `"85899_75792"`) owning `node_id`.
 ///
-/// # Errors
-/// Returns an error if `subj` is not a `Short`, `Format`, or `Long` shorthand.
-pub fn substitute_module_stem_for_shorthand(
-    subj: DcShorthand,
-) -> Result<String> {
-    match subj {
-        DcShorthand::Short(n) => Ok(format!("dc_{n}")),
-        DcShorthand::Format(n) => Ok(format!("f{n}")),
-        DcShorthand::Long(n) => Ok(format!("l{n}")),
-        other => bail!(
-            "Unsupported DcShorthand variant for WASM substitute module stem: {other:?}"
-        ),
-    }
+/// System-block node IDs align to `SYSTEM_REGION_START` via [`chunk_filename_for_node_id`];
+/// node IDs in any other graph block align to `MAX_NODES_PER_CHUNK` boundaries via
+/// [`format_chunk_filename`].
+#[must_use]
+pub fn substitute_chunk_prefix_for_node_id(node_id: u128) -> String {
+    let filename = if (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&node_id)
+    {
+        chunk_filename_for_node_id(node_id)
+    } else {
+        // Reason for fallback: MAX_NODES_PER_CHUNK is a small usize constant (100) that always fits in u128.
+        let max_u128 = u128::try_from(MAX_NODES_PER_CHUNK).unwrap_or(100);
+        // Reason for fallback: max_u128 >= 1 so checked_div never divides by zero.
+        let chunk_start = node_id
+            .checked_div(max_u128)
+            .unwrap_or(0)
+            .saturating_mul(max_u128);
+        format_chunk_filename(chunk_start)
+    };
+    // Reason for fallback: format_chunk_filename always ends with ".ctbnodes".
+    filename
+        .strip_suffix(".ctbnodes")
+        .unwrap_or(&filename)
+        .to_owned()
 }
 
 /// Runtime index over the System-block seed graph (`8589934592..=12884901887`).
@@ -821,6 +853,139 @@ impl SeedGraphIndex {
         let mut index = Self::from_nodes(nodes);
         index.bundled_origin_node_ids = bundled_ids;
         index
+    }
+
+    /// Builds a `SeedGraphIndex` pinned to `most_recent_node_id` from an ordered list of
+    /// host-authenticated bundled `LedgerNode`s without marking `from_asset_bundle`.
+    #[must_use]
+    pub fn from_bundled_nodes_at_most_recent(
+        nodes: Vec<LedgerNode>,
+        most_recent_node_id: u128,
+    ) -> Self {
+        let mut index = Self::from_nodes_at_most_recent(nodes, most_recent_node_id);
+        index.bundled_origin_node_ids = index
+            .nodes
+            .iter()
+            .filter(|n| (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&n.id))
+            .map(|n| n.id)
+            .collect();
+        index
+    }
+
+    /// Loads and merges all active (`<graph_dir>/*.ctbnbdl`) and historical
+    /// (`<graph_dir>/system/*.ctbnbdl`) System-graph bundles directly from disk in
+    /// strictly ascending node ID order.
+    ///
+    /// # Errors
+    /// Returns an error if `<graph_dir>` contains no `.ctbnbdl` files, if any bundle
+    /// fails decoding or ordering checks, or if duplicate node IDs exist across active
+    /// and historical bundles.
+    pub fn load_merged_nodes_from_disk_graph_dir(
+        graph_dir: &Path,
+    ) -> Result<Vec<LedgerNode>> {
+        fn read_dir_bundles(
+            dir: &Path,
+            require_non_empty: bool,
+        ) -> Result<(Option<u128>, Vec<LedgerNode>)> {
+            if !dir.exists() {
+                if require_non_empty {
+                    bail!(
+                        "System graph bundle directory {} does not exist",
+                        dir.display()
+                    );
+                }
+                return Ok((None, Vec::new()));
+            }
+            let mut keyed: Vec<(u128, std::path::PathBuf)> = Vec::new();
+            for entry_res in std::fs::read_dir(dir).with_context(|| {
+                format!(
+                    "Failed to read System graph bundle directory {}",
+                    dir.display()
+                )
+            })? {
+                let entry = entry_res?;
+                if !entry.file_type()?.is_file() {
+                    continue;
+                }
+                let path = entry.path();
+                let Some(name) = path.file_name().and_then(|s| s.to_str())
+                else {
+                    continue;
+                };
+                if !name.ends_with(".ctbnbdl") {
+                    continue;
+                }
+                let start_id = parse_chunk_bundle_filename_start_id(name)
+                    .with_context(|| {
+                        format!(
+                            "Invalid .ctbnbdl bundle filename '{name}' in {}",
+                            dir.display()
+                        )
+                    })?;
+                keyed.push((start_id, path));
+            }
+            if keyed.is_empty() {
+                if require_non_empty {
+                    bail!(
+                        "No .ctbnbdl bundles found in {}",
+                        dir.display()
+                    );
+                }
+                return Ok((None, Vec::new()));
+            }
+            keyed.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+            let mut all_nodes: Vec<LedgerNode> = Vec::new();
+            let mut max_wm: Option<u128> = None;
+            for (expected_first_id, path) in keyed {
+                let bytes = std::fs::read(&path).with_context(|| {
+                    format!("Failed to read bundle {}", path.display())
+                })?;
+                let (wm, bundle_nodes) = decode_ctbnbdl_bundle(&bytes)
+                    .with_context(|| {
+                        format!("Failed to decode bundle {}", path.display())
+                    })?;
+                if let Some(w) = wm {
+                    // Reason for fallback: w initializes max_wm on the first bundle with a watermark.
+                    max_wm = Some(max_wm.map_or(w, |cur| cur.max(w)));
+                }
+                let first_node = bundle_nodes.first().with_context(|| {
+                    format!(
+                        "Decoded .ctbnbdl bundle {} contains 0 nodes",
+                        path.display()
+                    )
+                })?;
+                ensure!(
+                    first_node.id == expected_first_id,
+                    "Bundle {} filename declares start ID l{expected_first_id}, found l{}",
+                    path.display(),
+                    first_node.id
+                );
+                for node in bundle_nodes {
+                    if let Some(prev) = all_nodes.last() {
+                        ensure!(
+                            node.id > prev.id,
+                            "Bundle {}: expected strictly increasing node ID > l{}, found l{}",
+                            path.display(),
+                            prev.id,
+                            node.id
+                        );
+                    }
+                    all_nodes.push(node);
+                }
+            }
+            Ok((max_wm, all_nodes))
+        }
+
+        let (active_wm, active_nodes) = read_dir_bundles(graph_dir, true)?;
+        let (hist_wm, hist_nodes) =
+            read_dir_bundles(&graph_dir.join("system"), false)?;
+        let (_, merged) = Self::merge_active_and_history_nodes(
+            active_wm,
+            active_nodes,
+            hist_wm,
+            hist_nodes,
+        )?;
+        Ok(merged)
     }
 
     /// Builds a `SeedGraphIndex` combining host-authenticated bundled System nodes (`bundled_nodes`)
@@ -3990,16 +4155,69 @@ impl SeedGraphIndex {
         })
     }
 
-    /// Auto-discovers all runnable System-block Dcs (`Dc 1936`, active `.WASM`/StageL/StageR
-    /// `[Dc 302 src dst]` converters, standalone uncontextualized `.WASM` modules, and
-    /// standalone `pub dc/<shorthand>` StageL/StageR routines with `(l/u8 -> l/u8)` or
-    /// `(dcs -> dcs)` signatures), sorted deterministically by ascending `global_id`.
+    fn resolve_active_decomposition_defining_node_id(
+        &self,
+        subj: DcShorthand,
+    ) -> u128 {
+        let mut max_id = 0u128;
+        for prop_dc in [
+            DC_CANONICAL_DECOMPOSITION,
+            DC_DECOMPOSITION,
+            DC_SEMANTIC_DECOMPOSITION,
+            DC_APPROXIMATE_DECOMPOSITION,
+        ] {
+            for entry in self.get_multi_properties(subj, sh(prop_dc)) {
+                if let DcShorthand::Long(val_id) = entry.value {
+                    max_id = max_id.max(val_id);
+                } else {
+                    max_id = max_id.max(entry.has_val_id);
+                }
+            }
+        }
+        if max_id == 0
+            && let Some((has_a_id, has_val_id, val_tok)) =
+                self.active_single_props.get(&(subj, sh(DC_SYNTAX_RULE))).copied()
+        {
+            if let DcShorthand::Long(val_id) = val_tok {
+                max_id = val_id.max(has_val_id).max(has_a_id);
+            } else {
+                max_id = has_val_id.max(has_a_id);
+            }
+        }
+        if max_id == 0
+            && let DcShorthand::Long(nid) = subj
+        {
+            max_id = nid;
+        }
+        if max_id == 0 {
+            // Reason for fallback: Synthetic in-memory graphs with inline non-Long decompositions attribute to earliest graph node.
+            max_id = self
+                .nodes
+                .first()
+                .map_or(SYSTEM_REGION_START, |n| n.id);
+        }
+        max_id
+    }
+
+    /// Auto-discovers all runnable graph Dcs and standalone `.WASM` value nodes active at
+    /// this snapshot (`Dc 1936`, active `.WASM`/StageL/StageR `[Dc 302 src dst]` converters,
+    /// standalone uncontextualized `.WASM` modules, standalone `pub dc/<shorthand>`
+    /// StageL/StageR routines with `(l/u8 -> l/u8)` or `(dcs -> dcs)` signatures, and
+    /// unowned standalone `Dc 1927..Dc 1928` value nodes), sorted deterministically by
+    /// ascending `(global_id, defining_node_id)`.
     ///
     /// # Errors
-    /// Returns an error if any discovered target fails shorthand global-ID resolution
-    /// or decomposition inspection.
+    /// Returns an error if `strict` is `true` and any discovered target fails shorthand
+    /// global-ID resolution or decomposition inspection.
     pub fn discover_system_wasm_substitute_targets(
         &self,
+    ) -> Result<Vec<SystemWasmSubstituteTarget>> {
+        self.discover_wasm_substitute_targets_inner(true)
+    }
+
+    fn discover_wasm_substitute_targets_inner(
+        &self,
+        strict: bool,
     ) -> Result<Vec<SystemWasmSubstituteTarget>> {
         use crate::stagel3::ast::{StageDialect, StageLType};
 
@@ -4009,9 +4227,38 @@ impl SeedGraphIndex {
 
         let mut targets: Vec<SystemWasmSubstituteTarget> = Vec::new();
         let mut seen_subjects: BTreeSet<DcShorthand> = BTreeSet::new();
+        let mut owned_value_node_ids: HashSet<u128> = HashSet::new();
+        for vals in self.has_val_stmt_ids_by_has_a.values() {
+            for &(_, val_tok) in vals {
+                if let DcShorthand::Long(vid) = val_tok {
+                    owned_value_node_ids.insert(vid);
+                }
+            }
+        }
+        for (&(_, _, val_tok), _) in &self.active_multi_props {
+            if let DcShorthand::Long(vid) = val_tok {
+                owned_value_node_ids.insert(vid);
+            }
+        }
+        for &(_, _, val_tok) in self.active_single_props.values() {
+            if let DcShorthand::Long(vid) = val_tok {
+                owned_value_node_ids.insert(vid);
+            }
+        }
 
         // 1. Active single-step converters (`list_all_active_converter_steps`).
-        for step in self.list_all_active_converter_steps()? {
+        let converter_steps = match self.list_all_active_converter_steps() {
+            Ok(steps) => steps,
+            Err(err) if !strict => {
+                warn_fmt!(
+                    "Skipping converter discovery at historical snapshot {:?}: {err:#}",
+                    self.system_block_most_recent_node_id
+                );
+                Vec::new()
+            }
+            Err(err) => return Err(err),
+        };
+        for step in converter_steps {
             if !seen_subjects.insert(step.subject) {
                 continue;
             }
@@ -4046,10 +4293,15 @@ impl SeedGraphIndex {
                     }
                 }
             };
+            let defining_node_id =
+                self.resolve_active_decomposition_defining_node_id(step.subject);
             targets.push(SystemWasmSubstituteTarget {
                 subject: step.subject,
                 global_id: step.subject.to_global_id()?,
-                module_stem: substitute_module_stem_for_shorthand(step.subject)?,
+                defining_node_id,
+                chunk_prefix: substitute_chunk_prefix_for_node_id(
+                    defining_node_id,
+                ),
                 kind,
             });
         }
@@ -4079,15 +4331,25 @@ impl SeedGraphIndex {
             decomp_subjects.insert(subj);
         }
 
-        // 2. Standalone uncontextualized `.WASM` System-block modules.
+        // 2. Standalone uncontextualized `.WASM` modules on subjects.
         let kernel_sh = sh(DC_DC_DOCUMENT_EXECUTION_KERNEL);
         for &subj in &decomp_subjects {
             if seen_subjects.contains(&subj) {
                 continue;
             }
-            let Some((direct_node_id, tokens)) =
-                self.resolve_wasm_helper_shorthand(subj)?
-            else {
+            let resolved_helper = match self.resolve_wasm_helper_shorthand(subj)
+            {
+                Ok(v) => v,
+                Err(err) if !strict => {
+                    warn_fmt!(
+                        "Skipping historical WASM subject {subj} at {:?}: {err:#}",
+                        self.system_block_most_recent_node_id
+                    );
+                    continue;
+                }
+                Err(err) => return Err(err),
+            };
+            let Some((direct_node_id, tokens)) = resolved_helper else {
                 continue;
             };
             if direct_node_id.is_none() || !Self::tokens_start_wasm_definition(tokens)
@@ -4101,15 +4363,26 @@ impl SeedGraphIndex {
                 continue;
             }
             seen_subjects.insert(subj);
-            let kind = if subj == kernel_sh {
+            let use_supervisor_kernel = subj == kernel_sh
+                && self
+                    .resolve_trusted_system_supervisor_bootstrap_tokens(&[subj])
+                    .is_ok();
+            let kind = if use_supervisor_kernel {
                 SystemWasmSubstituteTargetKind::SupervisorKernel
             } else {
                 SystemWasmSubstituteTargetKind::StandaloneWasm
             };
+            // Reason for fallback: direct_node_id is checked Some above, with decomposition lookup as secondary fallback.
+            let defining_node_id = direct_node_id.unwrap_or_else(|| {
+                self.resolve_active_decomposition_defining_node_id(subj)
+            });
             targets.push(SystemWasmSubstituteTarget {
                 subject: subj,
                 global_id: subj.to_global_id()?,
-                module_stem: substitute_module_stem_for_shorthand(subj)?,
+                defining_node_id,
+                chunk_prefix: substitute_chunk_prefix_for_node_id(
+                    defining_node_id,
+                ),
                 kind,
             });
         }
@@ -4121,11 +4394,20 @@ impl SeedGraphIndex {
             {
                 continue;
             }
-            let Some((dialect, routine)) =
-                crate::stagel3::seed_linker::inspect_standalone_graph_routine_signature(
-                    self, subj,
-                )?
-            else {
+            let inspected = match crate::stagel3::seed_linker::inspect_standalone_graph_routine_signature(
+                self, subj,
+            ) {
+                Ok(v) => v,
+                Err(err) if !strict => {
+                    warn_fmt!(
+                        "Skipping historical StageL/StageR routine {subj} at {:?}: {err:#}",
+                        self.system_block_most_recent_node_id
+                    );
+                    continue;
+                }
+                Err(err) => return Err(err),
+            };
+            let Some((dialect, routine)) = inspected else {
                 continue;
             };
             let [param] = routine.params.as_slice() else {
@@ -4157,17 +4439,487 @@ impl SeedGraphIndex {
                 continue;
             };
             seen_subjects.insert(subj);
+            let defining_node_id =
+                self.resolve_active_decomposition_defining_node_id(subj);
             targets.push(SystemWasmSubstituteTarget {
                 subject: subj,
                 global_id: subj.to_global_id()?,
-                module_stem: substitute_module_stem_for_shorthand(subj)?,
+                defining_node_id,
+                chunk_prefix: substitute_chunk_prefix_for_node_id(
+                    defining_node_id,
+                ),
                 kind,
             });
         }
 
-        targets.sort_by_key(|t| t.global_id);
+        // 4. Unowned standalone active `Dc 1927..Dc 1928` `.WASM` value nodes (for arbitrary node slices).
+        for node in &self.nodes {
+            if self.inactive_ids.contains(&node.id)
+                || owned_value_node_ids.contains(&node.id)
+            {
+                continue;
+            }
+            if let Some(pin_id) = self.system_block_most_recent_node_id
+                && node.id > pin_id
+            {
+                continue;
+            }
+            if node.tokens.first().copied() == Some(sh(DC_BEGIN_WASM_PROGRAM))
+                && node.tokens.last().copied() == Some(sh(DC_END_WASM_PROGRAM))
+            {
+                let subj = DcShorthand::Long(node.id);
+                if seen_subjects.insert(subj) {
+                    targets.push(SystemWasmSubstituteTarget {
+                        subject: subj,
+                        global_id: subj.to_global_id()?,
+                        defining_node_id: node.id,
+                        chunk_prefix: substitute_chunk_prefix_for_node_id(
+                            node.id,
+                        ),
+                        kind:
+                            SystemWasmSubstituteTargetKind::StandaloneWasmValueNode {
+                                node_id: node.id,
+                            },
+                    });
+                }
+            }
+        }
+
+        targets.sort_by(|a, b| {
+            a.global_id
+                .cmp(&b.global_id)
+                .then_with(|| a.defining_node_id.cmp(&b.defining_node_id))
+        });
         Ok(targets)
     }
+
+    fn compute_substitute_target_revision_hex(
+        &self,
+        target: &SystemWasmSubstituteTarget,
+    ) -> Result<String> {
+        fn push_sh_bytes(buf: &mut Vec<u8>, tok: DcShorthand) -> Result<()> {
+            buf.extend_from_slice(&tok.to_global_id()?.to_le_bytes());
+            Ok(())
+        }
+        fn push_dc_chars(buf: &mut Vec<u8>, chars: &[DcChar]) {
+            let stripped = crate::stagel3::dc_tokens::strip_comment_frames(chars);
+            // Reason for fallback: slice length in memory never exceeds u64::MAX on 32/64-bit targets.
+            let len_u64 = u64::try_from(stripped.len()).unwrap_or(u64::MAX);
+            buf.extend_from_slice(&len_u64.to_le_bytes());
+            for ch in stripped {
+                buf.extend_from_slice(&ch.to_u128().to_le_bytes());
+            }
+        }
+        fn push_expanded_wasm_tokens(
+            sg: &SeedGraphIndex,
+            buf: &mut Vec<u8>,
+            tokens: &[DcShorthand],
+            visited: &mut HashSet<DcShorthand>,
+        ) -> Result<()> {
+            let expanded = sg.expand_interned_string_nodes(tokens);
+            // Reason for fallback: slice length in memory never exceeds u64::MAX on 32/64-bit targets.
+            let len_u64 = u64::try_from(expanded.len()).unwrap_or(u64::MAX);
+            buf.extend_from_slice(&len_u64.to_le_bytes());
+            for tok in expanded {
+                push_sh_bytes(buf, tok)?;
+                if visited.insert(tok)
+                    && let Some((_, _, _, helper_toks)) =
+                        sg.resolve_active_wasm_definition_entry(tok)
+                {
+                    buf.push(0xE1);
+                    push_expanded_wasm_tokens(sg, buf, &helper_toks, visited)?;
+                }
+            }
+            Ok(())
+        }
+
+        let mut buf: Vec<u8> = Vec::with_capacity(512);
+        buf.extend_from_slice(&target.global_id.to_le_bytes());
+        let target_dc = DcChar::from_u128(target.global_id);
+        match &target.kind {
+            SystemWasmSubstituteTargetKind::SupervisorKernel => {
+                buf.push(1);
+                let resolved = self
+                    .resolve_trusted_system_supervisor_bootstrap_tokens(&[
+                        target.subject,
+                    ])?;
+                let mut visited = HashSet::new();
+                push_expanded_wasm_tokens(
+                    self,
+                    &mut buf,
+                    &resolved.definition_tokens,
+                    &mut visited,
+                )?;
+            }
+            SystemWasmSubstituteTargetKind::StandaloneWasm => {
+                buf.push(2);
+                let (_, tokens) = self
+                    .resolve_wasm_helper_shorthand(target.subject)?
+                    .with_context(|| {
+                        format!(
+                            "Target {} missing active standalone WASM decomposition",
+                            target.subject
+                        )
+                    })?;
+                let mut visited = HashSet::new();
+                push_expanded_wasm_tokens(self, &mut buf, tokens, &mut visited)?;
+            }
+            SystemWasmSubstituteTargetKind::StandaloneWasmValueNode {
+                node_id,
+            } => {
+                buf.push(3);
+                let node = self.get_active_node(*node_id).with_context(|| {
+                    format!(
+                        "Standalone WASM value node l{node_id} missing from snapshot"
+                    )
+                })?;
+                let mut visited = HashSet::new();
+                push_expanded_wasm_tokens(
+                    self,
+                    &mut buf,
+                    &node.tokens,
+                    &mut visited,
+                )?;
+            }
+            SystemWasmSubstituteTargetKind::WasmConverter { src, dst } => {
+                buf.push(4);
+                push_sh_bytes(&mut buf, *src)?;
+                push_sh_bytes(&mut buf, *dst)?;
+                let step = self
+                    .list_all_active_converter_steps()?
+                    .into_iter()
+                    .find(|s| s.subject == target.subject)
+                    .with_context(|| {
+                        format!(
+                            "WASM converter {} missing from snapshot",
+                            target.subject
+                        )
+                    })?;
+                let ActiveConverterBody::Wasm(tokens) = step.body else {
+                    bail!("Converter {} is not .WASM", target.subject);
+                };
+                let mut visited = HashSet::new();
+                push_expanded_wasm_tokens(self, &mut buf, tokens, &mut visited)?;
+            }
+            SystemWasmSubstituteTargetKind::StageLConverter { .. }
+            | SystemWasmSubstituteTargetKind::StageLRoutineBytes => {
+                buf.push(5);
+                let entry_tokens =
+                    crate::stagel3::seed_linker::build_entry_module_for_graph_routine_dc(
+                        target_dc, self,
+                    )?;
+                let bundled =
+                    crate::stagel3::seed_linker::bundle_dc_module_dependencies(
+                        &entry_tokens,
+                        self,
+                    )?;
+                push_dc_chars(&mut buf, &bundled);
+                let (_, conv_toks) = self
+                    .resolve_active_converter_routine(
+                        sh(DC_BEGIN_MODULE),
+                        sh(DC_BEGIN_WASM_PROGRAM),
+                    )?
+                    .context(
+                        "Missing active StageL -> WASM converter routine in snapshot",
+                    )?;
+                let mut visited = HashSet::new();
+                push_expanded_wasm_tokens(
+                    self,
+                    &mut buf,
+                    conv_toks,
+                    &mut visited,
+                )?;
+            }
+            SystemWasmSubstituteTargetKind::StageRConverter { .. }
+            | SystemWasmSubstituteTargetKind::StageRRoutineBytes
+            | SystemWasmSubstituteTargetKind::StageLRoutineDcs
+            | SystemWasmSubstituteTargetKind::StageRRoutineDcs => {
+                let entry_tokens = if matches!(
+                    target.kind,
+                    SystemWasmSubstituteTargetKind::StageLRoutineDcs
+                        | SystemWasmSubstituteTargetKind::StageRRoutineDcs
+                ) {
+                    buf.push(6);
+                    crate::stagel3::seed_linker::build_stager_dcs_entry_module_for_graph_routine_dc(
+                        target_dc, self,
+                    )?
+                } else {
+                    buf.push(7);
+                    crate::stagel3::seed_linker::build_stager_bytes_entry_module_for_graph_routine_dc(
+                        target_dc, self,
+                    )?
+                };
+                let bundled =
+                    crate::stagel3::seed_linker::bundle_dc_module_dependencies(
+                        &entry_tokens,
+                        self,
+                    )?;
+                push_dc_chars(&mut buf, &bundled);
+                let chain = self
+                    .resolve_active_converter_chain(
+                        sh(DC_BEGIN_STAGER_MODULE),
+                        sh(DC_BEGIN_WASM_PROGRAM),
+                    )?
+                    .context(
+                        "Missing active StageR -> WASM converter chain in snapshot",
+                    )?;
+                for step in &chain {
+                    push_sh_bytes(&mut buf, step.subject)?;
+                    match &step.body {
+                        ActiveConverterBody::Wasm(toks) => {
+                            let mut visited = HashSet::new();
+                            push_expanded_wasm_tokens(
+                                self,
+                                &mut buf,
+                                toks,
+                                &mut visited,
+                            )?;
+                        }
+                        ActiveConverterBody::StageL(chars) => {
+                            push_dc_chars(&mut buf, chars);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(sha256_bytes_hex(&buf))
+    }
+}
+
+/// Discovers all runnable WebAssembly snapshots across an arbitrary slice of
+/// [`LedgerNode`]s without privileging `HEAD` over historical `Dc 641` revisions.
+///
+/// Every revision closure present across code-touching batch watermarks in `nodes`
+/// (including superseded or retracted historical implementations as well as raw
+/// unowned `Dc 1927..Dc 1928` `.WASM` value nodes) is discovered once and attributed
+/// via [`substitute_chunk_prefix_for_node_id`] to the `.ctbnodes` chunk of its
+/// defining node ID.
+///
+/// # Errors
+/// Returns an error if `nodes` contains duplicate node IDs or if any target active
+/// at the final watermark of `nodes` fails inspection or closure hashing.
+pub fn discover_graph_wasm_substitute_snapshots(
+    nodes: &[LedgerNode],
+) -> Result<Vec<GraphWasmSubstituteSnapshot>> {
+    if nodes.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut ordered: Vec<LedgerNode> = nodes.to_vec();
+    ordered.sort_by_key(|n| n.id);
+    for pair in ordered.windows(2) {
+        if let [a, b] = pair {
+            ensure!(
+                a.id < b.id,
+                "Duplicate LedgerNode ID l{} in discover_graph_wasm_substitute_snapshots",
+                a.id
+            );
+        }
+    }
+    let head_id = ordered
+        .last()
+        .map(|n| n.id)
+        .context("Non-empty ordered slice missing last node")?;
+
+    // Identify code-bearing value nodes and code-touching batch watermarks in O(N).
+    let sh_wasm_begin = sh(DC_BEGIN_WASM_PROGRAM);
+    let sh_stagel_begin = sh(DC_BEGIN_MODULE);
+    let sh_stager_begin = sh(DC_BEGIN_STAGER_MODULE);
+    let sh_routine_begin = sh(DC_BEGIN_ROUTINE_DECL);
+    let sh_has_a = sh(DC_HAS_A);
+    let sh_has_val = sh(DC_HAS_VALUE);
+    let sh_sup = sh(DC_SUPERSEDES);
+    let sh_ret = sh(DC_RETRACTS);
+    let sh_data_source = sh(DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE);
+
+    let mut code_val_ids: HashSet<u128> = HashSet::new();
+    let mut raw_wasm_val_ids: BTreeSet<u128> = BTreeSet::new();
+    for node in &ordered {
+        if node.tokens.iter().any(|&t| {
+            t == sh_wasm_begin
+                || t == sh_stagel_begin
+                || t == sh_stager_begin
+                || t == sh_routine_begin
+        }) {
+            code_val_ids.insert(node.id);
+        }
+        if node.tokens.first().copied() == Some(sh_wasm_begin)
+            && node.tokens.last().copied() == Some(sh(DC_END_WASM_PROGRAM))
+        {
+            raw_wasm_val_ids.insert(node.id);
+        }
+    }
+
+    let mut code_has_a_ids: HashSet<u128> = HashSet::new();
+    let mut code_stmt_ids: BTreeSet<u128> = BTreeSet::new();
+    let mut prov_has_a_targets: HashMap<u128, Vec<u128>> = HashMap::new();
+    let mut covered_by_prov: HashSet<u128> = HashSet::new();
+    let mut watermarks: BTreeSet<u128> = BTreeSet::new();
+
+    for node in &ordered {
+        if let Some((verb, _inner_subj, obj, _list_type, targets_raw)) =
+            parse_for_each_statement_tokens(&node.tokens)
+        {
+            if verb == sh_has_a && obj == sh_data_source {
+                let targets: Vec<u128> = targets_raw
+                    .into_iter()
+                    .filter_map(|t| match t {
+                        DcShorthand::Long(id) => Some(id),
+                        _ => None,
+                    })
+                    .collect();
+                prov_has_a_targets.insert(node.id, targets);
+            }
+            continue;
+        }
+        let Some((verb, subj, obj)) = parse_statement_tokens(&node.tokens)
+        else {
+            continue;
+        };
+        if verb == sh_has_a
+            && obj == sh_data_source
+            && let DcShorthand::Long(tid) = subj
+        {
+            prov_has_a_targets.insert(node.id, vec![tid]);
+            continue;
+        }
+        if verb == sh_has_val
+            && let DcShorthand::Long(ha_id) = subj
+            && let Some(targets) = prov_has_a_targets.get(&ha_id)
+        {
+            let mut touches_code = false;
+            for &tid in targets {
+                covered_by_prov.insert(tid);
+                if code_val_ids.contains(&tid) || code_stmt_ids.contains(&tid) {
+                    touches_code = true;
+                }
+            }
+            if touches_code {
+                watermarks.insert(node.id);
+            }
+            continue;
+        }
+        if verb == sh_has_val
+            && let DcShorthand::Long(ha_id) = subj
+            && let DcShorthand::Long(val_id) = obj
+        {
+            raw_wasm_val_ids.remove(&val_id);
+            if code_val_ids.contains(&val_id) || code_has_a_ids.contains(&ha_id)
+            {
+                code_has_a_ids.insert(ha_id);
+                code_stmt_ids.insert(ha_id);
+                code_stmt_ids.insert(node.id);
+            }
+        } else if verb == sh_sup
+            && let DcShorthand::Long(new_id) = subj
+            && let DcShorthand::Long(old_id) = obj
+            && (code_stmt_ids.contains(&old_id)
+                || code_stmt_ids.contains(&new_id))
+        {
+            if code_has_a_ids.contains(&old_id) {
+                code_has_a_ids.insert(new_id);
+            }
+            code_stmt_ids.insert(new_id);
+            code_stmt_ids.insert(node.id);
+        } else if verb == sh_ret
+            && let DcShorthand::Long(old_id) = obj
+            && (code_stmt_ids.contains(&old_id)
+                || code_val_ids.contains(&old_id))
+        {
+            code_stmt_ids.insert(node.id);
+        }
+    }
+
+    // Also capture un-provenanced code-touching statement runs (for arbitrary non-System or synthetic slices).
+    for (idx, node) in ordered.iter().enumerate() {
+        if code_stmt_ids.contains(&node.id) && !covered_by_prov.contains(&node.id)
+        {
+            let next_is_unprov_stmt = ordered
+                .get(idx.saturating_add(1))
+                .is_some_and(|next| {
+                    parse_statement_tokens(&next.tokens).is_some()
+                        && !covered_by_prov.contains(&next.id)
+                });
+            if !next_is_unprov_stmt {
+                watermarks.insert(node.id);
+            }
+        }
+    }
+    for &raw_id in &raw_wasm_val_ids {
+        watermarks.insert(raw_id);
+    }
+    watermarks.insert(head_id);
+
+    let single_props = single_valued_property_set();
+    let mut by_revision_key: BTreeMap<
+        (u128, String),
+        GraphWasmSubstituteSnapshot,
+    > = BTreeMap::new();
+
+    for wm_id in watermarks {
+        let is_head = wm_id == head_id;
+        let prefix_end = ordered.partition_point(|n| n.id <= wm_id);
+        let prefix_nodes = ordered
+            .get(..prefix_end)
+            .context("Watermark partition_point out of bounds")?
+            .to_vec();
+        let bundled_ids: HashSet<u128> = prefix_nodes
+            .iter()
+            .filter(|n| (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&n.id))
+            .map(|n| n.id)
+            .collect();
+        let mut sg = SeedGraphIndex::from_nodes_with_single_props(
+            prefix_nodes,
+            &single_props,
+        );
+        sg.bundled_origin_node_ids = bundled_ids;
+        if (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&wm_id) {
+            sg.system_block_most_recent_node_id = Some(wm_id);
+        }
+
+        let targets = sg.discover_wasm_substitute_targets_inner(is_head)?;
+        for target in targets {
+            let rev_hex = match sg.compute_substitute_target_revision_hex(&target)
+            {
+                Ok(h) => h,
+                Err(err) if !is_head => {
+                    warn_fmt!(
+                        "Skipping broken historical revision of {} at watermark l{wm_id}: {err:#}",
+                        target.subject
+                    );
+                    continue;
+                }
+                Err(err) => return Err(err),
+            };
+            let key = (target.global_id, rev_hex.clone());
+            if let Some(existing) = by_revision_key.get_mut(&key) {
+                if is_head {
+                    existing.is_head = true;
+                }
+            } else {
+                by_revision_key.insert(
+                    key,
+                    GraphWasmSubstituteSnapshot {
+                        target,
+                        pin_node_id: wm_id,
+                        is_head,
+                        revision_sha256_hex: rev_hex,
+                    },
+                );
+            }
+        }
+    }
+
+    let mut out: Vec<GraphWasmSubstituteSnapshot> =
+        by_revision_key.into_values().collect();
+    out.sort_by(|a, b| {
+        a.target
+            .defining_node_id
+            .cmp(&b.target.defining_node_id)
+            .then_with(|| a.target.global_id.cmp(&b.target.global_id))
+            .then_with(|| a.pin_node_id.cmp(&b.pin_node_id))
+    });
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -5582,9 +6334,28 @@ mod tests {
     -> Result<()> {
         let sg = SeedGraphIndex::shared()?;
         let targets = sg.discover_system_wasm_substitute_targets()?;
-        let stems: Vec<&str> =
-            targets.iter().map(|t| t.module_stem.as_str()).collect();
-        assert_eq!(stems, vec!["dc_1936", "dc_2608", "f1680", "f1681"]);
+        let subjects: Vec<DcShorthand> =
+            targets.iter().map(|t| t.subject).collect();
+        assert_eq!(
+            subjects,
+            vec![
+                DcShorthand::Short(1936),
+                DcShorthand::Short(2608),
+                DcShorthand::Format(1680),
+                DcShorthand::Format(1681),
+            ]
+        );
+        for target in &targets {
+            assert!(
+                target.chunk_prefix.starts_with("85899_"),
+                "Expected uniform .ctbnodes chunk prefix, got {}",
+                target.chunk_prefix
+            );
+            assert!(
+                (SYSTEM_REGION_START..=SYSTEM_REGION_END)
+                    .contains(&target.defining_node_id)
+            );
+        }
         assert_eq!(
             targets[0].kind,
             SystemWasmSubstituteTargetKind::SupervisorKernel
@@ -5601,6 +6372,95 @@ mod tests {
             targets[3].kind,
             SystemWasmSubstituteTargetKind::StageLConverter { .. }
         ));
+
+        // Verify arbitrary-node-slice discovery captures both superseded historical revisions and raw .WASM value nodes.
+        let base = SYSTEM_REGION_START;
+        let wasm_v1 = vec![
+            sh(DC_BEGIN_WASM_PROGRAM),
+            sh(DC_BEGIN_ROUTINE_DECL),
+            DcShorthand::Unicode(0x41),
+            sh(crate::dc::DC_END_ROUTINE_DECL),
+            sh(DC_END_WASM_PROGRAM),
+        ];
+        let wasm_v2 = vec![
+            sh(DC_BEGIN_WASM_PROGRAM),
+            sh(DC_BEGIN_ROUTINE_DECL),
+            DcShorthand::Unicode(0x42),
+            sh(crate::dc::DC_END_ROUTINE_DECL),
+            sh(DC_END_WASM_PROGRAM),
+        ];
+        let raw_wasm = vec![
+            sh(DC_BEGIN_WASM_PROGRAM),
+            sh(DC_BEGIN_ROUTINE_DECL),
+            DcShorthand::Unicode(0x43),
+            sh(crate::dc::DC_END_ROUTINE_DECL),
+            sh(DC_END_WASM_PROGRAM),
+        ];
+        let subj = DcShorthand::Short(1999);
+        let slice = vec![
+            LedgerNode {
+                id: base,
+                tokens: wasm_v1,
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: base + 1,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_A),
+                    subj,
+                    sh(DC_CANONICAL_DECOMPOSITION),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: base + 2,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_VALUE),
+                    DcShorthand::Long(base + 1),
+                    DcShorthand::Long(base),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: base + 100,
+                tokens: wasm_v2,
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: base + 101,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_VALUE),
+                    DcShorthand::Long(base + 1),
+                    DcShorthand::Long(base + 100),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: base + 102,
+                tokens: encode_statement_tokens(
+                    sh(DC_SUPERSEDES),
+                    DcShorthand::Long(base + 101),
+                    DcShorthand::Long(base + 2),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: base + 205,
+                tokens: raw_wasm,
+                comment: String::new(),
+            },
+        ];
+        let snaps = discover_graph_wasm_substitute_snapshots(&slice)?;
+        assert_eq!(snaps.len(), 3);
+        assert_eq!(snaps[0].target.subject, subj);
+        assert_eq!(snaps[0].target.chunk_prefix, "85899_34592");
+        assert!(!snaps[0].is_head);
+        assert_eq!(snaps[1].target.subject, subj);
+        assert_eq!(snaps[1].target.chunk_prefix, "85899_34692");
+        assert!(snaps[1].is_head);
+        assert_eq!(snaps[2].target.subject, DcShorthand::Long(base + 205));
+        assert_eq!(snaps[2].target.chunk_prefix, "85899_34792");
+        assert!(snaps[2].is_head);
         Ok(())
     }
 

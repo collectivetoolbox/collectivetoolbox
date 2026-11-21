@@ -6723,12 +6723,25 @@ pub fn compile_system_substitute_target_wasm_bytes(
                 .resolve_wasm_helper_shorthand(target.subject)?
                 .with_context(|| {
                     format!(
-                        "Target '{}' ({}) missing active standalone WASM decomposition",
-                        target.module_stem, target.subject
+                        "Target {} ({}) missing active standalone WASM decomposition",
+                        target.subject, target.chunk_prefix
                     )
                 })?;
             let doc =
                 expand_graph_wasm_shorthands_to_dcmstring(tokens, resolver)?;
+            dcmstring_to_wasm_with_resolver(&doc, resolver)
+        }
+        SystemWasmSubstituteTargetKind::StandaloneWasmValueNode { node_id } => {
+            let node = sg.get_active_node(*node_id).with_context(|| {
+                format!(
+                    "Standalone WASM value node l{node_id} ({}) missing from snapshot",
+                    target.chunk_prefix
+                )
+            })?;
+            let doc = expand_graph_wasm_shorthands_to_dcmstring(
+                &node.tokens,
+                resolver,
+            )?;
             dcmstring_to_wasm_with_resolver(&doc, resolver)
         }
         SystemWasmSubstituteTargetKind::WasmConverter { src, dst } => {
@@ -6738,15 +6751,15 @@ pub fn compile_system_substitute_target_wasm_bytes(
                 .find(|s| s.subject == target.subject)
                 .with_context(|| {
                     format!(
-                        "WASM converter '{}' ({} {} -> {}) missing from System graph",
-                        target.module_stem, target.subject, src, dst
+                        "WASM converter {} ({} -> {}, {}) missing from System graph",
+                        target.subject, src, dst, target.chunk_prefix
                     )
                 })?;
             let ActiveConverterBody::Wasm(tokens) = step.body else {
                 bail!(
-                    "Converter '{}' ({}) is not a .WASM implementation",
-                    target.module_stem,
-                    target.subject
+                    "Converter {} ({}) is not a .WASM implementation",
+                    target.subject,
+                    target.chunk_prefix
                 );
             };
             let doc =
@@ -6824,8 +6837,8 @@ pub fn compile_system_substitute_target_wasm_bytes(
                 )?
                 .with_context(|| {
                     format!(
-                        "Routine '{}' ({}) missing active decomposition in System graph",
-                        target.module_stem, target.subject
+                        "Routine {} ({}) missing active decomposition in System graph",
+                        target.subject, target.chunk_prefix
                     )
                 })?;
             Ok(compiled.as_ref().clone())
@@ -6834,13 +6847,98 @@ pub fn compile_system_substitute_target_wasm_bytes(
 }
 
 /// Lowers and assembles the uninstrumented canonical `.wasm` bytes for a
-/// System-graph substitute target by module stem (e.g. `"dc_1936"`, `"f1680"`).
+/// discovered [`ctb_formats_dcdata::seed_graph::GraphWasmSubstituteSnapshot`]
+/// reconstructed at `snapshot.pin_node_id` from an ordered `LedgerNode` slice.
+///
+/// If `snapshot.is_head` is `false` and a superseded/retracted historical draft
+/// fails compilation, logs a warning and returns `Ok(None)` rather than failing
+/// the entire substitute bundle.
 ///
 /// # Errors
-/// Returns an error if `target` is unknown, `resolver` lacks a `SeedGraphIndex`,
-/// or lowering/assembling the target fails.
-pub fn compile_system_target_wasm_bytes(
-    target: &str,
+/// Returns an error if `snapshot.is_head` fails compilation or if reconstructing
+/// the base resolver fails.
+pub fn compile_graph_substitute_snapshot_wasm_bytes(
+    ordered_nodes: &[ctb_formats_dcdata::graph_ledger::LedgerNode],
+    snapshot: &ctb_formats_dcdata::seed_graph::GraphWasmSubstituteSnapshot,
+) -> Result<Option<Vec<u8>>> {
+    use ctb_formats_dcdata::seed_graph::SeedGraphIndex;
+    use ctb_formats_dcdata::syntax::DatasetRuleResolver;
+    use ctb_storage_minimal::global_graph_layout::{
+        SYSTEM_REGION_END, SYSTEM_REGION_START,
+    };
+
+    let prefix_end = ordered_nodes.partition_point(|n| n.id <= snapshot.pin_node_id);
+    let prefix = ordered_nodes
+        .get(..prefix_end)
+        .context("Snapshot pin_node_id partition_point out of bounds")?
+        .to_vec();
+    let sg = if (SYSTEM_REGION_START..=SYSTEM_REGION_END)
+        .contains(&snapshot.pin_node_id)
+    {
+        SeedGraphIndex::from_bundled_nodes_at_most_recent(
+            prefix,
+            snapshot.pin_node_id,
+        )
+    } else {
+        SeedGraphIndex::from_nodes_at_most_recent(prefix, snapshot.pin_node_id)
+    };
+    let sg_arc = std::sync::Arc::new(sg);
+    let wasm_begin_sh = ctb_storage_minimal::shorthand::DcShorthand::from_global_id(
+        ctb_formats_dcdata::dc::DC_BEGIN_WASM_PROGRAM.to_u128(),
+    );
+    let resolver_res: Result<DatasetRuleResolver> =
+        match sg_arc.decode_syntax_rule_for_subject(wasm_begin_sh) {
+            Ok(Some(_)) => {
+                DatasetRuleResolver::from_seed_graph_arc(std::sync::Arc::clone(
+                    &sg_arc,
+                ))
+            }
+            Ok(None) => {
+                let mut base = DatasetRuleResolver::load_from_seed_graph()?;
+                base.set_seed_graph(std::sync::Arc::clone(&sg_arc));
+                Ok(base)
+            }
+            Err(err) => Err(err),
+        };
+    let resolver = match resolver_res {
+        Ok(r) => r,
+        Err(err) if !snapshot.is_head => {
+            warn_fmt!(
+                "Skipping historical substitute snapshot {} at l{} ({}): resolver build failed: {err:#}",
+                snapshot.target.subject,
+                snapshot.pin_node_id,
+                snapshot.target.chunk_prefix
+            );
+            return Ok(None);
+        }
+        Err(err) => return Err(err),
+    };
+    match compile_system_substitute_target_wasm_bytes(
+        &snapshot.target,
+        &resolver,
+    ) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(err) if !snapshot.is_head => {
+            warn_fmt!(
+                "Skipping historical substitute snapshot {} at l{} ({}): {err:#}",
+                snapshot.target.subject,
+                snapshot.pin_node_id,
+                snapshot.target.chunk_prefix
+            );
+            Ok(None)
+        }
+        Err(err) => Err(err),
+    }
+}
+
+/// Lowers and assembles the uninstrumented canonical `.wasm` bytes for a
+/// System-graph substitute target identified by its [`ctb_storage_minimal::shorthand::DcShorthand`].
+///
+/// # Errors
+/// Returns an error if `subject` is not a discovered runnable target in `resolver`,
+/// `resolver` lacks a `SeedGraphIndex`, or lowering/assembling the target fails.
+pub fn compile_system_subject_wasm_bytes(
+    subject: ctb_storage_minimal::shorthand::DcShorthand,
     resolver: &dyn SyntaxRuleResolver,
 ) -> Result<Vec<u8>> {
     let sg = resolver
@@ -6849,9 +6947,9 @@ pub fn compile_system_target_wasm_bytes(
     let targets = sg.discover_system_wasm_substitute_targets()?;
     let matched = targets
         .into_iter()
-        .find(|t| t.module_stem == target)
+        .find(|t| t.subject == subject)
         .with_context(|| {
-            format!("Unknown System WASM substitute target '{target}'")
+            format!("Unknown System WASM substitute subject {subject}")
         })?;
     compile_system_substitute_target_wasm_bytes(&matched, resolver)
 }
