@@ -34,9 +34,6 @@ use crate::utilities::*;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::Path;
 
-use ctb_storage_minimal::global_graph_layout::{
-    SYSTEM_REGION_END, SYSTEM_REGION_START,
-};
 use ctb_storage_minimal::shorthand::DcShorthand;
 use ctb_utilities::format_id::{
     DC_APPLE_OS_TYPE, DC_COLLECTIVE_TOOLBOX, DC_FILE_EXTENSION, DC_INTEGER,
@@ -77,6 +74,8 @@ pub use crate::ctbnbdl::{
 
 pub mod inbox;
 pub use inbox::*;
+pub(crate) mod write_state;
+use write_state::{DuplicatePolicy, SystemGraphWriteState};
 
 use crate::dc::{
     DC_ANNOTATION, DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP,
@@ -774,22 +773,163 @@ pub fn decode_nodes_from_ctbnbdl_bytes(
     decode_nodes_from_ctbnbdl_bytes_with(bytes, default_ctbnbdl_framing_dcs())
 }
 
+fn describe_token_with(
+    token_labels: &HashMap<DcShorthand, String>,
+    tok: DcShorthand,
+) -> String {
+    if let Some(label) = token_labels.get(&tok) {
+        return label.clone();
+    }
+    match tok {
+        DcShorthand::Unicode(cp) => {
+            if let Some(name) = ctb_formats_unicode::get_unicode_name(cp) {
+                name
+            } else {
+                format!("U+{cp:04X}")
+            }
+        }
+        _ => tok.to_string(),
+    }
+}
+
+fn describe_atom_dc_tokens_with(
+    token_labels: &HashMap<DcShorthand, String>,
+    tok: DcShorthand,
+) -> String {
+    if tok == sh(DC_START_ENCAPSULATION_BINARY)
+        || tok == sh(DC_ESCAPE)
+        || tok == sh(DC_EVALUATE_VALUE_AS_ATOM)
+    {
+        format!(
+            "{}, {}",
+            describe_token_with(token_labels, sh(DC_ESCAPE)),
+            describe_token_with(token_labels, tok)
+        )
+    } else {
+        describe_token_with(token_labels, tok)
+    }
+}
+
+fn format_tokens_comment_with(
+    token_labels: &HashMap<DcShorthand, String>,
+    tokens: &[DcShorthand],
+) -> String {
+    if let Some((inner_verb, inner_subj, inner_obj, list_type, elements)) =
+        parse_for_each_statement_tokens(tokens)
+    {
+        let list_summary = if elements.len() > 4 {
+            // Reason for fallback: elements.len() > 4 guarantees first and last exist.
+            let first =
+                elements.first().copied().unwrap_or(DcShorthand::Short(0));
+            // Reason for fallback: elements.len() > 4 guarantees first and last exist.
+            let last = elements.last().copied().unwrap_or(DcShorthand::Short(0));
+            format!(
+                "{}: {}..{} ({} elements)",
+                describe_token_with(token_labels, list_type),
+                first,
+                last,
+                elements.len()
+            )
+        } else {
+            let elems_str: Vec<String> = elements
+                .iter()
+                .map(|&e| describe_atom_dc_tokens_with(token_labels, e))
+                .collect();
+            format!(
+                "{}: {}",
+                describe_token_with(token_labels, list_type),
+                elems_str.join(", ")
+            )
+        };
+        return format!(
+            "{} ({} ({}, {}), [{}])",
+            describe_token_with(
+                token_labels,
+                sh(DC_DISTRIBUTE_STATEMENT_OVER_EACH)
+            ),
+            describe_token_with(token_labels, inner_verb),
+            describe_atom_dc_tokens_with(token_labels, inner_subj),
+            describe_atom_dc_tokens_with(token_labels, inner_obj),
+            list_summary
+        );
+    }
+    if let Some((verb, subj, obj)) = parse_statement_tokens(tokens) {
+        return format!(
+            "{} ({}, {})",
+            describe_token_with(token_labels, verb),
+            describe_atom_dc_tokens_with(token_labels, subj),
+            describe_atom_dc_tokens_with(token_labels, obj)
+        );
+    }
+    if let Some(decoded) = decode_string_value_tokens(tokens) {
+        return format_string_summary(&decoded);
+    }
+    let mut parts: Vec<String> = Vec::new();
+    let mut i = 0usize;
+    while i < tokens.len() {
+        let Some(&tok) = tokens.get(i) else {
+            break;
+        };
+        if tok == sh(DC_RANGE) {
+            parts.push(describe_token_with(token_labels, tok));
+            i = i.saturating_add(1);
+            for _ in 0..2 {
+                if let Some(&bound) = tokens.get(i) {
+                    if matches!(bound, DcShorthand::Unicode(_)) {
+                        parts.push(describe_token_with(token_labels, bound));
+                        i = i.saturating_add(1);
+                    } else {
+                        break;
+                    }
+                }
+            }
+            continue;
+        }
+        if tok == sh(DC_VALUE_RANGE)
+            && tokens.get(i.saturating_add(1)) == Some(&sh(DC_TYPE_ATOM_DC))
+        {
+            parts.push(describe_token_with(token_labels, tok));
+            parts.push(describe_token_with(token_labels, sh(DC_TYPE_ATOM_DC)));
+            i = i.saturating_add(2);
+            for _ in 0..2 {
+                if let Some(&bound) = tokens.get(i) {
+                    if matches!(bound, DcShorthand::Unicode(_)) {
+                        parts.push(describe_token_with(token_labels, bound));
+                        i = i.saturating_add(1);
+                    } else {
+                        break;
+                    }
+                }
+            }
+            continue;
+        }
+        if let Some(ch) = as_printable_ascii(tok) {
+            let mut text = String::new();
+            text.push(ch);
+            i = i.saturating_add(1);
+            while let Some(&next_tok) = tokens.get(i) {
+                if let Some(next_ch) = as_printable_ascii(next_tok) {
+                    text.push(next_ch);
+                    i = i.saturating_add(1);
+                } else {
+                    break;
+                }
+            }
+            parts.push(format_string_summary(&text));
+            continue;
+        }
+        parts.push(describe_token_with(token_labels, tok));
+        i = i.saturating_add(1);
+    }
+    parts.join(", ")
+}
+
 /// Active index of a loaded ledger, tracking value nodes, seed entities, and active statements.
 struct LedgerBuilder {
-    nodes: Vec<LedgerNode>,
-    initial_node_count: usize,
-    had_initial_in_graph_provenance: bool,
+    write_state: SystemGraphWriteState,
     appended_count: usize,
     superseded_count: usize,
     retracted_count: usize,
-    /// In-graph `Dc 635` (`Collective Toolbox seed graph data source`) values per node ID.
-    node_data_source: HashMap<u128, DcShorthand>,
-    /// Provenance statement node IDs (`For each` / `Has a` / `Has value` for `Dc 635`).
-    provenance_stmt_ids: HashSet<u128>,
-    /// Verified provenance ownership (`Csv` vs `Manual`) for existing nodes.
-    provenance_map: NodeProvenanceMap,
-    /// Maps a CSV node ID (`u128`) to an active `Manual` node ID (`u128`) that references it.
-    manual_referenced_ids: HashMap<u128, u128>,
     /// Canonical human-readable names for Dc, Format, and allocated Long node tokens.
     token_labels: HashMap<DcShorthand, String>,
     /// Decoded UTF-8 strings for string value nodes, keyed by `u128` node ID.
@@ -853,32 +993,6 @@ impl LedgerBuilder {
         )
     }
 
-    fn is_non_csv_node_with(
-        node_id: u128,
-        initial_node_count: usize,
-        node_data_source: &HashMap<u128, DcShorthand>,
-        provenance_stmt_ids: &HashSet<u128>,
-        had_initial_in_graph_provenance: bool,
-        provenance_map: &NodeProvenanceMap,
-    ) -> bool {
-        // Reason for fallback: usize always fits in u128 on all targets.
-        let initial_end_id = SYSTEM_REGION_START
-            .saturating_add(u128::try_from(initial_node_count).unwrap_or(0));
-        if node_id >= initial_end_id {
-            return false;
-        }
-        if let Some(entry) = provenance_map.get(node_id) {
-            return entry.provenance == NodeProvenance::Manual;
-        }
-        if let Some(&src) = node_data_source.get(&node_id) {
-            return src != sh(DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE);
-        }
-        if had_initial_in_graph_provenance {
-            return !provenance_stmt_ids.contains(&node_id);
-        }
-        false
-    }
-
     /// Initializes a `LedgerBuilder` from existing ledger nodes and indexes all active statements
     /// via `SeedGraphIndex::from_nodes_with_single_props`.
     fn from_existing_with_provenance(
@@ -893,39 +1007,10 @@ impl LedgerBuilder {
                 existing,
                 single_valued_props,
             );
-        let initial_node_count = index.nodes.len();
-        let had_initial_in_graph_provenance = index.has_in_graph_provenance();
-
-        let mut manual_referenced_ids = HashMap::new();
-        for node in &index.nodes {
-            if !index.inactive_ids.contains(&node.id)
-                && !index.provenance_stmt_ids.contains(&node.id)
-                && Self::is_non_csv_node_with(
-                    node.id,
-                    initial_node_count,
-                    &index.node_data_source,
-                    &index.provenance_stmt_ids,
-                    had_initial_in_graph_provenance,
-                    &provenance_map,
-                )
-            {
-                for &tok in &node.tokens {
-                    if let DcShorthand::Long(ref_id) = tok
-                        && !index.inactive_ids.contains(&ref_id)
-                        && !Self::is_non_csv_node_with(
-                            ref_id,
-                            initial_node_count,
-                            &index.node_data_source,
-                            &index.provenance_stmt_ids,
-                            had_initial_in_graph_provenance,
-                            &provenance_map,
-                        )
-                    {
-                        manual_referenced_ids.entry(ref_id).or_insert(node.id);
-                    }
-                }
-            }
-        }
+        let write_state = SystemGraphWriteState::from_seed_index_and_provenance(
+            &index,
+            provenance_map,
+        );
 
         for (&node_id, decoded) in &index.string_by_node_id {
             token_labels.insert(
@@ -1015,16 +1100,10 @@ impl LedgerBuilder {
         }
 
         Self {
-            nodes: index.nodes,
-            initial_node_count,
-            had_initial_in_graph_provenance,
+            write_state,
             appended_count: 0,
             superseded_count: 0,
             retracted_count: 0,
-            node_data_source: index.node_data_source,
-            provenance_stmt_ids: index.provenance_stmt_ids,
-            provenance_map,
-            manual_referenced_ids,
             token_labels,
             string_by_node_id: index.string_by_node_id,
             value_node_by_tokens: index.value_node_by_tokens,
@@ -1046,19 +1125,11 @@ impl LedgerBuilder {
     }
 
     fn get_node(&self, node_id: u128) -> Option<&LedgerNode> {
-        let idx = self.nodes.binary_search_by_key(&node_id, |n| n.id).ok()?;
-        self.nodes.get(idx)
+        self.write_state.get_node(node_id)
     }
 
     fn is_manual_node(&self, node_id: u128) -> bool {
-        Self::is_non_csv_node_with(
-            node_id,
-            self.initial_node_count,
-            &self.node_data_source,
-            &self.provenance_stmt_ids,
-            self.had_initial_in_graph_provenance,
-            &self.provenance_map,
-        )
+        self.write_state.is_manual_node(node_id)
     }
 
     fn ensure_can_modify_csv_node(
@@ -1066,171 +1137,42 @@ impl LedgerBuilder {
         target_id: u128,
         action: &str,
     ) -> Result<()> {
-        ensure!(
-            !self.is_manual_node(target_id),
-            "Cross-ownership conflict: CSV reconciliation cannot {action} manual node l{target_id}"
-        );
-        if let Some(&manual_id) = self.manual_referenced_ids.get(&target_id) {
-            bail!(
-                "Cross-ownership conflict: CSV reconciliation cannot {action} CSV node l{target_id} because active manual node l{manual_id} references it"
-            );
-        }
-        Ok(())
+        self.write_state.ensure_can_modify_target(
+            target_id,
+            NodeProvenance::Csv,
+            "CSV reconciliation",
+            action,
+        )
     }
 
     fn describe_token(&self, tok: DcShorthand) -> String {
-        if let Some(label) = self.token_labels.get(&tok) {
-            return label.clone();
-        }
-        match tok {
-            DcShorthand::Unicode(cp) => {
-                if let Some(name) = ctb_formats_unicode::get_unicode_name(cp) {
-                    name
-                } else {
-                    format!("U+{cp:04X}")
-                }
-            }
-            _ => tok.to_string(),
-        }
+        describe_token_with(&self.token_labels, tok)
     }
 
     fn describe_atom_dc_tokens(&self, tok: DcShorthand) -> String {
-        if tok == sh(DC_START_ENCAPSULATION_BINARY)
-            || tok == sh(DC_ESCAPE)
-            || tok == sh(DC_EVALUATE_VALUE_AS_ATOM)
-        {
-            format!(
-                "{}, {}",
-                self.describe_token(sh(DC_ESCAPE)),
-                self.describe_token(tok)
-            )
-        } else {
-            self.describe_token(tok)
-        }
+        describe_atom_dc_tokens_with(&self.token_labels, tok)
     }
 
     fn format_tokens_comment(&self, tokens: &[DcShorthand]) -> String {
-        if let Some((inner_verb, inner_subj, inner_obj, list_type, elements)) =
-            parse_for_each_statement_tokens(tokens)
-        {
-            let list_summary = if elements.len() > 4 {
-                // Reason for fallback: elements.len() > 4 guarantees first and last exist.
-                let first =
-                    elements.first().copied().unwrap_or(DcShorthand::Short(0));
-                // Reason for fallback: elements.len() > 4 guarantees first and last exist.
-                let last =
-                    elements.last().copied().unwrap_or(DcShorthand::Short(0));
-                format!(
-                    "{}: {}..{} ({} elements)",
-                    self.describe_token(list_type),
-                    first,
-                    last,
-                    elements.len()
-                )
-            } else {
-                let elems_str: Vec<String> = elements
-                    .iter()
-                    .map(|&e| self.describe_atom_dc_tokens(e))
-                    .collect();
-                format!(
-                    "{}: {}",
-                    self.describe_token(list_type),
-                    elems_str.join(", ")
-                )
-            };
-            return format!(
-                "{} ({} ({}, {}), [{}])",
-                self.describe_token(sh(DC_DISTRIBUTE_STATEMENT_OVER_EACH)),
-                self.describe_token(inner_verb),
-                self.describe_atom_dc_tokens(inner_subj),
-                self.describe_atom_dc_tokens(inner_obj),
-                list_summary
-            );
-        }
-        if let Some((verb, subj, obj)) = parse_statement_tokens(tokens) {
-            return format!(
-                "{} ({}, {})",
-                self.describe_token(verb),
-                self.describe_atom_dc_tokens(subj),
-                self.describe_atom_dc_tokens(obj)
-            );
-        }
-        if let Some(decoded) = decode_string_value_tokens(tokens) {
-            return format_string_summary(&decoded);
-        }
-        let mut parts: Vec<String> = Vec::new();
-        let mut i = 0usize;
-        while i < tokens.len() {
-            let Some(&tok) = tokens.get(i) else {
-                break;
-            };
-            if tok == sh(DC_RANGE) {
-                parts.push(self.describe_token(tok));
-                i = i.saturating_add(1);
-                for _ in 0..2 {
-                    if let Some(&bound) = tokens.get(i) {
-                        if matches!(bound, DcShorthand::Unicode(_)) {
-                            parts.push(self.describe_token(bound));
-                            i = i.saturating_add(1);
-                        } else {
-                            break;
-                        }
-                    }
-                }
-                continue;
-            }
-            if tok == sh(DC_VALUE_RANGE)
-                && tokens.get(i.saturating_add(1)) == Some(&sh(DC_TYPE_ATOM_DC))
-            {
-                parts.push(self.describe_token(tok));
-                parts.push(self.describe_token(sh(DC_TYPE_ATOM_DC)));
-                i = i.saturating_add(2);
-                for _ in 0..2 {
-                    if let Some(&bound) = tokens.get(i) {
-                        if matches!(bound, DcShorthand::Unicode(_)) {
-                            parts.push(self.describe_token(bound));
-                            i = i.saturating_add(1);
-                        } else {
-                            break;
-                        }
-                    }
-                }
-                continue;
-            }
-            if let Some(ch) = as_printable_ascii(tok) {
-                let mut text = String::new();
-                text.push(ch);
-                i = i.saturating_add(1);
-                while let Some(&next_tok) = tokens.get(i) {
-                    if let Some(next_ch) = as_printable_ascii(next_tok) {
-                        text.push(next_ch);
-                        i = i.saturating_add(1);
-                    } else {
-                        break;
-                    }
-                }
-                parts.push(format_string_summary(&text));
-                continue;
-            }
-            parts.push(self.describe_token(tok));
-            i = i.saturating_add(1);
-        }
-        parts.join(", ")
+        format_tokens_comment_with(&self.token_labels, tokens)
     }
 
-    fn append_raw_node(&mut self, tokens: Vec<DcShorthand>) -> Result<u128> {
-        let next_id = SYSTEM_REGION_START
-            .saturating_add(u128::try_from(self.nodes.len())?);
-        ensure!(
-            next_id <= SYSTEM_REGION_END,
-            "System graph region exhausted at node ID l{next_id}"
-        );
+    fn append_raw_node_with_policy(
+        &mut self,
+        tokens: Vec<DcShorthand>,
+        policy: DuplicatePolicy<'_>,
+        label: &str,
+    ) -> Result<u128> {
         let comment = self.format_tokens_comment(&tokens);
-        self.nodes.push(LedgerNode {
-            id: next_id,
+        let next_id = self.write_state.validate_and_append_node(
             tokens,
-            comment: comment.clone(),
-        });
+            comment.clone(),
+            NodeProvenance::Csv,
+            None,
+            None,
+            policy,
+            label,
+        )?;
         self.token_labels
             .insert(DcShorthand::Long(next_id), comment);
         self.appended_count = self.appended_count.saturating_add(1);
@@ -1243,7 +1185,63 @@ impl LedgerBuilder {
         subj: DcShorthand,
         obj: DcShorthand,
     ) -> Result<u128> {
-        self.append_raw_node(encode_statement_tokens(verb, subj, obj))
+        let policy = if (verb == sh(DC_HAS_A) && obj != sh(DC_PREFERRED))
+            || (verb == sh(DC_IS_INSTANCE_OF)
+                && subj == sh(DC_ENCLOSING_DOCUMENT))
+        {
+            DuplicatePolicy::AllowDistinctInstance
+        } else {
+            DuplicatePolicy::ForbidActiveDuplicate
+        };
+        self.append_raw_node_with_policy(
+            encode_statement_tokens(verb, subj, obj),
+            policy,
+            "statement",
+        )
+    }
+
+    fn try_unretract_statement_node(
+        &mut self,
+        verb: DcShorthand,
+        subj: DcShorthand,
+        obj: DcShorthand,
+    ) -> Result<Option<u128>> {
+        let tokens = encode_statement_tokens(verb, subj, obj);
+        let token_labels = &self.token_labels;
+        let Some((reactivated_id, _)) =
+            self.write_state.try_unretract_matching_node(
+                &tokens,
+                NodeProvenance::Csv,
+                &|toks| format_tokens_comment_with(token_labels, toks),
+            )?
+        else {
+            return Ok(None);
+        };
+        self.appended_count = self.appended_count.saturating_add(1);
+        self.retracted_count = self.retracted_count.saturating_add(1);
+        Ok(Some(reactivated_id))
+    }
+
+    fn try_unretract_property_pair(
+        &mut self,
+        subj: DcShorthand,
+        prop: DcShorthand,
+        val_tok: DcShorthand,
+    ) -> Result<Option<(u128, u128)>> {
+        let token_labels = &self.token_labels;
+        let Some(pair) = self.write_state.try_unretract_property_pair(
+            subj,
+            prop,
+            val_tok,
+            NodeProvenance::Csv,
+            &|toks| format_tokens_comment_with(token_labels, toks),
+        )?
+        else {
+            return Ok(None);
+        };
+        self.appended_count = self.appended_count.saturating_add(2);
+        self.retracted_count = self.retracted_count.saturating_add(2);
+        Ok(Some(pair))
     }
 
     fn get_or_insert_value_node(
@@ -1257,10 +1255,36 @@ impl LedgerBuilder {
                 .or_insert(summary_label);
             return Ok(existing_id);
         }
-        let id = self.append_raw_node(tokens.clone())?;
-        self.value_node_by_tokens.insert(tokens, id);
+        let token_labels = &self.token_labels;
+        if let Some((reactivated_id, _)) =
+            self.write_state.try_unretract_matching_node(
+                &tokens,
+                NodeProvenance::Csv,
+                &|toks| format_tokens_comment_with(token_labels, toks),
+            )?
+        {
+            self.appended_count = self.appended_count.saturating_add(1);
+            self.retracted_count = self.retracted_count.saturating_add(1);
+            self.value_node_by_tokens
+                .insert(tokens.clone(), reactivated_id);
+            self.token_labels
+                .insert(DcShorthand::Long(reactivated_id), summary_label);
+            if let Some(decoded_str) = decode_string_value_tokens(&tokens) {
+                self.string_by_node_id.insert(reactivated_id, decoded_str);
+            }
+            return Ok(reactivated_id);
+        }
+        let id = self.append_raw_node_with_policy(
+            tokens.clone(),
+            DuplicatePolicy::ForbidActiveDuplicate,
+            "value node",
+        )?;
+        self.value_node_by_tokens.insert(tokens.clone(), id);
         self.token_labels
             .insert(DcShorthand::Long(id), summary_label);
+        if let Some(decoded_str) = decode_string_value_tokens(&tokens) {
+            self.string_by_node_id.insert(id, decoded_str);
+        }
         Ok(id)
     }
 
@@ -2156,13 +2180,20 @@ impl LedgerBuilder {
                     }
                 }
             } else {
-                let has_a_id =
-                    self.append_statement_node(sh(DC_HAS_A), subj, prop)?;
-                let has_val_id = self.append_statement_node(
-                    sh(DC_HAS_VALUE),
-                    DcShorthand::Long(has_a_id),
-                    val_tok,
-                )?;
+                let (has_a_id, has_val_id) = if let Some((ha_id, hv_id)) =
+                    self.try_unretract_property_pair(subj, prop, val_tok)?
+                {
+                    (ha_id, hv_id)
+                } else {
+                    let ha_id =
+                        self.append_statement_node(sh(DC_HAS_A), subj, prop)?;
+                    let hv_id = self.append_statement_node(
+                        sh(DC_HAS_VALUE),
+                        DcShorthand::Long(ha_id),
+                        val_tok,
+                    )?;
+                    (ha_id, hv_id)
+                };
                 self.active_single_props
                     .insert((subj, prop), (has_a_id, has_val_id, val_tok));
             }
@@ -2471,15 +2502,22 @@ impl LedgerBuilder {
                 }
             }
 
-            // Append any leftover unpaired added values
+            // Append or un-retract any leftover unpaired added values
             for (new_val_tok, _) in added {
-                let has_a_id =
-                    self.append_statement_node(sh(DC_HAS_A), subj, prop)?;
-                let has_val_id = self.append_statement_node(
-                    sh(DC_HAS_VALUE),
-                    DcShorthand::Long(has_a_id),
-                    new_val_tok,
-                )?;
+                let (has_a_id, has_val_id) = if let Some((ha_id, hv_id)) =
+                    self.try_unretract_property_pair(subj, prop, new_val_tok)?
+                {
+                    (ha_id, hv_id)
+                } else {
+                    let ha_id =
+                        self.append_statement_node(sh(DC_HAS_A), subj, prop)?;
+                    let hv_id = self.append_statement_node(
+                        sh(DC_HAS_VALUE),
+                        DcShorthand::Long(ha_id),
+                        new_val_tok,
+                    )?;
+                    (ha_id, hv_id)
+                };
                 self.active_multi_props
                     .insert((subj, prop, new_val_tok), (has_a_id, has_val_id));
             }
@@ -2513,11 +2551,20 @@ impl LedgerBuilder {
                 if let Some(&(has_a_id, _)) =
                     self.active_multi_props.get(&(subj, prop, val_tok))
                 {
-                    let pref_id = self.append_statement_node(
-                        sh(DC_HAS_A),
-                        DcShorthand::Long(has_a_id),
-                        sh(DC_PREFERRED),
-                    )?;
+                    let pref_id = if let Some(id) = self
+                        .try_unretract_statement_node(
+                            sh(DC_HAS_A),
+                            DcShorthand::Long(has_a_id),
+                            sh(DC_PREFERRED),
+                        )? {
+                        id
+                    } else {
+                        self.append_statement_node(
+                            sh(DC_HAS_A),
+                            DcShorthand::Long(has_a_id),
+                            sh(DC_PREFERRED),
+                        )?
+                    };
                     self.active_multi_preferred
                         .insert((subj, prop, val_tok), pref_id);
                 }
@@ -2626,16 +2673,26 @@ impl LedgerBuilder {
                     }
                 }
             } else {
-                let has_a_id = self.append_statement_node(
-                    sh(DC_HAS_A),
-                    qual_subj,
-                    qual_prop,
-                )?;
-                let has_val_id = self.append_statement_node(
-                    sh(DC_HAS_VALUE),
-                    DcShorthand::Long(has_a_id),
-                    qual_val_tok,
-                )?;
+                let (has_a_id, has_val_id) = if let Some((ha_id, hv_id)) =
+                    self.try_unretract_property_pair(
+                        qual_subj,
+                        qual_prop,
+                        qual_val_tok,
+                    )? {
+                    (ha_id, hv_id)
+                } else {
+                    let ha_id = self.append_statement_node(
+                        sh(DC_HAS_A),
+                        qual_subj,
+                        qual_prop,
+                    )?;
+                    let hv_id = self.append_statement_node(
+                        sh(DC_HAS_VALUE),
+                        DcShorthand::Long(ha_id),
+                        qual_val_tok,
+                    )?;
+                    (ha_id, hv_id)
+                };
                 self.active_single_props.insert(
                     (qual_subj, qual_prop),
                     (has_a_id, has_val_id, qual_val_tok),
@@ -2699,21 +2756,40 @@ impl LedgerBuilder {
 
         for ((subj, val_tok), _comment) in resolved_preferred {
             if !self.active_preferred.contains_key(&(subj, val_tok)) {
-                let has_a_id = self.append_statement_node(
-                    sh(DC_HAS_A),
-                    subj,
-                    sh(DC_REPLACEMENT),
-                )?;
-                let has_val_id = self.append_statement_node(
-                    sh(DC_HAS_VALUE),
-                    DcShorthand::Long(has_a_id),
-                    val_tok,
-                )?;
-                let pref_id = self.append_statement_node(
-                    sh(DC_HAS_A),
-                    DcShorthand::Long(has_a_id),
-                    sh(DC_PREFERRED),
-                )?;
+                let (has_a_id, has_val_id) = if let Some((ha_id, hv_id)) =
+                    self.try_unretract_property_pair(
+                        subj,
+                        sh(DC_REPLACEMENT),
+                        val_tok,
+                    )? {
+                    (ha_id, hv_id)
+                } else {
+                    let ha_id = self.append_statement_node(
+                        sh(DC_HAS_A),
+                        subj,
+                        sh(DC_REPLACEMENT),
+                    )?;
+                    let hv_id = self.append_statement_node(
+                        sh(DC_HAS_VALUE),
+                        DcShorthand::Long(ha_id),
+                        val_tok,
+                    )?;
+                    (ha_id, hv_id)
+                };
+                let pref_id = if let Some(id) = self
+                    .try_unretract_statement_node(
+                        sh(DC_HAS_A),
+                        DcShorthand::Long(has_a_id),
+                        sh(DC_PREFERRED),
+                    )? {
+                    id
+                } else {
+                    self.append_statement_node(
+                        sh(DC_HAS_A),
+                        DcShorthand::Long(has_a_id),
+                        sh(DC_PREFERRED),
+                    )?
+                };
                 self.active_preferred
                     .insert((subj, val_tok), (has_a_id, has_val_id, pref_id));
             }
@@ -2758,6 +2834,15 @@ impl LedgerBuilder {
                     self.active_direct_stmts.get(&stable_key)
                 {
                     existing_id
+                } else if let Some(reactivated_id) = self
+                    .try_unretract_statement_node(
+                        stable_key.0,
+                        stable_key.1,
+                        stable_key.2,
+                    )?
+                {
+                    self.active_direct_stmts.insert(stable_key, reactivated_id);
+                    reactivated_id
                 } else {
                     let new_id = self.append_statement_node(
                         stable_key.0,
@@ -2854,8 +2939,13 @@ impl LedgerBuilder {
                         .insert((verb, subj, obj_tok), new_stmt_id);
                 }
             } else {
-                let stmt_id =
-                    self.append_statement_node(verb, subj, obj_tok)?;
+                let stmt_id = if let Some(id) =
+                    self.try_unretract_statement_node(verb, subj, obj_tok)?
+                {
+                    id
+                } else {
+                    self.append_statement_node(verb, subj, obj_tok)?
+                };
                 self.active_direct_stmts
                     .insert((verb, subj, obj_tok), stmt_id);
             }
@@ -2871,21 +2961,22 @@ impl LedgerBuilder {
     }
 
     fn tag_untagged_csv_nodes(&mut self) -> Result<()> {
-        let start_idx = if self.had_initial_in_graph_provenance {
-            self.initial_node_count
+        let start_idx = if self.write_state.had_initial_in_graph_provenance {
+            self.write_state.initial_node_count
         } else {
             0
         };
-        // Reason for fallback: start_idx is either 0 or self.initial_node_count (which never exceeds self.nodes.len() because nodes are append-only).
+        // Reason for fallback: start_idx is either 0 or initial_node_count (which never exceeds write_state.nodes.len() because nodes are append-only).
         let untagged_csv_nodes: Vec<DcShorthand> = self
+            .write_state
             .nodes
             .get(start_idx..)
             .unwrap_or_default()
             .iter()
             .filter(|n| {
-                !self.provenance_stmt_ids.contains(&n.id)
+                !self.write_state.provenance_stmt_ids.contains(&n.id)
                     && !self.is_manual_node(n.id)
-                    && self.node_data_source.get(&n.id)
+                    && self.write_state.node_data_source.get(&n.id)
                         != Some(&sh(DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE))
             })
             .map(|n| DcShorthand::Long(n.id))
@@ -2899,20 +2990,21 @@ impl LedgerBuilder {
                 sh(DC_TYPE_ATOM_DC),
                 &untagged_csv_nodes,
             );
-            let for_each_id = self.append_raw_node(for_each_tokens)?;
+            let for_each_id = self.append_raw_node_with_policy(
+                for_each_tokens,
+                DuplicatePolicy::ForbidActiveDuplicate,
+                "provenance for_each",
+            )?;
             let has_val_id = self.append_statement_node(
                 sh(DC_HAS_VALUE),
                 DcShorthand::Long(for_each_id),
                 sh(DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE),
             )?;
-            self.provenance_stmt_ids.insert(for_each_id);
-            self.provenance_stmt_ids.insert(has_val_id);
+            self.write_state.mark_csv_provenance_stmt(for_each_id);
+            self.write_state.mark_csv_provenance_stmt(has_val_id);
             for tok in untagged_csv_nodes {
                 if let DcShorthand::Long(nid) = tok {
-                    self.node_data_source.insert(
-                        nid,
-                        sh(DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE),
-                    );
+                    self.write_state.mark_in_graph_csv_source(nid);
                 }
             }
         }
@@ -3969,13 +4061,13 @@ pub fn update_ledger_in_memory_with_provenance(
     )?;
     builder.apply_desired_state(desired)?;
     let stats = LedgerUpdateStats {
-        total_nodes: builder.nodes.len(),
+        total_nodes: builder.write_state.nodes.len(),
         nodes_appended: builder.appended_count,
         nodes_superseded: builder.superseded_count,
         nodes_retracted: builder.retracted_count,
         files_written: 0,
     };
-    Ok((builder.nodes, stats))
+    Ok((builder.write_state.nodes, stats))
 }
 
 pub(crate) fn allocate_stagel_entities_in_memory(
@@ -3994,7 +4086,7 @@ pub(crate) fn allocate_stagel_entities_in_memory(
         NodeProvenanceMap::default(),
     );
     let ids = builder.allocate_entity_nodes(specs)?;
-    Ok((builder.nodes, ids))
+    Ok((builder.write_state.nodes, ids))
 }
 
 pub(crate) fn allocate_stagel_entities_in_repo(
@@ -4076,13 +4168,13 @@ pub(crate) fn update_ledger_in_memory_with_extra_state(
     extra_fn(&mut desired)?;
     builder.apply_desired_state(desired)?;
     let stats = LedgerUpdateStats {
-        total_nodes: builder.nodes.len(),
+        total_nodes: builder.write_state.nodes.len(),
         nodes_appended: builder.appended_count,
         nodes_superseded: builder.superseded_count,
         nodes_retracted: builder.retracted_count,
         files_written: 0,
     };
-    Ok((builder.nodes, stats))
+    Ok((builder.write_state.nodes, stats))
 }
 
 fn plan_csv_reconciliation_items_for_repo(
@@ -4377,6 +4469,7 @@ mod tests {
     use super::*;
     use crate::dc::DC_WILDCARD_PATTERN;
     use crate::shared::{BidiClass, GeneralCategory};
+    use ctb_storage_minimal::global_graph_layout::SYSTEM_REGION_START;
 
     fn sample_dc_defn(short_id: usize, name: &str, desc: &str) -> DcDefn {
         DcDefn {
@@ -5826,14 +5919,277 @@ mod tests {
             DcShorthand::Short(261),
         ];
 
-        let index =
-            crate::seed_graph::SeedGraphIndex::from_nodes(builder.nodes);
+        let index = crate::seed_graph::SeedGraphIndex::from_nodes(
+            builder.write_state.nodes,
+        );
         let expanded = index.expand_interned_string_nodes(&interned_compound);
         assert_eq!(expanded, compound);
         assert_eq!(
             index.expand_interned_string_nodes(&legacy_ident_with_atom),
             expected_legacy
         );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_csv_reconciliation_cancels_retraction_and_guards_ownership_and_supersession()
+    -> Result<()> {
+        let mut defn =
+            sample_dc_defn(900, "Test character", "Description text");
+        let scripts = BTreeSet::from([".Semantic".to_string()]);
+
+        let (nodes1, _) = update_ledger_in_memory(
+            Vec::new(),
+            std::slice::from_ref(&defn),
+            &[],
+            &scripts,
+            None,
+        )?;
+
+        // 1. Retract `@implies(571)` (direct `587`) and informal alias (`576` `Has a` + `Has value`),
+        // then remove and re-add them -> must cancel prior `Dc 592` retractions rather than duplicating!
+        let orig_implies_id = nodes1
+            .iter()
+            .find(|n| {
+                n.tokens
+                    == encode_statement_tokens(
+                        sh(DC_IS_SUBTYPE_OF),
+                        DcShorthand::Short(900),
+                        DcShorthand::Short(571),
+                    )
+            })
+            .context("Expected original 587 statement")?
+            .id;
+        let orig_alias_has_a_id = nodes1
+            .iter()
+            .find(|n| {
+                n.tokens
+                    == encode_statement_tokens(
+                        sh(DC_HAS_A),
+                        DcShorthand::Short(900),
+                        sh(DC_INFORMAL_ALIAS),
+                    )
+            })
+            .context("Expected original alias Has a statement")?
+            .id;
+        let orig_alias_val_str_id = nodes1
+            .iter()
+            .find(|n| n.tokens == encode_string_value_tokens("test-alias"))
+            .context("Expected alias string node")?
+            .id;
+
+        let mut defn_removed = defn.clone();
+        defn_removed.implies.clear();
+        defn_removed.aliases.clear();
+        let (nodes2, stats2) = update_ledger_in_memory(
+            nodes1,
+            &[defn_removed],
+            &[],
+            &scripts,
+            None,
+        )?;
+        assert_eq!(stats2.nodes_retracted, 3);
+
+        let idx2 = crate::seed_graph::SeedGraphIndex::from_nodes(nodes2.clone());
+        let retract_implies_id = idx2
+            .retracted_by(orig_implies_id)
+            .context("Expected orig_implies to be retracted")?;
+        let retract_alias_has_a_id = idx2
+            .retracted_by(orig_alias_has_a_id)
+            .context("Expected alias Has a to be retracted")?;
+
+        // Re-assert both `@implies(571)` and `"test-alias"`:
+        let (nodes3, stats3) = update_ledger_in_memory(
+            nodes2.clone(),
+            std::slice::from_ref(&defn),
+            &[],
+            &scripts,
+            None,
+        )?;
+        // Must append 3 cancellation `592 615 l<retract_id>` nodes + 2 provenance nodes = 5 (zero duplicate 587/584/610 nodes!)
+        assert_eq!(stats3.nodes_appended, 5);
+        assert!(nodes3[nodes2.len()..nodes2.len() + 3].iter().all(|n| {
+            n.tokens.first() == Some(&sh(DC_RETRACTS))
+                && n.tokens.get(1) == Some(&sh(DC_ENCLOSING_DOCUMENT))
+        }));
+        assert!(nodes3.iter().any(|n| {
+            n.tokens
+                == encode_statement_tokens(
+                    sh(DC_RETRACTS),
+                    sh(DC_ENCLOSING_DOCUMENT),
+                    DcShorthand::Long(retract_implies_id),
+                )
+        }));
+        assert!(nodes3.iter().any(|n| {
+            n.tokens
+                == encode_statement_tokens(
+                    sh(DC_RETRACTS),
+                    sh(DC_ENCLOSING_DOCUMENT),
+                    DcShorthand::Long(retract_alias_has_a_id),
+                )
+        }));
+        let idx3 = crate::seed_graph::SeedGraphIndex::from_nodes(nodes3.clone());
+        assert!(idx3.has_direct_statement(
+            sh(DC_IS_SUBTYPE_OF),
+            DcShorthand::Short(900),
+            DcShorthand::Short(571),
+        ));
+        assert!(idx3.is_node_active(orig_implies_id));
+        assert!(idx3.is_node_active(orig_alias_has_a_id));
+        assert_eq!(
+            idx3.get_multi_properties(
+                DcShorthand::Short(900),
+                sh(DC_INFORMAL_ALIAS),
+            )
+            .len(),
+            1
+        );
+        assert_eq!(
+            idx3.get_multi_properties(
+                DcShorthand::Short(900),
+                sh(DC_INFORMAL_ALIAS),
+            )[0]
+                .value,
+            DcShorthand::Long(orig_alias_val_str_id)
+        );
+        // Subsequent reconciliation must be an exact idempotent no-op!
+        let (nodes4, stats4) = update_ledger_in_memory(
+            nodes3.clone(),
+            std::slice::from_ref(&defn),
+            &[],
+            &scripts,
+            None,
+        )?;
+        assert_eq!(stats4.nodes_appended, 0);
+        assert_eq!(nodes4, nodes3);
+
+        // 2. Retracted value node (`592 615 l<val_id>`) via CSV is un-retracted when needed again;
+        // retracted via Manual is NEVER auto-cancelled by CSV reconciliation; superseded (`591`) is NOT un-retracted!
+        let (mut base_nodes, _) = update_ledger_in_memory(
+            Vec::new(),
+            &[],
+            &[],
+            &scripts,
+            None,
+        )?;
+        let manual_val_tokens = encode_string_value_tokens("manual-retractable-val");
+        let manual_val_id = SYSTEM_REGION_START + u128::try_from(base_nodes.len())?;
+        base_nodes.push(LedgerNode {
+            id: manual_val_id,
+            tokens: manual_val_tokens.clone(),
+            comment: "\"manual-retractable-val\"".to_string(),
+        });
+        let manual_ret_id = manual_val_id + 1;
+        base_nodes.push(LedgerNode {
+            id: manual_ret_id,
+            tokens: encode_statement_tokens(
+                sh(DC_RETRACTS),
+                sh(DC_ENCLOSING_DOCUMENT),
+                DcShorthand::Long(manual_val_id),
+            ),
+            comment: "Manual retract".to_string(),
+        });
+        let mut prov_map = NodeProvenanceMap::default();
+        prov_map.insert(NodeProvenanceEntry {
+            node_id: manual_val_id,
+            provenance: NodeProvenance::Manual,
+            rationale: Some("Manual value".to_string()),
+            allocated_file: None,
+        });
+        prov_map.insert(NodeProvenanceEntry {
+            node_id: manual_ret_id,
+            provenance: NodeProvenance::Manual,
+            rationale: Some("Manual withdrawal".to_string()),
+            allocated_file: None,
+        });
+        let mut ws = SystemGraphWriteState::from_nodes_and_provenance(
+            &base_nodes,
+            prov_map,
+        );
+        // CSV must NOT cancel the Manual retraction!
+        assert!(
+            ws.try_unretract_matching_node(
+                &manual_val_tokens,
+                NodeProvenance::Csv,
+                &|_| "cancel".to_string(),
+            )?
+            .is_none()
+        );
+        // Manual actor CAN cancel the Manual retraction!
+        let res = ws.try_unretract_matching_node(
+            &manual_val_tokens,
+            NodeProvenance::Manual,
+            &|_| "cancel".to_string(),
+        )?;
+        assert_eq!(res, Some((manual_val_id, manual_ret_id)));
+        assert!(!ws.inactive_ids.contains(&manual_val_id));
+
+        // Fresh CSV value node: retract as CSV -> CSV actor CAN un-retract it, preserving its ID.
+        let csv_val_tokens = encode_string_value_tokens("csv-retractable-val");
+        let csv_val_id = ws.validate_and_append_node(
+            csv_val_tokens.clone(),
+            "\"csv-retractable-val\"".to_string(),
+            NodeProvenance::Csv,
+            None,
+            None,
+            DuplicatePolicy::ForbidActiveDuplicate,
+            "test",
+        )?;
+        let csv_ret_id = ws.validate_and_append_node(
+            encode_statement_tokens(
+                sh(DC_RETRACTS),
+                sh(DC_ENCLOSING_DOCUMENT),
+                DcShorthand::Long(csv_val_id),
+            ),
+            "CSV retract".to_string(),
+            NodeProvenance::Csv,
+            None,
+            None,
+            DuplicatePolicy::AllowDistinctInstance,
+            "test",
+        )?;
+        assert_eq!(
+            ws.try_unretract_matching_node(
+                &csv_val_tokens,
+                NodeProvenance::Csv,
+                &|_| "cancel".to_string(),
+            )?,
+            Some((csv_val_id, csv_ret_id))
+        );
+        assert!(!ws.inactive_ids.contains(&csv_val_id));
+
+        // Superseded node (`591`) must never be returned by `try_unretract_matching_node`.
+        let sup_new_id = ws.validate_and_append_node(
+            encode_string_value_tokens("replacement-val"),
+            "\"replacement-val\"".to_string(),
+            NodeProvenance::Csv,
+            None,
+            None,
+            DuplicatePolicy::ForbidActiveDuplicate,
+            "test",
+        )?;
+        let _ = ws.validate_and_append_node(
+            encode_statement_tokens(
+                sh(DC_SUPERSEDES),
+                DcShorthand::Long(sup_new_id),
+                DcShorthand::Long(csv_val_id),
+            ),
+            "Supersedes".to_string(),
+            NodeProvenance::Csv,
+            None,
+            None,
+            DuplicatePolicy::AllowDistinctInstance,
+            "test",
+        )?;
+        assert!(
+            ws.try_unretract_matching_node(
+                &csv_val_tokens,
+                NodeProvenance::Csv,
+                &|_| "cancel".to_string(),
+            )?
+            .is_none()
+        );
+        let _ = &defn.name;
         Ok(())
     }
 }

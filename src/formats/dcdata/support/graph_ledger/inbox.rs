@@ -28,21 +28,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use super::{
-    DC_ENCLOSING_DOCUMENT, DC_HAS_A, DC_HAS_VALUE, DC_PREFERRED, DC_RETRACTS,
-    DC_SUPERSEDES, DcShorthand, LedgerNode, SYSTEM_REGION_END,
-    SYSTEM_REGION_START, default_ctbnbdl_framing_dcs, parse_statement_tokens,
-    sh,
-};
+use super::write_state::{DuplicatePolicy, SystemGraphWriteState};
+use super::{DcShorthand, LedgerNode, sh};
 use crate::ctbnbdl::{
     DurableTransactionOutcome, FaultInjectionPoint, JournalRecord,
     LEDGER_JOURNAL_REL_PATH, LedgerReadGuard, PlannedLedgerItem,
     chunk_filename_for_node_id, ensure_ledger_journal_clean,
     execute_durable_ledger_transaction_with_planner, inspect_ledger_journal,
-    is_relationship_verb_with, load_ledger_nodes_from_dir, sha256_bytes_hex,
-};
-use crate::seed_graph::{
-    compute_effective_inactive_ids, parse_ambiguous_values_tokens,
+    load_ledger_nodes_from_dir, sha256_bytes_hex,
 };
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
@@ -493,309 +486,33 @@ pub fn prevalidate_and_plan_inbox_items(
     provenance_map: &NodeProvenanceMap,
     inbox_files: &[(String, String, String)],
 ) -> Result<Vec<PlannedLedgerItem>> {
-    let framing = default_ctbnbdl_framing_dcs();
-    let sh_supersedes = sh(DC_SUPERSEDES);
-    let sh_retracts = sh(DC_RETRACTS);
-    let sh_has_a = sh(DC_HAS_A);
-    let sh_has_value = sh(DC_HAS_VALUE);
-    let sh_preferred = sh(DC_PREFERRED);
-    let sh_enclosing_doc = sh(DC_ENCLOSING_DOCUMENT);
-
-    let mut working_nodes: Vec<LedgerNode> = existing_nodes.to_vec();
-    let mut node_by_id: HashMap<u128, LedgerNode> =
-        working_nodes.iter().map(|n| (n.id, n.clone())).collect();
-    let mut working_prov = provenance_map.clone();
+    let mut write_state = SystemGraphWriteState::from_nodes_and_provenance(
+        existing_nodes,
+        provenance_map.clone(),
+    );
     let mut planned_items: Vec<PlannedLedgerItem> =
         Vec::with_capacity(inbox_files.len());
 
-    // Compute initial effective inactive state once, then update incrementally as only
-    // 591/592 statements or new nodes are appended!
-    let (mut inactive_ids, mut superseded_by, _retracted_by) =
-        compute_effective_inactive_ids(&working_nodes);
-    let mut active_nodes_by_tokens: HashMap<Vec<DcShorthand>, Vec<u128>> =
-        HashMap::with_capacity(working_nodes.len());
-    for n in &working_nodes {
-        if !inactive_ids.contains(&n.id) {
-            if let Some((verb, _, _)) = parse_statement_tokens(&n.tokens)
-                && (verb == sh_supersedes || verb == sh_retracts)
-            {
-                continue;
-            }
-            active_nodes_by_tokens
-                .entry(n.tokens.clone())
-                .or_default()
-                .push(n.id);
-        }
-    }
-
     for (inbox_name, inbox_sha256, content) in inbox_files {
         let parsed = parse_ctbnode_incoming_file(content, inbox_name)?;
-        let next_id = SYSTEM_REGION_START
-            .saturating_add(u128::try_from(working_nodes.len())?);
-        ensure!(
-            next_id <= SYSTEM_REGION_END,
-            "{inbox_name}: system graph region exhausted at l{next_id}"
-        );
-
-        // 1. Validate that all Long(ref_id) references are strictly `< next_id` and exist.
-        for &tok in &parsed.tokens {
-            if let DcShorthand::Long(ref_id) = tok {
-                ensure!(
-                    ref_id < next_id && node_by_id.contains_key(&ref_id),
-                    "{inbox_name} (l{next_id}): invalid self or forward reference to non-existent node l{ref_id}"
-                );
-            }
-        }
-
-        // 2. Validate Dc 348 "Ambiguous values" syntax or relationship statement syntax.
-        let mut is_revision_stmt = false;
-        if parsed.tokens.first() == Some(&DcShorthand::Short(348)) {
-            let Some(cands) = parse_ambiguous_values_tokens(&parsed.tokens)
-            else {
-                bail!(
-                    "{inbox_name} (l{next_id}): malformed Dc 348 'Ambiguous values' syntax; expected '348 310 275 l<cand_1> 312 l<cand_2> ... 311'"
-                );
-            };
-            let mut unique_cands = HashSet::with_capacity(cands.len());
-            for cand_id in cands {
-                ensure!(
-                    cand_id < next_id && node_by_id.contains_key(&cand_id),
-                    "{inbox_name} (l{next_id}): Dc 348 candidate l{cand_id} does not exist"
-                );
-                ensure!(
-                    unique_cands.insert(cand_id),
-                    "{inbox_name} (l{next_id}): duplicate candidate l{cand_id} in Dc 348 list"
-                );
-            }
-        } else if parsed.tokens.first()
-            == Some(&sh(crate::dc::DC_DISTRIBUTE_STATEMENT_OVER_EACH))
-        {
-            let Some((inner_verb, _, _, _, elements)) =
-                super::parse_for_each_statement_tokens(&parsed.tokens)
-            else {
-                bail!(
-                    "{inbox_name} (l{next_id}): malformed Dc 638 'Distribute statement over each element' statement syntax"
-                );
-            };
-            ensure!(
-                is_relationship_verb_with(inner_verb, framing),
-                "{inbox_name} (l{next_id}): Dc 638 'Distribute statement over each element' inner verb {inner_verb} is not a relationship verb"
-            );
-            ensure!(
-                !elements.is_empty(),
-                "{inbox_name} (l{next_id}): Dc 638 'Distribute statement over each element' list cannot be empty"
-            );
-        } else if let Some(&first_tok) = parsed.tokens.first()
-            && is_relationship_verb_with(first_tok, framing)
-        {
-            let Some((verb, subj, obj)) =
-                parse_statement_tokens(&parsed.tokens)
-            else {
-                bail!(
-                    "{inbox_name} (l{next_id}): malformed relationship statement starting with {first_tok}"
-                );
-            };
-
-            if verb == sh_supersedes {
-                is_revision_stmt = true;
-                let (DcShorthand::Long(new_id), DcShorthand::Long(old_id)) =
-                    (subj, obj)
-                else {
-                    bail!(
-                        "{inbox_name} (l{next_id}): Dc 591 'Supersedes' requires Long node IDs '591 l<new_id> l<old_id>'"
-                    );
-                };
-                ensure!(
-                    new_id != old_id,
-                    "{inbox_name} (l{next_id}): self-supersession '591 l{new_id} l{old_id}' is forbidden"
-                );
-                ensure!(
-                    !inactive_ids.contains(&old_id),
-                    "{inbox_name} (l{next_id}): cannot supersede l{old_id} because it is already superseded or retracted"
-                );
-                ensure!(
-                    !inactive_ids.contains(&new_id),
-                    "{inbox_name} (l{next_id}): replacement node l{new_id} is already inactive"
-                );
-                let mut cur = new_id;
-                while let Some(&next_sup) = superseded_by.get(&cur) {
-                    ensure!(
-                        next_sup != old_id,
-                        "{inbox_name} (l{next_id}): supersession cycle detected between l{new_id} and l{old_id}"
-                    );
-                    cur = next_sup;
-                }
-                ensure!(
-                    working_prov.owner(old_id) == parsed.provenance,
-                    "{inbox_name} (l{next_id}): cross-ownership violation: {:?} node cannot supersede {:?}-owned node l{old_id}",
-                    parsed.provenance,
-                    working_prov.owner(old_id)
-                );
-            } else if verb == sh_retracts {
-                is_revision_stmt = true;
-                let DcShorthand::Long(old_id) = obj else {
-                    bail!(
-                        "{inbox_name} (l{next_id}): Dc 592 'Retracts' object must be a Long node ID 'l<old_id>'"
-                    );
-                };
-                ensure!(
-                    subj == sh_enclosing_doc,
-                    "{inbox_name} (l{next_id}): Dc 592 'Retracts' subject must be EnclosingDocument ({sh_enclosing_doc})"
-                );
-                ensure!(
-                    !inactive_ids.contains(&old_id),
-                    "{inbox_name} (l{next_id}): cannot retract l{old_id} because it is already superseded or retracted"
-                );
-                ensure!(
-                    working_prov.owner(old_id) == parsed.provenance,
-                    "{inbox_name} (l{next_id}): cross-ownership violation: {:?} node cannot retract {:?}-owned node l{old_id}",
-                    parsed.provenance,
-                    working_prov.owner(old_id)
-                );
-            } else if verb == sh_has_value
-                || (verb == sh_has_a && obj == sh_preferred)
-            {
-                let DcShorthand::Long(has_a_id) = subj else {
-                    bail!(
-                        "{inbox_name} (l{next_id}): {verb} subject must be a Long 'Has a' statement ID 'l<has_a_id>'"
-                    );
-                };
-                let Some(target_node) = node_by_id.get(&has_a_id) else {
-                    bail!(
-                        "{inbox_name} (l{next_id}): target 'Has a' node l{has_a_id} does not exist"
-                    );
-                };
-                let check_node_is_has_a = |n: &LedgerNode| -> bool {
-                    parse_statement_tokens(&n.tokens).is_some_and(
-                        |(v, _, o)| v == sh_has_a && o != sh_preferred,
-                    ) || super::parse_for_each_statement_tokens(&n.tokens)
-                        .is_some_and(|(v, _, o, _, _)| {
-                            v == sh_has_a && o != sh_preferred
-                        })
-                };
-                let mut is_has_a = check_node_is_has_a(target_node);
-                if !is_has_a {
-                    // If `has_a_id` has been superseded by a Dc 348 "Ambiguous values" node,
-                    // accept if any candidate of that ambiguity node is a property `Has a` statement.
-                    let mut cur = has_a_id;
-                    while let Some(&next_sup) = superseded_by.get(&cur) {
-                        cur = next_sup;
-                    }
-                    if let Some(eff_node) = node_by_id.get(&cur)
-                        && let Some(cands) =
-                            parse_ambiguous_values_tokens(&eff_node.tokens)
-                    {
-                        is_has_a = cands.iter().any(|cand_id| {
-                            node_by_id
-                                .get(cand_id)
-                                .is_some_and(check_node_is_has_a)
-                        });
-                    }
-                }
-                ensure!(
-                    is_has_a,
-                    "{inbox_name} (l{next_id}): target l{has_a_id} is not a property 'Has a' statement"
-                );
-                ensure!(
-                    working_prov.owner(has_a_id) == parsed.provenance,
-                    "{inbox_name} (l{next_id}): cross-ownership violation: {:?} qualifier/value cannot attach to {:?}-owned 'Has a' node l{has_a_id}",
-                    parsed.provenance,
-                    working_prov.owner(has_a_id)
-                );
-            }
-        }
-
-        // 3. Validate `# @allow-duplicate-of` against currently active nodes with identical tokens.
-        if is_revision_stmt {
-            ensure!(
-                parsed.allow_duplicate_of.is_empty(),
-                "{inbox_name} (l{next_id}): revision statements (591/592) must not specify # @allow-duplicate-of"
-            );
-        } else {
-            // Reason for fallback: token sequences with no existing active nodes have zero active duplicates.
-            let mut active_matches = active_nodes_by_tokens
-                .get(&parsed.tokens)
-                .cloned()
-                .unwrap_or_default();
-            active_matches.retain(|id| !inactive_ids.contains(id));
-            active_matches.sort_unstable();
-            ensure!(
-                parsed.allow_duplicate_of == active_matches,
-                "{inbox_name} (l{next_id}): active duplicate mismatch for token body {:?}: expected # @allow-duplicate-of: {:?}, found {:?}",
-                parsed.tokens,
-                active_matches,
-                parsed.allow_duplicate_of
-            );
-        }
-
-        // Reason for fallback: .dcsh files without an explicit '# @comment:' header or inline comment emit an uncommented .ctbnodes line.
+        // Reason for fallback: .dcsh/.ctbnode-incoming files without '# @comment:' or inline comment emit an uncommented .ctbnodes line.
         let comment = parsed.comment.unwrap_or_default();
-        let new_node = LedgerNode {
-            id: next_id,
-            tokens: parsed.tokens.clone(),
-            comment: comment.clone(),
-        };
-        let raw_line = new_node.format_line();
+        let predicted_id = write_state.next_node_id(inbox_name)?;
+        let allocated_name = format!("{predicted_id}_{inbox_name}");
+        let next_id = write_state.validate_and_append_node(
+            parsed.tokens,
+            comment,
+            parsed.provenance,
+            parsed.rationale.clone(),
+            Some(allocated_name.clone()),
+            DuplicatePolicy::RequireAllowDuplicateOf(&parsed.allow_duplicate_of),
+            inbox_name,
+        )?;
+        let raw_line = write_state
+            .get_node(next_id)
+            .context("Newly appended inbox node missing from write_state")?
+            .format_line();
         let target_chunk = chunk_filename_for_node_id(next_id);
-        let allocated_name = format!("{next_id}_{inbox_name}");
-
-        working_nodes.push(new_node.clone());
-        node_by_id.insert(next_id, new_node);
-        working_prov.insert(NodeProvenanceEntry {
-            node_id: next_id,
-            provenance: parsed.provenance,
-            rationale: parsed.rationale.clone(),
-            allocated_file: Some(allocated_name.clone()),
-        });
-
-        if is_revision_stmt {
-            // Check if this 591/592 statement targets an earlier 591/592 revision statement
-            // (revision cancellation!) or an ordinary node.
-            if let Some((verb, subj, DcShorthand::Long(old_id))) =
-                parse_statement_tokens(&parsed.tokens)
-            {
-                let old_was_revision = node_by_id
-                    .get(&old_id)
-                    .and_then(|n| parse_statement_tokens(&n.tokens))
-                    .is_some_and(|(v, _, _)| {
-                        v == sh_supersedes || v == sh_retracts
-                    });
-                if old_was_revision {
-                    // Full recompute when a revision statement itself is cancelled so its target is reactivated!
-                    let (re_inactive, re_sup, _) =
-                        compute_effective_inactive_ids(&working_nodes);
-                    inactive_ids = re_inactive;
-                    superseded_by = re_sup;
-                    active_nodes_by_tokens.clear();
-                    for n in &working_nodes {
-                        if !inactive_ids.contains(&n.id) {
-                            if let Some((v, _, _)) =
-                                parse_statement_tokens(&n.tokens)
-                                && (v == sh_supersedes || v == sh_retracts)
-                            {
-                                continue;
-                            }
-                            active_nodes_by_tokens
-                                .entry(n.tokens.clone())
-                                .or_default()
-                                .push(n.id);
-                        }
-                    }
-                } else {
-                    inactive_ids.insert(old_id);
-                    if verb == sh_supersedes
-                        && let DcShorthand::Long(new_id) = subj
-                    {
-                        superseded_by.insert(old_id, new_id);
-                    }
-                }
-            }
-        } else {
-            active_nodes_by_tokens
-                .entry(parsed.tokens)
-                .or_default()
-                .push(next_id);
-        }
 
         planned_items.push(PlannedLedgerItem {
             node_id: next_id,
@@ -920,6 +637,10 @@ pub fn process_inbox_nodes_with_fault(
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
+    use super::super::{
+        DC_HAS_A, DC_HAS_VALUE, DC_PREFERRED, default_ctbnbdl_framing_dcs,
+    };
+    use ctb_storage_minimal::global_graph_layout::SYSTEM_REGION_START;
     use super::*;
     use crate::ctbnbdl::{
         JOURNAL_INITIALIZED_REL_PATH, LedgerWriteGuard, TransactionManifest,
