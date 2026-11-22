@@ -15,7 +15,7 @@
 - **Clippy errors** are important to resolve. **Clippy warnings** have proven impossible to turn off for CLI compilation without breaking their display in rust-analyzer; their output is mostly noise and may be disregarded.
 - **Sub-agents** - if operator has specifically requested that you use sub-agents for a task, **never** report back to operator unless the task is fully and correctly completed. If the sub-agents did not finish the work, identify remaining tasks and create new sub-agents to finish it. Monitor their work periodically (or use a second lightweight agent to) to identify cases where they try to reinvent duplicative code rather than using, extending, or refactoring existing implementations - code must **strictly** be kept DRY.
 - Tests are usually run using cargo. For testing that can't be done on the host, you can use the ci-logs/vm script. Helpful options include "screenshot", "screentext" (screenshot + OCR), and "serve" if you can't read one directly.
-- **CI failures** - Logs are in ci-logs/ folder. Gate completion of requests to resolve CI failures on `./lint --quick` and `./test-quick`. Requests other than for CI/linting fixes can use narrowly scoped tests and linting.
+- **CI failures** - Logs are in ci-logs/ folder. Gate completion of requests to resolve CI failures on `./lint --quick` and `./test-quick`. Requests other than for CI/linting fixes can use narrowly scoped tests and linting. Don't run lints or tests when only Markdown files are changed.
 
 ### Dependencies & `vendor/`
 - **`vendor/ctb-vendored/`**: Auto-updated from crates.io. May be referenced, never edited.
@@ -167,6 +167,9 @@
   - On Linux `x86` and `x86_64`, the application and installer compile to a single statically linked `musl` binary. Minimize host environment assumptions—bundle assets and link statically rather than expecting system libraries or services.
   - Dynamic linking, `dlopen`, and system libraries on Linux are non-options.
   - Using X11/XWayland when Wayland is available is a non-option: a single statically linked `musl` binary that runs natively on Wayland (on Wayland or Wayland+X11 systems) and X11 (on X11-only systems) is the required target.
+- **Terminology notes**
+  - When talking about a compute quota, call it a compute quota, never "fuel" or other confusing metaphors.
+  - Only use the word "projection" (of a Dc document) to refer to the operation of deserializing a Dc document onto Rust structs, or if discussing a slideshow. Do not introduce it as more general terminology for other operations.
 
 ## Task continuity
 
