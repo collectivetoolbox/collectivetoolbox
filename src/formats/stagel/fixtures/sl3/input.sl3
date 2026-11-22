@@ -17,7 +17,7 @@
 : with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 : StageL 3 core fixture (see src/formats/stagel/docs/sl3.md for full specification).
-: Exercises comments, "." / ";" terminators, "}" -> "::", let/set/const, literals, lexical capture, inline anonymous routine calls, and tail calls.
+: Exercises comments, "." / ";" terminators, "}" -> "::", let/set/const, literals, lexical capture, and mutual tail calls.
 
 use std/bytes: explode implode ::.
 use std/math: modStageLInternal truncRem ::.
@@ -106,19 +106,4 @@ v/l/u32/copyList l/u32/items
 
 : nop and empty do blocks return unit of type void.
 v/void/unitChoice b/condition :: if /condition nop do ::.
-
-: Inline anonymous routine calls (Dc 2211..2212 over Dc 2240..2241) and dc/599 self-recursion.
-v/u32/inlineRoutineCall u32/n u32/seed
-    test captures lexical binding and tail recurses via dc 599
-        in u32:4 u32:10
-        out u32:25
-    let u32/acc /seed.
-    v/void u32/delta ::
-        set /acc add /acc /delta.
-    :: u32:5.
-    v/u32 u32/rem u32/cur ::
-        if eq /rem u32:0
-            /cur
-            dc/599 sub /rem u32:1 add /cur /rem.
-    :: /n /acc.
 

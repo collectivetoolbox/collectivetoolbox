@@ -6183,13 +6183,16 @@ pub v/pair_i32/swap_pair pair_i32/inp
         use super::super::wasm_codegen::runner::{
             WasmTestConfig, run_workspace_inline_tests_wasm,
         };
+        use ctb_formats_dcdata::stagel3::ast::StageDialect;
 
-        let src = r#"ns demo/inline_exec.
+        // Parse in StageR 3 (with +8 body / +4 closer indentation), then exercise
+        // Token-Dc `Dc 2211 2240..2241` across StageR 3 formatting and StageL 3 VM/WASM/Rust.
+        let sr3_src = r#"ns demo/inline_exec.
 
 pub v/u32/topSelfLoop u32/rem u32/acc
     if eq /rem u32:0
         /acc
-        dc/599 sub /rem u32:1 wrapAdd /acc u32:2.
+        dc/599 wrapSub /rem u32:1 wrapAdd /acc u32:2.
 
 pub v/u32/exerciseInlineAndSelf u32/seed
     test deep tail calls and mutable capture
@@ -6197,36 +6200,47 @@ pub v/u32/exerciseInlineAndSelf u32/seed
         out u32:60017.
     let u32/captured /seed.
     v/void u32/bump ::
-        set /captured wrapAdd /captured /bump.
-    :: u32:10.
+            set /captured wrapAdd /captured /bump.
+        :: u32:10.
     const v/u32/nestedSelf u32/rem u32/acc
         if eq /rem u32:0
             /acc
-            dc/599 sub /rem u32:1 wrapAdd /acc u32:1.
+            dc/599 wrapSub /rem u32:1 wrapAdd /acc u32:1.
     const u32/a topSelfLoop u32:10000 /captured.
     const u32/b nestedSelf u32:10000 /a.
     v/u32 u32/rem u32/acc ::
-        if eq /rem u32:0
-            /acc
-            dc/599 sub /rem u32:1 wrapAdd /acc u32:3.
-    :: u32:10000 /b.
+            if eq /rem u32:0
+                /acc
+                dc/599 wrapSub /rem u32:1 wrapAdd /acc u32:3.
+        :: u32:10000 /b.
 "#;
-        let inputs = [ModuleInput {
-            source_path: Some("demo/inline_exec.sl3"),
-            source: src,
-        }];
-        let ws = parse_and_validate_workspace(&inputs)
-            .expect("validate inline_exec workspace");
+        let mut parsed_mod =
+            super::super::parser::parse_sr3_module(sr3_src)
+                .expect("parse sr3 inline_exec");
+        let sr3_formatted = super::super::dc_tokens::format_module_to_sr3(
+            &parsed_mod,
+        )
+        .expect("format preserved StageR 3 AST");
+        assert!(
+            !sr3_formatted.contains("$anon"),
+            "StageR 3 AST must preserve InlineCall without leaking $anon: {sr3_formatted}"
+        );
 
-        // Ensure ValidatedModule preserves Expr::InlineCall (no synthetic $anon_ leak into AST).
-        let formatted = super::super::dc_tokens::format_module_to_sl3(
+        // Also verify raw StageL 3 Token-Dc / AST `Expr::InlineCall` execution & `.sl3` desugaring.
+        parsed_mod.dialect = StageDialect::StageL3;
+        let sg = ctb_formats_dcdata::SeedGraphIndex::shared()
+            .expect("shared seed graph");
+        let ws = ctb_formats_dcdata::stagel3::seed_linker::validate_parsed_module_with_seed_graph(
+            &parsed_mod,
+            sg,
+        )
+        .expect("validate StageL 3 AST with InlineCall");
+        let sl3_desugared = super::super::dc_tokens::format_module_to_sl3(
             &ws.modules[0].module,
         )
-        .expect("format preserved AST");
-        assert!(
-            !formatted.contains("$anon"),
-            "ValidatedModule.module must preserve InlineCall without leaking $anon: {formatted}"
-        );
+        .expect("desugar InlineCall to valid .sl3");
+        super::super::parser::parse_module(&sl3_desugared)
+            .expect("desugared .sl3 must parse cleanly without inline anon calls");
 
         // 1. VM with tight call-stack cap (`max_call_depth: 16`) proves tail-call elimination for all three `dc/599` sites.
         let vm = StageLWorkspaceVm::from_validated_workspace(

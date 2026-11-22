@@ -149,6 +149,21 @@ Because `s` (`DcMst`) can contain both encoded Document Characters and encapsula
 - `concat A B` -> `(s, s) -> s` and `(dcs, dcs) -> dcs`.
 - `explode SEP INPUT` and `implode SEP PARTS`: extended to `s` (`(s, s) -> l/s`, `(s, l/s) -> s`) and `dcs` (`(dcs, dcs) -> l/dcs`, `(dcs, l/dcs) -> dcs`) with the same total contract as StageL 3: when `SEP` is empty, `explode` splits `INPUT` into individual single-element slices (`[]` when `INPUT` is also empty); when `SEP` is non-empty, `explode` scans left-to-right without overlap and retains empty pieces so `implode /sep explode /sep /x == /x`. On `s`, both empty-separator splitting and non-empty separator matching respect DcTF character/binary-run boundaries so a split never cuts mid-codepoint or mid-encapsulation header.
 
+### 5.5 Inline Anonymous Routine Calls (`v/RETURN[?] PARAM* :: BODY :: ARG*`)
+- StageR 3 `.sr3` source allows invoking an inline `Dc 2240 "Begin routine"`..`Dc 2241 "End routine"` routine directly inside `Dc 2211 "Begin routine call"`..`Dc 2212 "End routine call"` (`v/RETURN[?] PARAM* :: BODY :: ARG*`; gated out of `.sl3` ASCII source, and lowered by `f1681` to a local named StageL 3 routine; first-class function values remain deferred to EM3).
+- **Continuation indentation rule**: Either the entire `:: BODY ::` stays on the opening `::` line (`const u32/seven v/u32 :: u32:7 ::.`), or—when multi-line—body statements indent **`+8` spaces** relative to the starting indentation of the statement's line and the closing `::` (along with trailing `ARG*`) indents **`+4` spaces**, so every continuation line stays indented past the enclosing block's statement column (see [`fixtures/sr3/input.sr3`](../fixtures/sr3/input.sr3)):
+  ```text
+      let u32/acc /seed.
+      v/void u32/delta ::
+              set /acc wrapAdd /acc /delta.
+          :: u32:5.
+      const u32/total v/result/u32? u32/rem u32/cur ::
+              if eq /rem u32:0
+                  result/u32:ok /cur
+                  dc/599 sub? /rem u32:1 add? /cur /rem.
+          :: /n /acc.
+  ```
+
 ---
 
 ## 6. Streaming Large Files & Graph-Sliced Documents (`view` / `cursor` + Output Extents)

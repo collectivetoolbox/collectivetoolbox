@@ -978,64 +978,60 @@ pub v/result/i32/exerciseOps i32/a i32/rhs
     fn test_inline_anon_routine_and_decomp_test_suite_codec_roundtrip() {
         use crate::dc::DC_SELF_REFERENCE;
 
-        let sl3_src = r#"ns demo/inline_anon.
+        // Inline anonymous routine calls are gated out of the StageL 3 ASCII parser.
+        let sl3_rejected = r#"ns demo/inline_anon.
 
 pub v/u32/runInline u32/x
-    let u32/acc /x.
-    v/void u32/delta ::
-        set /acc add /acc /delta.
-    :: u32:5.
-    const u32/zeroArg v/u32 :: u32:7 ::.
-    const u32/summed v/u32 u32/n u32/cur ::
-        if eq /n u32:0
-            /cur
-            dc/599 sub /n u32:1 add /cur /n.
-    :: u32:4 /acc.
-    add /summed /zeroArg.
+    v/u32 u32/a :: /a :: /x.
 "#;
-        let sl3_tokens = sl3_to_dc_tokens(sl3_src).expect("encode inline sl3");
-        assert_module_token_dc_framing_balanced(
-            &sl3_tokens,
-            StageDialect::StageL3,
-        );
         assert!(
-            sl3_tokens
-                .windows(2)
-                .any(|w| w == [DC_BEGIN_ROUTINE_CALL, DC_BEGIN_ROUTINE]),
-            "Expected 2211 2240 inline routine call opener sequence"
-        );
-        assert!(sl3_tokens.contains(&DC_END_ROUTINE));
-        assert!(sl3_tokens.contains(&DC_SELF_REFERENCE));
-
-        let sl3_fmt1 =
-            dc_tokens_to_sl3(&sl3_tokens).expect("decode inline sl3");
-        let sl3_tokens2 =
-            sl3_to_dc_tokens(&sl3_fmt1).expect("re-encode inline sl3");
-        let sl3_fmt2 =
-            dc_tokens_to_sl3(&sl3_tokens2).expect("re-decode inline sl3");
-        assert_eq!(sl3_fmt1, sl3_fmt2);
-        assert_eq!(
-            strip_comment_frames(&sl3_tokens),
-            strip_comment_frames(&sl3_tokens2)
+            parse_module(sl3_rejected).is_err(),
+            "StageL 3 ASCII parser must reject inline anonymous routine calls"
         );
 
+        // StageR 3 supports inline anonymous routine calls with +8 body / +4 closer indentation.
         let sr3_src = r#"ns demo/inline_sr3.
 
 pub v/result/u32/runSr3Inline u32/x
-    const u32/y v/result/u32? u32/a ::
-        result/u32:ok add? /a u32:9.
-    :: /x.
-    result/u32:ok /y.
+    let u32/acc /x.
+    v/void u32/delta ::
+            set /acc wrapAdd /acc /delta.
+        :: u32:5.
+    const u32/zeroArg v/u32 :: u32:7 ::.
+    const u32/summed v/result/u32? u32/n u32/cur ::
+            if eq /n u32:0
+                result/u32:ok /cur
+                dc/599 sub? /n u32:1 add? /cur /n.
+        :: u32:4 /acc.
+    add /summed /zeroArg.
 "#;
         let sr3_tokens = sr3_to_dc_tokens(sr3_src).expect("encode inline sr3");
         assert_module_token_dc_framing_balanced(
             &sr3_tokens,
             StageDialect::StageR3,
         );
+        assert!(
+            sr3_tokens
+                .windows(2)
+                .any(|w| w == [DC_BEGIN_ROUTINE_CALL, DC_BEGIN_ROUTINE]),
+            "Expected 2211 2240 inline routine call opener sequence"
+        );
+        assert!(sr3_tokens.contains(&DC_END_ROUTINE));
+        assert!(sr3_tokens.contains(&DC_SELF_REFERENCE));
+
         let sr3_fmt1 =
             dc_tokens_to_sr3(&sr3_tokens).expect("decode inline sr3");
+        assert!(
+            sr3_fmt1.contains(
+                "    v/void u32/delta ::\n            set /acc wrapAdd /acc /delta.\n        :: u32:5."
+            ),
+            "Formatted StageR 3 multi-line inline routine must indent body +8 and closing '::' +4:\n{sr3_fmt1}"
+        );
         let sr3_tokens2 =
             sr3_to_dc_tokens(&sr3_fmt1).expect("re-encode inline sr3");
+        let sr3_fmt2 =
+            dc_tokens_to_sr3(&sr3_tokens2).expect("re-decode inline sr3");
+        assert_eq!(sr3_fmt1, sr3_fmt2);
         assert_eq!(
             strip_comment_frames(&sr3_tokens),
             strip_comment_frames(&sr3_tokens2)
@@ -1057,15 +1053,16 @@ pub v/u32/recur u32/n
         u32:1
         do
             const v/u32/nestedHelper u32/k
-                if eq /k u32:0 u32:1 dc/599 sub /k u32:1.
+                if eq /k u32:0 u32:1 dc/599 wrapSub /k u32:1.
             const u32/innerSelf v/u32 u32/m ::
-                if eq /m u32:0 nestedHelper u32:2 dc/599 sub /m u32:1.
-            :: u32:1.
-            mul add /n sub /innerSelf u32:1 recur sub /n u32:1.
+                    if eq /m u32:0 nestedHelper u32:2 dc/599 wrapSub /m u32:1.
+                :: u32:1.
+            wrapMul wrapAdd /n wrapSub /innerSelf u32:1 recur wrapSub /n u32:1.
         ::.
 "#;
-        let parsed = parse_module(shadow_src).expect("parse decomp module");
-        validate_module(&parsed).expect("validate decomp module");
+        let parsed =
+            parse_sr3_module(shadow_src).expect("parse sr3 decomp module");
+        validate_module(&parsed).expect("validate sr3 decomp module");
         let r = parsed
             .items
             .iter()
@@ -1104,7 +1101,7 @@ pub v/u32/recur u32/n
         assert_eq!(decoded_tests[0].cases.len(), 3);
 
         let reconstructed = Module {
-            dialect: StageDialect::StageL3,
+            dialect: StageDialect::StageR3,
             leading_comments: Vec::new(),
             namespace: parsed.namespace.clone(),
             uses: Vec::new(),
@@ -1123,12 +1120,12 @@ pub v/u32/recur u32/n
             })],
         };
         validate_module(&reconstructed).expect("validate reconstructed module");
-        let canonical_orig = dc_tokens_to_sl3(
+        let canonical_orig = dc_tokens_to_sr3(
             &encode_module_to_dc_tokens(&parsed).expect("encode orig"),
         )
         .expect("decode orig");
         let recon_fmt =
-            format_module_to_sl3(&reconstructed).expect("fmt reconstructed");
+            format_module_to_sr3(&reconstructed).expect("fmt reconstructed");
         assert_eq!(canonical_orig, recon_fmt);
     }
 }

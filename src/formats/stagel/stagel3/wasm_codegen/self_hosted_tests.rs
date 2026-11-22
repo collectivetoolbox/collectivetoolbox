@@ -843,13 +843,13 @@ v/u64/topSelf u64/rem u64/acc
 v/result/u64/checkInline u64/n
     let u64/ticks u64:0.
     const u64/doubled v/result/u64? u64/rem u64/acc ::
-        if eq /rem u64:0
-            result/u64:ok /acc
-            do
-                set /ticks wrapAdd /ticks u64:1.
-                dc/599 wrapSub /rem u64:1 wrapAdd /acc u64:2.
-            ::
-    :: /n u64:0.
+            if eq /rem u64:0
+                result/u64:ok /acc
+                do
+                    set /ticks wrapAdd /ticks u64:1.
+                    dc/599 wrapSub /rem u64:1 wrapAdd /acc u64:2.
+                ::
+        :: /n u64:0.
     result/u64:ok wrapAdd /doubled wrapAdd /ticks topSelf u64:5000 u64:0.
 
 pub v/l/u8/step l/u8/input

@@ -36,6 +36,20 @@ use super::dc_chars_to_dcts_string;
 use crate::DcChar;
 use std::fmt::Write as _;
 
+struct FormatCtx {
+    dialect: StageDialect,
+    anon_counter: usize,
+}
+
+fn active_line_indent(out: &str, fallback_indent: usize) -> usize {
+    if let Some(nl_idx) = out.rfind('\n')
+        && let Some(tail) = out.get(nl_idx.saturating_add(1)..)
+    {
+        return tail.bytes().take_while(|&b| b == b' ').count();
+    }
+    fallback_indent
+}
+
 /// Renders a StageL 3 `Module` AST into canonical `.sl3` source text,
 /// reconstructing comments, `: @dc <shorthand>` / `pub dc/<shorthand>`,
 /// camelCase identifiers, and `test` blocks.
@@ -44,7 +58,11 @@ pub(super) fn format_module_to_sl3(module: &Module) -> Result<String> {
         module.dialect == StageDialect::StageL3,
         "Expected StageL 3 module for format_module_to_sl3"
     );
-    format_module_inner(module)
+    let mut ctx = FormatCtx {
+        dialect: StageDialect::StageL3,
+        anon_counter: 0,
+    };
+    format_module_inner(module, &mut ctx)
 }
 
 /// Renders a StageR 3 `Module` AST into canonical `.sr3` source text.
@@ -53,24 +71,41 @@ pub(super) fn format_module_to_sr3(module: &Module) -> Result<String> {
         module.dialect == StageDialect::StageR3,
         "Expected StageR 3 module for format_module_to_sr3"
     );
-    format_module_inner(module)
+    let mut ctx = FormatCtx {
+        dialect: StageDialect::StageR3,
+        anon_counter: 0,
+    };
+    format_module_inner(module, &mut ctx)
 }
 
 /// Formats a single top-level declaration (`TopDecl`) back into canonical
 /// `.sl3` source text.
 pub(super) fn format_top_decl_to_sl3(decl: &TopDecl) -> Result<String> {
     let mut out = String::new();
-    write_top_decl(&mut out, decl)?;
+    let mut ctx = FormatCtx {
+        dialect: StageDialect::StageL3,
+        anon_counter: 0,
+    };
+    write_top_decl(&mut out, decl, &mut ctx)?;
     Ok(out)
 }
 
 /// Formats a single top-level StageR 3 declaration (`TopDecl`) back into
 /// canonical `.sr3` source text.
 pub(super) fn format_top_decl_to_sr3(decl: &TopDecl) -> Result<String> {
-    format_top_decl_to_sl3(decl)
+    let mut out = String::new();
+    let mut ctx = FormatCtx {
+        dialect: StageDialect::StageR3,
+        anon_counter: 0,
+    };
+    write_top_decl(&mut out, decl, &mut ctx)?;
+    Ok(out)
 }
 
-fn format_module_inner(module: &Module) -> Result<String> {
+fn format_module_inner(
+    module: &Module,
+    ctx: &mut FormatCtx,
+) -> Result<String> {
     let mut out = String::new();
     for c in &module.leading_comments {
         write_comment_line(&mut out, 0, c)?;
@@ -105,7 +140,7 @@ fn format_module_inner(module: &Module) -> Result<String> {
     }
 
     for (idx, item) in module.items.iter().enumerate() {
-        write_top_decl(&mut out, item)?;
+        write_top_decl(&mut out, item, ctx)?;
         if idx.saturating_add(1) < module.items.len() {
             writeln!(out)?;
         }
@@ -183,7 +218,11 @@ fn write_symbol_target(out: &mut String, target: &SymbolTarget) -> Result<()> {
     Ok(())
 }
 
-fn write_top_decl(out: &mut String, item: &TopDecl) -> Result<()> {
+fn write_top_decl(
+    out: &mut String,
+    item: &TopDecl,
+    ctx: &mut FormatCtx,
+) -> Result<()> {
     match item {
         TopDecl::Struct(s) => {
             write_decl_header_prefix(
@@ -221,11 +260,11 @@ fn write_top_decl(out: &mut String, item: &TopDecl) -> Result<()> {
                 private_kw,
             )?;
             write!(out, "{}/{} ", v.ty, v.name)?;
-            write_expr(out, &v.value, 0)?;
+            write_expr(out, &v.value, 0, ctx)?;
             writeln!(out, ".")?;
         }
         TopDecl::Routine(r) => {
-            write_routine(out, r, 0, false)?;
+            write_routine(out, r, 0, false, ctx)?;
         }
         TopDecl::Comment(c) => {
             write_comment_line(out, 0, c)?;
@@ -311,6 +350,7 @@ fn write_block_items(
     out: &mut String,
     stmts: &[BlockItem],
     inner_indent: usize,
+    ctx: &mut FormatCtx,
 ) -> Result<()> {
     for item in stmts {
         match item {
@@ -318,11 +358,11 @@ fn write_block_items(
                 write_comment_line(out, inner_indent, c)?;
             }
             BlockItem::Expr(Expr::RoutineDecl(nested)) => {
-                write_routine(out, nested, inner_indent, true)?;
+                write_routine(out, nested, inner_indent, true, ctx)?;
             }
             BlockItem::Expr(e) => {
                 write_indent(out, inner_indent);
-                write_expr(out, e, inner_indent)?;
+                write_expr(out, e, inner_indent, ctx)?;
                 writeln!(out, ".")?;
             }
         }
@@ -334,14 +374,39 @@ fn write_anon_routine(
     out: &mut String,
     r: &AnonRoutine,
     indent: usize,
+    ctx: &mut FormatCtx,
 ) -> Result<()> {
     write!(out, "v/{}", r.return_type)?;
     for p in &r.params {
         write!(out, " {}/{}", p.ty, p.name)?;
     }
-    out.push_str(" :: ");
-    write_expr(out, &r.body, indent)?;
-    out.push_str(" ::");
+    let base_indent = active_line_indent(out, indent);
+    let close_indent = base_indent.saturating_add(4);
+    let body_indent = base_indent.saturating_add(8);
+    match &r.body {
+        Expr::Block { stmts, .. } if !stmts.is_empty() => {
+            out.push_str(" ::\n");
+            write_block_items(out, stmts, body_indent, ctx)?;
+            write_indent(out, close_indent);
+            out.push_str("::");
+        }
+        other => {
+            let mut rendered = String::new();
+            write_expr(&mut rendered, other, body_indent, ctx)?;
+            if rendered.contains('\n') {
+                out.push_str(" ::\n");
+                write_indent(out, body_indent);
+                out.push_str(&rendered);
+                out.push_str(".\n");
+                write_indent(out, close_indent);
+                out.push_str("::");
+            } else {
+                out.push_str(" :: ");
+                out.push_str(&rendered);
+                out.push_str(" ::");
+            }
+        }
+    }
     Ok(())
 }
 
@@ -350,6 +415,7 @@ fn write_routine(
     r: &RoutineDecl,
     indent: usize,
     is_nested: bool,
+    ctx: &mut FormatCtx,
 ) -> Result<()> {
     let private_kw = if is_nested { Some("const") } else { None };
     write_decl_header_prefix(
@@ -367,7 +433,7 @@ fn write_routine(
     }
     if r.tests.is_empty() && r.inline_body {
         write!(out, " :: ")?;
-        write_expr(out, &r.body, indent)?;
+        write_expr(out, &r.body, indent, ctx)?;
         writeln!(out, ".")?;
         return Ok(());
     }
@@ -386,14 +452,14 @@ fn write_routine(
             write!(out, "in")?;
             for inp in &tc.inputs {
                 out.push(' ');
-                write_expr(out, inp, case_indent)?;
+                write_expr(out, inp, case_indent, ctx)?;
             }
             writeln!(out)?;
             match &tc.expected {
                 TestExpected::Expr(e) => {
                     write_indent(out, case_indent);
                     write!(out, "out ")?;
-                    write_expr(out, e, case_indent)?;
+                    write_expr(out, e, case_indent, ctx)?;
                     writeln!(out)?;
                 }
                 TestExpected::Fault(_) => {
@@ -410,11 +476,11 @@ fn write_routine(
 
     match &r.body {
         Expr::Block { stmts, .. } if !stmts.is_empty() => {
-            write_block_items(out, stmts, body_indent)?;
+            write_block_items(out, stmts, body_indent, ctx)?;
         }
         other => {
             write_indent(out, body_indent);
-            write_expr(out, other, body_indent)?;
+            write_expr(out, other, body_indent, ctx)?;
             writeln!(out, ".")?;
         }
     }
@@ -473,11 +539,12 @@ fn write_prefix_op_call(
     args: &[&Expr],
     trailing_ty: Option<&StageLType>,
     indent: usize,
+    ctx: &mut FormatCtx,
 ) -> Result<()> {
     out.push_str(keyword);
     for arg in args {
         out.push(' ');
-        write_expr(out, arg, indent)?;
+        write_expr(out, arg, indent, ctx)?;
     }
     if let Some(ty) = trailing_ty {
         write!(out, " {ty}")?;
@@ -489,6 +556,7 @@ fn write_propagate_expr(
     out: &mut String,
     expr: &Expr,
     indent: usize,
+    ctx: &mut FormatCtx,
 ) -> Result<()> {
     let mut depth = 0usize;
     let mut inner = expr;
@@ -502,23 +570,24 @@ fn write_propagate_expr(
             inner_ty, value, ..
         } => {
             write!(out, "option/{inner_ty}:some{qmarks} ")?;
-            write_expr(out, value, indent)?;
+            write_expr(out, value, indent, ctx)?;
         }
         Expr::ResultOk { ok_ty, value, .. } => {
             write!(out, "result/{ok_ty}:ok{qmarks} ")?;
-            write_expr(out, value, indent)?;
+            write_expr(out, value, indent, ctx)?;
         }
         Expr::ResultErr { ok_ty, error, .. } => {
             write!(out, "result/{ok_ty}:err{qmarks} ")?;
-            write_expr(out, error, indent)?;
+            write_expr(out, error, indent, ctx)?;
         }
         Expr::ValueRef { .. } => {
-            write_expr(out, inner, indent)?;
+            write_expr(out, inner, indent, ctx)?;
             out.push_str(&qmarks);
         }
         _ => {
+            let line_indent = active_line_indent(out, indent);
             let mut rendered = String::new();
-            write_expr(&mut rendered, inner, indent)?;
+            write_expr(&mut rendered, inner, line_indent, ctx)?;
             if let Some(split_idx) = rendered.find([' ', '\n']) {
                 let (head, tail) = rendered.split_at(split_idx);
                 out.push_str(head);
@@ -533,7 +602,51 @@ fn write_propagate_expr(
     Ok(())
 }
 
-fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
+fn write_sl3_desugared_inline_call(
+    out: &mut String,
+    routine: &AnonRoutine,
+    args: &[Expr],
+    span: super::super::ast::Span,
+    indent: usize,
+    ctx: &mut FormatCtx,
+) -> Result<()> {
+    let idx = ctx.anon_counter;
+    ctx.anon_counter = ctx.anon_counter.saturating_add(1);
+    let synth_name = format!("__sl3_anon_{idx}");
+    let synth_decl = RoutineDecl {
+        is_pub: false,
+        pub_dc_syntax: false,
+        dc_id: None,
+        return_type: routine.return_type.clone(),
+        name: synth_name.clone(),
+        params: routine.params.clone(),
+        tests: Vec::new(),
+        inline_body: !matches!(routine.body, Expr::Block { .. }),
+        body: routine.body.clone(),
+        comments_before: Vec::new(),
+        span,
+    };
+    let synth_call = Expr::Call {
+        target: SymbolTarget::Ident(synth_name),
+        args: args.to_vec(),
+        span,
+    };
+    let desugared = Expr::Block {
+        stmts: vec![
+            BlockItem::Expr(Expr::RoutineDecl(Box::new(synth_decl))),
+            BlockItem::Expr(synth_call),
+        ],
+        span,
+    };
+    write_expr(out, &desugared, indent, ctx)
+}
+
+fn write_expr(
+    out: &mut String,
+    expr: &Expr,
+    indent: usize,
+    ctx: &mut FormatCtx,
+) -> Result<()> {
     match expr {
         Expr::Bool { value, .. } => {
             out.push_str(if *value { "true" } else { "false" });
@@ -550,7 +663,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             write!(out, "l/{elem_ty}:")?;
             for el in elements {
                 out.push(' ');
-                write_expr(out, el, indent)?;
+                write_expr(out, el, indent, ctx)?;
             }
             out.push_str(" ::");
         }
@@ -558,7 +671,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             out.push_str("tupNew:");
             for el in elements {
                 out.push(' ');
-                write_expr(out, el, indent)?;
+                write_expr(out, el, indent, ctx)?;
             }
             out.push_str(" ::");
         }
@@ -568,7 +681,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             out.push(':');
             for f in fields {
                 out.push(' ');
-                write_expr(out, f, indent)?;
+                write_expr(out, f, indent, ctx)?;
             }
             out.push_str(" ::");
         }
@@ -578,7 +691,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             out.push(':');
             for (fname, fval, _) in fields {
                 write!(out, " {fname} ")?;
-                write_expr(out, fval, indent)?;
+                write_expr(out, fval, indent, ctx)?;
             }
             out.push_str(" ::");
         }
@@ -599,7 +712,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             }
             if let Some(p) = payload {
                 out.push(' ');
-                write_expr(out, p, indent)?;
+                write_expr(out, p, indent, ctx)?;
             }
         }
         Expr::OptionNone { inner_ty, .. } => {
@@ -609,50 +722,50 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             inner_ty, value, ..
         } => {
             write!(out, "option/{inner_ty}:some ")?;
-            write_expr(out, value, indent)?;
+            write_expr(out, value, indent, ctx)?;
         }
         Expr::ResultOk { ok_ty, value, .. } => {
             write!(out, "result/{ok_ty}:ok ")?;
-            write_expr(out, value, indent)?;
+            write_expr(out, value, indent, ctx)?;
         }
         Expr::ResultErr { ok_ty, error, .. } => {
             write!(out, "result/{ok_ty}:err ")?;
-            write_expr(out, error, indent)?;
+            write_expr(out, error, indent, ctx)?;
         }
         Expr::ErrorTag { tag, .. } => {
             write!(out, "error:{}", tag.keyword())?;
         }
         Expr::Field { base, index, .. } => {
             out.push_str("field ");
-            write_expr(out, base, indent)?;
+            write_expr(out, base, indent, ctx)?;
             write!(out, " u32:{index}")?;
         }
         Expr::NamedField { base, field, .. } => {
             out.push_str("field ");
-            write_expr(out, base, indent)?;
+            write_expr(out, base, indent, ctx)?;
             write!(out, " {field}")?;
         }
         Expr::With {
             base, index, value, ..
         } => {
             out.push_str("with ");
-            write_expr(out, base, indent)?;
+            write_expr(out, base, indent, ctx)?;
             write!(out, " u32:{index} ")?;
-            write_expr(out, value, indent)?;
+            write_expr(out, value, indent, ctx)?;
         }
         Expr::NamedWith {
             base, field, value, ..
         } => {
             out.push_str("with ");
-            write_expr(out, base, indent)?;
+            write_expr(out, base, indent, ctx)?;
             write!(out, " {field} ")?;
-            write_expr(out, value, indent)?;
+            write_expr(out, value, indent, ctx)?;
         }
         Expr::BufNew {
             elem_ty, capacity, ..
         } => {
             write!(out, "bufNew {elem_ty} ")?;
-            write_expr(out, capacity, indent)?;
+            write_expr(out, capacity, indent, ctx)?;
         }
         Expr::ValueRef { ty, target, .. } => {
             if let Some(t) = ty {
@@ -666,36 +779,46 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             write!(out, "let {ty}/{name}")?;
             if let Some(e) = init {
                 out.push(' ');
-                write_expr(out, e, indent)?;
+                write_expr(out, e, indent, ctx)?;
             }
         }
         Expr::Const {
             ty, name, value, ..
         } => {
             write!(out, "const {ty}/{name} ")?;
-            write_expr(out, value, indent)?;
+            write_expr(out, value, indent, ctx)?;
         }
         Expr::Set { ty, name, value, .. } => {
             match ty {
                 Some(t) => write!(out, "set {t}/{name} ")?,
                 None => write!(out, "set /{name} ")?,
             }
-            write_expr(out, value, indent)?;
+            write_expr(out, value, indent, ctx)?;
         }
-        Expr::RoutineDecl(r) => write_routine(out, r, indent, true)?,
-        Expr::AnonRoutine(r) => write_anon_routine(out, r, indent)?,
-        Expr::InlineCall { routine, args, .. } => {
-            write_anon_routine(out, routine, indent)?;
-            for arg in args {
-                out.push(' ');
-                write_expr(out, arg, indent)?;
+        Expr::RoutineDecl(r) => write_routine(out, r, indent, true, ctx)?,
+        Expr::AnonRoutine(r) => write_anon_routine(out, r, indent, ctx)?,
+        Expr::InlineCall {
+            routine,
+            args,
+            span,
+        } => {
+            if ctx.dialect == StageDialect::StageL3 {
+                write_sl3_desugared_inline_call(
+                    out, routine, args, *span, indent, ctx,
+                )?;
+            } else {
+                write_anon_routine(out, routine, indent, ctx)?;
+                for arg in args {
+                    out.push(' ');
+                    write_expr(out, arg, indent, ctx)?;
+                }
             }
         }
         Expr::Call { target, args, .. } => {
             write_symbol_target(out, target)?;
             for arg in args {
                 out.push(' ');
-                write_expr(out, arg, indent)?;
+                write_expr(out, arg, indent, ctx)?;
             }
         }
         Expr::Block { stmts, .. } => {
@@ -710,13 +833,13 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             } else if !has_multiline {
                 if let Some(BlockItem::Expr(e)) = stmts.first() {
                     out.push_str("do ");
-                    write_expr(out, e, indent)?;
+                    write_expr(out, e, indent, ctx)?;
                     out.push_str(" ::");
                 }
             } else {
                 writeln!(out, "do")?;
                 let inner_indent = indent.saturating_add(4);
-                write_block_items(out, stmts, inner_indent)?;
+                write_block_items(out, stmts, inner_indent, ctx)?;
                 write_indent(out, indent);
                 out.push_str("::");
             }
@@ -733,10 +856,11 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
                 &[cond, then_branch, else_branch],
                 None,
                 indent,
+                ctx,
             )?;
         }
         Expr::While { cond, body, .. } => {
-            write_prefix_op_call(out, "while", &[cond, body], None, indent)?;
+            write_prefix_op_call(out, "while", &[cond, body], None, indent, ctx)?;
         }
         Expr::ForEach {
             elem_ty,
@@ -746,9 +870,9 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             ..
         } => {
             write!(out, "foreach {elem_ty}/{elem_name} ")?;
-            write_expr(out, list, indent)?;
+            write_expr(out, list, indent, ctx)?;
             out.push(' ');
-            write_expr(out, body, indent)?;
+            write_expr(out, body, indent, ctx)?;
         }
         Expr::Break { .. } => out.push_str("break"),
         Expr::Continue { .. } => out.push_str("continue"),
@@ -756,13 +880,20 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             out.push_str("return");
             if let Some(e) = value {
                 out.push(' ');
-                write_expr(out, e, indent)?;
+                write_expr(out, e, indent, ctx)?;
             }
         }
         Expr::Fault { .. } => out.push_str("fault"),
         Expr::Nop { .. } => out.push_str("nop"),
         Expr::Unary { op, operand, .. } => {
-            write_prefix_op_call(out, op.keyword(), &[operand], None, indent)?;
+            write_prefix_op_call(
+                out,
+                op.keyword(),
+                &[operand],
+                None,
+                indent,
+                ctx,
+            )?;
         }
         Expr::Binary {
             op, left, right, ..
@@ -773,6 +904,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
                 &[left, right],
                 None,
                 indent,
+                ctx,
             )?;
         }
         Expr::Ternary {
@@ -788,12 +920,20 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
                 &[first, second, third],
                 None,
                 indent,
+                ctx,
             )?;
         }
         Expr::Conv {
             expr, target_ty, ..
         } => {
-            write_prefix_op_call(out, "conv", &[expr], Some(target_ty), indent)?;
+            write_prefix_op_call(
+                out,
+                "conv",
+                &[expr],
+                Some(target_ty),
+                indent,
+                ctx,
+            )?;
         }
         Expr::Bitcast {
             expr, target_ty, ..
@@ -804,15 +944,23 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
                 &[expr],
                 Some(target_ty),
                 indent,
+                ctx,
             )?;
         }
         Expr::WrapNominal {
             expr, target_ty, ..
         } => {
-            write_prefix_op_call(out, "wrap", &[expr], Some(target_ty), indent)?;
+            write_prefix_op_call(
+                out,
+                "wrap",
+                &[expr],
+                Some(target_ty),
+                indent,
+                ctx,
+            )?;
         }
         Expr::UnwrapNominal { expr, .. } => {
-            write_prefix_op_call(out, "unwrap", &[expr], None, indent)?;
+            write_prefix_op_call(out, "unwrap", &[expr], None, indent, ctx)?;
         }
         Expr::Match {
             scrutinee,
@@ -821,7 +969,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             ..
         } => {
             out.push_str("match ");
-            write_expr(out, scrutinee, indent)?;
+            write_expr(out, scrutinee, indent, ctx)?;
             if arms.is_empty() && fallback.is_none() {
                 out.push_str(" ::");
             } else {
@@ -837,13 +985,13 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
                         write!(out, " {ty}/{bname}")?;
                     }
                     out.push(' ');
-                    write_expr(out, &arm.body, arm_indent)?;
+                    write_expr(out, &arm.body, arm_indent, ctx)?;
                     writeln!(out, ".")?;
                 }
                 if let Some(fb) = fallback {
                     write_indent(out, arm_indent);
                     out.push_str("else ");
-                    write_expr(out, fb, arm_indent)?;
+                    write_expr(out, fb, arm_indent, ctx)?;
                     writeln!(out, ".")?;
                 }
                 write_indent(out, indent);
@@ -851,7 +999,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             }
         }
         Expr::Propagate { .. } => {
-            write_propagate_expr(out, expr, indent)?;
+            write_propagate_expr(out, expr, indent, ctx)?;
         }
     }
     Ok(())

@@ -1602,8 +1602,9 @@ impl Parser {
                                 tok.span
                             );
                         }
-                        if let Some(after_open) =
-                            self.scan_anon_routine_open_body(i)
+                        if self.dialect == StageDialect::StageR3
+                            && let Some(after_open) =
+                                self.scan_anon_routine_open_body(i)
                         {
                             block_depth = block_depth.saturating_add(1);
                             i = after_open;

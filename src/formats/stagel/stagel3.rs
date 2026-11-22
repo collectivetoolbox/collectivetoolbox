@@ -684,10 +684,18 @@ pub v/result/u64/doubleNz u64/x
 
         let report =
             seed_linker::eval_sl3_inline_tests_with_seed_graph(src, sg)?;
-        assert_eq!(report.ensure_all_passed()?, 11);
+        assert_eq!(report.ensure_all_passed()?, 10);
         let roundtrip_report =
             seed_linker::eval_sl3_inline_tests_with_seed_graph(&text1, sg)?;
-        assert_eq!(roundtrip_report.ensure_all_passed()?, 11);
+        assert_eq!(roundtrip_report.ensure_all_passed()?, 10);
+
+        // Inline anonymous routine calls are gated out of the StageL 3 ASCII parser.
+        assert!(
+            parser::parse_module(
+                "v/u32/f :: v/u32 u32/x :: /x :: u32:1.\n"
+            )
+            .is_err()
+        );
         Ok(())
     }
 
@@ -704,12 +712,26 @@ pub v/result/u64/doubleNz u64/x
         assert_eq!(tokens1, tokens2);
 
         let report = eval::run_sr3_module_inline_tests(src)?;
-        assert_eq!(report.ensure_all_passed()?, 5);
+        assert_eq!(report.ensure_all_passed()?, 6);
 
         let sg = ctb_formats_dcdata::SeedGraphIndex::shared()?;
         let sg_report =
             seed_linker::eval_sr3_inline_tests_with_seed_graph(src, sg)?;
-        assert_eq!(sg_report.ensure_all_passed()?, 5);
+        assert_eq!(sg_report.ensure_all_passed()?, 6);
+
+        // Multi-line inline anonymous routine calls in StageR 3 must indent body +8 and closing "::" +4.
+        assert!(
+            parser::parse_sr3_module(
+                "v/void/bad\n    let u32/acc u32:0.\n    v/void u32/d ::\n        set /acc wrapAdd /acc /d.\n    :: u32:5.\n"
+            )
+            .is_err()
+        );
+        assert!(
+            parser::parse_sr3_module(
+                "v/void/badCloser\n    let u32/acc u32:0.\n    v/void u32/d ::\n            set /acc wrapAdd /acc /d.\n    :: u32:5.\n"
+            )
+            .is_err()
+        );
         Ok(())
     }
 

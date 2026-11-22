@@ -28,7 +28,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::super::ast::{
-    AnonRoutine, BlockItem, Expr, MatchArm, Param, Span, StageDialect,
+    AnonRoutine, BlockItem, Comment, Expr, MatchArm, Param, Span, StageDialect,
     StageLType, StageRErrorTag, StructTypeRef, SymbolTarget, TypedIntLit,
     parse_dc_shorthand,
 };
@@ -859,6 +859,10 @@ impl Parser {
         }
 
         if word.starts_with("v/") {
+            ensure!(
+                self.dialect == StageDialect::StageR3,
+                "Inline anonymous routine call '{word}' at {span} belongs to StageR 3; declare a local named routine with 'const v/<RETURN>/<name> ...' in StageL 3"
+            );
             return self.parse_inline_anon_call(word, span, enclosing_is_void);
         }
 
@@ -912,24 +916,59 @@ impl Parser {
         })
     }
 
+    fn line_start_col_for_token_idx(&self, tok_idx: usize) -> usize {
+        let Some(anchor) = self.tokens.get(tok_idx) else {
+            return 1;
+        };
+        let target_line = anchor.span.line;
+        let mut first_col = anchor.span.col;
+        let mut idx = tok_idx;
+        while let Some(prev_idx) = idx.checked_sub(1) {
+            let Some(prev) = self.tokens.get(prev_idx) else {
+                break;
+            };
+            if prev.span.line != target_line {
+                break;
+            }
+            first_col = prev.span.col;
+            idx = prev_idx;
+        }
+        first_col
+    }
+
     fn parse_inline_anon_call(
         &mut self,
         word: &str,
         span: Span,
         enclosing_is_void: bool,
     ) -> Result<Expr> {
+        let head_tok_idx = self.pos.saturating_sub(1);
+        let line_indent_col = self.line_start_col_for_token_idx(head_tok_idx);
+        let expected_close_col = line_indent_col.saturating_add(4);
+        let expected_body_col = line_indent_col.saturating_add(8);
+
         let return_type = self.parse_anon_routine_ret_after_head(word, span)?;
         let mut params = Vec::new();
-        loop {
+        let open_dd_span = loop {
             let _ = self.consume_comments(false)?;
-            let next = self.peek().with_context(|| {
-                format!(
-                    "Expected '::' opening inline routine body for '{word}' starting at {span}"
-                )
-            })?;
+            let next = self
+                .peek()
+                .with_context(|| {
+                    format!(
+                        "Expected '::' opening inline routine body for '{word}' starting at {span}"
+                    )
+                })?
+                .clone();
+            if next.span.line > span.line {
+                ensure!(
+                    next.span.col >= expected_close_col,
+                    "Parameter/header continuation at {} for inline routine starting at {span} must be indented to at least column {expected_close_col}",
+                    next.span
+                );
+            }
             if matches!(next.kind, LexKind::DoubleColon) {
                 self.pos = self.pos.saturating_add(1);
-                break;
+                break next.span;
             }
             ensure!(
                 !matches!(next.kind, LexKind::Dot),
@@ -943,15 +982,91 @@ impl Parser {
                 name: pname,
                 span: pspan,
             });
-        }
+        };
 
         let arity = params.len();
         let is_void = return_type == StageLType::Void;
+        let first_body_tok = self.peek().with_context(|| {
+            format!("Unclosed inline routine starting at {span}")
+        })?;
+        let starts_on_open_line = first_body_tok.span.line == open_dd_span.line;
+
+        let body_tok_start = self.pos;
         self.enclosing_routine_arities.push(arity);
-        let block_res = self.parse_do_block(span, is_void);
+        let body_res = if starts_on_open_line {
+            self.parse_single_line_inline_routine_body(
+                span,
+                open_dd_span.line,
+                line_indent_col,
+                expected_body_col,
+                body_tok_start,
+                is_void,
+            )
+        } else {
+            self.parse_multiline_inline_routine_body(
+                span,
+                open_dd_span.line,
+                line_indent_col,
+                is_void,
+            )
+        };
         let _ = self.enclosing_routine_arities.pop();
-        let block_expr = block_res?;
-        let body = match block_expr {
+        let body = body_res?;
+
+        let args_tok_start = self.pos;
+        let args = self.parse_call_args(arity, enclosing_is_void)?;
+        if !starts_on_open_line {
+            for tok in self
+                .tokens
+                .get(args_tok_start..self.pos)
+                .into_iter()
+                .flatten()
+            {
+                if tok.span.line > open_dd_span.line {
+                    ensure!(
+                        tok.span.col >= expected_close_col,
+                        "Argument at {} for multi-line inline routine starting at {span} must stay indented to at least column {expected_close_col} (found column {})",
+                        tok.span,
+                        tok.span.col
+                    );
+                }
+            }
+        }
+        Ok(Expr::InlineCall {
+            routine: Box::new(AnonRoutine {
+                return_type,
+                params,
+                body,
+                span,
+            }),
+            args,
+            span,
+        })
+    }
+
+    fn parse_single_line_inline_routine_body(
+        &mut self,
+        span: Span,
+        open_line: usize,
+        line_indent_col: usize,
+        expected_body_col: usize,
+        body_tok_start: usize,
+        is_void: bool,
+    ) -> Result<Expr> {
+        let block_expr = self.parse_do_block(span, is_void)?;
+        for tok in self
+            .tokens
+            .get(body_tok_start..self.pos)
+            .into_iter()
+            .flatten()
+        {
+            ensure!(
+                tok.span.line == open_line,
+                "Multi-line inline routine starting at {span} must begin its body on a new line indented to column {expected_body_col} (+8 spaces from line start column {line_indent_col}), found newline continuation at {}",
+                tok.span
+            );
+        }
+        Ok(match block_expr {
             Expr::Block {
                 mut stmts,
                 span: bspan,
@@ -971,19 +1086,155 @@ impl Parser {
                 }
             }
             other => other,
-        };
-
-        let args = self.parse_call_args(arity, enclosing_is_void)?;
-        Ok(Expr::InlineCall {
-            routine: Box::new(AnonRoutine {
-                return_type,
-                params,
-                body,
-                span,
-            }),
-            args,
-            span,
         })
+    }
+
+    fn parse_multiline_inline_routine_body(
+        &mut self,
+        span: Span,
+        open_line: usize,
+        line_indent_col: usize,
+        is_void: bool,
+    ) -> Result<Expr> {
+        let expected_close_col = line_indent_col.saturating_add(4);
+        let expected_body_col = line_indent_col.saturating_add(8);
+
+        let do_sigs = self.prescan_nested_verb_arities(
+            self.pos,
+            NestedVerbPrescanScope::DoBlock,
+        )?;
+        let mut inner_scope = std::collections::HashMap::new();
+        for (k, v) in do_sigs {
+            ensure!(
+                !inner_scope.contains_key(&k),
+                "Duplicate nested routine name '{k}' inside inline routine at {span}"
+            );
+            inner_scope.insert(k, v);
+        }
+        self.verb_scopes.push(inner_scope);
+
+        let mut stmts = Vec::new();
+        let mut prev_line = open_line;
+        let loop_res: Result<()> = (|| {
+            loop {
+                while let Some(ctok) = self.peek().cloned() {
+                    let LexKind::Comment {
+                        inline,
+                        text,
+                        dc_directive,
+                    } = ctok.kind
+                    else {
+                        break;
+                    };
+                    ensure!(
+                        dc_directive.is_none(),
+                        "': @dc' directive comment at {} is only allowed directly above top-level declarations",
+                        ctok.span
+                    );
+                    ensure!(
+                        ctok.span.line > prev_line,
+                        "Comment at {} inside multi-line inline routine body must start on a new line",
+                        ctok.span
+                    );
+                    ensure!(
+                        ctok.span.col == expected_body_col,
+                        "Invalid comment indentation inside multi-line inline routine body at {} (expected column {expected_body_col}, +8 spaces from line start column {line_indent_col}, found column {})",
+                        ctok.span,
+                        ctok.span.col
+                    );
+                    prev_line = ctok.span.line;
+                    stmts.push(BlockItem::Comment(Comment {
+                        inline,
+                        text,
+                        span: ctok.span,
+                    }));
+                    self.pos = self.pos.saturating_add(1);
+                }
+                let next = self
+                    .peek()
+                    .with_context(|| {
+                        format!("Unclosed inline routine starting at {span}")
+                    })?
+                    .clone();
+                if matches!(next.kind, LexKind::DoubleColon) {
+                    ensure!(
+                        next.span.line > prev_line,
+                        "Closing '::' of multi-line inline routine at {} must start on its own line indented to column {expected_close_col}",
+                        next.span
+                    );
+                    ensure!(
+                        next.span.col == expected_close_col,
+                        "Invalid indentation for closing '::' of multi-line inline routine at {} (expected column {expected_close_col}, +4 spaces from line start column {line_indent_col}, found column {})",
+                        next.span,
+                        next.span.col
+                    );
+                    self.pos = self.pos.saturating_add(1);
+                    break;
+                }
+                ensure!(
+                    next.span.line > prev_line,
+                    "Statement at {} inside multi-line inline routine body must start on a new line indented to column {expected_body_col}",
+                    next.span
+                );
+                ensure!(
+                    next.span.col == expected_body_col,
+                    "Invalid indentation inside multi-line inline routine body at {} (expected column {expected_body_col}, +8 spaces from line start column {line_indent_col}, found column {})",
+                    next.span,
+                    next.span.col
+                );
+
+                let stmt_tok_start = self.pos;
+                if self.check_nested_routine_stmt_start(&next)? {
+                    let r = self.parse_routine_decl(
+                        false,
+                        false,
+                        None,
+                        Vec::new(),
+                        next.span.col,
+                    )?;
+                    stmts.push(BlockItem::Expr(Expr::RoutineDecl(Box::new(r))));
+                } else {
+                    let stmt = self.parse_expr(is_void)?;
+                    stmts.push(BlockItem::Expr(stmt));
+                    if let Some(after) = self.peek()
+                        && matches!(after.kind, LexKind::Dot)
+                    {
+                        self.pos = self.pos.saturating_add(1);
+                    } else if !matches!(
+                        self.peek_skip_comments().map(|t| &t.kind),
+                        Some(LexKind::DoubleColon)
+                    ) {
+                        self.expect_dot(
+                            "at end of statement inside multi-line inline routine",
+                        )?;
+                    }
+                }
+
+                for tok in self
+                    .tokens
+                    .get(stmt_tok_start..self.pos)
+                    .into_iter()
+                    .flatten()
+                {
+                    ensure!(
+                        tok.span.col >= expected_body_col,
+                        "Continuation line at {} inside multi-line inline routine body must stay indented to at least column {expected_body_col} (found column {})",
+                        tok.span,
+                        tok.span.col
+                    );
+                    prev_line = tok.span.line;
+                }
+            }
+            Ok(())
+        })();
+        let _ = self.verb_scopes.pop();
+        loop_res?;
+
+        if stmts.is_empty() {
+            Ok(Expr::Nop { span })
+        } else {
+            Ok(Expr::Block { stmts, span })
+        }
     }
 
     fn parse_u32_slot_index(

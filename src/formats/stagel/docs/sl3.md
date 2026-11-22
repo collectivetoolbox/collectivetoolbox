@@ -138,19 +138,9 @@ v/RETURN/name TYPE/param1 TYPE/param2 ...
 ```
 - An inline single-statement body uses `::` after the parameter list and still ends with `.` (or `;`), even when its body expression ends with a `::` / `}` closer:
   `v/b/nne i64/a i64/b :: ne i64/a i64/b.` / `v/u32/braceBlock u32/x :: do u32/x. }.`
-- **Inline anonymous routine calls (`v/RETURN PARAM* :: BODY :: ARG*`) & `Dc 599 "Self reference"`**:
-  - Because top-level routines in the System graph store their executable `(return type, parameter list, body)` separately as content-addressed `Dc 2240 "Begin routine"`..`Dc 2241 "End routine"` value nodes for deduplication, `Dc 2211 "Begin routine call"`..`Dc 2212 "End routine call"` accepts `([2240:] | [identifier] | [atom_dc]) [el_expr]* 2212` so invoking a routine Dc `R` is syntactically and semantically equivalent to substituting its `Dc 2240`..`Dc 2241` decomposition inline at the call site. To keep `.sl3`/`.sr3` source text in lossless 1:1 correspondence with Token Dcs (`dc_tokens.rs`), an inline `Dc 2211` `[2240:] ARG*` `Dc 2212` call renders and parses as `v/RETURN PARAM* :: BODY :: ARG*` (see [`fixtures/sl3/input.sl3`](../fixtures/sl3/input.sl3)):
-    ```text
-    let u32/acc /seed.
-    v/void u32/delta ::
-        set /acc add /acc /delta.
-    :: u32:5.
-    v/u32 u32/rem u32/cur ::
-        if eq /rem u32:0
-            /cur
-            dc/599 sub /rem u32:1 add /cur /rem.
-    :: /n /acc.
-    ```
+- **Anonymous routine value nodes (`Dc 2240 "Begin routine"`..`Dc 2241 "End routine"`) & `Dc 599 "Self reference"`**:
+  - Top-level routines in the System graph store their executable `(return type, parameter list, body)` separately as content-addressed `Dc 2240 "Begin routine"`..`Dc 2241 "End routine"` value nodes for deduplication, and `Dc 2211 "Begin routine call"`..`Dc 2212 "End routine call"` accepts `([2240:] | [identifier] | [atom_dc]) [el_expr]* 2212` at the Token-Dc level.
+  - In **StageL 3 `.sl3` ASCII source**, inline anonymous routine calls (`v/RETURN PARAM* :: BODY :: ARG*`) are intentionally disallowed (use a local named routine `const v/RETURN/name ...` instead; `dc_tokens_to_sl3` desugars any raw `Dc 2211` `[2240:]` call into a `do` block with a local `const v/...` declaration). StageR 3 `.sr3` supports inline anonymous routine calls (`sr3.md` Section 5.5) and lowers them to StageL 3 local named routines via `f1681`.
   - An anonymous routine (`Dc 2240`..`Dc 2241`) may appear **only** as a graph routine value node or as the immediate static callee of `Dc 2211`..`Dc 2212`; uncalled anonymous routines cannot be stored in variables, passed as arguments, returned, or placed in data structures (first-class function values remain deferred to EM3).
   - Inside any routine (`Dc 2203 "Begin routine declaration"`..`Dc 2204 "End routine declaration"` or `Dc 2240 "Begin routine"`..`Dc 2241 "End routine"`), calling `dc/599` (`Dc 599 "Self reference"`) invokes the innermost enclosing routine (preserving tail-call optimization and keeping `Dc 2240`..`Dc 2241` value nodes completely independent of the outer entity's name or Dc ID).
 - Prefix calls have fixed arity. Verb signatures in a block are collected before parsing bodies so forward and mutually recursive calls work throughout the enclosing block.

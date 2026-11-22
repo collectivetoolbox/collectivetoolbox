@@ -1,5 +1,5 @@
 : StageR 3 fixture (see src/formats/stagel/docs/sr3.md for full specification).
-: Exercises StageR 3 types (s, dc, dcs, i128, u128, int, rat, view, cursor, option/T, result/T) and bare "..." Dcts literals.
+: Exercises StageR 3 types (s, dc, dcs, i128, u128, int, rat, view, cursor, option/T, result/T), bare "..." Dcts literals, and inline anonymous routine calls.
 
 v/b/zl s/in
     test works with zero length string
@@ -37,3 +37,20 @@ v/l/s/splitDcts s/sep s/input
         in ":" "alpha:@256@:beta"
         out l/s: "alpha" "@256@" "beta" ::
     explode /sep /input.
+
+: Inline anonymous routine calls (Dc 2211..2212 over Dc 2240..2241) and dc/599 self-recursion.
+: Multi-line bodies indent +8 spaces and closing "::" indents +4 spaces from the statement start.
+v/result/u32/inlineRoutineCall u32/n u32/seed
+    test captures lexical binding and tail recurses via dc 599
+        in u32:4 u32:10
+        out result/u32:ok u32:25
+    let u32/acc /seed.
+    v/void u32/delta ::
+            set /acc wrapAdd /acc /delta.
+        :: u32:5.
+    const u32/total v/result/u32? u32/rem u32/cur ::
+            if eq /rem u32:0
+                result/u32:ok /cur
+                dc/599 sub? /rem u32:1 add? /cur /rem.
+        :: /n /acc.
+    result/u32:ok /total.
