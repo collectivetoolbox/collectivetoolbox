@@ -429,6 +429,13 @@ impl<'a> ModuleValidator<'a> {
                 r.name,
                 r.span
             ),
+            Expr::AnonRoutine(r) => bail!(
+                "Anonymous routine at {} must be invoked directly in a call expression",
+                r.span
+            ),
+            Expr::InlineCall { span, .. } => bail!(
+                "Internal validator error: unlowered inline routine call at {span}"
+            ),
             Expr::Call { target, args, span } => {
                 self.check_call(target, args, *span, state, ctx)
             }

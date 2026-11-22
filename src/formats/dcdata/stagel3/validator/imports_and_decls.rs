@@ -49,7 +49,9 @@ use super::{
     RoutineSig, StructDef, ValidatedModule, expr_syntactically_contains_fault,
 };
 use crate::DcChar;
+use crate::syntax::{DcRole, SyntaxRuleResolver, default_syntax_resolver};
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::sync::Arc;
 
 /// Mutable validator state shared across passes and expression checking within
 /// one [`Module`].
@@ -94,6 +96,8 @@ pub(super) struct ModuleValidator<'a> {
     pub(super) top_dc_names: HashMap<DcChar, String>,
     /// Imported items keyed directly by `DcChar` (`dc/<shorthand>`).
     pub(super) dc_imports: HashMap<DcChar, ImportedSymbol>,
+    /// Shared Dc syntax/role resolver (for `DcRole::SelfReference` etc.).
+    pub(super) syntax_resolver: Arc<dyn SyntaxRuleResolver>,
     /// Whether `*StageLInternal` symbols are prohibited in this module.
     pub(super) forbid_stagel_internal: bool,
     /// Next unique lexical variable ID.
@@ -184,6 +188,12 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
     extra_dc_imports: &HashMap<DcChar, ImportedSymbol>,
     forbid_stagel_internal: bool,
 ) -> Result<ValidatedModule> {
+    let syntax_resolver = default_syntax_resolver();
+    let lowered_module = lower_module_inline_calls_and_nested_self_refs(
+        module,
+        syntax_resolver.as_ref(),
+    );
+    let module = &lowered_module;
     let dialect = module.dialect;
     let forbid_stagel_internal =
         forbid_stagel_internal || dialect == StageDialect::StageR3;
@@ -293,6 +303,7 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
         top_dc_routines: reg.top_dc_routines,
         top_dc_names: reg.top_dc_names,
         dc_imports,
+        syntax_resolver,
         forbid_stagel_internal,
         next_binding_id: 1,
         local_scopes: Vec::new(),
@@ -2156,6 +2167,18 @@ fn collect_expr_call_spans(expr: &Expr, out: &mut Vec<(usize, usize)>) {
             }
         }
         Expr::RoutineDecl(r) => collect_expr_call_spans(&r.body, out),
+        Expr::AnonRoutine(r) => collect_expr_call_spans(&r.body, out),
+        Expr::InlineCall {
+            routine,
+            args,
+            span,
+        } => {
+            out.push((span.line, span.col));
+            collect_expr_call_spans(&routine.body, out);
+            for a in args {
+                collect_expr_call_spans(a, out);
+            }
+        }
         Expr::Block { stmts, .. } => {
             for item in stmts {
                 if let BlockItem::Expr(sub) = item {
@@ -2292,6 +2315,15 @@ fn desugar_expr_in_place(
         Expr::RoutineDecl(r) => {
             desugar_routine_in_place(r, resolved_calls);
         }
+        Expr::AnonRoutine(r) => {
+            desugar_expr_in_place(&mut r.body, resolved_calls);
+        }
+        Expr::InlineCall { routine, args, .. } => {
+            desugar_expr_in_place(&mut routine.body, resolved_calls);
+            for a in args {
+                desugar_expr_in_place(a, resolved_calls);
+            }
+        }
         Expr::Block { stmts, .. } => {
             for item in stmts {
                 if let BlockItem::Expr(sub) = item {
@@ -2398,4 +2430,307 @@ fn desugar_overloaded_ops_in_module(
         }
     }
     out
+}
+
+fn lower_module_inline_calls_and_nested_self_refs(
+    module: &Module,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Module {
+    let mut out = module.clone();
+    let mut anon_counter = 0usize;
+    for item in &mut out.items {
+        if let TopDecl::Routine(r) = item {
+            lower_routine_body_expr(
+                &mut r.body,
+                None,
+                &mut anon_counter,
+                resolver,
+            );
+        }
+    }
+    out
+}
+
+fn lower_routine_body_expr(
+    expr: &mut Expr,
+    enclosing_nested_name: Option<&str>,
+    anon_counter: &mut usize,
+    resolver: &dyn SyntaxRuleResolver,
+) {
+    match expr {
+        Expr::RoutineDecl(nr) => {
+            let name = nr.name.clone();
+            lower_routine_body_expr(
+                &mut nr.body,
+                Some(&name),
+                anon_counter,
+                resolver,
+            );
+        }
+        Expr::AnonRoutine(_) => {}
+        Expr::InlineCall { span, .. } => {
+            let call_span = *span;
+            let taken = std::mem::replace(expr, Expr::Nop { span: call_span });
+            let Expr::InlineCall {
+                mut routine,
+                mut args,
+                span,
+            } = taken
+            else {
+                return;
+            };
+            for arg in &mut args {
+                lower_routine_body_expr(
+                    arg,
+                    enclosing_nested_name,
+                    anon_counter,
+                    resolver,
+                );
+            }
+            let id = *anon_counter;
+            *anon_counter = anon_counter.saturating_add(1);
+            let anon_name = format!("$anon_{id}");
+            lower_routine_body_expr(
+                &mut routine.body,
+                Some(&anon_name),
+                anon_counter,
+                resolver,
+            );
+            let decl = RoutineDecl {
+                is_pub: false,
+                pub_dc_syntax: false,
+                dc_id: None,
+                return_type: routine.return_type,
+                name: anon_name.clone(),
+                params: routine.params,
+                tests: Vec::new(),
+                body: routine.body,
+                inline_body: true,
+                comments_before: Vec::new(),
+                span: routine.span,
+            };
+            *expr = Expr::Block {
+                stmts: vec![
+                    BlockItem::Expr(Expr::RoutineDecl(Box::new(decl))),
+                    BlockItem::Expr(Expr::Call {
+                        target: SymbolTarget::Ident(anon_name),
+                        args,
+                        span,
+                    }),
+                ],
+                span,
+            };
+        }
+        Expr::Call { target, args, .. } => {
+            if let Some(nested_name) = enclosing_nested_name
+                && let SymbolTarget::Dc(dc) = target
+                && resolver.token_fills_role(dc.to_u128(), DcRole::SelfReference)
+            {
+                *target = SymbolTarget::Ident(nested_name.to_owned());
+            }
+            for arg in args {
+                lower_routine_body_expr(
+                    arg,
+                    enclosing_nested_name,
+                    anon_counter,
+                    resolver,
+                );
+            }
+        }
+        Expr::Block { stmts, .. } => {
+            for item in stmts {
+                if let BlockItem::Expr(sub) = item {
+                    lower_routine_body_expr(
+                        sub,
+                        enclosing_nested_name,
+                        anon_counter,
+                        resolver,
+                    );
+                }
+            }
+        }
+        Expr::List { elements, .. } | Expr::TupleNew { elements, .. } => {
+            for el in elements {
+                lower_routine_body_expr(
+                    el,
+                    enclosing_nested_name,
+                    anon_counter,
+                    resolver,
+                );
+            }
+        }
+        Expr::StructNew { fields, .. } => {
+            for f in fields {
+                lower_routine_body_expr(
+                    f,
+                    enclosing_nested_name,
+                    anon_counter,
+                    resolver,
+                );
+            }
+        }
+        Expr::NamedStructNew { fields, .. } => {
+            for (_, v, _) in fields {
+                lower_routine_body_expr(
+                    v,
+                    enclosing_nested_name,
+                    anon_counter,
+                    resolver,
+                );
+            }
+        }
+        Expr::Field { base, .. }
+        | Expr::NamedField { base, .. }
+        | Expr::BufNew { capacity: base, .. }
+        | Expr::Conv { expr: base, .. }
+        | Expr::Bitcast { expr: base, .. }
+        | Expr::WrapNominal { expr: base, .. }
+        | Expr::UnwrapNominal { expr: base, .. }
+        | Expr::Propagate { expr: base, .. }
+        | Expr::Const { value: base, .. }
+        | Expr::Set { value: base, .. }
+        | Expr::Unary { operand: base, .. }
+        | Expr::OptionSome { value: base, .. }
+        | Expr::ResultOk { value: base, .. }
+        | Expr::ResultErr { error: base, .. } => {
+            lower_routine_body_expr(
+                base,
+                enclosing_nested_name,
+                anon_counter,
+                resolver,
+            );
+        }
+        Expr::Let { init, .. } => {
+            if let Some(e) = init {
+                lower_routine_body_expr(
+                    e,
+                    enclosing_nested_name,
+                    anon_counter,
+                    resolver,
+                );
+            }
+        }
+        Expr::Return { value, .. } => {
+            if let Some(e) = value {
+                lower_routine_body_expr(
+                    e,
+                    enclosing_nested_name,
+                    anon_counter,
+                    resolver,
+                );
+            }
+        }
+        Expr::EnumVariant { payload, .. } => {
+            if let Some(e) = payload {
+                lower_routine_body_expr(
+                    e,
+                    enclosing_nested_name,
+                    anon_counter,
+                    resolver,
+                );
+            }
+        }
+        Expr::With { base, value, .. }
+        | Expr::NamedWith { base, value, .. }
+        | Expr::While {
+            cond: base,
+            body: value,
+            ..
+        }
+        | Expr::ForEach {
+            list: base,
+            body: value,
+            ..
+        }
+        | Expr::Binary {
+            left: base,
+            right: value,
+            ..
+        } => {
+            lower_routine_body_expr(
+                base,
+                enclosing_nested_name,
+                anon_counter,
+                resolver,
+            );
+            lower_routine_body_expr(
+                value,
+                enclosing_nested_name,
+                anon_counter,
+                resolver,
+            );
+        }
+        Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        }
+        | Expr::Ternary {
+            first: cond,
+            second: then_branch,
+            third: else_branch,
+            ..
+        } => {
+            lower_routine_body_expr(
+                cond,
+                enclosing_nested_name,
+                anon_counter,
+                resolver,
+            );
+            lower_routine_body_expr(
+                then_branch,
+                enclosing_nested_name,
+                anon_counter,
+                resolver,
+            );
+            lower_routine_body_expr(
+                else_branch,
+                enclosing_nested_name,
+                anon_counter,
+                resolver,
+            );
+        }
+        Expr::Match {
+            scrutinee,
+            arms,
+            fallback,
+            ..
+        } => {
+            lower_routine_body_expr(
+                scrutinee,
+                enclosing_nested_name,
+                anon_counter,
+                resolver,
+            );
+            for arm in arms {
+                lower_routine_body_expr(
+                    &mut arm.body,
+                    enclosing_nested_name,
+                    anon_counter,
+                    resolver,
+                );
+            }
+            if let Some(fb) = fallback {
+                lower_routine_body_expr(
+                    fb,
+                    enclosing_nested_name,
+                    anon_counter,
+                    resolver,
+                );
+            }
+        }
+        Expr::Bool { .. }
+        | Expr::Int { .. }
+        | Expr::Bytes { .. }
+        | Expr::ValueRef { .. }
+        | Expr::Break { .. }
+        | Expr::Continue { .. }
+        | Expr::Fault { .. }
+        | Expr::Nop { .. }
+        | Expr::DctsString { .. }
+        | Expr::DcLit { .. }
+        | Expr::OptionNone { .. }
+        | Expr::ErrorTag { .. } => {}
+    }
 }

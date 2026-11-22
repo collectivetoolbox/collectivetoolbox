@@ -845,6 +845,11 @@ pub(crate) fn expr_syntactically_contains_fault(expr: &Expr) -> bool {
                 || expr_syntactically_contains_fault(third)
         }
         Expr::RoutineDecl(r) => expr_syntactically_contains_fault(&r.body),
+        Expr::AnonRoutine(r) => expr_syntactically_contains_fault(&r.body),
+        Expr::InlineCall { routine, args, .. } => {
+            expr_syntactically_contains_fault(&routine.body)
+                || args.iter().any(expr_syntactically_contains_fault)
+        }
         Expr::Call { args, .. } => {
             args.iter().any(expr_syntactically_contains_fault)
         }

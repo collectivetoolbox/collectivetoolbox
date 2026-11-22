@@ -809,6 +809,11 @@ fn expr_uses_stager(expr: &Expr) -> bool {
             ty.as_ref().is_some_and(type_uses_stager) || expr_uses_stager(value)
         }
         Expr::RoutineDecl(r) => routine_uses_stager(r),
+        Expr::AnonRoutine(r) => anon_routine_uses_stager(r),
+        Expr::InlineCall { routine, args, .. } => {
+            anon_routine_uses_stager(routine)
+                || args.iter().any(expr_uses_stager)
+        }
         Expr::Call { args, .. } => args.iter().any(expr_uses_stager),
         Expr::Block { stmts, .. } => stmts.iter().any(|item| match item {
             super::super::ast::BlockItem::Expr(e) => expr_uses_stager(e),
@@ -873,6 +878,12 @@ fn expr_uses_stager(expr: &Expr) -> bool {
             expr, target_ty, ..
         } => type_uses_stager(target_ty) || expr_uses_stager(expr),
     }
+}
+
+fn anon_routine_uses_stager(r: &super::super::ast::AnonRoutine) -> bool {
+    type_uses_stager(&r.return_type)
+        || r.params.iter().any(|p| type_uses_stager(&p.ty))
+        || expr_uses_stager(&r.body)
 }
 
 fn routine_uses_stager(r: &RoutineDecl) -> bool {

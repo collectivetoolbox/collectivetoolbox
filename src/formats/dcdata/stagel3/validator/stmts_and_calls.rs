@@ -47,6 +47,7 @@ use super::{
     EnumDef, ImportedSymbol, ResolvedCallTarget, ResolvedValueTarget,
     RoutineSig,
 };
+use crate::syntax::DcRole;
 use std::collections::{HashMap, HashSet};
 
 /// Resolved StageR 3 `match` scrutinee domain.
@@ -97,6 +98,17 @@ impl<'a> ModuleValidator<'a> {
                 StageLType::Option(_) | StageLType::Result(_)
             );
         let mut ctx = BodyCtx::new(canon_ret.clone(), allow_propagate);
+        ctx.self_top_routine = Some((
+            r.name.clone(),
+            RoutineSig {
+                return_type: canon_ret.clone(),
+                params: canon_params.to_vec(),
+                is_pub: r.is_pub,
+                dc_id: r.dc_id,
+                may_fault: self.dialect == StageDialect::StageL3
+                    && super::expr_syntactically_contains_fault(&r.body),
+            },
+        ));
         let body_res = self.check_expr(&r.body, &mut state, &mut ctx);
         self.local_scopes.pop();
         let body_ty = body_res?;
@@ -771,6 +783,51 @@ impl<'a> ModuleValidator<'a> {
                 bail!("Unknown routine '{name}' at {span}");
             }
             SymbolTarget::Dc(dc) => {
+                if self
+                    .syntax_resolver
+                    .token_fills_role(dc.to_u128(), DcRole::SelfReference)
+                {
+                    let Some((orig_name, sig)) = ctx.self_top_routine.clone()
+                    else {
+                        bail!(
+                            "Self-reference 'dc/{}' at {span} is only allowed inside a routine body",
+                            format_dc_shorthand(*dc)
+                        );
+                    };
+                    if self.forbid_stagel_internal && sig.may_fault {
+                        bail!(
+                            "Faulting routine '{orig_name}' cannot be called in total StageR/Stage 2 module at {span}"
+                        );
+                    }
+                    ensure!(
+                        arg_tys.len() == sig.params.len(),
+                        "Self-recursive call to '{orig_name}' at {span} expects {} argument(s), found {}",
+                        sig.params.len(),
+                        arg_tys.len()
+                    );
+                    for (idx, (aty, pty)) in
+                        arg_tys.iter().zip(&sig.params).enumerate()
+                    {
+                        let arg_pos = idx.checked_add(1).unwrap_or(idx); // Reason for fallback: formatting-only 1-based position on usize::MAX
+                        ensure!(
+                            types_compatible(aty, pty),
+                            "Call argument type mismatch at argument {arg_pos} of self-call to '{orig_name}' at {span}: expected '{pty}', found '{aty}'"
+                        );
+                    }
+                    self.resolved_calls.insert(
+                        (span.line, span.col),
+                        ResolvedCallTarget {
+                            namespace: None,
+                            routine_name: orig_name,
+                            sig: sig.clone(),
+                        },
+                    );
+                    if was_in_tail {
+                        self.tail_calls.insert((span.line, span.col));
+                    }
+                    return Ok(sig.return_type);
+                }
+
                 if let Some(sig) = self.top_dc_routines.get(dc).cloned() {
                     let orig_name = self
                         .top_dc_names

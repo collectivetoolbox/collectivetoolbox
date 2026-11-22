@@ -164,6 +164,7 @@ pub(super) struct BodyCtx {
     pub(super) captured_reads: HashSet<usize>,
     pub(super) always_written: HashSet<usize>,
     pub(super) called_nested: HashSet<usize>,
+    pub(super) self_top_routine: Option<(String, RoutineSig)>,
 }
 
 impl BodyCtx {
@@ -180,6 +181,7 @@ impl BodyCtx {
             captured_reads: HashSet::new(),
             always_written: HashSet::new(),
             called_nested: HashSet::new(),
+            self_top_routine: None,
         }
     }
 
@@ -200,6 +202,7 @@ impl BodyCtx {
             captured_reads: HashSet::new(),
             always_written: HashSet::new(),
             called_nested: HashSet::new(),
+            self_top_routine: None,
         }
     }
 
@@ -222,6 +225,7 @@ impl BodyCtx {
             captured_reads: HashSet::new(),
             always_written: self.always_written.clone(),
             called_nested: HashSet::new(),
+            self_top_routine: self.self_top_routine.clone(),
         }
     }
 }
@@ -290,6 +294,15 @@ pub(super) fn collect_value_deps(
         }
         Expr::RoutineDecl(r) => {
             collect_value_deps(&r.body, deps, dc_deps);
+        }
+        Expr::AnonRoutine(r) => {
+            collect_value_deps(&r.body, deps, dc_deps);
+        }
+        Expr::InlineCall { routine, args, .. } => {
+            collect_value_deps(&routine.body, deps, dc_deps);
+            for a in args {
+                collect_value_deps(a, deps, dc_deps);
+            }
         }
         Expr::Call { args, .. } => {
             for a in args {
@@ -798,8 +811,12 @@ impl<'a> ModuleValidator<'a> {
             Expr::Block { span, .. } => bail!(
                 "Block statement 'do' is not allowed in constant expression at {span}"
             ),
-            Expr::Call { span, .. } => bail!(
+            Expr::Call { span, .. } | Expr::InlineCall { span, .. } => bail!(
                 "Routine calls are not allowed in constant expression at {span}"
+            ),
+            Expr::AnonRoutine(r) => bail!(
+                "Anonymous routine at {} is not allowed in constant expression",
+                r.span
             ),
             Expr::Let { .. }
             | Expr::Const { .. }
