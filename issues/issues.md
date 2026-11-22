@@ -118,6 +118,9 @@ assuming the current code still has the reported fault.
 
 The glass theme has broken for some reason. I haven't changed anything related to that recently that I recall. I guess it doesn't matter that much since it only ever worked in Firefox anyway.
 
+- Change src/formats/dcdata/data-src/README.dc-blocks.csv to be auto updated and add decimal columns (to the left of the existing hexadecimal columns, which should be secondary).
+
+
 # Possible changes for perforamnce of substitutes:
 
 #### What *actually* leaves LLVM performance on the table today
