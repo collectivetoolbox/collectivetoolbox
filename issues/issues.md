@@ -120,6 +120,7 @@ The glass theme has broken for some reason. I haven't changed anything related t
 
 - Change src/formats/dcdata/data-src/README.dc-blocks.csv to be auto updated and add decimal columns (to the left of the existing hexadecimal columns, which should be secondary).
 
+- I'd also like to make it do content-defined chunking of nodes that exceed a certain size - adding a node that contains say, >16KB? of data would slice it into sections by content (using some algorithm that is hopefully tuned to have a fairly low proportion that hit the 16KB or whatever cap - there are various algorithms for this; I think one is already used in the installer, but it's possible it's not optimal) and thus uploading a large node would actually save several smaller nodes and then one that ties them together.
 
 # Possible changes for perforamnce of substitutes:
 
