@@ -1892,7 +1892,8 @@ mod tier4_expression_evaluation_and_stream_splicing {
             ensure!(replaced, "Missing Routine named rule");
             Ok(writer.into_inner()?)
         };
-        let named = named_with_routine(":260 262 [280:] 263 [^261]+ 261")?;
+        let named =
+            named_with_routine(":((260 262 [280:] 263 [^261]+ 261) | [2240:])")?;
         let (original, _) = update_ledger_in_memory(
             Vec::new(),
             &definitions,

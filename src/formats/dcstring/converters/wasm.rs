@@ -1161,11 +1161,42 @@ fn extract_pattern_routine_header_tokens(
     construct_name: &str,
     resolver: &dyn SyntaxRuleResolver,
 ) -> Result<(Vec<RoutineHeaderToken>, Vec<RoutineHeaderToken>)> {
+    if let SyntaxPattern::Alternation(branches) = pattern {
+        let mut last_err = None;
+        for branch in branches {
+            match extract_pattern_routine_header_tokens(
+                branch,
+                construct_name,
+                resolver,
+            ) {
+                Ok(tokens) => return Ok(tokens),
+                Err(err) => last_err = Some(err),
+            }
+        }
+        if let Some(err) = last_err {
+            return Err(err);
+        }
+        bail!(
+            "Active graph grammar for '{construct_name}' alternation is empty"
+        );
+    }
     let SyntaxPattern::Sequence(elements) = pattern else {
         bail!(
             "Active graph grammar for '{construct_name}' must be a sequence pattern"
         );
     };
+    if elements.len() == 1
+        && let Some(SyntaxElement {
+            term: SyntaxTerm::Group(inner),
+            quantifier: Quantifier::ExactOne,
+        }) = elements.first()
+    {
+        return extract_pattern_routine_header_tokens(
+            inner,
+            construct_name,
+            resolver,
+        );
+    }
     let last_el = elements.last().with_context(|| {
         format!("Active graph grammar for '{construct_name}' is empty")
     })?;

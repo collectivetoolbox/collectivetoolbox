@@ -693,9 +693,10 @@ fn eval_convert_dc_string_to_wasm(
         .context("Empty target Dc document body")?;
 
     if first_body.fills_role_with(DcRole::BeginWasmProgram, resolver)
-        || tokens_match_named_construct_with_resolver(
-            body_chars, "Routine", resolver,
-        )?
+        || (!first_body.fills_role_with(DcRole::BeginRoutine, resolver)
+            && tokens_match_named_construct_with_resolver(
+                body_chars, "Routine", resolver,
+            )?)
     {
         let body_shorthands: Vec<DcShorthand> = body_chars
             .iter()
@@ -759,9 +760,12 @@ fn eval_convert_dc_string_to_wasm(
             c.fills_role_with(DcRole::EndWasmProgram, resolver)
         });
     let is_wasm_routine = is_wasm_prog
-        || tokens_match_named_construct_with_resolver(
-            &out_chars, "Routine", resolver,
-        )?;
+        || (out_chars
+            .first()
+            .is_some_and(|c| !c.fills_role_with(DcRole::BeginRoutine, resolver))
+            && tokens_match_named_construct_with_resolver(
+                &out_chars, "Routine", resolver,
+            )?);
     ensure!(
         is_wasm_routine,
         "Converter chain for {src_sh} -> {dst_sh} did not emit a valid Dc-WASM program (Dc 1927..Dc 1928)"
@@ -1039,11 +1043,12 @@ fn eval_expression_for_requirement_impl(
         }
         let is_direct_wasm = first
             .fills_role_with(DcRole::BeginWasmProgram, resolver)
-            || tokens_match_named_construct_with_resolver(
-                expr_tokens,
-                "Routine",
-                resolver,
-            )?;
+            || (!first.fills_role_with(DcRole::BeginRoutine, resolver)
+                && tokens_match_named_construct_with_resolver(
+                    expr_tokens,
+                    "Routine",
+                    resolver,
+                )?);
         if is_direct_wasm {
             let mut prog_mstr = DcMstring::new();
             for &token in expr_tokens {
@@ -3177,6 +3182,13 @@ impl DcDocumentNavigator<'_> {
                 let Some(sub) = subtype else {
                     return Ok(true);
                 };
+                if construct_name == "Routine"
+                    && consumed.first().is_some_and(|ch| {
+                        ch.fills_role_with(DcRole::BeginRoutine, ctx.resolver)
+                    })
+                {
+                    return Ok(false);
+                }
                 if ctx.depth >= ctx.max_depth {
                     ctx.has_errors = true;
                     ctx.diagnostics.push(SyntaxDiagnostic {
