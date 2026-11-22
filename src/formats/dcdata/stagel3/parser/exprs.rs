@@ -948,11 +948,31 @@ impl Parser {
         let arity = params.len();
         let is_void = return_type == StageLType::Void;
         self.enclosing_routine_arities.push(arity);
-        let body_res = self.parse_expr(is_void);
+        let block_res = self.parse_do_block(span, is_void);
         let _ = self.enclosing_routine_arities.pop();
-        let body = body_res?;
+        let block_expr = block_res?;
+        let body = match block_expr {
+            Expr::Block {
+                mut stmts,
+                span: bspan,
+            } => {
+                if stmts.is_empty() {
+                    Expr::Nop { span: bspan }
+                } else if stmts.len() == 1
+                    && matches!(stmts.first(), Some(BlockItem::Expr(_)))
+                {
+                    if let Some(BlockItem::Expr(only)) = stmts.pop() {
+                        only
+                    } else {
+                        Expr::Block { stmts, span: bspan }
+                    }
+                } else {
+                    Expr::Block { stmts, span: bspan }
+                }
+            }
+            other => other,
+        };
 
-        self.expect_double_colon("closing inline routine body")?;
         let args = self.parse_call_args(arity, enclosing_is_void)?;
         Ok(Expr::InlineCall {
             routine: Box::new(AnonRoutine {

@@ -6177,4 +6177,105 @@ pub v/pair_i32/swap_pair pair_i32/inp
         .expect("transpile strict lib with structs/tuples");
         run_rustc_and_clippy_smoke(&strict_lib, false);
     }
+
+    #[crate::ctb_test]
+    fn test_inline_anon_routine_and_dc_599_tail_recursion_vm_wasm_and_rust() {
+        use super::super::wasm_codegen::runner::{
+            WasmTestConfig, run_workspace_inline_tests_wasm,
+        };
+
+        let src = r#"ns demo/inline_exec.
+
+pub v/u32/topSelfLoop u32/rem u32/acc
+    if eq /rem u32:0
+        /acc
+        dc/599 sub /rem u32:1 wrapAdd /acc u32:2.
+
+pub v/u32/exerciseInlineAndSelf u32/seed
+    test deep tail calls and mutable capture
+        in u32:7
+        out u32:60017.
+    let u32/captured /seed.
+    v/void u32/bump ::
+        set /captured wrapAdd /captured /bump.
+    :: u32:10.
+    const v/u32/nestedSelf u32/rem u32/acc
+        if eq /rem u32:0
+            /acc
+            dc/599 sub /rem u32:1 wrapAdd /acc u32:1.
+    const u32/a topSelfLoop u32:10000 /captured.
+    const u32/b nestedSelf u32:10000 /a.
+    v/u32 u32/rem u32/acc ::
+        if eq /rem u32:0
+            /acc
+            dc/599 sub /rem u32:1 wrapAdd /acc u32:3.
+    :: u32:10000 /b.
+"#;
+        let inputs = [ModuleInput {
+            source_path: Some("demo/inline_exec.sl3"),
+            source: src,
+        }];
+        let ws = parse_and_validate_workspace(&inputs)
+            .expect("validate inline_exec workspace");
+
+        // Ensure ValidatedModule preserves Expr::InlineCall (no synthetic $anon_ leak into AST).
+        let formatted = super::super::dc_tokens::format_module_to_sl3(
+            &ws.modules[0].module,
+        )
+        .expect("format preserved AST");
+        assert!(
+            !formatted.contains("$anon"),
+            "ValidatedModule.module must preserve InlineCall without leaking $anon: {formatted}"
+        );
+
+        // 1. VM with tight call-stack cap (`max_call_depth: 16`) proves tail-call elimination for all three `dc/599` sites.
+        let vm = StageLWorkspaceVm::from_validated_workspace(
+            &ws,
+            EvalConfig {
+                compute_quota: 5_000_000,
+                max_call_depth: 16,
+                ..EvalConfig::default()
+            },
+        )
+        .expect("init VM");
+        let vm_report = vm.run_all_tests(&ws).expect("VM inline_exec tests");
+        assert_eq!(vm_report.ensure_all_passed().unwrap(), 1);
+
+        // 2. WASM codegen (`return_call` + shadow-cell capture).
+        let wasm_report =
+            run_workspace_inline_tests_wasm(&ws, WasmTestConfig::default())
+                .expect("WASM inline_exec tests");
+        assert_eq!(wasm_report.ensure_all_passed().unwrap(), 1);
+
+        // 3. Rust transpiler (`SlStep` trampoline + `clippy-driver` + 512 KiB stack execution).
+        let rust_src = transpile_workspace_to_rust(
+            &ws,
+            &RustTranspileOptions {
+                standalone_smoke_harness: true,
+                emit_test_runner: true,
+            },
+        )
+        .expect("transpile inline_exec to Rust");
+        run_rustc_and_clippy_smoke(&rust_src, true);
+
+        // 4. Uncalled Expr::AnonRoutine in AST must be rejected by validator.
+        let mut bad_mod = super::super::parser::parse_module(
+            "v/u32/bad :: u32:1.\n",
+        )
+        .expect("parse stub");
+        if let TopDecl::Routine(r) = &mut bad_mod.items[0] {
+            r.body = Expr::AnonRoutine(Box::new(
+                ctb_formats_dcdata::stagel3::ast::AnonRoutine {
+                    return_type: r.return_type.clone(),
+                    params: Vec::new(),
+                    body: r.body.clone(),
+                    span: r.span,
+                },
+            ));
+        }
+        assert!(
+            super::super::validator::validate_module(&bad_mod).is_err(),
+            "Uncalled Expr::AnonRoutine must be rejected by validator"
+        );
+    }
 }
