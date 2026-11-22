@@ -27,7 +27,7 @@ A typical Dc document is a hierarchical composition of subdocuments and semantic
 - **Characters, Words, and Inline Text**:
   - Individual characters are Dcs.
   - Later, **words** can also be represented as Dcs: either as a semantic concept Dc linked via `Dc 397 "Equivalent representations"` / `Dc 561 "Partially equivalent representations"` to an alternate-representation spelling, or as a dedicated lexical word Dc. Conversely, a paragraph or string can simply be included directly in a document as an ordinary character sequence like a normal text file without requiring word-level tokenization.
-- **Shaping to Glyph Dcs & Target Output Projection**:
+- **Shaping to Glyph Dcs & Target Output Rendering**:
   - Characters and word spellings resolve to **glyph Dcs** according to explicit inputs: font Dcs, script/language shaping rules, ligatures/contextual forms, and layout parameters. (Because shaping in many scripts is contextual and many-to-many across character clusters, shaping operates over character runs rather than assuming an isolated 1-to-1 character-to-glyph map.)
   - Final rendering of glyph and layout Dcs depends on the **output format**: a one-off conversion to a plain-text file, a terminal stream, an HTML document, a raster framebuffer, or a no-op **Dc-native screenshot** that leaves the resolved Dc snapshot in Dcs.
 

@@ -3,11 +3,11 @@
 **Overall Status**: `Partially Implemented`
 
 ## Completed Phases (Summary)
-- **Phase 1 (System-Block Node Ledger — Implemented in `src/formats/dcdata/graph_ledger.rs`)**:
-  - Compiles CSV tables in `src/formats/dcdata/fixtures/` into `assets/data/graph/85899_*.ctbnodes` and `assets/data/graph/85899_34592.ctbnbdl` with append-only revision tracking via `Dc 591` (`Supersedes`) and `Dc 592` (`Retracts`), value node interning, and `Dc 584` (`Has a`) + `Dc 610` (`Has value`) statement triples.
+- **Phase 1 (System-Block Node Ledger — Implemented in `src/formats/dcdata/support/graph_ledger.rs`)**:
+  - Compiles CSV tables and Stage 0/1/2/impls sources in `src/formats/dcdata/data-src/` into `assets/data/graph/85899_*.ctbnodes` and `assets/data/graph/85899_34592.ctbnbdl` with append-only revision tracking via `Dc 591` (`Supersedes`) and `Dc 592` (`Retracts`), value node interning, and `Dc 584` (`Has a`) + `Dc 610` (`Has value`) statement triples.
 - **Phase 2 (`SeedGraphIndex` & Runtime Migration — Partially Implemented in `src/formats/dcdata/seed_graph.rs`)**:
   - Runtime loading and indexing of `85899_34592.ctbnbdl`, active statement resolution across `Dc 591` (`Supersedes`) and `Dc 592` (`Retracts`), `.Semantic:Pattern` decoding (`Dc 599`–`Dc 607`), format metadata indexing, and migration of `DatasetRuleResolver::from_seed_graph`, `lookup.rs`, `format_info.rs`, and `mime_derivation.rs` are implemented.
-  - CSV fixtures were moved from `src/formats/dcdata/data/` to `src/formats/dcdata/fixtures/` so `dcdata.rs` no longer embeds CSVs in production builds.
+  - CSV seed tables were moved from `src/formats/dcdata/data/` to `src/formats/dcdata/data-src/` so `dcdata.rs` no longer embeds CSVs in production builds.
 - **Phase 3 (Build-Time Graph Codegen & Retirement of `syntax_table.generated.rs` — Implemented)**:
   - `syntax_table.generated.rs` and `src/formats/dcdata/syntax/resolver/codegen.rs` have been removed.
   - `BuildGraphIndex` (`src/build_support/graph_index.rs`) reads `assets/data/graph/85899_*.ctbnodes` at build time to drive `dc_codegen.rs`, `format_id_codegen.rs`, `extension_codegen.rs`, `encoding_codegen.rs`, and `format_support_codegen.rs`.

@@ -122,18 +122,11 @@ The glass theme has broken for some reason. I haven't changed anything related t
 
 - I'd also like to make it do content-defined chunking of nodes that exceed a certain size - adding a node that contains say, >16KB? of data would slice it into sections by content (using some algorithm that is hopefully tuned to have a fairly low proportion that hit the 16KB or whatever cap - there are various algorithms for this; I think one is already used in the installer, but it's possible it's not optimal) and thus uploading a large node would actually save several smaller nodes and then one that ties them together.
 
-# Possible changes for perforamnce of substitutes:
+# Possible further performance tuning for WASM substitutes:
 
-#### What *actually* leaves LLVM performance on the table today
-1. **Double indirection + bounds checks on every memory load/store ([vm.rs](file:///workspaces/ctoolbox/src/formats/wasm_substitute_rt/vm.rs#L912-L968)):**
-   Every `i32_load`/`i32_store8` indexes `self.memories: Vec<WasmLinearMemory>` via `.get(0)` (outer pointer chase + bounds check), then checks `addr + offset` overflow, then slices `mem.data.get(start..end)` (inner bounds check). Promoting memory `0` to a direct `mem0: Vec<u8>` field on `SubstituteVm` (only falling back to `extra_memories` for multi-memory modules) removes the outer indirection on every single load/store and makes it much easier for LLVM to keep `mem0`'s pointer/length in registers across loops.
-2. **`#[inline(never)]` on medium helpers and `opt-level = 1` in dev/test:**
-   We put `#[inline(never)]` on every generated function over 64 WASM bytes (and `opt-level = 1` in dev/test in [Cargo.toml](file:///workspaces/ctoolbox/Cargo.toml#L74-L76)) solely to keep compilation of the 238k duplicated lines under ~31s. Even in release builds (`opt-level = 3`), `#[inline(never)]` blocks LLVM from inlining hot small-to-medium helpers called inside tight loops (like `fn_21` inside the loop at [f1680.generated.rs](file:///workspaces/ctoolbox/src/formats/wasm_substitutes/f1680.generated.rs#L1808)). Deduplicating via DRY per-Dc functions would let us raise the `#[inline(never)]` threshold (or restrict it to `tail_dispatch_*` / large functions) without regressing compile time.
-3. **Per-loop `deduct` struct traffic ([vm.rs](file:///workspaces/ctoolbox/src/formats/wasm_substitute_rt/vm.rs#L356-L372)):**
-   `self.vm.deduct(host, 1)` reads/writes three `u64` fields (`op_ordinal`, `quota_remaining`, `quota_consumed`) through `&mut self.vm` on every loop iteration, and checks `op_ordinal < resume_target_op`. Still vastly faster than `tinywasm`, and likely secondary to memory-access overhead, so only worth tuning if profiling shows it's hot.
+*(Note: Inline `mem0` fast-path access on `SubstituteVm`, `opt-level = 2` in dev/test, auto-discovery of runnable System-block snapshots, and Merkle-deduplicated shared-function codegen across snapshots are now implemented in `src/formats/wasm_substitute_rt/vm.rs` and `src/formats/dcstring/converters/wasm_to_rust.rs`.)*
 
-### Bottom Line / Recommendation
-- **Don't rewrite the generated style for "Rustiness"** — LLVM already optimizes away the stack-slot / `ops::*` / labeled-block verbosity.
-- **Do consider two targeted next steps when you're ready to scale substitutes to many System Dcs:**
-  1. **DRY per-Dc / shared-function codegen** (so adding dozens of System-block converters/parsers doesn't re-emit `std/*` N times, and auto-generates substitutes for all runnable System-block Dcs).
-  2. **Fast-path `mem0: Vec<u8>` on `SubstituteVm`** (a tiny change in [vm.rs](file:///workspaces/ctoolbox/src/formats/wasm_substitute_rt/vm.rs) that immediately speeds up *all* generated substitutes without complicating codegen).
+1. **`#[inline(never)]` threshold on medium helpers ([wasm_to_rust.rs](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm_to_rust.rs#L48)):**
+   `INLINE_NEVER_BYTECODE_THRESHOLD` is currently `128` WASM bytes to keep compile times fast. In release builds (`opt-level = 3`), `#[inline(never)]` still prevents LLVM from inlining helpers larger than `128` WASM bytes inside tight loops; if profiling shows hot medium helpers, consider raising the threshold or restricting `#[inline(never)]` to `tail_dispatch_*` and genuinely large functions.
+2. **Per-checkpoint `deduct` struct traffic ([vm.rs](file:///workspaces/ctoolbox/src/formats/wasm_substitute_rt/vm.rs#L559-L574)):**
+   `self.vm.deduct(host, 1)` reads/writes three `u64` fields (`op_ordinal`, `quota_remaining`, `quota_consumed`) through `&mut self.vm` on every loop/call/stride checkpoint, and checks `op_ordinal < resume_target_op`. Still vastly faster than `tinywasm`, and likely secondary to memory-access overhead, so only worth tuning (while preserving deterministic V2 checkpoint-ordinal metering) if profiling shows it's hot.
