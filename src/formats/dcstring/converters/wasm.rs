@@ -6094,8 +6094,8 @@ pub fn run_active_converter_step_on_dc_slice_with_quota(
     use ctb_formats_dcdata::seed_graph::ActiveConverterBody;
     use ctb_storage_minimal::shorthand::DcShorthand;
 
-    const DEFAULT_CONVERTER_MAX_INSTRUCTIONS: u64 = 1_000_000_000;
-    const DEFAULT_CONVERTER_MAX_MEMORY_PAGES: usize = 2048;
+    const DEFAULT_CONVERTER_MAX_INSTRUCTIONS: u64 = 4_000_000_000;
+    const DEFAULT_CONVERTER_MAX_MEMORY_PAGES: usize = 8192;
     const DEFAULT_CONVERTER_MAX_STEP_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
     const DEFAULT_CONVERTER_MAX_SESSION_OUTPUT_BYTES: usize = 64 * 1024 * 1024;
 
@@ -6637,8 +6637,8 @@ fn assemble_compiled_wasm_doc(
 fn default_substitute_compiler_quota() -> SharedWasmTaskQuota {
     SharedWasmTaskQuota::new(
         DcWasmResourceLimits::default()
-            .with_max_instructions_per_step(1_000_000_000)
-            .with_max_memory_pages(2048)
+            .with_max_instructions_per_step(4_000_000_000)
+            .with_max_memory_pages(8192)
             .with_max_step_output_bytes(32 * 1024 * 1024)
             .with_max_session_output_bytes(64 * 1024 * 1024),
     )
@@ -6706,7 +6706,7 @@ pub fn run_graph_stager_dcs_routine_with_quota(
     use ctb_storage_minimal::shorthand::DcShorthand;
 
     const DIRECT_STAGER_DCS_MAX_INSTRUCTIONS: u64 = 4_000_000_000;
-    const DIRECT_STAGER_DCS_MAX_MEMORY_PAGES: usize = 2048;
+    const DIRECT_STAGER_DCS_MAX_MEMORY_PAGES: usize = 8192;
     const DIRECT_STAGER_DCS_MAX_STEP_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
     const DIRECT_STAGER_DCS_MAX_SESSION_OUTPUT_BYTES: usize = 64 * 1024 * 1024;
 

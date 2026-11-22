@@ -205,3 +205,7 @@ if gt /i u64:0
 ```
 
 or something like that. Does that seem like a good idea?
+
+# Output caching
+
+Proposal: temporarily instrument all Dc routine invocations. Run some sample documents, etc, recording function call counts, parameter values, execution times, and return values. Create a bundle of the most frequently occurring and most expensive calls and their return values, and ship that with the application.
