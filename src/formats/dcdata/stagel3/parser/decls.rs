@@ -36,10 +36,12 @@ use super::super::ast::{
 };
 use super::lexer::{
     LexKind, LexToken, opens_double_colon_block, parse_dc_directive_comment,
+    strip_trailing_prop,
 };
 use super::types_and_sigs::{
-    parse_namespace_segments, parse_routine_sig_from_tokens_with_ctx,
-    parse_tup_type_outer_ctors_for, parse_typed_name_from_tokens_with_ctx,
+    parse_anon_routine_ret_after_head_with_ctx, parse_namespace_segments,
+    parse_routine_sig_from_tokens_with_ctx, parse_tup_type_outer_ctors_for,
+    parse_typed_name_from_tokens_with_ctx, skip_non_dc_comments,
 };
 use super::{Parser, StageRTypeKind, check_type_decl_ident, check_valid_ident};
 use crate::DcChar;
@@ -1009,7 +1011,10 @@ impl Parser {
         ) {
             inline_body = true;
             self.pos = self.pos.saturating_add(1);
-            let expr = self.parse_expr(is_void)?;
+            self.enclosing_routine_arities.push(params.len());
+            let expr_res = self.parse_expr(is_void);
+            let _ = self.enclosing_routine_arities.pop();
+            let expr = expr_res?;
             self.expect_dot("after inline '::' routine body")?;
             expr
         } else {
@@ -1084,35 +1089,41 @@ impl Parser {
                 inner_scope.insert(k, v);
             }
             self.verb_scopes.push(inner_scope);
+            self.enclosing_routine_arities.push(params.len());
 
             let mut stmt_count = 0usize;
-            loop {
-                let mut pc =
-                    self.consume_comments_indented_past(decl_col, false)?;
-                for c in pc.comments.drain(..) {
-                    body_items.push(BlockItem::Comment(c));
+            let body_res: Result<()> = (|| {
+                loop {
+                    let mut pc =
+                        self.consume_comments_indented_past(decl_col, false)?;
+                    for c in pc.comments.drain(..) {
+                        body_items.push(BlockItem::Comment(c));
+                    }
+                    let Some(tok) = self.peek().cloned() else {
+                        break;
+                    };
+                    if tok.span.col <= decl_col {
+                        break;
+                    }
+                    ensure!(
+                        tok.span.col == body_col,
+                        "Unexpected indentation at {} inside routine '{name}' (expected column {body_col})",
+                        tok.span
+                    );
+                    ensure!(
+                        !matches!(&tok.kind, LexKind::Word(w) if w == "test"),
+                        "'test' block at {} must appear before routine body statements",
+                        tok.span
+                    );
+                    stmt_count = stmt_count.saturating_add(1);
+                    let stmt = self.parse_block_statement(is_void)?;
+                    body_items.push(BlockItem::Expr(stmt));
                 }
-                let Some(tok) = self.peek().cloned() else {
-                    break;
-                };
-                if tok.span.col <= decl_col {
-                    break;
-                }
-                ensure!(
-                    tok.span.col == body_col,
-                    "Unexpected indentation at {} inside routine '{name}' (expected column {body_col})",
-                    tok.span
-                );
-                ensure!(
-                    !matches!(&tok.kind, LexKind::Word(w) if w == "test"),
-                    "'test' block at {} must appear before routine body statements",
-                    tok.span
-                );
-                stmt_count = stmt_count.saturating_add(1);
-                let stmt = self.parse_block_statement(is_void)?;
-                body_items.push(BlockItem::Expr(stmt));
-            }
+                Ok(())
+            })();
+            let _ = self.enclosing_routine_arities.pop();
             let _ = self.verb_scopes.pop();
+            body_res?;
             ensure!(
                 stmt_count > 0,
                 "Routine '{name}' at {sig_span} must have at least one body expression or statement"
@@ -1324,7 +1335,8 @@ impl Parser {
                 self.pos = self.pos.saturating_add(1);
                 return Ok(true);
             }
-        } else if w.starts_with("v/") {
+        } else if w.starts_with("v/") && self.is_named_routine_sig_at(self.pos)
+        {
             bail!(
                 "Nested routine declaration '{w}' at {} must be prefixed with 'const' inside a block (write 'const {w} ...')",
                 tok.span
@@ -1548,6 +1560,7 @@ impl Parser {
                         }
                         if let LexKind::Word(w) = &tok.kind
                             && w.starts_with("v/")
+                            && self.is_named_routine_sig_at(i)
                         {
                             bail!(
                                 "Nested routine declaration '{w}' at {} must be prefixed with 'const' inside a block (write 'const {w} ...')",
@@ -1583,10 +1596,20 @@ impl Parser {
                         i = self.skip_routine_body(after, tok.span.col)?;
                     }
                     LexKind::Word(w) if w.starts_with("v/") => {
-                        bail!(
-                            "Nested routine declaration '{w}' at {} must be prefixed with 'const' inside a block (write 'const {w} ...')",
-                            tok.span
-                        );
+                        if self.is_named_routine_sig_at(i) {
+                            bail!(
+                                "Nested routine declaration '{w}' at {} must be prefixed with 'const' inside a block (write 'const {w} ...')",
+                                tok.span
+                            );
+                        }
+                        if let Some(after_open) =
+                            self.scan_anon_routine_open_body(i)
+                        {
+                            block_depth = block_depth.saturating_add(1);
+                            i = after_open;
+                        } else {
+                            i = i.saturating_add(1);
+                        }
                     }
                     _ => {
                         i = i.saturating_add(1);
@@ -1595,6 +1618,45 @@ impl Parser {
             }
         }
         Ok(out)
+    }
+
+    fn scan_anon_routine_open_body(&self, sig_idx: usize) -> Option<usize> {
+        let tok = self.tokens.get(sig_idx)?;
+        let LexKind::Word(ref raw_w) = tok.kind else {
+            return None;
+        };
+        let (w, _) = if self.dialect == StageDialect::StageR3 {
+            strip_trailing_prop(raw_w)
+        } else {
+            (raw_w.as_str(), 0)
+        };
+        let ctx = self.type_ctx();
+        let mut j = sig_idx.saturating_add(1);
+        parse_anon_routine_ret_after_head_with_ctx(
+            w,
+            tok.span,
+            &self.tokens,
+            &mut j,
+            &ctx,
+        )
+        .ok()?;
+        loop {
+            skip_non_dc_comments(&self.tokens, &mut j).ok()?;
+            let next = self.tokens.get(j)?;
+            if matches!(next.kind, LexKind::DoubleColon) {
+                return Some(j.saturating_add(1));
+            }
+            if matches!(next.kind, LexKind::Dot) {
+                return None;
+            }
+            parse_typed_name_from_tokens_with_ctx(
+                &self.tokens,
+                &mut j,
+                "on inline routine header",
+                &ctx,
+            )
+            .ok()?;
+        }
     }
 
     fn scan_routine_header(
@@ -1664,6 +1726,19 @@ impl Parser {
                             i = after.saturating_add(1);
                         } else {
                             i = after;
+                        }
+                    }
+                    LexKind::Word(w)
+                        if w.starts_with("v/")
+                            && !self.is_named_routine_sig_at(i) =>
+                    {
+                        if let Some(after_open) =
+                            self.scan_anon_routine_open_body(i)
+                        {
+                            frames.push(SkipFrame::Block);
+                            i = after_open;
+                        } else {
+                            i = i.saturating_add(1);
                         }
                     }
                     LexKind::DoubleColon => {

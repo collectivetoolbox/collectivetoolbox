@@ -31,7 +31,7 @@ use super::super::ast::{
     BinaryOp, Span, StageDialect, StageLType, StructTypeRef, SymbolTarget,
     TernaryOp, TypedIntLit, UnaryOp, parse_dc_shorthand,
 };
-use super::lexer::{LexKind, LexToken};
+use super::lexer::{LexKind, LexToken, strip_trailing_prop};
 use super::{
     StageRTypeKind, TypeParseCtx, check_routine_decl_ident, check_valid_ident,
     is_valid_ident,
@@ -519,6 +519,88 @@ pub(super) fn parse_routine_sig_from_tokens_with_ctx(
         parse_routine_sig_token_with_ctx(sig_word, sig_tok.span, ctx)?;
     *pos = pos.saturating_add(1);
     Ok((return_type, name, sig_tok.span))
+}
+
+pub(super) fn parse_anon_routine_ret_after_head_with_ctx(
+    word: &str,
+    span: Span,
+    tokens: &[LexToken],
+    pos: &mut usize,
+    ctx: &TypeParseCtx<'_>,
+) -> Result<StageLType> {
+    let after_v = word
+        .strip_prefix("v/")
+        .with_context(|| format!("Expected 'v/<RETURN>' at {span}, found '{word}'"))?;
+    if let Some(outer_ctors) =
+        parse_tup_type_outer_ctors_for(after_v, ctx.dialect)
+    {
+        let (return_type, close_tok) =
+            parse_tuple_type_tail_from_tokens_with_ctx(
+                tokens,
+                pos,
+                span,
+                &outer_ctors,
+                ctx,
+            )?;
+        if let Some(next_tok) = tokens.get(*pos)
+            && next_tok.span.line == close_tok.span.line
+            && next_tok.span.col == close_tok.end_col
+            && let LexKind::Word(ref nw) = next_tok.kind
+            && nw.starts_with('/')
+        {
+            bail!(
+                "Nested routine declaration 'v/{return_type}{nw}' at {span} must be prefixed with 'const' inside a block (write 'const v/{return_type}{nw} ...')"
+            );
+        }
+        return Ok(return_type);
+    }
+    let ret_segs: Vec<&str> = after_v.split('/').collect();
+    match parse_type_segments_with_ctx(&ret_segs, span, ctx) {
+        Ok(return_type) => Ok(return_type),
+        Err(type_err) => {
+            if parse_routine_sig_token_with_ctx(word, span, ctx).is_ok() {
+                bail!(
+                    "Nested routine declaration '{word}' at {span} must be prefixed with 'const' inside a block (write 'const {word} ...')"
+                );
+            }
+            Err(type_err)
+        }
+    }
+}
+
+pub(super) fn is_named_routine_sig_at_with_ctx(
+    tokens: &[LexToken],
+    idx: usize,
+    ctx: &TypeParseCtx<'_>,
+) -> bool {
+    let Some(tok) = tokens.get(idx) else {
+        return false;
+    };
+    let LexKind::Word(ref raw_w) = tok.kind else {
+        return false;
+    };
+    let (w, _) = if ctx.dialect == StageDialect::StageR3 {
+        strip_trailing_prop(raw_w)
+    } else {
+        (raw_w.as_str(), 0)
+    };
+    if !w.starts_with("v/") {
+        return false;
+    }
+    let mut after_head = idx.saturating_add(1);
+    if parse_anon_routine_ret_after_head_with_ctx(
+        w,
+        tok.span,
+        tokens,
+        &mut after_head,
+        ctx,
+    )
+    .is_ok()
+    {
+        return false;
+    }
+    let mut sig_pos = idx;
+    parse_routine_sig_from_tokens_with_ctx(tokens, &mut sig_pos, ctx).is_ok()
 }
 
 fn parse_fixed_int<T>(

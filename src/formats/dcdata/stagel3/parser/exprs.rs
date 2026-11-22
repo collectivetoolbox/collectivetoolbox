@@ -28,9 +28,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::super::ast::{
-    BlockItem, Expr, MatchArm, Span, StageDialect, StageLType, StageRErrorTag,
-    StructTypeRef, SymbolTarget, TypedIntLit, parse_dc_shorthand,
+    AnonRoutine, BlockItem, Expr, MatchArm, Param, Span, StageDialect,
+    StageLType, StageRErrorTag, StructTypeRef, SymbolTarget, TypedIntLit,
+    parse_dc_shorthand,
 };
+use crate::syntax::DcRole;
 use super::decls::NestedVerbPrescanScope;
 use super::lexer::{LexKind, strip_trailing_prop, wrap_propagate};
 use super::types_and_sigs::{
@@ -857,9 +859,7 @@ impl Parser {
         }
 
         if word.starts_with("v/") {
-            bail!(
-                "Nested routine declaration '{word}' at {span} must be prefixed with 'const' inside a block (write 'const {word} ...')"
-            );
+            return self.parse_inline_anon_call(word, span, enclosing_is_void);
         }
 
         if word.contains('/') {
@@ -869,11 +869,25 @@ impl Parser {
                     || parse_dc_shorthand(sh).is_ok())
             {
                 let dc = parse_dc_shorthand(sh)?;
-                let arity = self.lookup_verb_arity(word).with_context(|| {
-                    format!(
-                        "Unknown direct Dc routine 'dc/{sh}' at {span} (arity unknown without import or declaration)"
-                    )
-                })?;
+                let arity = if self
+                    .syntax_resolver
+                    .token_fills_role(dc.to_u128(), DcRole::SelfReference)
+                {
+                    self.enclosing_routine_arities
+                        .last()
+                        .copied()
+                        .with_context(|| {
+                            format!(
+                                "Self-reference 'dc/{sh}' at {span} is only allowed inside a routine body"
+                            )
+                        })?
+                } else {
+                    self.lookup_verb_arity(word).with_context(|| {
+                        format!(
+                            "Unknown direct Dc routine 'dc/{sh}' at {span} (arity unknown without import or declaration)"
+                        )
+                    })?
+                };
                 let args = self.parse_call_args(arity, enclosing_is_void)?;
                 return Ok(Expr::Call {
                     target: SymbolTarget::Dc(dc),
@@ -893,6 +907,60 @@ impl Parser {
         let args = self.parse_call_args(arity, enclosing_is_void)?;
         Ok(Expr::Call {
             target: SymbolTarget::Ident(word.to_owned()),
+            args,
+            span,
+        })
+    }
+
+    fn parse_inline_anon_call(
+        &mut self,
+        word: &str,
+        span: Span,
+        enclosing_is_void: bool,
+    ) -> Result<Expr> {
+        let return_type = self.parse_anon_routine_ret_after_head(word, span)?;
+        let mut params = Vec::new();
+        loop {
+            let _ = self.consume_comments(false)?;
+            let next = self.peek().with_context(|| {
+                format!(
+                    "Expected '::' opening inline routine body for '{word}' starting at {span}"
+                )
+            })?;
+            if matches!(next.kind, LexKind::DoubleColon) {
+                self.pos = self.pos.saturating_add(1);
+                break;
+            }
+            ensure!(
+                !matches!(next.kind, LexKind::Dot),
+                "Expected '::' opening inline routine body for '{word}' starting at {span}, found '.' at {}",
+                next.span
+            );
+            let (ty, pname, pspan) =
+                self.parse_typed_name_from_tokens("on inline routine header")?;
+            params.push(Param {
+                ty,
+                name: pname,
+                span: pspan,
+            });
+        }
+
+        let arity = params.len();
+        let is_void = return_type == StageLType::Void;
+        self.enclosing_routine_arities.push(arity);
+        let body_res = self.parse_expr(is_void);
+        let _ = self.enclosing_routine_arities.pop();
+        let body = body_res?;
+
+        self.expect_double_colon("closing inline routine body")?;
+        let args = self.parse_call_args(arity, enclosing_is_void)?;
+        Ok(Expr::InlineCall {
+            routine: Box::new(AnonRoutine {
+                return_type,
+                params,
+                body,
+                span,
+            }),
             args,
             span,
         })

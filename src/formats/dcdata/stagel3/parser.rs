@@ -41,10 +41,14 @@ use super::ast::{
     parse_dc_shorthand,
 };
 use crate::DcChar;
+use crate::syntax::{DcRole, SyntaxRuleResolver, default_syntax_resolver};
 use lexer::{LexKind, LexToken, tokenize_with_dialect};
 use std::collections::HashMap;
+use std::sync::Arc;
 use types_and_sigs::{
-    parse_namespace_segments, parse_optional_typed_name_from_tokens_with_ctx,
+    is_named_routine_sig_at_with_ctx,
+    parse_anon_routine_ret_after_head_with_ctx, parse_namespace_segments,
+    parse_optional_typed_name_from_tokens_with_ctx,
     parse_routine_sig_from_tokens_with_ctx, parse_type_from_tokens_with_ctx,
     parse_typed_name_from_tokens_with_ctx,
 };
@@ -255,6 +259,8 @@ fn parse_module_with_context(
         tokens,
         pos: 0,
         verb_scopes: vec![verb_scope],
+        enclosing_routine_arities: Vec::new(),
+        syntax_resolver: default_syntax_resolver(),
         stager_types_by_name,
         stager_types_by_dc,
         stager_enum_variants,
@@ -331,6 +337,7 @@ pub(crate) fn scan_direct_dc_words_with_dialect(
     source: &str,
     dialect: StageDialect,
 ) -> Result<Vec<(String, DcChar)>> {
+    let resolver = default_syntax_resolver();
     let tokens = tokenize_with_dialect(source, dialect)?;
     let mut out = Vec::new();
     for tok in tokens {
@@ -345,10 +352,18 @@ pub(crate) fn scan_direct_dc_words_with_dialect(
                     sh
                 };
                 if let Ok(dc) = parse_dc_shorthand(trimmed) {
-                    out.push((format!("dc/{trimmed}"), dc));
+                    if !resolver
+                        .token_fills_role(dc.to_u128(), DcRole::SelfReference)
+                    {
+                        out.push((format!("dc/{trimmed}"), dc));
+                    }
                 } else if dialect == StageDialect::StageL3 {
                     let dc = parse_dc_shorthand(sh)?;
-                    out.push((w, dc));
+                    if !resolver
+                        .token_fills_role(dc.to_u128(), DcRole::SelfReference)
+                    {
+                        out.push((w, dc));
+                    }
                 }
             } else if dialect == StageDialect::StageR3 {
                 let segs: Vec<&str> = w.split('/').collect();
@@ -357,7 +372,12 @@ pub(crate) fn scan_direct_dc_words_with_dialect(
                         && *prev == "dc"
                     {
                         let base_sh = strip_stager_dc_shorthand(raw_sh);
-                        if let Ok(dc) = parse_dc_shorthand(base_sh) {
+                        if let Ok(dc) = parse_dc_shorthand(base_sh)
+                            && !resolver.token_fills_role(
+                                dc.to_u128(),
+                                DcRole::SelfReference,
+                            )
+                        {
                             out.push((format!("dc/{base_sh}"), dc));
                         }
                     }
@@ -459,6 +479,8 @@ struct Parser {
     tokens: Vec<LexToken>,
     pos: usize,
     verb_scopes: Vec<HashMap<String, usize>>,
+    enclosing_routine_arities: Vec<usize>,
+    syntax_resolver: Arc<dyn SyntaxRuleResolver>,
     stager_types_by_name: HashMap<String, StageRTypeKind>,
     stager_types_by_dc: HashMap<DcChar, StageRTypeKind>,
     stager_enum_variants: HashMap<StructTypeRef, HashMap<String, bool>>,
@@ -531,6 +553,29 @@ impl Parser {
             parse_routine_sig_from_tokens_with_ctx(&self.tokens, &mut pos, &ctx);
         self.pos = pos;
         res
+    }
+
+    fn parse_anon_routine_ret_after_head(
+        &mut self,
+        word: &str,
+        span: Span,
+    ) -> Result<StageLType> {
+        let mut pos = self.pos;
+        let ctx = self.type_ctx();
+        let res = parse_anon_routine_ret_after_head_with_ctx(
+            word,
+            span,
+            &self.tokens,
+            &mut pos,
+            &ctx,
+        );
+        self.pos = pos;
+        res
+    }
+
+    fn is_named_routine_sig_at(&self, idx: usize) -> bool {
+        let ctx = self.type_ctx();
+        is_named_routine_sig_at_with_ctx(&self.tokens, idx, &ctx)
     }
 
     fn peek_at(&self, idx: usize) -> Option<&LexToken> {
@@ -620,6 +665,31 @@ impl Parser {
         ensure!(
             matches!(tok.kind, LexKind::Dot),
             "Expected '.' {context_desc} at {}, found {:?}",
+            tok.span,
+            tok.kind
+        );
+        self.pos = self.pos.saturating_add(1);
+        Ok(tok.span)
+    }
+
+    fn expect_double_colon(&mut self, context_desc: &str) -> Result<Span> {
+        while let Some(tok) = self.peek() {
+            if matches!(tok.kind, LexKind::Comment { .. }) {
+                let pc = self.consume_comments(false)?;
+                let _ = pc;
+            } else {
+                break;
+            }
+        }
+        let tok = self
+            .peek()
+            .with_context(|| {
+                format!("Expected '::' {context_desc}, found EOF")
+            })?
+            .clone();
+        ensure!(
+            matches!(tok.kind, LexKind::DoubleColon),
+            "Expected '::' {context_desc} at {}, found {:?}",
             tok.span,
             tok.kind
         );
