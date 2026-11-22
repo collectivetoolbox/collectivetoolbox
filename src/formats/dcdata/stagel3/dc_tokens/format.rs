@@ -28,9 +28,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::super::ast::{
-    BlockItem, Comment, Expr, ImportTarget, Module, RoutineDecl, StageDialect,
-    StageLType, StructTypeRef, SymbolTarget, TestExpected, TopDecl,
-    format_dc_shorthand,
+    AnonRoutine, BlockItem, Comment, Expr, ImportTarget, Module, RoutineDecl,
+    StageDialect, StageLType, StructTypeRef, SymbolTarget, TestExpected,
+    TopDecl, format_dc_shorthand,
 };
 use super::dc_chars_to_dcts_string;
 use crate::DcChar;
@@ -327,6 +327,21 @@ fn write_block_items(
             }
         }
     }
+    Ok(())
+}
+
+fn write_anon_routine(
+    out: &mut String,
+    r: &AnonRoutine,
+    indent: usize,
+) -> Result<()> {
+    write!(out, "v/{}", r.return_type)?;
+    for p in &r.params {
+        write!(out, " {}/{}", p.ty, p.name)?;
+    }
+    out.push_str(" :: ");
+    write_expr(out, &r.body, indent)?;
+    out.push_str(" ::");
     Ok(())
 }
 
@@ -668,6 +683,14 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             write_expr(out, value, indent)?;
         }
         Expr::RoutineDecl(r) => write_routine(out, r, indent, true)?,
+        Expr::AnonRoutine(r) => write_anon_routine(out, r, indent)?,
+        Expr::InlineCall { routine, args, .. } => {
+            write_anon_routine(out, routine, indent)?;
+            for arg in args {
+                out.push(' ');
+                write_expr(out, arg, indent)?;
+            }
+        }
         Expr::Call { target, args, .. } => {
             write_symbol_target(out, target)?;
             for arg in args {

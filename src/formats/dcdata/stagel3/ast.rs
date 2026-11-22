@@ -599,6 +599,19 @@ pub struct TestBlock {
     pub span: Span,
 }
 
+/// Anonymous inline routine value (`v/RET p1 ... :: BODY ::`, `Dc 2240..2241`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnonRoutine {
+    /// Declared return type (`void` allowed; `never` allowed for diverging verbs).
+    pub return_type: StageLType,
+    /// Fixed-arity formal parameter list.
+    pub params: Vec<Param>,
+    /// Routine body expression.
+    pub body: Expr,
+    /// Source location.
+    pub span: Span,
+}
+
 /// Routine declaration (`v/RET/name ...`, top-level or nested).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RoutineDecl {
@@ -1296,6 +1309,18 @@ pub enum Expr {
     },
     /// Local nested routine declaration (`v/RET/name ...`, `Dc 2203..2204`).
     RoutineDecl(Box<RoutineDecl>),
+    /// Standalone anonymous routine value (`Dc 2240..2241`).
+    AnonRoutine(Box<AnonRoutine>),
+    /// Direct invocation of an inline anonymous routine
+    /// (`v/RET params... :: BODY :: args...`, `Dc 2211 2240..2241 args* 2212`).
+    InlineCall {
+        /// Inline anonymous routine definition.
+        routine: Box<AnonRoutine>,
+        /// Positional argument expressions.
+        args: Vec<Expr>,
+        /// Source location.
+        span: Span,
+    },
     /// Direct routine invocation (`name args...`, `Dc 2211..2212`).
     Call {
         /// Called routine identifier or Dc reference.
@@ -1583,6 +1608,7 @@ impl Expr {
             | Self::Let { span, .. }
             | Self::Const { span, .. }
             | Self::Set { span, .. }
+            | Self::InlineCall { span, .. }
             | Self::Call { span, .. }
             | Self::Block { span, .. }
             | Self::If { span, .. }
@@ -1614,6 +1640,7 @@ impl Expr {
             | Self::Match { span, .. }
             | Self::Propagate { span, .. } => *span,
             Self::RoutineDecl(r) => r.span,
+            Self::AnonRoutine(r) => r.span,
         }
     }
 }

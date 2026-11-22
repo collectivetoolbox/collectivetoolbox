@@ -28,9 +28,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::super::ast::{
-    BlockItem, Comment, Expr, ImportTarget, Module, RoutineDecl, StageDialect,
-    StageLType, StructTypeRef, SymbolTarget, TestCase, TestExpected, TopDecl,
-    TypedIntLit,
+    AnonRoutine, BlockItem, Comment, Expr, ImportTarget, Module, RoutineDecl,
+    StageDialect, StageLType, StructTypeRef, SymbolTarget, TestBlock, TestCase,
+    TestExpected, TopDecl, TypedIntLit,
 };
 use super::{
     BINARY_OPS, TERNARY_OPS, UNARY_OPS, format_dc_char_opt, lookup_op_dc,
@@ -42,37 +42,39 @@ use crate::dc::{
     DC_BEGIN_LITERAL, DC_BEGIN_MATCH, DC_BEGIN_MODULE,
     DC_BEGIN_NAMED_STRUCT_DECL, DC_BEGIN_NAMED_STRUCT_VALUE,
     DC_BEGIN_POSITIONAL_STRUCT_DECL, DC_BEGIN_POSITIONAL_STRUCT_VALUE,
-    DC_BEGIN_ROUTINE_CALL, DC_BEGIN_ROUTINE_DECL, DC_BEGIN_SINGLE_LINE_COMMENT,
-    DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE, DC_BEGIN_STAGEL_LIST,
-    DC_BEGIN_STAGER_MODULE, DC_BEGIN_TEST_BLOCK, DC_BEGIN_TEST_CASE,
-    DC_BEGIN_TUPLE, DC_BEGIN_TYPE_DEF, DC_BEGIN_USE_IMPORT, DC_BITCAST_OP,
-    DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE, DC_BREAK_LOOP, DC_CONTINUE_LOOP,
-    DC_CONVERT_OP, DC_DECLARE_BRAND_TYPE, DC_DECLARE_CONST, DC_DECLARE_LET,
-    DC_DECLARE_PUB, DC_END_CODE_BLOCK, DC_END_ENCAPSULATION_BINARY,
-    DC_END_ENUM_DECL, DC_END_FORMAT_REPRESENTATION, DC_END_IDENTIFIER,
-    DC_END_LIST, DC_END_LITERAL, DC_END_MATCH, DC_END_MODULE,
-    DC_END_NAMED_STRUCT_DECL, DC_END_NAMED_STRUCT_VALUE,
-    DC_END_POSITIONAL_STRUCT_DECL, DC_END_POSITIONAL_STRUCT_VALUE,
-    DC_END_ROUTINE_CALL, DC_END_ROUTINE_DECL, DC_END_SINGLE_LINE_COMMENT,
-    DC_END_STAGEL_LIST, DC_END_STAGER_MODULE, DC_END_TEST_BLOCK,
-    DC_END_TEST_CASE, DC_END_TUPLE, DC_END_TYPE_DEF, DC_END_USE_IMPORT,
-    DC_ENUM_VARIANT_DECL, DC_ENUM_VARIANT_VALUE, DC_ERROR_TAG_VALUE, DC_ESCAPE,
+    DC_BEGIN_ROUTINE, DC_BEGIN_ROUTINE_CALL, DC_BEGIN_ROUTINE_DECL,
+    DC_BEGIN_SINGLE_LINE_COMMENT, DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE,
+    DC_BEGIN_STAGEL_LIST, DC_BEGIN_STAGER_MODULE, DC_BEGIN_TEST_BLOCK,
+    DC_BEGIN_TEST_CASE, DC_BEGIN_TUPLE, DC_BEGIN_TYPE_DEF, DC_BEGIN_USE_IMPORT,
+    DC_BITCAST_OP, DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE, DC_BREAK_LOOP,
+    DC_CONTINUE_LOOP, DC_CONVERT_OP, DC_DECLARE_BRAND_TYPE, DC_DECLARE_CONST,
+    DC_DECLARE_LET, DC_DECLARE_PUB, DC_END_CODE_BLOCK,
+    DC_END_ENCAPSULATION_BINARY, DC_END_ENUM_DECL,
+    DC_END_FORMAT_REPRESENTATION, DC_END_IDENTIFIER, DC_END_LIST,
+    DC_END_LITERAL, DC_END_MATCH, DC_END_MODULE, DC_END_NAMED_STRUCT_DECL,
+    DC_END_NAMED_STRUCT_VALUE, DC_END_POSITIONAL_STRUCT_DECL,
+    DC_END_POSITIONAL_STRUCT_VALUE, DC_END_ROUTINE, DC_END_ROUTINE_CALL,
+    DC_END_ROUTINE_DECL, DC_END_SINGLE_LINE_COMMENT, DC_END_STAGEL_LIST,
+    DC_END_STAGER_MODULE, DC_END_TEST_BLOCK, DC_END_TEST_CASE, DC_END_TUPLE,
+    DC_END_TYPE_DEF, DC_END_USE_IMPORT, DC_ENUM_VARIANT_DECL,
+    DC_ENUM_VARIANT_VALUE, DC_ERROR_TAG_VALUE, DC_ESCAPE,
     DC_EVALUATE_VALUE_AS_ATOM, DC_FAULT_TRAP, DC_FILE_PATH_DELIMITER,
-    DC_QUOTE_FOLLOWING_DC_AS_ATOM,
     DC_FOR_EACH, DC_GET_NAMED_FIELD_OP, DC_GET_POSITIONAL_FIELD_OP,
     DC_IF_CONDITIONAL, DC_LIST_ELEMENT_SEPARATOR, DC_MATCH_CASE_ARM,
     DC_NAMED_STRUCT_FIELD_DECL, DC_NAMED_STRUCT_FIELD_INIT, DC_NAMESPACE_DECL,
     DC_NEGATIVE, DC_NO_OP, DC_OPTION_NONE_VALUE, DC_OPTION_SOME_VALUE,
-    DC_OPTIONAL_ABSENT, DC_PROPAGATE_OP, DC_RESULT_ERR_VALUE,
-    DC_RESULT_OK_VALUE, DC_RETURN_ROUTINE, DC_ROUTINE_PARAM, DC_STAGEL_BUF_NEW,
-    DC_STAGEL_BUF_TYPE, DC_STAGEL_LIST_TYPE, DC_START_ENCAPSULATION_BINARY,
-    DC_TEST_EXPECTED_OUT, DC_TOTAL_CONVERT_OP, DC_TYPE_ANY, DC_TYPE_ATOM_DC,
-    DC_TYPE_CURSOR, DC_TYPE_ERROR, DC_TYPE_INTERSECTION, DC_TYPE_NOMINAL,
-    DC_TYPE_OPTION, DC_TYPE_RESULT, DC_TYPE_STRING, DC_TYPE_STRUCT,
-    DC_TYPE_TUPLE, DC_TYPE_VIEW, DC_TYPED_VALUE_REF, DC_UNWRAP_NOMINAL_OP,
-    DC_USE_IMPORT_ITEM, DC_WHILE_LOOP, DC_WITH_NAMED_FIELD_OP,
-    DC_WITH_POSITIONAL_FIELD_OP, DC_WRAP_NOMINAL_OP,
+    DC_OPTIONAL_ABSENT, DC_PROPAGATE_OP, DC_QUOTE_FOLLOWING_DC_AS_ATOM,
+    DC_RESULT_ERR_VALUE, DC_RESULT_OK_VALUE, DC_RETURN_ROUTINE,
+    DC_ROUTINE_PARAM, DC_SELF_REFERENCE, DC_STAGEL_BUF_NEW, DC_STAGEL_BUF_TYPE,
+    DC_STAGEL_LIST_TYPE, DC_START_ENCAPSULATION_BINARY, DC_TEST_EXPECTED_OUT,
+    DC_TOTAL_CONVERT_OP, DC_TYPE_ANY, DC_TYPE_ATOM_DC, DC_TYPE_CURSOR,
+    DC_TYPE_ERROR, DC_TYPE_INTERSECTION, DC_TYPE_NOMINAL, DC_TYPE_OPTION,
+    DC_TYPE_RESULT, DC_TYPE_STRING, DC_TYPE_STRUCT, DC_TYPE_TUPLE,
+    DC_TYPE_VIEW, DC_TYPED_VALUE_REF, DC_UNWRAP_NOMINAL_OP, DC_USE_IMPORT_ITEM,
+    DC_WHILE_LOOP, DC_WITH_NAMED_FIELD_OP, DC_WITH_POSITIONAL_FIELD_OP,
+    DC_WRAP_NOMINAL_OP,
 };
+use std::collections::HashSet;
 use crate::dc_number_minimal::{dc_base64_digit_to_char, u128_to_dc_number_chars};
 use ctb_utilities::format_id::FormatId;
 
@@ -106,6 +108,296 @@ pub(super) fn encode_filepath_dc_tokens(
     let mut out = Vec::new();
     push_filepath(&mut out, segments)?;
     Ok(out)
+}
+
+/// Encodes a routine's pure anonymous executable decomposition (`Dc 2240..2241`),
+/// omitting name, visibility, doc comments, and inline test blocks, and
+/// rewriting direct unshadowed outer self-calls into `Dc 599`
+/// (`DC_SELF_REFERENCE`).
+pub(super) fn encode_routine_decomp_to_dc_tokens(
+    r: &RoutineDecl,
+) -> Result<Vec<DcChar>> {
+    let mut body = r.body.clone();
+    let mut shadowed_routines = HashSet::new();
+    rewrite_outer_self_calls_to_dc(
+        &mut body,
+        r.dc_id,
+        &r.name,
+        &mut shadowed_routines,
+    );
+    let anon = AnonRoutine {
+        return_type: r.return_type.clone(),
+        params: r.params.clone(),
+        body,
+        span: r.span,
+    };
+    let mut out = Vec::new();
+    push_anon_routine(&mut out, &anon)?;
+    Ok(out)
+}
+
+/// Encodes non-empty routine inline test blocks into a standalone
+/// `Dc 2206..2207` Token Dc stream for `Dc 1942` (`Routine test suite`)
+/// metadata storage.
+pub(super) fn encode_test_suite_to_dc_tokens(
+    tests: &[TestBlock],
+) -> Result<Vec<DcChar>> {
+    let mut out = Vec::new();
+    push_test_blocks(&mut out, tests)?;
+    ensure!(
+        !out.is_empty(),
+        "Routine test suite must contain at least one test case"
+    );
+    Ok(out)
+}
+
+fn rewrite_outer_self_calls_to_dc(
+    expr: &mut Expr,
+    self_dc: Option<DcChar>,
+    self_name: &str,
+    shadowed_routines: &mut HashSet<String>,
+) {
+    match expr {
+        // Do not descend into nested or inline routine bodies: inside them,
+        // `Dc 599` denotes the inner routine, not the outer routine.
+        Expr::RoutineDecl(_) | Expr::AnonRoutine(_) => {}
+        Expr::InlineCall { args, .. } => {
+            for arg in args {
+                rewrite_outer_self_calls_to_dc(
+                    arg,
+                    self_dc,
+                    self_name,
+                    shadowed_routines,
+                );
+            }
+        }
+        Expr::Call { target, args, .. } => {
+            let is_self = match (self_dc, &*target) {
+                (Some(dc), SymbolTarget::Dc(t)) => *t == dc,
+                (None, SymbolTarget::Ident(n)) => {
+                    n == self_name && !shadowed_routines.contains(n.as_str())
+                }
+                _ => false,
+            };
+            if is_self {
+                *target = SymbolTarget::Dc(DC_SELF_REFERENCE);
+            }
+            for arg in args {
+                rewrite_outer_self_calls_to_dc(
+                    arg,
+                    self_dc,
+                    self_name,
+                    shadowed_routines,
+                );
+            }
+        }
+        Expr::Block { stmts, .. } => {
+            let mut newly_shadowed = Vec::new();
+            for item in stmts.iter() {
+                if let BlockItem::Expr(Expr::RoutineDecl(nr)) = item
+                    && shadowed_routines.insert(nr.name.clone())
+                {
+                    newly_shadowed.push(nr.name.clone());
+                }
+            }
+            for item in stmts {
+                if let BlockItem::Expr(e) = item {
+                    rewrite_outer_self_calls_to_dc(
+                        e,
+                        self_dc,
+                        self_name,
+                        shadowed_routines,
+                    );
+                }
+            }
+            for name in newly_shadowed {
+                shadowed_routines.remove(&name);
+            }
+        }
+        Expr::List { elements, .. } | Expr::TupleNew { elements, .. } => {
+            for el in elements {
+                rewrite_outer_self_calls_to_dc(
+                    el,
+                    self_dc,
+                    self_name,
+                    shadowed_routines,
+                );
+            }
+        }
+        Expr::StructNew { fields, .. } => {
+            for f in fields {
+                rewrite_outer_self_calls_to_dc(
+                    f,
+                    self_dc,
+                    self_name,
+                    shadowed_routines,
+                );
+            }
+        }
+        Expr::NamedStructNew { fields, .. } => {
+            for (_, val, _) in fields {
+                rewrite_outer_self_calls_to_dc(
+                    val,
+                    self_dc,
+                    self_name,
+                    shadowed_routines,
+                );
+            }
+        }
+        Expr::Field { base, .. }
+        | Expr::NamedField { base, .. }
+        | Expr::BufNew { capacity: base, .. }
+        | Expr::Const { value: base, .. }
+        | Expr::Set { value: base, .. }
+        | Expr::Unary { operand: base, .. }
+        | Expr::Conv { expr: base, .. }
+        | Expr::Bitcast { expr: base, .. }
+        | Expr::OptionSome { value: base, .. }
+        | Expr::ResultOk { value: base, .. }
+        | Expr::ResultErr { error: base, .. }
+        | Expr::WrapNominal { expr: base, .. }
+        | Expr::UnwrapNominal { expr: base, .. }
+        | Expr::Propagate { expr: base, .. } => {
+            rewrite_outer_self_calls_to_dc(
+                base,
+                self_dc,
+                self_name,
+                shadowed_routines,
+            );
+        }
+        Expr::Let { init, .. } => {
+            if let Some(e) = init {
+                rewrite_outer_self_calls_to_dc(
+                    e,
+                    self_dc,
+                    self_name,
+                    shadowed_routines,
+                );
+            }
+        }
+        Expr::Return { value, .. } => {
+            if let Some(e) = value {
+                rewrite_outer_self_calls_to_dc(
+                    e,
+                    self_dc,
+                    self_name,
+                    shadowed_routines,
+                );
+            }
+        }
+        Expr::EnumVariant { payload, .. } => {
+            if let Some(e) = payload {
+                rewrite_outer_self_calls_to_dc(
+                    e,
+                    self_dc,
+                    self_name,
+                    shadowed_routines,
+                );
+            }
+        }
+        Expr::With { base, value, .. }
+        | Expr::NamedWith { base, value, .. }
+        | Expr::While {
+            cond: base,
+            body: value,
+            ..
+        }
+        | Expr::ForEach {
+            list: base,
+            body: value,
+            ..
+        }
+        | Expr::Binary {
+            left: base,
+            right: value,
+            ..
+        } => {
+            rewrite_outer_self_calls_to_dc(
+                base,
+                self_dc,
+                self_name,
+                shadowed_routines,
+            );
+            rewrite_outer_self_calls_to_dc(
+                value,
+                self_dc,
+                self_name,
+                shadowed_routines,
+            );
+        }
+        Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        }
+        | Expr::Ternary {
+            first: cond,
+            second: then_branch,
+            third: else_branch,
+            ..
+        } => {
+            rewrite_outer_self_calls_to_dc(
+                cond,
+                self_dc,
+                self_name,
+                shadowed_routines,
+            );
+            rewrite_outer_self_calls_to_dc(
+                then_branch,
+                self_dc,
+                self_name,
+                shadowed_routines,
+            );
+            rewrite_outer_self_calls_to_dc(
+                else_branch,
+                self_dc,
+                self_name,
+                shadowed_routines,
+            );
+        }
+        Expr::Match {
+            scrutinee,
+            arms,
+            fallback,
+            ..
+        } => {
+            rewrite_outer_self_calls_to_dc(
+                scrutinee,
+                self_dc,
+                self_name,
+                shadowed_routines,
+            );
+            for arm in arms {
+                rewrite_outer_self_calls_to_dc(
+                    &mut arm.body,
+                    self_dc,
+                    self_name,
+                    shadowed_routines,
+                );
+            }
+            if let Some(fb) = fallback {
+                rewrite_outer_self_calls_to_dc(
+                    fb,
+                    self_dc,
+                    self_name,
+                    shadowed_routines,
+                );
+            }
+        }
+        Expr::Bool { .. }
+        | Expr::Int { .. }
+        | Expr::Bytes { .. }
+        | Expr::ValueRef { .. }
+        | Expr::Break { .. }
+        | Expr::Continue { .. }
+        | Expr::Fault { .. }
+        | Expr::Nop { .. }
+        | Expr::DctsString { .. }
+        | Expr::DcLit { .. }
+        | Expr::OptionNone { .. }
+        | Expr::ErrorTag { .. } => {}
+    }
 }
 
 /// Encodes a StageL 3 / StageR 3 static type into its canonical Token Dc
@@ -546,6 +838,43 @@ fn push_binary_bytes(out: &mut Vec<DcChar>, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
+fn push_test_blocks(out: &mut Vec<DcChar>, tests: &[TestBlock]) -> Result<()> {
+    let all_cases: Vec<&TestCase> =
+        tests.iter().flat_map(|tb| tb.cases.iter()).collect();
+    if all_cases.is_empty() {
+        return Ok(());
+    }
+    out.push(DC_BEGIN_TEST_BLOCK);
+    for tc in all_cases {
+        out.push(DC_BEGIN_TEST_CASE);
+        for inp in &tc.inputs {
+            push_expr(out, inp)?;
+        }
+        out.push(DC_TEST_EXPECTED_OUT);
+        match &tc.expected {
+            TestExpected::Expr(e) => push_expr(out, e)?,
+            TestExpected::Fault(_) => out.push(DC_FAULT_TRAP),
+            TestExpected::Void(_) => out.push(DC_OPTIONAL_ABSENT),
+        }
+        out.push(DC_END_TEST_CASE);
+    }
+    out.push(DC_END_TEST_BLOCK);
+    Ok(())
+}
+
+fn push_anon_routine(out: &mut Vec<DcChar>, r: &AnonRoutine) -> Result<()> {
+    out.push(DC_BEGIN_ROUTINE);
+    push_stagel_type(out, &r.return_type)?;
+    for p in &r.params {
+        out.push(DC_ROUTINE_PARAM);
+        push_stagel_type(out, &p.ty)?;
+        push_identifier(out, &p.name)?;
+    }
+    push_expr(out, &r.body)?;
+    out.push(DC_END_ROUTINE);
+    Ok(())
+}
+
 fn push_routine(out: &mut Vec<DcChar>, r: &RoutineDecl) -> Result<()> {
     for comment in &r.comments_before {
         push_comment(out, comment);
@@ -561,25 +890,7 @@ fn push_routine(out: &mut Vec<DcChar>, r: &RoutineDecl) -> Result<()> {
         push_identifier(out, &p.name)?;
     }
 
-    let all_cases: Vec<&TestCase> =
-        r.tests.iter().flat_map(|tb| tb.cases.iter()).collect();
-    if !all_cases.is_empty() {
-        out.push(DC_BEGIN_TEST_BLOCK);
-        for tc in all_cases {
-            out.push(DC_BEGIN_TEST_CASE);
-            for inp in &tc.inputs {
-                push_expr(out, inp)?;
-            }
-            out.push(DC_TEST_EXPECTED_OUT);
-            match &tc.expected {
-                TestExpected::Expr(e) => push_expr(out, e)?,
-                TestExpected::Fault(_) => out.push(DC_FAULT_TRAP),
-                TestExpected::Void(_) => out.push(DC_OPTIONAL_ABSENT),
-            }
-            out.push(DC_END_TEST_CASE);
-        }
-        out.push(DC_END_TEST_BLOCK);
-    }
+    push_test_blocks(out, &r.tests)?;
 
     push_expr(out, &r.body)?;
     out.push(DC_END_ROUTINE_DECL);
@@ -686,6 +997,15 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
             push_expr(out, value)?;
         }
         Expr::RoutineDecl(r) => push_routine(out, r)?,
+        Expr::AnonRoutine(r) => push_anon_routine(out, r)?,
+        Expr::InlineCall { routine, args, .. } => {
+            out.push(DC_BEGIN_ROUTINE_CALL);
+            push_anon_routine(out, routine)?;
+            for arg in args {
+                push_expr(out, arg)?;
+            }
+            out.push(DC_END_ROUTINE_CALL);
+        }
         Expr::Call { target, args, .. } => {
             out.push(DC_BEGIN_ROUTINE_CALL);
             push_symbol_target(out, target)?;

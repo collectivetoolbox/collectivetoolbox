@@ -36,7 +36,10 @@ mod decode;
 mod encode;
 mod format;
 
-use super::ast::{BinaryOp, Module, StageLType, TernaryOp, TopDecl, UnaryOp};
+use super::ast::{
+    AnonRoutine, BinaryOp, Expr, Module, RoutineDecl, StageLType, TernaryOp,
+    TestBlock, TopDecl, UnaryOp,
+};
 use super::parser::{parse_module, parse_sr3_module};
 use crate::DcChar;
 use crate::dc::{
@@ -261,6 +264,23 @@ pub fn encode_top_decl_to_dc_tokens(decl: &TopDecl) -> Result<Vec<DcChar>> {
     encode::encode_top_decl_to_dc_tokens(decl)
 }
 
+/// Encodes a routine's pure anonymous executable decomposition (`Dc 2240..2241`),
+/// omitting name, visibility, doc comments, and inline test blocks, and
+/// rewriting direct unshadowed outer self-calls into `Dc 599 "Self reference"`.
+pub fn encode_routine_decomp_to_dc_tokens(
+    r: &RoutineDecl,
+) -> Result<Vec<DcChar>> {
+    encode::encode_routine_decomp_to_dc_tokens(r)
+}
+
+/// Encodes non-empty routine inline test blocks into a standalone
+/// `Dc 2206..2207` Token Dc stream for `Dc 1942 "Routine test suite"` storage.
+pub fn encode_test_suite_to_dc_tokens(
+    tests: &[TestBlock],
+) -> Result<Vec<DcChar>> {
+    encode::encode_test_suite_to_dc_tokens(tests)
+}
+
 /// Encodes a PSR-4 module namespace path into canonical `f229` (`File path`)
 /// Token Dcs.
 pub fn encode_filepath_dc_tokens(segments: &[String]) -> Result<Vec<DcChar>> {
@@ -298,6 +318,45 @@ pub fn decode_top_decl_from_dc_tokens_at_line(
     line: usize,
 ) -> Result<TopDecl> {
     decode::decode_top_decl_from_dc_tokens_at_line(tokens, line)
+}
+
+/// Decodes a standalone anonymous routine (`Dc 2240..2241`) Token Dc stream.
+pub fn decode_anon_routine_from_dc_tokens(
+    tokens: &[DcChar],
+) -> Result<AnonRoutine> {
+    decode_anon_routine_from_dc_tokens_at_line(tokens, 1)
+}
+
+/// Decodes a standalone anonymous routine (`Dc 2240..2241`) Token Dc stream,
+/// stamping synthetic source spans with `line`.
+pub fn decode_anon_routine_from_dc_tokens_at_line(
+    tokens: &[DcChar],
+    line: usize,
+) -> Result<AnonRoutine> {
+    decode::decode_anon_routine_from_dc_tokens_at_line(tokens, line)
+}
+
+/// Decodes a standalone routine test suite (`Dc 2206..2207`) Token Dc stream.
+pub fn decode_test_suite_from_dc_tokens(
+    tokens: &[DcChar],
+) -> Result<Vec<TestBlock>> {
+    decode_test_suite_from_dc_tokens_at_line(tokens, 1)
+}
+
+/// Decodes a standalone routine test suite (`Dc 2206..2207`) Token Dc stream,
+/// stamping synthetic source spans with `line`.
+pub fn decode_test_suite_from_dc_tokens_at_line(
+    tokens: &[DcChar],
+    line: usize,
+) -> Result<Vec<TestBlock>> {
+    decode::decode_test_suite_from_dc_tokens_at_line(tokens, line)
+}
+
+/// Rewrites outer `DcRole::SelfReference` (`Dc 599`) call targets inside `expr`
+/// (without descending into nested or inline routine bodies) back into
+/// `SymbolTarget::Ident(self_name)` for `.sl3` / `.sr3` source reconstruction.
+pub fn restore_outer_self_refs_in_expr(expr: &mut Expr, self_name: &str) {
+    decode::restore_outer_self_refs_in_expr(expr, self_name);
 }
 
 /// Decodes a canonical `f229` (`File path`) Token Dc sequence into path
@@ -355,12 +414,12 @@ mod tests {
         DC_BEGIN_LITERAL, DC_BEGIN_MATCH, DC_BEGIN_MODULE,
         DC_BEGIN_NAMED_STRUCT_DECL, DC_BEGIN_NAMED_STRUCT_VALUE,
         DC_BEGIN_POSITIONAL_STRUCT_DECL, DC_BEGIN_POSITIONAL_STRUCT_VALUE,
-        DC_BEGIN_ROUTINE_CALL, DC_BEGIN_ROUTINE_DECL, DC_BEGIN_STAGER_MODULE,
-        DC_BEGIN_TEST_BLOCK, DC_BEGIN_TEST_CASE, DC_BEGIN_TUPLE,
-        DC_END_CODE_BLOCK, DC_END_ENUM_DECL, DC_END_IDENTIFIER, DC_END_LITERAL,
-        DC_END_MATCH, DC_END_MODULE, DC_END_NAMED_STRUCT_DECL,
+        DC_BEGIN_ROUTINE, DC_BEGIN_ROUTINE_CALL, DC_BEGIN_ROUTINE_DECL,
+        DC_BEGIN_STAGER_MODULE, DC_BEGIN_TEST_BLOCK, DC_BEGIN_TEST_CASE,
+        DC_BEGIN_TUPLE, DC_END_CODE_BLOCK, DC_END_ENUM_DECL, DC_END_IDENTIFIER,
+        DC_END_LITERAL, DC_END_MATCH, DC_END_MODULE, DC_END_NAMED_STRUCT_DECL,
         DC_END_NAMED_STRUCT_VALUE, DC_END_POSITIONAL_STRUCT_DECL,
-        DC_END_POSITIONAL_STRUCT_VALUE, DC_END_ROUTINE_CALL,
+        DC_END_POSITIONAL_STRUCT_VALUE, DC_END_ROUTINE, DC_END_ROUTINE_CALL,
         DC_END_ROUTINE_DECL, DC_END_STAGER_MODULE, DC_END_TEST_BLOCK,
         DC_END_TEST_CASE, DC_END_TUPLE, DC_GET_POSITIONAL_FIELD_OP, DC_NO_OP,
         DC_TYPE_STRUCT, DC_TYPE_TUPLE, DC_WITH_POSITIONAL_FIELD_OP,
@@ -390,6 +449,7 @@ mod tests {
         let pairs = [
             (open_mod, close_mod),
             (DC_BEGIN_ROUTINE_DECL, DC_END_ROUTINE_DECL),
+            (DC_BEGIN_ROUTINE, DC_END_ROUTINE),
             (DC_BEGIN_ROUTINE_CALL, DC_END_ROUTINE_CALL),
             (DC_BEGIN_CODE_BLOCK, DC_END_CODE_BLOCK),
             (DC_BEGIN_TEST_BLOCK, DC_END_TEST_BLOCK),

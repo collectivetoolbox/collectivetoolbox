@@ -28,11 +28,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::super::ast::{
-    BlockItem, Comment, Expr, ImportTarget, MatchArm, Module, NamedFieldDecl,
-    NamedStructDecl, Param, PositionalStructDecl, RoutineDecl, Span,
-    StageDialect, StageLType, StageRErrorTag, StructTypeRef, SymbolTarget,
-    TestBlock, TestCase, TestExpected, TopDecl, TopValueDecl, TypedIntLit,
-    UseImport, UseImportItem, BrandTypeDecl, EnumDecl, EnumVariantDecl,
+    AnonRoutine, BlockItem, BrandTypeDecl, Comment, EnumDecl, EnumVariantDecl,
+    Expr, ImportTarget, MatchArm, Module, NamedFieldDecl, NamedStructDecl,
+    Param, PositionalStructDecl, RoutineDecl, Span, StageDialect, StageLType,
+    StageRErrorTag, StructTypeRef, SymbolTarget, TestBlock, TestCase,
+    TestExpected, TopDecl, TopValueDecl, TypedIntLit, UseImport, UseImportItem,
 };
 use super::{
     BINARY_OPS, TERNARY_OPS, UNARY_OPS, dc_chars_to_dcts_string,
@@ -184,6 +184,209 @@ pub(super) fn decode_top_decl_from_dc_tokens_at_line(
         dec.pos
     );
     Ok(decl)
+}
+
+/// Decodes a standalone anonymous routine (`Dc 2240..2241`) Token Dc stream,
+/// stamping synthetic source [`Span`]s with `line`.
+pub(super) fn decode_anon_routine_from_dc_tokens_at_line(
+    tokens: &[DcChar],
+    line: usize,
+) -> Result<AnonRoutine> {
+    let resolver = default_syntax_resolver();
+    let mut dec = Decoder {
+        tokens,
+        pos: 0,
+        line: line.max(1),
+        resolver: resolver.as_ref(),
+    };
+    let _ = dec.collect_comments()?;
+    let anon = dec.read_anon_routine()?;
+    let _ = dec.collect_comments()?;
+    ensure!(
+        dec.pos == tokens.len(),
+        "Unexpected trailing Token Dcs after Dc 2240..2241 routine (at index {})",
+        dec.pos
+    );
+    Ok(anon)
+}
+
+/// Decodes a standalone routine test suite (`Dc 2206..2207`) Token Dc stream,
+/// stamping synthetic source [`Span`]s with `line`.
+pub(super) fn decode_test_suite_from_dc_tokens_at_line(
+    tokens: &[DcChar],
+    line: usize,
+) -> Result<Vec<TestBlock>> {
+    let resolver = default_syntax_resolver();
+    let mut dec = Decoder {
+        tokens,
+        pos: 0,
+        line: line.max(1),
+        resolver: resolver.as_ref(),
+    };
+    let _ = dec.collect_comments()?;
+    ensure!(
+        dec.peek_fills_role(DcRole::BeginTestBlock),
+        "Expected Dc 2206 BeginTestBlock at start of routine test suite"
+    );
+    let tb = dec.read_test_block()?;
+    let _ = dec.collect_comments()?;
+    ensure!(
+        dec.pos == tokens.len(),
+        "Unexpected trailing Token Dcs after Dc 2206..2207 test suite (at index {})",
+        dec.pos
+    );
+    Ok(vec![tb])
+}
+
+/// Rewrites outer `DcRole::SelfReference` (`Dc 599`) call targets inside `expr`
+/// (without descending into nested or inline routine bodies) back into
+/// `SymbolTarget::Ident(self_name)` for `.sl3` / `.sr3` source reconstruction.
+pub(super) fn restore_outer_self_refs_in_expr(
+    expr: &mut Expr,
+    self_name: &str,
+) {
+    let resolver = default_syntax_resolver();
+    restore_outer_self_refs_inner(expr, self_name, resolver.as_ref());
+}
+
+fn restore_outer_self_refs_inner(
+    expr: &mut Expr,
+    self_name: &str,
+    resolver: &dyn SyntaxRuleResolver,
+) {
+    match expr {
+        Expr::RoutineDecl(_) | Expr::AnonRoutine(_) => {}
+        Expr::InlineCall { args, .. } => {
+            for arg in args {
+                restore_outer_self_refs_inner(arg, self_name, resolver);
+            }
+        }
+        Expr::Call { target, args, .. } => {
+            if let SymbolTarget::Dc(dc) = target
+                && resolver.token_fills_role(dc.to_u128(), DcRole::SelfReference)
+            {
+                *target = SymbolTarget::Ident(self_name.to_owned());
+            }
+            for arg in args {
+                restore_outer_self_refs_inner(arg, self_name, resolver);
+            }
+        }
+        Expr::Block { stmts, .. } => {
+            for item in stmts {
+                if let BlockItem::Expr(e) = item {
+                    restore_outer_self_refs_inner(e, self_name, resolver);
+                }
+            }
+        }
+        Expr::List { elements, .. } | Expr::TupleNew { elements, .. } => {
+            for el in elements {
+                restore_outer_self_refs_inner(el, self_name, resolver);
+            }
+        }
+        Expr::StructNew { fields, .. } => {
+            for f in fields {
+                restore_outer_self_refs_inner(f, self_name, resolver);
+            }
+        }
+        Expr::NamedStructNew { fields, .. } => {
+            for (_, val, _) in fields {
+                restore_outer_self_refs_inner(val, self_name, resolver);
+            }
+        }
+        Expr::Field { base, .. }
+        | Expr::NamedField { base, .. }
+        | Expr::BufNew { capacity: base, .. }
+        | Expr::Const { value: base, .. }
+        | Expr::Set { value: base, .. }
+        | Expr::Unary { operand: base, .. }
+        | Expr::Conv { expr: base, .. }
+        | Expr::Bitcast { expr: base, .. }
+        | Expr::OptionSome { value: base, .. }
+        | Expr::ResultOk { value: base, .. }
+        | Expr::ResultErr { error: base, .. }
+        | Expr::WrapNominal { expr: base, .. }
+        | Expr::UnwrapNominal { expr: base, .. }
+        | Expr::Propagate { expr: base, .. } => {
+            restore_outer_self_refs_inner(base, self_name, resolver);
+        }
+        Expr::Let { init, .. } => {
+            if let Some(e) = init {
+                restore_outer_self_refs_inner(e, self_name, resolver);
+            }
+        }
+        Expr::Return { value, .. } => {
+            if let Some(e) = value {
+                restore_outer_self_refs_inner(e, self_name, resolver);
+            }
+        }
+        Expr::EnumVariant { payload, .. } => {
+            if let Some(e) = payload {
+                restore_outer_self_refs_inner(e, self_name, resolver);
+            }
+        }
+        Expr::With { base, value, .. }
+        | Expr::NamedWith { base, value, .. }
+        | Expr::While {
+            cond: base,
+            body: value,
+            ..
+        }
+        | Expr::ForEach {
+            list: base,
+            body: value,
+            ..
+        }
+        | Expr::Binary {
+            left: base,
+            right: value,
+            ..
+        } => {
+            restore_outer_self_refs_inner(base, self_name, resolver);
+            restore_outer_self_refs_inner(value, self_name, resolver);
+        }
+        Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        }
+        | Expr::Ternary {
+            first: cond,
+            second: then_branch,
+            third: else_branch,
+            ..
+        } => {
+            restore_outer_self_refs_inner(cond, self_name, resolver);
+            restore_outer_self_refs_inner(then_branch, self_name, resolver);
+            restore_outer_self_refs_inner(else_branch, self_name, resolver);
+        }
+        Expr::Match {
+            scrutinee,
+            arms,
+            fallback,
+            ..
+        } => {
+            restore_outer_self_refs_inner(scrutinee, self_name, resolver);
+            for arm in arms {
+                restore_outer_self_refs_inner(&mut arm.body, self_name, resolver);
+            }
+            if let Some(fb) = fallback {
+                restore_outer_self_refs_inner(fb, self_name, resolver);
+            }
+        }
+        Expr::Bool { .. }
+        | Expr::Int { .. }
+        | Expr::Bytes { .. }
+        | Expr::ValueRef { .. }
+        | Expr::Break { .. }
+        | Expr::Continue { .. }
+        | Expr::Fault { .. }
+        | Expr::Nop { .. }
+        | Expr::DctsString { .. }
+        | Expr::DcLit { .. }
+        | Expr::OptionNone { .. }
+        | Expr::ErrorTag { .. } => {}
+    }
 }
 
 /// Decodes a canonical `f229` (`File path`) Token Dc sequence into path
@@ -1125,6 +1328,95 @@ impl Decoder<'_> {
         Ok(bytes)
     }
 
+    fn read_routine_params(&mut self) -> Result<Vec<Param>> {
+        let mut params = Vec::new();
+        while self.peek_fills_role(DcRole::RoutineParam) {
+            let psp = self.span();
+            self.pos = self.pos.saturating_add(1);
+            let pty = self.read_stagel_type()?;
+            let pname = self.read_identifier()?;
+            params.push(Param {
+                ty: pty,
+                name: pname,
+                span: psp,
+            });
+        }
+        Ok(params)
+    }
+
+    fn read_test_block(&mut self) -> Result<TestBlock> {
+        let tb_sp = self.span();
+        self.expect_role(
+            DcRole::BeginTestBlock,
+            "Expected Dc 2206 BeginTestBlock",
+        )?;
+        let mut cases = Vec::new();
+        loop {
+            let tok =
+                self.next("Expected Dc 2208 TestCase or Dc 2207 EndTestBlock")?;
+            if self.token_fills(tok, DcRole::EndTestBlock) {
+                break;
+            }
+            ensure!(
+                self.token_fills(tok, DcRole::BeginTestCase),
+                "Expected Dc 2208 TestCase, found {tok}"
+            );
+            let tc_sp = self.span();
+            let mut inputs = Vec::new();
+            while !self.peek_fills_role(DcRole::TestExpectedOut) {
+                inputs.push(self.read_expr()?);
+            }
+            self.expect_role(
+                DcRole::TestExpectedOut,
+                "Expected Dc 2209 TestExpectedOut",
+            )?;
+            let expected = if self.peek_is_optional_absent() {
+                let vsp = self.span();
+                self.pos = self.pos.saturating_add(1);
+                TestExpected::Void(vsp)
+            } else if self.peek_fills_role(DcRole::FaultTrap) {
+                let fsp = self.span();
+                self.pos = self.pos.saturating_add(1);
+                TestExpected::Fault(fsp)
+            } else {
+                TestExpected::Expr(self.read_expr()?)
+            };
+            self.expect_role(
+                DcRole::EndTestCase,
+                "Expected Dc 2210 EndTestCase",
+            )?;
+            cases.push(TestCase {
+                inputs,
+                expected,
+                span: tc_sp,
+            });
+        }
+        ensure!(!cases.is_empty(), "Empty Dc 2206..2207 test block");
+        Ok(TestBlock {
+            label: None,
+            cases,
+            span: tb_sp,
+        })
+    }
+
+    fn read_anon_routine(&mut self) -> Result<AnonRoutine> {
+        let sp = self.span();
+        self.expect_role(
+            DcRole::BeginRoutine,
+            "Expected Dc 2240 BeginRoutine",
+        )?;
+        let return_type = self.read_stagel_type()?;
+        let params = self.read_routine_params()?;
+        let body = self.read_expr()?;
+        self.expect_role(DcRole::EndRoutine, "Expected Dc 2241 EndRoutine")?;
+        Ok(AnonRoutine {
+            return_type,
+            params,
+            body,
+            span: sp,
+        })
+    }
+
     fn read_routine(
         &mut self,
         comments_before: Vec<Comment>,
@@ -1140,72 +1432,11 @@ impl Decoder<'_> {
         let pub_dc_syntax = is_pub_dc_syntax(is_pub, dc_id);
         let return_type = self.read_stagel_type()?;
         let name = self.read_identifier()?;
-
-        let mut params = Vec::new();
-        while self.peek_fills_role(DcRole::RoutineParam) {
-            let psp = self.span();
-            self.pos = self.pos.saturating_add(1);
-            let pty = self.read_stagel_type()?;
-            let pname = self.read_identifier()?;
-            params.push(Param {
-                ty: pty,
-                name: pname,
-                span: psp,
-            });
-        }
+        let params = self.read_routine_params()?;
 
         let mut tests = Vec::new();
         if self.peek_fills_role(DcRole::BeginTestBlock) {
-            let tb_sp = self.span();
-            self.pos = self.pos.saturating_add(1);
-            let mut cases = Vec::new();
-            loop {
-                let tok = self.next(
-                    "Expected Dc 2208 TestCase or Dc 2207 EndTestBlock",
-                )?;
-                if self.token_fills(tok, DcRole::EndTestBlock) {
-                    break;
-                }
-                ensure!(
-                    self.token_fills(tok, DcRole::BeginTestCase),
-                    "Expected Dc 2208 TestCase, found {tok}"
-                );
-                let tc_sp = self.span();
-                let mut inputs = Vec::new();
-                while !self.peek_fills_role(DcRole::TestExpectedOut) {
-                    inputs.push(self.read_expr()?);
-                }
-                self.expect_role(
-                    DcRole::TestExpectedOut,
-                    "Expected Dc 2209 TestExpectedOut",
-                )?;
-                let expected = if self.peek_is_optional_absent() {
-                    let vsp = self.span();
-                    self.pos = self.pos.saturating_add(1);
-                    TestExpected::Void(vsp)
-                } else if self.peek_fills_role(DcRole::FaultTrap) {
-                    let fsp = self.span();
-                    self.pos = self.pos.saturating_add(1);
-                    TestExpected::Fault(fsp)
-                } else {
-                    TestExpected::Expr(self.read_expr()?)
-                };
-                self.expect_role(
-                    DcRole::EndTestCase,
-                    "Expected Dc 2210 EndTestCase",
-                )?;
-                cases.push(TestCase {
-                    inputs,
-                    expected,
-                    span: tc_sp,
-                });
-            }
-            ensure!(!cases.is_empty(), "Empty Dc 2206..2207 test block");
-            tests.push(TestBlock {
-                label: None,
-                cases,
-                span: tb_sp,
-            });
+            tests.push(self.read_test_block()?);
         }
 
         let body = self.read_expr()?;
@@ -1517,8 +1748,28 @@ impl Decoder<'_> {
             let r = self.read_routine(Vec::new())?;
             return Ok(Expr::RoutineDecl(Box::new(r)));
         }
+        if self.token_fills(tok, DcRole::BeginRoutine) {
+            let r = self.read_anon_routine()?;
+            return Ok(Expr::AnonRoutine(Box::new(r)));
+        }
         if self.token_fills(tok, DcRole::BeginRoutineCall) {
             self.pos = self.pos.saturating_add(1);
+            if self.peek_fills_role(DcRole::BeginRoutine) {
+                let routine = Box::new(self.read_anon_routine()?);
+                let mut args = Vec::new();
+                while !self.peek_fills_role(DcRole::EndRoutineCall) {
+                    args.push(self.read_expr()?);
+                }
+                self.expect_role(
+                    DcRole::EndRoutineCall,
+                    "Expected Dc 2212 EndRoutineCall",
+                )?;
+                return Ok(Expr::InlineCall {
+                    routine,
+                    args,
+                    span: sp,
+                });
+            }
             let target = self.read_symbol_target()?;
             let mut args = Vec::new();
             while !self.peek_fills_role(DcRole::EndRoutineCall) {
