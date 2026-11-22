@@ -494,6 +494,7 @@ pub fn validate_formats_category_file(
                             DcRole::BeginModule,
                             DcRole::BeginStagerModule,
                             DcRole::BeginRoutineDecl,
+                            DcRole::BeginRoutine,
                             DcRole::DeclareConst,
                             DcRole::DeclarePub,
                             DcRole::BeginPositionalStructDecl,

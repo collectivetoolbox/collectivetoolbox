@@ -424,6 +424,8 @@ pub enum DcRole {
     ExecutePureWasmProgram,
     /// Records the creation timestamp of the graph node defined in the enclosing checksummed document section as section metadata covered by the section digest. (`1941`).
     SectionTimestampNodeCreationTime,
+    /// Property attaching a routine test block (Dc 2206..Dc 2207) of inline input/output contract cases to a routine entity. (`1942`).
+    RoutineTestSuite,
     /// Begins a tokenized module containing an optional namespace declaration, zero or more use imports, and zero or more top-level items. (`2192`).
     BeginModule,
     /// Terminates a module begun by Dc 2192. (`2193`).
@@ -462,7 +464,7 @@ pub enum DcRole {
     TestExpectedOut,
     /// Terminates a routine test case begun by Dc 2208. (`2210`).
     EndTestCase,
-    /// Invokes a local or resolved graph routine with zero or more positional argument expressions. (`2211`).
+    /// Invokes an inline routine value or a local or resolved graph routine with zero or more positional argument expressions. (`2211`).
     BeginRoutineCall,
     /// Terminates a routine call begun by Dc 2211. (`2212`).
     EndRoutineCall,
@@ -520,6 +522,10 @@ pub enum DcRole {
     ErrorTagValue,
     /// Quotes the single immediately following Document Character as an unnormalized and unevaluated atom without decomposing or evaluating it. (`2239`).
     QuoteFollowingDcAsAtom,
+    /// Defines an anonymous inline routine value with its return type, zero or more typed formal parameters, and body expression. (`2240`).
+    BeginRoutine,
+    /// Terminates a routine value begun by Dc 2240. (`2241`).
+    EndRoutine,
     /// Evaluates a boolean condition expression and branches to either the second operand (then) or third operand (else). (`2448`).
     IfConditional,
     /// Repeatedly evaluates the boolean condition expression and executes the void body expression while true. (`2449`).
@@ -927,6 +933,7 @@ match self {
             Self::MinimalSystemGraphQuery => Some(1939),
             Self::ExecutePureWasmProgram => Some(1940),
             Self::SectionTimestampNodeCreationTime => Some(1941),
+            Self::RoutineTestSuite => Some(1942),
             Self::BeginModule => Some(2192),
             Self::EndModule => Some(2193),
             Self::NamespaceDecl => Some(2194),
@@ -975,6 +982,8 @@ match self {
             Self::ResultErrValue => Some(2237),
             Self::ErrorTagValue => Some(2238),
             Self::QuoteFollowingDcAsAtom => Some(2239),
+            Self::BeginRoutine => Some(2240),
+            Self::EndRoutine => Some(2241),
             Self::IfConditional => Some(2448),
             Self::WhileLoop => Some(2449),
             Self::ForEach => Some(2450),
@@ -1285,6 +1294,7 @@ match self {
             Self::MinimalSystemGraphQuery => short == Some(1939),
             Self::ExecutePureWasmProgram => short == Some(1940),
             Self::SectionTimestampNodeCreationTime => short == Some(1941),
+            Self::RoutineTestSuite => short == Some(1942),
             Self::BeginModule => short == Some(2192),
             Self::EndModule => short == Some(2193),
             Self::NamespaceDecl => short == Some(2194),
@@ -1333,6 +1343,8 @@ match self {
             Self::ResultErrValue => short == Some(2237),
             Self::ErrorTagValue => short == Some(2238),
             Self::QuoteFollowingDcAsAtom => short == Some(2239),
+            Self::BeginRoutine => short == Some(2240),
+            Self::EndRoutine => short == Some(2241),
             Self::IfConditional => short == Some(2448),
             Self::WhileLoop => short == Some(2449),
             Self::ForEach => short == Some(2450),

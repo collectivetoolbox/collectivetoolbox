@@ -422,6 +422,8 @@ pub const DC_MINIMAL_SYSTEM_GRAPH_QUERY: DcChar = DcChar::from_short(1939);
 pub const DC_EXECUTE_PURE_WASM_PROGRAM: DcChar = DcChar::from_short(1940);
 /// Records the creation timestamp of the graph node defined in the enclosing checksummed document section as section metadata covered by the section digest. (Dc 1941).
 pub const DC_SECTION_TIMESTAMP_NODE_CREATION_TIME: DcChar = DcChar::from_short(1941);
+/// Property attaching a routine test block (Dc 2206..Dc 2207) of inline input/output contract cases to a routine entity. (Dc 1942).
+pub const DC_ROUTINE_TEST_SUITE: DcChar = DcChar::from_short(1942);
 /// Begins a tokenized module containing an optional namespace declaration, zero or more use imports, and zero or more top-level items. (Dc 2192).
 pub const DC_BEGIN_MODULE: DcChar = DcChar::from_short(2192);
 /// Terminates a module begun by Dc 2192. (Dc 2193).
@@ -460,7 +462,7 @@ pub const DC_BEGIN_TEST_CASE: DcChar = DcChar::from_short(2208);
 pub const DC_TEST_EXPECTED_OUT: DcChar = DcChar::from_short(2209);
 /// Terminates a routine test case begun by Dc 2208. (Dc 2210).
 pub const DC_END_TEST_CASE: DcChar = DcChar::from_short(2210);
-/// Invokes a local or resolved graph routine with zero or more positional argument expressions. (Dc 2211).
+/// Invokes an inline routine value or a local or resolved graph routine with zero or more positional argument expressions. (Dc 2211).
 pub const DC_BEGIN_ROUTINE_CALL: DcChar = DcChar::from_short(2211);
 /// Terminates a routine call begun by Dc 2211. (Dc 2212).
 pub const DC_END_ROUTINE_CALL: DcChar = DcChar::from_short(2212);
@@ -518,6 +520,10 @@ pub const DC_RESULT_ERR_VALUE: DcChar = DcChar::from_short(2237);
 pub const DC_ERROR_TAG_VALUE: DcChar = DcChar::from_short(2238);
 /// Quotes the single immediately following Document Character as an unnormalized and unevaluated atom without decomposing or evaluating it. (Dc 2239).
 pub const DC_QUOTE_FOLLOWING_DC_AS_ATOM: DcChar = DcChar::from_short(2239);
+/// Defines an anonymous inline routine value with its return type, zero or more typed formal parameters, and body expression. (Dc 2240).
+pub const DC_BEGIN_ROUTINE: DcChar = DcChar::from_short(2240);
+/// Terminates a routine value begun by Dc 2240. (Dc 2241).
+pub const DC_END_ROUTINE: DcChar = DcChar::from_short(2241);
 /// Evaluates a boolean condition expression and branches to either the second operand (then) or third operand (else). (Dc 2448).
 pub const DC_IF_CONDITIONAL: DcChar = DcChar::from_short(2448);
 /// Repeatedly evaluates the boolean condition expression and executes the void body expression while true. (Dc 2449).
