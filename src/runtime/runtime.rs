@@ -3882,6 +3882,7 @@ mod tests {
                     DcShorthand::Short(1928),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: sup_has_a_id,
@@ -3891,6 +3892,7 @@ mod tests {
                     DcShorthand::Short(611),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: sup_has_val_id,
@@ -3900,6 +3902,7 @@ mod tests {
                     DcShorthand::Long(sup_def_id),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: prov_has_a_id,
@@ -3918,6 +3921,7 @@ mod tests {
                     DcShorthand::Short(311),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: prov_has_val_id,
@@ -3927,6 +3931,7 @@ mod tests {
                     DcShorthand::Short(636),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: user_cfg_node_id,
@@ -3935,6 +3940,7 @@ mod tests {
                         &user_limits,
                     ),
                 comment: String::new(),
+                created_ns: None,
             },
         ];
         let seed_graph = SeedGraphIndex::from_bundled_nodes(bundled_nodes);
@@ -4455,6 +4461,7 @@ mod tests {
             id: 0,
             tokens: Vec::new(),
             comment: String::new(),
+            created_ns: None,
         });
         Ok(())
     }
@@ -4561,6 +4568,7 @@ mod tests {
                 id,
                 tokens,
                 comment: String::new(),
+                created_ns: None,
             });
             id
         };
@@ -4726,6 +4734,7 @@ mod tests {
                 id,
                 tokens,
                 comment: String::new(),
+                created_ns: None,
             });
             id
         };

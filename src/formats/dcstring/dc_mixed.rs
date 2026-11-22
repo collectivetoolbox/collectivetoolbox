@@ -2179,7 +2179,7 @@ impl SectionHashers {
 
 struct SectionContainerFrame {
     closer: DcChar,
-    is_number: bool,
+    is_opaque_to_inner_openers: bool,
     section_hashers: Option<SectionHashers>,
 }
 
@@ -2320,7 +2320,22 @@ impl ChecksumSectionTracker {
             return Ok(());
         }
 
-        if self.stack.last().is_some_and(|f| f.is_number) {
+        if ch.fills_role_with(DcRole::Escape, self.resolver.as_ref())
+            || ch.fills_role_with(
+                DcRole::QuoteFollowingDcAsAtom,
+                self.resolver.as_ref(),
+            )
+        {
+            self.escaped = true;
+            self.update_active_sections(src_char_bytes, dst_char_bytes);
+            return Ok(());
+        }
+
+        if self
+            .stack
+            .last()
+            .is_some_and(|f| f.is_opaque_to_inner_openers)
+        {
             if self.stack.last().is_some_and(|top| {
                 top.closer == ch
                     || self
@@ -2329,12 +2344,6 @@ impl ChecksumSectionTracker {
             }) {
                 self.stack.pop();
             }
-            self.update_active_sections(src_char_bytes, dst_char_bytes);
-            return Ok(());
-        }
-
-        if ch.fills_role_with(DcRole::Escape, self.resolver.as_ref()) {
-            self.escaped = true;
             self.update_active_sections(src_char_bytes, dst_char_bytes);
             return Ok(());
         }
@@ -2377,8 +2386,11 @@ impl ChecksumSectionTracker {
         {
             if let Some(inner_closer) = self.resolver.closer_for_opener(&target)
             {
-                let is_number = ch.fills_role_with(
+                let is_opaque_to_inner_openers = ch.fills_role_with(
                     DcRole::BeginNumber,
+                    self.resolver.as_ref(),
+                ) || ch.fills_role_with(
+                    DcRole::BeginGraphNodeDefinition,
                     self.resolver.as_ref(),
                 );
                 let section_hashers = if ch.fills_role_with(
@@ -2391,7 +2403,7 @@ impl ChecksumSectionTracker {
                 };
                 self.stack.push(SectionContainerFrame {
                     closer: DcChar::from_u128(inner_closer),
-                    is_number,
+                    is_opaque_to_inner_openers,
                     section_hashers,
                 });
             }

@@ -982,7 +982,11 @@ impl<'a> DcDocumentNavigator<'a> {
         let mut closer_stack = vec![CloserFrame {
             after_opener,
             closer,
-            opaque: resolver.is_opaque_container(opener.to_u128()),
+            opaque: resolver.is_opaque_container(opener.to_u128())
+                || opener.fills_role_with(
+                    DcRole::BeginGraphNodeDefinition,
+                    resolver,
+                ),
             max_rel_depth: 0,
             had_issue: root_depth_exceeded,
         }];
@@ -1010,7 +1014,9 @@ impl<'a> DcDocumentNavigator<'a> {
             self.read_token_or_binary_at(offset)?
         {
             let token_start = offset;
-            if ch.fills_role_with(DcRole::Escape, resolver) {
+            if ch.fills_role_with(DcRole::Escape, resolver)
+                || ch.fills_role_with(DcRole::QuoteFollowingDcAsAtom, resolver)
+            {
                 if let Some((_, after_escaped)) =
                     self.read_token_or_binary_at(next_offset)?
                 {
@@ -1021,7 +1027,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     policy,
                     policy.syntax_error,
                     token_start,
-                    format!("Dangling escape Dc 255 at offset {token_start}"),
+                    format!("Dangling escape or atom-quote at offset {token_start}"),
                 )?;
                 return Ok((next_offset, next_offset, false));
             }
@@ -1250,7 +1256,11 @@ impl<'a> DcDocumentNavigator<'a> {
                     closer_stack.push(CloserFrame {
                         after_opener: next_offset,
                         closer: DcChar::from_u128(inner_closer),
-                        opaque: resolver.is_opaque_container(ch.to_u128()),
+                        opaque: resolver.is_opaque_container(ch.to_u128())
+                            || ch.fills_role_with(
+                                DcRole::BeginGraphNodeDefinition,
+                                resolver,
+                            ),
                         max_rel_depth: 0,
                         had_issue: inner_depth_exceeded,
                     });

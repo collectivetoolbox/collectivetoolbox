@@ -7853,21 +7853,25 @@ mod tests {
                 id: node_c_v1,
                 tokens: v1_shorthands.clone(),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: node_b,
                 tokens: vec![DcShorthand::Long(node_c_v1)],
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: node_a,
                 tokens: vec![DcShorthand::Long(node_b)],
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: node_c_v2,
                 tokens: v2_shorthands,
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: node_supersede_v1,
@@ -7877,11 +7881,13 @@ mod tests {
                     DcShorthand::Long(node_c_v1),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: node_retracted,
                 tokens: v1_shorthands.clone(),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: pin_id,
@@ -7891,11 +7897,13 @@ mod tests {
                     DcShorthand::Long(node_retracted),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: node_c_v3,
                 tokens: v1_shorthands,
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: node_supersede_v2,
@@ -7905,6 +7913,7 @@ mod tests {
                     DcShorthand::Long(node_c_v2),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
         ];
 
@@ -7983,6 +7992,7 @@ mod tests {
                     )]
                 },
                 comment: String::new(),
+                created_ns: None,
             });
         }
         let mut chain_resolver = res_pinned.clone();
@@ -8654,6 +8664,7 @@ mod tests {
                 DcShorthand::Short(572),
             ],
             comment: String::new(),
+            created_ns: None,
         };
         let n1_old_val = LedgerNode {
             id: base_id + 1,
@@ -8663,6 +8674,7 @@ mod tests {
                 DcShorthand::Short(518),
             ],
             comment: String::new(),
+            created_ns: None,
         };
         let n2_new_val = LedgerNode {
             id: base_id + 2,
@@ -8672,6 +8684,7 @@ mod tests {
                 DcShorthand::Short(517),
             ],
             comment: String::new(),
+            created_ns: None,
         };
         let n3_supersede = LedgerNode {
             id: base_id + 3,
@@ -8681,6 +8694,7 @@ mod tests {
                 DcShorthand::Long(base_id + 1),
             ],
             comment: String::new(),
+            created_ns: None,
         };
         let n4_retract_supersede = LedgerNode {
             id: base_id + 4,
@@ -8690,6 +8704,7 @@ mod tests {
                 DcShorthand::Long(base_id + 3),
             ],
             comment: String::new(),
+            created_ns: None,
         };
         let n5_retract_n0 = LedgerNode {
             id: base_id + 5,
@@ -8699,6 +8714,7 @@ mod tests {
                 DcShorthand::Long(base_id),
             ],
             comment: String::new(),
+            created_ns: None,
         };
         let n6_retract_n5 = LedgerNode {
             id: base_id + 6,
@@ -8708,6 +8724,7 @@ mod tests {
                 DcShorthand::Long(base_id + 5),
             ],
             comment: String::new(),
+            created_ns: None,
         };
 
         // Snapshot at n3: n1 is superseded by n2
@@ -9829,6 +9846,7 @@ mod tests {
             id: leaf_node_id,
             tokens: leaf_tokens.clone(),
             comment: String::new(),
+            created_ns: None,
         });
         // 2. Short(3930) has Dc 611 "Canonical decomposition" -> l<leaf_node_id>
         nodes.push(LedgerNode {
@@ -9839,6 +9857,7 @@ mod tests {
                 DcShorthand::Short(611),
             ],
             comment: String::new(),
+            created_ns: None,
         });
         nodes.push(LedgerNode {
             id: 8_589_999_943,
@@ -9848,6 +9867,7 @@ mod tests {
                 DcShorthand::Long(leaf_node_id),
             ],
             comment: String::new(),
+            created_ns: None,
         });
         // 3. Mid node `l<mid_node_id>` wraps `1927 Short(3930) 1928`, and Short(3931) has Dc 611 -> l<mid_node_id>
         nodes.push(LedgerNode {
@@ -9858,6 +9878,7 @@ mod tests {
                 DcShorthand::Short(1928),
             ],
             comment: String::new(),
+            created_ns: None,
         });
         nodes.push(LedgerNode {
             id: 8_589_999_945,
@@ -9867,6 +9888,7 @@ mod tests {
                 DcShorthand::Short(611),
             ],
             comment: String::new(),
+            created_ns: None,
         });
         nodes.push(LedgerNode {
             id: 8_589_999_946,
@@ -9876,12 +9898,14 @@ mod tests {
                 DcShorthand::Long(mid_node_id),
             ],
             comment: String::new(),
+            created_ns: None,
         });
         // 4. Short(3932) had Dc 611 -> l<retracted_node_id>, which was retracted via Dc 592 "Retracts"
         nodes.push(LedgerNode {
             id: retracted_node_id,
             tokens: leaf_tokens,
             comment: String::new(),
+            created_ns: None,
         });
         nodes.push(LedgerNode {
             id: 8_589_999_948,
@@ -9891,6 +9915,7 @@ mod tests {
                 DcShorthand::Short(611),
             ],
             comment: String::new(),
+            created_ns: None,
         });
         nodes.push(LedgerNode {
             id: 8_589_999_949,
@@ -9900,6 +9925,7 @@ mod tests {
                 DcShorthand::Long(retracted_node_id),
             ],
             comment: String::new(),
+            created_ns: None,
         });
         nodes.push(LedgerNode {
             id: pin_id,
@@ -9909,6 +9935,7 @@ mod tests {
                 DcShorthand::Long(retracted_node_id),
             ],
             comment: String::new(),
+            created_ns: None,
         });
 
         let sg = std::sync::Arc::new(

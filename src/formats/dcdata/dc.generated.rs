@@ -420,6 +420,8 @@ pub const DC_RESOLVE_TO_PIN: DcChar = DcChar::from_short(1938);
 pub const DC_MINIMAL_SYSTEM_GRAPH_QUERY: DcChar = DcChar::from_short(1939);
 /// Executes a pure Dc-WASM program (1927..1928 or wasm_routine) on the supplied [string] input under the shared task instruction quota, returning the program's output [string]. (Dc 1940).
 pub const DC_EXECUTE_PURE_WASM_PROGRAM: DcChar = DcChar::from_short(1940);
+/// Records the creation timestamp of the graph node defined in the enclosing checksummed document section as section metadata covered by the section digest. (Dc 1941).
+pub const DC_SECTION_TIMESTAMP_NODE_CREATION_TIME: DcChar = DcChar::from_short(1941);
 /// Begins a tokenized module containing an optional namespace declaration, zero or more use imports, and zero or more top-level items. (Dc 2192).
 pub const DC_BEGIN_MODULE: DcChar = DcChar::from_short(2192);
 /// Terminates a module begun by Dc 2192. (Dc 2193).

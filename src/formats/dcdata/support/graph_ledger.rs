@@ -39,23 +39,25 @@ use ctb_utilities::format_id::{
     DC_APPLE_OS_TYPE, DC_COLLECTIVE_TOOLBOX, DC_FILE_EXTENSION, DC_INTEGER,
     DC_LINE_ENDING_CR, DC_LINE_ENDING_CR_LF, DC_LINE_ENDING_LF,
     DC_LINE_ENDING_LF_CR, DC_LINE_ENDING_NL, DC_LINE_ENDING_RS, DC_MEDIA_TYPE,
-    DC_UNIFORM_TYPE_IDENTIFIER,
+    DC_NS_SINCE_EPOCH, DC_SHA256, DC_UNIFORM_TYPE_IDENTIFIER,
 };
 
 pub use crate::ctbnbdl::{
-    CTBNBDL_MAGIC, CtbnbdlFramingDcs, DC_SYSTEM_BLOCK_MOST_RECENT_NODE_ID,
-    DCMM_HEADER, DurableTransactionOutcome, FaultInjectionPoint,
-    LEDGER_JOURNAL_REL_PATH, LedgerNode, LedgerReadGuard, MAX_BYTES_PER_BUNDLE,
-    MAX_NODES_PER_BUNDLE, MAX_NODES_PER_CHUNK, PlannedLedgerItem,
-    TransactionManifest, chunk_filename_for_node_id,
-    compile_ctbnodes_dir_to_ctbnbdl,
+    CREATED_NS_COMMENT_PREFIX, CTBNBDL_MAGIC, CtbnbdlFramingDcs,
+    DC_SYSTEM_BLOCK_MOST_RECENT_NODE_ID, DCMM_HEADER,
+    DurableTransactionOutcome, FaultInjectionPoint, LEDGER_JOURNAL_REL_PATH,
+    LedgerNode, LedgerReadGuard, MAX_BYTES_PER_BUNDLE, MAX_NODES_PER_BUNDLE,
+    MAX_NODES_PER_CHUNK, PlannedLedgerItem, TransactionManifest,
+    chunk_filename_for_node_id, compile_ctbnodes_dir_to_ctbnbdl,
     compile_ctbnodes_dir_to_ctbnbdl_with_limits,
     compile_ctbnodes_file_to_ctbnbdl_bytes,
     compile_inactive_ctbnodes_dir_to_ctbnbdl,
     compile_inactive_ctbnodes_dir_to_ctbnbdl_with_limits,
     compute_nodes_slice_ledger_sha256, consume_atom_dc_with,
+    current_unix_timestamp_ns, decode_ctbnbdl_bundle_resilient_with,
     decode_ctbnbdl_bundle_with, decode_nodes_from_ctbnbdl_bytes_with,
-    encode_for_each_statement_tokens_with, encode_node_definition_tokens_with,
+    encode_for_each_statement_tokens_with,
+    encode_node_definition_dcmm2_bytes_with, encode_node_definition_tokens_with,
     encode_nodes_to_ctbnbdl_bundles_with_limits,
     encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent,
     encode_nodes_to_ctbnbdl_bytes_with, ensure_ledger_journal_clean,
@@ -66,10 +68,10 @@ pub use crate::ctbnbdl::{
     load_ledger_nodes_from_str, parse_chunk_bundle_filename_start_id,
     parse_chunk_filename_start_id, parse_for_each_statement_tokens_with,
     parse_statement_tokens_with, partition_active_and_inactive_nodes_with,
-    push_atom_dc_with, sanitize_comment, sha256_bytes_hex,
-    sync_highwater_shadow_ledgers, verify_nodes_append_only_against_baseline,
-    verify_repo_graph_append_only, write_chunk_file_append_only,
-    write_ledger_nodes_to_dir,
+    push_atom_dc_with, resolve_ctbnbdl_framing_dcs_from_nodes,
+    sanitize_comment, sha256_bytes_hex, sync_highwater_shadow_ledgers,
+    verify_nodes_append_only_against_baseline, verify_repo_graph_append_only,
+    write_chunk_file_append_only, write_ledger_nodes_to_dir,
 };
 
 pub mod inbox;
@@ -80,9 +82,10 @@ use write_state::{DuplicatePolicy, SystemGraphWriteState};
 use crate::dc::{
     DC_ANNOTATION, DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP,
     DC_BEGIN_BLOCK_COMMENT, DC_BEGIN_BLOCK_COMMENT_NEW_LINE,
-    DC_BEGIN_GRAPH_NODE_DEFINITION, DC_BEGIN_IDENTIFIER, DC_BEGIN_LIST,
-    DC_BEGIN_LITERAL, DC_BEGIN_NUMBER, DC_BEGIN_PARAMETER,
-    DC_BEGIN_SINGLE_LINE_COMMENT, DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE,
+    DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_GRAPH_NODE_DEFINITION,
+    DC_BEGIN_IDENTIFIER, DC_BEGIN_LIST, DC_BEGIN_LITERAL, DC_BEGIN_NUMBER,
+    DC_BEGIN_PARAMETER, DC_BEGIN_SINGLE_LINE_COMMENT,
+    DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE, DC_BEGIN_TIME_MOMENT,
     DC_BEGIN_TYPE_DEF, DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE,
     DC_CANONICAL_COMBINING_CLASS,
     DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER,
@@ -96,8 +99,9 @@ use crate::dc::{
     DC_DEFAULT_FORMAT_VARIANT, DC_DESCRIPTION,
     DC_DISTRIBUTE_STATEMENT_OVER_EACH, DC_ENCLOSING_DOCUMENT,
     DC_END_ASSOCIATIVITY_GROUP, DC_END_BLOCK_COMMENT,
-    DC_END_GRAPH_NODE_DEFINITION, DC_END_IDENTIFIER, DC_END_LIST,
-    DC_END_LITERAL, DC_END_NUMBER, DC_END_SINGLE_LINE_COMMENT, DC_END_TYPE_DEF,
+    DC_END_CHECKSUMMED_SECTION, DC_END_GRAPH_NODE_DEFINITION,
+    DC_END_IDENTIFIER, DC_END_LIST, DC_END_LITERAL, DC_END_NUMBER,
+    DC_END_SINGLE_LINE_COMMENT, DC_END_TIME_MOMENT, DC_END_TYPE_DEF,
     DC_ENTITY_TYPE, DC_ESCAPE,
     DC_EVALUATE_VALUE_AS_ATOM, DC_EXCLUSIVE_RANGE_ENDPOINT, DC_FORMAL_ALIAS,
     DC_FORMAT_VARIATION_ASPECT, DC_GENERAL_FORMAT_EXPORT_SUPPORT,
@@ -112,7 +116,8 @@ use crate::dc::{
     DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_QUOTE_FOLLOWING_DC_AS_ATOM,
     DC_RANGE,
     DC_REFERENCE_BOUND_VALUE, DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT,
-    DC_RETRACTS, DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE,
+    DC_RETRACTS, DC_ROUTINE_INVOCATION, DC_SECTION_DIGEST,
+    DC_SECTION_TIMESTAMP_NODE_CREATION_TIME, DC_SELF_REFERENCE,
     DC_SEMANTIC_DECOMPOSITION, DC_START_ENCAPSULATION_BINARY,
     DC_START_ENCAPSULATION_UTF8, DC_SUBPATTERN_MATCH, DC_SUPERSEDES,
     DC_SUPPORT_COMPLETE,
@@ -148,6 +153,16 @@ pub fn default_ctbnbdl_framing_dcs() -> CtbnbdlFramingDcs {
     CtbnbdlFramingDcs {
         begin_node: sh(DC_BEGIN_GRAPH_NODE_DEFINITION),
         end_node: sh(DC_END_GRAPH_NODE_DEFINITION),
+        begin_checksummed_section: sh(DC_BEGIN_CHECKSUMMED_SECTION),
+        end_checksummed_section: sh(DC_END_CHECKSUMMED_SECTION),
+        section_digest: sh(DC_SECTION_DIGEST),
+        begin_time_moment: sh(DC_BEGIN_TIME_MOMENT),
+        end_time_moment: sh(DC_END_TIME_MOMENT),
+        section_node_creation_time: Some(sh(
+            DC_SECTION_TIMESTAMP_NODE_CREATION_TIME,
+        )),
+        ns_since_epoch_format: sh(DC_NS_SINCE_EPOCH),
+        sha256_format: sh(DC_SHA256),
         escape: sh(DC_ESCAPE),
         evaluate_as_atom: sh(DC_EVALUATE_VALUE_AS_ATOM),
         has_a: sh(DC_HAS_A),
@@ -770,6 +785,15 @@ pub fn decode_ctbnbdl_bundle(
     bytes: &[u8],
 ) -> Result<(Option<u128>, Vec<LedgerNode>)> {
     decode_ctbnbdl_bundle_with(bytes, default_ctbnbdl_framing_dcs())
+}
+
+/// Resiliently decodes a `.ctbnbdl` (`CtbNodeBundle`) binary buffer, quarantining any
+/// corrupted or checksum-mismatched node section while recovering all remaining valid
+/// nodes and returning diagnostic warning strings.
+pub fn decode_ctbnbdl_bundle_resilient(
+    bytes: &[u8],
+) -> Result<(Option<u128>, Vec<LedgerNode>, Vec<String>)> {
+    decode_ctbnbdl_bundle_resilient_with(bytes, default_ctbnbdl_framing_dcs())
 }
 
 /// Decodes a `.ctbnbdl` (`CtbNodeBundle`) binary buffer back into a list of `LedgerNode` entries
@@ -4498,13 +4522,44 @@ pub(crate) fn allocate_stagel_entities_in_repo(
         .context("Missing allocated StageL entity IDs after durable ledger transaction")
 }
 
-pub(crate) fn update_ledger_in_memory_with_extra_state(
+pub(crate) fn extract_manifest_created_ns_map(
+    required_manifest_path: Option<&Path>,
+) -> Result<Option<HashMap<u128, Option<i128>>>> {
+    let Some(mpath) = required_manifest_path else {
+        return Ok(None);
+    };
+    let bytes = std::fs::read(mpath).with_context(|| {
+        format!("Failed to read required manifest {}", mpath.display())
+    })?;
+    let manifest: TransactionManifest = serde_json::from_slice(&bytes)
+        .with_context(|| {
+            format!("Failed to parse required manifest {}", mpath.display())
+        })?;
+    let mut map = HashMap::with_capacity(manifest.planned_items.len());
+    for (idx, item) in manifest.planned_items.iter().enumerate() {
+        let node = LedgerNode::parse_line(
+            &item.raw_line,
+            &item.target_chunk,
+            idx.saturating_add(1),
+        )?;
+        map.insert(node.id, node.created_ns);
+    }
+    Ok(Some(map))
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Internal ledger planner threads optional timestamps and staged dataset callback cohesively"
+)]
+pub(crate) fn update_ledger_in_memory_with_extra_state_and_timestamps(
     existing_nodes: Vec<LedgerNode>,
     provenance_map: NodeProvenanceMap,
     dc_defns: &[DcDefn],
     format_defns: &[DcDefn],
     known_scripts: &BTreeSet<String>,
     named_types_bytes: Option<&[u8]>,
+    default_created_ns: Option<i128>,
+    pinned_created_ns_by_id: Option<HashMap<u128, Option<i128>>>,
     extra_fn: impl FnOnce(&mut DesiredDatasetState) -> Result<()>,
 ) -> Result<(Vec<LedgerNode>, LedgerUpdateStats)> {
     let single_props = single_valued_property_set();
@@ -4515,6 +4570,9 @@ pub(crate) fn update_ledger_in_memory_with_extra_state(
         initial_labels,
         provenance_map,
     );
+    builder.write_state = builder
+        .write_state
+        .with_creation_timestamps(default_created_ns, pinned_created_ns_by_id);
     let mut desired = compile_desired_dataset_state(
         dc_defns,
         format_defns,
@@ -4533,6 +4591,28 @@ pub(crate) fn update_ledger_in_memory_with_extra_state(
     Ok((builder.write_state.nodes, stats))
 }
 
+pub(crate) fn update_ledger_in_memory_with_extra_state(
+    existing_nodes: Vec<LedgerNode>,
+    provenance_map: NodeProvenanceMap,
+    dc_defns: &[DcDefn],
+    format_defns: &[DcDefn],
+    known_scripts: &BTreeSet<String>,
+    named_types_bytes: Option<&[u8]>,
+    extra_fn: impl FnOnce(&mut DesiredDatasetState) -> Result<()>,
+) -> Result<(Vec<LedgerNode>, LedgerUpdateStats)> {
+    update_ledger_in_memory_with_extra_state_and_timestamps(
+        existing_nodes,
+        provenance_map,
+        dc_defns,
+        format_defns,
+        known_scripts,
+        named_types_bytes,
+        None,
+        None,
+        extra_fn,
+    )
+}
+
 fn plan_csv_reconciliation_items_for_repo(
     repo_root: &Path,
     existing_nodes: &[LedgerNode],
@@ -4540,6 +4620,7 @@ fn plan_csv_reconciliation_items_for_repo(
         crate::ctbnbdl::JournalRecord,
         crate::ctbnbdl::JournalRecord,
     )],
+    pinned_created_ns_by_id: Option<HashMap<u128, Option<i128>>>,
 ) -> Result<(
     Vec<PlannedLedgerItem>,
     BTreeMap<String, String>,
@@ -4654,21 +4735,35 @@ fn plan_csv_reconciliation_items_for_repo(
         format!("Invalid dataset under {}", data_dir.display())
     })?;
 
-    let (updated_nodes, stats) = update_ledger_in_memory_with_extra_state(
-        existing_nodes.to_vec(),
-        prov_map,
-        &dc_defns,
-        &format_defns,
-        &known_scripts,
-        Some(&named_types_bytes),
-        |desired| {
-            crate::support::stagel_dc_alloc::compile_repo_stagel_into_desired_state(
-                &data_dir,
-                desired,
-                &mut pinned_input_sha256s,
-            )
-        },
-    )?;
+    let has_ts_dc = resolve_ctbnbdl_framing_dcs_from_nodes(existing_nodes)
+        .is_ok_and(|f| f.section_node_creation_time.is_some())
+        || dc_defns.iter().any(|d| {
+            d.ident.as_deref() == Some("SectionTimestampNodeCreationTime")
+        });
+    let default_created_ns = if has_ts_dc {
+        Some(current_unix_timestamp_ns())
+    } else {
+        None
+    };
+
+    let (updated_nodes, stats) =
+        update_ledger_in_memory_with_extra_state_and_timestamps(
+            existing_nodes.to_vec(),
+            prov_map,
+            &dc_defns,
+            &format_defns,
+            &known_scripts,
+            Some(&named_types_bytes),
+            default_created_ns,
+            pinned_created_ns_by_id,
+            |desired| {
+                crate::support::stagel_dc_alloc::compile_repo_stagel_into_desired_state(
+                    &data_dir,
+                    desired,
+                    &mut pinned_input_sha256s,
+                )
+            },
+        )?;
     verify_nodes_append_only_against_baseline(
         "existing working-tree ledger",
         existing_nodes,
@@ -4719,6 +4814,7 @@ pub fn plan_csv_reconciliation_manifest(
             repo_root,
             &existing_nodes,
             &parsed_journal.committed_pairs,
+            None,
         )?;
 
     // Reason for fallback: empty ledger before first node has baseline_last_id == 0.
@@ -4774,6 +4870,8 @@ pub fn update_system_graph_ledger_with_options(
     dry_run: bool,
     fault: Option<FaultInjectionPoint>,
 ) -> Result<LedgerUpdateStats> {
+    let pinned_created_ns =
+        extract_manifest_created_ns_map(required_manifest_path)?;
     let outcome = execute_durable_ledger_transaction_with_planner(
         repo_root,
         "csv_reconciliation",
@@ -4787,6 +4885,7 @@ pub fn update_system_graph_ledger_with_options(
                     repo_root,
                     baseline_nodes,
                     committed_pairs,
+                    pinned_created_ns,
                 )?;
             Ok((planned_items, pinned_input_sha256s, stats))
         },
@@ -5116,6 +5215,7 @@ mod tests {
                 id: gid,
                 tokens: encode_integer_value_tokens(i_u128),
                 comment: format!("int {i}"),
+                created_ns: None,
             });
         }
         let written = write_ledger_nodes_to_dir(&graph_dir, &nodes)?;
@@ -5138,6 +5238,7 @@ mod tests {
             id: SYSTEM_REGION_START,
             tokens: Vec::new(),
             comment: String::new(),
+            created_ns: None,
         };
         assert_eq!(
             empty_node.format_line(),
@@ -5179,16 +5280,19 @@ mod tests {
                     sh(DC_BIDIRECTIONAL_CLASS),
                 ],
                 comment: "Seed entity".to_string(),
+                created_ns: None,
             },
             LedgerNode {
                 id: SYSTEM_REGION_START + 1,
                 tokens: encode_string_value_tokens("Range"),
                 comment: "\"Range\"".to_string(),
+                created_ns: None,
             },
             LedgerNode {
                 id: SYSTEM_REGION_START + 2,
                 tokens: Vec::new(),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: SYSTEM_REGION_START + 3,
@@ -5200,6 +5304,7 @@ mod tests {
                 ],
                 comment: "Node containing Dc 255 and Dc 618 in body"
                     .to_string(),
+                created_ns: None,
             },
         ];
 
@@ -5301,6 +5406,26 @@ mod tests {
             resolved_framing.is_associated_with.to_global_id()?,
             def_framing.is_associated_with.to_global_id()?
         );
+        assert_eq!(
+            resolved_framing.begin_checksummed_section.to_global_id()?,
+            def_framing.begin_checksummed_section.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.end_checksummed_section.to_global_id()?,
+            def_framing.end_checksummed_section.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.section_digest.to_global_id()?,
+            def_framing.section_digest.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing
+                .section_node_creation_time
+                .map(|s| s.to_global_id().unwrap()),
+            def_framing
+                .section_node_creation_time
+                .map(|s| s.to_global_id().unwrap())
+        );
 
         let tmp = tempfile::tempdir()?;
         let src_dir = tmp.path().join("docs");
@@ -5324,11 +5449,13 @@ mod tests {
                     sh(DC_BIDIRECTIONAL_CLASS),
                 ],
                 comment: "Seed entity".to_string(),
+                created_ns: None,
             },
             LedgerNode {
                 id: id1,
                 tokens: encode_string_value_tokens("OldL"),
                 comment: "\"OldL\"".to_string(),
+                created_ns: None,
             },
             LedgerNode {
                 id: id2,
@@ -5338,6 +5465,7 @@ mod tests {
                     sh(DC_PROGRAMMATIC_IDENTIFIER),
                 ),
                 comment: "Has a".to_string(),
+                created_ns: None,
             },
             LedgerNode {
                 id: id3,
@@ -5347,11 +5475,13 @@ mod tests {
                     DcShorthand::Long(id1),
                 ),
                 comment: "Old Has value".to_string(),
+                created_ns: None,
             },
             LedgerNode {
                 id: id4,
                 tokens: encode_string_value_tokens("L"),
                 comment: "\"L\"".to_string(),
+                created_ns: None,
             },
             LedgerNode {
                 id: id5,
@@ -5361,6 +5491,7 @@ mod tests {
                     DcShorthand::Long(id4),
                 ),
                 comment: "New Has value".to_string(),
+                created_ns: None,
             },
             LedgerNode {
                 id: id6,
@@ -5370,6 +5501,7 @@ mod tests {
                     DcShorthand::Long(id3),
                 ),
                 comment: "Supersedes".to_string(),
+                created_ns: None,
             },
         ];
         write_ledger_nodes_to_dir(&src_dir, &nodes)?;
@@ -5478,6 +5610,7 @@ mod tests {
                 id: SYSTEM_REGION_START + offset,
                 tokens: encode_string_value_tokens("node_payload_text"),
                 comment: String::new(),
+                created_ns: None,
             })
             .collect();
 
@@ -5826,6 +5959,7 @@ mod tests {
             ],
             comment: "Is instance of (Enclosing document, Graph statement)"
                 .to_string(),
+            created_ns: None,
         };
         let base_node_2 = LedgerNode {
             id: start_id.saturating_add(1),
@@ -5836,6 +5970,7 @@ mod tests {
             ],
             comment: "Is instance of (Enclosing document, Document format)"
                 .to_string(),
+            created_ns: None,
         };
 
         // Initial write creates the first chunk file via O_CREAT | O_EXCL.
@@ -5929,6 +6064,7 @@ mod tests {
                 repo_root,
                 &full_nodes,
                 &committed_pairs,
+                None,
             )?;
         assert_eq!(noop_items.len(), 0);
         assert_eq!(noop_stats.nodes_appended, 0);
@@ -6001,6 +6137,7 @@ mod tests {
                 sh(DC_CANONICAL_NAME),
             ),
             comment: "Duplicate single-valued Has a".to_string(),
+            created_ns: None,
         });
         seeded_nodes.push(LedgerNode {
             id: dup_single_has_val_id,
@@ -6010,6 +6147,7 @@ mod tests {
                 DcShorthand::Long(name_val_id),
             ),
             comment: "Duplicate single-valued Has value".to_string(),
+            created_ns: None,
         });
         seeded_nodes.push(LedgerNode {
             id: dup_multi_has_a_id,
@@ -6019,6 +6157,7 @@ mod tests {
                 DcShorthand::Short(576),
             ),
             comment: "Duplicate multi-valued Has a".to_string(),
+            created_ns: None,
         });
         seeded_nodes.push(LedgerNode {
             id: dup_multi_has_val_id,
@@ -6028,6 +6167,7 @@ mod tests {
                 DcShorthand::Long(alias_val_id),
             ),
             comment: "Duplicate multi-valued Has value".to_string(),
+            created_ns: None,
         });
         seeded_nodes.push(LedgerNode {
             id: ambiguous_node_id,
@@ -6041,6 +6181,7 @@ mod tests {
                 sh(DC_END_LIST),
             ],
             comment: "Ambiguous values candidate list".to_string(),
+            created_ns: None,
         });
 
         let pre_reconcile_len = seeded_nodes.len();
@@ -6712,6 +6853,7 @@ mod tests {
             id: manual_val_id,
             tokens: manual_val_tokens.clone(),
             comment: "\"manual-retractable-val\"".to_string(),
+            created_ns: None,
         });
         let manual_ret_id = manual_val_id + 1;
         base_nodes.push(LedgerNode {
@@ -6722,6 +6864,7 @@ mod tests {
                 DcShorthand::Long(manual_val_id),
             ),
             comment: "Manual retract".to_string(),
+            created_ns: None,
         });
         let mut prov_map = NodeProvenanceMap::default();
         prov_map.insert(NodeProvenanceEntry {
@@ -6749,7 +6892,7 @@ mod tests {
             )?
             .is_none()
         );
-        // Manual actor CAN cancel the Manual retraction!
+        // Manual actor CAN cancel a historical retraction (`592 615 l<retract_stmt_id>` targets a statement, not a value)!
         let res = ws.try_unretract_matching_node(
             &manual_val_tokens,
             NodeProvenance::Manual,
@@ -6758,11 +6901,74 @@ mod tests {
         assert_eq!(res, Some((manual_val_id, manual_ret_id)));
         assert!(!ws.inactive_ids.contains(&manual_val_id));
 
-        // Fresh CSV value node: retract as CSV -> CSV actor CAN un-retract it, preserving its ID.
-        let csv_val_tokens = encode_string_value_tokens("csv-retractable-val");
+        // Approach A: Writer layer MUST reject `Dc 592 "Retracts"` and `Dc 591 "Supersedes"` targeting pure value nodes!
+        let csv_val_tokens = encode_string_value_tokens("csv-immutable-val");
         let csv_val_id = ws.validate_and_append_node(
-            csv_val_tokens.clone(),
-            "\"csv-retractable-val\"".to_string(),
+            csv_val_tokens,
+            "\"csv-immutable-val\"".to_string(),
+            NodeProvenance::Csv,
+            None,
+            None,
+            DuplicatePolicy::ForbidActiveDuplicate,
+            "test",
+        )?;
+        let ret_val_err = ws
+            .validate_and_append_node(
+                encode_statement_tokens(
+                    sh(DC_RETRACTS),
+                    sh(DC_ENCLOSING_DOCUMENT),
+                    DcShorthand::Long(csv_val_id),
+                ),
+                "Attempt CSV retract of pure value".to_string(),
+                NodeProvenance::Csv,
+                None,
+                None,
+                DuplicatePolicy::AllowDistinctInstance,
+                "test",
+            )
+            .unwrap_err();
+        assert!(
+            ret_val_err.to_string().contains("pure value node"),
+            "Unexpected error: {ret_val_err}"
+        );
+        let sup_other_val_id = ws.validate_and_append_node(
+            encode_string_value_tokens("replacement-val"),
+            "\"replacement-val\"".to_string(),
+            NodeProvenance::Csv,
+            None,
+            None,
+            DuplicatePolicy::ForbidActiveDuplicate,
+            "test",
+        )?;
+        let sup_val_err = ws
+            .validate_and_append_node(
+                encode_statement_tokens(
+                    sh(DC_SUPERSEDES),
+                    DcShorthand::Long(sup_other_val_id),
+                    DcShorthand::Long(csv_val_id),
+                ),
+                "Attempt CSV supersede of pure value".to_string(),
+                NodeProvenance::Csv,
+                None,
+                None,
+                DuplicatePolicy::AllowDistinctInstance,
+                "test",
+            )
+            .unwrap_err();
+        assert!(
+            sup_val_err.to_string().contains("pure value node"),
+            "Unexpected error: {sup_val_err}"
+        );
+
+        // Relationship statements CAN still be retracted, un-retracted, and superseded (and superseded statements are NOT un-retracted)!
+        let csv_stmt_tokens = encode_statement_tokens(
+            sh(DC_IS_BASED_ON),
+            DcShorthand::Short(900),
+            DcShorthand::Short(571),
+        );
+        let csv_stmt_id = ws.validate_and_append_node(
+            csv_stmt_tokens.clone(),
+            "CSV statement".to_string(),
             NodeProvenance::Csv,
             None,
             None,
@@ -6773,7 +6979,7 @@ mod tests {
             encode_statement_tokens(
                 sh(DC_RETRACTS),
                 sh(DC_ENCLOSING_DOCUMENT),
-                DcShorthand::Long(csv_val_id),
+                DcShorthand::Long(csv_stmt_id),
             ),
             "CSV retract".to_string(),
             NodeProvenance::Csv,
@@ -6784,18 +6990,21 @@ mod tests {
         )?;
         assert_eq!(
             ws.try_unretract_matching_node(
-                &csv_val_tokens,
+                &csv_stmt_tokens,
                 NodeProvenance::Csv,
                 &|_| "cancel".to_string(),
             )?,
-            Some((csv_val_id, csv_ret_id))
+            Some((csv_stmt_id, csv_ret_id))
         );
-        assert!(!ws.inactive_ids.contains(&csv_val_id));
+        assert!(!ws.inactive_ids.contains(&csv_stmt_id));
 
-        // Superseded node (`591`) must never be returned by `try_unretract_matching_node`.
-        let sup_new_id = ws.validate_and_append_node(
-            encode_string_value_tokens("replacement-val"),
-            "\"replacement-val\"".to_string(),
+        let sup_new_stmt_id = ws.validate_and_append_node(
+            encode_statement_tokens(
+                sh(DC_IS_BASED_ON),
+                DcShorthand::Short(900),
+                DcShorthand::Short(572),
+            ),
+            "Replacement statement".to_string(),
             NodeProvenance::Csv,
             None,
             None,
@@ -6805,8 +7014,8 @@ mod tests {
         let _ = ws.validate_and_append_node(
             encode_statement_tokens(
                 sh(DC_SUPERSEDES),
-                DcShorthand::Long(sup_new_id),
-                DcShorthand::Long(csv_val_id),
+                DcShorthand::Long(sup_new_stmt_id),
+                DcShorthand::Long(csv_stmt_id),
             ),
             "Supersedes".to_string(),
             NodeProvenance::Csv,
@@ -6817,7 +7026,7 @@ mod tests {
         )?;
         assert!(
             ws.try_unretract_matching_node(
-                &csv_val_tokens,
+                &csv_stmt_tokens,
                 NodeProvenance::Csv,
                 &|_| "cancel".to_string(),
             )?

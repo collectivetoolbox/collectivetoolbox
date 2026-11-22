@@ -946,9 +946,21 @@ mod tests {
             "Expected Dc 203 character descriptions in 85899_34592.ctbnbdl output"
         );
         assert!(
+            text.contains("1114730 : <Dc> End graph node definition"),
+            "Expected End graph node definition (Dc 618) in 85899_34592.ctbnbdl output"
+        );
+        assert!(
+            text.contains("1116053 : <Dc> Section timestamp: node creation time"),
+            "Expected Section timestamp: node creation time (Dc 1941) in 85899_34592.ctbnbdl output"
+        );
+        assert!(
+            text.contains("1114657 : <Dc> Section digest"),
+            "Expected Section digest (Dc 545) in 85899_34592.ctbnbdl output"
+        );
+        assert!(
             text.lines().last().is_some_and(|line| line
-                .starts_with("1114730 : <Dc> End graph node definition")),
-            "Expected trailing End graph node definition (Dc 618) at end of 85899_34592.ctbnbdl output"
+                .starts_with("1114316 : <Dc> End encapsulated binary data")),
+            "Expected trailing End encapsulated binary data (Dc 204, closing trailing Dc 545 SHA-256 digest) at end of 85899_34592.ctbnbdl output"
         );
 
         let dcsh_out = execute_cli_character_description(

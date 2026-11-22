@@ -445,8 +445,8 @@ pub fn ctbnodes_to_dcmstring_with_options(
     permissive: bool,
 ) -> Result<(crate::DcMstring, FormatLog)> {
     use ctb_formats_dcdata::graph_ledger::{
-        LedgerNode, default_ctbnbdl_framing_dcs,
-        encode_node_definition_tokens_with,
+        DCMM_HEADER, LedgerNode, default_ctbnbdl_framing_dcs,
+        encode_node_definition_dcmm2_bytes_with,
     };
 
     let mut log = FormatLog::default();
@@ -466,7 +466,8 @@ pub fn ctbnodes_to_dcmstring_with_options(
     };
 
     let framing = default_ctbnbdl_framing_dcs();
-    let mut doc = crate::DcMstring::new();
+    let mut raw_dcmm2 = Vec::with_capacity(DCMM_HEADER.len().saturating_add(bytes.len()));
+    raw_dcmm2.extend_from_slice(&DCMM_HEADER);
     for (idx, line) in text_cow.lines().enumerate() {
         let line_no = idx.saturating_add(1);
         let code_part = match line.split_once('#') {
@@ -478,11 +479,9 @@ pub fn ctbnodes_to_dcmstring_with_options(
         }
         match LedgerNode::parse_line(line, "<ctbnodes>", line_no) {
             Ok(node) => {
-                let tokens = encode_node_definition_tokens_with(&node, framing);
-                for tok in tokens {
-                    let gid = tok.to_global_id()?;
-                    doc.push_char(crate::DcChar(gid));
-                }
+                let sec_bytes =
+                    encode_node_definition_dcmm2_bytes_with(&node, framing)?;
+                raw_dcmm2.extend_from_slice(&sec_bytes);
             }
             Err(e) => {
                 if !permissive {
@@ -495,6 +494,13 @@ pub fn ctbnodes_to_dcmstring_with_options(
         }
     }
 
+    let opts = crate::DcmmStreamOptions {
+        best_effort: permissive,
+    };
+    let (doc, dcmm_log) = crate::dcmm2_to_dcmstring_with_options(&raw_dcmm2, &opts)?;
+    for w in dcmm_log.get_warnings() {
+        log.warn(&w);
+    }
     Ok((doc, log))
 }
 
@@ -503,24 +509,34 @@ pub fn dcmstring_to_ctbnodes(
     doc: &crate::DcMstring,
 ) -> Result<(Vec<u8>, FormatLog)> {
     use ctb_formats_dcdata::graph_ledger::{
-        CTBNBDL_MAGIC, decode_nodes_from_ctbnbdl_bytes_with,
-        default_ctbnbdl_framing_dcs,
+        CTBNBDL_MAGIC, decode_ctbnbdl_bundle_resilient_with,
+        decode_nodes_from_ctbnbdl_bytes_with, default_ctbnbdl_framing_dcs,
     };
 
     let mut bundle_bytes =
         Vec::with_capacity(CTBNBDL_MAGIC.len().saturating_add(doc.len()));
     bundle_bytes.extend_from_slice(&CTBNBDL_MAGIC);
     bundle_bytes.extend_from_slice(doc.as_bytes());
-    let nodes = decode_nodes_from_ctbnbdl_bytes_with(
-        &bundle_bytes,
-        default_ctbnbdl_framing_dcs(),
-    )?;
+    let framing = default_ctbnbdl_framing_dcs();
+    let mut log = FormatLog::default();
+    let nodes = if ctb_utilities::invocation_settings::get_settings()
+        .recover_graph
+    {
+        let (_, recovered, warnings) =
+            decode_ctbnbdl_bundle_resilient_with(&bundle_bytes, framing)?;
+        for warning in &warnings {
+            log.warn(warning);
+        }
+        recovered
+    } else {
+        decode_nodes_from_ctbnbdl_bytes_with(&bundle_bytes, framing)?
+    };
     let mut out = String::new();
     for node in &nodes {
         out.push_str(&node.format_line());
         out.push('\n');
     }
-    Ok((out.into_bytes(), FormatLog::default()))
+    Ok((out.into_bytes(), log))
 }
 
 const CTBNBDL_MAGIC_V1: [u8; 8] = *b"CTBNBDL\x01";

@@ -79,6 +79,10 @@ const BASE64_PADDING_DC: u32 = 195;
 pub const DC_SYSTEM_BLOCK_MOST_RECENT_NODE_ID: DcShorthand =
     DcShorthand::Short(641);
 
+/// Structured comment prefix recording a node's creation timestamp in signed nanoseconds
+/// since the Unix epoch inside `.ctbnodes` lines (`# @created_ns:<i128> ...`).
+pub const CREATED_NS_COMMENT_PREFIX: &str = "@created_ns:";
+
 /// Framing and relationship Document Characters used when encoding, decoding, and partitioning
 /// `.ctbnbdl` node definitions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -87,6 +91,22 @@ pub struct CtbnbdlFramingDcs {
     pub begin_node: DcShorthand,
     /// `EndGraphNodeDefinition` (`Dc 618`).
     pub end_node: DcShorthand,
+    /// `BeginChecksummedSection` (`Dc 543`).
+    pub begin_checksummed_section: DcShorthand,
+    /// `EndChecksummedSection` (`Dc 544`).
+    pub end_checksummed_section: DcShorthand,
+    /// `SectionDigest` (`Dc 545`).
+    pub section_digest: DcShorthand,
+    /// `BeginTimeMoment` (`Dc 390`).
+    pub begin_time_moment: DcShorthand,
+    /// `EndTimeMoment` (`Dc 391`).
+    pub end_time_moment: DcShorthand,
+    /// `SectionTimestampNodeCreationTime` (`Dc 1941`), or `None` on historical prefixes prior to its introduction.
+    pub section_node_creation_time: Option<DcShorthand>,
+    /// `NsSinceEpoch` (`FormatId::NsSinceEpoch`, `f487`).
+    pub ns_since_epoch_format: DcShorthand,
+    /// `Sha256` (`FormatId::Sha256`, `f245`).
+    pub sha256_format: DcShorthand,
     /// `Escape` (`Dc 255`, `Ignore following Dc`).
     pub escape: DcShorthand,
     /// `EvaluateValueAsAtom` (`Dc 616`).
@@ -123,6 +143,20 @@ pub fn sanitize_comment(raw: &str) -> String {
     raw.replace('\r', "\\r").replace('\n', "\\n")
 }
 
+/// Returns the current system wall-clock timestamp in signed nanoseconds since the Unix epoch.
+#[must_use]
+pub fn current_unix_timestamp_ns() -> i128 {
+    match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+        Ok(dur) => i128::try_from(dur.as_nanos()).unwrap_or(i128::MAX),
+        Err(err) => {
+            let before =
+                i128::try_from(err.duration().as_nanos()).unwrap_or(i128::MAX);
+            // Reason for fallback: saturating to i128::MIN if pre-epoch duration exceeds i128::MAX avoids overflow.
+            before.checked_neg().unwrap_or(i128::MIN)
+        }
+    }
+}
+
 /// Single node entry in the System-block `.ctbnodes` ledger.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LedgerNode {
@@ -132,21 +166,32 @@ pub struct LedgerNode {
     pub tokens: Vec<DcShorthand>,
     /// Human-readable comment rendered after `# `.
     pub comment: String,
+    /// Optional creation timestamp in signed nanoseconds since the Unix epoch,
+    /// persisted in `.ctbnodes` via `# @created_ns:<i128>` and in `.ctbnbdl`
+    /// checksummed sections via `SectionTimestampNodeCreationTime`.
+    pub created_ns: Option<i128>,
 }
 
 impl LedgerNode {
-    /// Formats this node as a single `.ctbnodes` line (`l<id>: <tokens> # <comment>`).
+    /// Formats this node as a single `.ctbnodes` line (`l<id>: <tokens> # [@created_ns:<ts>] <comment>`).
     #[must_use]
     pub fn format_line(&self) -> String {
         let token_strs: Vec<String> =
             self.tokens.iter().map(ToString::to_string).collect();
         let body = token_strs.join(" ");
         let clean_comment = sanitize_comment(&self.comment);
-        match (body.is_empty(), clean_comment.is_empty()) {
+        let full_comment = match (self.created_ns, clean_comment.is_empty()) {
+            (Some(ts), true) => format!("{CREATED_NS_COMMENT_PREFIX}{ts}"),
+            (Some(ts), false) => {
+                format!("{CREATED_NS_COMMENT_PREFIX}{ts} {clean_comment}")
+            }
+            (None, _) => clean_comment,
+        };
+        match (body.is_empty(), full_comment.is_empty()) {
             (true, true) => format!("l{}: #", self.id),
-            (true, false) => format!("l{}: # {clean_comment}", self.id),
+            (true, false) => format!("l{}: # {full_comment}", self.id),
             (false, true) => format!("l{}: {body}", self.id),
-            (false, false) => format!("l{}: {body} # {clean_comment}", self.id),
+            (false, false) => format!("l{}: {body} # {full_comment}", self.id),
         }
     }
 
@@ -161,9 +206,35 @@ impl LedgerNode {
             !trimmed.is_empty(),
             "{file_label}:{line_no}: unexpected blank line in .ctbnodes file"
         );
-        let (code_part, comment) = match trimmed.split_once('#') {
-            Some((before, after)) => (before.trim(), after.trim().to_string()),
-            None => (trimmed, String::new()),
+        let (code_part, created_ns, comment) = match trimmed.split_once('#') {
+            Some((before, after)) => {
+                let raw_after = after.trim();
+                if let Some(rest) =
+                    raw_after.strip_prefix(CREATED_NS_COMMENT_PREFIX)
+                {
+                    let (ts_str, rem_comment) =
+                        match rest.find(char::is_whitespace) {
+                            Some(pos) => {
+                                // Reason for fallback: pos comes from rest.find(...) so ..pos and pos.. are valid UTF-8 boundaries.
+                                let head = rest.get(..pos).unwrap_or_default();
+                                // Reason for fallback: pos comes from rest.find(...) so pos.. is a valid UTF-8 boundary.
+                                let tail =
+                                    rest.get(pos..).unwrap_or_default().trim();
+                                (head, tail)
+                            }
+                            None => (rest, ""),
+                        };
+                    let ts = ts_str.parse::<i128>().with_context(|| {
+                        format!(
+                            "{file_label}:{line_no}: invalid @created_ns timestamp '{ts_str}'"
+                        )
+                    })?;
+                    (before.trim(), Some(ts), rem_comment.to_string())
+                } else {
+                    (before.trim(), None, raw_after.to_string())
+                }
+            }
+            None => (trimmed, None, String::new()),
         };
         let Some((lhs, rhs)) = code_part.split_once(':') else {
             bail!(
@@ -198,6 +269,7 @@ impl LedgerNode {
             id,
             tokens,
             comment,
+            created_ns,
         })
     }
 }
@@ -398,11 +470,15 @@ pub fn verify_nodes_append_only_against_baseline(
             );
         };
         ensure!(
-            cur_node.id == base_node.id && cur_node.tokens == base_node.tokens,
+            cur_node.id == base_node.id
+                && cur_node.tokens == base_node.tokens
+                && cur_node.created_ns == base_node.created_ns,
             "CRITICAL: Append-only graph ledger mutation detected at node l{} against {baseline_label}! \
-             Existing node IDs and Dc statements are immutable (expected tokens {:?}, found {:?}).",
+             Existing node IDs, creation timestamps, and Dc statements are immutable (expected created_ns={:?} tokens {:?}, found created_ns={:?} tokens {:?}).",
             base_node.id,
+            base_node.created_ns,
             base_node.tokens,
+            cur_node.created_ns,
             cur_node.tokens
         );
     }
@@ -959,13 +1035,24 @@ fn try_parse_textual_encapsulation(
     bail!("Unterminated Dc 203 textual encapsulation (missing Dc 204)");
 }
 
-fn encode_node_definition_dcmm2_bytes_with(
+/// Encodes a single `LedgerNode` into `DcMixed2` checksummed-section bytes:
+/// `543 617 [atom_dc: l<id>] <escaped body tokens...> 618 [<SectionTimestampNodeCreationTime> 390 f487 6 f199 [11?] <base64> 7 391]? 544 545 <SHA-256 checksum>`.
+pub fn encode_node_definition_dcmm2_bytes_with(
     node: &LedgerNode,
     framing: CtbnbdlFramingDcs,
 ) -> Result<Vec<u8>> {
+    use crate::sha2::{Digest, Sha256};
+
     let mut out = Vec::with_capacity(
-        node.tokens.len().saturating_add(4).saturating_mul(4),
+        node.tokens
+            .len()
+            .saturating_add(16)
+            .saturating_mul(4)
+            .saturating_add(80),
     );
+    push_dctf_token(&mut out, framing.begin_checksummed_section)?;
+    let section_body_start = out.len();
+
     push_dctf_token(&mut out, framing.begin_node)?;
 
     let mut id_tokens = Vec::with_capacity(2);
@@ -1002,6 +1089,46 @@ fn encode_node_definition_dcmm2_bytes_with(
     }
 
     push_dctf_token(&mut out, framing.end_node)?;
+
+    if let Some(ts_ns) = node.created_ns {
+        let ts_dc = framing.section_node_creation_time.context(
+            "Cannot encode node creation timestamp in .ctbnbdl without SectionTimestampNodeCreationTime in framing Dcs",
+        )?;
+        push_dctf_token(&mut out, ts_dc)?;
+        push_dctf_token(&mut out, framing.begin_time_moment)?;
+        push_dctf_token(&mut out, framing.ns_since_epoch_format)?;
+        push_dctf_token(&mut out, DcShorthand::Short(6))?;
+        push_dctf_token(&mut out, DcShorthand::Format(199))?;
+        if ts_ns < 0 {
+            push_dctf_token(&mut out, DcShorthand::Short(11))?;
+        }
+        let mut digits = Vec::with_capacity(24);
+        encode_dc_base64_u128(ts_ns.unsigned_abs(), &mut digits);
+        for d in digits {
+            push_dctf_token(&mut out, d)?;
+        }
+        push_dctf_token(&mut out, DcShorthand::Short(7))?;
+        push_dctf_token(&mut out, framing.end_time_moment)?;
+    }
+
+    let section_body_end = out.len();
+    let section_body = out
+        .get(section_body_start..section_body_end)
+        .context("Invalid checksummed section body slice")?;
+    let digest: [u8; 32] = Sha256::digest(section_body).into();
+
+    push_dctf_token(&mut out, framing.end_checksummed_section)?;
+    push_dctf_token(&mut out, framing.section_digest)?;
+
+    let mut meta_bytes = Vec::with_capacity(8);
+    push_dctf_token(&mut meta_bytes, framing.sha256_format)?;
+    out.extend_from_slice(&DC_203_DCTF_BYTES);
+    out.push(DCMM_TYPE_BINARY_METADATA);
+    out.extend_from_slice(&32u128.to_be_bytes());
+    out.extend_from_slice(&u128::try_from(meta_bytes.len())?.to_be_bytes());
+    out.extend_from_slice(&meta_bytes);
+    out.extend_from_slice(&digest);
+
     Ok(out)
 }
 
@@ -1043,7 +1170,7 @@ fn encode_ctbnbdl_header_bytes(
 
 /// Compiles a slice of `LedgerNode` entries into a `.ctbnbdl` (`CtbNodeBundle2`) binary buffer:
 /// 8-byte `CTBNBDL\x02` magic + 21-byte `DcMixed2` header + optional `641 l<max_node_id>` most_recent
-/// + `DcTF` encoded `617 .. 618` frames.
+/// + `DcTF` encoded `543 617 .. 618 [<ts>]? 544 545 <checksum>` checksummed node sections.
 pub fn encode_nodes_to_ctbnbdl_bytes_with(
     nodes: &[LedgerNode],
     framing: CtbnbdlFramingDcs,
@@ -1053,7 +1180,7 @@ pub fn encode_nodes_to_ctbnbdl_bytes_with(
     let mut bytes = Vec::with_capacity(
         header_bytes
             .len()
-            .saturating_add(nodes.len().saturating_mul(32)),
+            .saturating_add(nodes.len().saturating_mul(96)),
     );
     bytes.extend_from_slice(&header_bytes);
     for node in nodes {
@@ -1063,19 +1190,582 @@ pub fn encode_nodes_to_ctbnbdl_bytes_with(
     Ok(bytes)
 }
 
-/// Decodes a `.ctbnbdl` (`CtbNodeBundle1` or `CtbNodeBundle2`) binary buffer into its optional
-/// leading `Dc 641` system block most recent node ID and its list of `LedgerNode` entries.
-pub fn decode_ctbnbdl_bundle_with(
+#[derive(Debug)]
+enum StreamItem<'a> {
+    Token(DcShorthand),
+    Binary {
+        meta_tokens: Vec<DcShorthand>,
+        payload_len_u128: u128,
+        bin_payload: &'a [u8],
+    },
+}
+
+fn read_stream_item<'a>(
+    payload: &'a [u8],
+    pos: usize,
+    is_v2: bool,
+    escaped: bool,
+) -> Result<(StreamItem<'a>, usize)> {
+    let rem = payload
+        .get(pos..)
+        .context("Stream cursor out of bounds in .ctbnbdl")?;
+    let dc203_bytes: &[u8] = if is_v2 {
+        &DC_203_DCTF_BYTES
+    } else {
+        &DC_203_UTF8E128_BYTES
+    };
+    if !escaped
+        && let Some(after_dc203) = rem.strip_prefix(dc203_bytes)
+        && let Some(&type_byte) = after_dc203.first()
+        && matches!(
+            type_byte,
+            DCMM_TYPE_BINARY
+                | DCMM_TYPE_LEGACY_TEXT
+                | DCMM_TYPE_BINARY_METADATA
+                | DCMM_TYPE_BINARY_SHA256
+                | DCMM_TYPE_LEGACY_SHA256
+        )
+    {
+        let size_bytes: [u8; 16] = after_dc203
+            .get(1..17)
+            .context("Truncated DcMixed encapsulation size in .ctbnbdl")?
+            .try_into()?;
+        let payload_len_u128 = u128::from_be_bytes(size_bytes);
+        let payload_len = usize::try_from(payload_len_u128)
+            .context("DcMixed encapsulation payload size overflow in .ctbnbdl")?;
+
+        let mut cursor = 17usize;
+        let mut meta_bytes: &[u8] = &[];
+        if type_byte == DCMM_TYPE_BINARY_METADATA {
+            let meta_len_bytes: [u8; 16] = after_dc203
+                .get(cursor..cursor.saturating_add(16))
+                .context("Truncated DcMixed metadata length in .ctbnbdl")?
+                .try_into()?;
+            let meta_len =
+                usize::try_from(u128::from_be_bytes(meta_len_bytes))
+                    .context("DcMixed metadata length overflow in .ctbnbdl")?;
+            cursor = cursor.saturating_add(16);
+            let meta_end = cursor
+                .checked_add(meta_len)
+                .context("DcMixed metadata offset overflow in .ctbnbdl")?;
+            meta_bytes = after_dc203
+                .get(cursor..meta_end)
+                .context("Truncated DcMixed metadata in .ctbnbdl")?;
+            cursor = meta_end;
+        } else if type_byte == DCMM_TYPE_BINARY_SHA256
+            || type_byte == DCMM_TYPE_LEGACY_SHA256
+        {
+            let sha_end = cursor.saturating_add(32);
+            ensure!(
+                after_dc203.len() >= sha_end,
+                "Truncated DcMixed SHA-256 checksum in .ctbnbdl"
+            );
+            cursor = sha_end;
+        }
+
+        let payload_end = cursor
+            .checked_add(payload_len)
+            .context("DcMixed payload offset overflow in .ctbnbdl")?;
+        let bin_payload = after_dc203
+            .get(cursor..payload_end)
+            .context("Truncated DcMixed binary payload in .ctbnbdl")?;
+
+        let mut meta_tokens = Vec::new();
+        let mut meta_rem = meta_bytes;
+        while !meta_rem.is_empty() {
+            let decoded = if is_v2 {
+                decode_dctf_buf(meta_rem)
+            } else {
+                decode_utf_8e_128_buf(meta_rem)
+            };
+            let Some((cp, consumed)) = decoded else {
+                bail!(
+                    "Invalid character sequence in .ctbnbdl encapsulation metadata"
+                );
+            };
+            meta_tokens.push(DcShorthand::from_global_id(cp));
+            // Reason for fallback: consumed <= meta_rem.len() is guaranteed by decode_dctf_buf / decode_utf_8e_128_buf.
+            meta_rem = meta_rem.get(consumed..).unwrap_or_default();
+        }
+
+        let next_pos = pos
+            .checked_add(dc203_bytes.len())
+            .and_then(|p| p.checked_add(payload_end))
+            .context("Byte offset overflow in .ctbnbdl binary encapsulation")?;
+        return Ok((
+            StreamItem::Binary {
+                meta_tokens,
+                payload_len_u128,
+                bin_payload,
+            },
+            next_pos,
+        ));
+    }
+
+    let decoded = if is_v2 {
+        decode_dctf_buf(rem)
+    } else {
+        decode_utf_8e_128_buf(rem)
+    };
+    let Some((codepoint, consumed)) = decoded else {
+        bail!("Invalid character sequence in .ctbnbdl stream at offset {pos}");
+    };
+    let next_pos = pos
+        .checked_add(consumed)
+        .context("Byte offset overflow in .ctbnbdl character stream")?;
+    Ok((StreamItem::Token(DcShorthand::from_global_id(codepoint)), next_pos))
+}
+
+fn push_binary_item_as_textual_tokens(
+    meta_tokens: &[DcShorthand],
+    payload_len_u128: u128,
+    bin_payload: &[u8],
+    out: &mut Vec<DcShorthand>,
+) {
+    out.push(DcShorthand::Short(203));
+    out.extend_from_slice(meta_tokens);
+    out.push(DcShorthand::Short(6));
+    out.push(DcShorthand::Format(199));
+    encode_dc_base64_u128(payload_len_u128, out);
+    out.push(DcShorthand::Short(7));
+    encode_dc_base64_payload(bin_payload, out);
+    out.push(DcShorthand::Short(204));
+}
+
+fn read_atom_dc_from_bytes(
+    payload: &[u8],
+    pos: &mut usize,
+    is_v2: bool,
+    framing: CtbnbdlFramingDcs,
+) -> Result<DcShorthand> {
+    let (item, next_pos) = read_stream_item(payload, *pos, is_v2, false)?;
+    let StreamItem::Token(tok) = item else {
+        bail!("Unexpected binary encapsulation in [atom_dc] position in .ctbnbdl");
+    };
+    *pos = next_pos;
+    if tok == framing.escape {
+        let (esc_item, after_esc) = read_stream_item(payload, *pos, is_v2, true)?;
+        let StreamItem::Token(escaped) = esc_item else {
+            bail!("Unexpected binary encapsulation after escape in [atom_dc]");
+        };
+        ensure!(
+            escaped == DcShorthand::Short(203)
+                || escaped == framing.escape
+                || escaped == framing.evaluate_as_atom,
+            "Invalid escaped [atom_dc] token {escaped} in .ctbnbdl"
+        );
+        *pos = after_esc;
+        Ok(escaped)
+    } else if tok == framing.evaluate_as_atom {
+        bail!("Unexpected unescaped EvaluateValueAsAtom in .ctbnbdl [atom_dc]");
+    } else {
+        Ok(tok)
+    }
+}
+
+fn parse_bare_node_at(
+    payload: &[u8],
+    pos: &mut usize,
+    is_v2: bool,
+    framing: CtbnbdlFramingDcs,
+) -> Result<(u128, Vec<DcShorthand>)> {
+    let (open_item, after_open) = read_stream_item(payload, *pos, is_v2, false)?;
+    let StreamItem::Token(open_tok) = open_item else {
+        bail!(
+            "Expected {} (Begin graph node definition), found binary encapsulation",
+            framing.begin_node
+        );
+    };
+    ensure!(
+        open_tok == framing.begin_node,
+        "Expected {} (Begin graph node definition), found {open_tok}",
+        framing.begin_node
+    );
+    *pos = after_open;
+    let id_sh = read_atom_dc_from_bytes(payload, pos, is_v2, framing)
+        .context("Invalid or missing [atom_dc] node ID after BeginGraphNodeDefinition")?;
+    let id = id_sh.to_global_id()?;
+
+    let mut body_tokens = Vec::new();
+    let mut closed = false;
+    while *pos < payload.len() {
+        let (item, next_pos) = read_stream_item(payload, *pos, is_v2, false)?;
+        *pos = next_pos;
+        match item {
+            StreamItem::Token(tok) => {
+                if tok == framing.end_node {
+                    closed = true;
+                    break;
+                }
+                if tok == framing.escape {
+                    let (esc_item, after_esc) =
+                        read_stream_item(payload, *pos, is_v2, true).context(
+                            "Trailing escape token at end of .ctbnbdl node body",
+                        )?;
+                    let StreamItem::Token(escaped) = esc_item else {
+                        bail!("Unexpected binary chunk after escape in .ctbnbdl node body");
+                    };
+                    ensure!(
+                        escaped == framing.escape || escaped == framing.end_node,
+                        "Unexpected escaped token {escaped} after {} in .ctbnbdl node body",
+                        framing.escape
+                    );
+                    *pos = after_esc;
+                    body_tokens.push(escaped);
+                } else {
+                    body_tokens.push(tok);
+                }
+            }
+            StreamItem::Binary {
+                meta_tokens,
+                payload_len_u128,
+                bin_payload,
+            } => {
+                push_binary_item_as_textual_tokens(
+                    &meta_tokens,
+                    payload_len_u128,
+                    bin_payload,
+                    &mut body_tokens,
+                );
+            }
+        }
+    }
+    ensure!(
+        closed,
+        "Unterminated node definition for l{id} (missing {})",
+        framing.end_node
+    );
+    Ok((id, body_tokens))
+}
+
+fn parse_signed_dc_i128_at(
+    payload: &[u8],
+    pos: &mut usize,
+    is_v2: bool,
+) -> Result<i128> {
+    let (n_open, p1) = read_stream_item(payload, *pos, is_v2, false)?;
+    ensure!(
+        matches!(n_open, StreamItem::Token(DcShorthand::Short(6))),
+        "Expected Dc 6 (Begin number) in node creation timestamp"
+    );
+    let (fmt_tok, p2) = read_stream_item(payload, p1, is_v2, false)?;
+    ensure!(
+        matches!(fmt_tok, StreamItem::Token(DcShorthand::Format(199))),
+        "Expected f199 (Integer) in node creation timestamp"
+    );
+    *pos = p2;
+
+    let mut is_negative = false;
+    let (peek_item, p_after_sign) = read_stream_item(payload, *pos, is_v2, false)?;
+    if matches!(peek_item, StreamItem::Token(DcShorthand::Short(11))) {
+        is_negative = true;
+        *pos = p_after_sign;
+    }
+
+    let mut mag: u128 = 0;
+    let mut digit_count = 0usize;
+    let mut closed = false;
+    while *pos < payload.len() {
+        let (item, next_pos) = read_stream_item(payload, *pos, is_v2, false)?;
+        *pos = next_pos;
+        match item {
+            StreamItem::Token(DcShorthand::Short(7)) => {
+                closed = true;
+                break;
+            }
+            StreamItem::Token(DcShorthand::Short(n))
+                if (BASE64_DIGIT_START..=BASE64_DIGIT_END).contains(&n) =>
+            {
+                let digit = u128::from(n.saturating_sub(BASE64_DIGIT_START));
+                mag = mag
+                    .checked_mul(64)
+                    .and_then(|v| v.checked_add(digit))
+                    .context("Integer magnitude overflow in node creation timestamp")?;
+                digit_count = digit_count.saturating_add(1);
+            }
+            other => {
+                bail!(
+                    "Unexpected token {other:?} inside Dc 6..7 integer in node creation timestamp"
+                );
+            }
+        }
+    }
+    ensure!(
+        closed && digit_count > 0,
+        "Malformed or unterminated Dc 6..7 integer in node creation timestamp"
+    );
+
+    if is_negative {
+        let min_abs = 1u128 << 127;
+        if mag == min_abs {
+            Ok(i128::MIN)
+        } else {
+            let signed = i128::try_from(mag)
+                .context("Negative timestamp magnitude exceeds i128::MIN")?;
+            signed
+                .checked_neg()
+                .context("Negation overflow in node creation timestamp")
+        }
+    } else {
+        i128::try_from(mag)
+            .context("Positive timestamp magnitude exceeds i128::MAX")
+    }
+}
+
+fn parse_node_record_at(
+    payload: &[u8],
+    pos: &mut usize,
+    is_v2: bool,
+    framing: CtbnbdlFramingDcs,
+) -> Result<LedgerNode> {
+    use crate::sha2::{Digest, Sha256};
+
+    let (first_item, after_first) = read_stream_item(payload, *pos, is_v2, false)?;
+    let StreamItem::Token(first_tok) = first_item else {
+        bail!("Expected section opener or node opener in .ctbnbdl, found binary encapsulation");
+    };
+
+    if first_tok == framing.begin_node {
+        let (id, tokens) = parse_bare_node_at(payload, pos, is_v2, framing)?;
+        return Ok(LedgerNode {
+            id,
+            tokens,
+            comment: String::new(),
+            created_ns: None,
+        });
+    }
+
+    ensure!(
+        first_tok == framing.begin_checksummed_section,
+        "Expected {} (Begin checksummed section) or {} (Begin graph node definition), found {first_tok}",
+        framing.begin_checksummed_section,
+        framing.begin_node
+    );
+    let section_body_start = after_first;
+    *pos = after_first;
+
+    let (id, tokens) = parse_bare_node_at(payload, pos, is_v2, framing)?;
+
+    let before_meta_or_end = *pos;
+    let (after_node_item, after_meta_tok_pos) =
+        read_stream_item(payload, before_meta_or_end, is_v2, false)
+            .with_context(|| {
+                format!(
+                    "Truncated checksummed section after node l{id} (missing {})",
+                    framing.end_checksummed_section
+                )
+            })?;
+    let StreamItem::Token(after_node_tok) = after_node_item else {
+        bail!("Unexpected binary chunk after node l{id} inside checksummed section");
+    };
+
+    let (created_ns, section_body_end) =
+        if after_node_tok == framing.end_checksummed_section {
+            *pos = after_meta_tok_pos;
+            (None, before_meta_or_end)
+        } else {
+            if let Some(expected_ts_dc) = framing.section_node_creation_time {
+                ensure!(
+                    after_node_tok == expected_ts_dc,
+                    "Expected {} (SectionTimestampNodeCreationTime) or {} after node l{id}, found {after_node_tok}",
+                    expected_ts_dc,
+                    framing.end_checksummed_section
+                );
+            }
+            *pos = after_meta_tok_pos;
+            let (tm_open, after_tm_open) =
+                read_stream_item(payload, *pos, is_v2, false)?;
+            ensure!(
+                matches!(tm_open, StreamItem::Token(t) if t == framing.begin_time_moment),
+                "Expected {} (Begin time moment) after SectionTimestampNodeCreationTime for l{id}",
+                framing.begin_time_moment
+            );
+            let (tm_fmt, after_tm_fmt) =
+                read_stream_item(payload, after_tm_open, is_v2, false)?;
+            ensure!(
+                matches!(tm_fmt, StreamItem::Token(t) if t == framing.ns_since_epoch_format),
+                "Expected {} (NsSinceEpoch) in creation timestamp for l{id}",
+                framing.ns_since_epoch_format
+            );
+            *pos = after_tm_fmt;
+            let ts_ns = parse_signed_dc_i128_at(payload, pos, is_v2)?;
+            let (tm_close, after_tm_close) =
+                read_stream_item(payload, *pos, is_v2, false)?;
+            ensure!(
+                matches!(tm_close, StreamItem::Token(t) if t == framing.end_time_moment),
+                "Expected {} (End time moment) after creation timestamp integer for l{id}",
+                framing.end_time_moment
+            );
+            let sec_end = after_tm_close;
+            let (sec_close, after_sec_close) =
+                read_stream_item(payload, sec_end, is_v2, false)?;
+            ensure!(
+                matches!(sec_close, StreamItem::Token(t) if t == framing.end_checksummed_section),
+                "Expected {} (End checksummed section) after creation timestamp for l{id}",
+                framing.end_checksummed_section
+            );
+            *pos = after_sec_close;
+            (Some(ts_ns), sec_end)
+        };
+
+    let (digest_tag_item, after_digest_tag) =
+        read_stream_item(payload, *pos, is_v2, false).with_context(|| {
+            format!(
+                "Missing {} (Section digest) after checksummed section for l{id}",
+                framing.section_digest
+            )
+        })?;
+    ensure!(
+        matches!(digest_tag_item, StreamItem::Token(t) if t == framing.section_digest),
+        "Expected {} (Section digest) after {} for l{id}",
+        framing.section_digest,
+        framing.end_checksummed_section
+    );
+    *pos = after_digest_tag;
+
+    let (ck_item, after_ck) = read_stream_item(payload, *pos, is_v2, false)
+        .with_context(|| {
+            format!("Missing [checksum] payload after SectionDigest for l{id}")
+        })?;
+    *pos = after_ck;
+
+    let expected_digest_bytes: &[u8] = match ck_item {
+        StreamItem::Binary {
+            meta_tokens,
+            bin_payload,
+            ..
+        } => {
+            ensure!(
+                meta_tokens.as_slice() == [framing.sha256_format]
+                    && bin_payload.len() == 32,
+                "Expected 32-byte {} checksum for node l{id}, found meta={meta_tokens:?} len={}",
+                framing.sha256_format,
+                bin_payload.len()
+            );
+            bin_payload
+        }
+        StreamItem::Token(DcShorthand::Short(203)) => {
+            // Also accept textual Dc 203 [sha256_format] [6 f199 ... 7]? <base64> 204 checksums
+            let mut ck_tokens = vec![DcShorthand::Short(203)];
+            let mut closed_204 = false;
+            while *pos < payload.len() {
+                let (it, np) = read_stream_item(payload, *pos, is_v2, false)?;
+                *pos = np;
+                let StreamItem::Token(t) = it else {
+                    bail!("Unexpected binary chunk inside textual checksum for l{id}");
+                };
+                ck_tokens.push(t);
+                if t == DcShorthand::Short(204) {
+                    closed_204 = true;
+                    break;
+                }
+            }
+            ensure!(closed_204, "Unterminated textual checksum for l{id}");
+            ensure!(
+                ck_tokens.get(1) == Some(&framing.sha256_format),
+                "Unsupported textual checksum format for l{id}"
+            );
+            let mut synth = Vec::with_capacity(ck_tokens.len());
+            synth.push(DcShorthand::Short(203));
+            if let Some(rest) = ck_tokens.get(2..) {
+                synth.extend_from_slice(rest);
+            }
+            let (decoded_ck, consumed_ck) =
+                try_parse_textual_encapsulation(&synth, 0)?
+                    .context("Malformed textual checksum encapsulation")?;
+            ensure!(
+                consumed_ck == synth.len() && decoded_ck.len() == 32,
+                "Expected 32-byte textual SHA-256 digest for l{id}"
+            );
+            let section_slice = payload
+                .get(section_body_start..section_body_end)
+                .context("Invalid checksummed section byte span")?;
+            let actual_digest: [u8; 32] = Sha256::digest(section_slice).into();
+            ensure!(
+                actual_digest.as_slice() == decoded_ck.as_slice(),
+                "Checksum mismatch in .ctbnbdl section for node l{id}"
+            );
+            return Ok(LedgerNode {
+                id,
+                tokens,
+                comment: String::new(),
+                created_ns,
+            });
+        }
+        StreamItem::Token(other) => {
+            bail!(
+                "Expected Dc 203 [checksum] after SectionDigest for l{id}, found {other}"
+            );
+        }
+    };
+
+    let section_slice = payload
+        .get(section_body_start..section_body_end)
+        .context("Invalid checksummed section byte span")?;
+    let actual_digest: [u8; 32] = Sha256::digest(section_slice).into();
+    ensure!(
+        actual_digest.as_slice() == expected_digest_bytes,
+        "Checksum mismatch in .ctbnbdl section for node l{id}"
+    );
+
+    Ok(LedgerNode {
+        id,
+        tokens,
+        comment: String::new(),
+        created_ns,
+    })
+}
+
+fn find_next_record_resync_offset(
+    payload: &[u8],
+    from_pos: usize,
+    is_v2: bool,
+    framing: CtbnbdlFramingDcs,
+    checksummed_only: bool,
+) -> usize {
+    if !is_v2 || from_pos >= payload.len() {
+        return payload.len();
+    }
+    let mut sec_marker = Vec::with_capacity(8);
+    if push_dctf_token(&mut sec_marker, framing.begin_checksummed_section)
+        .is_err()
+        || sec_marker.is_empty()
+    {
+        return payload.len();
+    }
+    let mut node_marker = Vec::with_capacity(8);
+    if !checksummed_only {
+        let _ = push_dctf_token(&mut node_marker, framing.begin_node);
+    }
+
+    let mut cur = from_pos;
+    while cur < payload.len() {
+        // Reason for fallback: cur < payload.len() guarantees cur.. is in-bounds.
+        let tail = payload.get(cur..).unwrap_or_default();
+        if tail.starts_with(&sec_marker)
+            || (!node_marker.is_empty() && tail.starts_with(&node_marker))
+        {
+            return cur;
+        }
+        cur = cur.saturating_add(1);
+    }
+    payload.len()
+}
+
+fn decode_ctbnbdl_bundle_inner(
     bytes: &[u8],
     framing: CtbnbdlFramingDcs,
-) -> Result<(Option<u128>, Vec<LedgerNode>)> {
+    resilient: bool,
+) -> Result<(Option<u128>, Vec<LedgerNode>, Vec<String>)> {
     let header_len = CTBNBDL_MAGIC.len().saturating_add(DCMM_HEADER.len());
     ensure!(
         bytes.len() >= header_len,
         ".ctbnbdl buffer is shorter than the {header_len}-byte header ({} bytes)",
         bytes.len()
     );
+    // Reason for fallback: bytes.len() >= header_len was just verified above.
     let magic_part = bytes.get(..CTBNBDL_MAGIC.len()).unwrap_or_default();
+    // Reason for fallback: bytes.len() >= header_len was just verified above.
     let dcmm_part = bytes
         .get(CTBNBDL_MAGIC.len()..header_len)
         .unwrap_or_default();
@@ -1097,180 +1787,129 @@ pub fn decode_ctbnbdl_bundle_with(
         );
     };
 
-    let mut payload = bytes.get(header_len..).unwrap_or_default();
-    let mut all_tokens = Vec::new();
-    let dc203_bytes: &[u8] = if is_v2 {
-        &DC_203_DCTF_BYTES
-    } else {
-        &DC_203_UTF8E128_BYTES
-    };
-    let escape_id = framing.escape.to_global_id()?;
-    let mut escaped = false;
-
-    while !payload.is_empty() {
-        if !escaped
-            && let Some(after_dc203) = payload.strip_prefix(dc203_bytes)
-            && let Some(&type_byte) = after_dc203.first()
-            && matches!(
-                type_byte,
-                DCMM_TYPE_BINARY
-                    | DCMM_TYPE_LEGACY_TEXT
-                    | DCMM_TYPE_BINARY_METADATA
-                    | DCMM_TYPE_BINARY_SHA256
-                    | DCMM_TYPE_LEGACY_SHA256
-            )
-        {
-            let size_bytes: [u8; 16] = after_dc203
-                .get(1..17)
-                .context("Truncated DcMixed encapsulation size in .ctbnbdl")?
-                .try_into()?;
-            let payload_len_u128 = u128::from_be_bytes(size_bytes);
-            let payload_len = usize::try_from(payload_len_u128)
-                .context("DcMixed encapsulation payload size overflow in .ctbnbdl")?;
-
-            let mut cursor = 17usize;
-            let mut meta_bytes: &[u8] = &[];
-            if type_byte == DCMM_TYPE_BINARY_METADATA {
-                let meta_len_bytes: [u8; 16] = after_dc203
-                    .get(cursor..cursor.saturating_add(16))
-                    .context("Truncated DcMixed metadata length in .ctbnbdl")?
-                    .try_into()?;
-                let meta_len = usize::try_from(u128::from_be_bytes(meta_len_bytes))
-                    .context("DcMixed metadata length overflow in .ctbnbdl")?;
-                cursor = cursor.saturating_add(16);
-                let meta_end = cursor
-                    .checked_add(meta_len)
-                    .context("DcMixed metadata offset overflow in .ctbnbdl")?;
-                meta_bytes = after_dc203
-                    .get(cursor..meta_end)
-                    .context("Truncated DcMixed metadata in .ctbnbdl")?;
-                cursor = meta_end;
-            } else if type_byte == DCMM_TYPE_BINARY_SHA256
-                || type_byte == DCMM_TYPE_LEGACY_SHA256
-            {
-                let sha_end = cursor.saturating_add(32);
-                ensure!(
-                    after_dc203.len() >= sha_end,
-                    "Truncated DcMixed SHA-256 checksum in .ctbnbdl"
-                );
-                cursor = sha_end;
-            }
-
-            let payload_end = cursor
-                .checked_add(payload_len)
-                .context("DcMixed payload offset overflow in .ctbnbdl")?;
-            let bin_payload = after_dc203
-                .get(cursor..payload_end)
-                .context("Truncated DcMixed binary payload in .ctbnbdl")?;
-
-            all_tokens.push(DcShorthand::Short(203));
-            let mut meta_rem = meta_bytes;
-            while !meta_rem.is_empty() {
-                let decoded = if is_v2 {
-                    decode_dctf_buf(meta_rem)
-                } else {
-                    decode_utf_8e_128_buf(meta_rem)
-                };
-                let Some((cp, consumed)) = decoded else {
-                    bail!("Invalid character sequence in .ctbnbdl encapsulation metadata");
-                };
-                all_tokens.push(DcShorthand::from_global_id(cp));
-                meta_rem = meta_rem.get(consumed..).unwrap_or_default();
-            }
-            all_tokens.push(DcShorthand::Short(6));
-            all_tokens.push(DcShorthand::Format(199));
-            encode_dc_base64_u128(payload_len_u128, &mut all_tokens);
-            all_tokens.push(DcShorthand::Short(7));
-            encode_dc_base64_payload(bin_payload, &mut all_tokens);
-            all_tokens.push(DcShorthand::Short(204));
-
-            payload = after_dc203.get(payload_end..).unwrap_or_default();
-            escaped = false;
-            continue;
-        }
-
-        let decoded = if is_v2 {
-            decode_dctf_buf(payload)
-        } else {
-            decode_utf_8e_128_buf(payload)
-        };
-        let Some((codepoint, consumed)) = decoded else {
-            bail!("Invalid character sequence in .ctbnbdl stream");
-        };
-        all_tokens.push(DcShorthand::from_global_id(codepoint));
-        escaped = !escaped && codepoint == escape_id;
-        payload = payload.get(consumed..).unwrap_or_default();
-    }
-
-    let mut nodes = Vec::new();
-    let mut idx = 0usize;
+    // Reason for fallback: bytes.len() >= header_len was verified above.
+    let payload = bytes.get(header_len..).unwrap_or_default();
+    let mut pos = 0usize;
     let mut most_recent_node_id = None;
+    let mut warnings = Vec::new();
 
-    if all_tokens.first() == Some(&DC_SYSTEM_BLOCK_MOST_RECENT_NODE_ID) {
-        idx = idx.saturating_add(1);
-        let wm_sh = consume_atom_dc_with(&all_tokens, &mut idx, framing)
-            .context(
-            "Invalid or missing [atom_dc] node ID after Dc 641 in .ctbnbdl",
-        )?;
-        let wm_id = wm_sh.to_global_id()?;
-        ensure!(
-            (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&wm_id),
-            "System graph most_recent node ID l{wm_id} in .ctbnbdl is outside the System block ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})"
-        );
-        most_recent_node_id = Some(wm_id);
-    }
-
-    while idx < all_tokens.len() {
-        let open_tok = *all_tokens
-            .get(idx)
-            .context("Unexpected end of .ctbnbdl token stream")?;
-        ensure!(
-            open_tok == framing.begin_node,
-            "Expected {} (Begin graph node definition) at token index {idx}, found {open_tok}",
-            framing.begin_node
-        );
-        idx = idx.saturating_add(1);
-        let id_sh = consume_atom_dc_with(&all_tokens, &mut idx, framing)
-            .context("Invalid or missing [atom_dc] node ID after BeginGraphNodeDefinition")?;
-        let id = id_sh.to_global_id()?;
-        let mut body_tokens = Vec::new();
-        let mut closed = false;
-        while idx < all_tokens.len() {
-            let tok = *all_tokens
-                .get(idx)
-                .context("Unexpected end of node definition in .ctbnbdl")?;
-            idx = idx.saturating_add(1);
-            if tok == framing.end_node {
-                closed = true;
-                break;
-            }
-            if tok == framing.escape {
-                let escaped = *all_tokens.get(idx).context(
-                    "Trailing escape token at end of .ctbnbdl token stream",
-                )?;
-                ensure!(
-                    escaped == framing.escape || escaped == framing.end_node,
-                    "Unexpected escaped token {escaped} after {} in .ctbnbdl node body",
-                    framing.escape
-                );
-                idx = idx.saturating_add(1);
-                body_tokens.push(escaped);
-            } else {
-                body_tokens.push(tok);
+    if pos < payload.len() {
+        if let Ok((StreamItem::Token(DC_SYSTEM_BLOCK_MOST_RECENT_NODE_ID), after_641)) =
+            read_stream_item(payload, pos, is_v2, false)
+        {
+            let mut wm_pos = after_641;
+            match read_atom_dc_from_bytes(payload, &mut wm_pos, is_v2, framing)
+                .and_then(|wm_sh| wm_sh.to_global_id())
+            {
+                Ok(wm_id)
+                    if (SYSTEM_REGION_START..=SYSTEM_REGION_END)
+                        .contains(&wm_id) =>
+                {
+                    most_recent_node_id = Some(wm_id);
+                    pos = wm_pos;
+                }
+                Ok(wm_id) => {
+                    let msg = format!(
+                        "System graph most_recent node ID l{wm_id} in .ctbnbdl is outside the System block ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})"
+                    );
+                    if !resilient {
+                        bail!("{msg}");
+                    }
+                    warnings.push(msg);
+                    pos = find_next_record_resync_offset(
+                        payload,
+                        after_641,
+                        is_v2,
+                        framing,
+                        false,
+                    );
+                }
+                Err(err) => {
+                    if !resilient {
+                        return Err(err.context(
+                            "Invalid or missing [atom_dc] node ID after Dc 641 in .ctbnbdl",
+                        ));
+                    }
+                    warnings.push(format!(
+                        "Corrupted Dc 641 header pin at byte offset {}: {err:#}",
+                        header_len.saturating_add(pos)
+                    ));
+                    pos = find_next_record_resync_offset(
+                        payload,
+                        after_641,
+                        is_v2,
+                        framing,
+                        false,
+                    );
+                }
             }
         }
-        ensure!(
-            closed,
-            "Unterminated node definition for l{id} (missing {})",
-            framing.end_node
-        );
-        nodes.push(LedgerNode {
-            id,
-            tokens: body_tokens,
-            comment: String::new(),
-        });
     }
+
+    let mut sec_marker = Vec::with_capacity(8);
+    if is_v2 {
+        let _ = push_dctf_token(
+            &mut sec_marker,
+            framing.begin_checksummed_section,
+        );
+    }
+    let mut saw_checksummed_section = false;
+    let mut nodes = Vec::new();
+    while pos < payload.len() {
+        let rec_start = pos;
+        // Reason for fallback: rec_start < payload.len() guarantees rec_start.. is in-bounds.
+        let starts_with_sec = !sec_marker.is_empty()
+            && payload
+                .get(rec_start..)
+                .unwrap_or_default()
+                .starts_with(&sec_marker);
+        if starts_with_sec {
+            saw_checksummed_section = true;
+        }
+        match parse_node_record_at(payload, &mut pos, is_v2, framing) {
+            Ok(node) => nodes.push(node),
+            Err(err) => {
+                if !resilient {
+                    return Err(err);
+                }
+                warnings.push(format!(
+                    "Quarantined corrupted .ctbnbdl node section at byte offset {}: {err:#}",
+                    header_len.saturating_add(rec_start)
+                ));
+                pos = find_next_record_resync_offset(
+                    payload,
+                    rec_start.saturating_add(1),
+                    is_v2,
+                    framing,
+                    saw_checksummed_section,
+                );
+            }
+        }
+    }
+
+    Ok((most_recent_node_id, nodes, warnings))
+}
+
+/// Decodes a `.ctbnbdl` (`CtbNodeBundle1` or `CtbNodeBundle2`) binary buffer into its optional
+/// leading `Dc 641` system block most recent node ID and its list of `LedgerNode` entries,
+/// strictly verifying every `Dc 543..544 545` section digest.
+pub fn decode_ctbnbdl_bundle_with(
+    bytes: &[u8],
+    framing: CtbnbdlFramingDcs,
+) -> Result<(Option<u128>, Vec<LedgerNode>)> {
+    let (most_recent_node_id, nodes, _) =
+        decode_ctbnbdl_bundle_inner(bytes, framing, false)?;
     Ok((most_recent_node_id, nodes))
+}
+
+/// Resiliently decodes a `.ctbnbdl` (`CtbNodeBundle1` or `CtbNodeBundle2`) binary buffer,
+/// quarantining any corrupted or checksum-mismatched node section while recovering all
+/// remaining valid nodes and returning diagnostic warnings for every skipped section.
+pub fn decode_ctbnbdl_bundle_resilient_with(
+    bytes: &[u8],
+    framing: CtbnbdlFramingDcs,
+) -> Result<(Option<u128>, Vec<LedgerNode>, Vec<String>)> {
+    decode_ctbnbdl_bundle_inner(bytes, framing, true)
 }
 
 /// Decodes a `.ctbnbdl` (`CtbNodeBundle1` or `CtbNodeBundle2`) binary buffer back into a list of
@@ -1993,6 +2632,14 @@ mod tests {
         CtbnbdlFramingDcs {
             begin_node: DcShorthand::Short(617),
             end_node: DcShorthand::Short(618),
+            begin_checksummed_section: DcShorthand::Short(543),
+            end_checksummed_section: DcShorthand::Short(544),
+            section_digest: DcShorthand::Short(545),
+            begin_time_moment: DcShorthand::Short(390),
+            end_time_moment: DcShorthand::Short(391),
+            section_node_creation_time: Some(DcShorthand::Short(1941)),
+            ns_since_epoch_format: DcShorthand::Format(487),
+            sha256_format: DcShorthand::Format(245),
             escape: DcShorthand::Short(255),
             evaluate_as_atom: DcShorthand::Short(616),
             has_a: DcShorthand::Short(584),
@@ -2040,6 +2687,7 @@ mod tests {
                 DcShorthand::Short(204),
             ],
             comment: String::new(),
+            created_ns: Some(1_795_314_000_123_456_789),
         };
 
         let encoded = encode_nodes_to_ctbnbdl_bytes_with(&[node.clone()], framing)?;
@@ -2047,6 +2695,86 @@ mod tests {
         assert_eq!(decoded.len(), 1);
         assert_eq!(decoded[0].id, node.id);
         assert_eq!(decoded[0].tokens, node.tokens);
+        assert_eq!(decoded[0].created_ns, node.created_ns);
+        Ok(())
+    }
+
+    #[test]
+    fn test_ctbnbdl_checksum_and_resilient_section_recovery() -> Result<()> {
+        let framing = test_framing();
+        let n0 = LedgerNode {
+            id: SYSTEM_REGION_START + 10,
+            tokens: vec![
+                DcShorthand::Short(584),
+                DcShorthand::Short(544),
+                DcShorthand::Short(572),
+            ],
+            comment: "legacy node without timestamp".to_string(),
+            created_ns: None,
+        };
+        let n1 = LedgerNode {
+            id: SYSTEM_REGION_START + 11,
+            tokens: vec![
+                DcShorthand::Unicode(72),
+                DcShorthand::Unicode(105),
+            ],
+            comment: "timestamped node".to_string(),
+            created_ns: Some(1_700_000_000_000_000_000),
+        };
+        let n2 = LedgerNode {
+            id: SYSTEM_REGION_START + 12,
+            tokens: vec![
+                DcShorthand::Short(584),
+                DcShorthand::Short(310),
+                DcShorthand::Short(572),
+            ],
+            comment: "pre-epoch timestamped node".to_string(),
+            created_ns: Some(-42_000_000_000),
+        };
+
+        for orig in [&n0, &n1, &n2] {
+            let line = orig.format_line();
+            let reparsed = LedgerNode::parse_line(&line, "test.ctbnodes", 1)?;
+            assert_eq!(&reparsed, orig);
+        }
+        assert_eq!(
+            n0.format_line(),
+            format!("l{}: 584 544 572 # legacy node without timestamp", n0.id)
+        );
+
+        let bundle = encode_nodes_to_ctbnbdl_bytes_with(
+            &[n0.clone(), n1.clone(), n2.clone()],
+            framing,
+        )?;
+        let (wm, strict_decoded) = decode_ctbnbdl_bundle_with(&bundle, framing)?;
+        assert_eq!(wm, Some(n2.id));
+        assert_eq!(strict_decoded.len(), 3);
+        assert_eq!(strict_decoded[0].created_ns, None);
+        assert_eq!(strict_decoded[1].created_ns, n1.created_ns);
+        assert_eq!(strict_decoded[2].created_ns, n2.created_ns);
+
+        // Corrupt a byte inside n1's checksummed section body!
+        let header_bytes = encode_ctbnbdl_header_bytes(Some(n2.id), framing)?;
+        let n0_bytes = encode_node_definition_dcmm2_bytes_with(&n0, framing)?;
+        let corrupt_offset = header_bytes.len() + n0_bytes.len() + 10;
+        let mut corrupted = bundle.clone();
+        corrupted[corrupt_offset] ^= 0xFF;
+
+        // Strict decoder MUST fail on the corrupted section.
+        assert!(decode_ctbnbdl_bundle_with(&corrupted, framing).is_err());
+
+        // Resilient decoder MUST quarantine n1 with a warning and recover n0 and n2 intact!
+        let (res_wm, res_nodes, warnings) =
+            decode_ctbnbdl_bundle_resilient_with(&corrupted, framing)?;
+        assert_eq!(res_wm, Some(n2.id));
+        assert!(!warnings.is_empty());
+        assert_eq!(res_nodes.len(), 2);
+        assert_eq!(res_nodes[0].id, n0.id);
+        assert_eq!(res_nodes[0].tokens, n0.tokens);
+        assert_eq!(res_nodes[0].created_ns, None);
+        assert_eq!(res_nodes[1].id, n2.id);
+        assert_eq!(res_nodes[1].tokens, n2.tokens);
+        assert_eq!(res_nodes[1].created_ns, n2.created_ns);
         Ok(())
     }
 }

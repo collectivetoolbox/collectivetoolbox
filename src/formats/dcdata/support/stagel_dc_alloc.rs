@@ -2777,6 +2777,7 @@ mod tests {
                     sh(DC_TYPE_ROUTINE),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: wasm_val_id,
@@ -2786,6 +2787,7 @@ mod tests {
                     sh(crate::dc::DC_END_WASM_PROGRAM),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: has_a_id,
@@ -2795,6 +2797,7 @@ mod tests {
                     sh(DC_CANONICAL_DECOMPOSITION),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: has_val_id,
@@ -2804,6 +2807,7 @@ mod tests {
                     DcShorthand::Long(wasm_val_id),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
         ];
         let index = SeedGraphIndex::from_nodes_with_single_props(nodes, &single_props);

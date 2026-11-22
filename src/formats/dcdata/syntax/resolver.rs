@@ -59,6 +59,42 @@ pub struct StarterSet {
     pub scripts: Vec<String>,
 }
 
+/// Extracts the negated delimiter/operator exclusion list from the single-token
+/// branch of the `atom_dc` syntax pattern, peeling any outer `( ... )` group wrapper.
+fn extract_atom_dc_excluded_members(
+    mut pat: &SyntaxPattern,
+) -> Option<&[CharTarget]> {
+    while let SyntaxPattern::Sequence(elems) = pat
+        && elems.len() == 1
+        && let Some(SyntaxElement {
+            quantifier: Quantifier::ExactOne,
+            term: SyntaxTerm::Group(inner),
+            ..
+        }) = elems.first()
+    {
+        pat = inner;
+    }
+    let SyntaxPattern::Alternation(branches) = pat else {
+        return None;
+    };
+    for branch in branches {
+        if let SyntaxPattern::Sequence(elems) = branch
+            && elems.len() == 1
+            && let Some(SyntaxElement {
+                term:
+                    SyntaxTerm::CharSet {
+                        negated: true,
+                        members,
+                    },
+                ..
+            }) = elems.first()
+        {
+            return Some(members.as_slice());
+        }
+    }
+    None
+}
+
 /// Trait providing resolution of syntax rules, named types, and script sets.
 pub trait SyntaxRuleResolver {
     /// Returns the underlying `SeedGraphIndex` when backed by the System-block seed graph.
@@ -368,26 +404,12 @@ pub trait SyntaxRuleResolver {
     /// Returns true if `token` matches the single-token branch of `[atom_dc]`
     /// (i.e. is not in the negated delimiter/operator exclusion set of `atom_dc`).
     fn is_plain_atom_dc(&self, token: u128) -> bool {
-        if let Some(SyntaxPattern::Alternation(branches)) =
-            self.resolve_named_type("atom_dc")
+        if let Some(pat) = self.resolve_named_type("atom_dc")
+            && let Some(members) = extract_atom_dc_excluded_members(pat)
         {
-            for branch in branches {
-                if let SyntaxPattern::Sequence(elems) = branch
-                    && elems.len() == 1
-                    && let Some(SyntaxElement {
-                        term:
-                            SyntaxTerm::CharSet {
-                                negated: true,
-                                members,
-                            },
-                        ..
-                    }) = elems.first()
-                {
-                    return !members
-                        .iter()
-                        .any(|m| self.is_equivalent_to(token, m.to_u128()));
-                }
-            }
+            return !members
+                .iter()
+                .any(|m| self.is_equivalent_to(token, m.to_u128()));
         }
         false
     }
@@ -1553,39 +1575,22 @@ impl DatasetRuleResolver {
 
         self.populate_seed_graph_splice_triggers();
 
-        if let Some(SyntaxPattern::Alternation(branches)) =
-            self.named_types.get("atom_dc")
+        if let Some(pat) = self.named_types.get("atom_dc")
+            && let Some(members) = extract_atom_dc_excluded_members(pat)
         {
-            for branch in branches {
-                if let SyntaxPattern::Sequence(elems) = branch
-                    && elems.len() == 1
-                    && let Some(SyntaxElement {
-                        term:
-                            SyntaxTerm::CharSet {
-                                negated: true,
-                                members,
-                            },
-                        ..
-                    }) = elems.first()
-                {
-                    for member in members {
-                        let m_tok = member.to_u128();
-                        self.excluded_atom_dc_tokens.insert(m_tok);
-                        let canon = self.canonical_token(m_tok);
-                        self.excluded_atom_dc_tokens.insert(canon);
-                        if let Some(equivs) =
-                            self.semantic_equivalents.get(&canon)
-                        {
-                            self.excluded_atom_dc_tokens
-                                .extend(equivs.iter().copied());
-                        }
-                    }
-                    for (&alias, &canon) in &self.canonical_map {
-                        if self.excluded_atom_dc_tokens.contains(&canon) {
-                            self.excluded_atom_dc_tokens.insert(alias);
-                        }
-                    }
-                    break;
+            for member in members {
+                let m_tok = member.to_u128();
+                self.excluded_atom_dc_tokens.insert(m_tok);
+                let canon = self.canonical_token(m_tok);
+                self.excluded_atom_dc_tokens.insert(canon);
+                if let Some(equivs) = self.semantic_equivalents.get(&canon) {
+                    self.excluded_atom_dc_tokens
+                        .extend(equivs.iter().copied());
+                }
+            }
+            for (&alias, &canon) in &self.canonical_map {
+                if self.excluded_atom_dc_tokens.contains(&canon) {
+                    self.excluded_atom_dc_tokens.insert(alias);
                 }
             }
         }
@@ -2305,26 +2310,12 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         if !self.excluded_atom_dc_tokens.is_empty() {
             return !self.excluded_atom_dc_tokens.contains(&token);
         }
-        if let Some(SyntaxPattern::Alternation(branches)) =
-            self.resolve_named_type("atom_dc")
+        if let Some(pat) = self.resolve_named_type("atom_dc")
+            && let Some(members) = extract_atom_dc_excluded_members(pat)
         {
-            for branch in branches {
-                if let SyntaxPattern::Sequence(elems) = branch
-                    && elems.len() == 1
-                    && let Some(SyntaxElement {
-                        term:
-                            SyntaxTerm::CharSet {
-                                negated: true,
-                                members,
-                            },
-                        ..
-                    }) = elems.first()
-                {
-                    return !members
-                        .iter()
-                        .any(|m| self.is_equivalent_to(token, m.to_u128()));
-                }
-            }
+            return !members
+                .iter()
+                .any(|m| self.is_equivalent_to(token, m.to_u128()));
         }
         false
     }
@@ -2851,10 +2842,18 @@ mod tests {
             from_graph.special_wrapper_tokens,
             from_csv.special_wrapper_tokens
         );
+        assert!(!from_graph.excluded_atom_dc_tokens.is_empty());
         assert_eq!(
             from_graph.excluded_atom_dc_tokens,
             from_csv.excluded_atom_dc_tokens
         );
+        assert!(
+            from_graph.is_plain_atom_dc(crate::dc::DC_BEGIN_LIST.to_u128())
+        );
+        assert!(!from_graph.is_plain_atom_dc(crate::dc::DC_ESCAPE.to_u128()));
+        assert!(!from_graph.is_plain_atom_dc(
+            crate::dc::DC_QUOTE_FOLLOWING_DC_AS_ATOM.to_u128()
+        ));
         assert_eq!(from_graph.type_tokens, from_csv.type_tokens);
         assert_eq!(
             from_graph.evaluable_expression_starters,

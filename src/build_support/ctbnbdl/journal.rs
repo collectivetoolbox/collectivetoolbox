@@ -66,11 +66,21 @@ pub fn decode_unicode_string_tokens(tokens: &[DcShorthand]) -> Option<String> {
     Some(out)
 }
 
-/// Resolves active `@ident(...)` short-Dc bindings from an in-memory slice of
+/// Resolves active `@ident(...)` short-Dc and format-Dc bindings from an in-memory slice of
 /// `.ctbnodes` [`LedgerNode`]s by bootstrapping from `"ProgrammaticIdentifier"`.
+#[allow(
+    clippy::type_complexity,
+    reason = "Private bootstrap tuple returns separate Short and Format identifier maps plus core revision Dcs"
+)]
 fn resolve_active_short_idents_from_nodes(
     nodes: &[LedgerNode],
-) -> Result<(HashMap<String, DcShorthand>, DcShorthand, DcShorthand, DcShorthand)> {
+) -> Result<(
+    HashMap<String, DcShorthand>,
+    HashMap<String, DcShorthand>,
+    DcShorthand,
+    DcShorthand,
+    DcShorthand,
+)> {
     let mut strings_by_id: HashMap<u128, String> = HashMap::new();
     let mut tokens_by_id: HashMap<u128, &[DcShorthand]> =
         HashMap::with_capacity(nodes.len());
@@ -129,7 +139,10 @@ fn resolve_active_short_idents_from_nodes(
                 &[ha, subj, prop] | &[ha, _, subj, prop]
                     if ha == has_a_dc
                         && prop == prog_ident_dc
-                        && matches!(subj, DcShorthand::Short(_)) =>
+                        && matches!(
+                            subj,
+                            DcShorthand::Short(_) | DcShorthand::Format(_)
+                        ) =>
                 {
                     Some(subj)
                 }
@@ -144,7 +157,9 @@ fn resolve_active_short_idents_from_nodes(
         {
             if pred == has_value_dc {
                 if let Some(claim_tokens) = tokens_by_id.get(&claim_id) {
-                    if let Some(subj) = extract_prog_ident_subj(claim_tokens) {
+                    if let Some(subj) = extract_prog_ident_subj(claim_tokens)
+                        && matches!(subj, DcShorthand::Short(_))
+                    {
                         if let Some(ident_str) = strings_by_id.get(&str_id) {
                             raw_ident_to_short.insert(ident_str.as_str(), subj);
                         }
@@ -179,6 +194,8 @@ fn resolve_active_short_idents_from_nodes(
     }
 
     let mut active_ident_to_short: HashMap<String, DcShorthand> = HashMap::new();
+    let mut active_ident_to_format: HashMap<String, DcShorthand> =
+        HashMap::new();
     for node in nodes {
         if inactive_ids.contains(&node.id) {
             continue;
@@ -190,8 +207,17 @@ fn resolve_active_short_idents_from_nodes(
                 if let Some(claim_tokens) = tokens_by_id.get(&claim_id) {
                     if let Some(subj) = extract_prog_ident_subj(claim_tokens) {
                         if let Some(ident_str) = strings_by_id.get(&str_id) {
-                            active_ident_to_short
-                                .insert(ident_str.clone(), subj);
+                            match subj {
+                                DcShorthand::Short(_) => {
+                                    active_ident_to_short
+                                        .insert(ident_str.clone(), subj);
+                                }
+                                DcShorthand::Format(_) => {
+                                    active_ident_to_format
+                                        .insert(ident_str.clone(), subj);
+                                }
+                                _ => {}
+                            }
                         }
                     }
                 }
@@ -201,13 +227,14 @@ fn resolve_active_short_idents_from_nodes(
 
     Ok((
         active_ident_to_short,
+        active_ident_to_format,
         sh_supersedes,
         sh_retracts,
         sh_enclosing_doc,
     ))
 }
 
-/// Resolves the 16 `CtbnbdlFramingDcs` from an in-memory slice of `.ctbnodes` [`LedgerNode`]s
+/// Resolves the `CtbnbdlFramingDcs` from an in-memory slice of `.ctbnodes` [`LedgerNode`]s
 /// by bootstrapping from the `"ProgrammaticIdentifier"` string value node.
 ///
 /// # Errors
@@ -216,8 +243,13 @@ fn resolve_active_short_idents_from_nodes(
 pub fn resolve_ctbnbdl_framing_dcs_from_nodes(
     nodes: &[LedgerNode],
 ) -> Result<CtbnbdlFramingDcs> {
-    let (active_ident_to_short, sh_supersedes, sh_retracts, sh_enclosing_doc) =
-        resolve_active_short_idents_from_nodes(nodes)?;
+    let (
+        active_ident_to_short,
+        active_ident_to_format,
+        sh_supersedes,
+        sh_retracts,
+        sh_enclosing_doc,
+    ) = resolve_active_short_idents_from_nodes(nodes)?;
 
     let get_req = |ident: &str| -> Result<DcShorthand> {
         active_ident_to_short.get(ident).copied().with_context(|| {
@@ -226,10 +258,27 @@ pub fn resolve_ctbnbdl_framing_dcs_from_nodes(
             )
         })
     };
+    let get_req_fmt = |ident: &str| -> Result<DcShorthand> {
+        active_ident_to_format.get(ident).copied().with_context(|| {
+            format!(
+                "Missing required format @ident(\"{ident}\") in system graph for ctbnbdl framing"
+            )
+        })
+    };
 
     Ok(CtbnbdlFramingDcs {
         begin_node: get_req("BeginGraphNodeDefinition")?,
         end_node: get_req("EndGraphNodeDefinition")?,
+        begin_checksummed_section: get_req("BeginChecksummedSection")?,
+        end_checksummed_section: get_req("EndChecksummedSection")?,
+        section_digest: get_req("SectionDigest")?,
+        begin_time_moment: get_req("BeginTimeMoment")?,
+        end_time_moment: get_req("EndTimeMoment")?,
+        section_node_creation_time: active_ident_to_short
+            .get("SectionTimestampNodeCreationTime")
+            .copied(),
+        ns_since_epoch_format: get_req_fmt("NsSinceEpoch")?,
+        sha256_format: get_req_fmt("Sha256")?,
         escape: get_req("Escape")?,
         evaluate_as_atom: get_req("EvaluateValueAsAtom")?,
         has_a: get_req("HasA")?,
@@ -815,15 +864,18 @@ pub fn verify_compiled_bundles_match_ledger(
 
     fn project_node_id_tokens(
         slice: &[LedgerNode],
-    ) -> Vec<(u128, &[crate::shorthand::DcShorthand])> {
-        slice.iter().map(|n| (n.id, n.tokens.as_slice())).collect()
+    ) -> Vec<(u128, Option<i128>, &[crate::shorthand::DcShorthand])> {
+        slice
+            .iter()
+            .map(|n| (n.id, n.created_ns, n.tokens.as_slice()))
+            .collect()
     }
 
     let decoded_active_pairs = project_node_id_tokens(&decoded_active);
     let expected_active_pairs = project_node_id_tokens(&expected_active);
     ensure!(
         decoded_active_pairs == expected_active_pairs,
-        "Decoded active .ctbnbdl nodes ({} nodes) in {} do not match expected active partition ({} nodes) by (id, tokens)",
+        "Decoded active .ctbnbdl nodes ({} nodes) in {} do not match expected active partition ({} nodes) by (id, created_ns, tokens)",
         decoded_active_pairs.len(),
         graph_dir.display(),
         expected_active_pairs.len()
@@ -833,26 +885,29 @@ pub fn verify_compiled_bundles_match_ledger(
     let expected_history_pairs = project_node_id_tokens(&expected_history);
     ensure!(
         decoded_history_pairs == expected_history_pairs,
-        "Decoded historical .ctbnbdl nodes ({} nodes) in {} do not match expected inactive partition ({} nodes) by (id, tokens)",
+        "Decoded historical .ctbnbdl nodes ({} nodes) in {} do not match expected inactive partition ({} nodes) by (id, created_ns, tokens)",
         decoded_history_pairs.len(),
         history_dir.display(),
         expected_history_pairs.len()
     );
 
-    let mut merged_decoded: Vec<(u128, &[crate::shorthand::DcShorthand])> =
-        Vec::with_capacity(
-            decoded_active_pairs
-                .len()
-                .saturating_add(decoded_history_pairs.len()),
-        );
+    let mut merged_decoded: Vec<(
+        u128,
+        Option<i128>,
+        &[crate::shorthand::DcShorthand],
+    )> = Vec::with_capacity(
+        decoded_active_pairs
+            .len()
+            .saturating_add(decoded_history_pairs.len()),
+    );
     merged_decoded.extend(decoded_active_pairs);
     merged_decoded.extend(decoded_history_pairs);
-    merged_decoded.sort_by_key(|(id, _)| *id);
+    merged_decoded.sort_by_key(|(id, _, _)| *id);
 
     let committed_pairs = project_node_id_tokens(committed_nodes);
     ensure!(
         merged_decoded == committed_pairs,
-        "Decoded active + history .ctbnbdl union ({} nodes) does not equal committed .ctbnodes ledger ({} nodes) by (id, tokens)",
+        "Decoded active + history .ctbnbdl union ({} nodes) does not equal committed .ctbnodes ledger ({} nodes) by (id, created_ns, tokens)",
         merged_decoded.len(),
         committed_pairs.len()
     );
@@ -1524,7 +1579,7 @@ fn try_synthesize_pending_for_verified_csv_tail(
         last_disk_node.id
     );
 
-    let (active_ident_to_short, _, _, _) =
+    let (active_ident_to_short, _, _, _, _) =
         resolve_active_short_idents_from_nodes(&disk_nodes)?;
     let get_req = |ident: &str| -> Result<DcShorthand> {
         active_ident_to_short.get(ident).copied().with_context(|| {
@@ -1664,6 +1719,110 @@ fn try_synthesize_pending_for_verified_csv_tail(
     }))
 }
 
+/// Synthesizes a zero-item `bundle_format_refresh` `BATCH_PENDING` record when `.ctbnodes`
+/// matches `last_committed` (`final_last_id` and `final_ledger_sha256`), high-water shadow
+/// ledgers corroborate `.ctbnodes`, and the canonical `.ctbnbdl` encoding produced by the
+/// current compiler differs from `last_committed.active_bundles_sha256` or
+/// `last_committed.history_bundles_sha256` (e.g. after upgrading `.ctbnbdl` section framing).
+fn try_synthesize_pending_for_bundle_format_refresh(
+    repo_root: &Path,
+    parsed: &ParsedJournal,
+    required_manifest_present: bool,
+) -> Result<Option<JournalRecord>> {
+    if parsed.open_pending.is_some() || required_manifest_present {
+        return Ok(None);
+    }
+    let Some(last_committed) = &parsed.last_committed else {
+        return Ok(None);
+    };
+    let graph_dir = repo_root.join("assets/data/graph");
+    if !graph_dir.is_dir() {
+        return Ok(None);
+    }
+    let actual_ledger_sha = compute_ledger_dir_sha256(&graph_dir)?;
+    if actual_ledger_sha != last_committed.final_ledger_sha256 {
+        return Ok(None);
+    }
+    let disk_nodes = load_ledger_nodes_from_dir_raw(&graph_dir)?;
+    // Reason for fallback: empty ledger has last_id == 0.
+    let actual_last_id = disk_nodes.last().map_or(0, |n| n.id);
+    if actual_last_id != last_committed.final_last_id {
+        return Ok(None);
+    }
+
+    for (label, shadow_dir) in highwater_shadow_dirs(repo_root) {
+        if shadow_dir.is_dir() && !list_chunk_files(&shadow_dir)?.is_empty() {
+            let shadow_nodes = load_ledger_nodes_from_dir_raw(&shadow_dir)?;
+            verify_nodes_append_only_against_baseline(
+                &label,
+                &shadow_nodes,
+                &disk_nodes,
+            )?;
+        }
+    }
+
+    let framing = resolve_ctbnbdl_framing_dcs_from_nodes(&disk_nodes)?;
+    let most_recent_node_id = disk_nodes.iter().map(|n| n.id).max();
+    let (active_nodes, inactive_nodes) =
+        partition_active_and_inactive_nodes_with(&disk_nodes, framing);
+    let active_bundles =
+        encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
+            &active_nodes,
+            framing,
+            MAX_NODES_PER_BUNDLE,
+            MAX_BYTES_PER_BUNDLE,
+            most_recent_node_id,
+        )?;
+    let inactive_bundles =
+        encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
+            &inactive_nodes,
+            framing,
+            MAX_NODES_PER_BUNDLE,
+            MAX_BYTES_PER_BUNDLE,
+            most_recent_node_id,
+        )?;
+
+    let mut canonical_active_sha = BTreeMap::new();
+    for (first_id, bytes) in &active_bundles {
+        canonical_active_sha.insert(
+            format_chunk_bundle_filename(*first_id),
+            sha256_bytes_hex(bytes),
+        );
+    }
+    let mut canonical_history_sha = BTreeMap::new();
+    for (first_id, bytes) in &inactive_bundles {
+        canonical_history_sha.insert(
+            format_chunk_bundle_filename(*first_id),
+            sha256_bytes_hex(bytes),
+        );
+    }
+
+    if canonical_active_sha == last_committed.active_bundles_sha256
+        && canonical_history_sha == last_committed.history_bundles_sha256
+    {
+        return Ok(None);
+    }
+
+    Ok(Some(JournalRecord {
+        state: "BATCH_PENDING".to_string(),
+        batch_id: format!(
+            "bundle-format-refresh-{}-{}",
+            parsed.records.len(),
+            last_committed.final_last_id
+        ),
+        kind: "bundle_format_refresh".to_string(),
+        baseline_last_id: last_committed.final_last_id,
+        baseline_ledger_sha256: last_committed.final_ledger_sha256.clone(),
+        final_last_id: last_committed.final_last_id,
+        final_ledger_sha256: last_committed.final_ledger_sha256.clone(),
+        manifest_sha256: None,
+        items: Vec::new(),
+        active_bundles_sha256: BTreeMap::new(),
+        history_bundles_sha256: BTreeMap::new(),
+        record_sha256: String::new(),
+    }))
+}
+
 /// Executes standalone recovery of any open `BATCH_PENDING` record, torn journal line, or
 /// verified CSV-provenanced `.ctbnodes` tail ahead of `ledger-journal.jsonl`.
 ///
@@ -1731,6 +1890,18 @@ pub fn recover_pending_ledger_journal_with_guard(
                 return Ok(true);
             }
             append_journal_record(&journal_path, &synth_pending, fault)?;
+            parsed = inspect_ledger_journal(&journal_path)?;
+        } else if let Some(refresh_pending) =
+            try_synthesize_pending_for_bundle_format_refresh(
+                repo_root,
+                &parsed,
+                required_manifest.is_some(),
+            )?
+        {
+            if dry_run {
+                return Ok(true);
+            }
+            append_journal_record(&journal_path, &refresh_pending, fault)?;
             parsed = inspect_ledger_journal(&journal_path)?;
         }
     }
@@ -3083,7 +3254,7 @@ mod tests {
         let journal_path = root.join(LEDGER_JOURNAL_REL_PATH);
         let saved_journal = fs::read(&journal_path).unwrap();
 
-        let (idents, _, _, sh_enclosing_doc) =
+        let (idents, _, _, _, sh_enclosing_doc) =
             resolve_active_short_idents_from_nodes(&baseline_nodes).unwrap();
         let n1 = last_base_id + 1;
         let n2 = last_base_id + 2;
@@ -3097,6 +3268,7 @@ mod tests {
                 idents["TypeRoutine"],
             ],
             comment: "test routine entity".to_string(),
+            created_ns: None,
         });
         extended_nodes.push(LedgerNode {
             id: n2,
@@ -3111,6 +3283,7 @@ mod tests {
                 idents["EndList"],
             ],
             comment: "for each provenance".to_string(),
+            created_ns: None,
         });
         extended_nodes.push(LedgerNode {
             id: n3,
@@ -3120,6 +3293,7 @@ mod tests {
                 idents["CollectiveToolboxDcCsvSeedDatabase"],
             ],
             comment: "has value csv seed db".to_string(),
+            created_ns: None,
         });
 
         for dir in [&graph_dst, &shadow_dst] {
@@ -3156,6 +3330,7 @@ mod tests {
             id: n4,
             tokens: vec![DcShorthand::Unicode(65)],
             comment: "unprovenanced".to_string(),
+            created_ns: None,
         });
         for dir in [&graph_dst, &shadow_dst] {
             let last_chunk = extended_nodes.chunks(100).last().unwrap();

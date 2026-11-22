@@ -220,4 +220,62 @@ mod tests {
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn rejects_supersede_or_retract_of_data_node() -> Result<()> {
+        let name = function_name!();
+        let user = get_test_user(name);
+        let graph = Graph::new(1, "test_immutability", &user);
+        let token = user
+            .session_token()
+            .context("Missing session token")?
+            .to_string();
+
+        let data_node =
+            graph.create_node(&user, NodeType::Data, &b"immutable payload"[..])?;
+
+        // Build DcTF statement `592 615 <data_node.id>`: must be rejected at writer layer.
+        let mut ret_dc = ctb_formats_dcstring::DcString::new();
+        ret_dc.push(ctb_formats_dcstring::dc::DC_RETRACTS);
+        ret_dc.push(ctb_formats_dcstring::dc::DC_ENCLOSING_DOCUMENT);
+        ret_dc.push(ctb_formats_dcstring::DcChar::from_u128(data_node.id));
+        let ret_err = ipcb!(storage)
+            .insert_node_b(
+                &token,
+                graph.graph_id,
+                NodeType::Statements.to_dto(),
+                ret_dc.as_bytes(),
+            )
+            .unwrap_err();
+        assert!(
+            ret_err.to_string().contains("pure value node"),
+            "Unexpected error: {ret_err}"
+        );
+
+        // Create a legitimate statement node and verify retracting IT succeeds.
+        let mut stmt_dc = ctb_formats_dcstring::DcString::new();
+        stmt_dc.push(ctb_formats_dcstring::dc::DC_HAS_A);
+        stmt_dc.push(ctb_formats_dcstring::DcChar::from_u128(data_node.id));
+        stmt_dc.push(ctb_formats_dcstring::dc::DC_CANONICAL_NAME);
+        let stmt_id = ipcb!(storage).insert_node_b(
+            &token,
+            graph.graph_id,
+            NodeType::Statements.to_dto(),
+            stmt_dc.as_bytes(),
+        )?;
+
+        let mut ret_stmt_dc = ctb_formats_dcstring::DcString::new();
+        ret_stmt_dc.push(ctb_formats_dcstring::dc::DC_RETRACTS);
+        ret_stmt_dc.push(ctb_formats_dcstring::dc::DC_ENCLOSING_DOCUMENT);
+        ret_stmt_dc.push(ctb_formats_dcstring::DcChar::from_u128(stmt_id));
+        let ret_stmt_id = ipcb!(storage).insert_node_b(
+            &token,
+            graph.graph_id,
+            NodeType::Statements.to_dto(),
+            ret_stmt_dc.as_bytes(),
+        )?;
+        assert!(ret_stmt_id > stmt_id);
+
+        Ok(())
+    }
 }

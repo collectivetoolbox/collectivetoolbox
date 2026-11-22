@@ -153,6 +153,13 @@ pub async fn publish_packaged_node_to_global(
             .id;
     let global_db_name = format!("graphs/{global_user_id}/user_data");
     let global_conn = get_connection(&global_db_name).await?;
+    crate::models::node_impl::ensure_statement_does_not_revise_data_nodes(
+        &global_conn,
+        0,
+        pkg.node_type,
+        &pkg.body,
+    )
+    .await?;
 
     let allocated_id = if let Some(tid) = target_id {
         // Disallow Unicode range

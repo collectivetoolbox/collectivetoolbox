@@ -882,6 +882,7 @@ mod tests {
             id: val1,
             tokens: tok1.clone(),
             comment: String::new(),
+            created_ns: None,
         });
         nodes.push(LedgerNode {
             id: has_a,
@@ -891,6 +892,7 @@ mod tests {
                 sh(DC_CANONICAL_NAME),
             ),
             comment: String::new(),
+            created_ns: None,
         });
         nodes.push(LedgerNode {
             id: has_val,
@@ -900,6 +902,7 @@ mod tests {
                 DcShorthand::Long(val1),
             ),
             comment: String::new(),
+            created_ns: None,
         });
         nodes.push(LedgerNode {
             id: val2,
@@ -909,11 +912,13 @@ mod tests {
                 sh(DC_BOOLEAN_TRUE),
             ),
             comment: String::new(),
+            created_ns: None,
         });
         nodes.push(LedgerNode {
             id: has_val2,
             tokens: vec![],
             comment: String::new(),
+            created_ns: None,
         });
 
         let pinned_sg = Arc::new(SeedGraphIndex::from_nodes_at_most_recent(

@@ -69,11 +69,12 @@ use crate::dc::{
 };
 use crate::graph_ledger::{
     LedgerNode, MAX_NODES_PER_CHUNK, SeedEntityKey, chunk_filename_for_node_id,
-    decode_ctbnbdl_bundle, decode_integer_value_tokens,
-    decode_string_value_tokens, find_closed_delimited_span,
-    format_chunk_bundle_filename, format_chunk_filename,
-    parse_chunk_bundle_filename_start_id, parse_for_each_statement_tokens,
-    parse_statement_tokens, sha256_bytes_hex, single_valued_property_set,
+    decode_ctbnbdl_bundle, decode_ctbnbdl_bundle_resilient,
+    decode_integer_value_tokens, decode_string_value_tokens,
+    find_closed_delimited_span, format_chunk_bundle_filename,
+    format_chunk_filename, parse_chunk_bundle_filename_start_id,
+    parse_for_each_statement_tokens, parse_statement_tokens, sha256_bytes_hex,
+    single_valued_property_set,
 };
 pub use crate::support::seed_graph_reconstruct::ReconstructedNamedType;
 
@@ -482,20 +483,44 @@ impl SeedGraphIndex {
     /// Loads all active `data/graph/*.ctbnbdl` bundle files (beginning with
     /// `data/graph/85899_34592.ctbnbdl`) from the runtime asset bundle (`ctoolbox.rsrc`)
     /// and indexes all active statements, seed entities, and value nodes.
+    ///
+    /// Errors strictly by default on any checksum, framing, ordering, or value-immutability
+    /// violation unless `--recover-graph` is enabled on the current invocation.
     pub fn load_from_asset_bundle() -> Result<Self> {
+        let recover_graph =
+            ctb_utilities::invocation_settings::get_settings().recover_graph;
+        Self::load_from_asset_bundle_with_recovery(recover_graph)
+    }
+
+    /// Loads active `data/graph/*.ctbnbdl` bundles from the runtime asset bundle,
+    /// enforcing strict errors when `recover_graph` is `false` or quarantining and
+    /// warning on damaged sections/invariants when `recover_graph` is `true` (`--recover-graph`).
+    pub fn load_from_asset_bundle_with_recovery(
+        recover_graph: bool,
+    ) -> Result<Self> {
         let (active_most_recent, active_nodes) = Self::load_nodes_from_asset_dir(
             SEED_GRAPH_ASSET_GLOB,
             "data/graph",
             Some(PRIMARY_SEED_GRAPH_ASSET_KEY),
             true,
+            recover_graph,
         )?;
-        if let Some(first) = active_nodes.first() {
-            ensure!(
-                first.id == SYSTEM_REGION_START,
-                "Expected first active system graph node to start at l{SYSTEM_REGION_START} ('{}'), found l{}",
-                format_chunk_bundle_filename(SYSTEM_REGION_START),
-                first.id
-            );
+        if let Some(first) = active_nodes.first()
+            && first.id != SYSTEM_REGION_START
+        {
+            if recover_graph {
+                warn_fmt!(
+                    "Expected first active system graph node to start at l{SYSTEM_REGION_START} ('{}'), first recovered valid node is l{}",
+                    format_chunk_bundle_filename(SYSTEM_REGION_START),
+                    first.id
+                );
+            } else {
+                bail!(
+                    "Expected first active system graph node to start at l{SYSTEM_REGION_START} ('{}'), found l{}",
+                    format_chunk_bundle_filename(SYSTEM_REGION_START),
+                    first.id
+                );
+            }
         }
         let mut index = Self::from_bundled_nodes(active_nodes);
         index.from_asset_bundle = true;
@@ -507,6 +532,7 @@ impl SeedGraphIndex {
                     .map_or(wm, |cur| cur.max(wm)),
             );
         }
+        index.validate_or_warn_graph_invariants(recover_graph)?;
         Ok(index)
     }
 
@@ -515,8 +541,10 @@ impl SeedGraphIndex {
     /// if installed, or `assets/data/graph/system/` in dev mode), merging them in ascending
     /// node ID order and resolving all `Dc 591` (`Supersedes`) and `Dc 592` (`Retracts`) history.
     pub fn load_with_history_from_asset_bundle() -> Result<Self> {
+        let recover_graph =
+            ctb_utilities::invocation_settings::get_settings().recover_graph;
         let (bundle_most_recent, merged) =
-            Self::load_merged_nodes_with_history()?;
+            Self::load_merged_nodes_with_history_and_recovery(recover_graph)?;
         let mut index = Self::from_bundled_nodes(merged);
         index.from_asset_bundle = true;
         if let Some(wm) = bundle_most_recent {
@@ -527,6 +555,7 @@ impl SeedGraphIndex {
                     .map_or(wm, |cur| cur.max(wm)),
             );
         }
+        index.validate_or_warn_graph_invariants(recover_graph)?;
         Ok(index)
     }
 
@@ -563,11 +592,14 @@ impl SeedGraphIndex {
                 );
             }
         }
+        let recover_graph =
+            ctb_utilities::invocation_settings::get_settings().recover_graph;
         let (active_most_recent, active_nodes) = Self::load_nodes_from_asset_dir(
             SEED_GRAPH_ASSET_GLOB,
             "data/graph",
             Some(PRIMARY_SEED_GRAPH_ASSET_KEY),
             true,
+            recover_graph,
         )?;
         let (history_most_recent, history_nodes) =
             Self::load_nodes_from_asset_dir(
@@ -575,15 +607,19 @@ impl SeedGraphIndex {
                 "data/graph/system",
                 None,
                 false,
+                recover_graph,
             )?;
-        let mut index = Self::from_active_and_history_nodes_at_most_recent(
-            active_most_recent,
-            active_nodes,
-            history_most_recent,
-            history_nodes,
-            most_recent_node_id,
-        )?;
+        let mut index =
+            Self::from_active_and_history_nodes_at_most_recent_with_recovery(
+                active_most_recent,
+                active_nodes,
+                history_most_recent,
+                history_nodes,
+                most_recent_node_id,
+                recover_graph,
+            )?;
         index.from_asset_bundle = true;
+        index.validate_or_warn_graph_invariants(recover_graph)?;
         Ok(Arc::new(index))
     }
 
@@ -596,6 +632,24 @@ impl SeedGraphIndex {
         history_most_recent: Option<u128>,
         history_nodes: Vec<LedgerNode>,
         most_recent_node_id: u128,
+    ) -> Result<Self> {
+        Self::from_active_and_history_nodes_at_most_recent_with_recovery(
+            active_most_recent,
+            active_nodes,
+            history_most_recent,
+            history_nodes,
+            most_recent_node_id,
+            false,
+        )
+    }
+
+    fn from_active_and_history_nodes_at_most_recent_with_recovery(
+        active_most_recent: Option<u128>,
+        active_nodes: Vec<LedgerNode>,
+        history_most_recent: Option<u128>,
+        history_nodes: Vec<LedgerNode>,
+        most_recent_node_id: u128,
+        recover_graph: bool,
     ) -> Result<Self> {
         if let Some(block_desc) = ctb_storage_minimal::global_graph_layout::unsupported_graph_block_description(most_recent_node_id) {
             bail!(
@@ -634,16 +688,32 @@ impl SeedGraphIndex {
                 if node.id > most_recent_node_id {
                     break;
                 }
-                ensure!(
-                    node.id == expected_id,
-                    "Historical graph bundle system_graph_history.rsrc (data/graph/system/*.ctbnbdl) is incomplete: missing node l{expected_id} required for historical pin l{most_recent_node_id}"
-                );
+                if node.id != expected_id {
+                    if recover_graph {
+                        warn_fmt!(
+                            "Historical graph bundle system_graph_history.rsrc (data/graph/system/*.ctbnbdl) is missing node(s) l{expected_id}..l{} while recovering historical pin l{most_recent_node_id}",
+                            node.id
+                        );
+                        expected_id = node.id.saturating_add(1);
+                        continue;
+                    }
+                    bail!(
+                        "Historical graph bundle system_graph_history.rsrc (data/graph/system/*.ctbnbdl) is incomplete: missing node l{expected_id} required for historical pin l{most_recent_node_id}"
+                    );
+                }
                 expected_id = expected_id.saturating_add(1);
             }
-            ensure!(
-                expected_id > most_recent_node_id,
-                "Historical graph bundle system_graph_history.rsrc (data/graph/system/*.ctbnbdl) is incomplete: missing node l{expected_id}..=l{most_recent_node_id} for historical pin l{most_recent_node_id}"
-            );
+            if expected_id <= most_recent_node_id {
+                if recover_graph {
+                    warn_fmt!(
+                        "Historical graph bundle system_graph_history.rsrc (data/graph/system/*.ctbnbdl) is missing trailing node(s) l{expected_id}..=l{most_recent_node_id} while recovering historical pin l{most_recent_node_id}"
+                    );
+                } else {
+                    bail!(
+                        "Historical graph bundle system_graph_history.rsrc (data/graph/system/*.ctbnbdl) is incomplete: missing node l{expected_id}..=l{most_recent_node_id} for historical pin l{most_recent_node_id}"
+                    );
+                }
+            }
         }
         let mut index = Self::from_nodes_at_most_recent(
             merged,
@@ -654,13 +724,15 @@ impl SeedGraphIndex {
         Ok(index)
     }
 
-    fn load_merged_nodes_with_history() -> Result<(Option<u128>, Vec<LedgerNode>)>
-    {
+    fn load_merged_nodes_with_history_and_recovery(
+        recover_graph: bool,
+    ) -> Result<(Option<u128>, Vec<LedgerNode>)> {
         let (active_most_recent, active_nodes) = Self::load_nodes_from_asset_dir(
             SEED_GRAPH_ASSET_GLOB,
             "data/graph",
             Some(PRIMARY_SEED_GRAPH_ASSET_KEY),
             true,
+            recover_graph,
         )?;
         let (history_most_recent, history_nodes) =
             Self::load_nodes_from_asset_dir(
@@ -668,6 +740,7 @@ impl SeedGraphIndex {
                 "data/graph/system",
                 None,
                 false,
+                recover_graph,
             )?;
         Self::merge_active_and_history_nodes(
             active_most_recent,
@@ -717,6 +790,7 @@ impl SeedGraphIndex {
         expected_parent_dir: &str,
         fallback_key: Option<&str>,
         require_non_empty: bool,
+        recover_graph: bool,
     ) -> Result<(Option<u128>, Vec<LedgerNode>)> {
         let raw_paths = ctb_storage_asset_bundle::find_assets(glob_pattern)
             .with_context(|| {
@@ -778,35 +852,80 @@ impl SeedGraphIndex {
                         "Failed to read asset '{asset_path}' from runtime asset bundle"
                     )
                 })?;
-            let (bundle_most_recent, bundle_nodes) =
-                decode_ctbnbdl_bundle(&bytes).with_context(|| {
-                    format!("Failed to decode .ctbnbdl bundle '{asset_path}'")
-                })?;
+            let (bundle_most_recent, bundle_nodes, bundle_warnings) =
+                if recover_graph {
+                    decode_ctbnbdl_bundle_resilient(&bytes).with_context(|| {
+                        format!("Failed to decode .ctbnbdl bundle '{asset_path}'")
+                    })?
+                } else {
+                    let (wm, nodes) = decode_ctbnbdl_bundle(&bytes)
+                        .with_context(|| {
+                            format!(
+                                "Failed to decode .ctbnbdl bundle '{asset_path}'"
+                            )
+                        })?;
+                    (wm, nodes, Vec::new())
+                };
+            for warning in &bundle_warnings {
+                warn_fmt!(
+                    "Recovered from corrupted section in '{asset_path}': {warning}"
+                );
+            }
             if let Some(wm) = bundle_most_recent {
                 // Reason for fallback: when no prior bundle watermark has been recorded, wm is the initial watermark.
                 max_most_recent =
                     Some(max_most_recent.map_or(wm, |cur| cur.max(wm)));
             }
             let Some(first_node) = bundle_nodes.first() else {
+                if recover_graph {
+                    warn_fmt!(
+                        "Decoded .ctbnbdl bundle '{asset_path}' yielded 0 valid nodes after quarantining corrupted sections"
+                    );
+                    continue;
+                }
                 bail!(
                     "Decoded .ctbnbdl bundle '{asset_path}' contains 0 nodes"
                 );
             };
-            ensure!(
-                first_node.id == expected_first_id,
-                "Bundle '{asset_path}' filename declares start ID l{expected_first_id}, but first decoded node is l{}",
-                first_node.id
-            );
+            if first_node.id != expected_first_id {
+                if recover_graph {
+                    warn_fmt!(
+                        "Bundle '{asset_path}' declares start ID l{expected_first_id}, first recovered valid node is l{}",
+                        first_node.id
+                    );
+                } else {
+                    bail!(
+                        "Bundle '{asset_path}' filename declares start ID l{expected_first_id}, but first decoded node is l{}",
+                        first_node.id
+                    );
+                }
+            }
             for (idx, node) in bundle_nodes.into_iter().enumerate() {
-                ensure!(
-                    (SYSTEM_REGION_START..=SYSTEM_REGION_END)
-                        .contains(&node.id),
-                    "{asset_path} (node index {idx}): node ID l{} is outside System region ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})",
-                    node.id
-                );
-                if let Some(prev) = all_nodes.last() {
-                    ensure!(
-                        node.id > prev.id,
+                if !(SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&node.id) {
+                    if recover_graph {
+                        warn_fmt!(
+                            "{asset_path} (node index {idx}): skipping out-of-range node ID l{}",
+                            node.id
+                        );
+                        continue;
+                    }
+                    bail!(
+                        "{asset_path} (node index {idx}): node ID l{} is outside System region ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})",
+                        node.id
+                    );
+                }
+                if let Some(prev) = all_nodes.last()
+                    && node.id <= prev.id
+                {
+                    if recover_graph {
+                        warn_fmt!(
+                            "{asset_path} (node index {idx}): skipping non-monotonic node ID l{} (previous l{})",
+                            node.id,
+                            prev.id
+                        );
+                        continue;
+                    }
+                    bail!(
                         "{asset_path} (node index {idx}): expected strictly increasing node ID > l{}, found l{}",
                         prev.id,
                         node.id
@@ -815,11 +934,19 @@ impl SeedGraphIndex {
                 all_nodes.push(node);
             }
         }
+        if require_non_empty && all_nodes.is_empty() {
+            bail!(
+                "All system graph .ctbnbdl bundles matching '{glob_pattern}' yielded 0 recoverable nodes"
+            );
+        }
 
         Ok((max_most_recent, all_nodes))
     }
 
-    /// Decodes a single `.ctbnbdl` byte slice and builds a `SeedGraphIndex`.
+    /// Decodes a single `.ctbnbdl` byte slice strictly and builds a `SeedGraphIndex`.
+    ///
+    /// Fails immediately on any checksum mismatch, malformed section, supersession cycle,
+    /// or pure-value `Dc 591` / `Dc 592` revision.
     pub fn from_ctbnbdl_bytes(bytes: &[u8]) -> Result<Self> {
         let (most_recent, nodes) = decode_ctbnbdl_bundle(bytes)?;
         let mut index = Self::from_nodes(nodes);
@@ -831,7 +958,36 @@ impl SeedGraphIndex {
                     .map_or(wm, |cur| cur.max(wm)),
             );
         }
+        index.validate_or_warn_graph_invariants(false)?;
         Ok(index)
+    }
+
+    /// Resiliently decodes a `.ctbnbdl` byte slice (for `--recover-graph`), logging and
+    /// returning any section-quarantine or graph-invariant warnings while building a
+    /// `SeedGraphIndex` from all recovered valid nodes.
+    pub fn from_ctbnbdl_bytes_resilient(
+        bytes: &[u8],
+    ) -> Result<(Self, Vec<String>)> {
+        let (most_recent, nodes, mut warnings) =
+            decode_ctbnbdl_bundle_resilient(bytes)?;
+        for warning in &warnings {
+            warn_fmt!("Recovered from corrupted .ctbnbdl section: {warning}");
+        }
+        let mut index = Self::from_nodes(nodes);
+        if let Some(wm) = most_recent {
+            // Reason for fallback: when no prior watermark has been recorded, wm is the initial watermark.
+            index.system_block_most_recent_node_id = Some(
+                index
+                    .system_block_most_recent_node_id
+                    .map_or(wm, |cur| cur.max(wm)),
+            );
+        }
+        let anomaly_warnings = index.collect_graph_invariant_anomalies();
+        for warning in &anomaly_warnings {
+            warn_fmt!("{warning}");
+        }
+        warnings.extend(anomaly_warnings);
+        Ok((index, warnings))
     }
 
     /// Builds a `SeedGraphIndex` from an ordered list of `LedgerNode`s using the default
@@ -888,6 +1044,7 @@ impl SeedGraphIndex {
         fn read_dir_bundles(
             dir: &Path,
             require_non_empty: bool,
+            recover_graph: bool,
         ) -> Result<(Option<u128>, Vec<LedgerNode>)> {
             if !dir.exists() {
                 if require_non_empty {
@@ -942,30 +1099,68 @@ impl SeedGraphIndex {
                 let bytes = std::fs::read(&path).with_context(|| {
                     format!("Failed to read bundle {}", path.display())
                 })?;
-                let (wm, bundle_nodes) = decode_ctbnbdl_bundle(&bytes)
-                    .with_context(|| {
-                        format!("Failed to decode bundle {}", path.display())
-                    })?;
+                let (wm, bundle_nodes, warnings) = if recover_graph {
+                    decode_ctbnbdl_bundle_resilient(&bytes).with_context(
+                        || format!("Failed to decode bundle {}", path.display()),
+                    )?
+                } else {
+                    let (w, ns) = decode_ctbnbdl_bundle(&bytes).with_context(
+                        || format!("Failed to decode bundle {}", path.display()),
+                    )?;
+                    (w, ns, Vec::new())
+                };
+                for warning in &warnings {
+                    warn_fmt!(
+                        "Recovered from corrupted section in {}: {warning}",
+                        path.display()
+                    );
+                }
                 if let Some(w) = wm {
                     // Reason for fallback: w initializes max_wm on the first bundle with a watermark.
                     max_wm = Some(max_wm.map_or(w, |cur| cur.max(w)));
                 }
-                let first_node = bundle_nodes.first().with_context(|| {
-                    format!(
+                let Some(first_node) = bundle_nodes.first() else {
+                    if recover_graph {
+                        warn_fmt!(
+                            "Decoded .ctbnbdl bundle {} yielded 0 valid nodes after quarantining corrupted sections",
+                            path.display()
+                        );
+                        continue;
+                    }
+                    bail!(
                         "Decoded .ctbnbdl bundle {} contains 0 nodes",
                         path.display()
-                    )
-                })?;
-                ensure!(
-                    first_node.id == expected_first_id,
-                    "Bundle {} filename declares start ID l{expected_first_id}, found l{}",
-                    path.display(),
-                    first_node.id
-                );
+                    );
+                };
+                if first_node.id != expected_first_id {
+                    if recover_graph {
+                        warn_fmt!(
+                            "Bundle {} declares start ID l{expected_first_id}, first recovered valid node is l{}",
+                            path.display(),
+                            first_node.id
+                        );
+                    } else {
+                        bail!(
+                            "Bundle {} filename declares start ID l{expected_first_id}, found l{}",
+                            path.display(),
+                            first_node.id
+                        );
+                    }
+                }
                 for node in bundle_nodes {
-                    if let Some(prev) = all_nodes.last() {
-                        ensure!(
-                            node.id > prev.id,
+                    if let Some(prev) = all_nodes.last()
+                        && node.id <= prev.id
+                    {
+                        if recover_graph {
+                            warn_fmt!(
+                                "Bundle {}: skipping non-monotonic node ID l{} (previous l{})",
+                                path.display(),
+                                node.id,
+                                prev.id
+                            );
+                            continue;
+                        }
+                        bail!(
                             "Bundle {}: expected strictly increasing node ID > l{}, found l{}",
                             path.display(),
                             prev.id,
@@ -975,12 +1170,24 @@ impl SeedGraphIndex {
                     all_nodes.push(node);
                 }
             }
+            if require_non_empty && all_nodes.is_empty() {
+                bail!(
+                    "All .ctbnbdl bundles in {} yielded 0 recoverable nodes",
+                    dir.display()
+                );
+            }
             Ok((max_wm, all_nodes))
         }
 
-        let (active_wm, active_nodes) = read_dir_bundles(graph_dir, true)?;
-        let (hist_wm, hist_nodes) =
-            read_dir_bundles(&graph_dir.join("system"), false)?;
+        let recover_graph =
+            ctb_utilities::invocation_settings::get_settings().recover_graph;
+        let (active_wm, active_nodes) =
+            read_dir_bundles(graph_dir, true, recover_graph)?;
+        let (hist_wm, hist_nodes) = read_dir_bundles(
+            &graph_dir.join("system"),
+            false,
+            recover_graph,
+        )?;
         let (_, merged) = Self::merge_active_and_history_nodes(
             active_wm,
             active_nodes,
@@ -1759,6 +1966,109 @@ impl SeedGraphIndex {
             triple_idx_by_subj,
             triple_idx_by_obj,
         }
+    }
+
+    /// Collects semantic graph invariant anomalies (supersession cycles, or active
+    /// `Dc 591` / `Dc 592` statements revising pure value nodes other than `Dc 348`
+    /// disambiguation lists).
+    #[must_use]
+    pub fn collect_graph_invariant_anomalies(&self) -> Vec<String> {
+        let sh_supersedes = sh(DC_SUPERSEDES);
+        let sh_retracts = sh(DC_RETRACTS);
+        let mut anomalies = Vec::new();
+
+        for (&start_id, &first_next) in &self.superseded_by {
+            let mut cur = first_next;
+            let mut visited = HashSet::new();
+            visited.insert(start_id);
+            while let Some(&next) = self.superseded_by.get(&cur) {
+                if !visited.insert(cur) {
+                    if cur == start_id {
+                        anomalies.push(format!(
+                            "Graph supersession cycle detected starting at node l{start_id}"
+                        ));
+                    }
+                    break;
+                }
+                cur = next;
+            }
+        }
+
+        for node in &self.nodes {
+            if self.inactive_ids.contains(&node.id) {
+                continue;
+            }
+            let Some((verb, subj, obj)) = parse_statement_tokens(&node.tokens)
+            else {
+                continue;
+            };
+            if verb == sh_supersedes {
+                let DcShorthand::Long(old_id) = obj else {
+                    continue;
+                };
+                let is_ambiguous_disambiguation =
+                    if let DcShorthand::Long(new_id) = subj
+                        && let Some(new_node) = self.get_node(new_id)
+                    {
+                        parse_ambiguous_values_tokens(&new_node.tokens)
+                            .is_some()
+                    } else {
+                        false
+                    };
+                if !is_ambiguous_disambiguation
+                    && let Some(old_node) = self.get_node(old_id)
+                    && parse_statement_tokens(&old_node.tokens).is_none()
+                    && parse_for_each_statement_tokens(&old_node.tokens)
+                        .is_none()
+                    && parse_ambiguous_values_tokens(&old_node.tokens).is_none()
+                {
+                    anomalies.push(format!(
+                        "Dc 591 (Supersedes) statement l{} targets pure value node l{old_id}",
+                        node.id
+                    ));
+                }
+            } else if verb == sh_retracts
+                && let DcShorthand::Long(old_id) = obj
+                && let Some(old_node) = self.get_node(old_id)
+                && parse_statement_tokens(&old_node.tokens).is_none()
+                && parse_for_each_statement_tokens(&old_node.tokens).is_none()
+                && parse_ambiguous_values_tokens(&old_node.tokens).is_none()
+            {
+                anomalies.push(format!(
+                    "Dc 592 (Retracts) statement l{} targets pure value node l{old_id}",
+                    node.id
+                ));
+            }
+        }
+
+        anomalies
+    }
+
+    /// Validates semantic graph invariants: errors strictly when `recover_graph` is `false`
+    /// (the default), or logs warnings and continues when `recover_graph` is `true` (`--recover-graph`).
+    pub fn validate_or_warn_graph_invariants(
+        &self,
+        recover_graph: bool,
+    ) -> Result<()> {
+        let anomalies = self.collect_graph_invariant_anomalies();
+        if anomalies.is_empty() {
+            return Ok(());
+        }
+        if recover_graph {
+            for anomaly in &anomalies {
+                warn_fmt!(
+                    "Graph recovery (--recover-graph) continuing past invariant violation: {anomaly}"
+                );
+            }
+            return Ok(());
+        }
+        if let Some(first) = anomalies.first() {
+            bail!(
+                "Graph invariant violation ({} total; pass --recover-graph to warn and recover): {first}",
+                anomalies.len()
+            );
+        }
+        Ok(())
     }
 
     /// Returns the highest allocated node ID in the System block at the time the graph bundle
@@ -5570,6 +5880,7 @@ mod tests {
                 id: id0,
                 tokens: encode_string_value_tokens("test"),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: id1,
@@ -5579,6 +5890,7 @@ mod tests {
                     DcShorthand::Short(571),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: id2,
@@ -5588,6 +5900,7 @@ mod tests {
                     DcShorthand::Long(id1),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: id3,
@@ -5597,6 +5910,7 @@ mod tests {
                     DcShorthand::Long(id2),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
         ];
 
@@ -6084,11 +6398,13 @@ mod tests {
                 id: prefix_id,
                 tokens: Vec::new(),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: prefix_id.saturating_add(2),
                 tokens: Vec::new(),
                 comment: String::new(),
+                created_ns: None,
             },
         ];
         let prefix_index =
@@ -6253,6 +6569,7 @@ mod tests {
                 id: helper_def_id,
                 tokens: helper_tokens.clone(),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: helper_has_a_id,
@@ -6262,6 +6579,7 @@ mod tests {
                     sh(DC_CANONICAL_DECOMPOSITION),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: helper_has_val_id,
@@ -6271,11 +6589,13 @@ mod tests {
                     DcShorthand::Long(helper_def_id),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: sup_v1_def_id,
                 tokens: helper_tokens.clone(),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: sup_v1_has_a_id,
@@ -6285,6 +6605,7 @@ mod tests {
                     sh(DC_CANONICAL_DECOMPOSITION),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: sup_v1_has_val_id,
@@ -6294,11 +6615,13 @@ mod tests {
                     DcShorthand::Long(sup_v1_def_id),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: sup_v2_def_id,
                 tokens: sup_v2_tokens.clone(),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: sup_v2_has_a_id,
@@ -6308,6 +6631,7 @@ mod tests {
                     sh(DC_CANONICAL_DECOMPOSITION),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: sup_v2_has_val_id,
@@ -6317,6 +6641,7 @@ mod tests {
                     DcShorthand::Long(sup_v2_def_id),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: sup_stmt_id,
@@ -6326,11 +6651,13 @@ mod tests {
                     DcShorthand::Long(sup_v1_has_a_id),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: prov_has_a_id,
                 tokens: prov_for_each_tokens,
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: prov_has_val_id,
@@ -6340,6 +6667,7 @@ mod tests {
                     sh(DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
         ];
 
@@ -6405,6 +6733,7 @@ mod tests {
                 id: extra_def_id,
                 tokens: helper_tokens.clone(),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: extra_has_a_id,
@@ -6414,6 +6743,7 @@ mod tests {
                     sh(DC_CANONICAL_DECOMPOSITION),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: extra_has_val_id,
@@ -6423,6 +6753,7 @@ mod tests {
                     DcShorthand::Long(extra_def_id),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: extra_sup_id,
@@ -6432,6 +6763,7 @@ mod tests {
                     DcShorthand::Long(sup_v2_has_a_id),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: extra_prov_a,
@@ -6441,6 +6773,7 @@ mod tests {
                     sh(DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: extra_prov_v,
@@ -6450,6 +6783,7 @@ mod tests {
                     sh(DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
         ];
         let mixed_idx = SeedGraphIndex::from_bundled_and_extra_nodes(
@@ -6518,6 +6852,7 @@ mod tests {
                 id: val_a,
                 tokens: tok_a.clone(),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: has_a,
@@ -6527,6 +6862,7 @@ mod tests {
                     sh(DC_CANONICAL_NAME),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: has_val_old,
@@ -6536,11 +6872,13 @@ mod tests {
                     DcShorthand::Long(val_a),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: val_b,
                 tokens: tok_b.clone(),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: has_val_new,
@@ -6550,6 +6888,7 @@ mod tests {
                     DcShorthand::Long(val_b),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: sup_stmt,
@@ -6559,6 +6898,7 @@ mod tests {
                     DcShorthand::Long(has_val_old),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: extra_stmt,
@@ -6568,6 +6908,7 @@ mod tests {
                     subj2,
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: ret_stmt,
@@ -6577,6 +6918,7 @@ mod tests {
                     DcShorthand::Long(extra_stmt),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: for_each_stmt,
@@ -6588,6 +6930,7 @@ mod tests {
                     &[subj, subj2],
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
         ];
 
@@ -6741,6 +7084,7 @@ mod tests {
                 id: base,
                 tokens: wasm_v1,
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: base + 1,
@@ -6750,6 +7094,7 @@ mod tests {
                     sh(DC_CANONICAL_DECOMPOSITION),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: base + 2,
@@ -6759,11 +7104,13 @@ mod tests {
                     DcShorthand::Long(base),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: base + 100,
                 tokens: wasm_v2,
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: base + 101,
@@ -6773,6 +7120,7 @@ mod tests {
                     DcShorthand::Long(base + 100),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: base + 102,
@@ -6782,11 +7130,13 @@ mod tests {
                     DcShorthand::Long(base + 2),
                 ),
                 comment: String::new(),
+                created_ns: None,
             },
             LedgerNode {
                 id: base + 205,
                 tokens: raw_wasm,
                 comment: String::new(),
+                created_ns: None,
             },
         ];
         let snaps = discover_graph_wasm_substitute_snapshots(&slice)?;
@@ -6821,6 +7171,7 @@ mod tests {
                     sh(DC_END_LITERAL),
                 ],
                 comment: "\"a\"".to_string(),
+                created_ns: None,
             },
             LedgerNode {
                 id: sl_cmt_id,
@@ -6830,6 +7181,7 @@ mod tests {
                     sh(DC_END_SINGLE_LINE_COMMENT),
                 ],
                 comment: "// c".to_string(),
+                created_ns: None,
             },
             LedgerNode {
                 id: blk_cmt_id,
@@ -6839,6 +7191,7 @@ mod tests {
                     sh(DC_END_BLOCK_COMMENT),
                 ],
                 comment: "/* b */".to_string(),
+                created_ns: None,
             },
             LedgerNode {
                 id: ident_id,
@@ -6848,6 +7201,7 @@ mod tests {
                     sh(DC_END_IDENTIFIER),
                 ],
                 comment: "x".to_string(),
+                created_ns: None,
             },
             LedgerNode {
                 id: cyc_id,
@@ -6857,6 +7211,7 @@ mod tests {
                     sh(DC_END_IDENTIFIER),
                 ],
                 comment: "cycle".to_string(),
+                created_ns: None,
             },
         ];
 
@@ -6929,6 +7284,7 @@ mod tests {
                     DcShorthand::Unicode(0x69),
                 ],
                 comment: "\"Hi\"".to_string(),
+                created_ns: None,
             },
             LedgerNode {
                 id: bare_delim_id,
@@ -6939,6 +7295,7 @@ mod tests {
                     DcShorthand::Unicode(0x62),
                 ],
                 comment: "delim".to_string(),
+                created_ns: None,
             },
         ];
         let idx_bare = SeedGraphIndex::from_nodes(nodes_bare);
@@ -6989,6 +7346,147 @@ mod tests {
         let once = idx_bare.expand_interned_string_nodes(&bare_input);
         assert_eq!(once, bare_expected);
         assert_eq!(idx_bare.expand_interned_string_nodes(&once), bare_expected);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_seed_graph_reader_recovers_from_corrupted_ctbnbdl_and_value_revisions()
+    -> Result<()> {
+        let framing = crate::graph_ledger::default_ctbnbdl_framing_dcs();
+
+        let id_old_val = SYSTEM_REGION_START;
+        let id_corrupt = SYSTEM_REGION_START + 1;
+        let id_new_val = SYSTEM_REGION_START + 2;
+        let id_sup_val = SYSTEM_REGION_START + 3;
+        let id_junk = SYSTEM_REGION_START + 4;
+        let id_cyc_a = SYSTEM_REGION_START + 5;
+        let id_cyc_b = SYSTEM_REGION_START + 6;
+        let id_sup_ab = SYSTEM_REGION_START + 7;
+        let id_sup_ba = SYSTEM_REGION_START + 8;
+
+        let nodes = vec![
+            LedgerNode {
+                id: id_old_val,
+                tokens: encode_string_value_tokens("old_value"),
+                comment: String::new(),
+                created_ns: Some(1_700_000_000_000_000_000),
+            },
+            LedgerNode {
+                id: id_corrupt,
+                tokens: encode_string_value_tokens("corrupted_middle_section"),
+                comment: String::new(),
+                created_ns: Some(1_700_000_001_000_000_000),
+            },
+            LedgerNode {
+                id: id_new_val,
+                tokens: encode_string_value_tokens("new_value"),
+                comment: String::new(),
+                created_ns: Some(1_700_000_002_000_000_000),
+            },
+            // Reader must NOT assume pure-value immutability: even if a graph contains `591` on a value node,
+            // it warns and resolves `id_old_val -> id_new_val` cleanly without crashing.
+            LedgerNode {
+                id: id_sup_val,
+                tokens: encode_statement_tokens(
+                    sh(DC_SUPERSEDES),
+                    DcShorthand::Long(id_new_val),
+                    DcShorthand::Long(id_old_val),
+                ),
+                comment: String::new(),
+                created_ns: Some(1_700_000_003_000_000_000),
+            },
+            // Nonsense / mojibake / dangling references must not crash reader indexing.
+            LedgerNode {
+                id: id_junk,
+                tokens: vec![
+                    DcShorthand::Short(4095),
+                    DcShorthand::Long(SYSTEM_REGION_END),
+                    DcShorthand::Unicode(0xFFFD),
+                ],
+                comment: String::new(),
+                created_ns: None,
+            },
+            // Even a 2-node supersession cycle must terminate cleanly (`None`) rather than looping.
+            LedgerNode {
+                id: id_cyc_a,
+                tokens: encode_statement_tokens(
+                    sh(DC_IS_BASED_ON),
+                    DcShorthand::Short(901),
+                    DcShorthand::Short(902),
+                ),
+                comment: String::new(),
+                created_ns: None,
+            },
+            LedgerNode {
+                id: id_cyc_b,
+                tokens: encode_statement_tokens(
+                    sh(DC_IS_BASED_ON),
+                    DcShorthand::Short(901),
+                    DcShorthand::Short(903),
+                ),
+                comment: String::new(),
+                created_ns: None,
+            },
+            LedgerNode {
+                id: id_sup_ab,
+                tokens: encode_statement_tokens(
+                    sh(DC_SUPERSEDES),
+                    DcShorthand::Long(id_cyc_b),
+                    DcShorthand::Long(id_cyc_a),
+                ),
+                comment: String::new(),
+                created_ns: None,
+            },
+            LedgerNode {
+                id: id_sup_ba,
+                tokens: encode_statement_tokens(
+                    sh(DC_SUPERSEDES),
+                    DcShorthand::Long(id_cyc_a),
+                    DcShorthand::Long(id_cyc_b),
+                ),
+                comment: String::new(),
+                created_ns: None,
+            },
+        ];
+
+        // 1. Even with intact SHA-256 checksums, strict default (`from_ctbnbdl_bytes`, without
+        //    `--recover-graph`) MUST error on pure-value supersession or supersession cycles so
+        //    inconsistencies cannot go unnoticed.
+        let uncorrupted_bundle =
+            crate::graph_ledger::encode_nodes_to_ctbnbdl_bytes_with(
+                &nodes, framing,
+            )?;
+        let strict_semantic_err =
+            SeedGraphIndex::from_ctbnbdl_bytes(&uncorrupted_bundle)
+                .unwrap_err();
+        assert!(
+            format!("{strict_semantic_err:#}").contains("--recover-graph"),
+            "unexpected error: {strict_semantic_err:#}"
+        );
+
+        // 2. Flipping bytes inside `id_corrupt`'s section body MUST fail strict default decoding,
+        //    and MUST quarantine `id_corrupt` while recovering all valid nodes under `--recover-graph`.
+        let mut bundle = uncorrupted_bundle;
+        let header_and_n0 =
+            crate::graph_ledger::encode_nodes_to_ctbnbdl_bytes_with(
+                std::slice::from_ref(&nodes[0]),
+                framing,
+            )?;
+        let corrupt_pos = header_and_n0.len().saturating_add(14);
+        bundle[corrupt_pos] ^= 0xAA;
+
+        assert!(SeedGraphIndex::from_ctbnbdl_bytes(&bundle).is_err());
+
+        let (recovered_idx, warnings) =
+            SeedGraphIndex::from_ctbnbdl_bytes_resilient(&bundle)?;
+        assert!(warnings.len() >= 2);
+        assert!(recovered_idx.get_node(id_corrupt).is_none());
+        assert_eq!(
+            recovered_idx.resolve_latest_node_id(id_old_val),
+            Some(id_new_val)
+        );
+        assert_eq!(recovered_idx.resolve_latest_node_id(id_cyc_a), None);
+        assert!(recovered_idx.get_node(id_junk).is_some());
         Ok(())
     }
 }

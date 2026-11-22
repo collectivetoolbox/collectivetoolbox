@@ -422,6 +422,8 @@ pub enum DcRole {
     MinimalSystemGraphQuery,
     /// Executes a pure Dc-WASM program (1927..1928 or wasm_routine) on the supplied [string] input under the shared task instruction quota, returning the program's output [string]. (`1940`).
     ExecutePureWasmProgram,
+    /// Records the creation timestamp of the graph node defined in the enclosing checksummed document section as section metadata covered by the section digest. (`1941`).
+    SectionTimestampNodeCreationTime,
     /// Begins a tokenized module containing an optional namespace declaration, zero or more use imports, and zero or more top-level items. (`2192`).
     BeginModule,
     /// Terminates a module begun by Dc 2192. (`2193`).
@@ -924,6 +926,7 @@ match self {
             Self::ResolveToPin => Some(1938),
             Self::MinimalSystemGraphQuery => Some(1939),
             Self::ExecutePureWasmProgram => Some(1940),
+            Self::SectionTimestampNodeCreationTime => Some(1941),
             Self::BeginModule => Some(2192),
             Self::EndModule => Some(2193),
             Self::NamespaceDecl => Some(2194),
@@ -1281,6 +1284,7 @@ match self {
             Self::ResolveToPin => short == Some(1938),
             Self::MinimalSystemGraphQuery => short == Some(1939),
             Self::ExecutePureWasmProgram => short == Some(1940),
+            Self::SectionTimestampNodeCreationTime => short == Some(1941),
             Self::BeginModule => short == Some(2192),
             Self::EndModule => short == Some(2193),
             Self::NamespaceDecl => short == Some(2194),

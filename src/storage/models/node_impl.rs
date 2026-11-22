@@ -53,6 +53,104 @@ enum Nodes {
     Timestamp,
 }
 
+/// Verifies at the writer layer (Approach A) that a `NodeType::Statements` or `NodeType::System`
+/// payload does not supersede (`Dc 591`) or retract (`Dc 592`) an existing pure value node
+/// (`NodeType::Data`) in `graph_id`.
+pub(crate) async fn ensure_statement_does_not_revise_data_nodes(
+    conn: &turso::Connection,
+    graph_id: u128,
+    node_type: NodeType,
+    data: &[u8],
+) -> Result<()> {
+    if !matches!(node_type, NodeType::Statements | NodeType::System) {
+        return Ok(());
+    }
+    let Ok(dc_str) = ctb_formats_dcstring::DcStr::from_bytes(data) else {
+        return Ok(());
+    };
+    let resolver = ctb_formats_dcstring::syntax::default_syntax_resolver();
+    use ctb_formats_dcstring::{DcCharExt, DcRole};
+
+    let mut chars = dc_str.chars().peekable();
+    let mut target_ids: Vec<(u128, &'static str)> = Vec::new();
+
+    let next_atom = |it: &mut std::iter::Peekable<ctb_formats_dcstring::DcChars<'_>>|
+     -> Option<ctb_formats_dcstring::DcChar> {
+        let ch = it.next()?;
+        if ch.fills_role_with(DcRole::Escape, resolver.as_ref())
+            || ch.fills_role_with(
+                DcRole::QuoteFollowingDcAsAtom,
+                resolver.as_ref(),
+            )
+        {
+            it.next()
+        } else {
+            Some(ch)
+        }
+    };
+
+    while let Some(verb) = chars.next() {
+        let is_sup =
+            verb.fills_role_with(DcRole::Supersedes, resolver.as_ref());
+        let is_ret = verb.fills_role_with(DcRole::Retracts, resolver.as_ref());
+        if is_sup {
+            if let (Some(subj), Some(obj)) =
+                (next_atom(&mut chars), next_atom(&mut chars))
+            {
+                if !subj.fills_role_with(
+                    DcRole::EnclosingDocument,
+                    resolver.as_ref(),
+                ) {
+                    target_ids.push((subj.to_u128(), "supersede with"));
+                }
+                if !obj.fills_role_with(
+                    DcRole::EnclosingDocument,
+                    resolver.as_ref(),
+                ) {
+                    target_ids.push((obj.to_u128(), "supersede"));
+                }
+            }
+        } else if is_ret
+            && let (Some(_subj), Some(obj)) =
+                (next_atom(&mut chars), next_atom(&mut chars))
+            && !obj
+                .fills_role_with(DcRole::EnclosingDocument, resolver.as_ref())
+        {
+            target_ids.push((obj.to_u128(), "retract"));
+        }
+    }
+
+    if target_ids.is_empty() {
+        return Ok(());
+    }
+
+    let graph_id_blob = graph_id.to_be_bytes().to_vec();
+    for (target_id, action) in target_ids {
+        let (sql, values) = Query::select()
+            .column(Nodes::Type)
+            .from(Nodes::Table)
+            .and_where(Expr::col(Nodes::GraphId).eq(graph_id_blob.clone()))
+            .and_where(Expr::col(Nodes::Id).eq(target_id.to_be_bytes().to_vec()))
+            .limit(1)
+            .build(SqliteQueryBuilder);
+        let params = crate::db::sea_values_to_turso(values)?;
+        let mut stmt = conn.prepare(&sql).await?;
+        let mut rows = stmt.query(params).await?;
+        if let Some(row) = rows.next().await? {
+            let existing_type = match row.get_value(0) {
+                Ok(Value::Integer(i)) => NodeType::try_from(i).ok(),
+                Ok(Value::Text(s)) => s.parse::<NodeType>().ok(),
+                _ => None,
+            };
+            ensure!(
+                existing_type != Some(NodeType::Data),
+                "Cannot {action} pure value node (NodeType::Data) l{target_id}; pure value nodes are immutable"
+            );
+        }
+    }
+    Ok(())
+}
+
 /// Insert a node into the user's graph database.
 #[ipc_method]
 pub async fn insert_node(
@@ -65,6 +163,10 @@ pub async fn insert_node(
     let user_id = user.local_id();
     let db_name = format!("graphs/{user_id}/user_data");
     let conn = get_connection(&db_name).await?;
+    ensure_statement_does_not_revise_data_nodes(
+        &conn, graph_id, node_type, data,
+    )
+    .await?;
 
     let checksum = {
         use sha2::{Digest, Sha256};

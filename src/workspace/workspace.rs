@@ -195,6 +195,7 @@ impl Default for CtbWorkspace {
                 insecure_skip_crlite_check: false,
                 retry_on_host_error:
                     invocation_settings::DEFAULT_RETRY_ON_HOST_ERROR,
+                recover_graph: false,
                 version_json: false,
                 command: None,
             },

@@ -92,6 +92,8 @@ Options:
           Skip CRLite revocation checking for this run only
       --retry-on-host-error <RETRY_ON_HOST_ERROR>
           Number of retry attempts on DNS or host connection errors [default: 3]
+      --recover-graph
+          Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
       --version-json
           Print version information in JSON format and exit
   -h, --help
@@ -114,6 +116,7 @@ Arguments:
 
 Options:
       --password-stdin  Read password from stdin even if running interactively
+      --recover-graph   Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help            Print help
 ```
 
@@ -122,7 +125,7 @@ Options:
 ```text
 Create, list, verify, or extract a self-contained CSC archive
 
-Usage: ctoolbox archive <COMMAND>
+Usage: ctoolbox archive [OPTIONS] <COMMAND>
 
 Commands:
   create   Create a self-contained uncompressed CSC archive
@@ -131,7 +134,8 @@ Commands:
   extract  Extract a verified archive beneath a destination directory
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox archive create`
@@ -160,6 +164,8 @@ Options:
           Stay on the current filesystem and do not cross mount boundaries
       --read-apple-double [<STYLE>]
           Read AppleDouble companion files and join them into file entities. Defaults to `alongside` style if passed without a style [possible values: alongside, zip, netatalk]
+      --recover-graph
+          Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
       --read-apple-double-alongside
           Read alongside (._<filename>) AppleDouble companion files
       --no-read-apple-double-alongside
@@ -210,6 +216,8 @@ Options:
           Verify change times even where the platform cannot restore them
       --check-birthtime
           Verify birth times even where the platform cannot restore them
+      --recover-graph
+          Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
       --copy-specials-as-specials
           Permit restoration of FIFOs and device nodes as special files
       --recover
@@ -239,13 +247,14 @@ Options:
 ```text
 List committed members and capture diagnostics
 
-Usage: ctoolbox archive list <ARCHIVE>
+Usage: ctoolbox archive list [OPTIONS] <ARCHIVE>
 
 Arguments:
   <ARCHIVE>  
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox archive verify`
@@ -259,8 +268,9 @@ Arguments:
   <ARCHIVE>  
 
 Options:
-      --recover  Allow verification of incomplete archives or archives containing capture errors
-  -h, --help     Print help
+      --recover        Allow verification of incomplete archives or archives containing capture errors
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox base2base`
@@ -274,7 +284,8 @@ Arguments:
   <ARGS>...  All positional arguments for custom parsing
 
 Options:
-  -h, --help  Print help (see more with '--help')
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help (see more with '--help')
 
 Padding & Chunking:
   -b, --bytes          Shortcut for byte-sized conversion: chunks numbers into byte units (`--limit 255 --pad`) and suppresses non-fatal warnings
@@ -351,6 +362,7 @@ Options:
       --hd               Output in classic hex dump format
       --hf               Output in fancy hex dump format
       --xxd              Output in xxd hex dump format
+      --recover-graph    Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help             Print help
 
 Examples:
@@ -394,6 +406,8 @@ Options:
           Overwrite existing output file without prompt
   -c, --codepoint <CODEPOINT>
           Specific character, Dc ID, or Global Graph ID (e.g. U+0041, dc:296, 1114408, fmt:80)
+      --recover-graph
+          Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
       --mode <MODE>
           Description format mode (standard or wuc-compat) [default: standard] [possible values: standard, wuc-compat]
       --wuc-compat
@@ -494,6 +508,7 @@ Options:
       --force            Force overwrite existing destination file without confirmation
       --verify           Verify compressed output by decompressing it
       --no-verify        Skip verification of compressed output
+      --recover-graph    Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help             Print help
 
 Supported compression formats:
@@ -543,6 +558,7 @@ Options:
   -t, --to <TO>                     Output format (accepts nickname, `FormatId` name, or f<N> shorthand) [default: utf8]
       --transform <TRANSFORM>       Document transformation(s) to apply before exporting (accepts nickname, `FormatId` name, or f<N> shorthand)
   -f, --file <FILE>                 Input file path (or - for stdin)
+      --recover-graph               Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -o, --output <OUTPUT>             Output file path (or - for stdout)
   -F, --force                       Overwrite existing output file without prompt
       --allow-binary-encapsulation  Allow encapsulating arbitrary binary bytes into `DcMixed` mode if input format cannot be decoded
@@ -711,6 +727,8 @@ Options:
           Display real-time progress indicators (default: enabled when standard error is connected to an interactive terminal)
       --no-progress
           Disable progress display unconditionally
+      --recover-graph
+          Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
       --verify-after
           Recalculate checksums after flushing OS caches (default: enabled)
       --no-verify-after
@@ -818,6 +836,8 @@ Options:
           Display real-time progress indicators (default: enabled when standard error is connected to an interactive terminal)
       --no-progress
           Disable progress display unconditionally
+      --recover-graph
+          Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
       --verify-after
           Recalculate checksums after flushing OS caches (default: enabled)
       --no-verify-after
@@ -928,6 +948,8 @@ Options:
           Explicitly enforce status/metadata change time (ctime) verification
       --check-birthtime
           Require birth-time equality even on platforms unable to restore it
+      --recover-graph
+          Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
       --ignore-owner
           Ignore ownership (UID and GID) differences
       --ignore-perms
@@ -999,6 +1021,7 @@ Options:
       --ignore-mtime          Ignore modification time (mtime) differences during verification
       --ignore-ctime          Ignore status/metadata change time (ctime) differences (defaults to true as POSIX cannot set ctime)
       --check-ctime           Explicitly enforce status/metadata change time (ctime) verification
+      --recover-graph         Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
       --check-birthtime       Require birth-time equality even on platforms unable to restore it
       --ignore-owner          Ignore ownership (UID and GID) differences
       --ignore-perms          Ignore file mode / permission differences
@@ -1028,8 +1051,9 @@ Arguments:
   [FILE]  Input file path (or - for stdin) [default: -]
 
 Options:
-      --prefix-0x  Prefix the output hex string with 0x
-  -h, --help       Print help
+      --prefix-0x      Prefix the output hex string with 0x
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 
 Supported hash algorithms:
   Fnv0_1024: FNV-0 hash, 1024 bits
@@ -1062,14 +1086,15 @@ Supported hash algorithms:
 ```text
 Extract a ctoolbox asset bundle to a directory tree
 
-Usage: ctoolbox ctb-asset-bundle-extract <BUNDLE_PATH> [OUTPUT_DIR]
+Usage: ctoolbox ctb-asset-bundle-extract [OPTIONS] <BUNDLE_PATH> [OUTPUT_DIR]
 
 Arguments:
   <BUNDLE_PATH>  Path to the `.rsrc` asset bundle
   [OUTPUT_DIR]   Output directory for the extracted assets. Defaults to the current directory. The bundle name will be appended as a subdirectory, such as extracting to a folder `test` will place the extracted files within `test/bundle_v3-extracted/`
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox ctb-dev-gz-sha256`
@@ -1077,13 +1102,14 @@ Options:
 ```text
 Compress a tar file with the server's gzip settings and print its SHA256 hex (developer command)
 
-Usage: ctoolbox ctb-dev-gz-sha256 <PATH>
+Usage: ctoolbox ctb-dev-gz-sha256 [OPTIONS] <PATH>
 
 Arguments:
   <PATH>  Path to the tar file
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox ctb-dev-key-create`
@@ -1094,8 +1120,9 @@ Generate a signing keypair for `ctb-dev-sign`
 Usage: ctoolbox ctb-dev-key-create [OPTIONS]
 
 Options:
-      --write  Write keys into local `pc_settings.json`
-  -h, --help   Print help (see more with '--help')
+      --write          Write keys into local `pc_settings.json`
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help (see more with '--help')
 ```
 
 ### `ctoolbox ctb-dev-release-check`
@@ -1109,6 +1136,7 @@ Options:
       --manifest <MANIFEST>      Path to the manifest file to verify. Defaults to `{storage_dir}/releases/ctb-{platform}-latest.json` if not specified
       --chunks-dir <CHUNKS_DIR>  Path to the chunks directory. Defaults to `{storage_dir}/releases/bh/` if not specified
       --platform <PLATFORM>      Target to verify (e.g. linux-x64, linux-x86). Defaults to the current platform
+      --recover-graph            Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                     Print help
 ```
 
@@ -1122,6 +1150,7 @@ Usage: ctoolbox ctb-dev-release-expire [OPTIONS]
 Options:
       --older-than <OLDER_THAN>      Only expire chunks from releases older than this many days. Defaults to 30 days if not specified [default: 30]
       --releases-dir <RELEASES_DIR>  Path to the releases directory. Defaults to `{storage_dir}/releases/` if not specified
+      --recover-graph                Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                         Print help (see more with '--help')
 ```
 
@@ -1136,6 +1165,7 @@ Options:
       --input-dir <INPUT_DIR>    Directory containing release artifacts to sign. Defaults to ~/ctb_release/input if not specified
       --output-dir <OUTPUT_DIR>  Directory to write signed chunks and manifest. Defaults to ~/ctb_release/releases if not specified
       --platform <PLATFORM>      Target for this release (e.g. linux-x64, linux-x86, windows-x64, mac-x64, mac-arm64). Defaults to current platform if not specified
+      --recover-graph            Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                     Print help
 ```
 
@@ -1150,6 +1180,7 @@ Options:
       --backup-path <BACKUP_PATH>  Path to the backup copy of the previous binary
       --target-path <TARGET_PATH>  Path to the installed binary location
       --port <PORT>                Optional port to restart ctoolbox with after successful validation
+      --recover-graph              Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                       Print help (see more with '--help')
 ```
 
@@ -1158,13 +1189,14 @@ Options:
 ```text
 Convert PHP data file arrays to CSV files
 
-Usage: ctoolbox dceutils_php_to_csv <PHP_FILE>
+Usage: ctoolbox dceutils_php_to_csv [OPTIONS] <PHP_FILE>
 
 Arguments:
   <PHP_FILE>  Path to the PHP data file
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox dec2hex`
@@ -1178,7 +1210,8 @@ Arguments:
   <INPUT>...  Input number(s) or string (supports quoted strings or multiple tokens)
 
 Options:
-  -h, --help  Print help (see more with '--help')
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help (see more with '--help')
 
 Padding & Chunking:
   -b, --bytes          Shortcut for byte-sized conversion: chunks numbers into byte units (`--limit 255 --pad`) and suppresses non-fatal warnings
@@ -1239,6 +1272,7 @@ Arguments:
 Options:
   -o, --output <OUTPUT>  Output file path or - for stdout. Defaults to stdout when input is stdin, or strips the compression extension (or appends `.decompressed` if none recognized) when decompressing a file
       --force            Force overwrite of existing destination file without confirmation
+      --recover-graph    Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help             Print help
 
 Supported compression formats:
@@ -1288,6 +1322,7 @@ Options:
   -z, --uncompress                   Try to look inside compressed files (like `file -z`)
   -Z, --uncompress-noreport          Try to look inside compressed files, but do not report the compression format (like `file -Z`)
       --max-decompression-depth <N>  Maximum number of nested decompression layers to inspect (0 disables decompression inspection) [default: 3]
+      --recover-graph                Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                         Print help
 ```
 
@@ -1302,9 +1337,10 @@ Arguments:
   <FILE>  Input file path to inspect
 
 Options:
-      --body        Include file body content (base64-encoded) in JSON
-      --no-streams  Omit extended attributes, resource forks, and alternate streams
-  -h, --help        Print help
+      --body           Include file body content (base64-encoded) in JSON
+      --no-streams     Omit extended attributes, resource forks, and alternate streams
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox fsearch`
@@ -1333,6 +1369,8 @@ Options:
           Glob pattern to match against filename only (shorthand: -gn, --gn) [aliases: --gn]
       --keyword-path <KEYWORD_PATH>
           Keyword match across relative path and filename (shorthand: -kp, --kp) [aliases: --kp]
+      --recover-graph
+          Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
       --keyword-text <KEYWORD_TEXT>
           Keyword match across relative path, filename, and full text content (shorthand: -kt, --kt) [aliases: --kt]
       --keyword-name <KEYWORD_NAME>
@@ -1403,6 +1441,7 @@ Options:
       --resume                       Resume an interrupted directory indexing session from an existing journal
       --resume-journal <JOURNAL>     Explicit path to a journal file when resuming
       --checksum                     Compute cryptographic SHA-256 digests for file contents (slow on large filesystems; default is metadata-only)
+      --recover-graph                Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
       --journal-only                 Only generate the *.cscjournal file; do not compile into SQLite database
       --batch-size <BATCH_SIZE>      Number of entries to commit per transaction batch during traversal and ingestion [default: 500]
   -q, --quiet                        Suppress progress output
@@ -1422,10 +1461,11 @@ Options:
 ```text
 Generate GDB instructions from symbols
 
-Usage: ctoolbox gdb_instructions_generate
+Usage: ctoolbox gdb_instructions_generate [OPTIONS]
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox gid`
@@ -1439,9 +1479,10 @@ Arguments:
   <ID>  Global graph ID or prefixed short ID (e.g. 1114408, dc:296, fmt:80, uni:1234)
 
 Options:
-  -s, --short  Output short prefix format (e.g. dc:296, fmt:80, uni:1234, gid:23234234)
-  -i, --info   Show full metadata for the Global Graph ID
-  -h, --help   Print help
+  -s, --short          Output short prefix format (e.g. dc:296, fmt:80, uni:1234, gid:23234234)
+  -i, --info           Show full metadata for the Global Graph ID
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 
 Examples:
   $ ctoolbox gid --s 1114408
@@ -1463,6 +1504,7 @@ Arguments:
 Options:
   -f, --file <FILE>      Input file path (or - for stdin)
   -o, --output <OUTPUT>  Output file path (or - for stdout)
+      --recover-graph    Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help             Print help
 
 Examples:
@@ -1487,7 +1529,8 @@ Arguments:
   <INPUT>...  Input number(s) or string (supports quoted strings or multiple tokens)
 
 Options:
-  -h, --help  Print help (see more with '--help')
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help (see more with '--help')
 
 Padding & Chunking:
   -b, --bytes          Shortcut for byte-sized conversion: chunks numbers into byte units (`--limit 255 --pad`) and suppresses non-fatal warnings
@@ -1555,6 +1598,7 @@ Options:
   -o, --output <OUTPUT>  Output file path (or - for stdout)
       --plain            Output in plain (classic) hex dump format
       --xxd              Output in xxd hex dump format
+      --recover-graph    Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help             Print help
 
 Examples:
@@ -1575,7 +1619,8 @@ Arguments:
   <INPUT>...  Input number(s) or string (supports quoted strings or multiple tokens)
 
 Options:
-  -h, --help  Print help (see more with '--help')
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help (see more with '--help')
 
 Padding & Chunking:
   -b, --bytes          Shortcut for byte-sized conversion: chunks numbers into byte units (`--limit 255 --pad`) and suppresses non-fatal warnings
@@ -1630,7 +1675,7 @@ Note on Stdin:
 ```text
 Internet Archive utilities
 
-Usage: ctoolbox ia <COMMAND>
+Usage: ctoolbox ia [OPTIONS] <COMMAND>
 
 Commands:
   verify            Verify a local Internet Archive item directory against its files XML
@@ -1647,7 +1692,8 @@ Commands:
   checkeddl         Download an item or file, then verify the downloaded content
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox ia checkeddl`
@@ -1665,6 +1711,7 @@ Options:
       --original                 Only download and verify files with source="original"
       --progress                 Show progress during download
       --no-progress              Suppress progress during download
+      --recover-graph            Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                     Print help
 ```
 
@@ -1673,14 +1720,15 @@ Options:
 ```text
 Check whether an item contains a particular file
 
-Usage: ctoolbox ia contains <TARGET> <DESIRED_FILE>
+Usage: ctoolbox ia contains [OPTIONS] <TARGET> <DESIRED_FILE>
 
 Arguments:
   <TARGET>        An item identifier, item/file path, or archive.org URL
   <DESIRED_FILE>  File path inside the item to check for
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox ia download`
@@ -1698,6 +1746,7 @@ Options:
       --original                 Only download files with source="original"
       --progress                 Show progress during download
       --no-progress              Suppress progress during download
+      --recover-graph            Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                     Print help
 ```
 
@@ -1706,13 +1755,14 @@ Options:
 ```text
 Download a single file and write it to stdout
 
-Usage: ctoolbox ia downloadAsStream <TARGET>
+Usage: ctoolbox ia downloadAsStream [OPTIONS] <TARGET>
 
 Arguments:
   <TARGET>  An item/file path or archive.org download URL
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox ia downloadHere`
@@ -1729,6 +1779,7 @@ Options:
       --output-dir <OUTPUT_DIR>  Destination directory. Defaults to the current directory
       --progress                 Show progress during download
       --no-progress              Suppress progress during download
+      --recover-graph            Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                     Print help
 ```
 
@@ -1737,13 +1788,14 @@ Options:
 ```text
 Fetch the live `_files.xml` document
 
-Usage: ctoolbox ia filesxml <TARGET>
+Usage: ctoolbox ia filesxml [OPTIONS] <TARGET>
 
 Arguments:
   <TARGET>  An item identifier or archive.org URL
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox ia listplain`
@@ -1751,13 +1803,14 @@ Options:
 ```text
 List item files one per line
 
-Usage: ctoolbox ia listplain <TARGET>
+Usage: ctoolbox ia listplain [OPTIONS] <TARGET>
 
 Arguments:
   <TARGET>  An item identifier or archive.org URL
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox ia md5`
@@ -1773,6 +1826,7 @@ Arguments:
 Options:
       --identifier <IDENTIFIER>  Override the identifier if it cannot be inferred from the path
       --check-live               Fetch live metadata instead of reading a local files XML
+      --recover-graph            Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                     Print help
 ```
 
@@ -1781,13 +1835,14 @@ Options:
 ```text
 Fetch live item metadata as pretty JSON
 
-Usage: ctoolbox ia metadata <TARGET>
+Usage: ctoolbox ia metadata [OPTIONS] <TARGET>
 
 Arguments:
   <TARGET>  An item identifier or archive.org URL
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox ia metaxml`
@@ -1795,13 +1850,14 @@ Options:
 ```text
 Fetch the live `_meta.xml` document
 
-Usage: ctoolbox ia metaxml <TARGET>
+Usage: ctoolbox ia metaxml [OPTIONS] <TARGET>
 
 Arguments:
   <TARGET>  An item identifier or archive.org URL
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox ia sha1`
@@ -1817,6 +1873,7 @@ Arguments:
 Options:
       --identifier <IDENTIFIER>  Override the identifier if it cannot be inferred from the path
       --check-live               Fetch live metadata instead of reading a local files XML
+      --recover-graph            Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                     Print help
 ```
 
@@ -1834,6 +1891,7 @@ Options:
       --identifier <IDENTIFIER>  Override the identifier if it cannot be inferred from the path
       --check-live               Fetch the current files XML from archive.org instead of using a local copy
       --original                 Only verify files with source="original"
+      --recover-graph            Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                     Print help
 ```
 
@@ -1845,9 +1903,10 @@ Launch the installer GUI (or TUI if --no-gui)
 Usage: ctoolbox install [OPTIONS]
 
 Options:
-      --no-gui      Use text-mode installer instead of GUI
-      --unattended  Run in unattended mode with default options (implies --no-gui)
-  -h, --help        Print help (see more with '--help')
+      --no-gui         Use text-mode installer instead of GUI
+      --unattended     Run in unattended mode with default options (implies --no-gui)
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help (see more with '--help')
 ```
 
 ### `ctoolbox jq`
@@ -1862,8 +1921,9 @@ Arguments:
   [FILE]   Optional path to the JSON file, or - for stdin
 
 Options:
-  -r, --raw-output  Use raw output (no quotes around strings)
-  -h, --help        Print help
+  -r, --raw-output     Use raw output (no quotes around strings)
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox js-lint`
@@ -1885,6 +1945,7 @@ Options:
       --rule <RULE_CODE>  Run a certain rule
       --config <CONFIG>   Load config from file
       --format <FORMAT>   Configure output format [default: pretty] [possible values: compact, pretty]
+      --recover-graph     Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help              Print help
 ```
 
@@ -1897,8 +1958,9 @@ Arguments:
   [RULE_NAME]  Show detailed information about rule. If omitted, show the list of all rules
 
 Options:
-      --json  
-  -h, --help  Print help
+      --json           
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox js-lint run`
@@ -1913,6 +1975,7 @@ Options:
       --rule <RULE_CODE>  Run a certain rule
       --config <CONFIG>   Load config from file
       --format <FORMAT>   Configure output format [default: pretty] [possible values: compact, pretty]
+      --recover-graph     Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help              Print help
 ```
 
@@ -1921,13 +1984,14 @@ Options:
 ```text
 Run JavaScript tests
 
-Usage: ctoolbox js-test <FOLDER>
+Usage: ctoolbox js-test [OPTIONS] <FOLDER>
 
 Arguments:
   <FOLDER>  Folder containing JavaScript tests
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox json-escape`
@@ -1935,13 +1999,14 @@ Options:
 ```text
 Escape a string to be a valid JSON string value (enclosed in double quotes)
 
-Usage: ctoolbox json-escape [VALUE]
+Usage: ctoolbox json-escape [OPTIONS] [VALUE]
 
 Arguments:
   [VALUE]  The string to escape. If not provided, reads from stdin
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox make-offline-installer`
@@ -1958,6 +2023,7 @@ Options:
       --platform <PLATFORM>      Target platform to fetch. Defaults to the current platform
       --version <VERSION>        Release version to fetch. Defaults to latest
       --server-url <SERVER_URL>  URL of the update server. Defaults to the configured server URL
+      --recover-graph            Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                     Print help
 ```
 
@@ -1976,6 +2042,7 @@ Options:
       --overwrite                  Overwrite existing destination file or directory metadata
       --copy-specials-as-specials  Permit creating special files (FIFOs, character/block devices)
       --best-effort-metadata       Proceed best-effort if destination filesystem cannot reproduce all metadata
+      --recover-graph              Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                       Print help
 ```
 
@@ -1996,6 +2063,7 @@ Options:
   -v, --verbose                      Enable verbose diagnostic output
       --progress                     Display real-time progress indicators (default: enabled when standard error is connected to an interactive terminal)
       --no-progress                  Disable progress display unconditionally
+      --recover-graph                Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
       --verify-after                 Recalculate checksums after flushing OS caches when cross-device copy occurs (default: enabled)
       --no-verify-after              Skip the post-flush verification pass on cross-device moves
       --best-effort-metadata         Relax strict metadata requirements when cross-device copy occurs
@@ -2024,6 +2092,7 @@ Options:
   -d, --delimiter <DELIMITER>      Export delimiter / format: commas (default), tabs, tabs-no-quotes, wordperfect [default: commas]
       --encoding <ENCODING>        Output character encoding (utf8, mac, windows) [default: utf8]
       --crlf                       Line terminator: crlf (\r\n) or lf (\n)
+      --recover-graph              Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
       --replicate-double-encoding  Replicate export inconsistencies and legacy double-encoding behavior
       --run-startup-procedure      Run the startup procedure (.Initialize) before exporting CSV
   -h, --help                       Print help
@@ -2042,6 +2111,7 @@ Arguments:
 
 Options:
       --encoding <ENCODING>  Output character encoding (mac, windows, utf8) [default: windows]
+      --recover-graph        Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                 Print help
 ```
 
@@ -2050,13 +2120,14 @@ Options:
 ```text
 Convert a .pan file to JSON of parse (writes to stdout)
 
-Usage: ctoolbox pan2parsejson <PAN_FILE>
+Usage: ctoolbox pan2parsejson [OPTIONS] <PAN_FILE>
 
 Arguments:
   <PAN_FILE>  Input PAN file path
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox pan2procedures`
@@ -2073,6 +2144,7 @@ Options:
   -o, --output-dir <OUTPUT_DIR>  Optional output directory (defaults to <`pan_stem`>_procedures)
   -e, --extension <EXTENSION>    Optional procedure file extension (e.g. "estes", defaults to no extension)
       --encoding <ENCODING>      Output character encoding (utf8, mac, windows) [default: utf8]
+      --recover-graph            Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                     Print help
 ```
 
@@ -2092,6 +2164,8 @@ Options:
           Input character encoding (utf-8, macroman, win-1252 / windows) [default: macroman]
   -o, --output-encoding <OUTPUT_ENCODING>
           Output character encoding (utf-8, macroman, win-1252 / windows) [default: utf-8]
+      --recover-graph
+          Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help
           Print help
 ```
@@ -2101,13 +2175,14 @@ Options:
 ```text
 Convert a PDF file to JSON output. Not yet implemented
 
-Usage: ctoolbox pdf2json <PDF_FILE>
+Usage: ctoolbox pdf2json [OPTIONS] <PDF_FILE>
 
 Arguments:
   <PDF_FILE>  Input PDF file path (or - for stdin)
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox pdf2md`
@@ -2115,13 +2190,14 @@ Options:
 ```text
 Convert a PDF file to Markdown output. Not yet implemented
 
-Usage: ctoolbox pdf2md <PDF_FILE>
+Usage: ctoolbox pdf2md [OPTIONS] <PDF_FILE>
 
 Arguments:
   <PDF_FILE>  Input PDF file path (or - for stdin)
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox pdf2txt`
@@ -2129,13 +2205,14 @@ Options:
 ```text
 Convert a PDF file to text output. Not yet implemented
 
-Usage: ctoolbox pdf2txt <PDF_FILE>
+Usage: ctoolbox pdf2txt [OPTIONS] <PDF_FILE>
 
 Arguments:
   <PDF_FILE>  Input PDF file path (or - for stdin)
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox python`
@@ -2150,18 +2227,19 @@ Arguments:
   [ARGS]...  Arguments passed to the Python program in sys.argv[1:]
 
 Options:
-  -c <COMMAND>  Program passed in as string (terminates option list)
-  -m <MODULE>   Run library module as a script (terminates option list)
-  -B            Don't write .pyc files on import
-  -u            Force the stdout and stderr streams to be unbuffered
-  -i            Inspect interactively after running script
-  -I            Isolate Python from the user's environment
-  -E            Ignore PYTHON* environment variables
-  -q            Don't print version and copyright messages on interactive startup
-  -s            Don't add user site directory to sys.path
-  -S            Don't imply 'import site' on initialization
-  -v...         Verbose (trace import statements)
-  -h, --help    Print help
+  -c <COMMAND>         Program passed in as string (terminates option list)
+  -m <MODULE>          Run library module as a script (terminates option list)
+  -B                   Don't write .pyc files on import
+  -u                   Force the stdout and stderr streams to be unbuffered
+  -i                   Inspect interactively after running script
+  -I                   Isolate Python from the user's environment
+  -E                   Ignore PYTHON* environment variables
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -q                   Don't print version and copyright messages on interactive startup
+  -s                   Don't add user site directory to sys.path
+  -S                   Don't imply 'import site' on initialization
+  -v...                Verbose (trace import statements)
+  -h, --help           Print help
 ```
 
 ### `ctoolbox range_gen`
@@ -2180,6 +2258,7 @@ Options:
   -b, --base <BASE>            Number base (e.g. "10", "16", "2", "64", "hex", "bin", "oct") [default: 10]
   -S, --separator <SEPARATOR>  Separator between output items (defaults to newline) [default: "\n"]
   -t, --trailing               Append a trailing separator to the output
+      --recover-graph          Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                   Print help
 
 Examples:
@@ -2236,8 +2315,9 @@ Arguments:
   <ID>  Document Character shorthand identifier (e.g. 296, f80, u12a, l1114408)
 
 Options:
-  -i, --info  Show full metadata for the Document Character, Format, or Codepoint
-  -h, --help  Print help
+  -i, --info           Show full metadata for the Document Character, Format, or Codepoint
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 
 Examples:
   $ ctoolbox short-dc 296
@@ -2254,11 +2334,12 @@ Examples:
 ```text
 Unimplemented, just an example
 
-Usage: ctoolbox show-node --id <ID>
+Usage: ctoolbox show-node [OPTIONS] --id <ID>
 
 Options:
-  -i, --id <ID>  Example parameter
-  -h, --help     Print help
+  -i, --id <ID>        Example parameter
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox stagel-bootstrap-convert`
@@ -2276,6 +2357,7 @@ Options:
       --cache-dir <CACHE_DIR>   Optional cache directory (if specified, enables caching)
       --no-debug                Disable debug build
       --no-runtime-type-checks  Disable runtime type checks
+      --recover-graph           Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                    Print help
 ```
 
@@ -2284,13 +2366,14 @@ Options:
 ```text
 Parse a StageL file to token output
 
-Usage: ctoolbox stagel-bootstrap-parse <INPUT_FILE>
+Usage: ctoolbox stagel-bootstrap-parse [OPTIONS] <INPUT_FILE>
 
 Arguments:
   <INPUT_FILE>  Input StageL file path
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox ts-check`
@@ -2307,6 +2390,7 @@ Options:
       --config <CONFIG>           Load config from file
       --format <FORMAT>           Configure output format [default: pretty] [possible values: compact, pretty]
       --add-types <ADD_TYPES>...  Dynamically patch tsconfig to add paths mapping for these types from the compiler's types folder
+      --recover-graph             Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                      Print help
 ```
 
@@ -2318,9 +2402,10 @@ Uninstall ctoolbox from this system
 Usage: ctoolbox uninstall [OPTIONS]
 
 Options:
-      --no-gui      Use text-mode uninstaller instead of GUI
-      --unattended  Run without prompting for confirmation
-  -h, --help        Print help (see more with '--help')
+      --no-gui         Use text-mode uninstaller instead of GUI
+      --unattended     Run without prompting for confirmation
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help (see more with '--help')
 ```
 
 ### `ctoolbox update`
@@ -2333,6 +2418,7 @@ Usage: ctoolbox update [OPTIONS]
 Options:
       --unattended               Automatically apply updates without prompting
       --server-url <SERVER_URL>  URL of the update server. Defaults to the configured server URL
+      --recover-graph            Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                     Print help (see more with '--help')
 ```
 
@@ -2347,8 +2433,9 @@ Arguments:
   [FILE]  Tarball file path (or - for stdin)
 
 Options:
-      --strict  Fail if any unreferenced blobs are present in blobs/
-  -h, --help    Print help
+      --strict         Fail if any unreferenced blobs are present in blobs/
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox waitrestart`
@@ -2356,12 +2443,13 @@ Options:
 ```text
 Wait for the provided PID to shutdown, then start ctoolbox with the given port
 
-Usage: ctoolbox waitrestart --pid <PID> --port <PORT>
+Usage: ctoolbox waitrestart [OPTIONS] --pid <PID> --port <PORT>
 
 Options:
-      --pid <PID>    Process ID to wait for
-      --port <PORT>  Port to pass to the new ctoolbox instance
-  -h, --help         Print help
+      --pid <PID>      Process ID to wait for
+      --port <PORT>    Port to pass to the new ctoolbox instance
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox waitshutdown`
@@ -2369,11 +2457,12 @@ Options:
 ```text
 Wait for the provided PID to shutdown, then clean up
 
-Usage: ctoolbox waitshutdown --pid <PID>
+Usage: ctoolbox waitshutdown [OPTIONS] --pid <PID>
 
 Options:
-      --pid <PID>  Process ID to wait for
-  -h, --help       Print help
+      --pid <PID>      Process ID to wait for
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox waitupgrade`
@@ -2381,13 +2470,14 @@ Options:
 ```text
 Wait for the provided PID to shutdown, then upgrade the ctoolbox instance in place, then restart it. (Will need to copy the executable before upgrading it probably because Windows locks running executables.)
 
-Usage: ctoolbox waitupgrade --pid <PID> --temp-path <TEMP_PATH> --target-path <TARGET_PATH> --port <PORT>
+Usage: ctoolbox waitupgrade [OPTIONS] --pid <PID> --temp-path <TEMP_PATH> --target-path <TARGET_PATH> --port <PORT>
 
 Options:
       --pid <PID>                  Process ID to wait for
       --temp-path <TEMP_PATH>      Path to the temporary file holding the new ctoolbox executable
       --target-path <TARGET_PATH>  Path to the installed ctoolbox executable
       --port <PORT>                Port to pass to the new ctoolbox instance
+      --recover-graph              Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                       Print help
 ```
 
@@ -2613,13 +2703,14 @@ Options:
 ```text
 Process a file using wfparser logic
 
-Usage: ctoolbox wfparser [FILE]
+Usage: ctoolbox wfparser [OPTIONS] [FILE]
 
 Arguments:
   [FILE]  Input file path (or - for stdin) [default: -]
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox wfscan`
@@ -2627,13 +2718,14 @@ Options:
 ```text
 Process a file using wfscan logic
 
-Usage: ctoolbox wfscan [FILE]
+Usage: ctoolbox wfscan [OPTIONS] [FILE]
 
 Arguments:
   [FILE]  Input file path (or - for stdin) [default: -]
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox x86-instruction-sets`
@@ -2641,13 +2733,14 @@ Options:
 ```text
 Analyze an x86/x64 object or archive file and list CPU instruction set features
 
-Usage: ctoolbox x86-instruction-sets <PATH>
+Usage: ctoolbox x86-instruction-sets [OPTIONS] <PATH>
 
 Arguments:
   <PATH>  Path to the object or archive file
 
 Options:
-  -h, --help  Print help
+      --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help           Print help
 ```
 
 ### `ctoolbox xxd`
@@ -2665,6 +2758,7 @@ Options:
   -o, --output <OUTPUT>  Output file path (or - for stdout)
       --plain            Output in plain (classic) hex dump format
       --fancy            Output in fancy hex dump format
+      --recover-graph    Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help             Print help
 
 Examples:

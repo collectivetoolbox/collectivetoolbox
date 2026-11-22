@@ -33,6 +33,7 @@ pub const USE_SYSTEM_TLS_VALIDATOR_FLAG: &str = "--use-system-tls-validator";
 pub const INSECURE_SKIP_CRLITE_CHECK_FLAG: &str =
     "--insecure-skip-crlite-check";
 pub const RETRY_ON_HOST_ERROR_FLAG: &str = "--retry-on-host-error";
+pub const RECOVER_GRAPH_FLAG: &str = "--recover-graph";
 pub const DEFAULT_RETRY_ON_HOST_ERROR: usize = 3;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -46,6 +47,7 @@ pub struct InvocationSettings {
     pub tls_validator_override: Option<TlsValidatorOverride>,
     pub insecure_skip_crlite_check: bool,
     pub retry_on_host_error: usize,
+    pub recover_graph: bool,
 }
 
 impl Default for InvocationSettings {
@@ -54,6 +56,7 @@ impl Default for InvocationSettings {
             tls_validator_override: None,
             insecure_skip_crlite_check: false,
             retry_on_host_error: DEFAULT_RETRY_ON_HOST_ERROR,
+            recover_graph: false,
         }
     }
 }
@@ -99,6 +102,9 @@ impl InvocationSettings {
                 }
                 INSECURE_SKIP_CRLITE_CHECK_FLAG => {
                     settings.insecure_skip_crlite_check = true;
+                }
+                RECOVER_GRAPH_FLAG => {
+                    settings.recover_graph = true;
                 }
                 RETRY_ON_HOST_ERROR_FLAG => {
                     let Some(val_str) = iter.next() else {
@@ -147,6 +153,9 @@ impl InvocationSettings {
         if self.retry_on_host_error != DEFAULT_RETRY_ON_HOST_ERROR {
             args.push(RETRY_ON_HOST_ERROR_FLAG.to_string());
             args.push(self.retry_on_host_error.to_string());
+        }
+        if self.recover_graph {
+            args.push(RECOVER_GRAPH_FLAG.to_string());
         }
         args
     }
@@ -264,6 +273,19 @@ mod tests {
         let settings_default =
             InvocationSettings::from_command_line_args(&args_default).unwrap();
         assert_eq!(settings_default.retry_on_host_error, 3);
+        assert!(!settings_default.recover_graph);
         assert!(settings_default.command_line_args().is_empty());
+    }
+
+    #[crate::ctb_test]
+    fn test_invocation_settings_recover_graph_flag() {
+        let args = vec![
+            "ctoolbox".to_string(),
+            "--recover-graph".to_string(),
+        ];
+        let settings =
+            InvocationSettings::from_command_line_args(&args).unwrap();
+        assert!(settings.recover_graph);
+        assert_eq!(settings.command_line_args(), vec!["--recover-graph"]);
     }
 }

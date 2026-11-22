@@ -91,6 +91,8 @@ pub(crate) struct SystemGraphWriteState {
         HashMap<Vec<DcShorthand>, Vec<u128>>,
     pub(crate) referrers_by_id: HashMap<u128, Vec<u128>>,
     pub(crate) framing: CtbnbdlFramingDcs,
+    pub(crate) creation_timestamp_ns: Option<i128>,
+    pub(crate) pinned_created_ns_by_id: Option<HashMap<u128, Option<i128>>>,
 }
 
 impl SystemGraphWriteState {
@@ -176,6 +178,8 @@ impl SystemGraphWriteState {
             retracted_value_by_expanded_tokens,
             referrers_by_id,
             framing: default_ctbnbdl_framing_dcs(),
+            creation_timestamp_ns: None,
+            pinned_created_ns_by_id: None,
         }
     }
 
@@ -228,7 +232,20 @@ impl SystemGraphWriteState {
             retracted_value_by_expanded_tokens,
             referrers_by_id,
             framing: default_ctbnbdl_framing_dcs(),
+            creation_timestamp_ns: None,
+            pinned_created_ns_by_id: None,
         }
+    }
+
+    #[must_use]
+    pub(crate) fn with_creation_timestamps(
+        mut self,
+        default_ts_ns: Option<i128>,
+        pinned_by_id: Option<HashMap<u128, Option<i128>>>,
+    ) -> Self {
+        self.creation_timestamp_ns = default_ts_ns;
+        self.pinned_created_ns_by_id = pinned_by_id;
+        self
     }
 
     fn is_initial_non_csv_node(
@@ -554,10 +571,18 @@ impl SystemGraphWriteState {
         )?;
 
         // 4. Append node and update indices.
+        let created_ns = match &self.pinned_created_ns_by_id {
+            Some(map) => {
+                // Reason for fallback: when a node ID is absent from a pinned manifest map, fall back to the batch creation timestamp.
+                map.get(&next_id).copied().unwrap_or(self.creation_timestamp_ns)
+            }
+            None => self.creation_timestamp_ns,
+        };
         let new_node = LedgerNode {
             id: next_id,
             tokens: tokens.clone(),
             comment,
+            created_ns,
         };
         let new_pos = self.nodes.len();
         Self::record_referrers(&mut self.referrers_by_id, &new_node);
@@ -654,6 +679,24 @@ impl SystemGraphWriteState {
                 new_id != old_id,
                 "{label} (l{next_id}): self-supersession '591 l{new_id} l{old_id}' is forbidden"
             );
+            let old_node = self.get_node(old_id).with_context(|| {
+                format!(
+                    "{label} (l{next_id}): Dc 591 'Supersedes' target node l{old_id} does not exist"
+                )
+            })?;
+            ensure!(
+                !Self::is_value_node_tokens(&old_node.tokens),
+                "{label} (l{next_id}): Dc 591 'Supersedes' cannot target pure value node l{old_id}; pure value nodes are immutable (supersede the relationship statement or entity revision instead)"
+            );
+            let new_node = self.get_node(new_id).with_context(|| {
+                format!(
+                    "{label} (l{next_id}): Dc 591 'Supersedes' replacement node l{new_id} does not exist"
+                )
+            })?;
+            ensure!(
+                !Self::is_value_node_tokens(&new_node.tokens),
+                "{label} (l{next_id}): pure value node l{new_id} cannot supersede l{old_id}; pure value nodes are immutable"
+            );
             ensure!(
                 !self.inactive_ids.contains(&old_id),
                 "{label} (l{next_id}): cannot supersede l{old_id} because it is already superseded or retracted"
@@ -663,11 +706,17 @@ impl SystemGraphWriteState {
                 "{label} (l{next_id}): replacement node l{new_id} is already inactive"
             );
             let mut cur = new_id;
+            let mut visited = HashSet::new();
             while let Some(&next_sup) = self.superseded_by.get(&cur) {
                 ensure!(
                     next_sup != old_id,
                     "{label} (l{next_id}): supersession cycle detected between l{new_id} and l{old_id}"
                 );
+                if !visited.insert(cur) {
+                    bail!(
+                        "{label} (l{next_id}): pre-existing supersession cycle encountered from l{new_id}"
+                    );
+                }
                 cur = next_sup;
             }
             self.ensure_can_modify_target(
@@ -688,6 +737,15 @@ impl SystemGraphWriteState {
             ensure!(
                 subj == sh_enclosing_doc,
                 "{label} (l{next_id}): Dc 592 'Retracts' subject must be EnclosingDocument ({sh_enclosing_doc})"
+            );
+            let old_node = self.get_node(old_id).with_context(|| {
+                format!(
+                    "{label} (l{next_id}): Dc 592 'Retracts' target node l{old_id} does not exist"
+                )
+            })?;
+            ensure!(
+                !Self::is_value_node_tokens(&old_node.tokens),
+                "{label} (l{next_id}): Dc 592 'Retracts' cannot target pure value node l{old_id}; pure value nodes are immutable (retract the relationship statement referencing it instead)"
             );
             ensure!(
                 !self.inactive_ids.contains(&old_id),
@@ -725,7 +783,11 @@ impl SystemGraphWriteState {
                 // If `has_a_id` was superseded by Dc 348 "Ambiguous values",
                 // accept when any candidate is a property `Has a` node.
                 let mut cur = has_a_id;
+                let mut visited = HashSet::new();
                 while let Some(&next_sup) = self.superseded_by.get(&cur) {
+                    if !visited.insert(cur) {
+                        break;
+                    }
                     cur = next_sup;
                 }
                 if let Some(eff_node) = self.get_node(cur)

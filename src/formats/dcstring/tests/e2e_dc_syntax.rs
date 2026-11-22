@@ -3833,6 +3833,7 @@ mod gate2_bootstrap_kernel_conformance_fixtures {
                 id: base,
                 tokens: pat_v1,
                 comment: String::new(),
+                created_ns: None,
             },
             // base + 1: 584 9900 594 (9900 has syntax rule)
             LedgerNode {
@@ -3843,6 +3844,7 @@ mod gate2_bootstrap_kernel_conformance_fixtures {
                     DcShorthand::Short(594),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             // base + 2: 610 (base+1) (base+0)
             LedgerNode {
@@ -3853,12 +3855,14 @@ mod gate2_bootstrap_kernel_conformance_fixtures {
                     DcShorthand::Long(base),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             // base + 3: pattern v2 (`: ~ 518`)
             LedgerNode {
                 id: base + 3,
                 tokens: pat_v2,
                 comment: String::new(),
+                created_ns: None,
             },
             // base + 4: 610 (base+1) (base+3)
             LedgerNode {
@@ -3869,6 +3873,7 @@ mod gate2_bootstrap_kernel_conformance_fixtures {
                     DcShorthand::Long(base + 3),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             // base + 5: 591 (base+4) (base+2) (N2 supersedes N1)
             LedgerNode {
@@ -3879,12 +3884,14 @@ mod gate2_bootstrap_kernel_conformance_fixtures {
                     DcShorthand::Long(base + 2),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             // base + 6: pattern v3 (`: ~ 517 518`)
             LedgerNode {
                 id: base + 6,
                 tokens: pat_v3,
                 comment: String::new(),
+                created_ns: None,
             },
             // base + 7: 610 (base+1) (base+6)
             LedgerNode {
@@ -3895,6 +3902,7 @@ mod gate2_bootstrap_kernel_conformance_fixtures {
                     DcShorthand::Long(base + 6),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             // base + 8: 591 (base+7) (base+4) (N3 supersedes N2 -> transitive chain N1 <- N2 <- N3)
             LedgerNode {
@@ -3905,6 +3913,7 @@ mod gate2_bootstrap_kernel_conformance_fixtures {
                     DcShorthand::Long(base + 4),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             // base + 9: `Dc 397 "Equivalent representations"`:
             // 397 310 640 9900 312 9901 311 (9901 is equivalent to 9900)
@@ -3920,6 +3929,7 @@ mod gate2_bootstrap_kernel_conformance_fixtures {
                     DcShorthand::Short(311),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             // base + 10: Retract N3 (`592 615 (base+7)`)
             LedgerNode {
@@ -3930,6 +3940,7 @@ mod gate2_bootstrap_kernel_conformance_fixtures {
                     DcShorthand::Long(base + 7),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
             // base + 11: Retract the retraction (`592 615 (base+10)`), restoring N3!
             LedgerNode {
@@ -3940,6 +3951,7 @@ mod gate2_bootstrap_kernel_conformance_fixtures {
                     DcShorthand::Long(base + 10),
                 ],
                 comment: String::new(),
+                created_ns: None,
             },
         ];
 
@@ -4514,6 +4526,112 @@ mod gate3_historical_snapshot_and_trace_replay_regression {
         ensure!(
             trace_hist == trace_head,
             "Observable semantic construct trace diverged between historical pin and HEAD: {trace_hist:?} != {trace_head:?}"
+        );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_ctbnbdl_checksummed_sections_with_creation_timestamp_and_dcmm1_roundtrip()
+    -> Result<()> {
+        use ctb_formats_dcdata::dc::{
+            DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED,
+            DC_QUOTE_FOLLOWING_DC_AS_ATOM,
+        };
+        use ctb_formats_dcdata::graph_ledger::{
+            LedgerNode, decode_nodes_from_ctbnbdl_bytes_with,
+            default_ctbnbdl_framing_dcs, encode_nodes_to_ctbnbdl_bytes_with,
+        };
+        use ctb_formats_dcdata::seed_graph::SeedGraphIndex;
+        use ctb_storage_minimal::shorthand::DcShorthand;
+
+        let head_id = SeedGraphIndex::shared()?
+            .system_block_most_recent_node_id()
+            .context("HEAD system block most recent node ID")?;
+        let sh = |dc: DcChar| DcShorthand::from_global_id(dc.to_u128());
+        let framing = default_ctbnbdl_framing_dcs();
+        let nodes = vec![
+            // Statement whose body references unclosed opener `DC_BEGIN_LIST` (`310`) as `[atom_dc]`
+            LedgerNode {
+                id: head_id.saturating_sub(2),
+                tokens: vec![
+                    sh(DC_IS_CLOSING_DELIMITER_FOR),
+                    sh(DC_END_LIST),
+                    sh(DC_BEGIN_LIST),
+                ],
+                comment: String::new(),
+                created_ns: None,
+            },
+            // Statement whose body references `DC_END_CHECKSUMMED_SECTION` (`544`) as `[atom_dc]`
+            // and includes `Dc 1941` section creation timestamp metadata
+            LedgerNode {
+                id: head_id.saturating_sub(1),
+                tokens: vec![
+                    sh(DC_IS_DEPRECATED),
+                    sh(DC_END_CHECKSUMMED_SECTION),
+                    sh(DC_BOOLEAN_TRUE),
+                ],
+                comment: String::new(),
+                created_ns: Some(1_732_245_000_123_456_789),
+            },
+            // Bare value payload containing `Dc 2239` quoting `DC_BEGIN_LIST`
+            LedgerNode {
+                id: head_id,
+                tokens: vec![
+                    sh(DC_QUOTE_FOLLOWING_DC_AS_ATOM),
+                    sh(DC_BEGIN_LIST),
+                    DcShorthand::Unicode(0x41),
+                ],
+                comment: String::new(),
+                created_ns: Some(-42_000_000_000),
+            },
+        ];
+
+        let bundle_bytes =
+            encode_nodes_to_ctbnbdl_bytes_with(&nodes, framing)?;
+        let decoded_nodes =
+            decode_nodes_from_ctbnbdl_bytes_with(&bundle_bytes, framing)?;
+        ensure!(
+            decoded_nodes == nodes,
+            "Decoded .ctbnbdl nodes must roundtrip created_ns and tokens exactly"
+        );
+
+        let (doc, _) =
+            ctb_formats_dcstring::converters::dcal::ctbnbdl2_to_dcmstring_with_options(
+                &bundle_bytes,
+                false,
+            )?;
+        validate_dc_mixed_strict(&doc)?;
+
+        // DcMixed2 -> DcMixed1 -> DcMixed2 must recompute and verify section SHA-256 digests cleanly.
+        let (dcmm1_bytes, _) = dcmstring_to_dcmm1(&doc)?;
+        let (roundtrip_doc, _) = dcmm1_to_dcmstring(&dcmm1_bytes)?;
+        ensure!(
+            roundtrip_doc.as_bytes() == doc.as_bytes(),
+            "DcMixed2 -> DcMixed1 -> DcMixed2 must preserve checksummed .ctbnbdl document byte-for-byte"
+        );
+        validate_dc_mixed_strict(&roundtrip_doc)?;
+
+        // Corrupting the final byte (inside node 2's trailing `Dc 545` SHA-256 digest)
+        // must fail strict validation while forgiving arena parsing records a diagnostic.
+        let mut tampered = doc.as_bytes().to_vec();
+        let tamper_idx = tampered.len().saturating_sub(1);
+        let b = tampered.get_mut(tamper_idx).context("tamper index")?;
+        *b ^= 0x01;
+        let tampered_mstr = DcMstring::from_bytes(tampered)?;
+        ensure!(
+            validate_dc_mixed_strict(&tampered_mstr).is_err(),
+            "Tampered checksummed section must fail strict validation"
+        );
+        let mut forg_nav = DcDocumentNavigator::from_mstr(&tampered_mstr);
+        let mut forg_arena = DcSyntaxArena::new();
+        forg_nav.parse_document_into_arena(
+            &mut forg_arena,
+            &DcProjectionPolicy::forgiving(),
+        )?;
+        ensure!(
+            !forg_arena.diagnostics().is_empty(),
+            "Forgiving parse of tampered checksummed section must record diagnostic"
         );
 
         Ok(())

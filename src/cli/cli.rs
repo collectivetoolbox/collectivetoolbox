@@ -61,6 +61,7 @@ impl Default for Invocation {
             insecure_skip_crlite_check: false,
             retry_on_host_error:
                 invocation_settings::DEFAULT_RETRY_ON_HOST_ERROR,
+            recover_graph: false,
             version_json: false,
             command: None,
         })
@@ -216,6 +217,13 @@ pub struct Cli {
         help = "Number of retry attempts on DNS or host connection errors"
     )]
     pub retry_on_host_error: usize,
+
+    #[arg(
+        long,
+        global = true,
+        help = "Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data"
+    )]
+    pub recover_graph: bool,
 
     /// Print version information in JSON format and exit
     #[arg(long, help = "Print version information in JSON format and exit")]
@@ -474,6 +482,7 @@ mod tests {
         let args = vec![
             "ctoolbox".to_string(),
             "--insecure-skip-crlite-check".to_string(),
+            "--recover-graph".to_string(),
             "hex2dec".to_string(),
             "1A 2B".to_string(),
         ];
@@ -481,6 +490,7 @@ mod tests {
             parse_invocation(Some(args)).expect("parse invocation");
         let cli = invocation.expect_cli().expect("expect cli");
         assert!(cli.insecure_skip_crlite_check);
+        assert!(cli.recover_graph);
         assert!(cli.command.is_some());
 
         let exit_code = maybe_run_lightweight(cli)

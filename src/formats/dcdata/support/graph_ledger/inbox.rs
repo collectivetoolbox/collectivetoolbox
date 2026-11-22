@@ -486,10 +486,27 @@ pub fn prevalidate_and_plan_inbox_items(
     provenance_map: &NodeProvenanceMap,
     inbox_files: &[(String, String, String)],
 ) -> Result<Vec<PlannedLedgerItem>> {
+    prevalidate_and_plan_inbox_items_with_timestamps(
+        existing_nodes,
+        provenance_map,
+        inbox_files,
+        None,
+        None,
+    )
+}
+
+fn prevalidate_and_plan_inbox_items_with_timestamps(
+    existing_nodes: &[LedgerNode],
+    provenance_map: &NodeProvenanceMap,
+    inbox_files: &[(String, String, String)],
+    default_created_ns: Option<i128>,
+    pinned_created_ns_by_id: Option<HashMap<u128, Option<i128>>>,
+) -> Result<Vec<PlannedLedgerItem>> {
     let mut write_state = SystemGraphWriteState::from_nodes_and_provenance(
         existing_nodes,
         provenance_map.clone(),
-    );
+    )
+    .with_creation_timestamps(default_created_ns, pinned_created_ns_by_id);
     let mut planned_items: Vec<PlannedLedgerItem> =
         Vec::with_capacity(inbox_files.len());
 
@@ -555,6 +572,8 @@ pub fn process_inbox_nodes_with_fault(
     dry_run: bool,
     fault: Option<FaultInjectionPoint>,
 ) -> Result<DurableTransactionOutcome<()>> {
+    let pinned_created_ns =
+        super::extract_manifest_created_ns_map(required_manifest_path)?;
     let inbox_dir = repo_root.join("src/formats/dcdata/data-src/nodes/inbox");
     let outcome = execute_durable_ledger_transaction_with_planner(
         repo_root,
@@ -609,10 +628,21 @@ pub fn process_inbox_nodes_with_fault(
                 inbox_vec.push((name, sha, text));
             }
 
-            let planned = prevalidate_and_plan_inbox_items(
+            let default_created_ns =
+                if super::resolve_ctbnbdl_framing_dcs_from_nodes(baseline_nodes)
+                    .is_ok_and(|f| f.section_node_creation_time.is_some())
+                {
+                    Some(super::current_unix_timestamp_ns())
+                } else {
+                    None
+                };
+
+            let planned = prevalidate_and_plan_inbox_items_with_timestamps(
                 baseline_nodes,
                 &prov_map,
                 &inbox_vec,
+                default_created_ns,
+                pinned_created_ns,
             )?;
             Ok((planned, pinned_input_sha256s, ()))
         },
@@ -715,6 +745,17 @@ mod tests {
             ("ProgrammaticIdentifier", DcShorthand::Short(574)),
             ("BeginGraphNodeDefinition", framing.begin_node),
             ("EndGraphNodeDefinition", framing.end_node),
+            ("BeginChecksummedSection", framing.begin_checksummed_section),
+            ("EndChecksummedSection", framing.end_checksummed_section),
+            ("SectionDigest", framing.section_digest),
+            ("BeginTimeMoment", framing.begin_time_moment),
+            ("EndTimeMoment", framing.end_time_moment),
+            (
+                "SectionTimestampNodeCreationTime",
+                DcShorthand::Short(1941),
+            ),
+            ("NsSinceEpoch", framing.ns_since_epoch_format),
+            ("Sha256", framing.sha256_format),
             ("Escape", framing.escape),
             ("EvaluateValueAsAtom", framing.evaluate_as_atom),
             ("HasA", framing.has_a),
@@ -740,6 +781,7 @@ mod tests {
                 id: str_id,
                 tokens: encode_string_value_tokens(ident),
                 comment: format!("{ident:?}"),
+                created_ns: None,
             });
             next_id += 1;
 
@@ -752,6 +794,7 @@ mod tests {
                     sh_prog_ident,
                 ),
                 comment: format!("Has a ({subj}, 574)"),
+                created_ns: None,
             });
             next_id += 1;
 
@@ -764,6 +807,7 @@ mod tests {
                     DcShorthand::Long(str_id),
                 ),
                 comment: format!("Has value (l{has_a_id}, l{str_id})"),
+                created_ns: None,
             });
             next_id += 1;
         }
@@ -947,14 +991,33 @@ mod tests {
         assert_eq!(planned.len(), 1);
         assert_eq!(planned[0].node_id, next_id);
 
-        // 8. Revision cancellation (`592 615 l<retract_stmt_id>`) reactivates the retracted node,
-        // so a subsequent duplicate of that node must specify `# @allow-duplicate-of`!
+        // 8. Pure value nodes cannot be retracted or superseded (Approach A), whereas relationship
+        // statements CAN be retracted (`592 615 l<stmt_id>`) and cancelled (`592 615 l<retract_stmt_id>`),
+        // so a subsequent duplicate of that reactivated statement must specify `# @allow-duplicate-of`!
+        prevalidate_and_plan_inbox_items(
+            &baseline_nodes,
+            &prov_map,
+            &[
+                (
+                    "01_val.ctbnode-incoming".to_string(),
+                    "s1".to_string(),
+                    "# @provenance: csv\nu78 u79\n".to_string(),
+                ),
+                (
+                    "02_retract_val.ctbnode-incoming".to_string(),
+                    "s2".to_string(),
+                    format!("# @provenance: csv\n592 615 l{next_id}\n"),
+                ),
+            ],
+        )
+        .unwrap_err();
+
         let mut batch = Vec::new();
-        // Item 0 (`next_id`): new unique value node `u78 u79`
+        // Item 0 (`next_id`): new unique relationship statement `588 900 571`
         batch.push((
-            "01_val.ctbnode-incoming".to_string(),
+            "01_stmt.ctbnode-incoming".to_string(),
             "s1".to_string(),
-            "# @provenance: csv\nu78 u79\n".to_string(),
+            "# @provenance: csv\n588 900 571\n".to_string(),
         ));
         // Item 1 (`next_id + 1`): retract `next_id` (`592 615 l<next_id>`)
         batch.push((
@@ -968,12 +1031,12 @@ mod tests {
             "s3".to_string(),
             format!("# @provenance: csv\n592 615 l{}\n", next_id + 1),
         ));
-        // Item 3 (`next_id + 3`): `u78 u79` WITHOUT `# @allow-duplicate-of` must FAIL because `next_id` is active again!
+        // Item 3 (`next_id + 3`): `588 900 571` WITHOUT `# @allow-duplicate-of` must FAIL because `next_id` is active again!
         let mut bad_batch = batch.clone();
         bad_batch.push((
             "04_dup_unauth.ctbnode-incoming".to_string(),
             "s4".to_string(),
-            "# @provenance: csv\nu78 u79\n".to_string(),
+            "# @provenance: csv\n588 900 571\n".to_string(),
         ));
         prevalidate_and_plan_inbox_items(
             &baseline_nodes,
@@ -987,7 +1050,7 @@ mod tests {
             "04_dup_auth.ctbnode-incoming".to_string(),
             "s4".to_string(),
             format!(
-                "# @provenance: csv\n# @allow-duplicate-of: l{next_id}\nu78 u79\n"
+                "# @provenance: csv\n# @allow-duplicate-of: l{next_id}\n588 900 571\n"
             ),
         ));
         let ok_planned = prevalidate_and_plan_inbox_items(
@@ -1419,6 +1482,7 @@ mod tests {
                 DcShorthand::Short(571),
             ),
             comment: "Manual based_on".to_string(),
+            created_ns: None,
         });
         let mut prov_map = NodeProvenanceMap::default();
         prov_map.insert(NodeProvenanceEntry {
@@ -1482,6 +1546,7 @@ mod tests {
                 DcShorthand::Long(csv_implies_id),
             ),
             comment: "Manual referencing CSV implies stmt".to_string(),
+            created_ns: None,
         });
         let mut prov_with_ref = prov_map.clone();
         prov_with_ref.insert(NodeProvenanceEntry {
@@ -1678,6 +1743,7 @@ mod tests {
             id: str_id,
             tokens: encode_string_value_tokens("in-graph-manual-alias"),
             comment: "\"in-graph-manual-alias\"".to_string(),
+            created_ns: None,
         });
         let has_a_id = str_id + 1;
         nodes.push(LedgerNode {
@@ -1688,6 +1754,7 @@ mod tests {
                 sh(crate::dc::DC_INFORMAL_ALIAS),
             ),
             comment: "Manual Has a".to_string(),
+            created_ns: None,
         });
         let has_val_id = str_id + 2;
         nodes.push(LedgerNode {
@@ -1698,6 +1765,7 @@ mod tests {
                 DcShorthand::Long(str_id),
             ),
             comment: "Manual Has value".to_string(),
+            created_ns: None,
         });
         let prov_for_each_id = str_id + 3;
         nodes.push(LedgerNode {
@@ -1714,6 +1782,7 @@ mod tests {
                 ],
             ),
             comment: "Manual For each provenance".to_string(),
+            created_ns: None,
         });
         let prov_has_val_id = str_id + 4;
         nodes.push(LedgerNode {
@@ -1724,6 +1793,7 @@ mod tests {
                 sh(crate::dc::DC_MANUAL_ENTRY),
             ),
             comment: "Manual provenance value".to_string(),
+            created_ns: None,
         });
 
         // Running CSV reconciliation with an empty `NodeProvenanceMap::default()` must preserve the manual alias

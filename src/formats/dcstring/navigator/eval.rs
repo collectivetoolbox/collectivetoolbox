@@ -2213,15 +2213,28 @@ impl DcDocumentNavigator<'_> {
                         || ctx.resolver.is_equivalent_to(first, m.to_u128())
                 });
                 if *negated {
+                    let is_atom_dc_rule = !ctx.unescaped_literal_payload
+                        && ctx.self_dc.is_some_and(|s| {
+                            ctx.token_fills_role(s, DcRole::TypeAtomDc)
+                                || ctx.token_fills_role(
+                                    s,
+                                    DcRole::QuoteFollowingDcAsAtom,
+                                )
+                        });
                     if !ctx.unescaped_literal_payload
-                        && first_dc
+                        && !is_atom_dc_rule
+                        && (first_dc
                             .fills_role_with(DcRole::Escape, ctx.resolver)
+                            || first_dc.fills_role_with(
+                                DcRole::QuoteFollowingDcAsAtom,
+                                ctx.resolver,
+                            ))
                     {
                         let _ = self.pop_next_token()?;
                         let Some(_) = self.pop_next_token()? else {
                             ctx.has_errors = true;
                             ctx.diagnostics.push(SyntaxDiagnostic {
-                                message: format!("Dangling escape Dc 255 at offset {start_offset}"),
+                                message: format!("Dangling escape or atom-quote Dc at offset {start_offset}"),
                                 token_offset: start_offset,
                                 is_error: true,
                             });
@@ -2231,8 +2244,16 @@ impl DcDocumentNavigator<'_> {
                         return Ok(true);
                     }
                     let in_opaque = ctx.unescaped_literal_payload
+                        || is_atom_dc_rule
                         || ctx.self_dc.is_some_and(|s| {
                             ctx.resolver.is_opaque_container(s)
+                        });
+                    let in_graph_node_def = !ctx.unescaped_literal_payload
+                        && ctx.self_dc.is_some_and(|s| {
+                            ctx.token_fills_role(
+                                s,
+                                DcRole::BeginGraphNodeDefinition,
+                            )
                         });
                     if !in_opaque {
                         if !from_spliced
@@ -2253,7 +2274,8 @@ impl DcDocumentNavigator<'_> {
                                 return Ok(true);
                             }
                         }
-                        if let Some(target) = CharTarget::from_u128(first)
+                        if !in_graph_node_def
+                            && let Some(target) = CharTarget::from_u128(first)
                             && let Some(closer_u128) =
                                 ctx.resolver.closer_for_opener(&target)
                         {
@@ -2264,6 +2286,9 @@ impl DcDocumentNavigator<'_> {
                                 while let Some(tok) = self.pop_next_token()? {
                                     if tok.fills_role_with(
                                         DcRole::Escape,
+                                        ctx.resolver,
+                                    ) || tok.fills_role_with(
+                                        DcRole::QuoteFollowingDcAsAtom,
                                         ctx.resolver,
                                     ) {
                                         let _ = self.pop_next_token()?;
@@ -2668,6 +2693,12 @@ impl DcDocumentNavigator<'_> {
                 Ok(false)
             }
             SyntaxTerm::RuleRef { target } => {
+                if ctx.token_fills_role(target.to_u128(), DcRole::TypeAtomDc)
+                    && ctx.resolver.is_plain_atom_dc(first)
+                {
+                    let _ = self.pop_next_token()?;
+                    return Ok(true);
+                }
                 if ctx.depth >= ctx.max_depth {
                     ctx.has_errors = true;
                     ctx.diagnostics.push(SyntaxDiagnostic {

@@ -2297,6 +2297,22 @@ impl<'a> DcDocumentNavigator<'a> {
             }
         };
 
+        // Inside `Dc 2239` (`QuoteFollowingDcAsAtom`, `: ~ (255 | [^255])`), the single
+        // operand token (even `Dc 255` or a container opener/closer) is an unevaluated atom.
+        if self.level_stack.last().is_some_and(|st| {
+            st.opener_dc
+                .fills_role_with(DcRole::QuoteFollowingDcAsAtom, resolver)
+        }) {
+            self.cursor = after_first;
+            return Ok(Some(DcFrameStub {
+                head_dc: first_dc,
+                closer_dc: None,
+                outer_span: DcByteSpan::new(start_offset, after_first),
+                inner_span: None,
+                header_info: DcFrameHeaderInfo::Escaped,
+            }));
+        }
+
         // 0. Escape sequence (Dc 255 + escaped character)
         if first_dc.fills_role_with(DcRole::Escape, resolver) {
             let Some((escaped_dc, after_escaped)) =
@@ -2318,6 +2334,27 @@ impl<'a> DcDocumentNavigator<'a> {
                 inner_span: None,
                 header_info: DcFrameHeaderInfo::Escaped,
             }));
+        }
+
+        // 0.5. Plain `[atom_dc]` operand inside a `PrefixAtomArity` statement (e.g. `590 311 310`)
+        // or the leading `[atom_dc]` node-ID header of `Dc 617` (`BeginGraphNodeDefinition`):
+        // unevaluated atom references denote the character/node itself without evaluating its
+        // container, closer, or prefix syntax rule.
+        if self.level_stack.last().is_some_and(|st| {
+            matches!(
+                resolver.framing_shape(st.opener_dc.to_u128()),
+                ctb_formats_dcdata::syntax::FramingShape::PrefixAtomArity(_)
+            ) || (st
+                .opener_dc
+                .fills_role_with(DcRole::BeginGraphNodeDefinition, resolver)
+                && start_offset == self.active_span.start)
+        }) && !resolver.is_splice_trigger_token(first_dc.to_u128())
+            && !first_dc.fills_role_with(DcRole::QuoteFollowingDcAsAtom, resolver)
+            && !first_dc.fills_role_with(DcRole::EvaluateValueAsAtom, resolver)
+            && resolver.is_plain_atom_dc(first_dc.to_u128())
+        {
+            self.cursor = after_first;
+            return Ok(Some(prefix_stub(after_first)));
         }
 
         // 1. Check if this is a raw or textual binary encapsulation (Dc 203)
@@ -5827,6 +5864,7 @@ mod tests {
             id: def_node_id,
             tokens: wasm_prog_shorthands,
             comment: String::new(),
+            created_ns: None,
         });
         base_nodes.push(LedgerNode {
             id: has_a_id,
@@ -5836,6 +5874,7 @@ mod tests {
                 DcShorthand::Short(611),
             ],
             comment: String::new(),
+            created_ns: None,
         });
         base_nodes.push(LedgerNode {
             id: has_val_id,
@@ -5845,6 +5884,7 @@ mod tests {
                 DcShorthand::Long(def_node_id),
             ],
             comment: String::new(),
+            created_ns: None,
         });
         let fb_sg = Arc::new(
             ctb_formats_dcdata::seed_graph::SeedGraphIndex::from_nodes(
@@ -6104,6 +6144,7 @@ mod tests {
             id: 8_589_999_933,
             tokens: pair_shorthands,
             comment: String::new(),
+            created_ns: None,
         });
         nodes.push(LedgerNode {
             id: 8_589_999_934,
@@ -6113,6 +6154,7 @@ mod tests {
                 DcShorthand::Short(611),
             ],
             comment: String::new(),
+            created_ns: None,
         });
         nodes.push(LedgerNode {
             id: snap_id,
@@ -6122,6 +6164,7 @@ mod tests {
                 DcShorthand::Long(8_589_999_933),
             ],
             comment: String::new(),
+            created_ns: None,
         });
         let sg = Arc::new(
             ctb_formats_dcdata::seed_graph::SeedGraphIndex::from_nodes(nodes),
