@@ -26,6 +26,7 @@ echo "Cleaning generated files..."
 # FIXME Guix
 find src docs -type f \( -name '*.generated.*' -o -name '*.dtos.generated.rs' -o -name 'generated.rs' \) \
     ! -path '*/packaging/guix/generated/*' \
+    ! -path '*/formats/wasm_substitutes/*.generated.rs' \
     ! -path '*/vendor/*' \
     -print \
     -delete

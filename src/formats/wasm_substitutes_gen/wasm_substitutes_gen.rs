@@ -35,13 +35,14 @@ use std::path::{Path, PathBuf};
 
 use ctb_formats_dcdata::graph_ledger::LedgerNode;
 use ctb_formats_dcdata::seed_graph::{
-    SYSTEM_WASM_SUBSTITUTE_DISCOVERY_VERSION, SeedGraphIndex,
+    GraphWasmSubstituteSnapshot, SYSTEM_WASM_SUBSTITUTE_DISCOVERY_VERSION,
+    SeedGraphIndex, SystemWasmSubstituteTargetKind,
     discover_graph_wasm_substitute_snapshots,
 };
 use ctb_formats_dcstring::converters::wasm::compile_graph_substitute_snapshot_wasm_bytes;
 use ctb_formats_dcstring::converters::wasm_to_rust::{
     SubstituteBundleInput, transpile_wasm_bundle_to_safe_rust,
-    transpiler_fingerprint_sha256,
+    transpiler_fingerprint_sha256, validate_wasm_for_substitute,
 };
 use sha2::{Digest, Sha256};
 
@@ -160,20 +161,40 @@ pub fn default_repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn collect_ctbnbdl_files_in_dir(
-    dir: &Path,
-    rel_prefix: &str,
-    out: &mut Vec<(String, PathBuf)>,
-) -> Result<()> {
-    if !dir.exists() {
-        return Ok(());
-    }
-    let entries = fs::read_dir(dir).with_context(|| {
-        format!(
-            "Failed to read system graph bundle directory {}",
-            dir.display()
-        )
+fn wasm_compiler_fingerprint_sha256() -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(b"ctb-wasm-substitute-compiler-v1");
+    hasher.update(SYSTEM_WASM_SUBSTITUTE_DISCOVERY_VERSION.to_le_bytes());
+    hasher.update(include_bytes!("../dcdata/seed_graph.rs"));
+    hasher.update(include_bytes!("../dcdata/stagel3/seed_linker.rs"));
+    hasher.update(include_bytes!("../dcstring/converters/wasm.rs"));
+    hasher.finalize().into()
+}
+
+fn codegen_fingerprint_sha256(
+    compiler_digest: &[u8; 32],
+    transpiler_digest: &[u8; 32],
+) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(b"ctb-wasm-substitute-codegen-v5");
+    hasher.update(include_bytes!("wasm_substitutes_gen.rs"));
+    hasher.update(compiler_digest);
+    hasher.update(transpiler_digest);
+    hasher.finalize().into()
+}
+
+/// Reads the highest allocated System-graph node ID from the lexicographically
+/// last `.ctbnodes` chunk file in `assets/data/graph/` in O(1) disk I/O.
+///
+/// Because the System graph is unconditionally append-only (prefix-immutable),
+/// the highest allocated node ID uniquely identifies the complete graph state.
+fn read_graph_head_watermark_node_id(repo_root: &Path) -> Result<u128> {
+    let graph_dir = repo_root.join("assets").join("data").join("graph");
+    let entries = fs::read_dir(&graph_dir).with_context(|| {
+        format!("Failed to read graph directory {}", graph_dir.display())
     })?;
+    let mut max_chunk_name: Option<String> = None;
+    let mut max_chunk_path: Option<PathBuf> = None;
     for entry_res in entries {
         let entry = entry_res?;
         if !entry.file_type()?.is_file() {
@@ -183,58 +204,150 @@ fn collect_ctbnbdl_files_in_dir(
         let Some(name) = name_os.to_str() else {
             continue;
         };
-        if name.ends_with(".ctbnbdl") {
-            let key = if rel_prefix.is_empty() {
-                name.to_owned()
-            } else {
-                format!("{rel_prefix}/{name}")
-            };
-            out.push((key, entry.path()));
+        if name.ends_with(".ctbnodes")
+            && max_chunk_name.as_deref().is_none_or(|cur| name > cur)
+        {
+            max_chunk_name = Some(name.to_owned());
+            max_chunk_path = Some(entry.path());
         }
     }
-    Ok(())
-}
-
-fn compute_system_graph_bundles_sha256(repo_root: &Path) -> Result<[u8; 32]> {
-    let graph_dir = repo_root.join("assets").join("data").join("graph");
-    let mut bundles: Vec<(String, PathBuf)> = Vec::new();
-    collect_ctbnbdl_files_in_dir(&graph_dir, "", &mut bundles)?;
-    collect_ctbnbdl_files_in_dir(
-        &graph_dir.join("system"),
-        "system",
-        &mut bundles,
-    )?;
-    ensure!(
-        !bundles.is_empty(),
-        "No .ctbnbdl system graph bundles found in {}",
-        graph_dir.display()
-    );
-    bundles.sort_by(|a, b| a.0.cmp(&b.0));
-
-    let mut hasher = Sha256::new();
-    for (name, path) in &bundles {
-        let bytes = fs::read(path).with_context(|| {
-            format!("Failed to read graph bundle {}", path.display())
-        })?;
-        hasher.update(name.as_bytes());
-        hasher.update([0u8]);
-        hasher.update(u64::try_from(bytes.len())?.to_le_bytes());
-        hasher.update(&bytes);
+    let chunk_path = max_chunk_path.with_context(|| {
+        format!("No .ctbnodes files found in {}", graph_dir.display())
+    })?;
+    let text = fs::read_to_string(&chunk_path).with_context(|| {
+        format!("Failed to read tail chunk {}", chunk_path.display())
+    })?;
+    for line in text.lines().rev() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix('l')
+            && let Some((id_str, _)) = rest.split_once(':')
+            && let Ok(id) = id_str.parse::<u128>()
+        {
+            return Ok(id);
+        }
     }
-    Ok(hasher.finalize().into())
+    bail!(
+        "No allocated l<id>: node line found in tail chunk {}",
+        chunk_path.display()
+    )
 }
 
-fn compute_bundle_input_hash(
-    graph_digest: &[u8; 32],
-    transpiler_digest: &[u8; 32],
+fn compute_bundle_state_hash(
+    codegen_digest: &[u8; 32],
+    head_watermark_id: u128,
 ) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"ctb-wasm-substitute-bundle-v4");
-    hasher.update(SYSTEM_WASM_SUBSTITUTE_DISCOVERY_VERSION.to_le_bytes());
-    hasher.update(include_bytes!("wasm_substitutes_gen.rs"));
-    hasher.update(transpiler_digest);
-    hasher.update(graph_digest);
+    hasher.update(b"ctb-wasm-substitute-state-v5");
+    hasher.update(codegen_digest);
+    hasher.update(head_watermark_id.to_le_bytes());
     hasher.finalize().into()
+}
+
+fn hash_snapshot_wasm_cache_key(
+    compiler_digest: &[u8; 32],
+    snap: &GraphWasmSubstituteSnapshot,
+) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(b"ctb-wasm-snap-cache-v1");
+    hasher.update(compiler_digest);
+    hasher.update(snap.pin_node_id.to_le_bytes());
+    hasher.update(snap.target.global_id.to_le_bytes());
+    hasher.update(snap.target.subject.to_string().as_bytes());
+    hasher.update([0u8]);
+    match &snap.target.kind {
+        SystemWasmSubstituteTargetKind::SupervisorKernel => {
+            hasher.update([0u8]);
+        }
+        SystemWasmSubstituteTargetKind::StandaloneWasm => {
+            hasher.update([1u8]);
+        }
+        SystemWasmSubstituteTargetKind::StandaloneWasmValueNode { node_id } => {
+            hasher.update([2u8]);
+            hasher.update(node_id.to_le_bytes());
+        }
+        SystemWasmSubstituteTargetKind::WasmConverter { src, dst } => {
+            hasher.update([3u8]);
+            hasher.update(src.to_string().as_bytes());
+            hasher.update([0u8]);
+            hasher.update(dst.to_string().as_bytes());
+        }
+        SystemWasmSubstituteTargetKind::StageLConverter { src, dst } => {
+            hasher.update([4u8]);
+            hasher.update(src.to_string().as_bytes());
+            hasher.update([0u8]);
+            hasher.update(dst.to_string().as_bytes());
+        }
+        SystemWasmSubstituteTargetKind::StageRConverter { src, dst } => {
+            hasher.update([5u8]);
+            hasher.update(src.to_string().as_bytes());
+            hasher.update([0u8]);
+            hasher.update(dst.to_string().as_bytes());
+        }
+        SystemWasmSubstituteTargetKind::StageLRoutineBytes => {
+            hasher.update([6u8]);
+        }
+        SystemWasmSubstituteTargetKind::StageLRoutineDcs => {
+            hasher.update([7u8]);
+        }
+        SystemWasmSubstituteTargetKind::StageRRoutineBytes => {
+            hasher.update([8u8]);
+        }
+        SystemWasmSubstituteTargetKind::StageRRoutineDcs => {
+            hasher.update([9u8]);
+        }
+    }
+    let digest: [u8; 32] = hasher.finalize().into();
+    encode_hex_lower(&digest)
+}
+
+fn compile_or_load_cached_snapshot_wasm(
+    ordered_nodes: &[LedgerNode],
+    snap: &GraphWasmSubstituteSnapshot,
+    compiler_digest: &[u8; 32],
+    cache_dir: Option<&Path>,
+) -> Result<Option<Vec<u8>>> {
+    let cache_path = cache_dir.map(|dir| {
+        let key_hex = hash_snapshot_wasm_cache_key(compiler_digest, snap);
+        dir.join(format!("{key_hex}.wasmcache"))
+    });
+    if let Some(ref path) = cache_path
+        && let Ok(raw) = fs::read(path)
+        && let Some((&tag, rest)) = raw.split_first()
+    {
+        match tag {
+            0 => return Ok(None),
+            1 => return Ok(Some(rest.to_vec())),
+            _ => {}
+        }
+    }
+
+    let compiled = compile_graph_substitute_snapshot_wasm_bytes(ordered_nodes, snap)?;
+
+    if let Some(ref path) = cache_path {
+        if let Some(parent) = path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        // Reason for fallback: `None` cache entries validly encode as a single `0x00` tag byte with zero payload bytes.
+        let mut encoded = Vec::with_capacity(
+            compiled.as_ref().map_or(1, |b| b.len().saturating_add(1)),
+        );
+        match &compiled {
+            None => encoded.push(0u8),
+            Some(bytes) => {
+                encoded.push(1u8);
+                encoded.extend_from_slice(bytes);
+            }
+        }
+        let tmp_path = path.with_extension(format!(
+            "wasmcache.{}.tmp",
+            std::process::id()
+        ));
+        if fs::write(&tmp_path, &encoded).is_ok() {
+            let _ = fs::rename(&tmp_path, path);
+        }
+    }
+
+    Ok(compiled)
 }
 
 /// Discovers, lowers, and transpiles all runnable WebAssembly snapshots present
@@ -248,6 +361,14 @@ pub fn generate_substitutes_for_nodes(
     nodes: &[LedgerNode],
     input_sha256_hex: Option<&str>,
 ) -> Result<(BTreeMap<String, String>, usize)> {
+    generate_substitutes_for_nodes_with_cache(nodes, input_sha256_hex, None)
+}
+
+fn generate_substitutes_for_nodes_with_cache(
+    nodes: &[LedgerNode],
+    input_sha256_hex: Option<&str>,
+    wasm_cache_dir: Option<&Path>,
+) -> Result<(BTreeMap<String, String>, usize)> {
     let mut ordered_nodes: Vec<LedgerNode> = nodes.to_vec();
     ordered_nodes.sort_by_key(|n| n.id);
     let snapshots = discover_graph_wasm_substitute_snapshots(&ordered_nodes)?;
@@ -255,6 +376,8 @@ pub fn generate_substitutes_for_nodes(
         !snapshots.is_empty(),
         "No runnable WASM substitute snapshots discovered in supplied LedgerNode slice"
     );
+
+    let compiler_digest = wasm_compiler_fingerprint_sha256();
 
     // Reason for fallback: Default to 4 worker threads when host parallelism cannot be queried.
     let worker_count = std::thread::available_parallelism()
@@ -272,6 +395,7 @@ pub fn generate_substitutes_for_nodes(
         .max(1);
 
     let ordered_ref = &ordered_nodes;
+    let compiler_ref = &compiler_digest;
     let lowered_batches: Vec<Result<Vec<(usize, Option<Vec<u8>>)>>> =
         std::thread::scope(|scope| {
             let mut handles = Vec::new();
@@ -280,11 +404,12 @@ pub fn generate_substitutes_for_nodes(
                 handles.push(scope.spawn(move || {
                     let mut out = Vec::with_capacity(batch.len());
                     for (offset, snap) in batch.iter().enumerate() {
-                        let wasm_opt =
-                            compile_graph_substitute_snapshot_wasm_bytes(
-                                ordered_ref,
-                                snap,
-                            )?;
+                        let wasm_opt = compile_or_load_cached_snapshot_wasm(
+                            ordered_ref,
+                            snap,
+                            compiler_ref,
+                            wasm_cache_dir,
+                        )?;
                         out.push((base_idx.saturating_add(offset), wasm_opt));
                     }
                     Ok(out)
@@ -317,13 +442,7 @@ pub fn generate_substitutes_for_nodes(
                 snap.target.chunk_prefix, snap.target.subject, snap.pin_node_id
             );
             if !snap.is_head
-                && let Err(err) = ctb_formats_dcstring::converters::wasm_to_rust::transpile_wasm_to_safe_rust(
-                    &wasm_bytes,
-                    &ctb_formats_dcstring::converters::wasm_to_rust::TranspileWasmOptions {
-                        name: &label,
-                        input_sha256_hex: None,
-                    },
-                )
+                && let Err(err) = validate_wasm_for_substitute(&label, &wasm_bytes)
             {
                 warn_fmt!(
                     "Skipping non-entry or unsupported historical WASM snapshot {label}: {err:#}"
@@ -368,10 +487,13 @@ pub fn run_generator(
 ) -> Result<()> {
     let out_dir = substitutes_output_dir(repo_root);
     let registry_path = out_dir.join("registry.generated.rs");
-    let graph_digest = compute_system_graph_bundles_sha256(repo_root)?;
+    let compiler_digest = wasm_compiler_fingerprint_sha256();
     let transpiler_digest = transpiler_fingerprint_sha256();
+    let codegen_digest =
+        codegen_fingerprint_sha256(&compiler_digest, &transpiler_digest);
+    let head_watermark_id = read_graph_head_watermark_node_id(repo_root)?;
     let bundle_hash =
-        compute_bundle_input_hash(&graph_digest, &transpiler_digest);
+        compute_bundle_state_hash(&codegen_digest, head_watermark_id);
     let bundle_hex = encode_hex_lower(&bundle_hash);
     // Reason for fallback: SHA-256 hex digest is always 64 ASCII chars.
     let short_hex = bundle_hex.get(..12).unwrap_or(&bundle_hex);
@@ -385,17 +507,38 @@ pub fn run_generator(
         && list_disk_generated_rs_files(&out_dir)? == expected_files
     {
         println!(
-            "[generate-wasm-substitutes] bundle up-to-date ({short_hex}, {} files)",
+            "[generate-wasm-substitutes] bundle up-to-date ({short_hex} @ l{head_watermark_id}, {} files)",
             expected_files.len(),
         );
         return Ok(());
     }
 
+    let compiler_hex = encode_hex_lower(&compiler_digest);
+    // Reason for fallback: SHA-256 hex digest is always 64 ASCII chars.
+    let compiler_short = compiler_hex.get(..16).unwrap_or(&compiler_hex);
+    let cache_dir_buf = repo_root
+        .join("built")
+        .join("wasm-substitutes-cache")
+        .join(compiler_short);
+    let active_cache_dir = (!opts.force).then_some(cache_dir_buf.as_path());
+    if opts.force && cache_dir_buf.exists() {
+        let _ = fs::remove_dir_all(&cache_dir_buf);
+    }
+    let write_through_cache_dir = Some(cache_dir_buf.as_path());
+
     let graph_dir = repo_root.join("assets").join("data").join("graph");
     let merged_nodes =
         SeedGraphIndex::load_merged_nodes_from_disk_graph_dir(&graph_dir)?;
     let (generated_files, compiled_count) =
-        generate_substitutes_for_nodes(&merged_nodes, Some(&bundle_hex))?;
+        generate_substitutes_for_nodes_with_cache(
+            &merged_nodes,
+            Some(&bundle_hex),
+            if opts.force {
+                write_through_cache_dir
+            } else {
+                active_cache_dir
+            },
+        )?;
 
     let expected_files: BTreeSet<String> =
         generated_files.keys().cloned().collect();
@@ -430,17 +573,26 @@ pub fn run_generator(
             );
         }
         println!(
-            "[generate-wasm-substitutes] bundle verified clean ({short_hex}, {} files, {compiled_count} snapshots)",
+            "[generate-wasm-substitutes] bundle verified clean ({short_hex} @ l{head_watermark_id}, {} files, {compiled_count} snapshots)",
             generated_files.len(),
         );
         return Ok(());
     }
 
     let mut total_bytes = 0usize;
+    let mut updated_count = 0usize;
+    let mut unchanged_count = 0usize;
     for (rel_name, content) in &generated_files {
         let out_path = out_dir.join(rel_name);
-        write_atomic(&out_path, content)?;
         total_bytes = total_bytes.saturating_add(content.len());
+        if fs::read_to_string(&out_path).ok().as_deref()
+            == Some(content.as_str())
+        {
+            unchanged_count = unchanged_count.saturating_add(1);
+        } else {
+            write_atomic(&out_path, content)?;
+            updated_count = updated_count.saturating_add(1);
+        }
     }
     for old_name in &disk_files {
         if !expected_files.contains(old_name) {
@@ -454,7 +606,7 @@ pub fn run_generator(
         }
     }
     println!(
-        "[generate-wasm-substitutes] wrote {} files ({total_bytes} bytes across {compiled_count} snapshots; {short_hex})",
+        "[generate-wasm-substitutes] synchronized {} files ({updated_count} updated, {unchanged_count} unchanged; {total_bytes} bytes across {compiled_count} snapshots; {short_hex} @ l{head_watermark_id})",
         generated_files.len(),
     );
     Ok(())

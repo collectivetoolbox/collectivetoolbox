@@ -43,6 +43,7 @@
   (const $DC_BEGIN_BLK_COMMENT_NL       1114362) ;; Dc 250
   (const $DC_END_BLK_COMMENT            1114363) ;; Dc 251
   (const $DC_ESCAPE                     1114367) ;; Dc 255
+  (const $DC_QUOTE_ATOM                 1116351) ;; Dc 2239
   (const $DC_BEGIN_LITERAL              1114372) ;; Dc 260
   (const $DC_END_LITERAL                1114373) ;; Dc 261
   (const $DC_BEGIN_TYPE_DEF             1114374) ;; Dc 262
@@ -528,7 +529,7 @@
     (block $done
       (loop $lp
         (set $cp (call $raw_next))
-        (if (i32.eq $cp $DC_ESCAPE)
+        (if (i32.or (i32.eq $cp $DC_ESCAPE) (i32.eq $cp $DC_QUOTE_ATOM))
           (then (drop (call $raw_next)))
           (else (br_if $done (i32.eq $cp $closer_cp))))
         (br $lp))))
@@ -677,7 +678,7 @@
         (set $len (call $raw_decode_at $ptr $end))
         (set $cp $dec_cp)
         (set $ptr (i32.add $ptr $len))
-        (if (i32.eq $cp $DC_ESCAPE)
+        (if (i32.or (i32.eq $cp $DC_ESCAPE) (i32.eq $cp $DC_QUOTE_ATOM))
           (then
             (set $len (call $raw_decode_at $ptr $end))
             (set $ptr (i32.add $ptr $len)))
@@ -784,7 +785,9 @@
     (when
       (i32.and
         (i32.or (i32.lt_s $cp 0) (i32.ge_u $cp 0x110000))
-        (i32.and (i32.ne $cp $DC_ESCAPE) (i32.ne $cp $DC_END_IDENTIFIER)))
+        (i32.and
+          (i32.and (i32.ne $cp $DC_ESCAPE) (i32.ne $cp $DC_QUOTE_ATOM))
+          (i32.ne $cp $DC_END_IDENTIFIER)))
       (set $kt_end (call $skip_wasm_type_expr $ptr $end))
       (set $ptr $kt_end))
 
@@ -795,6 +798,10 @@
         (set $cp $dec_cp)
         (set $ptr (i32.add $ptr $len))
         (br_if $done (i32.eq $cp $DC_END_IDENTIFIER))
+        (when (i32.eq $cp $DC_QUOTE_ATOM)
+          (set $len (call $raw_decode_at $ptr $end))
+          (set $cp $dec_cp)
+          (set $ptr (i32.add $ptr $len)))
         (when (i32.eq $cp $DC_ESCAPE)
           (set $len (call $raw_decode_at $ptr $end))
           (set $cp $dec_cp)
@@ -1623,6 +1630,8 @@
       (loop $lp
         (set $cp (call $raw_next))
         (br_if $done (i32.eq $cp $DC_END_IDENTIFIER))
+        (when (i32.eq $cp $DC_QUOTE_ATOM)
+          (set $cp (call $raw_next)))
         (when (i32.eq $cp $DC_ESCAPE)
           (set $cp (call $raw_next)))
         (when (i32.or (i32.lt_s $cp 0) (i32.ge_u $cp 0x110000)) (unreachable))
@@ -1674,10 +1683,12 @@
     (global.set $ret_len (i32.load offset=4 $b))
     (i32.load $b))
 
-  ;; Parses an `atom_dc` (honoring `Dc 255` escape), returning `raw_ptr` and setting `$ret_len`.
+  ;; Parses an `atom_dc` (honoring `Dc 255` escape and `Dc 2239` atom quote), returning `raw_ptr` and setting `$ret_len`.
   (func $parse_atom_dc (result i32)
     (local $cp i32)
     (set $cp (call $tok_next))
+    (when (i32.eq $cp $DC_QUOTE_ATOM)
+      (set $cp (call $raw_next)))
     (when (i32.eq $cp $DC_ESCAPE)
       (drop (call $raw_next)))
     (global.set $ret_len $dec_raw_len)
@@ -1905,7 +1916,7 @@
       (loop $lp
         (br_if $done (i32.eqz $depth))
         (set $cp (call $raw_next))
-        (if (i32.eq $cp $DC_ESCAPE)
+        (if (i32.or (i32.eq $cp $DC_ESCAPE) (i32.eq $cp $DC_QUOTE_ATOM))
           (then (drop (call $raw_next)))
           (else
             (if (i32.eq $cp $DC_BEGIN_TEST_BLOCK)

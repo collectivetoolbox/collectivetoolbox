@@ -76,7 +76,6 @@ pub fn transpiler_fingerprint_sha256() -> [u8; 32] {
     hasher.update(WASM_RESOURCE_ACCOUNTING_VERSION.to_le_bytes());
     hasher.update(include_bytes!("wasm_to_rust.rs"));
     hasher.update(include_bytes!("wasm_quota.rs"));
-    hasher.update(include_bytes!("wasm.rs"));
     hasher.finalize().into()
 }
 
@@ -4212,6 +4211,20 @@ pub fn transpile_wasm_bundle_to_safe_rust(
     files.insert("registry.generated.rs".to_owned(), reg_out);
 
     Ok(files)
+}
+
+/// Validates whether `wasm_bytes` can be analyzed into a safe-Rust substitute
+/// module (supported imports, value types, opcodes, and `"step"`/`"main"` entry)
+/// without formatting standalone Rust source text.
+///
+/// # Errors
+/// Returns an error if `wasm_bytes` fails validation or uses unsupported features.
+pub fn validate_wasm_for_substitute(
+    name: &str,
+    wasm_bytes: &[u8],
+) -> Result<()> {
+    let _ = analyze_module(name, name, wasm_bytes)?;
+    Ok(())
 }
 
 /// Transpiles an uninstrumented canonical WebAssembly binary into a standalone

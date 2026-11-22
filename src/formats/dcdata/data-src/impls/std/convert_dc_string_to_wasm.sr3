@@ -6503,19 +6503,8 @@ v/convListRes/findDirectOneHopConverter capClient/cli l/u128/srcEqIds dc/dst
     structNew convListRes: cli /curCli ok true steps l/convStep: :: errTokens l/dc: :: ::.
 
 : @dc l8589992882
-v/dcRes/runConvertDcStringToWasm l/dc/rawInputTokens
+v/dcRes/runConvertDcStringToWasm l/dc/inputTokens
     let capClient/cli emptyClient.
-    let l/dc/inputTokens /rawInputTokens.
-    if hasAnySysRegionToken /inputTokens
-        do
-            const capOptNodeRes/expIn expandInternedNodesInner /cli /inputTokens l/u128: ::.
-            set /cli field /expIn cli.
-            if eq field /expIn tag u8:2
-                return dcRes:err field /expIn payload
-                nop.
-            set /inputTokens field /expIn payload.
-        ::
-        nop.
 
     : 1. Parse call prefix `[Dc 2608, <parameter?> [string]]`.
     let u64/pos skipAllComments /inputTokens u64:0.
@@ -6542,11 +6531,32 @@ v/dcRes/runConvertDcStringToWasm l/dc/rawInputTokens
             set /pos skipAllComments /inputTokens wrapAdd /pos u64:1.
         ::
         nop.
-    const strStepRes/litRes readStringLiteralAt /inputTokens /pos.
+    let l/dc/argTokens /inputTokens.
+    let u64/argPos /pos.
+    const dc/argHead dcAtOr /inputTokens /pos dc:0.
+    if isSysRegionDc /argHead
+        do
+            const capOptNodeRes/argNr queryNodeExpanded /cli u128FromDc /argHead.
+            set /cli field /argNr cli.
+            if eq field /argNr tag u8:2
+                return dcRes:err field /argNr payload
+                nop.
+            if and eq field /argNr tag u8:1 isClosedStringLiteralNode field /argNr payload
+                do
+                    set /argTokens field /argNr payload.
+                    set /argPos u64:0.
+                    set /pos skipAllComments /inputTokens wrapAdd /pos u64:1.
+                ::
+                nop.
+        ::
+        nop.
+    const strStepRes/litRes readStringLiteralAt /argTokens /argPos.
     let l/dc/rawTarget match /litRes
         case ok strStep/st
             do
-                set /pos skipAllComments /inputTokens field /st nextPos.
+                if eq /argPos u64:0
+                    nop
+                    set /pos skipAllComments /inputTokens field /st nextPos.
                 field /st payload.
             ::
         case err l/dc/e return dcRes:err /e.
@@ -6561,6 +6571,26 @@ v/dcRes/runConvertDcStringToWasm l/dc/rawInputTokens
         nop.
     if ne /pos len /inputTokens
         return failMsg b"Unexpected trailing tokens after ConvertDcStringToWasm [string] argument"
+        nop.
+    if and eq len /rawTarget u64:1 isSysRegionDc dcAtOr /rawTarget u64:0 dc:0
+        do
+            const u128/soleU u128FromDc dcAtOr /rawTarget u64:0 dc:0.
+            const capOptNodeRes/soleNr queryNodeRaw /cli /soleU.
+            set /cli field /soleNr cli.
+            if eq field /soleNr tag u8:2
+                return dcRes:err field /soleNr payload
+                nop.
+            if eq field /soleNr tag u8:1
+                do
+                    const l/dc/soleToks field /soleNr payload.
+                    const u32/ss0 dcShortId dcAtOr /soleToks u64:0 /dcZero.
+                    const b/soleIsStmt or and ge /ss0 u32:584 le /ss0 u32:593 or eq /ss0 u32:610 or eq /ss0 u32:627 or eq /ss0 u32:638 or eq /ss0 u32:645 eq /ss0 u32:646.
+                    if and gt len /soleToks u64:0 and not /soleIsStmt not tokensStartWasmDefinition /soleToks
+                        set /rawTarget /soleToks
+                        nop.
+                ::
+                nop.
+        ::
         nop.
     if hasAnySysRegionToken /rawTarget
         do

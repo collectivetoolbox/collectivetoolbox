@@ -51,7 +51,7 @@ use ctb_formats_dcdata::syntax::{SyntaxRuleResolver, default_syntax_resolver};
 use ctb_formats_dcstring::converters::encode_dc_string_literal;
 use ctb_formats_dcstring::converters::wasm::{
     DcWasmExecutionBackend, DcWasmResourceLimits, DcWasmSession,
-    WasmResourceInterruption, WasmStepOutcome,
+    SharedWasmTaskQuota, WasmResourceInterruption, WasmStepOutcome,
     compile_graph_substitute_snapshot_wasm_bytes,
     compile_system_subject_wasm_bytes, dcstring_to_wasm_with_resolver,
 };
@@ -108,8 +108,10 @@ fn create_pair_sessions(
 fn drive_pure_session_with_capabilities(
     session: &mut DcWasmSession,
     resolver: &dyn SyntaxRuleResolver,
+    limits: DcWasmResourceLimits,
 ) -> Result<(DcMstring, Vec<DcMstring>)> {
     let mut caps = Vec::new();
+    let cap_quota = SharedWasmTaskQuota::new(limits);
     loop {
         match session.step()? {
             WasmStepOutcome::Complete(out) => return Ok((out, caps)),
@@ -118,7 +120,10 @@ fn drive_pure_session_with_capabilities(
             }
             WasmStepOutcome::RequestCapability(req) => {
                 let resp = eval_pure_graph_capability_request(
-                    &req, resolver, None, 0,
+                    &req,
+                    resolver,
+                    Some(cap_quota.clone()),
+                    0,
                 )?;
                 caps.push(req);
                 session.provide_capability_response(&resp)?;
@@ -377,10 +382,16 @@ fn test_substitute_parity_dc_2608_option_b_capabilities() -> Result<()> {
 
     let (mut s_auto, mut s_tw) =
         create_pair_sessions(&dc_2608_wasm, &input_doc, limits)?;
-    let (out_auto, reqs_auto) =
-        drive_pure_session_with_capabilities(&mut s_auto, resolver.as_ref())?;
-    let (out_tw, reqs_tw) =
-        drive_pure_session_with_capabilities(&mut s_tw, resolver.as_ref())?;
+    let (out_auto, reqs_auto) = drive_pure_session_with_capabilities(
+        &mut s_auto,
+        resolver.as_ref(),
+        limits,
+    )?;
+    let (out_tw, reqs_tw) = drive_pure_session_with_capabilities(
+        &mut s_tw,
+        resolver.as_ref(),
+        limits,
+    )?;
 
     ensure!(
         !reqs_auto.is_empty(),
@@ -433,18 +444,18 @@ fn test_substitute_parity_dc_2608_bare_string_extraction_and_dc_2239_quote_atom(
     let bare_step_dc = DcChar::from_u128(bare_step_id);
     let bare_tokens_dc = DcChar::from_u128(bare_tokens_id);
 
-    // Build a StageL 3 module returning `dcs` ("X"), then splice:
+    // Build a zero-import StageR 3 module, then splice:
     // 1) a bare-payload comment (`247 l<bare_tokens_id> 248`),
     // 2) a bare-payload routine identifier (`270 l<bare_step_id> 271`), and
-    // 3) a `dcs` literal `[260, 262, 264, 263, 2239, l<bare_tokens_id>, l<bare_tokens_id>, 261]`
+    // 3) a `[string]` literal `[260, 262, 264, 263, 2239, l<bare_tokens_id>, l<bare_tokens_id>, 261]`
     //    where the first `l<bare_tokens_id>` is quoted as an atom via `Dc 2239`
-    //    and the second `l<bare_tokens_id>` normalizes/expands to `"tokens"`.
-    let template_sl3 = "v/dcs/step dcs/input :: dcs\"X\".\n";
-    let base_tokens = sl3_to_dc_tokens_with_seed_graph(template_sl3, sg)?;
+    //    (yielding length 1) and the second `l<bare_tokens_id>` normalizes/expands
+    //    to `"tokens"` (6 chars, total length 7).
+    let template_sr3 = format!(
+        "ns app/parity_bare.\n\npub v/l/u8/step l/u8/input\n    match dcsFromS \"X\"\n        case ok dcs/d do\n            const b/okLen eq len /d u64:7.\n            const b/ok0 match get /d u64:0\n                case some dc/c0 eq u128FromDc /c0 u128:{bare_tokens_id}.\n                case none false.\n            ::.\n            const b/ok1 match get /d u64:1\n                case some dc/c1 eq /c1 dc:u74.\n                case none false.\n            ::.\n            if and /okLen and /ok0 /ok1 b\"QUOTED_AND_EXPANDED_OK\" b\"MISMATCH\".\n        ::.\n        case err error/e b\"ERR\".\n    ::.\n"
+    );
+    let base_tokens = sr3_to_dc_tokens_with_seed_graph(&template_sr3, sg)?;
     let mut spliced = Vec::with_capacity(base_tokens.len().saturating_add(12));
-    spliced.push(DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE);
-    spliced.push(bare_tokens_dc);
-    spliced.push(DC_END_SINGLE_LINE_COMMENT);
 
     let step_ident: Vec<DcChar> = vec![
         DC_BEGIN_IDENTIFIER,
@@ -462,10 +473,18 @@ fn test_substitute_parity_dc_2608_bare_string_extraction_and_dc_2239_quote_atom(
         DcChar::from_char('X'),
         DC_END_LITERAL,
     ];
+    let mut inserted_comment = false;
     let mut replaced_ident = false;
     let mut replaced_lit = false;
     let mut i = 0usize;
     while i < base_tokens.len() {
+        if i == 1 && !inserted_comment {
+            // Insert bare-payload comment immediately after `Dc 2221` (`Begin StageR module`).
+            spliced.push(DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE);
+            spliced.push(bare_tokens_dc);
+            spliced.push(DC_END_SINGLE_LINE_COMMENT);
+            inserted_comment = true;
+        }
         if !replaced_ident
             && base_tokens.get(i..i.saturating_add(step_ident.len()))
                 == Some(step_ident.as_slice())
@@ -518,10 +537,16 @@ fn test_substitute_parity_dc_2608_bare_string_extraction_and_dc_2239_quote_atom(
 
     let (mut s_auto, mut s_tw) =
         create_pair_sessions(&dc_2608_wasm, &input_doc, limits)?;
-    let (out_auto, reqs_auto) =
-        drive_pure_session_with_capabilities(&mut s_auto, resolver.as_ref())?;
-    let (out_tw, reqs_tw) =
-        drive_pure_session_with_capabilities(&mut s_tw, resolver.as_ref())?;
+    let (out_auto, reqs_auto) = drive_pure_session_with_capabilities(
+        &mut s_auto,
+        resolver.as_ref(),
+        limits,
+    )?;
+    let (out_tw, reqs_tw) = drive_pure_session_with_capabilities(
+        &mut s_tw,
+        resolver.as_ref(),
+        limits,
+    )?;
     ensure!(reqs_auto == reqs_tw, "Capability request parity mismatch");
     ensure!(out_auto == out_tw, "Dc 2608 output parity mismatch");
     ensure!(
@@ -545,12 +570,11 @@ fn test_substitute_parity_dc_2608_bare_string_extraction_and_dc_2239_quote_atom(
         DcWasmExecutionBackend::ForceTinyWasm,
     )?;
     let run_out = run_single_complete_step(&mut run_sess)?;
-    let out_chars: Vec<DcChar> = run_out.to_dc_string()?.chars().collect();
-    let mut expected_chars = vec![bare_tokens_dc];
-    expected_chars.extend("tokens".chars().map(DcChar::from_char));
+    let want_out = bytes_to_dcmstring(b"QUOTED_AND_EXPANDED_OK");
     ensure!(
-        out_chars == expected_chars,
-        "Expected [quoted atom {bare_tokens_dc}, 't','o','k','e','n','s'], got {out_chars:?}"
+        run_out == want_out,
+        "Expected b\"QUOTED_AND_EXPANDED_OK\", got {:?}",
+        String::from_utf8_lossy(run_out.as_bytes())
     );
     Ok(())
 }

@@ -21,6 +21,9 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 REPO_ROOT="$(pwd)"
 
+export RUSTFLAGS="${RUSTFLAGS:--Awarnings -Aunfulfilled_lint_expectations}"
+export CARGO_HOST_RUSTFLAGS="${CARGO_HOST_RUSTFLAGS:--Awarnings -Aunfulfilled_lint_expectations}"
+
 offline=""
 args=()
 for arg in "$@"; do
