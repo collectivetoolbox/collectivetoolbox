@@ -56,8 +56,8 @@ use crate::dc::{
     DC_END_POSITIONAL_STRUCT_VALUE, DC_END_ROUTINE, DC_END_ROUTINE_CALL,
     DC_END_ROUTINE_DECL, DC_END_SINGLE_LINE_COMMENT, DC_END_STAGEL_LIST,
     DC_END_STAGER_MODULE, DC_END_TEST_BLOCK, DC_END_TEST_CASE, DC_END_TUPLE,
-    DC_END_TYPE_DEF, DC_END_USE_IMPORT, DC_ENUM_VARIANT_DECL,
-    DC_ENUM_VARIANT_VALUE, DC_ERROR_TAG_VALUE, DC_ESCAPE,
+    DC_END_TYPE_DEF, DC_END_USE_IMPORT, DC_ENCLOSING_ROUTINE,
+    DC_ENUM_VARIANT_DECL, DC_ENUM_VARIANT_VALUE, DC_ERROR_TAG_VALUE, DC_ESCAPE,
     DC_EVALUATE_VALUE_AS_ATOM, DC_FAULT_TRAP, DC_FILE_PATH_DELIMITER,
     DC_FOR_EACH, DC_GET_NAMED_FIELD_OP, DC_GET_POSITIONAL_FIELD_OP,
     DC_IF_CONDITIONAL, DC_LIST_ELEMENT_SEPARATOR, DC_MATCH_CASE_ARM,
@@ -65,7 +65,7 @@ use crate::dc::{
     DC_NEGATIVE, DC_NO_OP, DC_OPTION_NONE_VALUE, DC_OPTION_SOME_VALUE,
     DC_OPTIONAL_ABSENT, DC_PROPAGATE_OP, DC_QUOTE_FOLLOWING_DC_AS_ATOM,
     DC_RESULT_ERR_VALUE, DC_RESULT_OK_VALUE, DC_RETURN_ROUTINE,
-    DC_ROUTINE_PARAM, DC_SELF_REFERENCE, DC_STAGEL_BUF_NEW, DC_STAGEL_BUF_TYPE,
+    DC_ROUTINE_PARAM, DC_STAGEL_BUF_NEW, DC_STAGEL_BUF_TYPE,
     DC_STAGEL_LIST_TYPE, DC_START_ENCAPSULATION_BINARY, DC_TEST_EXPECTED_OUT,
     DC_TOTAL_CONVERT_OP, DC_TYPE_ANY, DC_TYPE_ATOM_DC, DC_TYPE_CURSOR,
     DC_TYPE_ERROR, DC_TYPE_INTERSECTION, DC_TYPE_NOMINAL, DC_TYPE_OPTION,
@@ -112,8 +112,8 @@ pub(super) fn encode_filepath_dc_tokens(
 
 /// Encodes a routine's pure anonymous executable decomposition (`Dc 2240..2241`),
 /// omitting name, visibility, doc comments, and inline test blocks, and
-/// rewriting direct unshadowed outer self-calls into `Dc 599`
-/// (`DC_SELF_REFERENCE`).
+/// rewriting direct unshadowed outer self-calls into `Dc 2242`
+/// (`DC_ENCLOSING_ROUTINE`).
 pub(super) fn encode_routine_decomp_to_dc_tokens(
     r: &RoutineDecl,
 ) -> Result<Vec<DcChar>> {
@@ -159,7 +159,7 @@ fn rewrite_outer_self_calls_to_dc(
 ) {
     match expr {
         // Do not descend into nested or inline routine bodies: inside them,
-        // `Dc 599` denotes the inner routine, not the outer routine.
+        // `Dc 2242` denotes the inner routine, not the outer routine.
         Expr::RoutineDecl(_) | Expr::AnonRoutine(_) => {}
         Expr::InlineCall { args, .. } => {
             for arg in args {
@@ -180,7 +180,7 @@ fn rewrite_outer_self_calls_to_dc(
                 _ => false,
             };
             if is_self {
-                *target = SymbolTarget::Dc(DC_SELF_REFERENCE);
+                *target = SymbolTarget::Dc(DC_ENCLOSING_ROUTINE);
             }
             for arg in args {
                 rewrite_outer_self_calls_to_dc(

@@ -734,13 +734,13 @@ fn collect_dc_refs_in_expr(expr: &Expr, out: &mut Vec<DcChar>) {
             collect_dc_refs_in_expr(third, out);
         }
         Expr::Call { target, args, .. } => {
-            if let SymbolTarget::Dc(dc) = target {
-                use crate::syntax::SyntaxRuleResolver as _;
-                if !crate::syntax::default_syntax_resolver()
-                    .token_fills_role(dc.to_u128(), crate::syntax::DcRole::SelfReference)
-                {
-                    out.push(*dc);
-                }
+            if let SymbolTarget::Dc(dc) = target
+                && !super::ast::is_enclosing_routine_token_dc(
+                    crate::syntax::default_syntax_resolver().as_ref(),
+                    *dc,
+                )
+            {
+                out.push(*dc);
             }
             for arg in args {
                 collect_dc_refs_in_expr(arg, out);

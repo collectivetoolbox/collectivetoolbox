@@ -30,9 +30,8 @@ use crate::utilities::*;
 use super::super::ast::{
     AnonRoutine, BlockItem, Comment, Expr, MatchArm, Param, Span, StageDialect,
     StageLType, StageRErrorTag, StructTypeRef, SymbolTarget, TypedIntLit,
-    parse_dc_shorthand,
+    is_enclosing_routine_source_dc, parse_dc_shorthand,
 };
-use crate::syntax::DcRole;
 use super::decls::NestedVerbPrescanScope;
 use super::lexer::{LexKind, strip_trailing_prop, wrap_propagate};
 use super::types_and_sigs::{
@@ -264,6 +263,23 @@ impl Parser {
                     Some(Box::new(self.parse_expr(false)?))
                 };
                 Ok(Some(Expr::Return { value, span }))
+            }
+            "rec" => {
+                let arity = self
+                    .enclosing_routine_arities
+                    .last()
+                    .copied()
+                    .with_context(|| {
+                        format!(
+                            "'rec' recursive call at {span} is only allowed inside a routine body"
+                        )
+                    })?;
+                let args = self.parse_call_args(arity, enclosing_is_void)?;
+                Ok(Some(Expr::Call {
+                    target: SymbolTarget::Dc(crate::dc::DC_ENCLOSING_ROUTINE),
+                    args,
+                    span,
+                }))
             }
             "let" => {
                 if let Some(target) = self.peek()
@@ -873,19 +889,18 @@ impl Parser {
                     || parse_dc_shorthand(sh).is_ok())
             {
                 let dc = parse_dc_shorthand(sh)?;
-                let arity = if self
-                    .syntax_resolver
-                    .token_fills_role(dc.to_u128(), DcRole::SelfReference)
-                {
-                    self.enclosing_routine_arities
-                        .last()
-                        .copied()
-                        .with_context(|| {
-                            format!(
-                                "Self-reference 'dc/{sh}' at {span} is only allowed inside a routine body"
-                            )
-                        })?
-                } else {
+                let arity =
+                    if is_enclosing_routine_source_dc(self.syntax_resolver, dc)
+                    {
+                        self.enclosing_routine_arities
+                            .last()
+                            .copied()
+                            .with_context(|| {
+                                format!(
+                                    "Enclosing-routine reference 'dc/{sh}' at {span} is only allowed inside a routine body"
+                                )
+                            })?
+                    } else {
                     self.lookup_verb_arity(word).with_context(|| {
                         format!(
                             "Unknown direct Dc routine 'dc/{sh}' at {span} (arity unknown without import or declaration)"

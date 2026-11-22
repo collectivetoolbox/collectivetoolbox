@@ -30,15 +30,27 @@ use crate::utilities::*;
 use super::super::ast::{
     AnonRoutine, BlockItem, Comment, Expr, ImportTarget, Module, RoutineDecl,
     StageDialect, StageLType, StructTypeRef, SymbolTarget, TestExpected,
-    TopDecl, format_dc_shorthand,
+    TopDecl, format_dc_shorthand, is_enclosing_routine_token_dc,
 };
 use super::dc_chars_to_dcts_string;
 use crate::DcChar;
+use crate::syntax::{SyntaxRuleResolver, default_syntax_resolver};
 use std::fmt::Write as _;
 
 struct FormatCtx {
     dialect: StageDialect,
     anon_counter: usize,
+    resolver: &'static dyn SyntaxRuleResolver,
+}
+
+impl FormatCtx {
+    fn new(dialect: StageDialect) -> Self {
+        Self {
+            dialect,
+            anon_counter: 0,
+            resolver: default_syntax_resolver().as_ref(),
+        }
+    }
 }
 
 fn active_line_indent(out: &str, fallback_indent: usize) -> usize {
@@ -58,10 +70,7 @@ pub(super) fn format_module_to_sl3(module: &Module) -> Result<String> {
         module.dialect == StageDialect::StageL3,
         "Expected StageL 3 module for format_module_to_sl3"
     );
-    let mut ctx = FormatCtx {
-        dialect: StageDialect::StageL3,
-        anon_counter: 0,
-    };
+    let mut ctx = FormatCtx::new(StageDialect::StageL3);
     format_module_inner(module, &mut ctx)
 }
 
@@ -71,10 +80,7 @@ pub(super) fn format_module_to_sr3(module: &Module) -> Result<String> {
         module.dialect == StageDialect::StageR3,
         "Expected StageR 3 module for format_module_to_sr3"
     );
-    let mut ctx = FormatCtx {
-        dialect: StageDialect::StageR3,
-        anon_counter: 0,
-    };
+    let mut ctx = FormatCtx::new(StageDialect::StageR3);
     format_module_inner(module, &mut ctx)
 }
 
@@ -82,10 +88,7 @@ pub(super) fn format_module_to_sr3(module: &Module) -> Result<String> {
 /// `.sl3` source text.
 pub(super) fn format_top_decl_to_sl3(decl: &TopDecl) -> Result<String> {
     let mut out = String::new();
-    let mut ctx = FormatCtx {
-        dialect: StageDialect::StageL3,
-        anon_counter: 0,
-    };
+    let mut ctx = FormatCtx::new(StageDialect::StageL3);
     write_top_decl(&mut out, decl, &mut ctx)?;
     Ok(out)
 }
@@ -94,10 +97,7 @@ pub(super) fn format_top_decl_to_sl3(decl: &TopDecl) -> Result<String> {
 /// canonical `.sr3` source text.
 pub(super) fn format_top_decl_to_sr3(decl: &TopDecl) -> Result<String> {
     let mut out = String::new();
-    let mut ctx = FormatCtx {
-        dialect: StageDialect::StageR3,
-        anon_counter: 0,
-    };
+    let mut ctx = FormatCtx::new(StageDialect::StageR3);
     write_top_decl(&mut out, decl, &mut ctx)?;
     Ok(out)
 }
@@ -815,7 +815,13 @@ fn write_expr(
             }
         }
         Expr::Call { target, args, .. } => {
-            write_symbol_target(out, target)?;
+            if let SymbolTarget::Dc(dc) = target
+                && is_enclosing_routine_token_dc(ctx.resolver, *dc)
+            {
+                out.push_str("rec");
+            } else {
+                write_symbol_target(out, target)?;
+            }
             for arg in args {
                 out.push(' ');
                 write_expr(out, arg, indent, ctx)?;

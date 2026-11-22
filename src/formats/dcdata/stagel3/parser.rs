@@ -38,10 +38,10 @@ mod types_and_sigs;
 
 use super::ast::{
     Comment, Module, Span, StageDialect, StageLType, StructTypeRef,
-    parse_dc_shorthand,
+    is_enclosing_routine_source_dc, parse_dc_shorthand,
 };
 use crate::DcChar;
-use crate::syntax::{DcRole, SyntaxRuleResolver, default_syntax_resolver};
+use crate::syntax::{SyntaxRuleResolver, default_syntax_resolver};
 use lexer::{LexKind, LexToken, tokenize_with_dialect};
 use std::collections::HashMap;
 use types_and_sigs::{
@@ -102,10 +102,10 @@ const BUILTIN_TYPE_WORDS: &[&str] = &[
 const BUILTIN_HEAD_WORDS: &[&str] = &[
     // Module & declaration starters (8)
     "ns", "use", "pub", "struct", "brand", "type", "enum", "test",
-    // Binding, control-flow, pattern, & literal head forms (18)
+    // Binding, control-flow, pattern, & literal head forms (19)
     "let", "const", "set", "do", "if", "while", "foreach", "match", "case",
-    "else", "break", "continue", "return", "fault", "nop", "true", "false",
-    "unimplemented",
+    "else", "break", "continue", "return", "rec", "fault", "nop", "true",
+    "false", "unimplemented",
     // Composite, nominal, & conversion head forms (9)
     "bufNew", "tupNew", "structNew", "field", "with", "wrap", "unwrap", "conv",
     "bitcast",
@@ -336,7 +336,7 @@ pub(crate) fn scan_direct_dc_words_with_dialect(
     source: &str,
     dialect: StageDialect,
 ) -> Result<Vec<(String, DcChar)>> {
-    let resolver = default_syntax_resolver();
+    let resolver = default_syntax_resolver().as_ref();
     let tokens = tokenize_with_dialect(source, dialect)?;
     let mut out = Vec::new();
     for tok in tokens {
@@ -351,16 +351,12 @@ pub(crate) fn scan_direct_dc_words_with_dialect(
                     sh
                 };
                 if let Ok(dc) = parse_dc_shorthand(trimmed) {
-                    if !resolver
-                        .token_fills_role(dc.to_u128(), DcRole::SelfReference)
-                    {
+                    if !is_enclosing_routine_source_dc(resolver, dc) {
                         out.push((format!("dc/{trimmed}"), dc));
                     }
                 } else if dialect == StageDialect::StageL3 {
                     let dc = parse_dc_shorthand(sh)?;
-                    if !resolver
-                        .token_fills_role(dc.to_u128(), DcRole::SelfReference)
-                    {
+                    if !is_enclosing_routine_source_dc(resolver, dc) {
                         out.push((w, dc));
                     }
                 }
@@ -372,10 +368,7 @@ pub(crate) fn scan_direct_dc_words_with_dialect(
                     {
                         let base_sh = strip_stager_dc_shorthand(raw_sh);
                         if let Ok(dc) = parse_dc_shorthand(base_sh)
-                            && !resolver.token_fills_role(
-                                dc.to_u128(),
-                                DcRole::SelfReference,
-                            )
+                            && !is_enclosing_routine_source_dc(resolver, dc)
                         {
                             out.push((format!("dc/{base_sh}"), dc));
                         }

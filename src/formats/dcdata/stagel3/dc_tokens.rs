@@ -352,9 +352,10 @@ pub fn decode_test_suite_from_dc_tokens_at_line(
     decode::decode_test_suite_from_dc_tokens_at_line(tokens, line)
 }
 
-/// Rewrites outer `DcRole::SelfReference` (`Dc 599`) call targets inside `expr`
-/// (without descending into nested or inline routine bodies) back into
-/// `SymbolTarget::Ident(self_name)` for `.sl3` / `.sr3` source reconstruction.
+/// Rewrites outer `DcRole::EnclosingRoutine` (`Dc 2242`, or legacy `Dc 599`)
+/// call targets inside `expr` (without descending into nested or inline routine
+/// bodies) back into `SymbolTarget::Ident(self_name)` for `.sl3` / `.sr3`
+/// source reconstruction.
 pub fn restore_outer_self_refs_in_expr(expr: &mut Expr, self_name: &str) {
     decode::restore_outer_self_refs_in_expr(expr, self_name);
 }
@@ -976,7 +977,7 @@ pub v/result/i32/exerciseOps i32/a i32/rhs
 
     #[crate::ctb_test]
     fn test_inline_anon_routine_and_decomp_test_suite_codec_roundtrip() {
-        use crate::dc::DC_SELF_REFERENCE;
+        use crate::dc::DC_ENCLOSING_ROUTINE;
 
         // Inline anonymous routine calls are gated out of the StageL 3 ASCII parser.
         let sl3_rejected = r#"ns demo/inline_anon.
@@ -989,7 +990,19 @@ pub v/u32/runInline u32/x
             "StageL 3 ASCII parser must reject inline anonymous routine calls"
         );
 
-        // StageR 3 supports inline anonymous routine calls with +8 body / +4 closer indentation.
+        // StageL 3 named routines support `rec` (`Dc 2242`) directly, while rejecting `dc/599`.
+        let sl3_rec_src = r#"ns demo/sl3_rec.
+
+pub v/u32/countDown u32/n :: if eq /n u32:0 u32:0 rec sub /n u32:1.
+"#;
+        let sl3_rec_toks =
+            sl3_to_dc_tokens(sl3_rec_src).expect("encode sl3 rec");
+        assert!(sl3_rec_toks.contains(&DC_ENCLOSING_ROUTINE));
+        let sl3_rec_fmt =
+            dc_tokens_to_sl3(&sl3_rec_toks).expect("format sl3 rec");
+        assert!(sl3_rec_fmt.contains("rec sub /n u32:1"));
+
+        // StageR 3 supports inline anonymous routine calls with +8 body / +4 closer indentation and `rec` / `rec?`.
         let sr3_src = r#"ns demo/inline_sr3.
 
 pub v/result/u32/runSr3Inline u32/x
@@ -1001,7 +1014,7 @@ pub v/result/u32/runSr3Inline u32/x
     const u32/summed v/result/u32? u32/n u32/cur ::
             if eq /n u32:0
                 result/u32:ok /cur
-                dc/599 sub? /n u32:1 add? /cur /n.
+                rec sub? /n u32:1 add? /cur /n.
         :: u32:4 /acc.
     add /summed /zeroArg.
 "#;
@@ -1017,7 +1030,7 @@ pub v/result/u32/runSr3Inline u32/x
             "Expected 2211 2240 inline routine call opener sequence"
         );
         assert!(sr3_tokens.contains(&DC_END_ROUTINE));
-        assert!(sr3_tokens.contains(&DC_SELF_REFERENCE));
+        assert!(sr3_tokens.contains(&DC_ENCLOSING_ROUTINE));
 
         let sr3_fmt1 =
             dc_tokens_to_sr3(&sr3_tokens).expect("decode inline sr3");
@@ -1026,6 +1039,10 @@ pub v/result/u32/runSr3Inline u32/x
                 "    v/void u32/delta ::\n            set /acc wrapAdd /acc /delta.\n        :: u32:5."
             ),
             "Formatted StageR 3 multi-line inline routine must indent body +8 and closing '::' +4:\n{sr3_fmt1}"
+        );
+        assert!(
+            sr3_fmt1.contains("rec sub? /n u32:1 add? /cur /n."),
+            "Formatted StageR 3 recursive call must emit 'rec':\n{sr3_fmt1}"
         );
         let sr3_tokens2 =
             sr3_to_dc_tokens(&sr3_fmt1).expect("re-encode inline sr3");
@@ -1053,9 +1070,9 @@ pub v/u32/recur u32/n
         u32:1
         do
             const v/u32/nestedHelper u32/k
-                if eq /k u32:0 u32:1 dc/599 wrapSub /k u32:1.
+                if eq /k u32:0 u32:1 rec wrapSub /k u32:1.
             const u32/innerSelf v/u32 u32/m ::
-                    if eq /m u32:0 nestedHelper u32:2 dc/599 wrapSub /m u32:1.
+                    if eq /m u32:0 nestedHelper u32:2 rec wrapSub /m u32:1.
                 :: u32:1.
             wrapMul wrapAdd /n wrapSub /innerSelf u32:1 recur wrapSub /n u32:1.
         ::.
@@ -1081,8 +1098,8 @@ pub v/u32/recur u32/n
             "Pure routine decomp must not embed test blocks"
         );
         assert!(
-            decomp_tokens.contains(&DC_SELF_REFERENCE),
-            "Outer self-call must encode as Dc 599"
+            decomp_tokens.contains(&DC_ENCLOSING_ROUTINE),
+            "Outer self-call must encode as Dc 2242 EnclosingRoutine"
         );
 
         let mut decoded_anon =

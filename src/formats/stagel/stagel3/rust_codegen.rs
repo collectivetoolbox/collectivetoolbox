@@ -6192,7 +6192,7 @@ pub v/pair_i32/swap_pair pair_i32/inp
 pub v/u32/topSelfLoop u32/rem u32/acc
     if eq /rem u32:0
         /acc
-        dc/599 wrapSub /rem u32:1 wrapAdd /acc u32:2.
+        rec wrapSub /rem u32:1 wrapAdd /acc u32:2.
 
 pub v/u32/exerciseInlineAndSelf u32/seed
     test deep tail calls and mutable capture
@@ -6205,13 +6205,13 @@ pub v/u32/exerciseInlineAndSelf u32/seed
     const v/u32/nestedSelf u32/rem u32/acc
         if eq /rem u32:0
             /acc
-            dc/599 wrapSub /rem u32:1 wrapAdd /acc u32:1.
+            rec wrapSub /rem u32:1 wrapAdd /acc u32:1.
     const u32/a topSelfLoop u32:10000 /captured.
     const u32/b nestedSelf u32:10000 /a.
     v/u32 u32/rem u32/acc ::
             if eq /rem u32:0
                 /acc
-                dc/599 wrapSub /rem u32:1 wrapAdd /acc u32:3.
+                rec wrapSub /rem u32:1 wrapAdd /acc u32:3.
         :: u32:10000 /b.
 "#;
         let mut parsed_mod =

@@ -1276,7 +1276,7 @@ v/tup: exprNode u64 ::/readStageRExpr l/dcVal/tokens u64/pos
         nop.
     fault.
 
-: Rewrites outer `Dc 599` (`SelfReference`) call targets in `e` to `selfSym` without
+: Rewrites outer `Dc 2242` (`EnclosingRoutine`, or legacy `Dc 599`) call targets in `e` to `selfSym` without
 : descending into nested `u8:15` (`RoutineDecl`) bodies (which bind their own self-target).
 : @dc l8589998200
 v/exprNode/rewriteSelfRefInExpr exprNode/e symRef/selfSym
@@ -1321,7 +1321,7 @@ v/exprNode/rewriteSelfRefInExpr exprNode/e symRef/selfSym
         ::
         nop.
     let symRef/outSym field /e u32:5.
-    if and eq /k u8:16 and field /outSym u32:0 eq dcShortId field /outSym u32:1 u32:599
+    if and eq /k u8:16 and field /outSym u32:0 or eq dcShortId field /outSym u32:1 u32:2242 eq dcShortId field /outSym u32:1 u32:599
         set /outSym /selfSym
         nop.
     makeExpr /k field /e u32:1 field /e u32:2 field /e u32:3 field /e u32:4 /outSym field /e u32:6 /outArgs /outFields /outArms field /e u32:10.
@@ -1766,7 +1766,7 @@ v/tup: exprNode u64 ::/scanStageLRoutineTail l/dcVal/tokens u64/posAfterParams s
                                                                         do
                                                                             const tup: symRef u64 ::/sr readSymRef /tokens /hpos.
                                                                             const symRef/rawSym field /sr u32:0.
-                                                                            const symRef/callSym if and field /rawSym u32:0 eq dcShortId field /rawSym u32:1 u32:599
+                                                                            const symRef/callSym if and field /rawSym u32:0 or eq dcShortId field /rawSym u32:1 u32:2242 eq dcShortId field /rawSym u32:1 u32:599
                                                                                 /selfSym
                                                                                 /rawSym.
                                                                             bufPush /calls makeExpr u8:16 u32:0 dcZero b"" l/dcVal: :: /callSym l/rawType: :: l/exprNode: :: l/fieldInit: :: l/matchArm: :: l/rawRoutine: ::.

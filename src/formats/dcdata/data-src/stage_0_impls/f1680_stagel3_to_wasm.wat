@@ -108,6 +108,7 @@
   (const $DC_END_POS_STRUCT_VAL         1116332) ;; Dc 2220
   (const $DC_BEGIN_ROUTINE              1116352) ;; Dc 2240
   (const $DC_END_ROUTINE                1116353) ;; Dc 2241
+  (const $DC_ENCLOSING_ROUTINE          1116354) ;; Dc 2242
   (const $DC_IF_CONDITIONAL             1116560) ;; Dc 2448
   (const $DC_WHILE_LOOP                 1116561) ;; Dc 2449
   (const $DC_FOR_EACH                   1116562) ;; Dc 2450
@@ -2234,7 +2235,7 @@
         (else
           (i32.store $ex $EX_CALL)
           (set $p (call $parse_sym_target))
-          (if (i32.and $ret_aux (i32.eq $dec_cp $DC_SELF_REFERENCE))
+          (if (i32.and $ret_aux (i32.or (i32.eq $dec_cp $DC_ENCLOSING_ROUTINE) (i32.eq $dec_cp $DC_SELF_REFERENCE)))
             (then
               (set $i (call $buf_count_i32 $self_target_stk))
               (when (i32.eqz $i) (unreachable))

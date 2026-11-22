@@ -33,6 +33,7 @@ use super::super::ast::{
     Param, PositionalStructDecl, RoutineDecl, Span, StageDialect, StageLType,
     StageRErrorTag, StructTypeRef, SymbolTarget, TestBlock, TestCase,
     TestExpected, TopDecl, TopValueDecl, TypedIntLit, UseImport, UseImportItem,
+    is_enclosing_routine_token_dc,
 };
 use super::{
     BINARY_OPS, TERNARY_OPS, UNARY_OPS, dc_chars_to_dcts_string,
@@ -238,9 +239,10 @@ pub(super) fn decode_test_suite_from_dc_tokens_at_line(
     Ok(vec![tb])
 }
 
-/// Rewrites outer `DcRole::SelfReference` (`Dc 599`) call targets inside `expr`
-/// (without descending into nested or inline routine bodies) back into
-/// `SymbolTarget::Ident(self_name)` for `.sl3` / `.sr3` source reconstruction.
+/// Rewrites outer `DcRole::EnclosingRoutine` (`Dc 2242`, or legacy `Dc 599` on
+/// historical pins) call targets inside `expr` (without descending into nested
+/// or inline routine bodies) back into `SymbolTarget::Ident(self_name)` for
+/// `.sl3` / `.sr3` source reconstruction.
 pub(super) fn restore_outer_self_refs_in_expr(
     expr: &mut Expr,
     self_name: &str,
@@ -263,7 +265,7 @@ fn restore_outer_self_refs_inner(
         }
         Expr::Call { target, args, .. } => {
             if let SymbolTarget::Dc(dc) = target
-                && resolver.token_fills_role(dc.to_u128(), DcRole::SelfReference)
+                && is_enclosing_routine_token_dc(resolver, *dc)
             {
                 *target = SymbolTarget::Ident(self_name.to_owned());
             }

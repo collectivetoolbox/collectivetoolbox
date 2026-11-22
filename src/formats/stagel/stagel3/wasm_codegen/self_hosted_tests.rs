@@ -833,12 +833,12 @@ pub v/l/u8/step l/u8/input
                 .context("step 2: exec sr3_prog")?;
         assert_eq!(out_doc, ascii_dcmstring("OK:42"));
 
-        // 2b. StageR 3 inline anonymous routine (`Dc 2240..Dc 2241`) + `?` propagation + `dc/599` tail recursion
+        // 2b. StageR 3 inline anonymous routine (`Dc 2240..Dc 2241`) + `?` propagation + `rec` (`Dc 2242`) tail recursion
         let sr3_anon_prog = r#"ns app/e2e_stager_anon.
 v/u64/topSelf u64/rem u64/acc
     if eq /rem u64:0
         /acc
-        dc/599 wrapSub /rem u64:1 wrapAdd /acc u64:1.
+        rec wrapSub /rem u64:1 wrapAdd /acc u64:1.
 
 v/result/u64/checkInline u64/n
     let u64/ticks u64:0.
@@ -847,7 +847,7 @@ v/result/u64/checkInline u64/n
                 result/u64:ok /acc
                 do
                     set /ticks wrapAdd /ticks u64:1.
-                    dc/599 wrapSub /rem u64:1 wrapAdd /acc u64:2.
+                    rec wrapSub /rem u64:1 wrapAdd /acc u64:2.
                 ::
         :: /n u64:0.
     result/u64:ok wrapAdd /doubled wrapAdd /ticks topSelf u64:5000 u64:0.

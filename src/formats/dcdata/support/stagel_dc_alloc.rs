@@ -3461,12 +3461,12 @@ pub v/result/u64/runCheck
                 "        out i32:120\n",
                 "    if le /n i32:1\n",
                 "        i32:1\n",
-                "        mul /n factPub sub /n i32:1.\n\n",
+                "        wrapMul /n factPub wrapSub /n i32:1.\n\n",
                 ": Private helper factorial\n",
                 "v/i32/factPriv i32/n\n",
                 "    if le /n i32:1\n",
                 "        i32:1\n",
-                "        mul /n factPriv sub /n i32:1.\n",
+                "        wrapMul /n factPriv wrapSub /n i32:1.\n",
             ),
         )];
 
@@ -3523,7 +3523,7 @@ pub v/result/u64/runCheck
         assert_eq!(val_id_pub, val_id_priv);
         assert_eq!(pub_tokens, priv_tokens);
         assert_eq!(pub_tokens.first().copied(), Some(crate::dc::DC_BEGIN_ROUTINE));
-        assert!(pub_tokens.contains(&crate::dc::DC_SELF_REFERENCE));
+        assert!(pub_tokens.contains(&crate::dc::DC_ENCLOSING_ROUTINE));
 
         // 2. Verify decoupled metadata on both `pub` and `private` routines.
         let pub_meta = idx1.resolve_stagel_routine_metadata(pub_sh)?;
@@ -3560,7 +3560,7 @@ pub v/result/u64/runCheck
                 "    const i32/bVal dc/{pub_sh} /x.\n",
                 "    const i32/c dc/{priv_sh} /x.\n",
                 "    const i32/d dc/l{val_id} /x.\n",
-                "    const i32/e v/i32 i32/n :: if le /n i32:1 i32:1 mul /n dc/599 sub /n i32:1 :: /x.\n",
+                "    const i32/e v/i32 i32/n :: if le /n i32:1 i32:1 wrapMul /n rec wrapSub /n i32:1 :: /x.\n",
                 "    and eq /a i32:720 and eq /a /bVal and eq /a /c and eq /a /d eq /a /e.\n",
             ),
             pub_sh = pub_sh,
@@ -3568,7 +3568,7 @@ pub v/result/u64/runCheck
             val_id = val_id_pub,
         );
         let report =
-            crate::stagel3::seed_linker::eval_sl3_inline_tests_with_seed_graph(
+            crate::stagel3::seed_linker::eval_sr3_inline_tests_with_seed_graph(
                 &caller, &idx1,
             )?;
         assert_eq!(report.ensure_all_passed()?, 1);
@@ -3578,7 +3578,7 @@ pub v/result/u64/runCheck
             .source
             .replace("Public factorial doc line 1", "Updated doc comment")
             .replace("pub v/i32/factPub", "pub v/i32/factorialRenamed")
-            .replace("factPub sub", "factorialRenamed sub")
+            .replace("factPub wrapSub", "factorialRenamed wrapSub")
             .replace("in i32:5\n        out i32:120", "in i32:4\n        out i32:24");
         files[0].raw_bytes = files[0].source.as_bytes().to_vec();
         let (nodes2, alloc2, _) = reconcile_stagel_and_csv_in_memory(

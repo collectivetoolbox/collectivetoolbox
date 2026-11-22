@@ -33,6 +33,7 @@ use super::super::ast::{
     NamedStructDecl, PositionalStructDecl, RoutineDecl, Span, StageDialect,
     StageLType, StructTypeRef, SymbolTarget, TestExpected, TopDecl,
     TopValueDecl, UseImportItem, format_dc_shorthand,
+    is_enclosing_routine_token_dc,
 };
 use super::consts_and_flow::{
     AssignState, BindingEntry, NestedVerbSummary, VerbTarget,
@@ -49,7 +50,7 @@ use super::{
     RoutineSig, StructDef, ValidatedModule, expr_syntactically_contains_fault,
 };
 use crate::DcChar;
-use crate::syntax::{DcRole, SyntaxRuleResolver, default_syntax_resolver};
+use crate::syntax::{SyntaxRuleResolver, default_syntax_resolver};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Mutable validator state shared across passes and expression checking within
@@ -95,7 +96,7 @@ pub(super) struct ModuleValidator<'a> {
     pub(super) top_dc_names: HashMap<DcChar, String>,
     /// Imported items keyed directly by `DcChar` (`dc/<shorthand>`).
     pub(super) dc_imports: HashMap<DcChar, ImportedSymbol>,
-    /// Shared Dc syntax/role resolver (for `DcRole::SelfReference` etc.).
+    /// Shared Dc syntax/role resolver (for `DcRole::EnclosingRoutine` etc.).
     pub(super) syntax_resolver: &'static dyn SyntaxRuleResolver,
     /// Whether `*StageLInternal` symbols are prohibited in this module.
     pub(super) forbid_stagel_internal: bool,
@@ -2530,7 +2531,7 @@ fn lower_routine_body_expr(
         Expr::Call { target, args, .. } => {
             if let Some(nested_name) = enclosing_nested_name
                 && let SymbolTarget::Dc(dc) = target
-                && resolver.token_fills_role(dc.to_u128(), DcRole::SelfReference)
+                && is_enclosing_routine_token_dc(resolver, *dc)
             {
                 *target = SymbolTarget::Ident(nested_name.to_owned());
             }

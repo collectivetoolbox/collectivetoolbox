@@ -3878,7 +3878,7 @@ v/l/u128/scanDcRefsInRange l/dc/tokens u64/start u64/end
                                 match readTokAtom /tokens /i
                                     case some u128Step/st
                                         do
-                                            if ne field /st val u128:1114711
+                                            if and ne field /st val u128:1116354 ne field /st val u128:1114711
                                                 bufPush /refs field /st val
                                                 nop.
                                             set /i field /st nextPos.

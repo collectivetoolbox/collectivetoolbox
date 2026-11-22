@@ -31,7 +31,7 @@ use crate::utilities::*;
 use super::super::ast::{
     BinaryOp, BlockItem, Expr, MatchArm, RoutineDecl, Span, StageDialect,
     StageLType, StageRErrorTag, StructTypeRef, SymbolTarget,
-    format_dc_shorthand,
+    format_dc_shorthand, is_enclosing_routine_token_dc,
 };
 use super::consts_and_flow::{
     BindingEntry, BindingKind, BodyCtx, BufState, FlowState, NestedVerbSummary,
@@ -47,7 +47,6 @@ use super::{
     EnumDef, ImportedSymbol, ResolvedCallTarget, ResolvedValueTarget,
     RoutineSig,
 };
-use crate::syntax::DcRole;
 use std::collections::{HashMap, HashSet};
 
 /// Resolved StageR 3 `match` scrutinee domain.
@@ -783,14 +782,11 @@ impl<'a> ModuleValidator<'a> {
                 bail!("Unknown routine '{name}' at {span}");
             }
             SymbolTarget::Dc(dc) => {
-                if self
-                    .syntax_resolver
-                    .token_fills_role(dc.to_u128(), DcRole::SelfReference)
-                {
+                if is_enclosing_routine_token_dc(self.syntax_resolver, *dc) {
                     let Some((orig_name, sig)) = ctx.self_top_routine.clone()
                     else {
                         bail!(
-                            "Self-reference 'dc/{}' at {span} is only allowed inside a routine body",
+                            "'rec' / 'dc/{}' recursive call at {span} is only allowed inside a routine body",
                             format_dc_shorthand(*dc)
                         );
                     };

@@ -1673,3 +1673,29 @@ pub(crate) fn parse_dc_shorthand(raw: &str) -> Result<DcChar> {
 pub(crate) fn format_dc_shorthand(dc: DcChar) -> String {
     DcShorthand::from_global_id(dc.to_u128()).to_string()
 }
+
+/// Returns `true` iff `dc` fills `DcRole::EnclosingRoutine` (`Dc 2242`) via
+/// `resolver` (including `<equiv>` mappings), for `.sl3`/`.sr3` source parsing.
+#[must_use]
+pub(crate) fn is_enclosing_routine_source_dc(
+    resolver: &dyn crate::syntax::SyntaxRuleResolver,
+    dc: DcChar,
+) -> bool {
+    resolver.token_fills_role(
+        dc.to_u128(),
+        crate::syntax::DcRole::EnclosingRoutine,
+    )
+}
+
+/// Returns `true` iff `dc` denotes the innermost enclosing routine in a Token-Dc
+/// call target: canonical `DcRole::EnclosingRoutine` (`Dc 2242`), or legacy
+/// `DcRole::SelfReference` (`Dc 599`) retained for historical `Dc 641` snapshots.
+#[must_use]
+pub(crate) fn is_enclosing_routine_token_dc(
+    resolver: &dyn crate::syntax::SyntaxRuleResolver,
+    dc: DcChar,
+) -> bool {
+    let raw = dc.to_u128();
+    resolver.token_fills_role(raw, crate::syntax::DcRole::EnclosingRoutine)
+        || resolver.token_fills_role(raw, crate::syntax::DcRole::SelfReference)
+}
