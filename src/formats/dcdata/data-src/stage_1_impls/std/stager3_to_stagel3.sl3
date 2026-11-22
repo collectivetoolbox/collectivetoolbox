@@ -1278,6 +1278,7 @@ v/tup: exprNode u64 ::/readStageRExpr l/dcVal/tokens u64/pos
 
 : Rewrites outer `Dc 599` (`SelfReference`) call targets in `e` to `selfSym` without
 : descending into nested `u8:15` (`RoutineDecl`) bodies (which bind their own self-target).
+: @dc l8589998200
 v/exprNode/rewriteSelfRefInExpr exprNode/e symRef/selfSym
     const u8/k field /e u32:0.
     if eq /k u8:15
@@ -1672,6 +1673,7 @@ v/u64/skipStageLRoutineFromOpen l/dcVal/tokens u64/pos
     ::.
     /cur.
 
+: @dc l8589998201
 v/u64/skipStageLAnonRoutineFromOpen l/dcVal/tokens u64/pos
     let u64/cur expectShort /tokens /pos u32:2240.
     let u64/depth u64:1.

@@ -4754,6 +4754,7 @@ v/l/dc/extractTopUseItems l/dc/useTokens l/u8/excludeNsKey
     bufFreeze /out.
 
 : Extracts ASCII bytes from an expanded string value node (`Dc 260..Dc 261` `Dc 264` or raw codepoints).
+: @dc l8589998202
 v/l/u8/extractAsciiStringFromNodeTokens l/dc/strToks
     const tup: b dc l/dc u64 ::/lit readEscapedLiteral /strToks u64:0.
     const l/dc/chars if and field /lit u32:0 eq field /lit u32:1 dc:264
@@ -4771,6 +4772,7 @@ v/l/u8/extractAsciiStringFromNodeTokens l/dc/strToks
     ::.
     bufFreeze /out.
 
+: @dc l8589998203
 v/b/isValidRoutineIdentAscii l/u8/ident
     const u64/n len /ident.
     if eq /n u64:0
@@ -4796,6 +4798,7 @@ v/b/isValidRoutineIdentAscii l/u8/ident
     ::.
     true.
 
+: @dc l8589998204
 v/capRawBytesRes/resolveHasAValueAscii capClient/cli u128/hasAId
     let capClient/curCli /cli.
     const capTripleListRes/valQ queryTriples /curCli true dc:610 true dcFromU128 /hasAId false dc:0.
@@ -4825,6 +4828,7 @@ v/capRawBytesRes/resolveHasAValueAscii capClient/cli u128/hasAId
     ::.
     structNew capRawBytesRes: cli /curCli ok true rawBytes b"" errTokens l/dc: :: ::.
 
+: @dc l8589998205
 v/capRawBytesRes/resolveEntityProgIdentAscii capClient/cli dc/subj
     let capClient/curCli /cli.
     const capPropListRes/pr queryMultiProperty /curCli /subj dc:574.
@@ -4856,6 +4860,7 @@ v/capRawBytesRes/resolveEntityProgIdentAscii capClient/cli dc/subj
 
 : Wraps an anonymous `Dc 2240..Dc 2241` graph routine value node into a `Dc 2203..Dc 2204`
 : top-level routine declaration carrying `(isPub, subj, identBytes)`. Non-`2240` inputs pass through.
+: @dc l8589998206
 v/l/dc/wrapRoutineValueNodeIf2240 dc/subj b/isPub l/u8/identBytes l/dc/rawTokens
     const l/dc/tokens stripLeadingComments /rawTokens.
     const u64/n len /tokens.
