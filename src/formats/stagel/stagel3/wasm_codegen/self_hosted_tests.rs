@@ -501,10 +501,14 @@ v/l/u8/step l/u8/input
         )
         .context("subcase B (captures & mutual tail recursion)")?;
 
-        // Subcase C: local struct + buf/struct
+        // Subcase C: local struct + buf/struct + inline anonymous routine + dc/599 tail recursion
         let loc_struct_src = r#"
 struct locPt :: u8 i32 i64.
 struct bufBox :: buf/i32 u32.
+v/u64/topSelfTail u64/rem u64/acc
+    if eq /rem u64:0
+        /acc
+        dc/599 sub /rem u64:1 add /acc u64:1.
 v/l/u8/step l/u8/input
     do
         let bufBox/bb structNew bufBox: bufNew i32 u64:2 u32:7 ::.
@@ -513,6 +517,18 @@ v/l/u8/step l/u8/input
         bufPush /pb structNew locPt: u8:1 i32:2 i64:3 ::.
         let l/locPt/pts bufFreeze /pb.
         if ne get /pts u64:0 structNew locPt: u8:1 i32:2 i64:3 :: fault nop.
+        let u64/capTicks u64:0.
+        const u64/inlineTail v/u64 u64/rem u64/acc ::
+            if eq /rem u64:0
+                /acc
+                do
+                    set /capTicks add /capTicks u64:1.
+                    dc/599 sub /rem u64:1 add /acc u64:2.
+                ::
+        :: u64:20000 u64:0.
+        if ne /inlineTail u64:40000 fault nop.
+        if ne /capTicks u64:20000 fault nop.
+        if ne topSelfTail u64:10000 u64:5 u64:10005 fault nop.
         /input.
     ::.
 "#;
@@ -808,6 +824,53 @@ pub v/l/u8/step l/u8/input
         let out_doc =
             run_target_with_high_quota(&target_dc_wasm, &ascii_dcmstring("42"))?;
         assert_eq!(out_doc, ascii_dcmstring("OK:42"));
+
+        // 2b. StageR 3 inline anonymous routine (`Dc 2240..Dc 2241`) + `?` propagation + `dc/599` tail recursion
+        let sr3_anon_prog = r#"ns app/e2e_stager_anon.
+v/u64/topSelf u64/rem u64/acc
+    if eq /rem u64:0
+        /acc
+        dc/599 wrapSub /rem u64:1 wrapAdd /acc u64:1.
+
+v/result/u64/checkInline u64/n
+    let u64/ticks u64:0.
+    const u64/doubled v/result/u64? u64/rem u64/acc ::
+        if eq /rem u64:0
+            result/u64:ok /acc
+            do
+                set /ticks wrapAdd /ticks u64:1.
+                dc/599 wrapSub /rem u64:1 wrapAdd /acc u64:2.
+            ::
+    :: /n u64:0.
+    result/u64:ok wrapAdd /doubled wrapAdd /ticks topSelf u64:5000 u64:0.
+
+pub v/l/u8/step l/u8/input
+    if eq unwrapOr checkInline u64:10000 u64:0 u64:35000
+        concat b"ANON:" /input
+        b"FAIL".
+"#;
+        let sr3_anon_tokens =
+            ctb_formats_dcdata::stagel3::seed_linker::sr3_to_dc_tokens_with_seed_graph(
+                sr3_anon_prog,
+                sg,
+            )?;
+        let bundled_sr3_anon =
+            ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_dependencies(
+                &sr3_anon_tokens,
+                sg,
+            )?;
+        let lowered_anon_doc = run_f1681_wasm_raw(&bundled_sr3_anon)?;
+        let lowered_anon_tokens: Vec<DcChar> =
+            lowered_anon_doc.to_dc_string()?.chars().collect();
+        let _decoded_lowered_anon =
+            ctb_formats_dcdata::stagel3::dc_tokens::decode_modules_from_dc_tokens(
+                &lowered_anon_tokens,
+            )?;
+        let anon_dc_wasm =
+            compile_dc_tokens_via_wat_compiler(&lowered_anon_tokens, sg)?;
+        let anon_out =
+            run_target_with_high_quota(&anon_dc_wasm, &ascii_dcmstring("OK"))?;
+        assert_eq!(anon_out, ascii_dcmstring("ANON:OK"));
 
         // 3. Negative checks:
         //    (a) Non-exhaustive StageR `enum` `match` traps cleanly inside WASM `f1681`.

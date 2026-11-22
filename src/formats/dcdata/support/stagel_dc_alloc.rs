@@ -3602,6 +3602,183 @@ pub v/result/u64/runCheck
         Ok(())
     }
 
+    #[crate::ctb_test]
+    fn test_full_repo_stagel_reconcile_and_gate4_in_memory() -> Result<()> {
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let repo_root = manifest_dir
+            .parent()
+            .and_then(Path::parent)
+            .and_then(Path::parent)
+            .context("Failed to locate repository root")?;
+        let data_src_dir = manifest_dir.join("data-src");
+        let categories_dir = data_src_dir.join("categories");
+        let formats_dir = categories_dir.join("formats");
+        let graph_dir = repo_root.join("assets/data/graph");
+        let existing_nodes = load_ledger_nodes_from_dir(&graph_dir)?;
+        let mut files = discover_stagel_namespace_files(&data_src_dir)?;
+
+        let mut csv_report = ValidationReport::new();
+        let scripts_bytes =
+            std::fs::read(data_src_dir.join("README.scripts.csv"))?;
+        let known_scripts_set = crate::validation::validate_scripts_table(
+            &scripts_bytes,
+            "README.scripts.csv",
+            &mut csv_report,
+        );
+        let scripts: BTreeSet<String> =
+            known_scripts_set.iter().cloned().collect();
+        let named_types_bytes =
+            std::fs::read(data_src_dir.join("README-named-types.csv"))?;
+        let known_named_types =
+            crate::validation::extract_named_type_names(&named_types_bytes);
+
+        let format_files_data =
+            crate::updater::load_format_category_csvs_with_assigned_ids(
+                &formats_dir,
+            )?;
+        let format_files_iter: Vec<(&str, &[u8])> = format_files_data
+            .iter()
+            .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
+            .collect();
+        let fmt_records = crate::format::validate_format_files_data(
+            format_files_iter,
+            "formats",
+            Some(&known_scripts_set),
+            &mut csv_report,
+        );
+        let format_ids: HashSet<usize> =
+            fmt_records.iter().filter_map(|d| d.short_id).collect();
+        let format_syntax_ids: HashSet<usize> = fmt_records
+            .iter()
+            .filter(|d| d.syntax.is_some())
+            .filter_map(|d| d.short_id)
+            .collect();
+        let format_registry =
+            crate::syntax::build_format_validation_registry(&fmt_records);
+        let dc_files_data =
+            crate::updater::load_dc_category_csvs_with_assigned_ids(
+                &categories_dir,
+            )?;
+        let dc_files_iter: Vec<(&str, &[u8])> = dc_files_data
+            .iter()
+            .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
+            .collect();
+        let dc_records = crate::validation::validate_dc_files_data(
+            dc_files_iter,
+            "categories",
+            &format_ids,
+            None,
+            Some(&known_named_types),
+            Some(&known_scripts_set),
+            Some(&format_syntax_ids),
+            Some(&format_registry),
+            &mut csv_report,
+        );
+        assert!(
+            !csv_report.has_errors(),
+            "CSV precheck failed:\n{}",
+            csv_report.format_report()
+        );
+
+        let (reconciled_nodes, alloc_stats, ledger_stats) =
+            reconcile_stagel_and_csv_in_memory(
+                existing_nodes,
+                &mut files,
+                &dc_records,
+                &fmt_records,
+                &scripts,
+                Some(&named_types_bytes),
+            )?;
+        println!(
+            "In-memory full-repo reconcile: allocated {} new StageL entities across {} file(s); ledger total={} (appended={}, superseded={}, retracted={})",
+            alloc_stats.entities_allocated,
+            alloc_stats.files_updated,
+            ledger_stats.total_nodes,
+            ledger_stats.nodes_appended,
+            ledger_stats.nodes_superseded,
+            ledger_stats.nodes_retracted,
+        );
+        // Verify second pass on reconciled_nodes + updated files is a 100% no-op!
+        let (_, alloc_stats2, ledger_stats2) = reconcile_stagel_and_csv_in_memory(
+            reconciled_nodes.clone(),
+            &mut files,
+            &dc_records,
+            &fmt_records,
+            &scripts,
+            Some(&named_types_bytes),
+        )?;
+        assert_eq!(alloc_stats2.entities_allocated, 0);
+        assert_eq!(alloc_stats2.files_updated, 0);
+        assert_eq!(ledger_stats2.nodes_appended, 0);
+        assert_eq!(ledger_stats2.nodes_superseded, 0);
+        assert_eq!(ledger_stats2.nodes_retracted, 0);
+
+        let single_props = single_valued_property_set();
+        let idx = SeedGraphIndex::from_nodes_with_single_props(
+            reconciled_nodes,
+            &single_props,
+        );
+        let mut stage0_targets = HashSet::new();
+        if let Ok((staged_impls, _)) =
+            crate::wat::load_staged_dc_impls(&data_src_dir)
+        {
+            for imp in staged_impls {
+                stage0_targets.insert(imp.target);
+            }
+        }
+        let mut report = ValidationReport::new();
+        validate_system_graph_wasm_and_stagel_boundaries(
+            &idx,
+            &stage0_targets,
+            "in-memory-reconcile",
+            &mut report,
+        );
+        assert!(
+            !report.has_errors(),
+            "Gate 4 boundary validation failed on in-memory reconciled graph:\n{}",
+            report.format_report()
+        );
+
+        let f1681_dc = DcChar::from_u128(
+            ctb_utilities::format_id::FormatId::StageR3ToStageL3
+                .dc_id()
+                .context("Missing StageR3ToStageL3 dc_id")?,
+        );
+        let f1681_entry =
+            crate::stagel3::seed_linker::build_entry_module_for_graph_routine_dc(
+                f1681_dc, &idx,
+            )?;
+        let f1681_bundled =
+            crate::stagel3::seed_linker::bundle_dc_module_dependencies(
+                &f1681_entry,
+                &idx,
+            )?;
+        assert!(
+            !crate::stagel3::dc_tokens::decode_modules_from_dc_tokens(
+                &f1681_bundled
+            )?
+            .is_empty()
+        );
+
+        let conv2608_entry =
+            crate::stagel3::seed_linker::build_stager_dcs_entry_module_for_graph_routine_dc(
+                crate::dc::DC_CONVERT_DC_STRING_TO_WASM,
+                &idx,
+            )?;
+        let conv2608_bundled =
+            crate::stagel3::seed_linker::bundle_dc_module_dependencies(
+                &conv2608_entry,
+                &idx,
+            )?;
+        assert!(
+            !crate::stagel3::dc_tokens::decode_modules_from_dc_tokens(
+                &conv2608_bundled
+            )?
+            .is_empty()
+        );
+        Ok(())
+    }
+
     fn priv_dc_str(s: &str) -> &str {
         s
     }

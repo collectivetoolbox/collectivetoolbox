@@ -70,6 +70,7 @@
   (const $DC_BEGIN_KV_MAP               1114671) ;; Dc 559
   (const $DC_END_KV_MAP                 1114672) ;; Dc 560
   (const $DC_ENTITY_TYPE                1114677) ;; Dc 565
+  (const $DC_SELF_REFERENCE             1114711) ;; Dc 599
   (const $DC_EVALUATE_VALUE_AS_ATOM     1114728) ;; Dc 616
   (const $DC_WASM_START                 1114759) ;; Dc 647
   (const $DC_WASM_FB_START              1115015) ;; Dc 903
@@ -105,6 +106,8 @@
   (const $DC_END_POS_STRUCT_DECL        1116330) ;; Dc 2218
   (const $DC_BEGIN_POS_STRUCT_VAL       1116331) ;; Dc 2219
   (const $DC_END_POS_STRUCT_VAL         1116332) ;; Dc 2220
+  (const $DC_BEGIN_ROUTINE              1116352) ;; Dc 2240
+  (const $DC_END_ROUTINE                1116353) ;; Dc 2241
   (const $DC_IF_CONDITIONAL             1116560) ;; Dc 2448
   (const $DC_WHILE_LOOP                 1116561) ;; Dc 2449
   (const $DC_FOR_EACH                   1116562) ;; Dc 2450
@@ -259,6 +262,7 @@
   (global $init_flag_glob  (mut i32) (i32.const 0))
   (global $init_fn_idx     (mut i32) (i32.const 0))
   (global $next_rout_uid   (mut i32) (i32.const 1))
+  (global $self_target_stk (mut i32) (i32.const 0)) ;; $buf of SelfTarget* (+0 is_dc, +4 ptr, +8 len)
 
   ;; ---------------------------------------------------------------------------
   ;; 1. Zero-initialized bump arena & dynamic buffers
@@ -1926,6 +1930,18 @@
                   (set $depth (i32.sub $depth 1)))))))
         (br $lp))))
 
+  (func $push_self_target (param $is_dc i32) (param $p i32) (param $l i32)
+    (local $st i32)
+    (set $st (call $alloc 16))
+    (i32.store $st $is_dc)
+    (i32.store offset=4 $st $p)
+    (i32.store offset=8 $st $l)
+    (call $buf_push_i32 $self_target_stk $st))
+
+  (func $pop_self_target
+    (i32.store offset=4 $self_target_stk
+      (i32.sub (i32.load offset=4 $self_target_stk) 4)))
+
   ;; RoutineAst (48 bytes):
   ;; +0 is_pub, +4 dc_ptr, +8 dc_len, +12 raw_ret_ty, +16 name_ptr, +20 name_len,
   ;; +24 params_buf (ParamAst*: +0 raw_ty, +4 n_ptr, +8 n_len, +12 canon_ty),
@@ -1973,8 +1989,57 @@
         (call $skip_test_block)
         (br $tlp)))
 
+    (if (i32.gt_u (i32.load offset=8 $r) 0)
+      (then
+        (call $push_self_target 1 (i32.load offset=4 $r) (i32.load offset=8 $r)))
+      (else
+        (call $push_self_target 0 (i32.load offset=16 $r) (i32.load offset=20 $r))))
     (i32.store offset=28 $r (call $parse_expr))
+    (call $pop_self_target)
     (call $expect_tok $DC_END_ROUTINE_DECL)
+    (get $r))
+
+  ;; Parses anonymous inline `Dc 2240 .. Dc 2241` routine after consuming `$DC_BEGIN_ROUTINE`,
+  ;; synthesizing a unique `"$anon_<uid>"` `RoutineAst*`.
+  (func $parse_anon_routine_after_open (result i32)
+    (local $r      i32)
+    (local $nm     i32)
+    (local $params i32)
+    (local $p      i32)
+    (local $ptr    i32)
+
+    (set $nm (call $buf_new 16))
+    (call $buf_push_u8 $nm 36) ;; '$'
+    (call $buf_push_cstr4 $nm 4 0x6E6F6E61) ;; "anon"
+    (call $buf_push_u8 $nm 95) ;; '_'
+    (call $buf_push_u32_dec $nm (call $alloc_routine_uid))
+
+    (set $r (call $alloc 48))
+    (i32.store $r 0)
+    (i32.store offset=4 $r 0)
+    (i32.store offset=8 $r 0)
+    (i32.store offset=12 $r (call $parse_raw_type))
+    (i32.store offset=16 $r (i32.load $nm))
+    (i32.store offset=20 $r (i32.load offset=4 $nm))
+
+    (set $params (call $buf_new 16))
+    (block $pdone
+      (loop $plp
+        (br_if $pdone (i32.ne (call $tok_peek) $DC_ROUTINE_PARAM))
+        (drop (call $tok_next))
+        (set $p (call $alloc 16))
+        (i32.store $p (call $parse_raw_type))
+        (set $ptr (call $parse_ident))
+        (i32.store offset=4 $p $ptr)
+        (i32.store offset=8 $p $ret_len)
+        (call $buf_push_i32 $params $p)
+        (br $plp)))
+    (i32.store offset=24 $r $params)
+
+    (call $push_self_target 0 (i32.load offset=16 $r) (i32.load offset=20 $r))
+    (i32.store offset=28 $r (call $parse_expr))
+    (call $pop_self_target)
+    (call $expect_tok $DC_END_ROUTINE)
     (get $r))
 
   (func $is_unary_op_cp (param $cp i32) (result i32)
@@ -2139,20 +2204,57 @@
       (i32.store offset=4 $ex (call $parse_routine_after_open))
       (return $ex))
     (when (i32.eq $cp $DC_BEGIN_ROUTINE_CALL)
-      (i32.store $ex $EX_CALL)
-      (set $p (call $parse_sym_target))
-      (i32.store offset=4 $ex $ret_aux)
-      (i32.store offset=8 $ex $p)
-      (i32.store offset=12 $ex $ret_len)
-      (set $elems (call $buf_new 16))
-      (block $cdone
-        (loop $clp
-          (br_if $cdone (i32.eq (call $tok_peek) $DC_END_ROUTINE_CALL))
-          (call $buf_push_i32 $elems (call $parse_expr))
-          (br $clp)))
-      (call $expect_tok $DC_END_ROUTINE_CALL)
-      (i32.store offset=16 $ex $elems)
-      (return $ex))
+      (if (i32.eq (call $tok_peek) $DC_BEGIN_ROUTINE)
+        (then
+          (drop (call $tok_next))
+          (global.set $uses_shadow 1)
+          (set $p (call $parse_anon_routine_after_open))
+          (set $elems (call $buf_new 16))
+          (block $icdone
+            (loop $iclp
+              (br_if $icdone (i32.eq (call $tok_peek) $DC_END_ROUTINE_CALL))
+              (call $buf_push_i32 $elems (call $parse_expr))
+              (br $iclp)))
+          (call $expect_tok $DC_END_ROUTINE_CALL)
+          (set $arity (call $alloc 32))
+          (i32.store $arity $EX_ROUTINE)
+          (i32.store offset=4 $arity $p)
+          (set $i (call $alloc 32))
+          (i32.store $i $EX_CALL)
+          (i32.store offset=4 $i 0)
+          (i32.store offset=8 $i (i32.load offset=16 $p))
+          (i32.store offset=12 $i (i32.load offset=20 $p))
+          (i32.store offset=16 $i $elems)
+          (set $elems (call $buf_new 16))
+          (call $buf_push_i32 $elems $arity)
+          (call $buf_push_i32 $elems $i)
+          (i32.store $ex $EX_BLOCK)
+          (i32.store offset=4 $ex $elems)
+          (return $ex))
+        (else
+          (i32.store $ex $EX_CALL)
+          (set $p (call $parse_sym_target))
+          (if (i32.and $ret_aux (i32.eq $dec_cp $DC_SELF_REFERENCE))
+            (then
+              (set $i (call $buf_count_i32 $self_target_stk))
+              (when (i32.eqz $i) (unreachable))
+              (set $arity (call $buf_get_i32 $self_target_stk (i32.sub $i 1)))
+              (i32.store offset=4 $ex (i32.load $arity))
+              (i32.store offset=8 $ex (i32.load offset=4 $arity))
+              (i32.store offset=12 $ex (i32.load offset=8 $arity)))
+            (else
+              (i32.store offset=4 $ex $ret_aux)
+              (i32.store offset=8 $ex $p)
+              (i32.store offset=12 $ex $ret_len)))
+          (set $elems (call $buf_new 16))
+          (block $cdone
+            (loop $clp
+              (br_if $cdone (i32.eq (call $tok_peek) $DC_END_ROUTINE_CALL))
+              (call $buf_push_i32 $elems (call $parse_expr))
+              (br $clp)))
+          (call $expect_tok $DC_END_ROUTINE_CALL)
+          (i32.store offset=16 $ex $elems)
+          (return $ex))))
     (when (i32.eq $cp $DC_BEGIN_CODE_BLOCK)
       (i32.store $ex $EX_BLOCK)
       (set $elems (call $buf_new 16))
@@ -4240,6 +4342,9 @@
       (call $collect_routine_refs (i32.load offset=20 $ex) $ibnd $out_vars $out_calls)
       (return))
 
+    (when (i32.or (i32.eq $tag $EX_LET) (i32.eq $tag $EX_CONST))
+      (call $collect_routine_refs (i32.load offset=16 $ex) $bound $out_vars $out_calls)
+      (return))
     (when (i32.or (i32.eq $tag $EX_FIELD) (i32.or (i32.eq $tag $EX_CONV) (i32.eq $tag $EX_BITCAST)))
       (call $collect_routine_refs (i32.load offset=4 $ex) $bound $out_vars $out_calls)
       (return))
@@ -4357,6 +4462,8 @@
           (br $llp)))
       (return 0))
 
+    (when (i32.or (i32.eq $tag $EX_LET) (i32.eq $tag $EX_CONST))
+      (return (call $expr_sets_unshadowed (i32.load offset=16 $ex) $n_p $n_l)))
     (when (i32.or (i32.eq $tag $EX_FIELD) (i32.or (i32.eq $tag $EX_CONV) (i32.or (i32.eq $tag $EX_BITCAST) (i32.eq $tag $EX_RETURN))))
       (return (call $expr_sets_unshadowed (i32.load offset=4 $ex) $n_p $n_l)))
     (when (i32.or (i32.eq $tag $EX_BUF_NEW) (i32.eq $tag $EX_UNARY))
@@ -6763,6 +6870,7 @@
     (global.set $uses_shadow 0)
     (global.set $has_top_vals 0)
     (global.set $next_rout_uid 1)
+    (global.set $self_target_stk (call $buf_new 16))
 
     (call $init_types)
     (call $parse_builtin_map)

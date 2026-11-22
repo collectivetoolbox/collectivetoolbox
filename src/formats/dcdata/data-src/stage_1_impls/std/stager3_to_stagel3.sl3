@@ -919,6 +919,59 @@ v/tup: exprNode u64 ::/readStageRExpr l/dcVal/tokens u64/pos
         nop.
     if eq /sid u32:2211
         do
+            const u64/headPos skipComments /tokens /next.
+            if and lt /headPos len /tokens eq dcShortId get /tokens /headPos u32:2240
+                do
+                    const tup: rawType u64 ::/rtr readRawType /tokens add /headPos u64:1.
+                    let u64/pcur field /rtr u32:1.
+                    const buf/paramDecl/params bufNew paramDecl u64:4.
+                    let b/pdone false.
+                    while not /pdone do
+                        set /pcur skipComments /tokens /pcur.
+                        if and lt /pcur len /tokens eq dcShortId get /tokens /pcur u32:2205
+                            do
+                                const tup: rawType u64 ::/ptr readRawType /tokens add /pcur u64:1.
+                                const tup: l/u8 u64 ::/pnr mustReadIdent /tokens field /ptr u32:1.
+                                bufPush /params structNew paramDecl: field /ptr u32:0 field /pnr u32:0 ::.
+                                set /pcur field /pnr u32:1.
+                            ::
+                            set /pdone true.
+                    ::.
+                    const tup: exprNode u64 ::/bodyRes readStageRExpr /tokens /pcur.
+                    let u64/acur expectShort /tokens field /bodyRes u32:1 u32:2241.
+                    const l/u8/anonName concat b"__sr_anon_" u64ToAsciiDec /headPos.
+                    const symRef/anonSym structNew symRef: false dcZero /anonName ::.
+                    const exprNode/rewBody rewriteSelfRefInExpr field /bodyRes u32:0 /anonSym.
+                    const rawRoutine/anonRout structNew rawRoutine:
+                        false tupNew: false dcZero :: field /rtr u32:0 /anonName
+                        bufFreeze /params l/testCase: :: /rewBody
+                    ::.
+                    const buf/exprNode/args bufNew exprNode u64:4.
+                    let b/adone false.
+                    while not /adone do
+                        set /acur skipComments /tokens /acur.
+                        if ge /acur len /tokens
+                            fault
+                            nop.
+                        if eq dcShortId get /tokens /acur u32:2212
+                            do
+                                set /acur add /acur u64:1.
+                                set /adone true.
+                            ::
+                            do
+                                const tup: exprNode u64 ::/ar readStageRExpr /tokens /acur.
+                                bufPush /args field /ar u32:0.
+                                set /acur field /ar u32:1.
+                            ::.
+                    ::.
+                    const exprNode/declExpr makeExpr u8:15 u32:0 dcZero b"" l/dcVal: :: emptySym l/rawType: :: l/exprNode: :: l/fieldInit: :: l/matchArm: :: l/rawRoutine: /anonRout ::.
+                    const exprNode/callExpr makeExpr u8:16 u32:0 dcZero b"" l/dcVal: :: /anonSym l/rawType: :: bufFreeze /args l/fieldInit: :: l/matchArm: :: l/rawRoutine: ::.
+                    return tupNew:
+                        makeExpr u8:17 u32:0 dcZero b"" l/dcVal: :: emptySym l/rawType: :: l/exprNode: /declExpr /callExpr :: l/fieldInit: :: l/matchArm: :: l/rawRoutine: ::
+                        /acur
+                    ::.
+                ::
+                nop.
             const tup: symRef u64 ::/sr readSymRef /tokens /next.
             let u64/cur field /sr u32:1.
             const buf/exprNode/args bufNew exprNode u64:4.
@@ -1223,6 +1276,55 @@ v/tup: exprNode u64 ::/readStageRExpr l/dcVal/tokens u64/pos
         nop.
     fault.
 
+: Rewrites outer `Dc 599` (`SelfReference`) call targets in `e` to `selfSym` without
+: descending into nested `u8:15` (`RoutineDecl`) bodies (which bind their own self-target).
+v/exprNode/rewriteSelfRefInExpr exprNode/e symRef/selfSym
+    const u8/k field /e u32:0.
+    if eq /k u8:15
+        return /e
+        nop.
+    const l/exprNode/inArgs field /e u32:7.
+    let l/exprNode/outArgs /inArgs.
+    if gt len /inArgs u64:0
+        do
+            const buf/exprNode/ab bufNew exprNode len /inArgs.
+            foreach exprNode/sub /inArgs do
+                bufPush /ab rewriteSelfRefInExpr /sub /selfSym.
+            ::.
+            set /outArgs bufFreeze /ab.
+        ::
+        nop.
+    const l/fieldInit/inFields field /e u32:8.
+    let l/fieldInit/outFields /inFields.
+    if gt len /inFields u64:0
+        do
+            const buf/fieldInit/fb bufNew fieldInit len /inFields.
+            foreach fieldInit/fi /inFields do
+                bufPush /fb structNew fieldInit: field /fi u32:0 rewriteSelfRefInExpr field /fi u32:1 /selfSym ::.
+            ::.
+            set /outFields bufFreeze /fb.
+        ::
+        nop.
+    const l/matchArm/inArms field /e u32:9.
+    let l/matchArm/outArms /inArms.
+    if gt len /inArms u64:0
+        do
+            const buf/matchArm/mb bufNew matchArm len /inArms.
+            foreach matchArm/ma /inArms do
+                bufPush /mb structNew matchArm:
+                    field /ma u32:0 field /ma u32:1 field /ma u32:2 field /ma u32:3
+                    rewriteSelfRefInExpr field /ma u32:4 /selfSym
+                ::.
+            ::.
+            set /outArms bufFreeze /mb.
+        ::
+        nop.
+    let symRef/outSym field /e u32:5.
+    if and eq /k u8:16 and field /outSym u32:0 eq dcShortId field /outSym u32:1 u32:599
+        set /outSym /selfSym
+        nop.
+    makeExpr /k field /e u32:1 field /e u32:2 field /e u32:3 field /e u32:4 /outSym field /e u32:6 /outArgs /outFields /outArms field /e u32:10.
+
 : Parses a StageR 3 `Dc 2203 .. Dc 2204` routine declaration -> `(rawRoutine, nextPos)`.
 : @dc l8589983051
 v/tup: rawRoutine u64 ::/readStageRRoutine l/dcVal/tokens u64/pos
@@ -1246,6 +1348,11 @@ v/tup: rawRoutine u64 ::/readStageRRoutine l/dcVal/tokens u64/pos
             ::
             set /pdone true.
     ::.
+
+    const tup: b dcVal ::/optDcVal field /odr u32:0.
+    const symRef/selfSym if field /optDcVal u32:0
+        structNew symRef: true field /optDcVal u32:1 b"" ::
+        structNew symRef: false dcZero field /nr u32:0 ::.
 
     const buf/testCase/tests bufNew testCase u64:4.
     let b/tdone false.
@@ -1285,7 +1392,7 @@ v/tup: rawRoutine u64 ::/readStageRRoutine l/dcVal/tokens u64/pos
                                     ::
                                     do
                                         const tup: exprNode u64 ::/ir readStageRExpr /tokens /cur.
-                                        bufPush /ins field /ir u32:0.
+                                        bufPush /ins rewriteSelfRefInExpr field /ir u32:0 /selfSym.
                                         set /cur field /ir u32:1.
                                     ::.
                             ::.
@@ -1303,7 +1410,7 @@ v/tup: rawRoutine u64 ::/readStageRRoutine l/dcVal/tokens u64/pos
                                     fault
                                     do
                                         const tup: exprNode u64 ::/exr readStageRExpr /tokens /cur.
-                                        bufPush /tests structNew testCase: bufFreeze /ins u8:2 field /exr u32:0 ::.
+                                        bufPush /tests structNew testCase: bufFreeze /ins u8:2 rewriteSelfRefInExpr field /exr u32:0 /selfSym ::.
                                         set /cur field /exr u32:1.
                                     ::.
                             set /cur expectShort /tokens /cur u32:2210.
@@ -1317,8 +1424,8 @@ v/tup: rawRoutine u64 ::/readStageRRoutine l/dcVal/tokens u64/pos
     set /cur expectShort /tokens field /br u32:1 u32:2204.
     tupNew:
         structNew rawRoutine:
-            field /pr u32:0 field /odr u32:0 field /rtr u32:0 field /nr u32:0
-            bufFreeze /params bufFreeze /tests field /br u32:0
+            field /pr u32:0 /optDcVal field /rtr u32:0 field /nr u32:0
+            bufFreeze /params bufFreeze /tests rewriteSelfRefInExpr field /br u32:0 /selfSym
         ::
         /cur
     ::.
@@ -1464,10 +1571,19 @@ v/u64/skipStageLExpr l/dcVal/tokens u64/pos
     if eq /sid u32:2203
         return skipStageLRoutineFromOpen /tokens /p
         nop.
+    if eq /sid u32:2240
+        return skipStageLAnonRoutineFromOpen /tokens /p
+        nop.
     if eq /sid u32:2211
         do
-            const tup: symRef u64 ::/sr readSymRef /tokens /next.
-            let u64/cur field /sr u32:1.
+            const u64/hpos skipComments /tokens /next.
+            let u64/cur /hpos.
+            if and lt /hpos len /tokens eq dcShortId get /tokens /hpos u32:2240
+                set /cur skipStageLAnonRoutineFromOpen /tokens /hpos
+                do
+                    const tup: symRef u64 ::/sr readSymRef /tokens /next.
+                    set /cur field /sr u32:1.
+                ::.
             while true do
                 set /cur skipComments /tokens /cur.
                 if ge /cur len /tokens fault nop.
@@ -1556,11 +1672,31 @@ v/u64/skipStageLRoutineFromOpen l/dcVal/tokens u64/pos
     ::.
     /cur.
 
+v/u64/skipStageLAnonRoutineFromOpen l/dcVal/tokens u64/pos
+    let u64/cur expectShort /tokens /pos u32:2240.
+    let u64/depth u64:1.
+    while gt /depth u64:0 do
+        set /cur skipComments /tokens /cur.
+        if ge /cur len /tokens fault nop.
+        const u32/sid dcShortId get /tokens /cur.
+        if eq /sid u32:255
+            set /cur add /cur u64:2
+            do
+                if eq /sid u32:2240
+                    set /depth add /depth u64:1
+                    if eq /sid u32:2241
+                        set /depth sub /depth u64:1
+                        nop.
+                set /cur add /cur u64:1.
+            ::.
+    ::.
+    /cur.
+
 : Scans a StageL 3 routine tail starting right after its `Dc 2205` param list through
 : its matching `Dc 2204`, recording direct `fault` (`Dc 2454`) and `Dc 2211` call targets
 : outside `Dc 2206 .. Dc 2207` test blocks (`aux = 1` if direct `fault`, `args` = `symRef` nodes).
 : @dc l8589984966
-v/tup: exprNode u64 ::/scanStageLRoutineTail l/dcVal/tokens u64/posAfterParams
+v/tup: exprNode u64 ::/scanStageLRoutineTail l/dcVal/tokens u64/posAfterParams symRef/selfSym
     let u64/cur /posAfterParams.
     let u64/depth u64:1.
     let u64/testDepth u64:0.
@@ -1626,9 +1762,18 @@ v/tup: exprNode u64 ::/scanStageLRoutineTail l/dcVal/tokens u64/posAfterParams
                                                             ::
                                                             if eq /sid u32:2211
                                                                 do
-                                                                    const tup: symRef u64 ::/sr readSymRef /tokens add /cur u64:1.
-                                                                    bufPush /calls makeExpr u8:16 u32:0 dcZero b"" l/dcVal: :: field /sr u32:0 l/rawType: :: l/exprNode: :: l/fieldInit: :: l/matchArm: :: l/rawRoutine: ::.
-                                                                    set /cur field /sr u32:1.
+                                                                    const u64/hpos skipComments /tokens add /cur u64:1.
+                                                                    if and lt /hpos len /tokens eq dcShortId get /tokens /hpos u32:2240
+                                                                        set /cur add /hpos u64:1
+                                                                        do
+                                                                            const tup: symRef u64 ::/sr readSymRef /tokens /hpos.
+                                                                            const symRef/rawSym field /sr u32:0.
+                                                                            const symRef/callSym if and field /rawSym u32:0 eq dcShortId field /rawSym u32:1 u32:599
+                                                                                /selfSym
+                                                                                /rawSym.
+                                                                            bufPush /calls makeExpr u8:16 u32:0 dcZero b"" l/dcVal: :: /callSym l/rawType: :: l/exprNode: :: l/fieldInit: :: l/matchArm: :: l/rawRoutine: ::.
+                                                                            set /cur field /sr u32:1.
+                                                                        ::.
                                                                 ::
                                                                 set /cur add /cur u64:1.
                                                     ::
@@ -1839,9 +1984,13 @@ v/tup: parsedMod u64 ::/parseStage1Module l/dcVal/tokens u64/startPos
                                     ::
                                     set /pdone true.
                             ::.
-                            const tup: exprNode u64 ::/scanRes scanStageLRoutineTail /tokens /pcur.
+                            const tup: b dcVal ::/s1OptDc field /odr u32:0.
+                            const symRef/s1SelfSym if field /s1OptDc u32:0
+                                structNew symRef: true field /s1OptDc u32:1 b"" ::
+                                structNew symRef: false dcZero field /nr u32:0 ::.
+                            const tup: exprNode u64 ::/scanRes scanStageLRoutineTail /tokens /pcur /s1SelfSym.
                             set /cur field /scanRes u32:1.
-                            bufPush /routs structNew rawRoutine: field /pr u32:0 field /odr u32:0 field /rtr u32:0 field /nr u32:0 bufFreeze /params l/testCase: :: field /scanRes u32:0 ::.
+                            bufPush /routs structNew rawRoutine: field /pr u32:0 /s1OptDc field /rtr u32:0 field /nr u32:0 bufFreeze /params l/testCase: :: field /scanRes u32:0 ::.
                         ::
                         fault.
     ::.

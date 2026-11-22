@@ -36,7 +36,7 @@ use std/dcmst:
 ::.
 
 use std/dctf:
-    skipComments readEscapedLiteral tokEscapedLiteral readIdentBytes dcShortId dcFormatId unescapeDctfStringLitBytes encodeDcStream decodeDcStream
+    skipComments readEscapedLiteral tokEscapedLiteral tokAtomDc tokIdent readIdentBytes dcShortId dcFormatId unescapeDctfStringLitBytes encodeDcStream decodeDcStream
 ::.
 
 use std/u128:
@@ -1434,7 +1434,7 @@ v/capOptNodeRes/expandInternedNodesInner capClient/cli l/dc/tokens l/u128/visIds
                                         const u64/clen len /child.
                                         const u32/csid0 dcShortId dcAtOr /child u64:0 /dcZero.
                                         const b/isStmtVerb or and ge /csid0 u32:584 le /csid0 u32:593 or eq /csid0 u32:610 or eq /csid0 u32:627 or eq /csid0 u32:638 or eq /csid0 u32:645 eq /csid0 u32:646.
-                                        const b/isTopDecl or eq /csid0 u32:2192 or eq /csid0 u32:2221 or eq /csid0 u32:2203 or eq /csid0 u32:2217 or eq /csid0 u32:2223 or eq /csid0 u32:2224 or eq /csid0 u32:2230 or eq /csid0 u32:2199 eq /csid0 u32:2200.
+                                        const b/isTopDecl or eq /csid0 u32:2192 or eq /csid0 u32:2221 or eq /csid0 u32:2203 or eq /csid0 u32:2240 or eq /csid0 u32:2206 or eq /csid0 u32:2217 or eq /csid0 u32:2223 or eq /csid0 u32:2224 or eq /csid0 u32:2230 or eq /csid0 u32:2199 eq /csid0 u32:2200.
                                         const b/isBare and gt /clen u64:0 and not /isStmtVerb and not /isTopDecl and not tokensStartWasmDefinition /child and not isClosedStringLiteralNode /child and not isClosedCommentNode /child not isClosedIdentifierNode /child.
                                         if /isBare
                                             do
@@ -2369,7 +2369,7 @@ v/b/tokensStartStageLOrR l/dc/tokens
         return false
         nop.
     const u32/sid dcShortId dcAtOr /stripped u64:0 /dcZero.
-    if or eq /sid u32:2192 or eq /sid u32:2221 eq /sid u32:2203
+    if or eq /sid u32:2192 or eq /sid u32:2221 or eq /sid u32:2203 eq /sid u32:2240
         return true
         nop.
     if or eq /sid u32:2217 or eq /sid u32:2223 eq /sid u32:2224
@@ -2388,7 +2388,8 @@ v/b/tokensContainShortRange647To1928 l/dc/tokens
     false.
 
 : Resolves the active unconstrained decomposition (`611`, `571`, `614`) of `subj`
-: that carries a StageL/StageR module or top-level declaration.
+: that carries a StageL/StageR module or top-level declaration, or `subj` itself
+: when `subj` is a System-region `Dc 2240..Dc 2241` routine value node.
 : @dc l8589992839
 v/capOptNodeRes/resolveStageLOrRDecomp capClient/cli dc/subj b/allowStager
     let capClient/curCli /cli.
@@ -2436,6 +2437,37 @@ v/capOptNodeRes/resolveStageLOrRDecomp capClient/cli dc/subj b/allowStager
                 nop.
         ::.
     ::.
+    const u128/selfU u128FromDc /subj.
+    if isSysRegionId /selfU
+        do
+            const capOptNodeRes/rawSelf queryNodeRaw /curCli /selfU.
+            set /curCli field /rawSelf cli.
+            if eq field /rawSelf tag u8:2
+                return /rawSelf
+                nop.
+            if eq field /rawSelf tag u8:1
+                do
+                    if or /allowStager not rawTokensHaveStageRMarker field /rawSelf payload
+                        do
+                            const capOptNodeRes/expSelf expandInternedNodesInner /curCli field /rawSelf payload l/u128: /selfU ::.
+                            set /curCli field /expSelf cli.
+                            if eq field /expSelf tag u8:2
+                                return /expSelf
+                                nop.
+                            if eq field /expSelf tag u8:1
+                                do
+                                    const l/dc/stSelf stripLeadingComments field /expSelf payload.
+                                    if and gt len /stSelf u64:0 eq dcShortId dcAtOr /stSelf u64:0 /dcZero u32:2240
+                                        return structNew capOptNodeRes: cli /curCli tag u8:1 payload field /expSelf payload ::
+                                        nop.
+                                ::
+                                nop.
+                        ::
+                        nop.
+                ::
+                nop.
+        ::
+        nop.
     structNew capOptNodeRes: cli /curCli tag u8:0 payload l/dc: :: ::.
 
 : Resolves an active unconstrained WASM helper decomposition (`611`, `571`, `614`)
@@ -3725,6 +3757,10 @@ v/u64/skipTokenDcType l/dc/tokens u64/pos
     let u64/i /pos.
     let u64/need u64:1.
     while and lt /i /n gt /need u64:0 do
+        set /i skipAllComments /tokens /i.
+        if ge /i /n
+            break
+            nop.
         const dc/t dcAtOr /tokens /i /dcZero.
         const u32/sid dcShortId /t.
         if or eq /sid u32:2576 or eq /sid u32:2577 or eq /sid u32:2674 eq /sid u32:2675
@@ -3830,7 +3866,32 @@ v/l/u128/scanDcRefsInRange l/dc/tokens u64/start u64/end
                 continue.
             ::
             nop.
-        if or eq /sid u32:2673 or eq /sid u32:2679 or eq /sid u32:2211 or eq /sid u32:2219 or eq /sid u32:2227 or eq /sid u32:2233 eq /sid u32:2197
+        if eq /sid u32:2211
+            do
+                set /i skipAllComments /tokens wrapAdd /i u64:1.
+                if lt /i /end
+                    do
+                        const u32/hsid dcShortId dcAtOr /tokens /i /dcZero.
+                        if eq /hsid u32:2240
+                            set /i wrapAdd /i u64:1
+                            if ne /hsid u32:270
+                                match readTokAtom /tokens /i
+                                    case some u128Step/st
+                                        do
+                                            if ne field /st val u128:1114711
+                                                bufPush /refs field /st val
+                                                nop.
+                                            set /i field /st nextPos.
+                                        ::
+                                    case none nop.
+                                ::
+                                nop.
+                    ::
+                    nop.
+                continue.
+            ::
+            nop.
+        if or eq /sid u32:2673 or eq /sid u32:2679 or eq /sid u32:2219 or eq /sid u32:2227 or eq /sid u32:2233 eq /sid u32:2197
             do
                 set /i wrapAdd /i u64:1.
                 if and lt /i /end ne dcShortId dcAtOr /tokens /i /dcZero u32:270
@@ -4097,6 +4158,12 @@ v/b/tokensHasBufDc l/dc/tokens u64/start u64/end
                         nop.
                 ::.
                 set /i skipBalancedFrame /tokens /i dc:2203 dc:2204.
+                continue.
+            ::
+            nop.
+        if eq /sid u32:2240
+            do
+                set /i skipBalancedFrame /tokens /i dc:2240 dc:2241.
                 continue.
             ::
             nop.
@@ -4686,6 +4753,149 @@ v/l/dc/extractTopUseItems l/dc/useTokens l/u8/excludeNsKey
     const l/l/dc/_unusedSeen bufFreeze /seen.
     bufFreeze /out.
 
+: Extracts ASCII bytes from an expanded string value node (`Dc 260..Dc 261` `Dc 264` or raw codepoints).
+v/l/u8/extractAsciiStringFromNodeTokens l/dc/strToks
+    const tup: b dc l/dc u64 ::/lit readEscapedLiteral /strToks u64:0.
+    const l/dc/chars if and field /lit u32:0 eq field /lit u32:1 dc:264
+        field /lit u32:2
+        /strToks.
+    let buf/u8/out bufNew u8 len /chars.
+    foreach dc/ch /chars do
+        const u128/cu u128FromDc /ch.
+        if and gt /cu u128:0 lt /cu u128:128
+            match conv /cu u8
+                case ok u8/b bufPush /out /b.
+                case err error/_e nop.
+            ::
+            nop.
+    ::.
+    bufFreeze /out.
+
+v/b/isValidRoutineIdentAscii l/u8/ident
+    const u64/n len /ident.
+    if eq /n u64:0
+        return false
+        nop.
+    let u64/i u64:0.
+    while lt /i /n do
+        const u8/c u8AtOr /ident /i u8:0.
+        const b/alphaOrUnder or and ge /c u8:65 le /c u8:90 or and ge /c u8:97 le /c u8:122 eq /c u8:95.
+        const b/digit and ge /c u8:48 le /c u8:57.
+        if eq /i u64:0
+            do
+                if not /alphaOrUnder
+                    return false
+                    nop.
+            ::
+            do
+                if and not /alphaOrUnder not /digit
+                    return false
+                    nop.
+            ::.
+        set /i wrapAdd /i u64:1.
+    ::.
+    true.
+
+v/capRawBytesRes/resolveHasAValueAscii capClient/cli u128/hasAId
+    let capClient/curCli /cli.
+    const capTripleListRes/valQ queryTriples /curCli true dc:610 true dcFromU128 /hasAId false dc:0.
+    set /curCli field /valQ cli.
+    if not field /valQ ok
+        return structNew capRawBytesRes: cli /curCli ok false rawBytes b"" errTokens field /valQ errTokens ::
+        nop.
+    foreach tripleRec/vt field /valQ triples do
+        const u128/valId u128FromDc field /vt obj.
+        if isSysRegionId /valId
+            do
+                const capOptNodeRes/nr queryNodeExpanded /curCli /valId.
+                set /curCli field /nr cli.
+                if eq field /nr tag u8:2
+                    return structNew capRawBytesRes: cli /curCli ok false rawBytes b"" errTokens field /nr payload ::
+                    nop.
+                if eq field /nr tag u8:1
+                    do
+                        const l/u8/cand extractAsciiStringFromNodeTokens field /nr payload.
+                        if isValidRoutineIdentAscii /cand
+                            return structNew capRawBytesRes: cli /curCli ok true rawBytes /cand errTokens l/dc: :: ::
+                            nop.
+                    ::
+                    nop.
+            ::
+            nop.
+    ::.
+    structNew capRawBytesRes: cli /curCli ok true rawBytes b"" errTokens l/dc: :: ::.
+
+v/capRawBytesRes/resolveEntityProgIdentAscii capClient/cli dc/subj
+    let capClient/curCli /cli.
+    const capPropListRes/pr queryMultiProperty /curCli /subj dc:574.
+    set /curCli field /pr cli.
+    if not field /pr ok
+        return structNew capRawBytesRes: cli /curCli ok false rawBytes b"" errTokens field /pr errTokens ::
+        nop.
+    foreach propEntry/pe field /pr props do
+        const u128/valId u128FromDc field /pe val.
+        if isSysRegionId /valId
+            do
+                const capOptNodeRes/nr queryNodeExpanded /curCli /valId.
+                set /curCli field /nr cli.
+                if eq field /nr tag u8:2
+                    return structNew capRawBytesRes: cli /curCli ok false rawBytes b"" errTokens field /nr payload ::
+                    nop.
+                if eq field /nr tag u8:1
+                    do
+                        const l/u8/cand extractAsciiStringFromNodeTokens field /nr payload.
+                        if isValidRoutineIdentAscii /cand
+                            return structNew capRawBytesRes: cli /curCli ok true rawBytes /cand errTokens l/dc: :: ::
+                            nop.
+                    ::
+                    nop.
+            ::
+            nop.
+    ::.
+    structNew capRawBytesRes: cli /curCli ok true rawBytes b"" errTokens l/dc: :: ::.
+
+: Wraps an anonymous `Dc 2240..Dc 2241` graph routine value node into a `Dc 2203..Dc 2204`
+: top-level routine declaration carrying `(isPub, subj, identBytes)`. Non-`2240` inputs pass through.
+v/l/dc/wrapRoutineValueNodeIf2240 dc/subj b/isPub l/u8/identBytes l/dc/rawTokens
+    const l/dc/tokens stripLeadingComments /rawTokens.
+    const u64/n len /tokens.
+    if or lt /n u64:3 ne dcShortId dcAtOr /tokens u64:0 /dcZero u32:2240
+        return /rawTokens
+        nop.
+    if ne dcShortId dcAtOr /tokens wrapSub /n u64:1 /dcZero u32:2241
+        return /rawTokens
+        nop.
+    const u64/retStart skipAllComments /tokens u64:1.
+    const u64/retEnd skipTokenDcType /tokens /retStart.
+    const u64/bodyEnd wrapSub /n u64:1.
+    if gt /retEnd /bodyEnd
+        return /rawTokens
+        nop.
+    let l/u8/finalIdent /identBytes.
+    if not isValidRoutineIdentAscii /finalIdent
+        do
+            let buf/u8/fb bufNew u8 u64:24.
+            bufExtend /fb b"__dc_".
+            bufExtend /fb formatDcShorthandAscii /subj.
+            set /finalIdent bufFreeze /fb.
+        ::
+        nop.
+    let buf/dc/out bufNew dc wrapAdd /n u64:16.
+    bufPush /out dc:2203.
+    bufPush /out if /isPub dc:517 dc:518.
+    bufExtend /out tokAtomDc /subj.
+    match slice /tokens /retStart /retEnd
+        case some l/dc/rt bufExtend /out /rt.
+        case none nop.
+    ::.
+    bufExtend /out tokIdent /finalIdent.
+    match slice /tokens /retEnd /bodyEnd
+        case some l/dc/rest bufExtend /out /rest.
+        case none nop.
+    ::.
+    bufPush /out dc:2204.
+    bufFreeze /out.
+
 : Loads active declarations for a namespace (`segs`) into `(sl3Mod, sr3Mod)`.
 : @dc l8589992787
 struct loadNsRes
@@ -4743,7 +4953,19 @@ v/loadNsRes/loadNamespaceModules capClient/cli l/l/u8/segs b/allowStager
             if ne field /declNr tag u8:1
                 continue
                 nop.
-            const tup: b l/graphDeclItem ::/slUnp unpackGraphEntryTokens /subj /sid field /declNr payload false true.
+            let l/dc/nsEntryToks field /declNr payload.
+            const l/dc/nsStripped stripLeadingComments /nsEntryToks.
+            if and gt len /nsStripped u64:0 eq dcShortId dcAtOr /nsStripped u64:0 /dcZero u32:2240
+                do
+                    const capRawBytesRes/idr resolveHasAValueAscii /curCli /hasAId.
+                    set /curCli field /idr cli.
+                    if not field /idr ok
+                        return structNew loadNsRes: cli /curCli ok false mods l/bundledMod: :: errTokens field /idr errTokens ::
+                        nop.
+                    set /nsEntryToks wrapRoutineValueNodeIf2240 /subj true field /idr rawBytes /nsEntryToks.
+                ::
+                nop.
+            const tup: b l/graphDeclItem ::/slUnp unpackGraphEntryTokens /subj /sid /nsEntryToks false true.
             if field /slUnp u32:0
                 foreach graphDeclItem/it field /slUnp u32:1 do
                     const u128/slSid field /it subjId.
@@ -4768,7 +4990,7 @@ v/loadNsRes/loadNamespaceModules capClient/cli l/l/u8/segs b/allowStager
                 nop.
             if /allowStager
                 do
-                    const tup: b l/graphDeclItem ::/srUnp unpackGraphEntryTokens /subj /sid field /declNr payload true true.
+                    const tup: b l/graphDeclItem ::/srUnp unpackGraphEntryTokens /subj /sid /nsEntryToks true true.
                     if field /srUnp u32:0
                         foreach graphDeclItem/it field /srUnp u32:1 do
                             const u128/srSid field /it subjId.
@@ -5359,7 +5581,43 @@ v/capCallRes/bundleDcModuleDeps capClient/cli l/dc/callerTokens b/allowStager
                 if ne field /dnr tag u8:1
                     continue
                     nop.
-                const tup: b l/graphDeclItem ::/unp unpackGraphEntryTokens /refDc /refU field /dnr payload /allowStager false.
+                let l/dc/depEntryToks field /dnr payload.
+                const l/dc/depStripped stripLeadingComments /depEntryToks.
+                if and gt len /depStripped u64:0 eq dcShortId dcAtOr /depStripped u64:0 /dcZero u32:2240
+                    do
+                        let b/depPub not isSysRegionId /refU.
+                        let l/u8/depIdent b"".
+                        if isSysRegionId /refU
+                            do
+                                const capOptNodeRes/selfRaw queryNodeRaw /curCli /refU.
+                                set /curCli field /selfRaw cli.
+                                if eq field /selfRaw tag u8:2
+                                    return structNew capCallRes: cli /curCli ok false payload field /selfRaw payload ::
+                                    nop.
+                                if eq field /selfRaw tag u8:1
+                                    do
+                                        const l/dc/srSt stripLeadingComments field /selfRaw payload.
+                                        if and gt len /srSt u64:0 eq dcShortId dcAtOr /srSt u64:0 /dcZero u32:2240
+                                            set /depPub true
+                                            nop.
+                                    ::
+                                    nop.
+                                if not /depPub
+                                    do
+                                        const capRawBytesRes/pir resolveEntityProgIdentAscii /curCli /refDc.
+                                        set /curCli field /pir cli.
+                                        if not field /pir ok
+                                            return structNew capCallRes: cli /curCli ok false payload field /pir errTokens ::
+                                            nop.
+                                        set /depIdent field /pir rawBytes.
+                                    ::
+                                    nop.
+                            ::
+                            nop.
+                        set /depEntryToks wrapRoutineValueNodeIf2240 /refDc /depPub /depIdent /depEntryToks.
+                    ::
+                    nop.
+                const tup: b l/graphDeclItem ::/unp unpackGraphEntryTokens /refDc /refU /depEntryToks /allowStager false.
                 if not field /unp u32:0
                     continue
                     nop.
