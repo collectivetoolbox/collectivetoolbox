@@ -37,9 +37,10 @@ use ctb_storage_minimal::shorthand::DcShorthand;
 
 use crate::dc::{
     DC_BEGIN_WASM_PROGRAM, DC_CANONICAL_DECOMPOSITION,
-    DC_DATA_FORMAT_DESCRIPTION, DC_DECOMPOSITION,
-    DC_IN_CONTEXT_OF, DC_PROGRAMMATIC_IDENTIFIER, DC_SEMANTIC_DECOMPOSITION,
-    DC_TYPE_NOMINAL, DC_TYPE_ROUTINE, DC_TYPE_STRUCT, DcChar,
+    DC_DATA_FORMAT_DESCRIPTION, DC_DECOMPOSITION, DC_DESCRIPTION,
+    DC_IN_CONTEXT_OF, DC_IS_ASSOCIATED_WITH, DC_PROGRAMMATIC_IDENTIFIER,
+    DC_ROUTINE_TEST_SUITE, DC_SEMANTIC_DECOMPOSITION, DC_TYPE_NOMINAL,
+    DC_TYPE_ROUTINE, DC_TYPE_STRUCT, DcChar,
 };
 use crate::format_spec::FormatExpr;
 use crate::graph_ledger::{
@@ -58,10 +59,13 @@ use crate::stagel3::ast::{
     format_dc_shorthand,
 };
 use crate::stagel3::dc_tokens::{
-    decode_module_from_dc_tokens, decode_top_decl_from_dc_tokens,
-    encode_filepath_dc_tokens, encode_stagel_type_dc_tokens,
+    decode_anon_routine_from_dc_tokens_at_line, decode_module_from_dc_tokens,
+    decode_test_suite_from_dc_tokens_at_line, decode_top_decl_from_dc_tokens,
+    encode_filepath_dc_tokens, encode_routine_decomp_to_dc_tokens,
+    encode_stagel_type_dc_tokens, encode_test_suite_to_dc_tokens,
     encode_top_decl_to_dc_tokens, format_module_to_sl3, format_module_to_sr3,
     format_top_decl_to_sl3, format_top_decl_to_sr3,
+    restore_outer_self_refs_in_expr,
 };
 use crate::stagel3::eval::run_validated_workspace_inline_tests;
 use crate::stagel3::validator::{
@@ -2042,37 +2046,135 @@ pub(crate) fn compile_stagel_files_into_desired_state(
                         (prop_key, ns_ctx_spec.clone()),
                         format!("In context of ({ns_key})"),
                     );
+                } else if matches!(rewritten, TopDecl::Routine(_)) {
+                    let prop_key =
+                        (subj_sh, sh(DC_PROGRAMMATIC_IDENTIFIER));
+                    desired.single_properties.insert(
+                        prop_key,
+                        (
+                            make_string_value_spec(item_name),
+                            format!("{subj_sh} StageL private routine {item_name:?}"),
+                        ),
+                    );
+                    desired.direct_statements.insert(
+                        (
+                            sh(DC_IS_ASSOCIATED_WITH),
+                            subj_sh,
+                            ns_ctx_spec.clone(),
+                        ),
+                        format!("{subj_sh} associated with module ({ns_key})"),
+                    );
+                }
+
+                if let TopDecl::Routine(r) = &rewritten
+                    && !r.comments_before.is_empty()
+                {
+                    let doc_text = r
+                        .comments_before
+                        .iter()
+                        .map(|c| c.text.as_str())
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    desired.single_properties.insert(
+                        (subj_sh, sh(DC_DESCRIPTION)),
+                        (
+                            make_string_value_spec(&doc_text),
+                            format!("{subj_sh} description ({label})"),
+                        ),
+                    );
                 }
             }
 
-            let dc_chars = encode_top_decl_to_dc_tokens(&rewritten)?;
-            // Gate 4 lossless Token-Dc roundtrip verification before ledger emission:
-            let decoded = decode_top_decl_from_dc_tokens(&dc_chars)?;
-            if vm.module.dialect == StageDialect::StageR3
-                || top_decl_uses_stager(&decoded)
-            {
-                let _formatted = format_top_decl_to_sr3(&decoded)?;
-            } else {
-                let _formatted = format_top_decl_to_sl3(&decoded)?;
-            }
-
-            let token_shorthands: Vec<DcShorthand> = dc_chars
-                .iter()
-                .map(|c| DcShorthand::from_global_id(c.to_u128()))
-                .collect();
-            let body_spec = ValueSpec::ValueNode {
-                tokens: token_shorthands,
-                comment: format!("StageL 3 Token-Dc {label}"),
-            };
             let decomp_dc = if pub_dc_syntax {
                 DC_SEMANTIC_DECOMPOSITION
             } else {
                 DC_CANONICAL_DECOMPOSITION
             };
-            desired.multi_properties.insert(
-                (subj_sh, sh(decomp_dc), body_spec),
-                format!("{subj_sh} StageL 3 decomposition ({label})"),
-            );
+
+            if let TopDecl::Routine(r) = &rewritten {
+                if r.tests.iter().any(|tb| !tb.cases.is_empty()) {
+                    let suite_chars = encode_test_suite_to_dc_tokens(&r.tests)?;
+                    let _ = decode_test_suite_from_dc_tokens_at_line(
+                        &suite_chars,
+                        1,
+                    )?;
+                    let suite_shorthands: Vec<DcShorthand> = suite_chars
+                        .iter()
+                        .map(|c| DcShorthand::from_global_id(c.to_u128()))
+                        .collect();
+                    let suite_spec = ValueSpec::ValueNode {
+                        tokens: suite_shorthands,
+                        comment: format!("StageL 3 test suite {label}"),
+                    };
+                    desired.multi_properties.insert(
+                        (subj_sh, sh(DC_ROUTINE_TEST_SUITE), suite_spec),
+                        format!("{subj_sh} routine test suite ({label})"),
+                    );
+                }
+
+                let dc_chars = encode_routine_decomp_to_dc_tokens(r)?;
+                // Gate 4 lossless Token-Dc roundtrip verification before ledger emission:
+                let mut decoded_anon =
+                    decode_anon_routine_from_dc_tokens_at_line(&dc_chars, 1)?;
+                restore_outer_self_refs_in_expr(&mut decoded_anon.body, &r.name);
+                let recon_decl = TopDecl::Routine(RoutineDecl {
+                    comments_before: Vec::new(),
+                    is_pub: r.is_pub,
+                    pub_dc_syntax: r.pub_dc_syntax,
+                    dc_id: r.dc_id,
+                    return_type: decoded_anon.return_type,
+                    name: r.name.clone(),
+                    params: decoded_anon.params,
+                    inline_body: false,
+                    tests: Vec::new(),
+                    body: decoded_anon.body,
+                    span: r.span,
+                });
+                if vm.module.dialect == StageDialect::StageR3
+                    || top_decl_uses_stager(&recon_decl)
+                {
+                    let _formatted = format_top_decl_to_sr3(&recon_decl)?;
+                } else {
+                    let _formatted = format_top_decl_to_sl3(&recon_decl)?;
+                }
+
+                let token_shorthands: Vec<DcShorthand> = dc_chars
+                    .iter()
+                    .map(|c| DcShorthand::from_global_id(c.to_u128()))
+                    .collect();
+                let body_spec = ValueSpec::ValueNode {
+                    tokens: token_shorthands,
+                    comment: format!("StageL 3 routine {label}"),
+                };
+                desired.multi_properties.insert(
+                    (subj_sh, sh(decomp_dc), body_spec),
+                    format!("{subj_sh} StageL 3 decomposition ({label})"),
+                );
+            } else {
+                let dc_chars = encode_top_decl_to_dc_tokens(&rewritten)?;
+                // Gate 4 lossless Token-Dc roundtrip verification before ledger emission:
+                let decoded = decode_top_decl_from_dc_tokens(&dc_chars)?;
+                if vm.module.dialect == StageDialect::StageR3
+                    || top_decl_uses_stager(&decoded)
+                {
+                    let _formatted = format_top_decl_to_sr3(&decoded)?;
+                } else {
+                    let _formatted = format_top_decl_to_sl3(&decoded)?;
+                }
+
+                let token_shorthands: Vec<DcShorthand> = dc_chars
+                    .iter()
+                    .map(|c| DcShorthand::from_global_id(c.to_u128()))
+                    .collect();
+                let body_spec = ValueSpec::ValueNode {
+                    tokens: token_shorthands,
+                    comment: format!("StageL 3 Token-Dc {label}"),
+                };
+                desired.multi_properties.insert(
+                    (subj_sh, sh(decomp_dc), body_spec),
+                    format!("{subj_sh} StageL 3 decomposition ({label})"),
+                );
+            }
         }
     }
 
@@ -2326,6 +2428,37 @@ pub fn validate_system_graph_wasm_and_stagel_boundaries(
                                 let m = decode_module_from_dc_tokens(&chars)?;
                                 let _ = format_module_to_sr3(&m)?;
                                 Ok(())
+                            } else if index.token_fills_canonical_or_equiv_role(
+                                u,
+                                crate::syntax::DcRole::BeginRoutine,
+                            ) {
+                                let mut anon =
+                                    decode_anon_routine_from_dc_tokens_at_line(
+                                        &chars, 1,
+                                    )?;
+                                restore_outer_self_refs_in_expr(
+                                    &mut anon.body,
+                                    "__anon",
+                                );
+                                let d = TopDecl::Routine(RoutineDecl {
+                                    comments_before: Vec::new(),
+                                    is_pub: true,
+                                    pub_dc_syntax: false,
+                                    dc_id: None,
+                                    return_type: anon.return_type,
+                                    name: String::from("__anon"),
+                                    params: anon.params,
+                                    inline_body: false,
+                                    tests: Vec::new(),
+                                    body: anon.body,
+                                    span: anon.span,
+                                });
+                                if top_decl_uses_stager(&d) {
+                                    let _ = format_top_decl_to_sr3(&d)?;
+                                } else {
+                                    let _ = format_top_decl_to_sl3(&d)?;
+                                }
+                                Ok(())
                             } else {
                                 let d = decode_top_decl_from_dc_tokens(&chars)?;
                                 if top_decl_uses_stager(&d) {
@@ -2351,6 +2484,48 @@ pub fn validate_system_graph_wasm_and_stagel_boundaries(
                         );
                     }
                 }
+            }
+        }
+    }
+
+    let suite_prop_sh = sh(DC_ROUTINE_TEST_SUITE);
+    let mut suite_keys: Vec<(DcShorthand, DcShorthand)> = index
+        .multi_props_by_subj_prop
+        .keys()
+        .filter(|&&(_, p)| p == suite_prop_sh)
+        .copied()
+        .collect();
+    suite_keys.sort_unstable();
+    for (subj, _) in suite_keys {
+        for entry in index.get_multi_properties(subj, suite_prop_sh) {
+            let DcShorthand::Long(val_node_id) = entry.value else {
+                continue;
+            };
+            let Some(val_node) = index.get_active_node(val_node_id) else {
+                continue;
+            };
+            let expanded = index.expand_interned_string_nodes(&val_node.tokens);
+            let suite_res: Result<()> = (|| {
+                let mut chars = Vec::with_capacity(expanded.len());
+                for t in expanded {
+                    let gid = t.to_global_id().with_context(|| {
+                        format!("Invalid DcShorthand {t}")
+                    })?;
+                    chars.push(DcChar::from_u128(gid));
+                }
+                let _ = decode_test_suite_from_dc_tokens_at_line(&chars, 1)?;
+                Ok(())
+            })();
+            if let Err(err) = suite_res {
+                report.add_error(
+                    source_path_label,
+                    None,
+                    Some("StageL Test Suite"),
+                    format!(
+                        "Routine test suite l{val_node_id} on {subj} failed Token-Dc decode: {err:#}"
+                    ),
+                    Some("Re-run validate-data-tables --write to regenerate valid Dc 1942 routine test suites"),
+                );
             }
         }
     }
@@ -2725,8 +2900,31 @@ mod tests {
         let (_, compute_tokens) = idx1
             .resolve_stagel_decomposition_tokens(compute_sh)?
             .unwrap();
-        let decoded_compute = decode_top_decl_from_dc_tokens(&compute_tokens)?;
-        let formatted_compute = format_top_decl_to_sl3(&decoded_compute)?;
+        assert_eq!(
+            compute_tokens.first().copied(),
+            Some(crate::dc::DC_BEGIN_ROUTINE)
+        );
+        let decoded_anon =
+            decode_anon_routine_from_dc_tokens_at_line(&compute_tokens, 1)?;
+        let compute_meta = idx1.resolve_stagel_routine_metadata(compute_sh)?;
+        assert!(compute_meta.is_pub);
+        assert_eq!(compute_meta.name.as_deref(), Some("compute"));
+        assert!(compute_meta.test_suite_tokens.is_some());
+        let formatted_compute = format_top_decl_to_sl3(&TopDecl::Routine(
+            RoutineDecl {
+                comments_before: Vec::new(),
+                is_pub: compute_meta.is_pub,
+                pub_dc_syntax: false,
+                dc_id: None,
+                return_type: decoded_anon.return_type,
+                name: String::from("compute"),
+                params: decoded_anon.params,
+                inline_body: false,
+                tests: Vec::new(),
+                body: decoded_anon.body,
+                span: crate::stagel3::ast::Span { line: 1, col: 1 },
+            },
+        ))?;
         // Peer call `double` and constant `OFFSET` were rewritten to `dc/l<id>`!
         assert!(formatted_compute.contains(&format!("i32/dc/{offset_sh}")));
         assert!(formatted_compute.contains("dc/l"));
@@ -3243,5 +3441,168 @@ pub v/result/u64/runCheck
             "Ledger reconciliation must reject cross-stratum pub routine collisions"
         );
         Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_anon_routine_value_node_deduplication_metadata_and_call_equivalence()
+    -> Result<()> {
+        let scripts = BTreeSet::new();
+        let mut files = vec![make_mem_file(
+            ImplStage::Stage1,
+            "std/demo/dedup.sl3",
+            concat!(
+                "ns std/demo/dedup.\n\n",
+                "pub i32/UNIT i32:1.\n\n",
+                ": Public factorial doc line 1\n",
+                ": Public factorial doc line 2\n",
+                "pub v/i32/factPub i32/n\n",
+                "    test\n",
+                "        in i32:5\n",
+                "        out i32:120\n",
+                "    if le /n i32:1\n",
+                "        i32:1\n",
+                "        mul /n factPub sub /n i32:1.\n\n",
+                ": Private helper factorial\n",
+                "v/i32/factPriv i32/n\n",
+                "    if le /n i32:1\n",
+                "        i32:1\n",
+                "        mul /n factPriv sub /n i32:1.\n",
+            ),
+        )];
+
+        let (nodes1, alloc1, _) = reconcile_stagel_and_csv_in_memory(
+            Vec::new(),
+            &mut files,
+            &[],
+            &[],
+            &scripts,
+            None,
+        )?;
+        assert_eq!(alloc1.entities_allocated, 3);
+
+        let single_props = single_valued_property_set();
+        let idx1 = SeedGraphIndex::from_nodes_with_single_props(
+            nodes1.clone(),
+            &single_props,
+        );
+
+        let ns_segs = vec![
+            "std".to_owned(),
+            "demo".to_owned(),
+            "dedup".to_owned(),
+        ];
+        let exports = idx1.resolve_stagel_namespace_exports(&ns_segs)?;
+        assert_eq!(exports.len(), 2);
+        assert!(exports.contains_key("factPub"));
+        assert!(!exports.contains_key("factPriv"));
+
+        let pub_sh = exports["factPub"][0];
+        let priv_sh_str = files[0]
+            .source
+            .lines()
+            .collect::<Vec<_>>()
+            .windows(2)
+            .find_map(|w| {
+                w[1].trim_start()
+                    .starts_with("v/i32/factPriv")
+                    .then(|| w[0].trim().strip_prefix(": @dc "))
+                    .flatten()
+            })
+            .context("missing @dc on factPriv")?;
+        let priv_dc = crate::stagel3::ast::parse_dc_shorthand(priv_dc_str(priv_sh_str))?;
+        let priv_sh = DcShorthand::from_global_id(priv_dc.to_u128());
+
+        // 1. Both routines (despite different names, doc comments, test suites, and visibility)
+        //    resolve to the EXACT SAME pure `Dc 2240..2241` value node ID!
+        let (val_id_pub, pub_tokens) = idx1
+            .resolve_stagel_decomposition_tokens(pub_sh)?
+            .context("pub decomp")?;
+        let (val_id_priv, priv_tokens) = idx1
+            .resolve_stagel_decomposition_tokens(priv_sh)?
+            .context("priv decomp")?;
+        assert_eq!(val_id_pub, val_id_priv);
+        assert_eq!(pub_tokens, priv_tokens);
+        assert_eq!(pub_tokens.first().copied(), Some(crate::dc::DC_BEGIN_ROUTINE));
+        assert!(pub_tokens.contains(&crate::dc::DC_SELF_REFERENCE));
+
+        // 2. Verify decoupled metadata on both `pub` and `private` routines.
+        let pub_meta = idx1.resolve_stagel_routine_metadata(pub_sh)?;
+        assert!(pub_meta.is_pub);
+        assert_eq!(pub_meta.name.as_deref(), Some("factPub"));
+        assert_eq!(pub_meta.home_namespace.as_ref(), Some(&ns_segs));
+        assert_eq!(
+            pub_meta.description.as_deref(),
+            Some("Public factorial doc line 1\nPublic factorial doc line 2")
+        );
+        assert!(pub_meta.test_suite_tokens.is_some());
+
+        let priv_meta = idx1.resolve_stagel_routine_metadata(priv_sh)?;
+        assert!(!priv_meta.is_pub);
+        assert_eq!(priv_meta.name.as_deref(), Some("factPriv"));
+        assert_eq!(priv_meta.home_namespace.as_ref(), Some(&ns_segs));
+        assert_eq!(
+            priv_meta.description.as_deref(),
+            Some("Private helper factorial")
+        );
+        assert!(priv_meta.test_suite_tokens.is_none());
+        assert_eq!(idx1.resolve_stagel_entity_namespace(priv_sh)?, None);
+
+        // 3. Verify `call(R_pub, args) == call(R_priv, args) == call(V, args) == call(inline(V), args)`!
+        let caller = format!(
+            concat!(
+                "ns app/check_eq.\n",
+                "use std/demo/dedup: factPub ::.\n\n",
+                "pub v/b/verifyEquiv i32/x\n",
+                "    test all four invocation forms evaluate identically\n",
+                "        in i32:6\n",
+                "        out true\n",
+                "    const i32/a factPub /x.\n",
+                "    const i32/bVal dc/{pub_sh} /x.\n",
+                "    const i32/c dc/{priv_sh} /x.\n",
+                "    const i32/d dc/l{val_id} /x.\n",
+                "    const i32/e v/i32 i32/n :: if le /n i32:1 i32:1 mul /n dc/599 sub /n i32:1 :: /x.\n",
+                "    and eq /a i32:720 and eq /a /bVal and eq /a /c and eq /a /d eq /a /e.\n",
+            ),
+            pub_sh = pub_sh,
+            priv_sh = priv_sh,
+            val_id = val_id_pub,
+        );
+        let report =
+            crate::stagel3::seed_linker::eval_sl3_inline_tests_with_seed_graph(
+                &caller, &idx1,
+            )?;
+        assert_eq!(report.ensure_all_passed()?, 1);
+
+        // 4. Editing doc comments, name, and test cases on `factPub` leaves `val_id_pub` untouched!
+        files[0].source = files[0]
+            .source
+            .replace("Public factorial doc line 1", "Updated doc comment")
+            .replace("pub v/i32/factPub", "pub v/i32/factorialRenamed")
+            .replace("factPub sub", "factorialRenamed sub")
+            .replace("in i32:5\n        out i32:120", "in i32:4\n        out i32:24");
+        files[0].raw_bytes = files[0].source.as_bytes().to_vec();
+        let (nodes2, alloc2, _) = reconcile_stagel_and_csv_in_memory(
+            nodes1,
+            &mut files,
+            &[],
+            &[],
+            &scripts,
+            None,
+        )?;
+        assert_eq!(alloc2.entities_allocated, 0);
+        let idx2 =
+            SeedGraphIndex::from_nodes_with_single_props(nodes2, &single_props);
+        let (val_id_after, _) = idx2
+            .resolve_stagel_decomposition_tokens(pub_sh)?
+            .context("pub decomp after meta edit")?;
+        assert_eq!(
+            val_id_after, val_id_pub,
+            "Metadata-only edits (rename, doc comment, test suite) must reuse the exact same Dc 2240..2241 routine value node"
+        );
+        Ok(())
+    }
+
+    fn priv_dc_str(s: &str) -> &str {
+        s
     }
 }

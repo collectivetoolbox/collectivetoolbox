@@ -46,26 +46,28 @@ use crate::dc::{
     DC_BEGIN_BLOCK_COMMENT, DC_BEGIN_BLOCK_COMMENT_NEW_LINE,
     DC_BEGIN_ENUM_DECL, DC_BEGIN_IDENTIFIER, DC_BEGIN_LIST, DC_BEGIN_LITERAL,
     DC_BEGIN_MODULE, DC_BEGIN_NAMED_STRUCT_DECL,
-    DC_BEGIN_POSITIONAL_STRUCT_DECL, DC_BEGIN_ROUTINE_DECL,
+    DC_BEGIN_POSITIONAL_STRUCT_DECL, DC_BEGIN_ROUTINE, DC_BEGIN_ROUTINE_DECL,
     DC_BEGIN_SINGLE_LINE_COMMENT, DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE,
-    DC_BEGIN_STAGER_MODULE, DC_BEGIN_TYPE_DEF, DC_BEGIN_WASM_PROGRAM,
-    DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE, DC_CANONICAL_DECOMPOSITION,
-    DC_CANONICAL_NAME, DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
+    DC_BEGIN_STAGER_MODULE, DC_BEGIN_TEST_BLOCK, DC_BEGIN_TYPE_DEF,
+    DC_BEGIN_WASM_PROGRAM, DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE,
+    DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME,
+    DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
     DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE,
     DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE, DC_DATA_FORMAT_DESCRIPTION,
     DC_DC_DOCUMENT_EXECUTION_KERNEL, DC_DC_GENERAL_CATEGORY,
     DC_DECLARE_BRAND_TYPE, DC_DECLARE_CONST, DC_DECLARE_PUB, DC_DECOMPOSITION,
-    DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP, DC_END_BLOCK_COMMENT,
-    DC_END_IDENTIFIER, DC_END_LIST, DC_END_LITERAL, DC_END_SINGLE_LINE_COMMENT,
-    DC_END_TYPE_DEF, DC_END_WASM_PROGRAM, DC_ENTITY_TYPE, DC_ESCAPE,
-    DC_EVALUATE_VALUE_AS_ATOM,
+    DC_DESCRIPTION, DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP,
+    DC_END_BLOCK_COMMENT, DC_END_IDENTIFIER, DC_END_LIST, DC_END_LITERAL,
+    DC_END_SINGLE_LINE_COMMENT, DC_END_TYPE_DEF, DC_END_WASM_PROGRAM,
+    DC_ENTITY_TYPE, DC_ESCAPE, DC_EVALUATE_VALUE_AS_ATOM,
     DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID, DC_HAS_A, DC_HAS_VALUE,
-    DC_IN_CONTEXT_OF, DC_IS_BASED_ON, DC_IS_INSTANCE_OF, DC_IS_STABLE,
-    DC_MANUAL_ENTRY, DC_PATTERN_REPLACEMENT, DC_PREFERRED,
+    DC_IN_CONTEXT_OF, DC_IS_ASSOCIATED_WITH, DC_IS_BASED_ON, DC_IS_INSTANCE_OF,
+    DC_IS_STABLE, DC_MANUAL_ENTRY, DC_PATTERN_REPLACEMENT, DC_PREFERRED,
     DC_PROGRAMMATIC_IDENTIFIER, DC_QUOTE_FOLLOWING_DC_AS_ATOM, DC_REPLACEMENT,
-    DC_RETRACTS, DC_SEMANTIC_DECOMPOSITION, DC_SUPERSEDES, DC_SYNTAX_RULE,
-    DC_THIS_ELEMENT, DC_TYPE_ANY, DC_TYPE_ATOM_DC, DC_TYPE_CONVERSION,
-    DC_TYPE_ROUTINE, DC_UNICODE_SCRIPT, DcChar,
+    DC_RETRACTS, DC_ROUTINE_TEST_SUITE, DC_SEMANTIC_DECOMPOSITION,
+    DC_SUPERSEDES, DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ANY,
+    DC_TYPE_ATOM_DC, DC_TYPE_CONVERSION, DC_TYPE_ROUTINE, DC_UNICODE_SCRIPT,
+    DcChar,
 };
 use crate::graph_ledger::{
     LedgerNode, MAX_NODES_PER_CHUNK, SeedEntityKey, chunk_filename_for_node_id,
@@ -241,6 +243,22 @@ pub fn substitute_chunk_prefix_for_node_id(node_id: u128) -> String {
         .strip_suffix(".ctbnodes")
         .unwrap_or(&filename)
         .to_owned()
+}
+
+/// Decoupled non-executable metadata attached to a StageL/StageR routine entity
+/// (`Dc 2240..2241` decomposition) in a [`SeedGraphIndex`] snapshot.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StagelRoutineGraphMeta {
+    /// Whether the routine is exported (`pub` or `pub dc/<shorthand>`) or a direct value node.
+    pub is_pub: bool,
+    /// Optional `Dc 574` `"Programmatic identifier"` string on the subject.
+    pub name: Option<String>,
+    /// Optional PSR-4 namespace segments (`Dc 646` context on `574` for `pub`, or `Dc 598` for private).
+    pub home_namespace: Option<Vec<String>>,
+    /// Optional `Dc 573` `"Description"` doc-comment text on `Long` routine entities.
+    pub description: Option<String>,
+    /// Optional expanded `Dc 2206..2207` inline test suite tokens (`Dc 1942` `"Routine test suite"`).
+    pub test_suite_tokens: Option<Vec<DcChar>>,
 }
 
 /// Runtime index over the System-block seed graph (`8589934592..=12884901887`).
@@ -3538,6 +3556,8 @@ impl SeedGraphIndex {
             t if t == sh(DC_BEGIN_MODULE)
                 || t == sh(DC_BEGIN_STAGER_MODULE)
                 || t == sh(DC_BEGIN_ROUTINE_DECL)
+                || t == sh(DC_BEGIN_ROUTINE)
+                || t == sh(DC_BEGIN_TEST_BLOCK)
                 || t == sh(DC_DECLARE_CONST)
                 || t == sh(DC_DECLARE_PUB)
                 || t == sh(DC_BEGIN_POSITIONAL_STRUCT_DECL)
@@ -3957,6 +3977,10 @@ impl SeedGraphIndex {
             )
             || self.token_fills_canonical_or_equiv_role(
                 u,
+                crate::syntax::DcRole::BeginRoutine,
+            )
+            || self.token_fills_canonical_or_equiv_role(
+                u,
                 crate::syntax::DcRole::BeginPositionalStructDecl,
             )
             || self.token_fills_canonical_or_equiv_role(
@@ -4127,6 +4151,24 @@ impl SeedGraphIndex {
                     }
                 }
             }
+        }
+
+        if let DcShorthand::Long(subj_id) = subj
+            && let Some(node) = self.get_active_node(subj_id)
+            && self.tokens_are_stagel_item_or_module(&node.tokens)
+        {
+            let expanded = self.expand_interned_string_nodes(&node.tokens);
+            let mut dc_chars = Vec::with_capacity(expanded.len());
+            for tok in expanded {
+                let gid = tok.to_global_id().with_context(|| {
+                    format!(
+                        "Invalid DcShorthand token {tok} inside StageL value node l{}",
+                        node.id
+                    )
+                })?;
+                dc_chars.push(DcChar::from_u128(gid));
+            }
+            return Ok(Some((node.id, dc_chars)));
         }
 
         if let Some(stmt_ids) = self.subject_all_stmt_ids.get(&subj) {
@@ -4317,6 +4359,129 @@ impl SeedGraphIndex {
             }
         }
         Ok(None)
+    }
+
+    /// Resolves decoupled non-executable metadata (`is_pub`, `Dc 574` name, home namespace
+    /// via `Dc 646` or `Dc 598`, `Dc 573` description, and `Dc 1942` test suite tokens)
+    /// attached to a StageL/StageR routine entity or direct `Dc 2240..2241` value node `subj`.
+    pub fn resolve_stagel_routine_metadata(
+        &self,
+        subj: DcShorthand,
+    ) -> Result<StagelRoutineGraphMeta> {
+        let sh_prog_ident = sh(DC_PROGRAMMATIC_IDENTIFIER);
+        let sh_desc = sh(DC_DESCRIPTION);
+        let sh_assoc = sh(DC_IS_ASSOCIATED_WITH);
+        let sh_suite = sh(DC_ROUTINE_TEST_SUITE);
+        let sh_in_ctx = sh(DC_IN_CONTEXT_OF);
+
+        let exported_ns = self.resolve_stagel_entity_namespace(subj)?;
+        let is_direct_value_node = match subj {
+            DcShorthand::Long(id) => !self.entity_class_by_id.contains_key(&id),
+            _ => false,
+        };
+        let is_pub = matches!(subj, DcShorthand::Short(_) | DcShorthand::Format(_))
+            || exported_ns.is_some()
+            || is_direct_value_node;
+
+        let name = self
+            .active_single_props
+            .get(&(subj, sh_prog_ident))
+            .and_then(|&(_, _, val_tok)| match val_tok {
+                DcShorthand::Long(str_id) => {
+                    self.string_by_node_id.get(&str_id).cloned()
+                }
+                _ => None,
+            });
+
+        let home_namespace = if let Some(ns) = exported_ns {
+            Some(ns)
+        } else {
+            let mut found_ns = None;
+            for &assoc_obj in self.get_direct_objects(sh_assoc, subj) {
+                let DcShorthand::Long(ctx_id) = assoc_obj else {
+                    continue;
+                };
+                let Some(ctx_node) = self.get_active_node(ctx_id) else {
+                    continue;
+                };
+                let expanded =
+                    self.expand_interned_string_nodes(&ctx_node.tokens);
+                let mut dc_chars = Vec::with_capacity(expanded.len());
+                let mut all_valid = true;
+                for tok in expanded {
+                    if let Ok(gid) = tok.to_global_id() {
+                        dc_chars.push(DcChar::from_u128(gid));
+                    } else {
+                        all_valid = false;
+                        break;
+                    }
+                }
+                if all_valid
+                    && let Ok(segs) =
+                        crate::stagel3::dc_tokens::decode_filepath_dc_tokens(
+                            &dc_chars,
+                        )
+                {
+                    found_ns = Some(segs);
+                    break;
+                }
+            }
+            found_ns
+        };
+
+        let description = if matches!(subj, DcShorthand::Long(_)) {
+            self.active_single_props
+                .get(&(subj, sh_desc))
+                .and_then(|&(_, _, val_tok)| match val_tok {
+                    DcShorthand::Long(str_id) => {
+                        self.string_by_node_id.get(&str_id).cloned()
+                    }
+                    _ => None,
+                })
+        } else {
+            None
+        };
+
+        let mut test_suite_tokens = None;
+        for entry in self.get_multi_properties(subj, sh_suite) {
+            if !self
+                .get_direct_objects(sh_in_ctx, DcShorthand::Long(entry.has_a_id))
+                .is_empty()
+            {
+                continue;
+            }
+            if let DcShorthand::Long(node_id) = entry.value {
+                if let Some(pin_id) = self.system_block_most_recent_node_id
+                    && node_id > pin_id
+                {
+                    continue;
+                }
+                if let Some(node) = self.get_active_node(node_id) {
+                    let expanded =
+                        self.expand_interned_string_nodes(&node.tokens);
+                    let mut dc_chars = Vec::with_capacity(expanded.len());
+                    for tok in expanded {
+                        let gid = tok.to_global_id().with_context(|| {
+                            format!(
+                                "Invalid DcShorthand token {tok} inside routine test suite l{}",
+                                node.id
+                            )
+                        })?;
+                        dc_chars.push(DcChar::from_u128(gid));
+                    }
+                    test_suite_tokens = Some(dc_chars);
+                    break;
+                }
+            }
+        }
+
+        Ok(StagelRoutineGraphMeta {
+            is_pub,
+            name,
+            home_namespace,
+            description,
+            test_suite_tokens,
+        })
     }
 
     /// Returns `true` if `source` is a trusted Collective Toolbox seed graph provenance source:
@@ -5375,6 +5540,7 @@ pub fn discover_graph_wasm_substitute_snapshots(
     let sh_stagel_begin = sh(DC_BEGIN_MODULE);
     let sh_stager_begin = sh(DC_BEGIN_STAGER_MODULE);
     let sh_routine_begin = sh(DC_BEGIN_ROUTINE_DECL);
+    let sh_anon_routine_begin = sh(DC_BEGIN_ROUTINE);
     let sh_has_a = sh(DC_HAS_A);
     let sh_has_val = sh(DC_HAS_VALUE);
     let sh_sup = sh(DC_SUPERSEDES);
@@ -5389,6 +5555,7 @@ pub fn discover_graph_wasm_substitute_snapshots(
                 || t == sh_stagel_begin
                 || t == sh_stager_begin
                 || t == sh_routine_begin
+                || t == sh_anon_routine_begin
         }) {
             code_val_ids.insert(node.id);
         }

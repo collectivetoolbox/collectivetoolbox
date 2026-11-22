@@ -174,7 +174,7 @@ fn rewrite_outer_self_calls_to_dc(
         Expr::Call { target, args, .. } => {
             let is_self = match (self_dc, &*target) {
                 (Some(dc), SymbolTarget::Dc(t)) => *t == dc,
-                (None, SymbolTarget::Ident(n)) => {
+                (_, SymbolTarget::Ident(n)) => {
                     n == self_name && !shadowed_routines.contains(n.as_str())
                 }
                 _ => false,

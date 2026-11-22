@@ -38,13 +38,14 @@ use crate::seed_graph::SeedGraphIndex;
 use crate::{DcChar, DcShorthand};
 
 use super::ast::{
-    BlockItem, BrandTypeDecl, EnumDecl, EnumVariantDecl, Expr, ImportTarget,
-    Module, NamedFieldDecl, NamedStructDecl, PositionalStructDecl,
-    RoutineDecl, Span, StageDialect, StageLType, StructTypeRef, SymbolTarget,
-    TestExpected, TopDecl, TopValueDecl,
+    BlockItem, BrandTypeDecl, Comment, EnumDecl, EnumVariantDecl, Expr,
+    ImportTarget, Module, NamedFieldDecl, NamedStructDecl,
+    PositionalStructDecl, RoutineDecl, Span, StageDialect, StageLType,
+    StructTypeRef, SymbolTarget, TestExpected, TopDecl, TopValueDecl,
 };
 use super::dc_tokens::{
-    decode_module_from_dc_tokens, decode_modules_from_dc_tokens,
+    decode_anon_routine_from_dc_tokens_at_line, decode_module_from_dc_tokens,
+    decode_modules_from_dc_tokens, decode_test_suite_from_dc_tokens_at_line,
     decode_top_decl_from_dc_tokens_at_line, encode_module_to_dc_tokens,
     strip_comment_frames,
 };
@@ -375,6 +376,75 @@ fn decode_graph_stagel_entry_at_line(
             format!("Failed to decode StageL Token-Dc module on {target_sh}")
         })?;
         Ok(Some((chars, EitherDeclOrModule::Module(module))))
+    } else if stripped.first().copied().is_some_and(|first| {
+        seed_graph.token_fills_canonical_or_equiv_role(
+            first.to_u128(),
+            crate::syntax::DcRole::BeginRoutine,
+        )
+    }) {
+        let anon =
+            decode_anon_routine_from_dc_tokens_at_line(&chars, decl_line)
+                .with_context(|| {
+                    format!(
+                        "Failed to decode Dc 2240..2241 routine value node on {target_sh}"
+                    )
+                })?;
+        let meta = seed_graph.resolve_stagel_routine_metadata(target_sh)?;
+        let target_dc = DcChar::from_u128(target_sh.to_global_id()?);
+        let pub_dc_syntax =
+            matches!(target_sh, DcShorthand::Short(_) | DcShorthand::Format(_));
+        let sp = Span {
+            line: decl_line,
+            col: 1,
+        };
+        let allow_std = meta
+            .home_namespace
+            .as_ref()
+            .and_then(|segs| segs.first())
+            .is_some_and(|first| first == "std");
+        let name = if let Some(cand) = meta.name.as_deref()
+            && super::parser::check_routine_decl_ident(cand, sp, allow_std)
+                .is_ok()
+        {
+            cand.to_owned()
+        } else {
+            format!("__dc_{target_sh}")
+        };
+        let comments_before = if let Some(desc) = &meta.description {
+            desc.split('\n')
+                .map(|line| Comment {
+                    text: line.to_owned(),
+                    inline: false,
+                    span: sp,
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let tests = if let Some(suite_chars) = &meta.test_suite_tokens {
+            decode_test_suite_from_dc_tokens_at_line(suite_chars, decl_line)
+                .with_context(|| {
+                    format!(
+                        "Failed to decode Dc 1942 routine test suite on {target_sh}"
+                    )
+                })?
+        } else {
+            Vec::new()
+        };
+        let decl = TopDecl::Routine(RoutineDecl {
+            comments_before,
+            is_pub: meta.is_pub,
+            pub_dc_syntax,
+            dc_id: Some(target_dc),
+            return_type: anon.return_type,
+            name,
+            params: anon.params,
+            inline_body: false,
+            tests,
+            body: anon.body,
+            span: sp,
+        });
+        Ok(Some((chars, EitherDeclOrModule::Decl(decl))))
     } else {
         let decl = decode_top_decl_from_dc_tokens_at_line(&chars, decl_line)
             .with_context(|| {
