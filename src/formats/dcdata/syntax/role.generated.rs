@@ -526,6 +526,8 @@ pub enum DcRole {
     BeginRoutine,
     /// Terminates a routine value begun by Dc 2240. (`2241`).
     EndRoutine,
+    /// Refers to the innermost enclosing routine (Dc 2203..Dc 2204 or Dc 2240..Dc 2241) as the target of a recursive Dc 2211..Dc 2212 routine call. (`2242`).
+    EnclosingRoutine,
     /// Evaluates a boolean condition expression and branches to either the second operand (then) or third operand (else). (`2448`).
     IfConditional,
     /// Repeatedly evaluates the boolean condition expression and executes the void body expression while true. (`2449`).
@@ -984,6 +986,7 @@ match self {
             Self::QuoteFollowingDcAsAtom => Some(2239),
             Self::BeginRoutine => Some(2240),
             Self::EndRoutine => Some(2241),
+            Self::EnclosingRoutine => Some(2242),
             Self::IfConditional => Some(2448),
             Self::WhileLoop => Some(2449),
             Self::ForEach => Some(2450),
@@ -1345,6 +1348,7 @@ match self {
             Self::QuoteFollowingDcAsAtom => short == Some(2239),
             Self::BeginRoutine => short == Some(2240),
             Self::EndRoutine => short == Some(2241),
+            Self::EnclosingRoutine => short == Some(2242),
             Self::IfConditional => short == Some(2448),
             Self::WhileLoop => short == Some(2449),
             Self::ForEach => short == Some(2450),

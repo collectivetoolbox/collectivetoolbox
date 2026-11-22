@@ -524,6 +524,8 @@ pub const DC_QUOTE_FOLLOWING_DC_AS_ATOM: DcChar = DcChar::from_short(2239);
 pub const DC_BEGIN_ROUTINE: DcChar = DcChar::from_short(2240);
 /// Terminates a routine value begun by Dc 2240. (Dc 2241).
 pub const DC_END_ROUTINE: DcChar = DcChar::from_short(2241);
+/// Refers to the innermost enclosing routine (Dc 2203..Dc 2204 or Dc 2240..Dc 2241) as the target of a recursive Dc 2211..Dc 2212 routine call. (Dc 2242).
+pub const DC_ENCLOSING_ROUTINE: DcChar = DcChar::from_short(2242);
 /// Evaluates a boolean condition expression and branches to either the second operand (then) or third operand (else). (Dc 2448).
 pub const DC_IF_CONDITIONAL: DcChar = DcChar::from_short(2448);
 /// Repeatedly evaluates the boolean condition expression and executes the void body expression while true. (Dc 2449).
