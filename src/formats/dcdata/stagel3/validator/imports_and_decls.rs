@@ -51,7 +51,6 @@ use super::{
 use crate::DcChar;
 use crate::syntax::{DcRole, SyntaxRuleResolver, default_syntax_resolver};
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::sync::Arc;
 
 /// Mutable validator state shared across passes and expression checking within
 /// one [`Module`].
@@ -97,7 +96,7 @@ pub(super) struct ModuleValidator<'a> {
     /// Imported items keyed directly by `DcChar` (`dc/<shorthand>`).
     pub(super) dc_imports: HashMap<DcChar, ImportedSymbol>,
     /// Shared Dc syntax/role resolver (for `DcRole::SelfReference` etc.).
-    pub(super) syntax_resolver: Arc<dyn SyntaxRuleResolver>,
+    pub(super) syntax_resolver: &'static dyn SyntaxRuleResolver,
     /// Whether `*StageLInternal` symbols are prohibited in this module.
     pub(super) forbid_stagel_internal: bool,
     /// Next unique lexical variable ID.
@@ -188,10 +187,12 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
     extra_dc_imports: &HashMap<DcChar, ImportedSymbol>,
     forbid_stagel_internal: bool,
 ) -> Result<ValidatedModule> {
-    let syntax_resolver = default_syntax_resolver();
+    let orig_module = module;
+    let syntax_resolver: &'static dyn SyntaxRuleResolver =
+        default_syntax_resolver().as_ref();
     let lowered_module = lower_module_inline_calls_and_nested_self_refs(
-        module,
-        syntax_resolver.as_ref(),
+        orig_module,
+        syntax_resolver,
     );
     let module = &lowered_module;
     let dialect = module.dialect;
@@ -334,9 +335,9 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
     }
 
     let validated_module = if dialect == StageDialect::StageL3 {
-        desugar_overloaded_ops_in_module(module, &validator.resolved_calls)
+        desugar_overloaded_ops_in_module(orig_module, &validator.resolved_calls)
     } else {
-        module.clone()
+        orig_module.clone()
     };
 
     Ok(ValidatedModule {
@@ -2430,6 +2431,11 @@ fn desugar_overloaded_ops_in_module(
         }
     }
     out
+}
+
+pub(super) fn lower_module_for_execution(module: &Module) -> Module {
+    let resolver = default_syntax_resolver();
+    lower_module_inline_calls_and_nested_self_refs(module, resolver.as_ref())
 }
 
 fn lower_module_inline_calls_and_nested_self_refs(

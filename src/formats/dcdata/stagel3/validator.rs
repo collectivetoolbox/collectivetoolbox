@@ -748,6 +748,17 @@ impl ValidatedModule {
             ty: self.canonicalize_type(&v.ty),
         }
     }
+
+    /// Returns a clone of this [`ValidatedModule`] with all inline anonymous
+    /// routine calls (`Expr::InlineCall`) and nested `Dc 599` self-references
+    /// lowered into lexical `Expr::Block` + `Expr::RoutineDecl` nodes for VM
+    /// evaluation and code generation.
+    #[must_use]
+    pub fn lowered_for_execution(&self) -> Self {
+        let mut out = self.clone();
+        out.module = imports_and_decls::lower_module_for_execution(&self.module);
+        out
+    }
 }
 
 /// Validated multi-module workspace ordered topologically (`leaves` first).
@@ -755,6 +766,22 @@ impl ValidatedModule {
 pub struct ValidatedWorkspace {
     /// Modules in dependency-safe topological order.
     pub modules: Vec<ValidatedModule>,
+}
+
+impl ValidatedWorkspace {
+    /// Returns a clone of this [`ValidatedWorkspace`] with all inline anonymous
+    /// routine calls (`Expr::InlineCall`) and nested `Dc 599` self-references
+    /// lowered for VM evaluation and code generation.
+    #[must_use]
+    pub fn lowered_for_execution(&self) -> Self {
+        Self {
+            modules: self
+                .modules
+                .iter()
+                .map(ValidatedModule::lowered_for_execution)
+                .collect(),
+        }
+    }
 }
 
 /// Reports whether `expr` (including nested routine bodies) syntactically

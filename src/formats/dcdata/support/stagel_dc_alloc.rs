@@ -1202,6 +1202,34 @@ fn rewrite_top_decl_refs_to_dc(
     }
 }
 
+fn rewrite_anon_routine_refs(
+    r: &crate::stagel3::ast::AnonRoutine,
+    maps: &DeclRewriteMaps<'_>,
+    shadows: &mut LexicalShadows,
+) -> crate::stagel3::ast::AnonRoutine {
+    let mut param_layer = LexicalShadowScope::default();
+    for p in &r.params {
+        param_layer.values.insert(p.name.clone());
+    }
+    shadows.layers.push(param_layer);
+    let rewritten_body = rewrite_expr_refs(&r.body, maps, shadows);
+    let _ = shadows.layers.pop();
+    crate::stagel3::ast::AnonRoutine {
+        return_type: maps.rewrite_type(&r.return_type),
+        params: r
+            .params
+            .iter()
+            .map(|p| Param {
+                ty: maps.rewrite_type(&p.ty),
+                name: p.name.clone(),
+                span: p.span,
+            })
+            .collect(),
+        body: rewritten_body,
+        span: r.span,
+    }
+}
+
 fn rewrite_routine_refs(
     r: &RoutineDecl,
     maps: &DeclRewriteMaps<'_>,
@@ -1365,6 +1393,26 @@ fn rewrite_expr_refs(
         },
         Expr::RoutineDecl(nr) => {
             Expr::RoutineDecl(Box::new(rewrite_routine_refs(nr, maps, shadows)))
+        }
+        Expr::AnonRoutine(ar) => Expr::AnonRoutine(Box::new(
+            rewrite_anon_routine_refs(ar, maps, shadows),
+        )),
+        Expr::InlineCall {
+            routine,
+            args,
+            span,
+        } => {
+            let new_args = args
+                .iter()
+                .map(|a| rewrite_expr_refs(a, maps, shadows))
+                .collect();
+            let new_routine =
+                Box::new(rewrite_anon_routine_refs(routine, maps, shadows));
+            Expr::InlineCall {
+                routine: new_routine,
+                args: new_args,
+                span: *span,
+            }
         }
         Expr::Call { target, args, span } => {
             let new_target = match target {

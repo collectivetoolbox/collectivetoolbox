@@ -184,6 +184,8 @@ impl StageLWorkspaceVm {
         ws: &ValidatedWorkspace,
         config: EvalConfig,
     ) -> Result<Self> {
+        let lowered_ws = ws.lowered_for_execution();
+        let ws = &lowered_ws;
         let mut ns_to_indices: HashMap<String, Vec<usize>> = HashMap::new();
         for (idx, vm) in ws.modules.iter().enumerate() {
             if let Some(ref key) = vm.namespace_key {
@@ -588,6 +590,13 @@ impl StageLWorkspaceVm {
             Expr::OptionNone { .. } => Ok(EvalSignal::Value(Value::Option(None))),
             Expr::Const { .. } | Expr::RoutineDecl(_) | Expr::Nop { .. } => {
                 Ok(EvalSignal::Value(Value::Void))
+            }
+            Expr::AnonRoutine(r) => bail!(
+                "Anonymous routine at {} cannot be evaluated without call arguments",
+                r.span
+            ),
+            Expr::InlineCall { span, .. } => {
+                bail!("Internal VM error: unlowered inline routine call at {span}")
             }
             Expr::Break { .. } => Ok(EvalSignal::Break),
             Expr::Continue { .. } => Ok(EvalSignal::Continue),
@@ -1637,6 +1646,14 @@ impl StageLWorkspaceVm {
             SymbolTarget::Dc(dc) => {
                 let mod_rt =
                     self.modules.get(mod_idx).context("Invalid module idx")?;
+                if let Some((target_mod_idx, rkey)) =
+                    mod_rt.resolved_calls.get(&(span.line, span.col))
+                {
+                    return Ok(CallableRoutine::Top {
+                        module_idx: *target_mod_idx,
+                        key: rkey.clone(),
+                    });
+                }
                 if let Some(rkey) = mod_rt.dc_routines.get(dc) {
                     return Ok(CallableRoutine::Top {
                         module_idx: mod_idx,

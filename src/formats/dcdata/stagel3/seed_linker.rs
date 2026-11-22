@@ -587,6 +587,23 @@ fn collect_dc_refs_in_expr(expr: &Expr, out: &mut Vec<DcChar>) {
             }
             collect_dc_refs_in_expr(&r.body, out);
         }
+        Expr::AnonRoutine(r) => {
+            collect_dc_refs_in_type(&r.return_type, out);
+            for p in &r.params {
+                collect_dc_refs_in_type(&p.ty, out);
+            }
+            collect_dc_refs_in_expr(&r.body, out);
+        }
+        Expr::InlineCall { routine, args, .. } => {
+            collect_dc_refs_in_type(&routine.return_type, out);
+            for p in &routine.params {
+                collect_dc_refs_in_type(&p.ty, out);
+            }
+            collect_dc_refs_in_expr(&routine.body, out);
+            for arg in args {
+                collect_dc_refs_in_expr(arg, out);
+            }
+        }
         Expr::If {
             cond,
             then_branch,
@@ -648,7 +665,12 @@ fn collect_dc_refs_in_expr(expr: &Expr, out: &mut Vec<DcChar>) {
         }
         Expr::Call { target, args, .. } => {
             if let SymbolTarget::Dc(dc) = target {
-                out.push(*dc);
+                use crate::syntax::SyntaxRuleResolver as _;
+                if !crate::syntax::default_syntax_resolver()
+                    .token_fills_role(dc.to_u128(), crate::syntax::DcRole::SelfReference)
+                {
+                    out.push(*dc);
+                }
             }
             for arg in args {
                 collect_dc_refs_in_expr(arg, out);

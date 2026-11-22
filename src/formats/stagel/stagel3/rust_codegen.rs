@@ -140,6 +140,8 @@ pub fn transpile_workspace_to_rust(
             "Direct Rust codegen from StageR 3 (.sr3) is not yet implemented"
         );
     }
+    let lowered_ws = workspace.lowered_for_execution();
+    let workspace = &lowered_ws;
     let ws_index = WorkspaceRoutineIndex::build(workspace);
     let mut trampolines = WorkspaceTrampolineRegistry::default();
     let mut modules_buf = String::new();
@@ -2172,6 +2174,30 @@ impl<'a> ModuleEmitter<'a> {
                         sig: meta.sig.clone(),
                     });
                 }
+                if let Some(rc) =
+                    self.validated.resolved_calls.get(&(span.line, span.col))
+                    && rc.namespace.is_none()
+                    && let Some(meta) = self
+                        .ws_index
+                        .by_key
+                        .get(&(self.mod_idx, rc.routine_key()))
+                {
+                    let trampoline_call_path = if meta.is_step {
+                        format!("{}::{}", meta.mod_ident, meta.step_fn)
+                    } else {
+                        format!("{}::{}", meta.mod_ident, meta.entry_fn)
+                    };
+                    return Ok(RoutineTarget::TopLevel {
+                        callee_key: CalleeKey::TopLevel {
+                            mod_idx: meta.mod_idx,
+                            routine_idx: meta.routine_idx,
+                        },
+                        direct_call_path: meta.entry_fn.clone(),
+                        trampoline_call_path,
+                        is_step: meta.is_step,
+                        sig: meta.sig.clone(),
+                    });
+                }
                 if let Some(ImportedSymbol::Routine {
                     namespace,
                     original_name,
@@ -2791,6 +2817,13 @@ impl<'a> ModuleEmitter<'a> {
             Expr::Let { .. }
             | Expr::Const { .. }
             | Expr::RoutineDecl(_) => Ok((String::from("()"), StageLType::Void)),
+            Expr::AnonRoutine(r) => bail!(
+                "Anonymous routine at {} cannot be transpiled without call arguments",
+                r.span
+            ),
+            Expr::InlineCall { span, .. } => bail!(
+                "Internal Rust codegen error: unlowered inline routine call at {span}"
+            ),
             Expr::Nop { .. } => Ok((String::from("{}"), StageLType::Void)),
             Expr::Set { name, value, .. } => {
                 let (val_code, val_ty) = self.emit_expr(value, indent_level)?;

@@ -44,7 +44,6 @@ use crate::DcChar;
 use crate::syntax::{DcRole, SyntaxRuleResolver, default_syntax_resolver};
 use lexer::{LexKind, LexToken, tokenize_with_dialect};
 use std::collections::HashMap;
-use std::sync::Arc;
 use types_and_sigs::{
     is_named_routine_sig_at_with_ctx,
     parse_anon_routine_ret_after_head_with_ctx, parse_namespace_segments,
@@ -260,7 +259,7 @@ fn parse_module_with_context(
         pos: 0,
         verb_scopes: vec![verb_scope],
         enclosing_routine_arities: Vec::new(),
-        syntax_resolver: default_syntax_resolver(),
+        syntax_resolver: default_syntax_resolver().as_ref(),
         stager_types_by_name,
         stager_types_by_dc,
         stager_enum_variants,
@@ -480,7 +479,7 @@ struct Parser {
     pos: usize,
     verb_scopes: Vec<HashMap<String, usize>>,
     enclosing_routine_arities: Vec<usize>,
-    syntax_resolver: Arc<dyn SyntaxRuleResolver>,
+    syntax_resolver: &'static dyn SyntaxRuleResolver,
     stager_types_by_name: HashMap<String, StageRTypeKind>,
     stager_types_by_dc: HashMap<DcChar, StageRTypeKind>,
     stager_enum_variants: HashMap<StructTypeRef, HashMap<String, bool>>,

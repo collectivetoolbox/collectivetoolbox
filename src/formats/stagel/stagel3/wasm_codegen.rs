@@ -206,7 +206,8 @@ pub(crate) fn compile_workspace_internal(
             "Direct WebAssembly codegen from StageR 3 (.sr3) is not yet implemented"
         );
     }
-    let mut compiler = WorkspaceWasmCompiler::new(workspace)?;
+    let lowered_ws = workspace.lowered_for_execution();
+    let mut compiler = WorkspaceWasmCompiler::new(&lowered_ws)?;
     compiler.compile_all(emit_test_dispatcher)
 }
 
@@ -1341,6 +1342,13 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 self.emit_set_stmt(fctx, name, value)
             }
             Expr::RoutineDecl(_) | Expr::Nop { .. } => Ok(StageLType::Void),
+            Expr::AnonRoutine(r) => bail!(
+                "Anonymous routine at {} cannot be emitted without call arguments",
+                r.span
+            ),
+            Expr::InlineCall { span, .. } => bail!(
+                "Internal WASM codegen error: unlowered inline routine call at {span}"
+            ),
             Expr::Call { target, args, span } => {
                 self.emit_call_expr(fctx, target, *span, args, in_tail)
             }
@@ -2490,6 +2498,14 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                     .modules
                     .get(fctx.mod_idx)
                     .context("Invalid module index")?;
+                if let Some(rc) = vm.resolved_calls.get(&(span.line, span.col))
+                    && rc.namespace.is_none()
+                    && let Some(tr) = self
+                        .top_routines_by_key
+                        .get(&(fctx.mod_idx, rc.routine_key()))
+                {
+                    return Ok(ResolvedCallee::Top(tr.clone()));
+                }
                 if let Some(ImportedSymbol::Routine {
                     namespace,
                     original_name,
@@ -3563,6 +3579,13 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             | Expr::Continue { .. }
             | Expr::Return { .. }
             | Expr::Fault { .. } => Ok(StageLType::Never),
+            Expr::AnonRoutine(r) => bail!(
+                "Anonymous routine at {} has no standalone value type",
+                r.span
+            ),
+            Expr::InlineCall { span, .. } => bail!(
+                "Internal WASM codegen error: unlowered inline routine call at {span}"
+            ),
             Expr::Call { target, span, .. } => {
                 let callee = self.resolve_callee(fctx, target, *span)?;
                 Ok(callee.sig().return_type.clone())
