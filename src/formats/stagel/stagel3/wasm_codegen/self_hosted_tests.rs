@@ -725,7 +725,10 @@ v/l/u8/step l/u8/input
             None,
             bootstrap_limits,
         )?;
-        let f1681_dc_wasm = match bootstrap_session.step()? {
+        let f1681_dc_wasm = match bootstrap_session
+            .step()
+            .context("step 1: bootstrap f1680 compiling f1681")?
+        {
             WasmStepOutcome::Complete(doc) => doc,
             other => bail!("Unexpected f1680 bootstrap outcome: {other:?}"),
         };
@@ -816,13 +819,18 @@ pub v/l/u8/step l/u8/input
             ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_dependencies(
                 &sr3_tokens, sg,
             )?;
-        let lowered_sl3_doc = run_f1681_wasm_raw(&bundled_sr3)?;
+        let lowered_sl3_doc =
+            run_f1681_wasm_raw(&bundled_sr3).context("step 2: f1681 on sr3_prog")?;
         let lowered_sl3_tokens: Vec<DcChar> =
             lowered_sl3_doc.to_dc_string()?.chars().collect();
-        let target_dc_wasm =
-            compile_dc_tokens_via_wat_compiler(&lowered_sl3_tokens, sg)?;
+        let target_dc_wasm = compile_dc_tokens_via_wat_compiler(
+            &lowered_sl3_tokens,
+            sg,
+        )
+        .context("step 2: f1680 on lowered sr3_prog")?;
         let out_doc =
-            run_target_with_high_quota(&target_dc_wasm, &ascii_dcmstring("42"))?;
+            run_target_with_high_quota(&target_dc_wasm, &ascii_dcmstring("42"))
+                .context("step 2: exec sr3_prog")?;
         assert_eq!(out_doc, ascii_dcmstring("OK:42"));
 
         // 2b. StageR 3 inline anonymous routine (`Dc 2240..Dc 2241`) + `?` propagation + `dc/599` tail recursion
@@ -859,17 +867,22 @@ pub v/l/u8/step l/u8/input
                 &sr3_anon_tokens,
                 sg,
             )?;
-        let lowered_anon_doc = run_f1681_wasm_raw(&bundled_sr3_anon)?;
+        let lowered_anon_doc = run_f1681_wasm_raw(&bundled_sr3_anon)
+            .context("step 2b: f1681 on sr3_anon_prog")?;
         let lowered_anon_tokens: Vec<DcChar> =
             lowered_anon_doc.to_dc_string()?.chars().collect();
         let _decoded_lowered_anon =
             ctb_formats_dcdata::stagel3::dc_tokens::decode_modules_from_dc_tokens(
                 &lowered_anon_tokens,
             )?;
-        let anon_dc_wasm =
-            compile_dc_tokens_via_wat_compiler(&lowered_anon_tokens, sg)?;
+        let anon_dc_wasm = compile_dc_tokens_via_wat_compiler(
+            &lowered_anon_tokens,
+            sg,
+        )
+        .context("step 2b: f1680 on lowered sr3_anon_prog")?;
         let anon_out =
-            run_target_with_high_quota(&anon_dc_wasm, &ascii_dcmstring("OK"))?;
+            run_target_with_high_quota(&anon_dc_wasm, &ascii_dcmstring("OK"))
+                .context("step 2b: exec sr3_anon_prog")?;
         assert_eq!(anon_out, ascii_dcmstring("ANON:OK"));
 
         // 3. Negative checks:

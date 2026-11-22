@@ -1578,13 +1578,9 @@ v/u64/skipStageLExpr l/dcVal/tokens u64/pos
     if eq /sid u32:2211
         do
             const u64/hpos skipComments /tokens /next.
-            let u64/cur /hpos.
-            if and lt /hpos len /tokens eq dcShortId get /tokens /hpos u32:2240
-                set /cur skipStageLAnonRoutineFromOpen /tokens /hpos
-                do
-                    const tup: symRef u64 ::/sr readSymRef /tokens /next.
-                    set /cur field /sr u32:1.
-                ::.
+            let u64/cur if and lt /hpos len /tokens eq dcShortId get /tokens /hpos u32:2240
+                skipStageLAnonRoutineFromOpen /tokens /hpos
+                field readSymRef /tokens /next u32:1.
             while true do
                 set /cur skipComments /tokens /cur.
                 if ge /cur len /tokens fault nop.
@@ -5535,7 +5531,7 @@ v/void/lowerExpr buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfN
     if eq /k u8:15
         do
             const rawRoutine/nr get field /node u32:10 u64:0.
-            lowerRoutine /out /env /mScope field /fctx u32:2 /selfNsKey /uses /stdImports /crossDcs /synths /gensym /nr field /nr u32:3.
+            lowerRoutine /out /env /mScope field /fctx u32:1 field /fctx u32:2 /selfNsKey /uses /stdImports /crossDcs /synths /gensym /nr field /nr u32:3.
             return.
         ::
         nop.
@@ -5587,26 +5583,34 @@ v/void/lowerExpr buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfN
     if eq /k u8:17
         do
             let l/localVar/vars field /fctx u32:1.
+            let l/localVar/routVars /vars.
             let l/nestedSig/nsigs field /fctx u32:2.
             foreach exprNode/st /args do
-                if eq field /st u32:0 u8:15
+                const u8/psk field /st u32:0.
+                if or eq /psk u8:12 eq /psk u8:13
                     do
-                        const rawRoutine/nr get field /st u32:10 u64:0.
-                        const buf/rType/nps bufNew rType len field /nr u32:4.
-                        foreach paramDecl/npd field /nr u32:4 do
-                            bufPush /nps canonType /env /mScope true field /npd u32:0.
-                        ::.
-                        set /nsigs concat /nsigs l/nestedSig:
-                            structNew nestedSig: field /nr u32:3 canonType /env /mScope true field /nr u32:2 bufFreeze /nps ::
-                        ::.
+                        const rType/pvty canonType /env /mScope true get field /st u32:6 u64:0.
+                        set /routVars concat /routVars l/localVar: structNew localVar: field /st u32:3 /pvty :: ::.
                     ::
-                    nop.
+                    if eq /psk u8:15
+                        do
+                            const rawRoutine/nr get field /st u32:10 u64:0.
+                            const buf/rType/nps bufNew rType len field /nr u32:4.
+                            foreach paramDecl/npd field /nr u32:4 do
+                                bufPush /nps canonType /env /mScope true field /npd u32:0.
+                            ::.
+                            set /nsigs concat /nsigs l/nestedSig:
+                                structNew nestedSig: field /nr u32:3 canonType /env /mScope true field /nr u32:2 bufFreeze /nps ::
+                            ::.
+                        ::
+                        nop.
             ::.
             emitShort /out u32:2213.
             foreach exprNode/st /args do
-                const fnCtx/curFctx structNew fnCtx: field /fctx u32:0 /vars /nsigs ::.
-                lowerExpr /out /env /mScope /curFctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /st.
                 const u8/sk field /st u32:0.
+                const l/localVar/stVars if eq /sk u8:15 /routVars /vars.
+                const fnCtx/curFctx structNew fnCtx: field /fctx u32:0 /stVars /nsigs ::.
+                lowerExpr /out /env /mScope /curFctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /st.
                 if or eq /sk u8:12 eq /sk u8:13
                     do
                         const rType/vty canonType /env /mScope true get field /st u32:6 u64:0.
@@ -6188,7 +6192,7 @@ v/void/lowerExpr buf/dcVal/out compEnv/env modScope/mScope fnCtx/fctx l/u8/selfN
 
 : Lowers a top-level or nested StageR 3 routine declaration (`Dc 2203 .. Dc 2204`).
 : @dc l8589983111
-v/void/lowerRoutine buf/dcVal/out compEnv/env modScope/mScope l/nestedSig/outerNsigs l/u8/selfNsKey l/useItem/uses buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym rawRoutine/rr l/u8/emitName
+v/void/lowerRoutine buf/dcVal/out compEnv/env modScope/mScope l/localVar/outerVars l/nestedSig/outerNsigs l/u8/selfNsKey l/useItem/uses buf/tup: u8 dcVal ::/stdImports buf/tup: l/l/dcVal dcVal ::/crossDcs buf/synthImport/synths buf/u64/gensym rawRoutine/rr l/u8/emitName
     const rType/retTy canonType /env /mScope true field /rr u32:2.
     if eq field /retTy u32:0 u8:17 fault nop.
     emitShort /out u32:2203.
@@ -6198,7 +6202,8 @@ v/void/lowerRoutine buf/dcVal/out compEnv/env modScope/mScope l/nestedSig/outerN
     emitIdent /out /emitName.
 
     const l/paramDecl/params field /rr u32:4.
-    const buf/localVar/pVarsBuf bufNew localVar len /params.
+    const buf/localVar/pVarsBuf bufNew localVar add len /outerVars len /params.
+    bufExtend /pVarsBuf /outerVars.
     foreach paramDecl/pd /params do
         const rType/pty canonType /env /mScope true field /pd u32:0.
         if eq field /pty u32:0 u8:17 fault nop.
@@ -6312,7 +6317,7 @@ v/void/lowerStageRModule buf/dcVal/out compEnv/env modScope/mScope parsedMod/pm
     const l/rawRoutine/rrouts field /pm u32:12.
     let u64/ri u64:0.
     while lt /ri len /rrouts do
-        lowerRoutine /bodyBuf /env /mScope l/nestedSig: :: /selfNsKey /uses /stdImports /crossDcs /synths /gensym get /rrouts /ri get /emitNames /ri.
+        lowerRoutine /bodyBuf /env /mScope l/localVar: :: l/nestedSig: :: /selfNsKey /uses /stdImports /crossDcs /synths /gensym get /rrouts /ri get /emitNames /ri.
         set /ri add /ri u64:1.
     ::.
 
