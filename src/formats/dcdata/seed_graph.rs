@@ -7190,14 +7190,22 @@ mod tests {
             vec![
                 DcShorthand::Short(1936),
                 DcShorthand::Short(2608),
+                DcShorthand::Format(19),
                 DcShorthand::Format(1680),
                 DcShorthand::Format(1681),
             ]
         );
         for target in &targets {
+            assert_eq!(
+                target.chunk_prefix,
+                substitute_chunk_prefix_for_node_id(target.defining_node_id),
+                "Expected chunk_prefix to match defining_node_id {}",
+                target.defining_node_id
+            );
             assert!(
-                target.chunk_prefix.starts_with("85899_"),
-                "Expected uniform .ctbnodes chunk prefix, got {}",
+                target.chunk_prefix.contains('_')
+                    && target.chunk_prefix.len() == 11,
+                "Expected NNNNN_NNNNN .ctbnodes chunk prefix, got {}",
                 target.chunk_prefix
             );
             assert!(
@@ -7213,12 +7221,16 @@ mod tests {
             targets[1].kind,
             SystemWasmSubstituteTargetKind::StageRRoutineDcs
         );
-        assert!(matches!(
+        assert_eq!(
             targets[2].kind,
+            SystemWasmSubstituteTargetKind::StageRRoutineDcs
+        );
+        assert!(matches!(
+            targets[3].kind,
             SystemWasmSubstituteTargetKind::WasmConverter { .. }
         ));
         assert!(matches!(
-            targets[3].kind,
+            targets[4].kind,
             SystemWasmSubstituteTargetKind::StageLConverter { .. }
         ));
 

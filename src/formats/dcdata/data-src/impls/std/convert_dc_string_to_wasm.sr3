@@ -36,7 +36,7 @@ use std/dcmst:
 ::.
 
 use std/dctf:
-    skipComments readEscapedLiteral tokEscapedLiteral tokAtomDc tokIdent readIdentBytes dcShortId dcFormatId unescapeDctfStringLitBytes encodeDcStream decodeDcStream
+    skipComments readEscapedLiteral tokEscapedLiteral tokAtomDc tokIdent tokDcNumberU64 tokBinaryBytes readIdentBytes dcShortId dcFormatId unescapeDctfStringLitBytes encodeDcStream decodeDcStream
 ::.
 
 use std/u128:
@@ -86,12 +86,12 @@ enum strStepRes
     l/dc/err.
 
 : @dc l8589992767
-struct u128Step
+pub struct u128Step
     u128/val.
     u64/nextPos.
 
 : @dc l8589992768
-enum optU128Step
+pub enum optU128Step
     u128Step/some.
     none.
     l/dc/err.
@@ -116,20 +116,20 @@ struct useExtractRes
     b/ok.
 
 : @dc l8589992772
-struct capEntry
+pub struct capEntry
     u64/reqHash.
     l/dc/req.
     l/dc/resp.
 
 : @dc l8589992773
-struct tripleRec
+pub struct tripleRec
     u128/stmtId.
     dc/verb.
     dc/subj.
     dc/obj.
 
 : @dc l8589992774
-struct capClient
+pub struct capClient
     l/l/capEntry/buckets.
     b/hasWatermark.
     u128/watermark.
@@ -148,7 +148,7 @@ struct capRawBytesRes
     l/dc/errTokens.
 
 : @dc l8589993758
-struct capOptNodeRes
+pub struct capOptNodeRes
     capClient/cli.
     : 0 = absent (Dc 316), 1 = active payload, 2 = capability error (Dc 552..553).
     u8/tag.
@@ -172,33 +172,33 @@ struct wasmDecompRes
     l/u8/rawWasmBytes.
 
 : @dc l8589992777
-struct capU128ListRes
+pub struct capU128ListRes
     capClient/cli.
     b/ok.
     l/u128/ids.
     l/dc/errTokens.
 
 : @dc l8589992778
-struct capTripleListRes
+pub struct capTripleListRes
     capClient/cli.
     b/ok.
     l/tripleRec/triples.
     l/dc/errTokens.
 
 : @dc l8589992779
-struct capBoolRes
+pub struct capBoolRes
     capClient/cli.
     b/ok.
     b/val.
     l/dc/errTokens.
 
 : @dc l8589992780
-struct propEntry
+pub struct propEntry
     u128/hasAId.
     dc/val.
 
 : @dc l8589992781
-struct capPropListRes
+pub struct capPropListRes
     capClient/cli.
     b/ok.
     l/propEntry/props.
@@ -281,7 +281,7 @@ struct dcOwner
 : ---------------------------------------------------------------------------
 
 : @dc l8589992791
-v/capClient/emptyClient
+pub v/capClient/emptyClient
     const l/capEntry/emptyB l/capEntry: ::.
     let buf/l/capEntry/bs bufNew l/capEntry u64:64.
     let u64/i u64:0.
@@ -301,21 +301,21 @@ v/u64/hashDcList l/dc/xs
     /h.
 
 : @dc l8589992792
-v/dc/dcAtOr l/dc/xs u64/idx dc/fallback
+pub v/dc/dcAtOr l/dc/xs u64/idx dc/fallback
     match get /xs /idx
         case some dc/c /c.
         case none /fallback.
     ::.
 
 : @dc l8589992793
-v/u8/u8AtOr l/u8/xs u64/idx u8/fallback
+pub v/u8/u8AtOr l/u8/xs u64/idx u8/fallback
     match get /xs /idx
         case some u8/b /b.
         case none /fallback.
     ::.
 
 : @dc l8589992794
-v/l/dc/u8sToUnicodeDcs l/u8/bytes
+pub v/l/dc/u8sToUnicodeDcs l/u8/bytes
     test
         in b"AB"
         out l/dc: dcFromU128 u128:65 dcFromU128 u128:66 ::.
@@ -329,7 +329,7 @@ v/l/dc/u8sToUnicodeDcs l/u8/bytes
     bufFreeze /out.
 
 : @dc l8589992795
-v/l/dc/errRecord l/u8/msg
+pub v/l/dc/errRecord l/u8/msg
     test
         in b"bad"
         out l/dc: dc:552 dc:u62 dc:u61 dc:u64 dc:553 ::.
@@ -350,7 +350,7 @@ v/dcRes/failMsg l/u8/msg
     dcRes:err errRecord /msg.
 
 : @dc l8589992797
-v/b/isErrorRecord l/dc/tokens
+pub v/b/isErrorRecord l/dc/tokens
     test
         in l/dc: dc:552 dc:u65 dc:553 ::
         out true.
@@ -363,7 +363,7 @@ v/b/isErrorRecord l/dc/tokens
     eq dcAtOr /tokens u64:0 dc:0 dc:552.
 
 : @dc l8589992798
-v/b/dcListEq l/dc/a l/dc/b
+pub v/b/dcListEq l/dc/a l/dc/b
     const u64/n len /a.
     if ne /n len /b
         return false
@@ -378,7 +378,7 @@ v/b/dcListEq l/dc/a l/dc/b
     true.
 
 : @dc l8589992799
-v/b/u8ListEq l/u8/a l/u8/b
+pub v/b/u8ListEq l/u8/a l/u8/b
     const u64/n len /a.
     if ne /n len /b
         return false
@@ -393,7 +393,7 @@ v/b/u8ListEq l/u8/a l/u8/b
     true.
 
 : @dc l8589992800
-v/b/listContainsU128 l/u128/xs u128/target
+pub v/b/listContainsU128 l/u128/xs u128/target
     foreach u128/x /xs do
         if eq /x /target
             return true
@@ -513,11 +513,11 @@ v/b/isKvMapWasmBytes l/u8/bs
     ::.
 
 : @dc l8589992804
-v/b/isSysRegionId u128/id
+pub v/b/isSysRegionId u128/id
     and ge /id /u128SysStart le /id /u128SysEnd.
 
 : @dc l8589993556
-v/b/isSysRegionDc dc/c
+pub v/b/isSysRegionDc dc/c
     if ne dcShortId /c /noRegionId
         return false
         nop.
@@ -549,7 +549,7 @@ v/b/isBlockCommentOpener dc/c
 : Skips leading single-line (`Dc 246`/`247`..`Dc 248`) and block
 : (`Dc 249`/`250`..`Dc 251`) comment frames from `pos`.
 : @dc l8589992807
-v/u64/skipAllComments l/dc/tokens u64/pos
+pub v/u64/skipAllComments l/dc/tokens u64/pos
     test
         in l/dc: dc:247 dc:u65 dc:248 dc:249 dc:u66 dc:251 dc:1927 :: u64:0
         out u64:6.
@@ -595,7 +595,7 @@ v/u64/skipAllComments l/dc/tokens u64/pos
 
 : Skips leading comments in `tokens` and returns the remaining slice.
 : @dc l8589992808
-v/l/dc/stripLeadingComments l/dc/tokens
+pub v/l/dc/stripLeadingComments l/dc/tokens
     const u64/p skipAllComments /tokens u64:0.
     match slice /tokens /p len /tokens
         case some l/dc/rest /rest.
@@ -603,7 +603,7 @@ v/l/dc/stripLeadingComments l/dc/tokens
     ::.
 
 : @dc l8589992809
-v/b/isAsciiLowerEq u8/a u8/b
+pub v/b/isAsciiLowerEq u8/a u8/b
     let u8/la /a.
     if and ge /la u8:65 le /la u8:90
         set /la wrapAdd /la u8:32
@@ -1101,7 +1101,7 @@ v/b/isStageLBuiltinOpDc dc/c
     isStageLBuiltinShortU32 /sid.
 
 : @dc l8589992817
-v/optU128Step/parsePinDescriptionAt l/dc/tokens u64/pos
+pub v/optU128Step/parsePinDescriptionAt l/dc/tokens u64/pos
     test
         in l/dc: dc:641 dcFromU128 u128:8589934592 :: u64:0
         out optU128Step:some structNew u128Step: val u128:8589934592 nextPos u64:2 ::.
@@ -1279,7 +1279,7 @@ v/capU128ListRes/queryWatermark capClient/cli
     structNew capU128ListRes: cli /nextCli ok true ids l/u128: /wm :: errTokens l/dc: :: ::.
 
 : @dc l8589992825
-v/capOptNodeRes/queryNodeRaw capClient/cli u128/nodeId
+pub v/capOptNodeRes/queryNodeRaw capClient/cli u128/nodeId
     let buf/dc/reqBuf bufNew dc u64:5.
     bufPush /reqBuf dc:1939.
     bufPush /reqBuf dc:617.
@@ -1764,7 +1764,7 @@ v/capOptNodeRes/expandInternedNodesInner capClient/cli l/dc/tokens l/u128/visIds
     structNew capOptNodeRes: cli /curCli tag u8:1 payload bufFreeze /out ::.
 
 : @dc l8589992827
-v/capOptNodeRes/queryNodeExpanded capClient/cli u128/nodeId
+pub v/capOptNodeRes/queryNodeExpanded capClient/cli u128/nodeId
     const capOptNodeRes/raw queryNodeRaw /cli /nodeId.
     if ne field /raw tag u8:1
         return /raw
@@ -1772,7 +1772,7 @@ v/capOptNodeRes/queryNodeExpanded capClient/cli u128/nodeId
     expandInternedNodesInner field /raw cli field /raw payload l/u128: /nodeId ::.
 
 : @dc l8589992828
-v/capU128ListRes/queryNodesByExactTokens capClient/cli l/dc/targetTokens
+pub v/capU128ListRes/queryNodesByExactTokens capClient/cli l/dc/targetTokens
     if eq len /targetTokens u64:0
         return structNew capU128ListRes: cli /cli ok true ids l/u128: :: errTokens l/dc: :: ::
         nop.
@@ -1816,7 +1816,7 @@ v/capU128ListRes/queryNodesByExactTokens capClient/cli l/dc/targetTokens
     structNew capU128ListRes: cli field /cr cli ok true ids bufFreeze /ids errTokens l/dc: :: ::.
 
 : @dc l8589992829
-v/capTripleListRes/queryTriples capClient/cli b/hasVerb dc/verb b/hasSubj dc/subj b/hasObj dc/obj
+pub v/capTripleListRes/queryTriples capClient/cli b/hasVerb dc/verb b/hasSubj dc/subj b/hasObj dc/obj
     let buf/dc/reqBuf bufNew dc u64:8.
     bufPush /reqBuf dc:1939.
     bufPush /reqBuf if /hasVerb /verb dc:600.
@@ -1876,7 +1876,7 @@ v/capTripleListRes/queryTriples capClient/cli b/hasVerb dc/verb b/hasSubj dc/sub
     structNew capTripleListRes: cli field /cr cli ok true triples bufFreeze /out errTokens l/dc: :: ::.
 
 : @dc l8589992830
-v/capBoolRes/hasAnyContextQualifier capClient/cli u128/stmtId
+pub v/capBoolRes/hasAnyContextQualifier capClient/cli u128/stmtId
     const capTripleListRes/tr queryTriples /cli true dc:646 true dcFromU128 /stmtId false dc:0.
     if not field /tr ok
         return structNew capBoolRes: cli field /tr cli ok false val false errTokens field /tr errTokens ::
@@ -1884,7 +1884,7 @@ v/capBoolRes/hasAnyContextQualifier capClient/cli u128/stmtId
     structNew capBoolRes: cli field /tr cli ok true val gt len field /tr triples u64:0 errTokens l/dc: :: ::.
 
 : @dc l8589992831
-v/capBoolRes/isDirectStatementPresent capClient/cli dc/verb dc/subj dc/obj
+pub v/capBoolRes/isDirectStatementPresent capClient/cli dc/verb dc/subj dc/obj
     const capTripleListRes/tr queryTriples /cli true /verb true /subj true /obj.
     if not field /tr ok
         return structNew capBoolRes: cli field /tr cli ok false val false errTokens field /tr errTokens ::
@@ -1893,7 +1893,7 @@ v/capBoolRes/isDirectStatementPresent capClient/cli dc/verb dc/subj dc/obj
 
 : Resolves active reified property entries (`584 subj propDc` -> `610 stmtId val`).
 : @dc l8589992832
-v/capPropListRes/queryMultiProperty capClient/cli dc/subj dc/propDc
+pub v/capPropListRes/queryMultiProperty capClient/cli dc/subj dc/propDc
     const capTripleListRes/hasA queryTriples /cli true dc:584 true /subj true /propDc.
     let capClient/curCli field /hasA cli.
     if not field /hasA ok
@@ -1953,7 +1953,7 @@ v/capBoolRes/hasEntityClassDef capClient/cli u128/nodeId dc/optExpectedClass b/c
 : Checks semantic equivalence (`Dc 585` symmetric + 1-token `Dc 611`) between `a` and `b`.
 : Short-circuits with zero capability calls when `eq /a /b`.
 : @dc l8589992834
-v/capBoolRes/dcIsEquiv capClient/cli dc/a dc/b
+pub v/capBoolRes/dcIsEquiv capClient/cli dc/a dc/b
     if eq /a /b
         return structNew capBoolRes: cli /cli ok true val true errTokens l/dc: :: ::
         nop.
@@ -2161,7 +2161,7 @@ v/capBoolRes/dcIsEquiv capClient/cli dc/a dc/b
 
 : Returns the equivalence component of `start` (`l/u128`), ordered deterministically.
 : @dc l8589992835
-v/capU128ListRes/collectEquivClass capClient/cli dc/start
+pub v/capU128ListRes/collectEquivClass capClient/cli dc/start
     let buf/u128/queue bufNew u128 u64:4.
     const u128/startU u128FromDc /start.
     bufPush /queue /startU.
@@ -6042,7 +6042,7 @@ v/capCallRes/bundleDcModuleDeps capClient/cli l/dc/callerTokens b/allowStager
                         case none nop.
                     ::
                     do
-                        let u64/realNsCnt u64:0.
+                        let l/l/u8/realNsKeys l/l/u8: ::.
                         let u64/repIdx u64:18446744073709551615.
                         let u64/firstAnc u64:18446744073709551615.
                         foreach u64/ci /compList do
@@ -6051,7 +6051,7 @@ v/capCallRes/bundleDcModuleDeps capClient/cli l/dc/callerTokens b/allowStager
                                     do
                                         if field /m isRealNs
                                             do
-                                                set /realNsCnt wrapAdd /realNsCnt u64:1.
+                                                set /realNsKeys appendUniqueU8Seq /realNsKeys field /m nsKey.
                                                 if eq /repIdx u64:18446744073709551615
                                                     set /repIdx /ci
                                                     nop.
@@ -6064,7 +6064,7 @@ v/capCallRes/bundleDcModuleDeps capClient/cli l/dc/callerTokens b/allowStager
                                 case none nop.
                             ::.
                         ::.
-                        if gt /realNsCnt u64:1
+                        if gt len /realNsKeys u64:1
                             foreach u64/ci /compList do
                                 match get /postMods /ci
                                     case some bundledMod/m bufPush /finalBuf /m.
@@ -6765,6 +6765,982 @@ v/convListRes/findDirectOneHopConverter capClient/cli l/u128/srcEqIds dc/dst
     ::.
     structNew convListRes: cli /curCli ok true steps l/convStep: :: errTokens l/dc: :: ::.
 
+: @dc l8590004216
+struct docBinding
+    u64/scopeDepth.
+    l/dc/identName.
+    l/dc/valTokens.
+
+: @dc l8590004217
+struct docValStepRes
+    capClient/cli.
+    b/ok.
+    l/dc/valTokens.
+    u64/nextPos.
+    l/dc/errTokens.
+
+: @dc l8590004218
+struct docStreamRes
+    capClient/cli.
+    b/ok.
+    l/dc/outTokens.
+    l/docBinding/env.
+    u64/nextPos.
+    l/dc/errTokens.
+
+: @dc l8590004224
+v/l/dc/escapeDcsForMixedOutput l/dc/chars
+    test
+        in l/dc: dc:u41 dc:255 dc:261 dc:203 ::
+        out l/dc: dc:u41 dc:255 dc:255 dc:261 dc:255 dc:203 ::.
+    let buf/dc/out bufNew dc wrapAdd len /chars u64:4.
+    foreach dc/ch /chars do
+        const u32/sid dcShortId /ch.
+        if or eq /sid u32:255 or eq /sid u32:203 eq /sid u32:204
+            bufPush /out dc:255
+            nop.
+        bufPush /out /ch.
+    ::.
+    bufFreeze /out.
+
+: @dc l8590004225
+v/l/dc/buildStaticOutputWasmProgram l/dc/outDcs
+    test
+        in l/dc: ::
+        out l/dc: dc:1927 dc:648 dc:1928 ::.
+    const l/u8/outBytes encodeDcStream escapeDcsForMixedOutput /outDcs.
+    if eq len /outBytes u64:0
+        return l/dc: dc:1927 dc:648 dc:1928 ::
+        nop.
+    let buf/dc/out bufNew dc u64:96.
+    bufPush /out dc:1927.
+    bufPush /out dc:559.
+    bufPush /out dc:264.
+    bufPush /out dc:275.
+    : Active static data segment `"__doc_out"` placed at linear-memory offset 32.
+    bufPush /out dc:514.
+    bufExtend /out tokIdent b"__doc_out".
+    bufPush /out dc:312.
+    bufExtend /out tokBinaryBytes /outBytes.
+    bufPush /out dc:515.
+    : Exported `"step"` (`() -> i32`): store `output_ptr = 32` at 8, `output_len = len` at 12, return 0.
+    bufPush /out dc:514.
+    bufExtend /out tokIdent b"step".
+    bufPush /out dc:312.
+    bufPush /out dc:260.
+    bufPush /out dc:262.
+    bufPush /out dc:280.
+    bufPush /out dc:f208.
+    bufPush /out dc:263.
+    bufPush /out dc:712.
+    bufExtend /out tokDcNumberU64 u64:8.
+    bufPush /out dc:712.
+    bufExtend /out tokDcNumberU64 u64:32.
+    bufPush /out dc:701.
+    bufExtend /out tokDcNumberU64 u64:0.
+    bufExtend /out tokDcNumberU64 u64:2.
+    bufExtend /out tokDcNumberU64 u64:0.
+    bufPush /out dc:712.
+    bufExtend /out tokDcNumberU64 u64:12.
+    bufPush /out dc:712.
+    bufExtend /out tokDcNumberU64 len /outBytes.
+    bufPush /out dc:701.
+    bufExtend /out tokDcNumberU64 u64:0.
+    bufExtend /out tokDcNumberU64 u64:2.
+    bufExtend /out tokDcNumberU64 u64:0.
+    bufPush /out dc:712.
+    bufExtend /out tokDcNumberU64 u64:0.
+    bufPush /out dc:261.
+    bufPush /out dc:515.
+    bufPush /out dc:560.
+    bufPush /out dc:1928.
+    bufFreeze /out.
+
+: @dc l8590004226
+v/b/isUncompiledCodeToken dc/c
+    const u32/sid dcShortId /c.
+    if eq /sid /noRegionId
+        return false
+        nop.
+    if and ge /sid u32:2192 le /sid u32:2242
+        return ne /sid u32:2215
+        nop.
+    if and ge /sid u32:2448 le /sid u32:2585
+        return true
+        nop.
+    and ge /sid u32:2609 le /sid u32:2679.
+
+: @dc l8590004227
+v/capBoolRes/docTokMatchesRole capClient/cli dc/tok dc/canonRoleDc
+    if eq /tok /canonRoleDc
+        return structNew capBoolRes: cli /cli ok true val true errTokens l/dc: :: ::
+        nop.
+    if lt u128FromDc /tok /u128ShortBase
+        return structNew capBoolRes: cli /cli ok true val false errTokens l/dc: :: ::
+        nop.
+    if ne dcFormatId /tok /noRegionId
+        return structNew capBoolRes: cli /cli ok true val false errTokens l/dc: :: ::
+        nop.
+    dcIsEquiv /cli /tok /canonRoleDc.
+
+: @dc l8590004228
+v/strStepRes/readIdentNameAt l/dc/tokens u64/pos
+    test
+        in l/dc: dc:270 dc:u78 dc:u31 dc:271 :: u64:0
+        out strStepRes:ok structNew strStep: payload l/dc: dc:u78 dc:u31 :: nextPos u64:4 ::.
+    test
+        in l/dc: dc:270 dc:262 dc:264 dc:263 dc:u78 dc:271 :: u64:0
+        out strStepRes:ok structNew strStep: payload l/dc: dc:u78 :: nextPos u64:6 ::.
+    const u64/n len /tokens.
+    if or ge /pos /n ne dcShortId dcAtOr /tokens /pos /dcZero u32:270
+        return strStepRes:err errRecord b"Expected Dc 270 opening [identifier]"
+        nop.
+    let u64/i wrapAdd /pos u64:1.
+    if ge /i /n
+        return strStepRes:err errRecord b"Unclosed Dc 270..Dc 271 [identifier]"
+        nop.
+    const dc/firstIn dcAtOr /tokens /i /dcZero.
+    if eq dcShortId /firstIn u32:262
+        do
+            let u64/td u64:1.
+            set /i wrapAdd /i u64:1.
+            while and lt /i /n gt /td u64:0 do
+                const u32/tsid dcShortId dcAtOr /tokens /i /dcZero.
+                if eq /tsid u32:255
+                    set /i wrapAdd /i u64:2
+                    do
+                        if eq /tsid u32:262
+                            set /td wrapAdd /td u64:1
+                            if eq /tsid u32:263
+                                set /td wrapSub /td u64:1
+                                nop.
+                        set /i wrapAdd /i u64:1.
+                    ::.
+            ::.
+            if gt /td u64:0
+                return strStepRes:err errRecord b"Unclosed Dc 262..Dc 263 type header inside [identifier]"
+                nop.
+        ::
+        if ne dcFormatId /firstIn /noRegionId
+            set /i wrapAdd /i u64:1
+            nop.
+    let buf/dc/nameBuf bufNew dc u64:16.
+    let b/closed false.
+    while lt /i /n do
+        const dc/ch dcAtOr /tokens /i /dcZero.
+        const u32/sid dcShortId /ch.
+        if eq /sid u32:271
+            do
+                set /i wrapAdd /i u64:1.
+                set /closed true.
+                break.
+            ::
+            nop.
+        if eq /sid u32:2239
+            do
+                const u64/ni wrapAdd /i u64:1.
+                if ge /ni /n
+                    return strStepRes:err errRecord b"Dangling Dc 2239 inside [identifier]"
+                    nop.
+                const dc/qch dcAtOr /tokens /ni /dcZero.
+                if eq dcShortId /qch u32:255
+                    do
+                        const u64/ni2 wrapAdd /i u64:2.
+                        if ge /ni2 /n
+                            return strStepRes:err errRecord b"Dangling Dc 255 after Dc 2239 inside [identifier]"
+                            nop.
+                        bufPush /nameBuf dcAtOr /tokens /ni2 /dcZero.
+                        set /i wrapAdd /ni2 u64:1.
+                    ::
+                    do
+                        bufPush /nameBuf /qch.
+                        set /i wrapAdd /ni u64:1.
+                    ::.
+            ::
+            if eq /sid u32:255
+                do
+                    const u64/ni wrapAdd /i u64:1.
+                    if ge /ni /n
+                        return strStepRes:err errRecord b"Dangling Dc 255 inside [identifier]"
+                        nop.
+                    bufPush /nameBuf dcAtOr /tokens /ni /dcZero.
+                    set /i wrapAdd /ni u64:1.
+                ::
+                do
+                    bufPush /nameBuf /ch.
+                    set /i wrapAdd /i u64:1.
+                ::.
+    ::.
+    const l/dc/identName bufFreeze /nameBuf.
+    if or not /closed eq len /identName u64:0
+        return strStepRes:err errRecord b"Malformed or empty Dc 270..Dc 271 [identifier]"
+        nop.
+    strStepRes:ok structNew strStep: payload /identName nextPos /i ::.
+
+: @dc l8590004229
+v/option/l/dc/lookupDocBinding l/docBinding/env l/dc/identName
+    let u64/ri len /env.
+    while gt /ri u64:0 do
+        set /ri wrapSub /ri u64:1.
+        match get /env /ri
+            case some docBinding/b
+                if dcListEq field /b identName /identName
+                    return option/l/dc:some field /b valTokens
+                    nop.
+            case none nop.
+        ::.
+    ::.
+    option/l/dc:none.
+
+: @dc l8590004230
+v/l/docBinding/pruneDocEnv l/docBinding/env u64/maxDepth
+    let buf/docBinding/out bufNew docBinding len /env.
+    foreach docBinding/b /env do
+        if le field /b scopeDepth /maxDepth
+            bufPush /out /b
+            nop.
+    ::.
+    bufFreeze /out.
+
+: @dc l8590004231
+v/optU128Step/scanFramedValueEnd l/dc/tokens u64/pos
+    const u64/n len /tokens.
+    if ge /pos /n
+        return optU128Step:none
+        nop.
+    const dc/head dcAtOr /tokens /pos /dcZero.
+    const u32/sid dcShortId /head.
+    if or eq /sid u32:517 eq /sid u32:518
+        return optU128Step:some structNew u128Step: val u128:0 nextPos wrapAdd /pos u64:1 ::
+        nop.
+    if eq /sid u32:203
+        do
+            let u64/i wrapAdd /pos u64:1.
+            while lt /i /n do
+                if eq dcShortId dcAtOr /tokens /i /dcZero u32:204
+                    return optU128Step:some structNew u128Step: val u128:0 nextPos wrapAdd /i u64:1 ::
+                    nop.
+                set /i wrapAdd /i u64:1.
+            ::.
+            return optU128Step:err errRecord b"Unclosed Dc 203..Dc 204 binary data frame"
+        ::
+        nop.
+    let u32/openSid u32:0.
+    let u32/closeSid u32:0.
+    if eq /sid u32:260
+        do
+            set /openSid u32:260.
+            set /closeSid u32:261.
+        ::
+        if eq /sid u32:6
+            do
+                set /openSid u32:6.
+                set /closeSid u32:7.
+            ::
+            if eq /sid u32:310
+                do
+                    set /openSid u32:310.
+                    set /closeSid u32:311.
+                ::
+                if eq /sid u32:559
+                    do
+                        set /openSid u32:559.
+                        set /closeSid u32:560.
+                    ::
+                    if eq /sid u32:2215
+                        do
+                            set /openSid u32:2215.
+                            set /closeSid u32:2216.
+                        ::
+                        if eq /sid u32:511
+                            do
+                                set /openSid u32:511.
+                                set /closeSid u32:512.
+                            ::
+                            if eq /sid u32:390
+                                do
+                                    set /openSid u32:390.
+                                    set /closeSid u32:391.
+                                ::
+                                if eq /sid u32:393
+                                    do
+                                        set /openSid u32:393.
+                                        set /closeSid u32:394.
+                                    ::
+                                    if eq /sid u32:395
+                                        do
+                                            set /openSid u32:395.
+                                            set /closeSid u32:396.
+                                        ::
+                                        return optU128Step:none.
+    let u64/depth u64:1.
+    let u64/i wrapAdd /pos u64:1.
+    while and lt /i /n gt /depth u64:0 do
+        const u32/csid dcShortId dcAtOr /tokens /i /dcZero.
+        if or eq /csid u32:255 eq /csid u32:2239
+            do
+                const u64/i1 wrapAdd /i u64:1.
+                if and eq /csid u32:2239 and lt /i1 /n eq dcShortId dcAtOr /tokens /i1 /dcZero u32:255
+                    set /i wrapAdd /i u64:3
+                    set /i wrapAdd /i u64:2.
+                if gt /i /n
+                    return optU128Step:err errRecord b"Dangling escape inside framed value"
+                    nop.
+            ::
+            if eq /csid u32:260
+                do
+                    if eq /openSid u32:260
+                        return optU128Step:err errRecord b"Unescaped Dc 260 inside literal value"
+                        nop.
+                    let u64/li wrapAdd /i u64:1.
+                    let b/lclosed false.
+                    while lt /li /n do
+                        const u32/lsid dcShortId dcAtOr /tokens /li /dcZero.
+                        if eq /lsid u32:255
+                            set /li wrapAdd /li u64:2
+                            if eq /lsid u32:261
+                                do
+                                    set /li wrapAdd /li u64:1.
+                                    set /lclosed true.
+                                    break.
+                                ::
+                                set /li wrapAdd /li u64:1.
+                    ::.
+                    if not /lclosed
+                        return optU128Step:err errRecord b"Unclosed nested Dc 260..Dc 261 literal"
+                        nop.
+                    set /i /li.
+                ::
+                do
+                    if eq /csid /openSid
+                        set /depth wrapAdd /depth u64:1
+                        if eq /csid /closeSid
+                            set /depth wrapSub /depth u64:1
+                            nop.
+                    set /i wrapAdd /i u64:1.
+                ::.
+    ::.
+    if gt /depth u64:0
+        return optU128Step:err errRecord b"Unclosed framed value container"
+        nop.
+    optU128Step:some structNew u128Step: val u128:0 nextPos /i ::.
+
+: @dc l8590004232
+v/docValStepRes/evalLangSayCallAt capClient/cli l/dc/tokens u64/pos l/docBinding/env
+    let capClient/curCli /cli.
+    let u64/p skipAllComments /tokens wrapAdd /pos u64:1.
+    if ge /p len /tokens
+        return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens errRecord b"lang.say is missing its parameter" ::
+        nop.
+    const capBoolRes/pOpen docTokMatchesRole /curCli dcAtOr /tokens /p /dcZero dc:258.
+    set /curCli field /pOpen cli.
+    if not field /pOpen ok
+        return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens field /pOpen errTokens ::
+        nop.
+    if not field /pOpen val
+        return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens errRecord b"lang.say requires a Dc 258..Dc 259 parameter container" ::
+        nop.
+    set /p skipAllComments /tokens wrapAdd /p u64:1.
+    const docValStepRes/argRes evalDocValueExprAt /curCli /tokens /p /env true.
+    set /curCli field /argRes cli.
+    if not field /argRes ok
+        return /argRes
+        nop.
+    const strStepRes/strRes readStringLiteralAt field /argRes valTokens u64:0.
+    const l/dc/payload match /strRes
+        case ok strStep/st
+            do
+                if ne field /st nextPos len field /argRes valTokens
+                    return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens errRecord b"lang.say requires a single [string] argument" ::
+                    nop.
+                field /st payload.
+            ::.
+        case err l/dc/e return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens /e ::.
+    ::.
+    set /p skipAllComments /tokens field /argRes nextPos.
+    if ge /p len /tokens
+        return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens errRecord b"Unclosed Dc 258..Dc 259 parameter in lang.say" ::
+        nop.
+    const capBoolRes/pClose docTokMatchesRole /curCli dcAtOr /tokens /p /dcZero dc:259.
+    set /curCli field /pClose cli.
+    if not field /pClose ok
+        return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens field /pClose errTokens ::
+        nop.
+    if not field /pClose val
+        return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens errRecord b"lang.say requires exactly one [string] argument before Dc 259" ::
+        nop.
+    const u64/afterSay wrapAdd /p u64:1.
+    let b/alreadyLf false.
+    if gt len /payload u64:0
+        do
+            const dc/lastCh dcAtOr /payload wrapSub len /payload u64:1 /dcZero.
+            const capBoolRes/lfEq dcIsEquiv /curCli /lastCh dc:ua.
+            set /curCli field /lfEq cli.
+            if not field /lfEq ok
+                return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens field /lfEq errTokens ::
+                nop.
+            set /alreadyLf field /lfEq val.
+        ::
+        nop.
+    let buf/dc/emitted bufNew dc wrapAdd len /payload u64:1.
+    bufExtend /emitted /payload.
+    if not /alreadyLf
+        bufPush /emitted dc:ua
+        nop.
+    structNew docValStepRes: cli /curCli ok true valTokens bufFreeze /emitted nextPos /afterSay errTokens l/dc: :: ::.
+
+: @dc l8590004233
+v/docValStepRes/evalDocValueExprAt capClient/cli l/dc/tokens u64/pos l/docBinding/env b/wantString
+    let capClient/curCli /cli.
+    const u64/p skipAllComments /tokens /pos.
+    if ge /p len /tokens
+        return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens errRecord b"Missing value expression" ::
+        nop.
+    const dc/head dcAtOr /tokens /p /dcZero.
+    : 1. Literal / framed value (`[string]`, `[number]`, `[boolean]`, `[data]`, `[list]`, etc.).
+    match scanFramedValueEnd /tokens /p
+        case some u128Step/fs
+            match slice /tokens /p field /fs nextPos
+                case some l/dc/valSlice
+                    return structNew docValStepRes: cli /curCli ok true valTokens /valSlice nextPos field /fs nextPos errTokens l/dc: :: ::.
+                case none
+                    return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens errRecord b"Invalid framed value slice" ::.
+            ::.
+        case err l/dc/e
+            return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens /e ::.
+        case none nop.
+    ::.
+    : 2. `Dc 540` (`Reference bound value`) or `Dc 276` (`Reference named object`).
+    const capBoolRes/isRef540 docTokMatchesRole /curCli /head dc:540.
+    set /curCli field /isRef540 cli.
+    if not field /isRef540 ok
+        return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens field /isRef540 errTokens ::
+        nop.
+    let b/isRef field /isRef540 val.
+    let b/allowOuterType false.
+    if not /isRef
+        do
+            const capBoolRes/isRef276 docTokMatchesRole /curCli /head dc:276.
+            set /curCli field /isRef276 cli.
+            if not field /isRef276 ok
+                return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens field /isRef276 errTokens ::
+                nop.
+            set /isRef field /isRef276 val.
+            set /allowOuterType true.
+        ::
+        nop.
+    if /isRef
+        do
+            let u64/ip skipAllComments /tokens wrapAdd /p u64:1.
+            if and /allowOuterType lt /ip len /tokens
+                do
+                    const dc/th dcAtOr /tokens /ip /dcZero.
+                    if eq dcShortId /th u32:262
+                        match scanFramedValueEnd /tokens /ip
+                            case some u128Step/ts set /ip skipAllComments /tokens field /ts nextPos.
+                            case none
+                                do
+                                    : Skip `262 .. 263` type def before `[identifier]`.
+                                    let u64/td u64:1.
+                                    set /ip wrapAdd /ip u64:1.
+                                    while and lt /ip len /tokens gt /td u64:0 do
+                                        const u32/tsid dcShortId dcAtOr /tokens /ip /dcZero.
+                                        if eq /tsid u32:255
+                                            set /ip wrapAdd /ip u64:2
+                                            do
+                                                if eq /tsid u32:262
+                                                    set /td wrapAdd /td u64:1
+                                                    if eq /tsid u32:263
+                                                        set /td wrapSub /td u64:1
+                                                        nop.
+                                                set /ip wrapAdd /ip u64:1.
+                                            ::.
+                                    ::.
+                                    set /ip skipAllComments /tokens /ip.
+                                ::.
+                            case err l/dc/e return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens /e ::.
+                        ::
+                        if ne dcFormatId /th /noRegionId
+                            set /ip skipAllComments /tokens wrapAdd /ip u64:1
+                            nop.
+                ::
+                nop.
+            match readIdentNameAt /tokens /ip
+                case ok strStep/ist
+                    match lookupDocBinding /env field /ist payload
+                        case some l/dc/bound
+                            return structNew docValStepRes: cli /curCli ok true valTokens /bound nextPos field /ist nextPos errTokens l/dc: :: ::.
+                        case none
+                            return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens errRecord b"Unbound identifier reference in Dc document" ::.
+                    ::.
+                case err l/dc/e
+                    return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens /e ::.
+            ::.
+        ::
+        nop.
+    : 3. `Dc 397` (`Equivalent representations`) or `Dc 561` (`Partially equivalent representations`).
+    const capBoolRes/isEq397 docTokMatchesRole /curCli /head dc:397.
+    set /curCli field /isEq397 cli.
+    if not field /isEq397 ok
+        return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens field /isEq397 errTokens ::
+        nop.
+    let b/isRepSet field /isEq397 val.
+    if not /isRepSet
+        do
+            const capBoolRes/isEq561 docTokMatchesRole /curCli /head dc:561.
+            set /curCli field /isEq561 cli.
+            if not field /isEq561 ok
+                return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens field /isEq561 errTokens ::
+                nop.
+            set /isRepSet field /isEq561 val.
+        ::
+        nop.
+    if /isRepSet
+        do
+            const u64/lp skipAllComments /tokens wrapAdd /p u64:1.
+            if or ge /lp len /tokens ne dcShortId dcAtOr /tokens /lp /dcZero u32:310
+                return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens errRecord b"Representation set requires a Dc 310..Dc 311 [list] operand" ::
+                nop.
+            const u64/listEnd match scanFramedValueEnd /tokens /lp
+                case some u128Step/ls field /ls nextPos.
+                case none return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens errRecord b"Malformed [list] in representation set" ::.
+                case err l/dc/e return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens /e ::.
+            ::.
+            const u64/bodyLimit wrapSub /listEnd u64:1.
+            let u64/ep skipAllComments /tokens wrapAdd /lp u64:1.
+            : Optional list length `[number]`
+            if and lt /ep /bodyLimit eq dcShortId dcAtOr /tokens /ep /dcZero u32:6
+                match scanFramedValueEnd /tokens /ep
+                    case some u128Step/ns set /ep skipAllComments /tokens field /ns nextPos.
+                    case none return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens errRecord b"Malformed length in representation set list" ::.
+                    case err l/dc/e return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens /e ::.
+                ::
+                nop.
+            : Required list element `[type]` (`262..263`, format, or `.EM Types` token such as `275`)
+            if ge /ep /bodyLimit
+                return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens errRecord b"Missing element [type] in representation set list" ::
+                nop.
+            if eq dcShortId dcAtOr /tokens /ep /dcZero u32:262
+                do
+                    let u64/td u64:1.
+                    set /ep wrapAdd /ep u64:1.
+                    while and lt /ep /bodyLimit gt /td u64:0 do
+                        const u32/tsid dcShortId dcAtOr /tokens /ep /dcZero.
+                        if eq /tsid u32:255
+                            set /ep wrapAdd /ep u64:2
+                            do
+                                if eq /tsid u32:262
+                                    set /td wrapAdd /td u64:1
+                                    if eq /tsid u32:263
+                                        set /td wrapSub /td u64:1
+                                        nop.
+                                set /ep wrapAdd /ep u64:1.
+                            ::.
+                    ::.
+                ::
+                set /ep wrapAdd /ep u64:1.
+            let b/hasFallback false.
+            let l/dc/fallbackVal l/dc: ::.
+            while lt /ep /bodyLimit do
+                set /ep skipAllComments /tokens /ep.
+                if ge /ep /bodyLimit
+                    break
+                    nop.
+                if eq dcShortId dcAtOr /tokens /ep /dcZero u32:312
+                    do
+                        set /ep wrapAdd /ep u64:1.
+                        continue.
+                    ::
+                    nop.
+                const docValStepRes/cand evalDocValueExprAt /curCli /tokens /ep /env /wantString.
+                set /curCli field /cand cli.
+                if not field /cand ok
+                    return /cand
+                    nop.
+                set /ep field /cand nextPos.
+                if /wantString
+                    match readStringLiteralAt field /cand valTokens u64:0
+                        case ok strStep/st
+                            if eq field /st nextPos len field /cand valTokens
+                                return structNew docValStepRes: cli /curCli ok true valTokens field /cand valTokens nextPos /listEnd errTokens l/dc: :: ::
+                                nop.
+                        case err l/dc/_e nop.
+                    ::
+                    return structNew docValStepRes: cli /curCli ok true valTokens field /cand valTokens nextPos /listEnd errTokens l/dc: :: ::.
+                if not /hasFallback
+                    do
+                        set /hasFallback true.
+                        set /fallbackVal field /cand valTokens.
+                    ::
+                    nop.
+            ::.
+            if and not /wantString /hasFallback
+                return structNew docValStepRes: cli /curCli ok true valTokens /fallbackVal nextPos /listEnd errTokens l/dc: :: ::
+                nop.
+            return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens errRecord b"No matching representation found in Dc 397 or Dc 561 list" ::
+        ::
+        nop.
+    : 4. Nested `Dc 256` (`lang.say`) evaluated in value position returns its emitted document as `[string]`.
+    const capBoolRes/isSay docTokMatchesRole /curCli /head dc:256.
+    set /curCli field /isSay cli.
+    if not field /isSay ok
+        return structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens field /isSay errTokens ::
+        nop.
+    if field /isSay val
+        do
+            const docValStepRes/sayRes evalLangSayCallAt /curCli /tokens /p /env.
+            set /curCli field /sayRes cli.
+            if not field /sayRes ok
+                return /sayRes
+                nop.
+            return structNew docValStepRes: cli /curCli ok true valTokens tokEscapedLiteral dc:264 field /sayRes valTokens nextPos field /sayRes nextPos errTokens l/dc: :: ::
+        ::
+        nop.
+    structNew docValStepRes: cli /curCli ok false valTokens l/dc: :: nextPos /pos errTokens errRecord b"Unsupported value expression in Dc document" ::.
+
+: @dc l8590004234
+v/docStreamRes/evalDeclarativeDocRange capClient/cli l/dc/tokens u64/startPos b/expectCloser dc/closerRoleDc u64/scopeDepth l/docBinding/initEnv
+    let capClient/curCli /cli.
+    let l/docBinding/env /initEnv.
+    let buf/dc/out bufNew dc wrapSub len /tokens /startPos.
+    let u64/pos /startPos.
+    let b/foundCloser false.
+    const u64/n len /tokens.
+    while lt /pos /n do
+        set /pos skipAllComments /tokens /pos.
+        if ge /pos /n
+            break
+            nop.
+        const dc/tok dcAtOr /tokens /pos /dcZero.
+        if isUncompiledCodeToken /tok
+            return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens errRecord b"No active converter routine or chain found in System graph snapshot" ::
+            nop.
+        if /expectCloser
+            do
+                const capBoolRes/clMatch docTokMatchesRole /curCli /tok /closerRoleDc.
+                set /curCli field /clMatch cli.
+                if not field /clMatch ok
+                    return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /clMatch errTokens ::
+                    nop.
+                if field /clMatch val
+                    do
+                        set /foundCloser true.
+                        set /pos wrapAdd /pos u64:1.
+                        break.
+                    ::
+                    nop.
+            ::
+            nop.
+        const u32/sid dcShortId /tok.
+        : Escape / atom quote in document stream.
+        if or eq /sid u32:255 eq /sid u32:2239
+            do
+                const u64/p1 wrapAdd /pos u64:1.
+                if ge /p1 /n
+                    return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens errRecord b"Dangling escape token in Dc document" ::
+                    nop.
+                const dc/nx dcAtOr /tokens /p1 /dcZero.
+                if and eq /sid u32:2239 eq dcShortId /nx u32:255
+                    do
+                        const u64/p2 wrapAdd /pos u64:2.
+                        if ge /p2 /n
+                            return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens errRecord b"Dangling Dc 255 after Dc 2239 in Dc document" ::
+                            nop.
+                        bufPush /out dcAtOr /tokens /p2 /dcZero.
+                        set /pos wrapAdd /p2 u64:1.
+                    ::
+                    do
+                        bufPush /out /nx.
+                        set /pos wrapAdd /p1 u64:1.
+                    ::.
+                continue.
+            ::
+            nop.
+        : Plain Unicode character fast path (zero graph queries).
+        if lt u128FromDc /tok /u128ShortBase
+            do
+                bufPush /out /tok.
+                set /pos wrapAdd /pos u64:1.
+                continue.
+            ::
+            nop.
+        : Unmatched top-level closers `Dc 236` (`End document`) or `Dc 542` (`Exit identifier scope`).
+        const capBoolRes/unexp236 docTokMatchesRole /curCli /tok dc:236.
+        set /curCli field /unexp236 cli.
+        if not field /unexp236 ok
+            return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /unexp236 errTokens ::
+            nop.
+        if field /unexp236 val
+            return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens errRecord b"Unexpected Dc 236 (End document) without matching Dc 235" ::
+            nop.
+        const capBoolRes/unexp542 docTokMatchesRole /curCli /tok dc:542.
+        set /curCli field /unexp542 cli.
+        if not field /unexp542 ok
+            return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /unexp542 errTokens ::
+            nop.
+        if field /unexp542 val
+            return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens errRecord b"Unexpected Dc 542 (Exit identifier scope) without matching Dc 541" ::
+            nop.
+        : `Dc 235..Dc 236` (`Begin document`..`End document`).
+        const capBoolRes/isDoc235 docTokMatchesRole /curCli /tok dc:235.
+        set /curCli field /isDoc235 cli.
+        if not field /isDoc235 ok
+            return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /isDoc235 errTokens ::
+            nop.
+        if field /isDoc235 val
+            do
+                const docStreamRes/sub rec /curCli /tokens wrapAdd /pos u64:1 true dc:236 wrapAdd /scopeDepth u64:1 /env.
+                set /curCli field /sub cli.
+                if not field /sub ok
+                    return /sub
+                    nop.
+                bufExtend /out field /sub outTokens.
+                set /env pruneDocEnv field /sub env /scopeDepth.
+                set /pos field /sub nextPos.
+                continue.
+            ::
+            nop.
+        : `Dc 541..Dc 542` (`Enter identifier scope`..`Exit identifier scope`).
+        const capBoolRes/isScope541 docTokMatchesRole /curCli /tok dc:541.
+        set /curCli field /isScope541 cli.
+        if not field /isScope541 ok
+            return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /isScope541 errTokens ::
+            nop.
+        if field /isScope541 val
+            do
+                const docStreamRes/sub rec /curCli /tokens wrapAdd /pos u64:1 true dc:542 wrapAdd /scopeDepth u64:1 /env.
+                set /curCli field /sub cli.
+                if not field /sub ok
+                    return /sub
+                    nop.
+                bufExtend /out field /sub outTokens.
+                set /env pruneDocEnv field /sub env /scopeDepth.
+                set /pos field /sub nextPos.
+                continue.
+            ::
+            nop.
+        : Infix `[identifier] Dc 269 [value]` (`Assignment operator`) or standalone `[identifier]`.
+        if eq /sid u32:270
+            match readIdentNameAt /tokens /pos
+                case ok strStep/ist
+                    do
+                        const u64/afterId skipAllComments /tokens field /ist nextPos.
+                        if lt /afterId /n
+                            do
+                                const capBoolRes/isAsg docTokMatchesRole /curCli dcAtOr /tokens /afterId /dcZero dc:269.
+                                set /curCli field /isAsg cli.
+                                if not field /isAsg ok
+                                    return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /isAsg errTokens ::
+                                    nop.
+                                if field /isAsg val
+                                    do
+                                        const docValStepRes/rhs evalDocValueExprAt /curCli /tokens wrapAdd /afterId u64:1 /env false.
+                                        set /curCli field /rhs cli.
+                                        if not field /rhs ok
+                                            return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /rhs errTokens ::
+                                            nop.
+                                        let buf/docBinding/nb bufNew docBinding wrapAdd len /env u64:1.
+                                        bufExtend /nb /env.
+                                        bufPush /nb structNew docBinding: scopeDepth /scopeDepth identName field /ist payload valTokens field /rhs valTokens ::.
+                                        set /env bufFreeze /nb.
+                                        set /pos field /rhs nextPos.
+                                        continue.
+                                    ::
+                                    nop.
+                            ::
+                            nop.
+                        match slice /tokens /pos field /ist nextPos
+                            case some l/dc/idSlice bufExtend /out /idSlice.
+                            case none nop.
+                        ::.
+                        set /pos field /ist nextPos.
+                        continue.
+                    ::.
+                case err l/dc/e
+                    return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens /e ::.
+            ::
+            nop.
+        : Prefix `Dc 268` (`void lang.assign([identifier] identifier, [value] value)`).
+        const capBoolRes/isLangAsg docTokMatchesRole /curCli /tok dc:268.
+        set /curCli field /isLangAsg cli.
+        if not field /isLangAsg ok
+            return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /isLangAsg errTokens ::
+            nop.
+        if field /isLangAsg val
+            do
+                let u64/ap skipAllComments /tokens wrapAdd /pos u64:1.
+                let b/wrap1 false.
+                if and lt /ap /n eq dcShortId dcAtOr /tokens /ap /dcZero u32:258
+                    do
+                        set /wrap1 true.
+                        set /ap skipAllComments /tokens wrapAdd /ap u64:1.
+                    ::
+                    nop.
+                const strStep/idSt match readIdentNameAt /tokens /ap
+                    case ok strStep/s /s.
+                    case err l/dc/e return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens /e ::.
+                ::.
+                set /ap skipAllComments /tokens field /idSt nextPos.
+                if /wrap1
+                    do
+                        if or ge /ap /n ne dcShortId dcAtOr /tokens /ap /dcZero u32:259
+                            return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens errRecord b"Unclosed Dc 258..Dc 259 first parameter in lang.assign" ::
+                            nop.
+                        set /ap skipAllComments /tokens wrapAdd /ap u64:1.
+                    ::
+                    nop.
+                let b/wrap2 false.
+                if and lt /ap /n eq dcShortId dcAtOr /tokens /ap /dcZero u32:258
+                    do
+                        set /wrap2 true.
+                        set /ap skipAllComments /tokens wrapAdd /ap u64:1.
+                    ::
+                    nop.
+                const docValStepRes/valSt evalDocValueExprAt /curCli /tokens /ap /env false.
+                set /curCli field /valSt cli.
+                if not field /valSt ok
+                    return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /valSt errTokens ::
+                    nop.
+                set /ap skipAllComments /tokens field /valSt nextPos.
+                if /wrap2
+                    do
+                        if or ge /ap /n ne dcShortId dcAtOr /tokens /ap /dcZero u32:259
+                            return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens errRecord b"Unclosed Dc 258..Dc 259 second parameter in lang.assign" ::
+                            nop.
+                        set /ap wrapAdd /ap u64:1.
+                    ::
+                    nop.
+                let buf/docBinding/nb bufNew docBinding wrapAdd len /env u64:1.
+                bufExtend /nb /env.
+                bufPush /nb structNew docBinding: scopeDepth /scopeDepth identName field /idSt payload valTokens field /valSt valTokens ::.
+                set /env bufFreeze /nb.
+                set /pos /ap.
+                continue.
+            ::
+            nop.
+        : `Dc 256` (`void lang.say([string] text)`): graph WASM definition takes precedence if present in snapshot.
+        const capBoolRes/isSay docTokMatchesRole /curCli /tok dc:256.
+        set /curCli field /isSay cli.
+        if not field /isSay ok
+            return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /isSay errTokens ::
+            nop.
+        if field /isSay val
+            do
+                const wasmDecompRes/sayWasm resolveWasmDecomp /curCli /tok.
+                set /curCli field /sayWasm cli.
+                if eq field /sayWasm tag u8:2
+                    return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /sayWasm payload ::
+                    nop.
+                const docValStepRes/sayRes evalLangSayCallAt /curCli /tokens /pos /env.
+                set /curCli field /sayRes cli.
+                if not field /sayRes ok
+                    return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /sayRes errTokens ::
+                    nop.
+                if eq field /sayWasm tag u8:1
+                    match slice /tokens /pos field /sayRes nextPos
+                        case some l/dc/callSlice
+                            do
+                                const capCallRes/wRes if field /sayWasm hasRawWasm
+                                    execPureWasmBytesStep /curCli field /sayWasm rawWasmBytes /callSlice
+                                    execPureWasmStep /curCli field /sayWasm payload /callSlice.
+                                set /curCli field /wRes cli.
+                                if not field /wRes ok
+                                    return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /wRes payload ::
+                                    nop.
+                                bufExtend /out field /wRes payload.
+                                set /pos field /sayRes nextPos.
+                                continue.
+                            ::.
+                        case none nop.
+                    ::
+                    nop.
+                bufExtend /out field /sayRes valTokens.
+                set /pos field /sayRes nextPos.
+                continue.
+            ::
+            nop.
+        : `Dc 540` / `Dc 276` / `Dc 397` / `Dc 561` in stream position.
+        const capBoolRes/isRef540 docTokMatchesRole /curCli /tok dc:540.
+        set /curCli field /isRef540 cli.
+        if not field /isRef540 ok
+            return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /isRef540 errTokens ::
+            nop.
+        let b/isStreamExpr field /isRef540 val.
+        if not /isStreamExpr
+            do
+                const capBoolRes/isRef276 docTokMatchesRole /curCli /tok dc:276.
+                set /curCli field /isRef276 cli.
+                if not field /isRef276 ok
+                    return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /isRef276 errTokens ::
+                    nop.
+                set /isStreamExpr field /isRef276 val.
+            ::
+            nop.
+        if not /isStreamExpr
+            do
+                const capBoolRes/isRep397 docTokMatchesRole /curCli /tok dc:397.
+                set /curCli field /isRep397 cli.
+                if not field /isRep397 ok
+                    return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /isRep397 errTokens ::
+                    nop.
+                set /isStreamExpr field /isRep397 val.
+            ::
+            nop.
+        if not /isStreamExpr
+            do
+                const capBoolRes/isRep561 docTokMatchesRole /curCli /tok dc:561.
+                set /curCli field /isRep561 cli.
+                if not field /isRep561 ok
+                    return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /isRep561 errTokens ::
+                    nop.
+                set /isStreamExpr field /isRep561 val.
+            ::
+            nop.
+        if /isStreamExpr
+            do
+                const docValStepRes/ev evalDocValueExprAt /curCli /tokens /pos /env false.
+                set /curCli field /ev cli.
+                if not field /ev ok
+                    return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens field /ev errTokens ::
+                    nop.
+                match readStringLiteralAt field /ev valTokens u64:0
+                    case ok strStep/st
+                        if eq field /st nextPos len field /ev valTokens
+                            bufExtend /out field /st payload
+                            bufExtend /out field /ev valTokens.
+                    case err l/dc/_e
+                        bufExtend /out field /ev valTokens.
+                ::.
+                set /pos field /ev nextPos.
+                continue.
+            ::
+            nop.
+        : Quoted framed literal (`Dc 260..Dc 261`, `Dc 6..Dc 7`, `Dc 203..Dc 204`) copied verbatim without executing interior tokens.
+        if or eq /sid u32:260 or eq /sid u32:6 eq /sid u32:203
+            match scanFramedValueEnd /tokens /pos
+                case some u128Step/fs
+                    do
+                        match slice /tokens /pos field /fs nextPos
+                            case some l/dc/litSlice bufExtend /out /litSlice.
+                            case none nop.
+                        ::.
+                        set /pos field /fs nextPos.
+                        continue.
+                    ::.
+                case err l/dc/e
+                    return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens /e ::.
+                case none nop.
+            ::
+            nop.
+        : Ordinary semantic/character Dc emitted directly into evaluated document stream.
+        bufPush /out /tok.
+        set /pos wrapAdd /pos u64:1.
+    ::.
+    if and /expectCloser not /foundCloser
+        return structNew docStreamRes: cli /curCli ok false outTokens l/dc: :: env /env nextPos /pos errTokens errRecord b"Unclosed Dc 235 or Dc 541 scope container in Dc document" ::
+        nop.
+    structNew docStreamRes: cli /curCli ok true outTokens bufFreeze /out env /env nextPos /pos errTokens l/dc: :: ::.
+
 : @dc l8589992882
 v/dcRes/runConvertDcStringToWasm l/dc/inputTokens
     let capClient/cli emptyClient.
@@ -6981,31 +7957,49 @@ v/dcRes/runConvertDcStringToWasm l/dc/inputTokens
     if eq len field /wmChk ids u64:0
         return failMsg b"ConvertDcStringToWasm requires a non-empty System graph snapshot"
         nop.
-    const convListRes/directRes findDirectOneHopConverter /cli /srcEqIds dc:1927.
-    set /cli field /directRes cli.
-    if not field /directRes ok
-        return dcRes:err field /directRes errTokens
-        nop.
-    let l/convStep/chain field /directRes steps.
+    let b/canHaveConverter false.
+    foreach u128/eqId /srcEqIds do
+        if ge /eqId /u128ShortBase
+            set /canHaveConverter true
+            nop.
+    ::.
+    let l/convStep/chain l/convStep: ::.
     let l/convStep/allStepsPool l/convStep: ::.
-    if eq len /chain u64:0
+    if /canHaveConverter
         do
-            const convListRes/stepsRes listAllActiveConverterSteps /cli.
-            set /cli field /stepsRes cli.
-            if not field /stepsRes ok
-                return dcRes:err field /stepsRes errTokens
+            const convListRes/directRes findDirectOneHopConverter /cli /srcEqIds dc:1927.
+            set /cli field /directRes cli.
+            if not field /directRes ok
+                return dcRes:err field /directRes errTokens
                 nop.
-            set /allStepsPool field /stepsRes steps.
-            const convListRes/chainRes findShortestConverterChain /cli /allStepsPool /srcEqIds dc:1927.
-            set /cli field /chainRes cli.
-            if not field /chainRes ok
-                return dcRes:err field /chainRes errTokens
+            set /chain field /directRes steps.
+            if eq len /chain u64:0
+                do
+                    const convListRes/stepsRes listAllActiveConverterSteps /cli.
+                    set /cli field /stepsRes cli.
+                    if not field /stepsRes ok
+                        return dcRes:err field /stepsRes errTokens
+                        nop.
+                    set /allStepsPool field /stepsRes steps.
+                    const convListRes/chainRes findShortestConverterChain /cli /allStepsPool /srcEqIds dc:1927.
+                    set /cli field /chainRes cli.
+                    if not field /chainRes ok
+                        return dcRes:err field /chainRes errTokens
+                        nop.
+                    set /chain field /chainRes steps.
+                ::
                 nop.
-            set /chain field /chainRes steps.
         ::
         nop.
     if eq len /chain u64:0
-        return failMsg b"No active converter routine or chain found in System graph snapshot"
+        do
+            const docStreamRes/docEval evalDeclarativeDocRange /cli /body u64:0 false /dcZero u64:0 l/docBinding: ::.
+            set /cli field /docEval cli.
+            if not field /docEval ok
+                return dcRes:err field /docEval errTokens
+                nop.
+            return dcRes:ok buildStaticOutputWasmProgram field /docEval outTokens
+        ::
         nop.
 
     : 6. Execute each converter step in the resolved chain via `Dc 1940`.

@@ -1729,21 +1729,23 @@ fn coalesce_synthetic_sccs(
         }
 
         let mut entries = Vec::with_capacity(comp.len());
-        let mut real_ns_count = 0usize;
+        let mut real_ns_keys: HashSet<String> = HashSet::new();
         for idx in comp {
             let entry = slots
                 .get_mut(idx)
                 .and_then(Option::take)
                 .context("Missing synthetic SCC module slot")?;
             if entry.1 {
-                real_ns_count = real_ns_count.saturating_add(1);
+                real_ns_keys.insert(entry.0.clone());
             }
             entries.push(entry);
         }
 
-        // Never merge a cycle spanning two or more real namespaces; leave them
-        // separate so `topo_sort_all_modules` reports the namespace cycle.
-        if real_ns_count > 1 {
+        // Never merge a cycle spanning two or more distinct real namespaces;
+        // leave them separate so `topo_sort_all_modules` reports the namespace
+        // cycle (while allowing StageL3 + StageR3 strata of the same real
+        // namespace to coalesce around shared private `$graph_dc_*` helpers).
+        if real_ns_keys.len() > 1 {
             for (_, _, _, m) in entries {
                 merged.push(m);
             }

@@ -22,3 +22,79 @@ l8590004212: 610 l8590003827 l8590004173 # @created_ns:1795382482831362205 Has v
 l8590004213: 591 l8590004212 l8590003828 # @created_ns:1795382482831362205 Supersedes (Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Canonical decomposition), StageL 3 routine std/stager3_to_stagel3::rewriteSelfRefInExpr), Has value (Has a (Is an instance of (Enclosing document, Built-in type identifier: Routine), Canonical decomposition), StageL 3 routine std/stager3_to_stagel3::rewriteSelfRefInExpr))
 l8590004214: 638 584 639 635 310 640 l8590004150 312 l8590004151 312 l8590004152 312 l8590004153 312 l8590004154 312 l8590004155 312 l8590004156 312 l8590004157 312 l8590004158 312 l8590004159 312 l8590004160 312 l8590004161 312 l8590004162 312 l8590004163 312 l8590004164 312 l8590004165 312 l8590004166 312 l8590004167 312 l8590004168 312 l8590004169 312 l8590004170 312 l8590004171 312 l8590004172 312 l8590004173 312 l8590004174 312 l8590004175 312 l8590004176 312 l8590004177 312 l8590004178 312 l8590004179 312 l8590004180 312 l8590004181 312 l8590004182 312 l8590004183 312 l8590004184 312 l8590004185 312 l8590004186 312 l8590004187 312 l8590004188 312 l8590004189 312 l8590004190 312 l8590004191 312 l8590004192 312 l8590004193 312 l8590004194 312 l8590004195 312 l8590004196 312 l8590004197 312 l8590004198 312 l8590004199 312 l8590004200 312 l8590004201 312 l8590004202 312 l8590004203 312 l8590004204 312 l8590004205 312 l8590004206 312 l8590004207 312 l8590004208 312 l8590004209 312 l8590004210 312 l8590004211 312 l8590004212 312 l8590004213 311 # @created_ns:1795382482831362205 Distribute statement over each element (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8590004150..l8590004213 (64 elements)])
 l8590004215: 610 l8590004214 636 # @created_ns:1795382482831362205 Has value (Distribute statement over each element (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8590004150..l8590004213 (64 elements)]), Collective Toolbox Dc CSV seed database)
+l8590004216: 586 615 2673 # Is an instance of (Enclosing document, 2673)
+l8590004217: 586 615 2673 # Is an instance of (Enclosing document, 2673)
+l8590004218: 586 615 2673 # Is an instance of (Enclosing document, 2673)
+l8590004219: 586 615 2673 # Is an instance of (Enclosing document, 2673)
+l8590004220: 586 615 2673 # Is an instance of (Enclosing document, 2673)
+l8590004221: 586 615 2673 # Is an instance of (Enclosing document, 2673)
+l8590004222: 638 584 639 635 310 640 l8590004216 312 l8590004217 312 l8590004218 312 l8590004219 312 l8590004220 312 l8590004221 311 # Distribute statement over each element (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8590004216..l8590004221 (6 elements)])
+l8590004223: 610 l8590004222 636 # Has value (Distribute statement over each element (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8590004216..l8590004221 (6 elements)]), Collective Toolbox Dc CSV seed database)
+l8590004224: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004225: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004226: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004227: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004228: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004229: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004230: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004231: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004232: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004233: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004234: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004235: 586 615 f211 # Is an instance of (Enclosing document, f211)
+l8590004236: 586 615 f211 # Is an instance of (Enclosing document, f211)
+l8590004237: 586 615 f211 # Is an instance of (Enclosing document, f211)
+l8590004238: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004239: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004240: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004241: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004242: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004243: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004244: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004245: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004246: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004247: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004248: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004249: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004250: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004251: 586 615 280 # Is an instance of (Enclosing document, Built-in type identifier: Routine)
+l8590004252: 638 584 639 635 310 640 l8590004224 312 l8590004225 312 l8590004226 312 l8590004227 312 l8590004228 312 l8590004229 312 l8590004230 312 l8590004231 312 l8590004232 312 l8590004233 312 l8590004234 312 l8590004235 312 l8590004236 312 l8590004237 312 l8590004238 312 l8590004239 312 l8590004240 312 l8590004241 312 l8590004242 312 l8590004243 312 l8590004244 312 l8590004245 312 l8590004246 312 l8590004247 312 l8590004248 312 l8590004249 312 l8590004250 312 l8590004251 311 # Distribute statement over each element (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8590004224..l8590004251 (28 elements)])
+l8590004253: 610 l8590004252 636 # Has value (Distribute statement over each element (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8590004224..l8590004251 (28 elements)]), Collective Toolbox Dc CSV seed database)
+l8590004254: u75 u31 u32 u38 u53 u74 u65 u70 # @created_ns:1795387733996290558 "u128Step"
+l8590004255: u6f u70 u74 u55 u31 u32 u38 u53 u74 u65 u70 # @created_ns:1795387733996290558 "optU128Step"
+l8590004256: u63 u61 u70 u45 u6e u74 u72 u79 # @created_ns:1795387733996290558 "capEntry"
+l8590004257: u74 u72 u69 u70 u6c u65 u52 u65 u63 # @created_ns:1795387733996290558 "tripleRec"
+l8590004258: u63 u61 u70 u43 u6c u69 u65 u6e u74 # @created_ns:1795387733996290558 "capClient"
+l8590004259: u63 u61 u70 u55 u31 u32 u38 u4c u69 u73 u74 u52 u65 u73 # @created_ns:1795387733996290558 "capU128ListRes"
+l8590004260: u63 u61 u70 u54 u72 u69 u70 u6c u65 u4c u69 u73 u74 u52 u65 u73 # @created_ns:1795387733996290558 "capTripleListRes"
+l8590004261: u63 u61 u70 u42 u6f u6f u6c u52 u65 u73 # @created_ns:1795387733996290558 "capBoolRes"
+l8590004262: u70 u72 u6f u70 u45 u6e u74 u72 u79 # @created_ns:1795387733996290558 "propEntry"
+l8590004263: u63 u61 u70 u50 u72 u6f u70 u4c u69 u73 u74 u52 u65 u73 # @created_ns:1795387733996290558 "capPropListRes"
+l8590004264: u63 u61 u70 u4f u70 u74 u4e u6f u64 u65 u52 u65 u73 # @created_ns:1795387733996290558 "capOptNodeRes"
+l8590004265: u65 u73 u63 u61 u70 u65 u44 u63 u73 u46 u6f u72 u4d u69 u78 u65 u64 u4f u75 u74 u70 u75 u74 # @created_ns:1795387733996290558 "escapeDcsForMixedOutput"
+l8590004266: u62 u75 u69 u6c u64 u53 u74 u61 u74 u69 u63 u4f u75 u74 u70 u75 u74 u57 u61 u73 u6d u50 u72 u6f u67 u72 u61 u6d # @created_ns:1795387733996290558 "buildStaticOutputWasmProgram"
+l8590004267: u69 u73 u55 u6e u63 u6f u6d u70 u69 u6c u65 u64 u43 u6f u64 u65 u54 u6f u6b u65 u6e # @created_ns:1795387733996290558 "isUncompiledCodeToken"
+l8590004268: u64 u6f u63 u54 u6f u6b u4d u61 u74 u63 u68 u65 u73 u52 u6f u6c u65 # @created_ns:1795387733996290558 "docTokMatchesRole"
+l8590004269: u72 u65 u61 u64 u49 u64 u65 u6e u74 u4e u61 u6d u65 u41 u74 # @created_ns:1795387733996290558 "readIdentNameAt"
+l8590004270: u6c u6f u6f u6b u75 u70 u44 u6f u63 u42 u69 u6e u64 u69 u6e u67 # @created_ns:1795387733996290558 "lookupDocBinding"
+l8590004271: u70 u72 u75 u6e u65 u44 u6f u63 u45 u6e u76 # @created_ns:1795387733996290558 "pruneDocEnv"
+l8590004272: u73 u63 u61 u6e u46 u72 u61 u6d u65 u64 u56 u61 u6c u75 u65 u45 u6e u64 # @created_ns:1795387733996290558 "scanFramedValueEnd"
+l8590004273: u65 u76 u61 u6c u4c u61 u6e u67 u53 u61 u79 u43 u61 u6c u6c u41 u74 # @created_ns:1795387733996290558 "evalLangSayCallAt"
+l8590004274: u65 u76 u61 u6c u44 u6f u63 u56 u61 u6c u75 u65 u45 u78 u70 u72 u41 u74 # @created_ns:1795387733996290558 "evalDocValueExprAt"
+l8590004275: u65 u76 u61 u6c u44 u65 u63 u6c u61 u72 u61 u74 u69 u76 u65 u44 u6f u63 u52 u61 u6e u67 u65 # @created_ns:1795387733996290558 "evalDeclarativeDocRange"
+l8590004276: u69 u73 u55 u6e u69 u63 u6f u64 u65 u53 u63 u61 u6c u61 u72 u55 u31 u32 u38 # @created_ns:1795387733996290558 "isUnicodeScalarU128"
+l8590004277: u65 u6d u70 u74 u79 u54 u74 u53 u74 u61 u74 u65 # @created_ns:1795387733996290558 "emptyTtState"
+l8590004278: u6c u6f u6f u6b u75 u70 u54 u74 u43 u61 u63 u68 u65 # @created_ns:1795387733996290558 "lookupTtCache"
+l8590004279: u69 u6e u73 u65 u72 u74 u54 u74 u43 u61 u63 u68 u65 # @created_ns:1795387733996290558 "insertTtCache"
+l8590004280: u69 u73 u4e u6f u6e u54 u65 u78 u74 u44 u65 u63 u6f u6d u70 u50 u61 u79 u6c u6f u61 u64 # @created_ns:1795387733996290558 "isNonTextDecompPayload"
+l8590004281: u61 u73 u63 u69 u69 u42 u79 u74 u65 u73 u4f u66 u44 u63 u73 # @created_ns:1795387733996290558 "asciiBytesOfDcs"
+l8590004282: u65 u6e u74 u69 u74 u79 u48 u61 u73 u43 u61 u6e u6f u6e u69 u63 u61 u6c u4e u61 u6d u65 # @created_ns:1795387733996290558 "entityHasCanonicalName"
+l8590004283: u64 u63 u49 u6e u53 u63 u72 u69 u70 u74 u4e u61 u6d u65 u64 # @created_ns:1795387733996290558 "dcInScriptNamed"
+l8590004284: u69 u73 u4e u6f u6e u50 u72 u69 u6e u74 u69 u6e u67 u54 u65 u6c u65 u74 u79 u70 u65 u44 u63 # @created_ns:1795387733996290558 "isNonPrintingTeletypeDc"
+l8590004285: u72 u65 u73 u6f u6c u76 u65 u44 u65 u63 u6f u6d u70 u50 u72 u6f u70 u54 u6f u55 u6e u69 u63 u6f u64 u65 # @created_ns:1795387733996290558 "resolveDecompPropToUnicode"
+l8590004286: u72 u65 u73 u6f u6c u76 u65 u44 u63 u46 u6f u72 u54 u65 u6c u65 u74 u79 u70 u65 # @created_ns:1795387733996290558 "resolveDcForTeletype"
+l8590004287: u6c u6f u77 u65 u72 u53 u65 u6d u61 u6e u74 u69 u63 u54 u6f u6b u65 u6e u73 u54 u6f u55 u6e u69 u63 u6f u64 u65 # @created_ns:1795387733996290558 "lowerSemanticTokensToUnicode"
+l8590004288: u45 u6e u63 u6f u64 u65 u73 u20 u61 u20 u73 u65 u71 u75 u65 u6e u63 u65 u20 u6f u66 u20 u55 u6e u69 u63 u6f u64 u65 u20 u73 u63 u61 u6c u61 u72 u20 u60 u64 u63 u60 u20 u63 u6f u64 u65 u20 u70 u6f u69 u6e u74 u73 u20 u69 u6e u74 u6f u20 u55 u54 u46 u2d u38 u20 u62 u79 u74 u65 u73 u2c ua u72 u65 u70 u6c u61 u63 u69 u6e u67 u20 u75 u6e u70 u61 u69 u72 u65 u64 u20 u73 u75 u72 u72 u6f u67 u61 u74 u65 u73 u20 u28 u60 u30 u78 u44 u38 u30 u30 u2e u2e u3d u30 u78 u44 u46 u46 u46 u60 u29 u20 u61 u6e u64 u20 u6e u6f u6e u2d u55 u6e u69 u63 u6f u64 u65 u20 u44 u63 u73 u20 u77 u69 u74 u68 u20 u60 u55 u2b u46 u46 u46 u44 u60 u2e # @created_ns:1795387733996290558 "Encodes a sequence of Unicode scalar `dc` code points into UTF-8 bytes,\nreplacing unpaired surrogates (`0xD800..=0xDFFF`) and non-Unicode Dcs with `U+FFFD`."
+l8590004289: u65 u6e u63 u6f u64 u65 u55 u6e u69 u63 u6f u64 u65 u44 u63 u73 u54 u6f u55 u74 u66 u38 # @created_ns:1795387733996290558 "encodeUnicodeDcsToUtf8"
+l8590004290: u52 u65 u6e u64 u65 u72 u73 u20 u61 u20 u44 u63 u54 u46 u2d u65 u6e u63 u6f u64 u65 u64 u20 u73 u65 u6d u61 u6e u74 u69 u63 u20 u60 u64 u63 u73 u60 u20 u64 u6f u63 u75 u6d u65 u6e u74 u20 u73 u6e u61 u70 u73 u68 u6f u74 u20 u64 u69 u72 u65 u63 u74 u6c u79 u20 u74 u6f u20 u55 u54 u46 u2d u38 u20 u62 u79 u74 u65 u73 ua u66 u6f u72 u20 u60 u52 u65 u6e u64 u65 u72 u54 u61 u72 u67 u65 u74 u3a u3a u54 u65 u6c u65 u74 u79 u70 u65 u60 u2e # @created_ns:1795387733996290558 "Renders a DcTF-encoded semantic `dcs` document snapshot directly to UTF-8 bytes\nfor `RenderTarget::Teletype`."
+l8590004291: u72 u65 u6e u64 u65 u72 u54 u65 u6c u65 u74 u79 u70 u65 u42 u79 u74 u65 u73 # @created_ns:1795387733996290558 "renderTeletypeBytes"

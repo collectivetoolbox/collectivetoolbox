@@ -1578,9 +1578,24 @@ fn encode_wasm_module(
         push_section(WASM_SECTION_FUNCTION, &sec, &mut out)?;
     }
 
-    // 5. Memory Section (1 default linear memory of 1 initial page = 64 KiB)
+    // 5. Memory Section (1 default linear memory sized to cover active data segments, min 1 page = 64 KiB)
     {
-        let sec = [0x01, 0x00, 0x01];
+        let mut max_data_end = 0usize;
+        for seg in data_segments {
+            let off = usize::try_from(seg.offset)
+                .context("Data segment offset overflow")?;
+            let end = off
+                .checked_add(seg.bytes.len())
+                .context("Data segment end overflow")?;
+            max_data_end = max_data_end.max(end);
+        }
+        let initial_pages =
+            u32::try_from(max_data_end.div_ceil(65_536).max(1))
+                .context("WASM initial linear memory page count overflow")?;
+        let mut sec = Vec::with_capacity(6);
+        sec.push(0x01);
+        sec.push(0x00);
+        push_uleb128_u32(initial_pages, &mut sec);
         push_section(WASM_SECTION_MEMORY, &sec, &mut out)?;
     }
 
@@ -6669,34 +6684,37 @@ fn decode_dc_error_record_if_present(
     Ok(Some(msg))
 }
 
-/// Executes the System-graph StageR 3 implementation of `Dc 2608`
-/// (`Convert Dc string to WASM`) via [`DcWasmSession`] with Option B
-/// capability support (`Dc 1939` / `Dc 1940`), charging runtime execution to
-/// `shared_quota`.
+/// Executes a System-graph StageR 3 `(dcs -> dcs)` routine (`routine_dc`, such as
+/// `Dc 2608 "Convert Dc string to WASM"` or `f19 "Semantic Dcs to text"`) via
+/// [`DcWasmSession`] with Option B capability support (`Dc 1939` / `Dc 1940`),
+/// charging runtime execution to `shared_quota`.
 ///
 /// Returns `Ok(None)` when `resolver` carries no `SeedGraphIndex` snapshot or
-/// the pinned snapshot predates `Dc 2608` having an active StageR 3
+/// the pinned snapshot predates `routine_dc` having an active StageR 3
 /// decomposition, allowing callers to fall back strictly for pre-migration pins.
 ///
 /// # Errors
 /// Returns an error on bootstrap compilation failure, quota exhaustion
 /// (`WasmResourceInterruption`), WASM runtime traps, or `Dc 552..Dc 553` error
-/// records emitted by `Dc 2608`.
-pub fn run_graph_stager_dc_2608_with_quota(
-    call_tokens: &[DcChar],
+/// records emitted by `routine_dc`.
+pub fn run_graph_stager_dcs_routine_with_quota(
+    routine_dc: DcChar,
+    input_tokens: &[DcChar],
     resolver: &dyn SyntaxRuleResolver,
     shared_quota: Option<SharedWasmTaskQuota>,
 ) -> Result<Option<DcMstring>> {
-    const DIRECT_DC2608_MAX_INSTRUCTIONS: u64 = 4_000_000_000;
-    const DIRECT_DC2608_MAX_MEMORY_PAGES: usize = 2048;
-    const DIRECT_DC2608_MAX_STEP_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
-    const DIRECT_DC2608_MAX_SESSION_OUTPUT_BYTES: usize = 64 * 1024 * 1024;
+    use ctb_storage_minimal::shorthand::DcShorthand;
+
+    const DIRECT_STAGER_DCS_MAX_INSTRUCTIONS: u64 = 4_000_000_000;
+    const DIRECT_STAGER_DCS_MAX_MEMORY_PAGES: usize = 2048;
+    const DIRECT_STAGER_DCS_MAX_STEP_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
+    const DIRECT_STAGER_DCS_MAX_SESSION_OUTPUT_BYTES: usize = 64 * 1024 * 1024;
 
     let Some(sg) = resolver.seed_graph() else {
         return Ok(None);
     };
     let Some(wasm_bytes) = compile_and_cache_graph_stager_dcs_routine_to_wasm_bytes(
-        ctb_formats_dcdata::dc::DC_CONVERT_DC_STRING_TO_WASM,
+        routine_dc,
         sg,
         resolver,
     )?
@@ -6705,23 +6723,23 @@ pub fn run_graph_stager_dc_2608_with_quota(
     };
 
     let mut input_doc = DcMstring::new();
-    for &tok in call_tokens {
+    for &tok in input_tokens {
         input_doc.push_char(tok);
     }
     let most_recent = sg.system_block_most_recent_node_id();
     // Reason for fallback: Direct un-metered host calls allocate a bounded
-    // converter-step quota sufficient for self-hosted `f1680`/`f1681` via Dc 1940.
+    // routine-step quota sufficient for self-hosted `f1680`/`f1681` and `Dc 1939` queries.
     let active_quota = shared_quota.unwrap_or_else(|| {
         SharedWasmTaskQuota::new(
             DcWasmResourceLimits::default()
-                .with_max_instructions_per_step(DIRECT_DC2608_MAX_INSTRUCTIONS)
-                .with_max_memory_pages(DIRECT_DC2608_MAX_MEMORY_PAGES)
-                .with_max_step_output_bytes(DIRECT_DC2608_MAX_STEP_OUTPUT_BYTES)
+                .with_max_instructions_per_step(DIRECT_STAGER_DCS_MAX_INSTRUCTIONS)
+                .with_max_memory_pages(DIRECT_STAGER_DCS_MAX_MEMORY_PAGES)
+                .with_max_step_output_bytes(DIRECT_STAGER_DCS_MAX_STEP_OUTPUT_BYTES)
                 .with_max_session_output_bytes(
-                    DIRECT_DC2608_MAX_SESSION_OUTPUT_BYTES,
+                    DIRECT_STAGER_DCS_MAX_SESSION_OUTPUT_BYTES,
                 )
                 .with_max_capability_payload_bytes(
-                    DIRECT_DC2608_MAX_STEP_OUTPUT_BYTES,
+                    DIRECT_STAGER_DCS_MAX_STEP_OUTPUT_BYTES,
                 ),
         )
     });
@@ -6743,9 +6761,39 @@ pub fn run_graph_stager_dc_2608_with_quota(
     if let Some(err_msg) =
         decode_dc_error_record_if_present(&output, resolver)?
     {
-        bail!("Dc 2608 Convert Dc string to WASM failed: {err_msg}");
+        let routine_sh = DcShorthand::from_global_id(routine_dc.to_u128());
+        if routine_dc == ctb_formats_dcdata::dc::DC_CONVERT_DC_STRING_TO_WASM {
+            bail!("Dc 2608 Convert Dc string to WASM failed: {err_msg}");
+        }
+        bail!("StageR 3 graph routine {routine_sh} failed: {err_msg}");
     }
     Ok(Some(output))
+}
+
+/// Executes the System-graph StageR 3 implementation of `Dc 2608`
+/// (`Convert Dc string to WASM`) via [`DcWasmSession`] with Option B
+/// capability support (`Dc 1939` / `Dc 1940`), charging runtime execution to
+/// `shared_quota`.
+///
+/// Returns `Ok(None)` when `resolver` carries no `SeedGraphIndex` snapshot or
+/// the pinned snapshot predates `Dc 2608` having an active StageR 3
+/// decomposition, allowing callers to fall back strictly for pre-migration pins.
+///
+/// # Errors
+/// Returns an error on bootstrap compilation failure, quota exhaustion
+/// (`WasmResourceInterruption`), WASM runtime traps, or `Dc 552..Dc 553` error
+/// records emitted by `Dc 2608`.
+pub fn run_graph_stager_dc_2608_with_quota(
+    call_tokens: &[DcChar],
+    resolver: &dyn SyntaxRuleResolver,
+    shared_quota: Option<SharedWasmTaskQuota>,
+) -> Result<Option<DcMstring>> {
+    run_graph_stager_dcs_routine_with_quota(
+        ctb_formats_dcdata::dc::DC_CONVERT_DC_STRING_TO_WASM,
+        call_tokens,
+        resolver,
+        shared_quota,
+    )
 }
 
 /// Lowers and assembles the uninstrumented canonical `.wasm` bytes for a

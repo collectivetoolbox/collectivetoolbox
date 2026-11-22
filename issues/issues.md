@@ -130,3 +130,78 @@ The glass theme has broken for some reason. I haven't changed anything related t
    `INLINE_NEVER_BYTECODE_THRESHOLD` is currently `128` WASM bytes to keep compile times fast. In release builds (`opt-level = 3`), `#[inline(never)]` still prevents LLVM from inlining helpers larger than `128` WASM bytes inside tight loops; if profiling shows hot medium helpers, consider raising the threshold or restricting `#[inline(never)]` to `tail_dispatch_*` and genuinely large functions.
 2. **Per-checkpoint `deduct` struct traffic ([vm.rs](file:///workspaces/ctoolbox/src/formats/wasm_substitute_rt/vm.rs#L559-L574)):**
    `self.vm.deduct(host, 1)` reads/writes three `u64` fields (`op_ordinal`, `quota_remaining`, `quota_consumed`) through `&mut self.vm` on every loop/call/stride checkpoint, and checks `op_ordinal < resume_target_op`. Still vastly faster than `tinywasm`, and likely secondary to memory-access overhead, so only worth tuning (while preserving deterministic V2 checkpoint-ordinal metering) if profiling shows it's hot.
+
+# Add elif?
+
+What do you think of adding `elif` to StageR 3? It was included in the original StageL:
+
+```stagel
+                if ne 0 n/dcBasenbUuidMonitorReprocessNeededCount
+                    # Reprocessing non-UUID chars that could have been a UUID. Again, FIXME same as for the start UUID reprocessing bug mentioned in the earlier FIXME.
+                    set n/dcBasenbUuidMonitorReprocessNeededCount sub n/dcBasenbUuidMonitorReprocessNeededCount 1
+                else
+                    # Look for a dcbasenb region end UUID.
+                    if eq n/dcBasenbUuidMonitorState 0
+                        if arrEq an/latestChar ( 243 188 133 185 )
+                            set n/dcBasenbUuidMonitorState 1
+                    elif eq n/dcBasenbUuidMonitorState 1
+                        if arrEq an/latestChar ( 243 180 182 175 )
+                            set n/dcBasenbUuidMonitorState 2
+                        else
+                            set n/dcBasenbUuidMonitorReprocessNeededCount n/dcBasenbUuidMonitorState
+                            set n/dcBasenbUuidMonitorState 0
+                    elif eq n/dcBasenbUuidMonitorState 2
+                        if arrEq an/latestChar ( 244 136 161 186 )
+```
+
+I feel like it might make certain patterns more elegant:
+
+```sl3
+    if isWideningConv /srcTy /dstTy
+        do
+            if and le /sk u8:7 le /dk u8:7
+                do
+                    emitShort /out u32:2541.
+                    lowerExpr /out /env /mScope /fctx /selfNsKey /uses /stdImports /crossDcs /synths /gensym /srcExpr.
+                    emitFormat /out scalarFormatId /dk.
+                    return.
+                ::
+                nop.
+            if eq /dk u8:8
+                do
+                    const u64/lid if eq /sk u8:3 u64:8589980697 if eq /sk u8:4 u64:8589980694 if eq /sk u8:5 u64:8589980696 if eq /sk u8:6 u64:8589980693 u64:8589980695.
+                    emitStdCall1 /out /stdImports /selfNsKey /uses u8:1 /lid /env /mScope /fctx /crossDcs /synths /gensym /srcExpr.
+                    return.
+                ::
+                nop.
+            if eq /dk u8:9
+                do
+                    const u64/lid if eq /sk u8:3 u64:8589980751 if eq /sk u8:5 u64:8589980750 u64:8589980749.
+                    emitStdCall1 /out /stdImports /selfNsKey /uses u8:2 /lid /env /mScope /fctx /crossDcs /synths /gensym /srcExpr.
+                    return.
+                ::
+                nop.
+```
+I think this is basically an elif chain, but it had to be written as a series of ifs with nop else parameters. (That particular sample is StageL 3 rather than StageR 3 so it wouldn't help that particular case, but it seemed like a good example of what I mean.)
+
+Basically:
+
+```sr3
+if gt /i u64:0
+    nop.
+elif gt /i u64:0
+    set /i 2.
+    nop.
+```
+
+would desugar to
+
+```sr3
+if gt /i u64:0
+    nop.
+    if gt /i u64:0
+        set /i 2.
+        nop.
+```
+
+or something like that. Does that seem like a good idea?
