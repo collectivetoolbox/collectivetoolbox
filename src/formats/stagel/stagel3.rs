@@ -665,6 +665,33 @@ pub v/result/u64/doubleNz u64/x
     }
 
     #[crate::ctb_test]
+    fn test_sl3_fixture_parses_validates_roundtrips_and_runs_tests()
+    -> Result<()> {
+        let src = include_str!("fixtures/sl3/input.sl3");
+        let sg = ctb_formats_dcdata::SeedGraphIndex::shared()?;
+        let _ws =
+            seed_linker::parse_and_validate_module_with_seed_graph(src, sg)?;
+
+        let tokens1 = seed_linker::sl3_to_dc_tokens_with_seed_graph(src, sg)?;
+        let text1 = dc_tokens::dc_tokens_to_sl3(&tokens1)?;
+        let tokens2 =
+            seed_linker::sl3_to_dc_tokens_with_seed_graph(&text1, sg)?;
+        let text2 = dc_tokens::dc_tokens_to_sl3(&tokens2)?;
+        assert_eq!(text1, text2);
+        let tokens3 =
+            seed_linker::sl3_to_dc_tokens_with_seed_graph(&text2, sg)?;
+        assert_eq!(tokens2, tokens3);
+
+        let report =
+            seed_linker::eval_sl3_inline_tests_with_seed_graph(src, sg)?;
+        assert_eq!(report.ensure_all_passed()?, 11);
+        let roundtrip_report =
+            seed_linker::eval_sl3_inline_tests_with_seed_graph(&text1, sg)?;
+        assert_eq!(roundtrip_report.ensure_all_passed()?, 11);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_sr3_fixture_parses_validates_roundtrips_and_runs_tests()
     -> Result<()> {
         let src = include_str!("fixtures/sr3/input.sr3");
