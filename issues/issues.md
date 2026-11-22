@@ -118,3 +118,18 @@ assuming the current code still has the reported fault.
 
 The glass theme has broken for some reason. I haven't changed anything related to that recently that I recall. I guess it doesn't matter that much since it only ever worked in Firefox anyway.
 
+# Possible changes for perforamnce of substitutes:
+
+#### What *actually* leaves LLVM performance on the table today
+1. **Double indirection + bounds checks on every memory load/store ([vm.rs](file:///workspaces/ctoolbox/src/formats/wasm_substitute_rt/vm.rs#L912-L968)):**
+   Every `i32_load`/`i32_store8` indexes `self.memories: Vec<WasmLinearMemory>` via `.get(0)` (outer pointer chase + bounds check), then checks `addr + offset` overflow, then slices `mem.data.get(start..end)` (inner bounds check). Promoting memory `0` to a direct `mem0: Vec<u8>` field on `SubstituteVm` (only falling back to `extra_memories` for multi-memory modules) removes the outer indirection on every single load/store and makes it much easier for LLVM to keep `mem0`'s pointer/length in registers across loops.
+2. **`#[inline(never)]` on medium helpers and `opt-level = 1` in dev/test:**
+   We put `#[inline(never)]` on every generated function over 64 WASM bytes (and `opt-level = 1` in dev/test in [Cargo.toml](file:///workspaces/ctoolbox/Cargo.toml#L74-L76)) solely to keep compilation of the 238k duplicated lines under ~31s. Even in release builds (`opt-level = 3`), `#[inline(never)]` blocks LLVM from inlining hot small-to-medium helpers called inside tight loops (like `fn_21` inside the loop at [f1680.generated.rs](file:///workspaces/ctoolbox/src/formats/wasm_substitutes/f1680.generated.rs#L1808)). Deduplicating via DRY per-Dc functions would let us raise the `#[inline(never)]` threshold (or restrict it to `tail_dispatch_*` / large functions) without regressing compile time.
+3. **Per-loop `deduct` struct traffic ([vm.rs](file:///workspaces/ctoolbox/src/formats/wasm_substitute_rt/vm.rs#L356-L372)):**
+   `self.vm.deduct(host, 1)` reads/writes three `u64` fields (`op_ordinal`, `quota_remaining`, `quota_consumed`) through `&mut self.vm` on every loop iteration, and checks `op_ordinal < resume_target_op`. Still vastly faster than `tinywasm`, and likely secondary to memory-access overhead, so only worth tuning if profiling shows it's hot.
+
+### Bottom Line / Recommendation
+- **Don't rewrite the generated style for "Rustiness"** — LLVM already optimizes away the stack-slot / `ops::*` / labeled-block verbosity.
+- **Do consider two targeted next steps when you're ready to scale substitutes to many System Dcs:**
+  1. **DRY per-Dc / shared-function codegen** (so adding dozens of System-block converters/parsers doesn't re-emit `std/*` N times, and auto-generates substitutes for all runnable System-block Dcs).
+  2. **Fast-path `mem0: Vec<u8>` on `SubstituteVm`** (a tiny change in [vm.rs](file:///workspaces/ctoolbox/src/formats/wasm_substitute_rt/vm.rs) that immediately speeds up *all* generated substitutes without complicating codegen).
