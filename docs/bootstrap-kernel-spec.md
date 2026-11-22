@@ -396,9 +396,9 @@ self-contained fixture categories end-to-end:
      .. `Dc 299` (`"End expression group"`), truncated `Dc 643` (`"Range"`)
      operands, and invalid action/capture groups fail cleanly without panicking.
 4. **Dc-WASM Lowering & 32-Byte Linear-Memory Mailbox ABI**:
-   - Lowering both `Dc 1927` (`"Begin WebAssembly module"`) .. `Dc 1928` (`"End WebAssembly module"`)
-     streams and `Routine` (`Dc 260` .. `Dc 261` with `Dc 280` `"Routine"`)
-     streams into canonical `.wasm` bytecode, verifying the 32-byte mailbox at
+   - Lowering both `Dc 1927` (`"Begin WASM program"`) .. `Dc 1928` (`"End WASM program"`)
+     streams and `.WASM` `wasm_routine` (`Dc 260` .. `Dc 261` with `Dc 280` `"Built-in type identifier: Routine"`)
+     streams into canonical `.wasm` bytecode (while StageL/StageR anonymous `Routine` value nodes `Dc 2240` `"Begin routine"` .. `Dc 2241` `"End routine"` compile via `Dc 2608` `"Convert Dc string to WASM"`), verifying the 32-byte mailbox at
      linear memory `0x0000..0x0020` (`input_ptr` at `0..4`, `input_len` at `4..8`,
      `output_ptr` at `8..12`, `output_len` at `12..16`, and `u128` little-endian
      `Dc 641` snapshot pin at `16..32`), and stepping across all three `step() -> i32`

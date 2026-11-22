@@ -138,4 +138,4 @@
   instead of failing the entire extraction upfront.
 
 Archive capability status and outstanding work are tracked in
-[the CSC and archive checklist](../issues/csc-usability.md).
+[the CSC and archive checklist](../issues/csc.md).

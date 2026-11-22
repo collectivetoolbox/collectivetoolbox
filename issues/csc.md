@@ -169,6 +169,16 @@ These inbox reports also need reconciliation with current code before changes.
   into or from an archive, and evaluate an `rsync`-equivalent remote transfer
   workflow by sending a CSC archive + `ctb` binary and unpacking on the remote end.
 
+### System-Graph Pinning, Schema Evolution, and Streaming Serialization
+
+`JournalWriter::new` ([`src/io/csc/journal/stream.rs`](../src/io/csc/journal/stream.rs)) already writes a leading `Dc 641` (`"Global graph system block most recent node ID at time of document creation"`) header in `ArchiveV2` and `JournalV5`, and [`DcDocumentNavigator`](../src/formats/dcstring/navigator.rs) honors `Dc 641` for syntax framing. Full multi-decade archive durability (zero risk of regressions or data loss when Dc definitions, representations, or parsing rules evolve) and large-archive streaming still require:
+
+- [ ] **Pin-aware semantic decoding & graph-defined schema conversions**: [`scanner::scan`](../src/io/csc/journal/scanner.rs) currently decodes member and session frames directly into `HEAD` host Rust `#[derive(DcMixed)]` structs (`FileEntity`, `FileMetadata`, `JournalSessionRecord`). Ensure archive/journal decoding resolves record schemas, representation equivalences, and historical-to-current conversions against the archive's `Dc 641` System-graph pin (using pinned graph definitions in StageR 3 or EM3) rather than assuming `HEAD` Rust struct shapes never evolve, and keep golden multi-pin archive fixtures locked in regression tests.
+- [ ] **Constant-RAM streaming reader & non-spooling record validation**:
+  - Replace full-archive metadata buffering in `ScanResult.members: Vec<FileEntityWithPayload>` ([`src/io/csc/journal/scanner.rs`](../src/io/csc/journal/scanner.rs)) with bounded streaming iteration / indexed lookup so 100-million-entry archives and journals stay within the memory budget.
+  - Replace temporary-file spooling in `validate_and_write_dc_record` ([`issues/dc-parser.md`](dc-parser.md)) with forward streaming validation so archiving multi-gigabyte/terabyte files never requires proportional temporary disk space.
+  - Wire the graph-oriented streaming capability ABI—sliding-window `view` (`Dc 2677` `"Built-in type identifier: Extent view"`) / `cursor` (`Dc 2678` `"Built-in type identifier: Stream cursor"`) reads and zero-copy `emitExtent` (`Dc 376` `"Extent byte offset"` / `Dc 377` `"Extent byte length"`) output slices ([`src/formats/stagel/docs/sr3.md`](../src/formats/stagel/docs/sr3.md#6-streaming-large-files--graph-sliced-documents-view--cursor--output-extents))—and evaluate how much of the graph-resident `csc` streaming/serialization pipeline belongs in StageR 3 (low-level total codecs and window/extent framing) versus EM3 (higher-level schema projection and orchestration).
+
 ## Contracts to Preserve
 
 - `ctb archive create/extract/list/verify` is separate from `csc -a`. Archive
