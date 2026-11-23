@@ -208,11 +208,11 @@ or something like that. Does that seem like a good idea?
 
 # Output caching
 
-Proposal: temporarily instrument all Dc routine invocations (maybe some special runner so it can be updated periodically?). Run some sample documents, etc, recording function call counts, parameter values, execution times, and return values. Create a bundle of the most frequently occurring and most expensive calls and their return values, and ship that with the application.
+Proposal: temporarily instrument all Dc routine invocations (maybe some special runner so it can be updated periodically?). Run some sample documents, etc, recording function call counts, parameter values, execution times, and return values. Create a bundle of the most frequently occurring and most expensive calls and their return values, and ship that with the application as part of the runtime (maybe in a separate .ctbnbdl file so it can be omitted as an optional installation component to save disk space).
 
-# SL3/SR3 linters
+# SL3/SR3/EM3 linters
 
-- Line length lint to limit to 79 chars
+- Line length lint to limit to 79 chars (SL3/SR3 only, not for EM3)
 - Version of the unwrap-or linter (I wish this weren't needed, but I'm not sure how else to prevent agents avoiding implementing correct edge case handling than making them annotate every case and then reviewing them in separate passes - if there's some better way to actually structurally prevent illogical unwrap-or I'd prefer that, but since it's ultimately a type of logic error I'm not sure that's possible since there's not really a clear heuristic for when it's used appropriately or not).
 
 # Runtime and renderer architecture
