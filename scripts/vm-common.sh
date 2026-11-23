@@ -345,7 +345,12 @@ vm_package_fixtures() {
     touch "$exchange_dir/.ctoolbox_workspace_root"
     cp "$repo_root/Cargo.toml" "$exchange_dir/Cargo.toml"
     mkdir -p "$exchange_dir/src/formats/dcdata"
-    cp -r "$repo_root/src/formats/dcdata/data" "$exchange_dir/src/formats/dcdata/"
+    cp -r "$repo_root/src/formats/dcdata/data-src" "$exchange_dir/src/formats/dcdata/"
+    cp -r "$repo_root/src/formats/dcdata/format_spec" "$exchange_dir/src/formats/dcdata/"
+    mkdir -p "$exchange_dir/assets/data"
+    cp -r "$repo_root/assets/data/graph" "$exchange_dir/assets/data/"
+    cp -r "$repo_root/assets/data/character_descriptions" "$exchange_dir/assets/data/"
+    cp -r "$repo_root/assets/data/detection" "$exchange_dir/assets/data/"
     mkdir -p "$exchange_dir/src/formats/kaitai"
     cp -r "$repo_root/src/formats/kaitai/kaitai_struct_tests" "$exchange_dir/src/formats/kaitai/"
     mkdir -p "$exchange_dir/scripts/guix"
@@ -355,6 +360,7 @@ vm_package_fixtures() {
     cp -r "$repo_root/src/storage/minimal/data" "$exchange_dir/storage/minimal/"
     mkdir -p "$exchange_dir/src/utilities"
     cp "$repo_root/src/utilities/format_id.generated.rs" "$exchange_dir/src/utilities/"
+    cp -r "$repo_root/src/utilities/https" "$exchange_dir/src/utilities/"
 
     echo "Packaging TypeScript bootstrap inputs..."
     mkdir -p "$exchange_dir/vendor/TypeScript" "$exchange_dir/vendor/DefinitelyTyped-partial" "$exchange_dir/vendor/undici"
@@ -368,6 +374,14 @@ vm_package_fixtures() {
         cp "$repo_root/built/ctoolbox.rsrc" "$exchange_dir/built/ctoolbox.rsrc"
         cp "$repo_root/built/ctoolbox.rsrc" "$exchange_dir/tests/ctoolbox.rsrc"
         cp "$repo_root/built/ctoolbox.rsrc" "$exchange_dir/ctoolbox.rsrc"
+    fi
+
+    if [[ -f "$repo_root/built/system_graph_history.rsrc" ]]; then
+        echo "Packaging historical graph bundle (built/system_graph_history.rsrc)..."
+        mkdir -p "$exchange_dir/built" "$exchange_dir/tests"
+        cp "$repo_root/built/system_graph_history.rsrc" "$exchange_dir/built/system_graph_history.rsrc"
+        cp "$repo_root/built/system_graph_history.rsrc" "$exchange_dir/tests/system_graph_history.rsrc"
+        cp "$repo_root/built/system_graph_history.rsrc" "$exchange_dir/system_graph_history.rsrc"
     fi
 
     if [[ -f "$repo_root/vendor/v86_images/guix/guix-fs.json" ]]; then
