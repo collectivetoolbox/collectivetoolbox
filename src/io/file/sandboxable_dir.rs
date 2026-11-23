@@ -1100,11 +1100,23 @@ impl SandboxableDir {
         replace_node_windows(symlink_path, existing, |path| {
             if is_dir {
                 std::os::windows::fs::symlink_dir(&target_path, path)
-                    .context("Failed to create directory symlink")
+                    .context("Failed to create directory symlink")?;
             } else {
                 symlink_file(&target_path, path)
-                    .context("Failed to create file symlink")
+                    .context("Failed to create file symlink")?;
             }
+            std::fs::symlink_metadata(path)
+                .map(|_| ())
+                .map_err(|err| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::Unsupported,
+                        format!(
+                            "Operating system reported symlink creation success, but symlink was not created at {}: {err}",
+                            path.display()
+                        ),
+                    )
+                })
+                .context("Symlink creation is unsupported on this runtime")
         })
     }
 
@@ -1424,6 +1436,20 @@ fn open_windows_directory(path: &Path) -> Result<std::fs::File> {
         FILE_ATTRIBUTE_REPARSE_POINT, FILE_FLAG_BACKUP_SEMANTICS,
         FILE_FLAG_OPEN_REPARSE_POINT, FILE_READ_ATTRIBUTES,
     };
+
+    let sym_meta = std::fs::symlink_metadata(path).with_context(|| {
+        format!(
+            "Failed to query no-follow directory metadata: {}",
+            path.display()
+        )
+    })?;
+    anyhow::ensure!(
+        !sym_meta.file_type().is_symlink()
+            && sym_meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0
+            && sym_meta.is_dir(),
+        "Directory is a reparse point or not a directory: {}",
+        path.display()
+    );
 
     let handle = std::fs::OpenOptions::new()
         .access_mode(FILE_READ_ATTRIBUTES)

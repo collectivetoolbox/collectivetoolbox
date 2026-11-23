@@ -109,7 +109,7 @@ impl Default for MaterializeOptions {
             dry_run: false,
             strict_lossless: true,
             check_atime: false,
-            check_ctime: cfg!(windows),
+            check_ctime: cfg!(windows) && !ctb_utilities::environment::is_wine(),
             check_birthtime: cfg!(windows),
             symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
             path_policy: PathTraversalPolicy::StrictSandboxed,
@@ -186,6 +186,35 @@ pub fn apply_entity_metadata(
     strict_lossless: bool,
     check_birthtime: bool,
 ) -> Result<Vec<String>> {
+    apply_entity_metadata_ext(
+        dest,
+        target_display_path,
+        meta,
+        is_symlink,
+        apply_flags,
+        strict_lossless,
+        cfg!(windows) && !ctb_utilities::environment::is_wine(),
+        check_birthtime,
+    )
+}
+
+/// Applies ownership, permissions, and timestamps from `meta` to `dest`,
+/// with explicit control over change-time retention enforcement.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Explicit metadata restoration flags avoid coupling callers to MaterializeOptions"
+)]
+pub fn apply_entity_metadata_ext(
+    dest: &Path,
+    target_display_path: Option<&Path>,
+    meta: &FileMetadata,
+    is_symlink: bool,
+    apply_flags: bool,
+    strict_lossless: bool,
+    check_ctime: bool,
+    check_birthtime: bool,
+) -> Result<Vec<String>> {
+    let _ = check_ctime;
     if let Some(timestamps) = &meta.timestamps {
         timestamps.validate()?;
     }
@@ -383,6 +412,7 @@ pub fn apply_entity_metadata(
             dest,
             meta,
             strict_lossless,
+            check_ctime,
         )?);
         warnings.extend(crate::metadata::check_metadata_replication(
             dest,
@@ -401,30 +431,57 @@ fn apply_windows_change_time(
     dest: &Path,
     meta: &FileMetadata,
     strict_lossless: bool,
+    check_ctime: bool,
 ) -> Result<Vec<String>> {
     let Some(timestamps) = &meta.timestamps else {
         return Ok(Vec::new());
     };
-    let result = (|| -> Result<()> {
-        let time = crate::metadata::checked_file_time(
-            timestamps.ctime_sec,
-            timestamps.ctime_nsec,
-        )?;
-        crate::metadata::windows::set_file_change_time(dest, time)
-    })();
-    if let Err(error) = result {
-        let error = error.context(format!(
-            "Failed to restore change time on {}",
-            dest.display()
-        ));
-        if strict_lossless {
-            return Err(error);
+    let result =
+        (|| -> Result<crate::metadata::windows::ChangeTimeRestoreOutcome> {
+            let time = crate::metadata::checked_file_time(
+                timestamps.ctime_sec,
+                timestamps.ctime_nsec,
+            )?;
+            crate::metadata::windows::set_file_change_time_outcome(dest, time)
+        })();
+    match result {
+        Ok(crate::metadata::windows::ChangeTimeRestoreOutcome::Retained) => {
+            Ok(Vec::new())
         }
-        let warning = format!("{error:#} (proceeding best-effort)");
-        warn_fmt!("{warning}");
-        return Ok(vec![warning]);
+        Ok(
+            crate::metadata::windows::ChangeTimeRestoreOutcome::UnretainedByFilesystem,
+        ) => {
+            if check_ctime {
+                let error = anyhow::anyhow!(
+                    "Filesystem did not retain restored Windows change time for {}",
+                    dest.display()
+                )
+                .context(format!(
+                    "Failed to restore change time on {}",
+                    dest.display()
+                ));
+                if strict_lossless {
+                    return Err(error);
+                }
+                let warning = format!("{error:#} (proceeding best-effort)");
+                warn_fmt!("{warning}");
+                return Ok(vec![warning]);
+            }
+            Ok(Vec::new())
+        }
+        Err(error) => {
+            let error = error.context(format!(
+                "Failed to restore change time on {}",
+                dest.display()
+            ));
+            if strict_lossless {
+                return Err(error);
+            }
+            let warning = format!("{error:#} (proceeding best-effort)");
+            warn_fmt!("{warning}");
+            Ok(vec![warning])
+        }
     }
-    Ok(Vec::new())
 }
 
 #[cfg(windows)]
@@ -907,13 +964,14 @@ pub fn materialize_entity_with_stream_source(
             let mut warnings = path_warnings;
             warnings.extend(adaptation_warnings);
             warnings.extend(stream_warnings);
-            warnings.extend(apply_entity_metadata(
+            warnings.extend(apply_entity_metadata_ext(
                 &dest_path,
                 None,
                 &entity.metadata,
                 true,
                 true,
                 options.strict_lossless,
+                options.check_ctime,
                 options.check_birthtime,
             )?);
 
@@ -1027,6 +1085,7 @@ pub fn materialize_entity_with_stream_source(
                 &dest_path,
                 &entity.metadata,
                 options.strict_lossless,
+                options.check_ctime,
             )?);
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
@@ -1082,13 +1141,14 @@ pub fn materialize_entity_with_stream_source(
                 )?;
             let mut warnings = path_warnings;
             warnings.extend(stream_warnings);
-            warnings.extend(apply_entity_metadata(
+            warnings.extend(apply_entity_metadata_ext(
                 &dest_path,
                 None,
                 &entity.metadata,
                 false,
                 true,
                 options.strict_lossless,
+                options.check_ctime,
                 options.check_birthtime,
             )?);
             Ok(MaterializeReceipt {
@@ -1178,13 +1238,14 @@ pub fn materialize_entity_with_stream_source(
                 )?;
             let mut warnings = path_warnings;
             warnings.extend(stream_warnings);
-            warnings.extend(apply_entity_metadata(
+            warnings.extend(apply_entity_metadata_ext(
                 &dest_path,
                 None,
                 &entity.metadata,
                 false,
                 true,
                 options.strict_lossless,
+                options.check_ctime,
                 options.check_birthtime,
             )?);
             Ok(MaterializeReceipt {
@@ -1427,6 +1488,7 @@ pub fn materialize_entity_with_stream_source(
                     &actual_dest_path,
                     &entity.metadata,
                     options.strict_lossless,
+                    options.check_ctime,
                 )?);
                 warnings.extend(crate::metadata::check_metadata_replication(
                     &actual_dest_path,
@@ -2121,6 +2183,7 @@ pub fn materialize_entity_with_stream_source(
                 &dest_path,
                 &entity.metadata,
                 options.strict_lossless,
+                options.check_ctime,
             )?);
             warnings.extend(crate::metadata::check_metadata_replication(
                 &dest_path,
@@ -2821,6 +2884,7 @@ fn try_update_existing_regular_entity(
         dest_path,
         &entity.metadata,
         options.strict_lossless,
+        options.check_ctime,
     )?);
     warnings.extend(crate::metadata::check_metadata_replication(
         dest_path,
@@ -2981,23 +3045,56 @@ mod tests {
 
         // 1. Native materialization of nonresident file-backed stream succeeds
         let mut payload = crate::MemoryPayloadSource::new(b"primary".to_vec())?;
-        materialize_entity(&entity, Some(&mut payload), &sandbox, &options)?;
-        let restored =
-            read_and_hash_streams(&temporary.path().join("destination"))?;
-        assert_eq!(restored.len(), 1);
-        assert_eq!(
-            restored
-                .first()
-                .context("Missing restored stream")?
-                .entity
-                .kind,
-            entity
-                .streams
-                .first()
-                .context("Missing expected stream")?
-                .entity
-                .kind
-        );
+        let native_published = match materialize_entity(
+            &entity,
+            Some(&mut payload),
+            &sandbox,
+            &options,
+        ) {
+            Ok(_) => {
+                let restored = read_and_hash_streams(
+                    &temporary.path().join("destination"),
+                )?;
+                assert_eq!(restored.len(), 1);
+                assert_eq!(
+                    restored
+                        .first()
+                        .context("Missing restored stream")?
+                        .entity
+                        .kind,
+                    entity
+                        .streams
+                        .first()
+                        .context("Missing expected stream")?
+                        .entity
+                        .kind
+                );
+                true
+            }
+            Err(err) => {
+                #[cfg(windows)]
+                {
+                    assert!(
+                        ctb_io_environment::is_wine(),
+                        "Unexpected native stream materialization failure on Windows: {err:#}"
+                    );
+                    assert!(
+                        format!("{err:#}").contains(
+                            "Windows alternate data stream"
+                        ),
+                        "{err:#}"
+                    );
+                    assert!(
+                        !temporary.path().join("destination").try_exists()?
+                    );
+                    false
+                }
+                #[cfg(not(windows))]
+                {
+                    return Err(err);
+                }
+            }
+        };
 
         // 2. AppleDouble materialization of nonresident file-backed stream succeeds
         entity.identity.relative_path = Some("destination-double".into());
@@ -3059,7 +3156,10 @@ mod tests {
                     .try_exists()?
             );
         }
-        assert_eq!(std::fs::read_dir(temporary.path())?.count(), 5);
+        assert_eq!(
+            std::fs::read_dir(temporary.path())?.count(),
+            if native_published { 5 } else { 4 }
+        );
         Ok(())
     }
 

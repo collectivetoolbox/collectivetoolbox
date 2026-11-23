@@ -379,15 +379,22 @@ pub(crate) fn prevent_access_time_updates(file: &std::fs::File) -> Result<()> {
     Ok(())
 }
 
-/// Restores change time without following reparse points or changing other times.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ChangeTimeRestoreOutcome {
+    Retained,
+    UnretainedByFilesystem,
+}
+
+/// Restores change time without following reparse points or changing other times,
+/// returning whether the destination filesystem retained the requested timestamp.
 #[expect(
     unsafe_code,
     reason = "SetFileInformationByHandle reads an initialized FILE_BASIC_INFO while its owned handle is live"
 )]
-pub(crate) fn set_file_change_time(
+pub(crate) fn set_file_change_time_outcome(
     path: &Path,
     time: filetime::FileTime,
-) -> Result<()> {
+) -> Result<ChangeTimeRestoreOutcome> {
     use std::os::windows::fs::OpenOptionsExt;
     use std::os::windows::io::AsRawHandle;
 
@@ -433,8 +440,21 @@ pub(crate) fn set_file_change_time(
             .context("Failed to restore Windows change time");
     }
     drop(file);
+    if query_file_change_time(path)? == time {
+        Ok(ChangeTimeRestoreOutcome::Retained)
+    } else {
+        Ok(ChangeTimeRestoreOutcome::UnretainedByFilesystem)
+    }
+}
+
+/// Restores change time without following reparse points or changing other times.
+pub(crate) fn set_file_change_time(
+    path: &Path,
+    time: filetime::FileTime,
+) -> Result<()> {
+    let outcome = set_file_change_time_outcome(path, time)?;
     anyhow::ensure!(
-        query_file_change_time(path)? == time,
+        outcome == ChangeTimeRestoreOutcome::Retained,
         "Filesystem did not retain restored Windows change time for {}",
         path.display()
     );
@@ -781,10 +801,12 @@ pub fn apply_windows_reparse_metadata(
     if handle == INVALID_HANDLE_VALUE {
         let err = std::io::Error::last_os_error();
         if strict_lossless {
-            anyhow::bail!(
-                "Failed to open {} to apply reparse metadata: {err}",
-                dest.display()
-            );
+            return Err(err).with_context(|| {
+                format!(
+                    "Failed to open {} to apply reparse metadata",
+                    dest.display()
+                )
+            });
         }
         warn_fmt!(
             "Failed to open {} to apply reparse metadata: {err}",
@@ -825,10 +847,9 @@ pub fn apply_windows_reparse_metadata(
     if ok == 0 {
         let err = std::io::Error::last_os_error();
         if strict_lossless {
-            anyhow::bail!(
-                "Failed to set reparse point on {}: {err}",
-                dest.display()
-            );
+            return Err(err).with_context(|| {
+                format!("Failed to set reparse point on {}", dest.display())
+            });
         }
         warn_fmt!(
             "Failed to set reparse point on {}: {err} (proceeding best-effort)",
@@ -886,7 +907,19 @@ mod tests {
             "reparse.data".to_owned(),
             NativeMetadataValue::Bytes(buffer.clone()),
         );
-        apply_windows_reparse_metadata(&junction, &native, true)?;
+        if let Err(err) = apply_windows_reparse_metadata(&junction, &native, true)
+        {
+            assert!(
+                ctb_utilities::environment::is_wine(),
+                "Unexpected junction reparse point failure on native Windows: {err:#}"
+            );
+            assert_eq!(
+                err.downcast_ref::<std::io::Error>()
+                    .and_then(std::io::Error::raw_os_error),
+                Some(50)
+            );
+            return Ok(());
+        }
         let target_time =
             filetime::FileTime::from_unix_time(1_000_000_000, 123_456_700);
         set_file_change_time(&target, target_time)?;

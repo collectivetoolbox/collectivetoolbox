@@ -1663,6 +1663,7 @@ mod tests {
                 == u64::try_from(bytes.len())?
         );
         ensure!(digest.finalize() == ctb_formats_checksum::sha256(&bytes));
+        drop(reader);
         std::fs::remove_file(&path)?;
         ensure!(FilesystemStreamSource.open(&stream).is_err());
         Ok(())
@@ -2030,20 +2031,24 @@ mod tests {
             ) {
                 Ok(()) => {
                     let streams = read_and_hash_streams(&path).unwrap();
-                    assert_eq!(streams.len(), 1);
-                    assert_eq!(streams[0].name, stream.name);
-                    assert!(streams[0].data.is_none());
-                    assert_eq!(streams[0].entity.kind, stream.entity.kind);
-                    let mut reader =
-                        FilesystemStreamSource.open(&streams[0]).unwrap();
-                    let mut digest = Sha256Stream::new();
-                    std::io::copy(&mut reader, &mut digest).unwrap();
-                    assert_eq!(
-                        digest.finalize(),
-                        ctb_formats_checksum::sha256(
-                            stream.data.as_ref().unwrap()
-                        )
-                    );
+                    if !strict_lossless && environment::is_wine() {
+                        assert!(streams.is_empty());
+                    } else {
+                        assert_eq!(streams.len(), 1);
+                        assert_eq!(streams[0].name, stream.name);
+                        assert!(streams[0].data.is_none());
+                        assert_eq!(streams[0].entity.kind, stream.entity.kind);
+                        let mut reader =
+                            FilesystemStreamSource.open(&streams[0]).unwrap();
+                        let mut digest = Sha256Stream::new();
+                        std::io::copy(&mut reader, &mut digest).unwrap();
+                        assert_eq!(
+                            digest.finalize(),
+                            ctb_formats_checksum::sha256(
+                                stream.data.as_ref().unwrap()
+                            )
+                        );
+                    }
                 }
                 Err(error) => {
                     assert!(

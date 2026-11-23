@@ -489,6 +489,61 @@ pub fn write_windows_stream_from_reader_with_warnings<R: std::io::Read>(
     Ok(warnings)
 }
 
+#[expect(
+    unsafe_code,
+    reason = "FindFirstStreamW and FindNextStreamW read a NUL-terminated UTF-16 path and fill an initialized WIN32_FIND_STREAM_DATA buffer"
+)]
+fn has_any_named_stream(path: &Path) -> Result<bool> {
+    let wide_path = crate::metadata::windows::path_to_wide(path)?;
+    let mut info = WIN32_FIND_STREAM_DATA::default();
+    // SAFETY: The path is NUL-terminated and info is an initialized output buffer.
+    let handle = unsafe {
+        FindFirstStreamW(
+            wide_path.as_ptr(),
+            FindStreamInfoStandard,
+            (&raw mut info).cast(),
+            0,
+        )
+    };
+    if handle == INVALID_HANDLE_VALUE {
+        let error = std::io::Error::last_os_error();
+        let raw = error.raw_os_error();
+        if raw == Some(i32::try_from(ERROR_HANDLE_EOF)?)
+            || raw == Some(2)
+            || raw == Some(3)
+        {
+            return Ok(false);
+        }
+        return Err(error)
+            .context("Failed to enumerate native Windows streams");
+    }
+    let search = StreamSearch(handle);
+    let unnamed: Vec<u16> = "::$DATA".encode_utf16().collect();
+    loop {
+        let end = info
+            .cStreamName
+            .iter()
+            .position(|unit| *unit == 0)
+            .context("Unterminated Windows stream name")?;
+        let units = info
+            .cStreamName
+            .get(..end)
+            .context("Invalid stream name length")?;
+        if units != unnamed {
+            return Ok(true);
+        }
+        // SAFETY: The search handle is live and info remains a valid output buffer.
+        if unsafe { FindNextStreamW(search.0, (&raw mut info).cast()) } == 0 {
+            let error = std::io::Error::last_os_error();
+            anyhow::ensure!(
+                error.raw_os_error() == Some(i32::try_from(ERROR_HANDLE_EOF)?),
+                "Failed to continue Windows stream enumeration: {error}"
+            );
+            return Ok(false);
+        }
+    }
+}
+
 fn write_windows_stream_to_name(
     dest: &Path,
     stream: &AttachedStream,
@@ -500,22 +555,35 @@ fn write_windows_stream_to_name(
     else {
         anyhow::bail!("Attached stream is not a regular payload");
     };
+    let dest_identity = crate::identity::query_file_identity(dest).ok();
     let wide = crate::metadata::windows::path_to_wide(dest)?;
     let mut stream_wide = wide
         .get(..wide.len().saturating_sub(1))
         .context("Invalid path length")?
         .to_vec();
     stream_wide.extend(name.encode_wide());
-    let stream_path = OsString::from_wide(&stream_wide);
+    let stream_path = PathBuf::from(OsString::from_wide(&stream_wide));
 
-    let mut file = std::fs::File::create(PathBuf::from(stream_path))
-        .with_context(|| {
+    let mut file =
+        std::fs::File::create(&stream_path).with_context(|| {
             format!(
                 "Failed to create Windows alternate data stream {:?} on {}",
                 stream.to_string_lossy(),
                 dest.display()
             )
         })?;
+    let stream_identity = crate::identity::query_open_file_identity(&file).ok();
+    if dest_identity != stream_identity && !has_any_named_stream(dest)? {
+        drop(file);
+        let _ = std::fs::remove_file(&stream_path);
+        return Err(std::io::Error::from_raw_os_error(2)).with_context(|| {
+            format!(
+                "Failed to create Windows alternate data stream {:?} on {}: target filesystem created a separate file instead of an attached stream",
+                stream.to_string_lossy(),
+                dest.display()
+            )
+        });
+    }
 
     let mut hasher = Sha256Stream::new();
     let mut total_copied = 0_u64;

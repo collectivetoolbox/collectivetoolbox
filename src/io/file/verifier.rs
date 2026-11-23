@@ -1762,7 +1762,21 @@ mod tests {
         let data = b"native timestamp payload".to_vec();
         fs::write(&source, &data)?;
         let change_time = FileTime::from_unix_time(1_000_000_000, 123_456_700);
-        crate::metadata::windows::set_file_change_time(&source, change_time)?;
+        if let Err(err) =
+            crate::metadata::windows::set_file_change_time(&source, change_time)
+        {
+            assert!(
+                ctb_io_environment::is_wine(),
+                "Unexpected change-time restoration failure on native Windows: {err:#}"
+            );
+            assert!(
+                format!("{err:#}").contains(
+                    "Filesystem did not retain restored Windows change time"
+                ),
+                "{err:#}"
+            );
+            return Ok(());
+        }
         let mut entity = FileEntity::from_filesystem(&source, None)?;
         entity.identity.relative_path = Some(PathBuf::from("restored"));
         let mut payload = MemoryPayloadSource::new(data)?;

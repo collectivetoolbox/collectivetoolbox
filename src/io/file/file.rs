@@ -278,10 +278,10 @@ pub use identity::{
 pub use link_path::LinkPath;
 pub use materializer::{
     MaterializeOptions, MaterializeReceipt, apply_entity_metadata,
-    materialize_directory_streams_and_companions, materialize_entity,
-    materialize_entity_at_path, materialize_entity_with_stream_source,
-    verify_directory_filenames_exact, verify_filename_exact_bytes,
-    write_file_durable,
+    apply_entity_metadata_ext, materialize_directory_streams_and_companions,
+    materialize_entity, materialize_entity_at_path,
+    materialize_entity_with_stream_source, verify_directory_filenames_exact,
+    verify_filename_exact_bytes, write_file_durable,
 };
 pub use metadata::{
     FileFlag, FileMetadata, FileTimestamps, FlagSettability, OsFamily,
