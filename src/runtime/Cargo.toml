@@ -8,10 +8,15 @@ crate-type = ["lib"]
 
 [dependencies]
 ctb-utilities = { path = "../utilities" }
+ctb-formats-conversion = { path = "../formats/conversion" }
 ctb-formats-dcstring = { path = "../formats/dcstring" }
+ctb-formats-detection = { path = "../formats/detection" }
+ctb-formats-utilities = { path = "../formats/utilities" }
+ctb-renderer = { path = "../renderer" }
 ctb-wasm-substitutes = { path = "../formats/wasm_substitutes" }
 
 async-trait = "0.1.89"
+clap = { version = "4.5.54", features = ["derive"] }
 serde = "1.0.228"
 postcard = "1.1.3"
 

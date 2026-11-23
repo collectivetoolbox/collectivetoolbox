@@ -33,6 +33,7 @@ ctb-formats-unicode = { path = "../formats/unicode" }
 ctb-formats-utilities = { path = "../formats/utilities" }
 ctb-formats-x86 = { path = "../formats/x86" }
 ctb-storage = { path = "../storage" }
+ctb-runtime = { path = "../runtime" }
 ctb-installer = { path = "../installer" }
 ctb-io-csc = { path = "../io/csc" }
 ctb-io-file = { path = "../io/file" }

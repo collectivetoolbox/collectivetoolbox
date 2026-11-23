@@ -242,7 +242,7 @@ v/capBoolRes/isNonPrintingTeletypeDc capClient/cli dc/ch
     structNew capBoolRes: cli /curCli ok true val false errTokens l/dc: :: ::.
 
 : @dc l8590004247
-v/ttLookupRes/resolveDecompPropToUnicode ttState/st l/u128/eqIds dc/propDc b/isReplacementAtom u64/depth
+v/ttLookupRes/resolveDecompPropToUnicode ttState/st l/u128/eqIds dc/propDc b/_isReplacementAtom u64/depth
     let ttState/curSt /st.
     foreach u128/eid /eqIds do
         const capPropListRes/pr queryMultiProperty field /curSt cli dcFromU128 /eid /propDc.
@@ -257,43 +257,41 @@ v/ttLookupRes/resolveDecompPropToUnicode ttState/st l/u128/eqIds dc/propDc b/isR
                 return structNew ttLookupRes: st /curSt found false kind u8:2 chars l/dc: :: ::
                 nop.
             if not field /qc val
-                if /isReplacementAtom
-                    do
-                        const ttLookupRes/sub resolveDcForTeletype /curSt field /pe val wrapAdd /depth u64:1.
-                        set /curSt field /sub st.
-                        if and field /sub found eq field /sub kind u8:0
-                            return /sub
-                            nop.
-                    ::
-                    do
-                        const u128/valId u128FromDc field /pe val.
-                        if isSysRegionId /valId
-                            do
-                                const capOptNodeRes/nr queryNodeExpanded field /curSt cli /valId.
-                                set /curSt with /curSt cli field /nr cli.
-                                if and eq field /nr tag u8:1 not isNonTextDecompPayload field /nr payload
-                                    do
-                                        let buf/dc/seqOut bufNew dc len field /nr payload.
-                                        let b/allOk true.
-                                        foreach dc/dtok field /nr payload do
-                                            const ttLookupRes/sub resolveDcForTeletype /curSt /dtok wrapAdd /depth u64:1.
-                                            set /curSt field /sub st.
-                                            if and field /sub found eq field /sub kind u8:0
-                                                bufExtend /seqOut field /sub chars
-                                                do
-                                                    set /allOk false.
-                                                    break.
-                                                ::.
-                                        ::.
-                                        const l/dc/frozen bufFreeze /seqOut.
-                                        if and /allOk gt len /frozen u64:0
-                                            return structNew ttLookupRes: st /curSt found true kind u8:0 chars /frozen ::
-                                            nop.
-                                    ::
-                                    nop.
-                            ::
-                            nop.
-                    ::
+                do
+                    const u128/valId u128FromDc field /pe val.
+                    if isSysRegionId /valId
+                        do
+                            const capOptNodeRes/nr queryNodeExpanded field /curSt cli /valId.
+                            set /curSt with /curSt cli field /nr cli.
+                            if and eq field /nr tag u8:1 not isNonTextDecompPayload field /nr payload
+                                do
+                                    let buf/dc/seqOut bufNew dc len field /nr payload.
+                                    let b/allOk true.
+                                    foreach dc/dtok field /nr payload do
+                                        const ttLookupRes/sub resolveDcForTeletype /curSt /dtok wrapAdd /depth u64:1.
+                                        set /curSt field /sub st.
+                                        if and field /sub found eq field /sub kind u8:0
+                                            bufExtend /seqOut field /sub chars
+                                            do
+                                                set /allOk false.
+                                                break.
+                                            ::.
+                                    ::.
+                                    const l/dc/frozen bufFreeze /seqOut.
+                                    if and /allOk gt len /frozen u64:0
+                                        return structNew ttLookupRes: st /curSt found true kind u8:0 chars /frozen ::
+                                        nop.
+                                ::
+                                nop.
+                        ::
+                        do
+                            const ttLookupRes/sub resolveDcForTeletype /curSt field /pe val wrapAdd /depth u64:1.
+                            set /curSt field /sub st.
+                            if and field /sub found eq field /sub kind u8:0
+                                return /sub
+                                nop.
+                        ::.
+                ::
                 nop.
         ::.
     ::.

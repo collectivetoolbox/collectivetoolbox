@@ -87,6 +87,34 @@ pub fn dcil_to_dcmstring_with_options(
     Ok((doc, log))
 }
 
+/// Converts an ELAD (`.elad` / `.emd`) document into a [`DcMstring`].
+pub fn elad_to_dcmstring_with_options(
+    bytes: &[u8],
+    permissive: bool,
+) -> Result<(DcMstring, FormatLog)> {
+    let (dca, raw_log) = ctb_formats_eite::formats::elad::dca_from_elad(bytes)?;
+    if !permissive && raw_log.has_errors() {
+        let errs = raw_log.get_errors().join("; ");
+        bail!(
+            "Input does not conform to valid ELAD (.elad / .emd) format: {errs}"
+        );
+    }
+    let mut log = if permissive && raw_log.has_errors() {
+        let mut downgraded = FormatLog::default();
+        for w in raw_log.get_warnings() {
+            downgraded.warn(&w);
+        }
+        for err in raw_log.get_errors() {
+            downgraded.warn(&err);
+        }
+        downgraded
+    } else {
+        raw_log
+    };
+    let doc = dca_to_dcmstring(&dca, &mut log)?;
+    Ok((doc, log))
+}
+
 /// Converts a `DcMstring` to `DcIntegerList` document bytes (`.dcil`).
 pub fn dcmstring_to_dcil(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
     let (dca, log) = dcmstring_to_dca(doc)?;

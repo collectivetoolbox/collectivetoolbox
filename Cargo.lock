@@ -2825,6 +2825,7 @@ dependencies = [
  "ctb-installer",
  "ctb-io-csc",
  "ctb-io-file",
+ "ctb-runtime",
  "ctb-storage",
  "ctb-utilities",
  "futures",
@@ -3970,7 +3971,9 @@ version = "0.1.0"
 name = "ctb-renderer"
 version = "0.0.0"
 dependencies = [
+ "ctb-formats-dcstring",
  "ctb-utilities",
+ "ctb-wasm-substitutes",
  "serde",
 ]
 
@@ -3979,7 +3982,12 @@ name = "ctb-runtime"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "clap",
+ "ctb-formats-conversion",
  "ctb-formats-dcstring",
+ "ctb-formats-detection",
+ "ctb-formats-utilities",
+ "ctb-renderer",
  "ctb-utilities",
  "ctb-wasm-substitutes",
  "postcard",

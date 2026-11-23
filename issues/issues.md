@@ -208,4 +208,14 @@ or something like that. Does that seem like a good idea?
 
 # Output caching
 
-Proposal: temporarily instrument all Dc routine invocations. Run some sample documents, etc, recording function call counts, parameter values, execution times, and return values. Create a bundle of the most frequently occurring and most expensive calls and their return values, and ship that with the application.
+Proposal: temporarily instrument all Dc routine invocations (maybe some special runner so it can be updated periodically?). Run some sample documents, etc, recording function call counts, parameter values, execution times, and return values. Create a bundle of the most frequently occurring and most expensive calls and their return values, and ship that with the application.
+
+# SL3/SR3 linters
+
+- Line length lint to limit to 79 chars
+- Version of the unwrap-or linter (I wish this weren't needed, but I'm not sure how else to prevent agents avoiding implementing correct edge case handling than making them annotate every case and then reviewing them in separate passes - if there's some better way to actually structurally prevent illogical unwrap-or I'd prefer that, but since it's ultimately a type of logic error I'm not sure that's possible since there's not really a clear heuristic for when it's used appropriately or not).
+
+# Runtime and renderer architecture
+
+- This needs to be moved into StageR code. Rendering logic also needs some work - most notably it relies on semantic-to-text transformation *in* the renderer, instead of constructing the UI in the runtime and then rendering that. It should reject Dcs in frames coming out of the runtime that are not actually drawable objects - at the moment, that means graphical characters and relevant control sequences, and later, drawing primitives, etc for GUI.
+- It should be refactored to organize the code. Currently, impls/std has "teletype.sr3" (which also happens to include an implementation of semanticToText transformation according to the docblock) and "convert_dc_string_to_wasm.sr3". It should use a neat structure, probably something like: impls/std/formats/transformations/dc_to_wasm.em3, impls/std/formats/transformations/semantic_to_text.em3, impls/std/formats/encoding/{unicode,ascii,etc}/from_dcs.em3, impls/std/formats/terminal/teletype.em3, impls/std/runtime/runtime.em3 (runs the document and emits frames in Dc-document format - applying any needed transformations for display like semanticToText - though running semanticToText unconditionally over the entire document does not seem right - in a viewer, for instance, unless a document is *only* consisting of semantic statements, I'd expect the semantic statements to be in an "inspector" or "document properties" type of window, like in LibreOffice or iWork, rather than output as if they're part of the document), impls/std/renderer/renderer.em3 (renders frames to output format - teletype, videoterminal, raster, Web, etc - this is where validation that they're actually rendered documents would live).

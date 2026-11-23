@@ -33,6 +33,8 @@ pub(crate) use ctb_utilities::*;
 )]
 pub use ctb_utilities::ipc::service_prelude::*;
 
+pub mod cli;
+
 use ctb_utilities::ipc::service_traits::{
     ChildIpcContext, renderer::RenderSettings,
 };
@@ -646,6 +648,10 @@ impl SystemSupervisorAdmission {
                     "Missing System-block node ID operand after Dc 641",
                 )?;
                 let pin_id = if second.fills_role_with(DcRole::Escape, resolver)
+                    || second.fills_role_with(
+                        DcRole::QuoteFollowingDcAsAtom,
+                        resolver,
+                    )
                 {
                     pin_tokens
                         .get(2)
@@ -695,6 +701,7 @@ impl SystemSupervisorAdmission {
         for ch in chars {
             if ch.fills_role_with(DcRole::Escape, resolver)
                 || ch.fills_role_with(DcRole::EndLiteral, resolver)
+                || ch.fills_role_with(DcRole::QuoteFollowingDcAsAtom, resolver)
             {
                 out.push(dc::DC_ESCAPE);
             }
@@ -702,6 +709,26 @@ impl SystemSupervisorAdmission {
         }
         out.push(dc::DC_END_LITERAL);
         Ok(out)
+    }
+
+    /// Admits the `Dc 1936` (`Dc document execution kernel`) supervisor with
+    /// bounded CLI compilation and execution quotas sufficient to self-host
+    /// StageR 3 (`f1681`) and StageL 3 (`f1680`) pipelines while still enforcing
+    /// deterministic compute, memory, and output limits.
+    ///
+    /// # Errors
+    /// Returns an error if resolving or executing `Dc 1936` fails.
+    pub fn admit_cli_execution_kernel() -> Result<Self> {
+        let limits = DcWasmResourceLimits::default()
+            .with_max_instructions_per_step(4_000_000_000)
+            .with_max_memory_pages(8192)
+            .with_max_step_output_bytes(32 * 1024 * 1024)
+            .with_max_session_output_bytes(64 * 1024 * 1024)
+            .with_max_capability_payload_bytes(32 * 1024 * 1024);
+        let watchdog = DcWasmWatchdogLimits::default()
+            .with_physical_max_memory_pages(8192)
+            .with_hard_max_instructions_per_step(4_000_000_000);
+        Self::admit_execution_kernel(limits, watchdog)
     }
 
     /// Compiles an arbitrary executable Dc document `doc` into a `Dc 1927`..`Dc 1928` Dc-WASM
@@ -4917,15 +4944,7 @@ mod tests {
     }
 
     fn admit_high_budget_execution_kernel() -> Result<SystemSupervisorAdmission> {
-        let mut limits = DcWasmResourceLimits::default();
-        limits.max_instructions_per_step = 4_000_000_000;
-        limits.max_memory_pages = 2048;
-        limits.max_step_output_bytes = 32 * 1024 * 1024;
-        limits.max_session_output_bytes = 64 * 1024 * 1024;
-        limits.max_capability_payload_bytes = 32 * 1024 * 1024;
-        let watchdog = DcWasmWatchdogLimits::default()
-            .with_hard_max_instructions_per_step(4_000_000_000);
-        SystemSupervisorAdmission::admit_execution_kernel(limits, watchdog)
+        SystemSupervisorAdmission::admit_cli_execution_kernel()
     }
 
     #[crate::ctb_test]

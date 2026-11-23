@@ -2052,6 +2052,8 @@ pub v/capBoolRes/dcIsEquiv capClient/cli dc/a dc/b
             if not field /qc val
                 do
                     const u128/nu u128FromDc field /pe val.
+                    let b/hasSingle false.
+                    let u128/single u128:0.
                     if isSysRegionId /nu
                         do
                             const capOptNodeRes/nr queryNodeExpanded /curCli /nu.
@@ -2061,31 +2063,39 @@ pub v/capBoolRes/dcIsEquiv capClient/cli dc/a dc/b
                                 nop.
                             if and eq field /nr tag u8:1 eq len field /nr payload u64:1
                                 do
-                                    const u128/single u128FromDc dcAtOr field /nr payload u64:0 dc:0.
-                                    if eq /single /target
-                                        return structNew capBoolRes: cli /curCli ok true val true errTokens l/dc: :: ::
-                                        nop.
-                                    let b/seenV false.
-                                    let u64/vi u64:0.
-                                    while lt /vi len /visited do
-                                        const u128/vx match get /visited /vi
-                                            case some u128/v /v.
-                                            case none break.
-                                        ::.
-                                        if eq /vx /single
-                                            do
-                                                set /seenV true.
-                                                break.
-                                            ::
-                                            nop.
-                                        set /vi wrapAdd /vi u64:1.
-                                    ::.
-                                    if not /seenV
-                                        do
-                                            bufPush /visited /single.
-                                            bufPush /queue /single.
-                                        ::
-                                        nop.
+                                    set /hasSingle true.
+                                    set /single u128FromDc dcAtOr field /nr payload u64:0 dc:0.
+                                ::
+                                nop.
+                        ::
+                        do
+                            set /hasSingle true.
+                            set /single /nu.
+                        ::.
+                    if /hasSingle
+                        do
+                            if eq /single /target
+                                return structNew capBoolRes: cli /curCli ok true val true errTokens l/dc: :: ::
+                                nop.
+                            let b/seenV false.
+                            let u64/vi u64:0.
+                            while lt /vi len /visited do
+                                const u128/vx match get /visited /vi
+                                    case some u128/v /v.
+                                    case none break.
+                                ::.
+                                if eq /vx /single
+                                    do
+                                        set /seenV true.
+                                        break.
+                                    ::
+                                    nop.
+                                set /vi wrapAdd /vi u64:1.
+                            ::.
+                            if not /seenV
+                                do
+                                    bufPush /visited /single.
+                                    bufPush /queue /single.
                                 ::
                                 nop.
                         ::
@@ -2093,13 +2103,14 @@ pub v/capBoolRes/dcIsEquiv capClient/cli dc/a dc/b
                 ::
                 nop.
         ::.
-        : Reverse 1-token Dc 611 (active nodes equal to `[cur]` referenced via `610 <- hasA[584 subj 611]`).
+        : Reverse 1-token Dc 611 (direct atom or active 1-token node equal to `[cur]` referenced via `610 <- hasA[584 subj 611]`).
         const capU128ListRes/revNodes queryNodesByExactTokens /curCli l/dc: /cur ::.
         set /curCli field /revNodes cli.
         if not field /revNodes ok
             return structNew capBoolRes: cli /curCli ok false val false errTokens field /revNodes errTokens ::
             nop.
-        foreach u128/nid field /revNodes ids do
+        const l/u128/revTargetIds if isSysRegionId /curU field /revNodes ids appendUniqueU128 field /revNodes ids /curU.
+        foreach u128/nid /revTargetIds do
             const capTripleListRes/r610 queryTriples /curCli true dc:610 false dc:0 true dcFromU128 /nid.
             set /curCli field /r610 cli.
             if not field /r610 ok
@@ -2248,6 +2259,8 @@ pub v/capU128ListRes/collectEquivClass capClient/cli dc/start
             if not field /qc val
                 do
                     const u128/nu u128FromDc field /pe val.
+                    let b/hasSingle false.
+                    let u128/single u128:0.
                     if isSysRegionId /nu
                         do
                             const capOptNodeRes/nr queryNodeExpanded /curCli /nu.
@@ -2257,28 +2270,36 @@ pub v/capU128ListRes/collectEquivClass capClient/cli dc/start
                                 nop.
                             if and eq field /nr tag u8:1 eq len field /nr payload u64:1
                                 do
-                                    const u128/single u128FromDc dcAtOr field /nr payload u64:0 dc:0.
-                                    let b/seenV false.
-                                    let u64/vi u64:0.
-                                    while lt /vi len /visited do
-                                        const u128/vx match get /visited /vi
-                                            case some u128/v /v.
-                                            case none break.
-                                        ::.
-                                        if eq /vx /single
-                                            do
-                                                set /seenV true.
-                                                break.
-                                            ::
-                                            nop.
-                                        set /vi wrapAdd /vi u64:1.
-                                    ::.
-                                    if not /seenV
-                                        do
-                                            bufPush /visited /single.
-                                            bufPush /queue /single.
-                                        ::
-                                        nop.
+                                    set /hasSingle true.
+                                    set /single u128FromDc dcAtOr field /nr payload u64:0 dc:0.
+                                ::
+                                nop.
+                        ::
+                        do
+                            set /hasSingle true.
+                            set /single /nu.
+                        ::.
+                    if /hasSingle
+                        do
+                            let b/seenV false.
+                            let u64/vi u64:0.
+                            while lt /vi len /visited do
+                                const u128/vx match get /visited /vi
+                                    case some u128/v /v.
+                                    case none break.
+                                ::.
+                                if eq /vx /single
+                                    do
+                                        set /seenV true.
+                                        break.
+                                    ::
+                                    nop.
+                                set /vi wrapAdd /vi u64:1.
+                            ::.
+                            if not /seenV
+                                do
+                                    bufPush /visited /single.
+                                    bufPush /queue /single.
                                 ::
                                 nop.
                         ::
@@ -2291,7 +2312,8 @@ pub v/capU128ListRes/collectEquivClass capClient/cli dc/start
         if not field /revNodes ok
             return structNew capU128ListRes: cli /curCli ok false ids l/u128: :: errTokens field /revNodes errTokens ::
             nop.
-        foreach u128/nid field /revNodes ids do
+        const l/u128/revTargetIds if isSysRegionId /curU field /revNodes ids appendUniqueU128 field /revNodes ids /curU.
+        foreach u128/nid /revTargetIds do
             const capTripleListRes/r610 queryTriples /curCli true dc:610 false dc:0 true dcFromU128 /nid.
             set /curCli field /r610 cli.
             if not field /r610 ok

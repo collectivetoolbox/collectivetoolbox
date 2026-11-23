@@ -48,6 +48,7 @@ pub mod source_edit;
 pub use converters::dctext::DcList;
 pub use converters::transform::{
     apply_dc_transformation, apply_dc_transformations,
+    apply_semantic_to_text_with_resolver,
     transform_dclist_unicode_to_short_dc,
 };
 pub use converters::utf8::{

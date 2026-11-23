@@ -26,7 +26,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 #[async_trait]
 pub trait RendererClientTrait: crate::ipc::registry::IpcCaller + Send + Sync + std::fmt::Debug {
 ///  Render the provided document string according to the provided settings.
-///  Stub for now.
     async fn render_from_string(&self, #[ipc(shm)] document: & str, settings: RenderSettings) -> Result<String>;
 
 ///  Test helper that echoes the document 3 times.

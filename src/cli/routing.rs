@@ -118,6 +118,7 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "character-description"
             | "chardesc"
             | "convert"
+            | "run"
     )
 }
 
@@ -812,6 +813,9 @@ pub enum Command {
         /// The string to escape. If not provided, reads from stdin.
         value: Option<String>,
     },
+    /// Compile, execute, and render a Document Character (Dc) document or StageL 3 / StageR 3 program.
+    #[command(name = "run")]
+    Run(ctb_runtime::cli::RunArgs),
 }
 
 fn read_file_or_stdin(path: &std::path::Path) -> Result<Vec<u8>> {
@@ -998,6 +1002,17 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         }
         Command::Convert(args) => {
             let out = ctb_formats_conversion::cli::execute_cli_convert(
+                args.clone(),
+                read_file_or_stdin,
+            )?;
+            let bytes = match out {
+                Some(b) => b,
+                None => Vec::new(),
+            };
+            Ok(ToolResult::immediate_ok(bytes))
+        }
+        Command::Run(args) => {
+            let out = ctb_runtime::cli::execute_cli_run(
                 args.clone(),
                 read_file_or_stdin,
             )?;
@@ -1538,6 +1553,7 @@ mod tests {
             "jq",
             "file2metadatajson",
             "metadatajson2file",
+            "run",
         ];
         for cmd_name in lightweight_commands {
             assert!(

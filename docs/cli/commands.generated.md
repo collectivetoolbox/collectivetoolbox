@@ -78,6 +78,7 @@ Commands:
   ctb-upgrade-canary         Internal: Post-upgrade canary validation
   jq                         Lightweight JQ implementation
   json-escape                Escape a string to be a valid JSON string value (enclosed in double quotes)
+  run                        Compile, execute, and render a Document Character (Dc) document or StageL 3 / StageR 3 program
 
 Options:
       --ctoolbox-ipc-port <CTOOLBOX_IPC_PORT>
@@ -2302,6 +2303,114 @@ Examples:
   0E
   0F
   10
+```
+
+### `ctoolbox run`
+
+```text
+Compile, execute, and render a Document Character (Dc) document or StageL 3 / StageR 3 program
+
+Usage: ctoolbox run [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]  Document source text. If omitted, reads from `--file` or standard input
+
+Options:
+      --from <FROM>
+          Input format (autodetected if omitted; accepts nickname, `FormatId` name, or `f<N>` shorthand)
+      --permissive
+          Parse input document in permissive mode (recovering from non-fatal format warnings)
+      --strict
+          Parse input document in strict mode
+  -f, --file <FILE>
+          Input document file path (or `-` for stdin)
+  -o, --output <OUTPUT>
+          Output file path (or `-` for stdout)
+  -F, --force
+          Overwrite existing output file without prompt
+      --program-input <PROGRAM_INPUT>
+          Optional UTF-8 payload passed to the executed program's input mailbox
+      --recover-graph
+          Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+      --program-input-file <PROGRAM_INPUT_FILE>
+          Optional file path containing raw input bytes for the executed program's input mailbox
+      --target <TARGET>
+          Rendering target (`teletype` plain-text UTF-8 output by default) [default: teletype] [possible values: teletype, videoterminal, web, raster, vector, print]
+  -h, --help
+          Print help (see more with '--help')
+
+Supported document input formats (--from):
+  Document formats:
+    cdce_lstrict (CdceLegacyStrict): CDCE (legacy, strict)
+    csdl (Csdl): Comma-separated Dc list (long Dcs)
+    ctbnbdl (CtbNodeBundle): Collective Toolbox Node Bundle (default: ctbnbdl2)
+        ctbnbdl1 (CtbNodeBundle1): Collective Toolbox Node Bundle, version 1
+        ctbnbdl2 (CtbNodeBundle2): Collective Toolbox Node Bundle, version 2
+    ctbnode-incoming (CtbNodeIncoming): Collective Toolbox incoming graph node (shorthand text)
+    ctbnodes (CtbNodes): Collective Toolbox graph nodes (shorthand text)
+    dc_id_list (DcIdList): Dc ID list (ASCII)
+    dcal (Dcal): Dc ASCII List (long Dcs)
+    dce (Dce): DCE (automatic version selection)
+    dce_3_01a (Dce_3_01a): DCE 3.01a
+    dce_3_01a_raw (Dce_3_01a_raw): DCE 3.01a (raw)
+    dce_3_0a (Dce_3_0a): DCE 3.0a
+    dce_3_0a_raw (Dce_3_0a_raw): DCE 3.0a (raw)
+    dce_hex_3_01a (Dce_3_01a_hex): DCE 3.01a (hex-encoded)
+    dce_hex_3_01a_raw (Dce_3_01a_raw_hex): DCE 3.01a (raw hex-encoded)
+    dce_hex_3_0a (Dce_3_0a_hex): DCE 3.0a (hex-encoded)
+    dce_hex_3_0a_raw (Dce_3_0a_raw_hex): DCE 3.0a (raw hex-encoded)
+    dcil (DcIntegerList): Dc Integer List (short Dcs)
+    dcmm, dcmstr (DcMixed): Dc mixed mode (default: dcmm2)
+        dcmm1 (DcMixed1): Dc mixed mode, version 1 (DcUtf)
+        dcmm2 (DcMixed2): Dc mixed mode, version 2 (DcTF)
+    dcsh (Dcsh): Dc shorthand ASCII list
+    dctext (DcText): DcText
+    dctf (DcTf): DcTF (Dc Transformation Format)
+    dcts (Dcts): DcText short
+    dcutf (DcUtf): DcUtf
+    hex_dce (DceHex): DCE (hex-encoded)
+    legacy_cdce (CdceLegacy): CDCE (legacy)
+    sems, selq (Sems): SEMS (short Dcs)
+    utf8_dc64 (Utf8_Dc64): UTF-8 (Base64-encoded, ASCII Dc ID list)
+    utf8_dc64_bin (Utf8_Dc64_bin): UTF-8 (Base64-encoded, DCE 3.01a+ encoding)
+    utf8_dc64_bin_enc (Utf8_Dc64_bin_enc): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers)
+    utf8_dc64_bin_enc_hex (Utf8_Dc64_bin_enc_hex): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers; hex-encoded)
+    utf8_dc64_bin_hex (Utf8_Dc64_bin_hex): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded)
+    utf8_dc64_enc (Utf8_Dc64_enc): UTF-8 (Base64-encoded, ASCII Dc ID list; with headers)
+  Text encodings:
+    alphasmartneo (AlphaSmartNeo): AlphaSmart Neo encoding (has several variants)
+    alphasmartneolowctluamac (AlphaSmartNeoLowCtlUaMac): AlphaSmart Neo, control low bytes, Ukraine (Mac)
+    alphasmartneolowctluapc (AlphaSmartNeoLowCtlUaPc): AlphaSmart Neo, control low bytes, Ukraine (PC)
+    alphasmartneolowctlus (AlphaSmartNeoLowCtlUs): AlphaSmart Neo, control low bytes, USA
+    alphasmartneolowgruamac (AlphaSmartNeoLowGrUaMac): AlphaSmart Neo, graphical low bytes, Ukraine (Mac)
+    alphasmartneolowgruapc (AlphaSmartNeoLowGrUaPc): AlphaSmart Neo, graphical low bytes, Ukraine (PC)
+    alphasmartneolowgrus (AlphaSmartNeoLowGrUs): AlphaSmart Neo, graphical low bytes, USA
+    ascii (Ascii): ASCII
+    asciisafesubset (AsciiSafeSubset): Printable ASCII
+    cp437 (Cp437): Code page 437 (CCSID 437)
+    iso88591, latin1 (Iso88591): ISO 8859-1
+    macroman (MacRoman): MacRoman
+    utf8, txt, utf-8 (Utf8): UTF-8
+    win1252, ansi (Win1252): Windows-1252 ("ANSI")
+  Database & archive formats:
+    cscarchive (CscArchive): Collective Toolbox csc archive (default: cscarchive2)
+        cscarchive1 (CscArchive1): Collective Toolbox csc archive, version 1
+        cscarchive2 (CscArchive2): Collective Toolbox csc archive, version 2
+    cscjournal (CscJournal): Collective Toolbox csc journal
+
+Additional executable source formats (--from or by extension):
+  sr3 (f657, .sr3): StageR 3 module
+  sl3 (f656, .sl3): StageL 3 module
+  elad (f17, .elad, .emd): EITE Language in ASCII documents
+  ems (f914, .ems, .elq): EMS short-Dc sequence
+  dems (f915, .dems, .delq): Documented EMS short-Dc sequence
+  wat (.wat): WebAssembly Text Format
+
+Examples:
+  $ ctoolbox run -f hello-world.emd
+  $ ctoolbox run -f idiomatic-hello-world.ems
+  $ ctoolbox run --from dcsh "256 258 260 262 264 263 57 86 93 93 96 261 259"
+  $ ctoolbox run -f prog.sr3 --program-input "world"
 ```
 
 ### `ctoolbox short-dc`

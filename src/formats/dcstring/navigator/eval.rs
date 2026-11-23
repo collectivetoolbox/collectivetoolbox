@@ -739,8 +739,15 @@ fn eval_convert_dc_string_to_wasm(
         ctb_formats_dcdata::dc::DC_BEGIN_WASM_PROGRAM.to_u128(),
     );
     let Some(chain) = sg.resolve_active_converter_chain(src_sh, dst_sh)? else {
-        bail!(
-            "No active converter routine or chain ([Dc 302 {src_sh} ... {dst_sh}]) found in System graph snapshot"
+        if is_uncompiled_code_token(first_body, resolver) {
+            bail!(
+                "No active converter routine or chain ([Dc 302 {src_sh} ... {dst_sh}]) found in System graph snapshot"
+            );
+        }
+        return eval_historical_declarative_dc_document_to_wasm(
+            body_chars,
+            resolver,
+            shared_quota,
         );
     };
 
@@ -778,6 +785,153 @@ fn eval_convert_dc_string_to_wasm(
         &out_shorthands,
         resolver,
     )
+}
+
+fn is_uncompiled_code_token(
+    tok: DcChar,
+    resolver: &dyn SyntaxRuleResolver,
+) -> bool {
+    let gid = tok.to_u128();
+    tok.fills_role_with(DcRole::BeginModule, resolver)
+        || tok.fills_role_with(DcRole::BeginStagerModule, resolver)
+        || tok.fills_role_with(DcRole::BeginRoutineDecl, resolver)
+        || tok.fills_role_with(DcRole::BeginRoutine, resolver)
+        || tok.fills_role_with(DcRole::DeclareLet, resolver)
+        || tok.fills_role_with(DcRole::DeclareConst, resolver)
+        || tok.fills_role_with(DcRole::DeclarePub, resolver)
+        || tok.fills_role_with(DcRole::DeclareBrandType, resolver)
+        || tok.fills_role_with(DcRole::BeginPositionalStructDecl, resolver)
+        || tok.fills_role_with(DcRole::BeginNamedStructDecl, resolver)
+        || tok.fills_role_with(DcRole::BeginEnumDecl, resolver)
+        || tok.fills_role_with(DcRole::BeginCodeBlock, resolver)
+        || tok.fills_role_with(DcRole::BeginRoutineCall, resolver)
+        || resolver.matches_script(".EM Control Flow", gid)
+        || resolver.matches_script(".EM Operators", gid)
+        || resolver.matches_script(".EM Builtins", gid)
+}
+
+/// Evaluates a pre-migration historical-pin declarative/prose/`lang.say` Dc document
+/// slice (`body_chars`) under `resolver` and compiles its evaluated output stream into
+/// a static-output `Dc 1927`..`Dc 1928` Dc-WASM program.
+///
+/// Invoked strictly when `run_graph_stager_dc_2608_with_quota` returns `None` because
+/// `resolver`'s pinned System-graph snapshot predates `Dc 2608` having an active
+/// StageR 3 decomposition.
+fn eval_historical_declarative_dc_document_to_wasm(
+    body_chars: &[DcChar],
+    resolver: &dyn SyntaxRuleResolver,
+    shared_quota: Option<crate::converters::wasm::SharedWasmTaskQuota>,
+) -> Result<DcMstring> {
+    let mut doc_mstr = DcMstring::new();
+    for &tok in body_chars {
+        doc_mstr.push_char(tok);
+    }
+    let strict = DcProjectionPolicy::strict();
+    let mut nav = DcDocumentNavigator::from_mstr(&doc_mstr);
+    let evaluator: Box<dyn DcExpressionEvaluator> = match shared_quota {
+        Some(q) => Box::new(
+            SharedQuotaDcExpressionEvaluator::with_shared_task_quota(q),
+        ),
+        None => Box::new(DefaultDcExpressionEvaluator),
+    };
+
+    let mut out_chars: Vec<DcChar> = Vec::with_capacity(body_chars.len());
+    let mut doc_depth = 0usize;
+
+    loop {
+        if let Some(spliced) = nav.pop_spliced_token() {
+            out_chars.push(spliced);
+            continue;
+        }
+        if nav.cursor >= nav.active_span.end {
+            break;
+        }
+        let Some((ch, next_offset)) = nav.read_token_or_binary_at(nav.cursor)?
+        else {
+            break;
+        };
+        if resolver.is_splice_trigger_token(ch.to_u128())
+            && nav.splice_stream_invocation(evaluator.as_ref(), resolver, &strict)?
+        {
+            continue;
+        }
+        nav.cursor = next_offset;
+
+        if ch.fills_role_with(DcRole::Escape, resolver)
+            || ch.fills_role_with(DcRole::QuoteFollowingDcAsAtom, resolver)
+        {
+            let Some((nx, nx_after)) = nav.read_token_or_binary_at(nav.cursor)?
+            else {
+                bail!("Dangling escape token in Dc document");
+            };
+            nav.cursor = nx_after;
+            if ch.fills_role_with(DcRole::QuoteFollowingDcAsAtom, resolver)
+                && nx.fills_role_with(DcRole::Escape, resolver)
+            {
+                let Some((nx2, nx2_after)) =
+                    nav.read_token_or_binary_at(nav.cursor)?
+                else {
+                    bail!("Dangling Dc 255 after Dc 2239 in Dc document");
+                };
+                nav.cursor = nx2_after;
+                out_chars.push(nx2);
+            } else {
+                out_chars.push(nx);
+            }
+            continue;
+        }
+
+        if ch.fills_role_with(DcRole::BeginDocument, resolver) {
+            doc_depth = doc_depth.saturating_add(1);
+            continue;
+        }
+        if ch.fills_role_with(DcRole::EndDocument, resolver) {
+            ensure!(
+                doc_depth > 0,
+                "Unexpected Dc 236 (End document) without matching Dc 235"
+            );
+            doc_depth = doc_depth.saturating_sub(1);
+            continue;
+        }
+
+        out_chars.push(ch);
+    }
+
+    ensure!(
+        doc_depth == 0,
+        "Unclosed Dc 235 (Begin document) container in Dc document"
+    );
+
+    build_static_output_dc_wasm_program(&out_chars, resolver)
+}
+
+fn build_static_output_dc_wasm_program(
+    out_chars: &[DcChar],
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<DcMstring> {
+    use std::fmt::Write as _;
+
+    if out_chars.is_empty() {
+        return crate::converters::wat::wat_to_dcmstring_with_resolver(
+            "(module (func (export \"step\") (result i32) (i32.const 0)))",
+            resolver,
+        );
+    }
+
+    let mut out_mstr = DcMstring::new();
+    for &ch in out_chars {
+        out_mstr.push_char(ch);
+    }
+    let out_bytes = out_mstr.as_bytes();
+    let out_len = out_bytes.len();
+    let mut escaped_wat_bytes = String::with_capacity(out_bytes.len().saturating_mul(3));
+    for &b in out_bytes {
+        let _ = write!(escaped_wat_bytes, "\\{b:02x}");
+    }
+    let wat_src = format!(
+        "(module (memory 1) (data (i32.const 32) \"{escaped_wat_bytes}\") (func (export \"step\") (result i32) (i32.store (i32.const 8) (i32.const 32)) (i32.store (i32.const 12) (i32.const {out_len})) (i32.const 0)))"
+    );
+    crate::converters::wat::wat_to_dcmstring_with_resolver(&wat_src, resolver)
 }
 
 /// Applies a System-graph `.Formats:transformation` converter (`format_id`, such as
