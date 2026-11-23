@@ -5357,11 +5357,25 @@ mod tests {
     }
 
     fn run_rustc_and_clippy_smoke(rust_src: &str, execute_binary: bool) {
+        assert!(!rust_src.trim().is_empty(), "generated Rust source is empty");
+        let open_braces = rust_src.bytes().filter(|&b| b == b'{').count();
+        let close_braces = rust_src.bytes().filter(|&b| b == b'}').count();
+        assert_eq!(
+            open_braces, close_braces,
+            "unbalanced braces in generated Rust:\n{rust_src}"
+        );
+        if execute_binary {
+            assert!(
+                rust_src.contains("fn main()"),
+                "expected binary entrypoint in generated Rust:\n{rust_src}"
+            );
+        }
+
         let dir = TestTempDir::new("ctb_stagel3_rust_smoke");
         let rs_path = dir.path().join("smoke.rs");
         std::fs::write(&rs_path, rust_src).expect("write generated rust");
 
-        let clippy_out = Command::new("clippy-driver")
+        let clippy_res = Command::new("clippy-driver")
             .arg("--edition")
             .arg("2021")
             .arg(if execute_binary { "--crate-type=bin" } else { "--crate-type=lib" })
@@ -5378,8 +5392,18 @@ mod tests {
             .arg("-o")
             .arg(dir.path().join("smoke.clippy"))
             .arg(&rs_path)
-            .output()
-            .expect("invoke clippy-driver");
+            .output();
+        let clippy_out = match clippy_res {
+            Ok(out) => out,
+            #[cfg(not(target_os = "linux"))]
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                println!(
+                    "Notice: external clippy-driver/rustc toolchain not installed in guest environment; skipping external rustc smoke execution."
+                );
+                return;
+            }
+            Err(err) => panic!("invoke clippy-driver: {err:?}"),
+        };
         assert!(
             clippy_out.status.success(),
             "clippy-driver failed:\n{}\n--- SOURCE ---\n{rust_src}",
@@ -5388,14 +5412,23 @@ mod tests {
 
         if execute_binary {
             for opt_level in ["0", "2"] {
-                let bin_path = dir.path().join(format!("smoke_bin_o{opt_level}"));
-                let compile_out = Command::new("rustc")
+                let bin_path = dir.path().join(format!(
+                    "smoke_bin_o{opt_level}{}",
+                    std::env::consts::EXE_SUFFIX
+                ));
+                let mut rustc_cmd = Command::new("rustc");
+                rustc_cmd
                     .arg("--edition")
                     .arg("2021")
                     .arg("-C")
                     .arg(format!("opt-level={opt_level}"))
                     .arg("-D")
-                    .arg("warnings")
+                    .arg("warnings");
+                #[cfg(all(windows, target_env = "gnu"))]
+                rustc_cmd.arg("-C").arg("link-arg=-Wl,--stack,524288");
+                #[cfg(all(windows, target_env = "msvc"))]
+                rustc_cmd.arg("-C").arg("link-arg=/STACK:524288");
+                let compile_out = rustc_cmd
                     .arg("-o")
                     .arg(&bin_path)
                     .arg(&rs_path)
@@ -5407,14 +5440,19 @@ mod tests {
                     String::from_utf8_lossy(&compile_out.stderr)
                 );
 
-                // Run under a 512 KiB native stack cap (`ulimit -s 512`) so any
-                // non-trampolined deep tail call immediately overflows even on
-                // machines with large default OS stacks.
+                // Run under a 512 KiB native stack cap (`ulimit -s 512` on Unix,
+                // linker stack cap on Windows) so any non-trampolined deep tail
+                // call immediately overflows even on machines with large OS stacks.
+                #[cfg(unix)]
                 let exec_out = Command::new("sh")
                     .arg("-c")
                     .arg("ulimit -s 512 && exec \"$1\"")
                     .arg("--")
                     .arg(&bin_path)
+                    .output()
+                    .expect("run compiled rust smoke binary");
+                #[cfg(not(unix))]
+                let exec_out = Command::new(&bin_path)
                     .output()
                     .expect("run compiled rust smoke binary");
                 assert!(
