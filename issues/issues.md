@@ -122,15 +122,6 @@ The glass theme has broken for some reason. I haven't changed anything related t
 
 - I'd also like to make it do content-defined chunking of nodes that exceed a certain size - adding a node that contains say, >16KB? of data would slice it into sections by content (using some algorithm that is hopefully tuned to have a fairly low proportion that hit the 16KB or whatever cap - there are various algorithms for this; I think one is already used in the installer, but it's possible it's not optimal) and thus uploading a large node would actually save several smaller nodes and then one that ties them together.
 
-# Possible further performance tuning for WASM substitutes:
-
-*(Note: Inline `mem0` fast-path access on `SubstituteVm`, `opt-level = 2` in dev/test, auto-discovery of runnable System-block snapshots, and Merkle-deduplicated shared-function codegen across snapshots are now implemented in `src/formats/wasm_substitute_rt/vm.rs` and `src/formats/dcstring/converters/wasm_to_rust.rs`.)*
-
-1. **`#[inline(never)]` threshold on medium helpers ([wasm_to_rust.rs](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm_to_rust.rs#L48)):**
-   `INLINE_NEVER_BYTECODE_THRESHOLD` is currently `128` WASM bytes to keep compile times fast. In release builds (`opt-level = 3`), `#[inline(never)]` still prevents LLVM from inlining helpers larger than `128` WASM bytes inside tight loops; if profiling shows hot medium helpers, consider raising the threshold or restricting `#[inline(never)]` to `tail_dispatch_*` and genuinely large functions.
-2. **Per-checkpoint `deduct` struct traffic ([vm.rs](file:///workspaces/ctoolbox/src/formats/wasm_substitute_rt/vm.rs#L559-L574)):**
-   `self.vm.deduct(host, 1)` reads/writes three `u64` fields (`op_ordinal`, `quota_remaining`, `quota_consumed`) through `&mut self.vm` on every loop/call/stride checkpoint, and checks `op_ordinal < resume_target_op`. Still vastly faster than `tinywasm`, and likely secondary to memory-access overhead, so only worth tuning (while preserving deterministic V2 checkpoint-ordinal metering) if profiling shows it's hot.
-
 # Add elif?
 
 What do you think of adding `elif` to StageR 3? It was included in the original StageL:
@@ -206,6 +197,15 @@ if gt /i u64:0
 
 or something like that. Does that seem like a good idea?
 
+# Possible further performance tuning for WASM substitutes:
+
+*(Note: Inline `mem0` fast-path access on `SubstituteVm`, `opt-level = 2` in dev/test, auto-discovery of runnable System-block snapshots, and Merkle-deduplicated shared-function codegen across snapshots are now implemented in `src/formats/wasm_substitute_rt/vm.rs` and `src/formats/dcstring/converters/wasm_to_rust.rs`.)*
+
+1. **`#[inline(never)]` threshold on medium helpers ([wasm_to_rust.rs](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm_to_rust.rs#L48)):**
+   `INLINE_NEVER_BYTECODE_THRESHOLD` is currently `128` WASM bytes to keep compile times fast. In release builds (`opt-level = 3`), `#[inline(never)]` still prevents LLVM from inlining helpers larger than `128` WASM bytes inside tight loops; if profiling shows hot medium helpers, consider raising the threshold or restricting `#[inline(never)]` to `tail_dispatch_*` and genuinely large functions.
+2. **Per-checkpoint `deduct` struct traffic ([vm.rs](file:///workspaces/ctoolbox/src/formats/wasm_substitute_rt/vm.rs#L559-L574)):**
+   `self.vm.deduct(host, 1)` reads/writes three `u64` fields (`op_ordinal`, `quota_remaining`, `quota_consumed`) through `&mut self.vm` on every loop/call/stride checkpoint, and checks `op_ordinal < resume_target_op`. Still vastly faster than `tinywasm`, and likely secondary to memory-access overhead, so only worth tuning (while preserving deterministic V2 checkpoint-ordinal metering) if profiling shows it's hot.
+
 # Output caching
 
 Proposal: temporarily instrument all Dc routine invocations (maybe some special runner so it can be updated periodically?). Run some sample documents, etc, recording function call counts, parameter values, execution times, and return values. Create a bundle of the most frequently occurring and most expensive calls and their return values, and ship that with the application.
@@ -218,5 +218,5 @@ Proposal: temporarily instrument all Dc routine invocations (maybe some special 
 # Runtime and renderer architecture
 
 - This needs to be moved into StageR code. Rendering logic also needs some work - most notably it relies on semantic-to-text transformation *in* the renderer, instead of constructing the UI in the runtime and then rendering that. It should reject Dcs in frames coming out of the runtime that are not actually drawable objects - at the moment, that means graphical characters and relevant control sequences, and later, drawing primitives, etc for GUI.
-- It should be refactored to organize the code. Currently, impls/std has "teletype.sr3" (which also happens to include an implementation of semanticToText transformation according to the docblock) and "convert_dc_string_to_wasm.sr3". It should use a neat structure, probably something like: impls/std/formats/transformations/dc_to_wasm.em3, impls/std/formats/transformations/semantic_to_text.em3, impls/std/formats/encoding/{unicode,ascii,etc}/from_dcs.em3, impls/std/formats/terminal/teletype.em3, impls/std/runtime/runtime.em3 (runs the document and emits frames in Dc-document format - applying any needed transformations for display like semanticToText - though running semanticToText unconditionally over the entire document does not seem right - in a viewer, for instance, unless a document is *only* consisting of semantic statements, I'd expect the semantic statements to be in an "inspector" or "document properties" type of window, like in LibreOffice or iWork, rather than output as if they're part of the document), impls/std/renderer/renderer.em3 (renders frames to output format - teletype, videoterminal, raster, Web, etc - this is where validation that they're actually rendered documents would live).
+- It should be refactored to organize the code. Currently, impls/std has "teletype.sr3" (which also happens to include an implementation of semanticToText transformation according to the docblock) and "convert_dc_string_to_wasm.sr3". It should use a neat structure, probably something like: impls/std/formats/transformations/dc_to_wasm.em3, impls/std/formats/transformations/semantic_to_text.em3, impls/std/formats/encoding/{unicode,ascii,etc}/from_dcs.em3, impls/std/formats/terminal/teletype.em3, impls/std/runtime/runtime.em3 (runs the document and emits frames in Dc-document format - applying any needed transformations for display like semanticToText - though running semanticToText unconditionally over the entire document does not seem right - in a viewer, for instance, unless a document is *only* consisting of semantic statements, I'd expect the semantic statements to be in an "inspector" or "document properties" type of window, like in LibreOffice or iWork, rather than output as if they're part of the document), impls/std/renderer/renderer.em3 (renders frames to output format - teletype, videoterminal, raster, Web, VR, etc - this is where validation that they're actually rendered documents would live. This would I imagine call out to document transformations to reduce dimensionality, like flattening 3D or higher-dimensional coordinates to 2D for display on screen).
 - convert_dc_string_to_wasm.sr3 should be smaller. It should be implemented as document transformations: Dc string -> StageR 3 (which I assume is most of what's in there now), StageR 3 -> StageL 3, StageL 3 -> WASM. In other words, I'd expect its implementation to be basically just a few lines, and the bulk of it to be in impls/std/formats/transformations/.
