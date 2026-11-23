@@ -501,14 +501,14 @@ v/l/u8/step l/u8/input
         )
         .context("subcase B (captures & mutual tail recursion)")?;
 
-        // Subcase C: local struct + buf/struct + inline anonymous routine + dc/599 tail recursion
+        // Subcase C: local struct + buf/struct + local nested routine + rec / dc/2242 tail recursion
         let loc_struct_src = r#"
 struct locPt :: u8 i32 i64.
 struct bufBox :: buf/i32 u32.
 v/u64/topSelfTail u64/rem u64/acc
     if eq /rem u64:0
         /acc
-        dc/599 sub /rem u64:1 add /acc u64:1.
+        rec sub /rem u64:1 add /acc u64:1.
 v/l/u8/step l/u8/input
     do
         let bufBox/bb structNew bufBox: bufNew i32 u64:2 u32:7 ::.
@@ -518,14 +518,14 @@ v/l/u8/step l/u8/input
         let l/locPt/pts bufFreeze /pb.
         if ne get /pts u64:0 structNew locPt: u8:1 i32:2 i64:3 :: fault nop.
         let u64/capTicks u64:0.
-        const u64/inlineTail v/u64 u64/rem u64/acc ::
+        const v/u64/localTail u64/rem u64/acc
             if eq /rem u64:0
                 /acc
                 do
                     set /capTicks add /capTicks u64:1.
-                    dc/599 sub /rem u64:1 add /acc u64:2.
-                ::
-        :: u64:20000 u64:0.
+                    dc/2242 sub /rem u64:1 add /acc u64:2.
+                ::.
+        const u64/inlineTail localTail u64:20000 u64:0.
         if ne /inlineTail u64:40000 fault nop.
         if ne /capTicks u64:20000 fault nop.
         if ne topSelfTail u64:10000 u64:5 u64:10005 fault nop.

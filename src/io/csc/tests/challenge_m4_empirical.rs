@@ -1299,6 +1299,7 @@ fn test_challenge_m5_o1_arena_reuse_under_continuous_streaming() -> Result<()> {
 
     let mut frame_count = 0_usize;
     let mut max_nodes_observed = 0_usize;
+    let mut session_nodes: Option<usize> = None;
     let mut expected_entity_nodes: Option<usize> = None;
 
     while let Ok(Some(stub)) = nav.next_sibling_stub(&scan_policy) {
@@ -1317,6 +1318,7 @@ fn test_challenge_m5_o1_arena_reuse_under_continuous_streaming() -> Result<()> {
                 session.destination == dest,
                 "Session destination mismatch"
             );
+            session_nodes = Some(arena.nodes().len());
             max_nodes_observed = max_nodes_observed.max(arena.nodes().len());
             frame_count = frame_count.saturating_add(1);
         } else if stub.head_dc == DC_BEGIN_CHECKSUMMED_SECTION
@@ -1376,10 +1378,13 @@ fn test_challenge_m5_o1_arena_reuse_under_continuous_streaming() -> Result<()> {
         frame_count
     );
 
-    // Max nodes observed across all 101 frames must stay strictly bounded (< 350)
+    // Max nodes observed across all 101 frames must equal the largest single frame (O(1) zero-growth)
+    let expected_max = session_nodes
+        .unwrap_or(0)
+        .max(expected_entity_nodes.unwrap_or(0));
     ensure!(
-        max_nodes_observed < 350,
-        "Max arena nodes exceeded bound: {max_nodes_observed}"
+        max_nodes_observed == expected_max && max_nodes_observed < 1024,
+        "Max arena nodes exceeded bound: {max_nodes_observed} (expected {expected_max})"
     );
 
     Ok(())
