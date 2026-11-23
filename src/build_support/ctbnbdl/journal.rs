@@ -634,6 +634,11 @@ pub fn sha256_file_hex(path: &Path) -> Result<String> {
 
 /// Invokes `sync_all()` on a file path.
 pub fn fsync_file(path: &Path) -> Result<()> {
+    #[cfg(windows)]
+    let f = OpenOptions::new().write(true).open(path).with_context(|| {
+        format!("Failed to open {} for fsync", path.display())
+    })?;
+    #[cfg(not(windows))]
     let f = File::open(path).with_context(|| {
         format!("Failed to open {} for fsync", path.display())
     })?;
@@ -641,16 +646,25 @@ pub fn fsync_file(path: &Path) -> Result<()> {
         .with_context(|| format!("Failed to fsync {}", path.display()))
 }
 
-/// Invokes `sync_all()` on a directory path.
+/// Invokes `sync_all()` on a directory path on Unix platforms.
+///
+/// Windows `FlushFileBuffers` does not support directory handles
+/// (`ERROR_ACCESS_DENIED`); file and MFT entry durability on Windows is
+/// flushed via `fsync_file`.
 pub fn fsync_dir(dir: &Path) -> Result<()> {
     if !dir.is_dir() {
         return Ok(());
     }
-    let f = File::open(dir).with_context(|| {
-        format!("Failed to open directory {} for fsync", dir.display())
-    })?;
-    f.sync_all()
-        .with_context(|| format!("Failed to fsync directory {}", dir.display()))
+    #[cfg(unix)]
+    {
+        let f = File::open(dir).with_context(|| {
+            format!("Failed to open directory {} for fsync", dir.display())
+        })?;
+        f.sync_all().with_context(|| {
+            format!("Failed to fsync directory {}", dir.display())
+        })?;
+    }
+    Ok(())
 }
 
 /// Returns the `.ctbnodes` chunk filename (`85899_34592.ctbnodes`, ...) that owns `node_id`.
