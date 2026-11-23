@@ -224,6 +224,10 @@ pub trait SyntaxRuleResolver {
     }
     /// Checks whether a character token belongs to a designated script.
     fn matches_script(&self, script_name: &str, token: u128) -> bool;
+    /// Fast filter returning false when `token` is known not to belong to any script.
+    fn may_match_any_script(&self, _token: u128) -> bool {
+        true
+    }
     /// Checks whether a designated script name exists in the dataset.
     fn has_script(&self, _script_name: &str) -> bool {
         false
@@ -436,23 +440,30 @@ pub trait SyntaxRuleResolver {
         {
             return true;
         }
-        let is_format =
+        let is_format = || -> bool {
             (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
                 ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
                 .contains(&tok)
-                || self.matches_script("Formats", tok);
+                || self.matches_script("Formats", tok)
+        };
         let matches_format_sub =
             |sub: &str, pre_fmt: Option<FormatId>| -> bool {
-                let script_name = format!("Formats:{sub}");
-                self.matches_script(&script_name, tok)
-                    || self.matches_script(sub, tok)
-                    || pre_fmt
-                        .or_else(|| {
-                            FormatId::from_shorthand(sub)
-                                .or_else(|| FormatId::from_ident(sub))
-                        })
-                        .and_then(|f| f.dc_id())
-                        .is_some_and(|exp| self.is_subtype_of(tok, exp))
+                if self.may_match_any_script(tok) {
+                    if self.matches_script(sub, tok) {
+                        return true;
+                    }
+                    let script_name = format!("Formats:{sub}");
+                    if self.matches_script(&script_name, tok) {
+                        return true;
+                    }
+                }
+                pre_fmt
+                    .or_else(|| {
+                        FormatId::from_shorthand(sub)
+                            .or_else(|| FormatId::from_ident(sub))
+                    })
+                    .and_then(|f| f.dc_id())
+                    .is_some_and(|exp| self.is_subtype_of(tok, exp))
             };
         match req_name {
             "script" => req_subtype
@@ -522,7 +533,7 @@ pub trait SyntaxRuleResolver {
                             } else if format.is_some() {
                                 false
                             } else {
-                                is_format
+                                is_format()
                             }
                         }
                         SubtypeConstraint::Target(s) => {
@@ -531,14 +542,12 @@ pub trait SyntaxRuleResolver {
                         _ => false,
                     }
                 } else {
-                    is_format
+                    is_format()
                 }
             }
             "type" => {
-                let is_type = self.token_fills_role(tok, DcRole::TypeToken)
-                    || is_format
-                    || self.matches_script(".EM Types", tok)
-                    || self.matches_script(".EL Types", tok);
+                let is_type =
+                    self.token_fills_role(tok, DcRole::TypeToken) || is_format();
                 is_type
                     && req_subtype.is_none_or(|sub| {
                         sub.as_target_str().is_some_and(|s| {
@@ -547,7 +556,7 @@ pub trait SyntaxRuleResolver {
                     })
             }
             "format" => {
-                is_format
+                is_format()
                     && req_subtype.is_none_or(|sub| {
                         sub.as_target_str().is_some_and(|s| {
                             matches_format_sub(s, sub.resolved_format_id())
@@ -1003,6 +1012,8 @@ pub struct DatasetRuleResolver {
     pub(crate) rules: HashMap<CharTarget, DcSyntaxRule>,
     pub(crate) named_types: HashMap<String, SyntaxPattern>,
     pub(crate) script_chars: HashMap<String, HashSet<u128>>,
+    pub(crate) all_script_tokens: HashSet<u128>,
+    pub(crate) script_query_index: HashMap<String, HashSet<u128>>,
     pub(crate) closing_delimiters: HashMap<u128, CharTarget>,
     pub(crate) opener_to_closer: HashMap<CharTarget, u128>,
     pub(crate) deprecated_targets: HashMap<CharTarget, Option<CharTarget>>,
@@ -1219,7 +1230,67 @@ impl DatasetRuleResolver {
 
     /// Registers a character token under a script name.
     pub fn add_script_char(&mut self, script: String, token: u128) {
+        self.all_script_tokens.insert(token);
+        self.script_query_index.clear();
         self.script_chars.entry(script).or_default().insert(token);
+    }
+
+    pub(crate) fn rebuild_script_index(&mut self) {
+        self.all_script_tokens.clear();
+        self.script_query_index.clear();
+        if self.script_chars.is_empty() {
+            return;
+        }
+        let mut candidate_queries = HashSet::new();
+        for (name, set) in &self.script_chars {
+            self.all_script_tokens.extend(set.iter().copied());
+            candidate_queries.insert(name.clone());
+            let clean = name.trim_start_matches('.');
+            if !clean.is_empty() {
+                candidate_queries.insert(clean.to_owned());
+                candidate_queries.insert(format!(".{clean}"));
+            }
+            if let Some(last_seg) = clean.split(':').next_back()
+                && !last_seg.is_empty()
+            {
+                candidate_queries.insert(last_seg.to_owned());
+                candidate_queries.insert(format!("Formats:{last_seg}"));
+                candidate_queries.insert(format!(".Formats:{last_seg}"));
+            }
+            for (byte_idx, ch) in clean.char_indices() {
+                if ch == ':'
+                    && let Some(prefix) = clean.get(..byte_idx)
+                    && !prefix.is_empty()
+                {
+                    candidate_queries.insert(prefix.to_owned());
+                    candidate_queries.insert(format!(".{prefix}"));
+                }
+            }
+            if let Some(rest) = strip_em_or_el(clean) {
+                for base in ["EM", ".EM", "EL", ".EL"] {
+                    candidate_queries.insert(base.to_owned());
+                }
+                if !rest.is_empty() {
+                    candidate_queries.insert(format!("EM {rest}"));
+                    candidate_queries.insert(format!(".EM {rest}"));
+                    candidate_queries.insert(format!("EL {rest}"));
+                    candidate_queries.insert(format!(".EL {rest}"));
+                }
+            }
+        }
+        for query in candidate_queries {
+            let mut union_set = HashSet::new();
+            let mut any_name_matched = false;
+            for (name, set) in &self.script_chars {
+                if script_name_matches_query(name, &query) {
+                    any_name_matched = true;
+                    union_set.extend(set.iter().copied());
+                }
+            }
+            if any_name_matched {
+                self.script_query_index.insert(query, union_set);
+            }
+        }
     }
 
     /// Registers a delimiter token as closing an opener target.
@@ -1510,6 +1581,7 @@ impl DatasetRuleResolver {
     /// Rebuilds the cached framing-shape and special-wrapper lookup tables
     /// from the currently registered rules, delimiters, and equivalences.
     pub fn rebuild_framing_and_wrapper_tables(&mut self) {
+        self.rebuild_script_index();
         self.framing_shapes.clear();
         self.special_wrapper_tokens.clear();
         self.splice_trigger_tokens.clear();
@@ -1596,8 +1668,17 @@ impl DatasetRuleResolver {
         }
 
         // 4. Populate graph-derived `type_tokens` and `evaluable_expression_starters`
-        for script_name in [".EM Types", ".EL Types", ".Semantic:Ontological"] {
-            if let Some(tokens) = self.script_chars.get(script_name) {
+        for script_name in [
+            "Formats",
+            ".EM Types",
+            ".EL Types",
+            ".Semantic:Ontological",
+        ] {
+            if let Some(tokens) = self
+                .script_query_index
+                .get(script_name)
+                .or_else(|| self.script_chars.get(script_name))
+            {
                 self.type_tokens.extend(tokens.iter().copied());
             }
         }
@@ -1644,9 +1725,24 @@ impl DatasetRuleResolver {
             ".EL Routines",
             ".EL Builtins",
         ] {
-            if let Some(tokens) = self.script_chars.get(script) {
+            if let Some(tokens) = self
+                .script_query_index
+                .get(script)
+                .or_else(|| self.script_chars.get(script))
+            {
                 self.evaluable_expression_starters
                     .extend(tokens.iter().copied());
+            }
+        }
+        for starters in self.named_type_starters.values_mut() {
+            for script in &starters.scripts {
+                if let Some(tokens) = self
+                    .script_query_index
+                    .get(script.as_str())
+                    .or_else(|| self.script_chars.get(script.as_str()))
+                {
+                    starters.exact_tokens.extend(tokens.iter().copied());
+                }
             }
         }
         if let Some(SyntaxPattern::Alternation(branches)) =
@@ -2156,6 +2252,12 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
     }
 
     fn matches_script(&self, script_name: &str, token: u128) -> bool {
+        if !self.all_script_tokens.contains(&token) {
+            return false;
+        }
+        if let Some(set) = self.script_query_index.get(script_name) {
+            return set.contains(&token);
+        }
         if self
             .script_chars
             .get(script_name)
@@ -2168,8 +2270,13 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         })
     }
 
+    fn may_match_any_script(&self, token: u128) -> bool {
+        self.all_script_tokens.contains(&token)
+    }
+
     fn has_script(&self, script_name: &str) -> bool {
-        self.script_chars.contains_key(script_name)
+        self.script_query_index.contains_key(script_name)
+            || self.script_chars.contains_key(script_name)
             || self
                 .script_chars
                 .keys()
@@ -2189,6 +2296,9 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
             .any(|&(s, e)| (s..=e).contains(&token))
         {
             return true;
+        }
+        if !self.all_script_tokens.contains(&token) {
+            return false;
         }
         starters
             .scripts
@@ -2322,11 +2432,17 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
 
     fn token_fills_role(&self, token: u128, role: DcRole) -> bool {
         if role == DcRole::TypeToken && !self.type_tokens.is_empty() {
-            return (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
+            if (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
                 ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
                 .contains(&token)
                 || self.type_tokens.contains(&token)
-                || self.matches_script("Formats", token)
+            {
+                return true;
+            }
+            if !self.script_query_index.is_empty() {
+                return role.matches_canonical(self.canonical_token(token));
+            }
+            return self.matches_script("Formats", token)
                 || self.matches_script(".EM Types", token)
                 || self.matches_script(".EL Types", token)
                 || self.matches_script(".Semantic:Ontological", token)
@@ -2335,8 +2451,14 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         if role == DcRole::EvaluableExpressionStarter
             && !self.evaluable_expression_starters.is_empty()
         {
-            return self.evaluable_expression_starters.contains(&token)
-                || self.matches_script(".EM Routines", token)
+            if self.evaluable_expression_starters.contains(&token) {
+                return true;
+            }
+            if !self.script_query_index.is_empty() {
+                return self.is_splice_trigger_token(token)
+                    || role.matches_canonical(self.canonical_token(token));
+            }
+            return self.matches_script(".EM Routines", token)
                 || self.matches_script(".EM Builtins", token)
                 || self.matches_script(".EL Routines", token)
                 || self.matches_script(".EL Builtins", token)
@@ -2935,6 +3057,62 @@ mod tests {
         parse_dc_syntax(":(260){1..3").unwrap_err();
         for bounds in ["2", "0..3", "..3", "1..", "..", ",3", "1,", ","] {
             parse_dc_syntax(&format!(":(260){{{bounds}}}"))?;
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_script_query_index_matches_linear_scan_across_all_queries()
+    -> Result<()> {
+        let resolver = DatasetRuleResolver::load_from_seed_graph()?;
+        assert!(!resolver.script_query_index.is_empty());
+        assert!(!resolver.all_script_tokens.is_empty());
+
+        let queries = [
+            "Formats",
+            ".Formats",
+            "Formats:document",
+            ".Formats:document",
+            "Formats:number",
+            "number",
+            "document",
+            ".EM Types",
+            ".EL Types",
+            "EM Types",
+            "EL Types",
+            ".EM Routines",
+            ".EL Routines",
+            ".EM Builtins",
+            ".EL Builtins",
+            ".Semantic:Ontological",
+            "Ontological",
+            ".Styling",
+            "nonexistent_script_xyz",
+        ];
+        let mut sample_tokens: Vec<u128> =
+            resolver.all_script_tokens.iter().copied().take(64).collect();
+        sample_tokens.extend([0, 65, 97, 1_114_112, 2_228_224, u128::MAX]);
+
+        for query in queries {
+            let expected_has = resolver
+                .script_chars
+                .keys()
+                .any(|name| script_name_matches_query(name, query));
+            assert_eq!(
+                resolver.has_script(query),
+                expected_has,
+                "has_script mismatch for {query:?}"
+            );
+            for &tok in &sample_tokens {
+                let expected = resolver.script_chars.iter().any(|(name, set)| {
+                    script_name_matches_query(name, query) && set.contains(&tok)
+                });
+                assert_eq!(
+                    resolver.matches_script(query, tok),
+                    expected,
+                    "matches_script mismatch for ({query:?}, {tok})"
+                );
+            }
         }
         Ok(())
     }

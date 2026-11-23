@@ -58,7 +58,8 @@ hyperfine --parameter-scan threads 1 8 './target/release/ctoolbox process --thre
 Because `callgrind` runs in user-space dynamic binary translation, it does not require Linux PMU capabilities and works reliably inside unprivileged containers:
 
 ```bash
-# 1. Run binary under Callgrind
+# 1. Run binary under Callgrind (lower RLIMIT_NOFILE in Docker if default is 1073741804)
+ulimit -n 65536
 valgrind --tool=callgrind --callgrind-out-file=/tmp/callgrind.out \
   ./target/x86_64-unknown-linux-musl/release/ctoolbox <args>
 

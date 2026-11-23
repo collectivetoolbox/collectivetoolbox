@@ -228,7 +228,9 @@ export PATH="$HOME/.cargo/bin:$PATH"
 # Ensure cargo-deny uses sparse protocol for crates.io to check for yanked crates
 export CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 
-# Reduce size of test artifacts in CI by stripping full debuginfo from tests
+# Reduce size of dev and test artifacts in CI while keeping profile flags
+# identical so `cargo test` reuses `.rlib` and `build-std` artifacts from `cargo build`.
+export CARGO_PROFILE_DEV_DEBUG="line-tables-only"
 export CARGO_PROFILE_TEST_DEBUG="line-tables-only"
 
 # Suppress all compiler and doc warnings in CI
@@ -367,7 +369,7 @@ if [[ "$ci_stage" == "prep" ]]; then
     echo "Regenerating CLI command documentation..."
     cargo test --offline --target x86_64-unknown-linux-musl -p ctb-cli --lib -- test_all_cli_commands_help_and_generate_docs
 elif [[ "$ci_stage" == "platform" ]]; then
-    ./build --release --offline --no-lints --no-docs --no-js-tests --clean-targets "$ci_platform"
+    ./build --release --offline --skip-codegen --no-lints --no-docs --no-js-tests --clean-targets "$ci_platform"
 else
     ./build --release --offline --clean-targets all
 fi

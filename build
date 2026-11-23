@@ -87,6 +87,7 @@ offline=""
 clean_targets=""
 clean_generated="false"
 prep_only="false"
+skip_codegen="false"
 
 supported_platforms=(
     "linux-x86"
@@ -306,6 +307,9 @@ while [[ $# -gt 0 ]]; do
         --prep-only)
             prep_only="true"
             ;;
+        --skip-codegen)
+            skip_codegen="true"
+            ;;
         --platforms|--list-platforms|list-platforms|platforms)
             list_platforms
             exit 0
@@ -422,11 +426,18 @@ fi
 
 if [[ ! -f "built/ctoolbox.rsrc" ]]; then
     echo "Preparing runtime asset bundle..."
-    cargo run ${offline} --quiet --manifest-path src/build_support/Cargo.toml --bin refresh-asset-bundle -- .
+    asset_bundle_profile=()
+    if [[ "$release" == "release" ]]; then
+        asset_bundle_profile=(--release)
+    fi
+    cargo run ${offline} "${asset_bundle_profile[@]}" --quiet --manifest-path src/build_support/Cargo.toml --bin refresh-asset-bundle -- .
 fi
 
-./scripts/update-workspace-depgraph ${offline} || exit 1
-./scripts/generate-wasm-substitutes ${offline} || exit 1
+if [[ "$skip_codegen" != "true" ]]; then
+    ./scripts/update-workspace-depgraph ${offline} || exit 1
+    ./scripts/generate-wasm-substitutes ${offline} || exit 1
+    export CTB_CODEGEN_ALREADY_CHECKED=1
+fi
 
 if [[ "$build_docs" == "true" ]]; then
     echo "Building documentation..."
@@ -464,7 +475,11 @@ fi
 
 if [[ "$js_test" == "true" ]]; then
     echo "=== Running JavaScript tests ==="
-    cargo run $offline -p ctb-formats-javascript --bin js-test -- assets/web/js/tests || exit 1
+    js_test_profile=()
+    if [[ "$release" == "release" ]]; then
+        js_test_profile=(--release)
+    fi
+    cargo run $offline "${js_test_profile[@]}" -p ctb-formats-javascript --bin js-test -- assets/web/js/tests || exit 1
 fi
 
 if [[ "$prep_only" == "true" ]]; then

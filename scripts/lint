@@ -83,8 +83,10 @@ if [[ ! -f "built/ctoolbox.rsrc" ]]; then
     cargo run ${offline} --quiet --manifest-path src/build_support/Cargo.toml --bin refresh-asset-bundle -- . || exit 1
 fi
 
-echo "=== Ensuring native WASM substitutes are up to date ==="
-./scripts/generate-wasm-substitutes ${offline} || exit 1
+if [[ -z "${CTB_CODEGEN_ALREADY_CHECKED:-}" ]]; then
+    echo "=== Ensuring native WASM substitutes are up to date ==="
+    ./scripts/generate-wasm-substitutes ${offline} || exit 1
+fi
 
 quick_flag=""
 if [[ -n "$quick" ]]; then
@@ -96,7 +98,9 @@ if [[ -n "$quick" ]]; then
     export CTB_SKIP_DOCS=1
 fi
 
-./scripts/update-workspace-depgraph ${offline} || exit 1
+if [[ -z "${CTB_CODEGEN_ALREADY_CHECKED:-}" ]]; then
+    ./scripts/update-workspace-depgraph ${offline} || exit 1
+fi
 
 if [[ -z "${CTB_SKIP_DOCS:-}" ]]; then
     # Documentation needs to exist to build linter (it's fine if it's not up to date, but does need to be there).
