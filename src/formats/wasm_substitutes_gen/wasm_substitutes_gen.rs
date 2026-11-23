@@ -305,6 +305,10 @@ fn compile_or_load_cached_snapshot_wasm(
     snap: &GraphWasmSubstituteSnapshot,
     compiler_digest: &[u8; 32],
     cache_dir: Option<&Path>,
+    resolver_cache: &mut BTreeMap<
+        u128,
+        Option<std::sync::Arc<ctb_formats_dcdata::syntax::DatasetRuleResolver>>,
+    >,
 ) -> Result<Option<Vec<u8>>> {
     let cache_path = cache_dir.map(|dir| {
         let key_hex = hash_snapshot_wasm_cache_key(compiler_digest, snap);
@@ -321,7 +325,12 @@ fn compile_or_load_cached_snapshot_wasm(
         }
     }
 
-    let compiled = compile_graph_substitute_snapshot_wasm_bytes(ordered_nodes, snap)?;
+    let compiled =
+        ctb_formats_dcstring::converters::wasm::compile_graph_substitute_snapshot_wasm_bytes_with_cache(
+            ordered_nodes,
+            snap,
+            resolver_cache,
+        )?;
 
     if let Some(ref path) = cache_path {
         if let Some(parent) = path.parent() {
@@ -403,12 +412,14 @@ fn generate_substitutes_for_nodes_with_cache(
                 let base_idx = batch_idx.saturating_mul(chunk_size);
                 handles.push(scope.spawn(move || {
                     let mut out = Vec::with_capacity(batch.len());
+                    let mut resolver_cache = BTreeMap::new();
                     for (offset, snap) in batch.iter().enumerate() {
                         let wasm_opt = compile_or_load_cached_snapshot_wasm(
                             ordered_ref,
                             snap,
                             compiler_ref,
                             wasm_cache_dir,
+                            &mut resolver_cache,
                         )?;
                         out.push((base_idx.saturating_add(offset), wasm_opt));
                     }

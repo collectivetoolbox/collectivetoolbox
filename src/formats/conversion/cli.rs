@@ -94,7 +94,6 @@ pub type CharacterDescriptionInputFormat = SupportedDcInputFormat;
 
 /// Execution arguments for the `character_description` CLI tool.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
-#[command(after_help = CHARACTER_DESCRIPTION_AFTER_HELP.as_str())]
 pub struct CharacterDescriptionArgs {
     /// Input text containing characters/IDs to describe. If not provided, reads from stdin or file.
     pub input: Option<String>,
@@ -301,7 +300,6 @@ where
 
 /// Execution arguments for the `convert` CLI tool.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
-#[command(after_help = CONVERT_AFTER_HELP.as_str())]
 pub struct ConvertArgs {
     /// Input data string. If not provided, reads from stdin or --file.
     pub input: Option<String>,

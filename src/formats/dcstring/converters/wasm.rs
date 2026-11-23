@@ -6970,61 +6970,101 @@ pub fn compile_graph_substitute_snapshot_wasm_bytes(
     ordered_nodes: &[ctb_formats_dcdata::graph_ledger::LedgerNode],
     snapshot: &ctb_formats_dcdata::seed_graph::GraphWasmSubstituteSnapshot,
 ) -> Result<Option<Vec<u8>>> {
+    let mut cache = std::collections::BTreeMap::new();
+    compile_graph_substitute_snapshot_wasm_bytes_with_cache(
+        ordered_nodes,
+        snapshot,
+        &mut cache,
+    )
+}
+
+/// Like [`compile_graph_substitute_snapshot_wasm_bytes`], reusing reconstructed
+/// `SeedGraphIndex` + `DatasetRuleResolver` snapshots across calls that share `pin_node_id`.
+///
+/// # Errors
+/// Returns an error if `snapshot.is_head` fails compilation or if reconstructing
+/// the base resolver fails.
+pub fn compile_graph_substitute_snapshot_wasm_bytes_with_cache(
+    ordered_nodes: &[ctb_formats_dcdata::graph_ledger::LedgerNode],
+    snapshot: &ctb_formats_dcdata::seed_graph::GraphWasmSubstituteSnapshot,
+    resolver_cache: &mut std::collections::BTreeMap<
+        u128,
+        Option<std::sync::Arc<ctb_formats_dcdata::syntax::DatasetRuleResolver>>,
+    >,
+) -> Result<Option<Vec<u8>>> {
     use ctb_formats_dcdata::seed_graph::SeedGraphIndex;
     use ctb_formats_dcdata::syntax::DatasetRuleResolver;
     use ctb_storage_minimal::global_graph_layout::{
         SYSTEM_REGION_END, SYSTEM_REGION_START,
     };
 
-    let prefix_end = ordered_nodes.partition_point(|n| n.id <= snapshot.pin_node_id);
-    let prefix = ordered_nodes
-        .get(..prefix_end)
-        .context("Snapshot pin_node_id partition_point out of bounds")?
-        .to_vec();
-    let sg = if (SYSTEM_REGION_START..=SYSTEM_REGION_END)
-        .contains(&snapshot.pin_node_id)
+    let resolver_arc = if let Some(cached) =
+        resolver_cache.get(&snapshot.pin_node_id)
     {
-        SeedGraphIndex::from_bundled_nodes_at_most_recent(
-            prefix,
-            snapshot.pin_node_id,
-        )
-    } else {
-        SeedGraphIndex::from_nodes_at_most_recent(prefix, snapshot.pin_node_id)
-    };
-    let sg_arc = std::sync::Arc::new(sg);
-    let wasm_begin_sh = ctb_storage_minimal::shorthand::DcShorthand::from_global_id(
-        ctb_formats_dcdata::dc::DC_BEGIN_WASM_PROGRAM.to_u128(),
-    );
-    let resolver_res: Result<DatasetRuleResolver> =
-        match sg_arc.decode_syntax_rule_for_subject(wasm_begin_sh) {
-            Ok(Some(_)) => {
-                DatasetRuleResolver::from_seed_graph_arc(std::sync::Arc::clone(
-                    &sg_arc,
-                ))
-            }
-            Ok(None) => {
-                let mut base = DatasetRuleResolver::load_from_seed_graph()?;
-                base.set_seed_graph(std::sync::Arc::clone(&sg_arc));
-                Ok(base)
-            }
-            Err(err) => Err(err),
-        };
-    let resolver = match resolver_res {
-        Ok(r) => r,
-        Err(err) if !snapshot.is_head => {
-            warn_fmt!(
-                "Skipping historical substitute snapshot {} at l{} ({}): resolver build failed: {err:#}",
-                snapshot.target.subject,
-                snapshot.pin_node_id,
-                snapshot.target.chunk_prefix
-            );
-            return Ok(None);
+        match cached {
+            Some(r) => std::sync::Arc::clone(r),
+            None => return Ok(None),
         }
-        Err(err) => return Err(err),
+    } else {
+        let prefix_end =
+            ordered_nodes.partition_point(|n| n.id <= snapshot.pin_node_id);
+        let prefix = ordered_nodes
+            .get(..prefix_end)
+            .context("Snapshot pin_node_id partition_point out of bounds")?
+            .to_vec();
+        let sg = if (SYSTEM_REGION_START..=SYSTEM_REGION_END)
+            .contains(&snapshot.pin_node_id)
+        {
+            SeedGraphIndex::from_bundled_nodes_at_most_recent(
+                prefix,
+                snapshot.pin_node_id,
+            )
+        } else {
+            SeedGraphIndex::from_nodes_at_most_recent(
+                prefix,
+                snapshot.pin_node_id,
+            )
+        };
+        let sg_arc = std::sync::Arc::new(sg);
+        let wasm_begin_sh =
+            ctb_storage_minimal::shorthand::DcShorthand::from_global_id(
+                ctb_formats_dcdata::dc::DC_BEGIN_WASM_PROGRAM.to_u128(),
+            );
+        let resolver_res: Result<DatasetRuleResolver> =
+            match sg_arc.decode_syntax_rule_for_subject(wasm_begin_sh) {
+                Ok(Some(_)) => DatasetRuleResolver::from_seed_graph_arc(
+                    std::sync::Arc::clone(&sg_arc),
+                ),
+                Ok(None) => {
+                    let mut base = DatasetRuleResolver::load_from_seed_graph()?;
+                    base.set_seed_graph(std::sync::Arc::clone(&sg_arc));
+                    Ok(base)
+                }
+                Err(err) => Err(err),
+            };
+        match resolver_res {
+            Ok(r) => {
+                let arc = std::sync::Arc::new(r);
+                resolver_cache
+                    .insert(snapshot.pin_node_id, Some(std::sync::Arc::clone(&arc)));
+                arc
+            }
+            Err(err) if !snapshot.is_head => {
+                warn_fmt!(
+                    "Skipping historical substitute snapshot {} at l{} ({}): resolver build failed: {err:#}",
+                    snapshot.target.subject,
+                    snapshot.pin_node_id,
+                    snapshot.target.chunk_prefix
+                );
+                resolver_cache.insert(snapshot.pin_node_id, None);
+                return Ok(None);
+            }
+            Err(err) => return Err(err),
+        }
     };
     match compile_system_substitute_target_wasm_bytes(
         &snapshot.target,
-        &resolver,
+        resolver_arc.as_ref(),
     ) {
         Ok(bytes) => Ok(Some(bytes)),
         Err(err) if !snapshot.is_head => {

@@ -165,8 +165,21 @@ pub fn parse_invocation(args: Option<Vec<String>>) -> Result<Invocation> {
         return Ok(Invocation::Subprocess(SubprocessArgs { kind, args: raw }));
     }
     let normalized = normalize_fsearch_flags(raw);
-    // Fallback: user CLI
-    let cli = Cli::parse_from(normalized); // Clap handles errors & help display
+    // Fallback: user CLI (fast path avoids evaluating dynamic format-table after_help LazyLocks)
+    let cli = match Cli::try_parse_from(&normalized) {
+        Ok(cli) => cli,
+        Err(_fast_err) => {
+            let mut full_cmd = Cli::command_with_help();
+            let matches = match full_cmd.try_get_matches_from_mut(normalized) {
+                Ok(m) => m,
+                Err(err) => err.exit(),
+            };
+            match <Cli as clap::FromArgMatches>::from_arg_matches(&matches) {
+                Ok(c) => c,
+                Err(err) => err.exit(),
+            }
+        }
+    };
     if cli.command.is_some() {
         environment::set_process_role(environment::ProcessRole::LightweightCli);
     } else {
@@ -231,6 +244,14 @@ pub struct Cli {
 
     #[command(subcommand)]
     pub command: Option<Command>,
+}
+
+impl Cli {
+    /// Builds the full [`clap::Command`] including dynamically generated format-table `after_help`.
+    #[must_use]
+    pub fn command_with_help() -> clap::Command {
+        routing::attach_dynamic_after_help(Self::command())
+    }
 }
 
 // ---------------------------
@@ -347,7 +368,7 @@ pub fn generate_cli_markdown_docs() -> String {
         "This document is automatically generated from the `ctoolbox` CLI command definitions.\n"
     );
 
-    let mut root_cmd = Cli::command();
+    let mut root_cmd = Cli::command_with_help();
     root_cmd.build();
 
     let mut root_help = Vec::new();
@@ -431,7 +452,7 @@ mod tests {
     fn test_all_cli_commands_help_and_generate_docs() {
         //bypass-tempdir-lint
         // Assert that all clap options, subcommands, and flags are valid without panics
-        Cli::command().debug_assert();
+        Cli::command_with_help().debug_assert();
 
         let docs = generate_cli_markdown_docs();
         assert!(docs.contains("ctoolbox adduser"));

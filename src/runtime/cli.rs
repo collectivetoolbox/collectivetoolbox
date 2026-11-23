@@ -133,7 +133,6 @@ pub fn parse_run_input_format(
 
 /// CLI arguments for `ctoolbox run`.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
-#[command(after_help = RUN_AFTER_HELP.as_str())]
 pub struct RunArgs {
     /// Document source text. If omitted, reads from `--file` or standard input.
     pub input: Option<String>,

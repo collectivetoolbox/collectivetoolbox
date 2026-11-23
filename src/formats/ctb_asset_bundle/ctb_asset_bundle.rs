@@ -836,7 +836,7 @@ pub fn parse_asset_bundle_metadata(
         "Resource bundle index truncated"
     );
 
-    let mut seen_paths = HashSet::<String>::new();
+    let mut seen_paths = HashSet::<String>::with_capacity(entry_count);
     let mut entries = Vec::with_capacity(entry_count);
     for index in 0..entry_count {
         let entry_offset = RESOURCE_ENTRY_SIZE
@@ -877,10 +877,9 @@ pub fn parse_asset_bundle_metadata(
         let path_bytes = bytes
             .get(path_offset..path_end)
             .ok_or_else(|| anyhow::anyhow!("Path range out of bounds"))?;
-        let path = std::str::from_utf8(path_bytes)
-            .context("Invalid path encoding in resource bundle")?
-            .to_owned();
-        let path = normalize_bundle_path(&path)?;
+        let raw_path = std::str::from_utf8(path_bytes)
+            .context("Invalid path encoding in resource bundle")?;
+        let path = normalize_bundle_path(raw_path)?;
         ensure!(
             seen_paths.insert(path.clone()),
             "Duplicate bundle path {path}"
@@ -1179,7 +1178,24 @@ fn hash_normalized_entries(
     Ok(out)
 }
 
+fn is_clean_normalized_bundle_path(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    if bytes.is_empty()
+        || bytes.first() == Some(&b'/')
+        || bytes.last() == Some(&b'/')
+        || bytes.contains(&b'\\')
+        || bytes.contains(&b':')
+    {
+        return false;
+    }
+    path.split('/')
+        .all(|seg| !seg.is_empty() && seg != "." && seg != "..")
+}
+
 fn normalize_bundle_path(path: &str) -> Result<String> {
+    if is_clean_normalized_bundle_path(path) {
+        return Ok(path.to_owned());
+    }
     let mut normalized = PathBuf::new();
     for component in Path::new(path).components() {
         match component {

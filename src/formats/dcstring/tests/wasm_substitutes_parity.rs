@@ -593,6 +593,7 @@ fn test_substitute_parity_historical_dc_641_pin() -> Result<()> {
         (DcShorthand, u8),
         usize,
     > = std::collections::BTreeMap::new();
+    let mut resolver_cache = std::collections::BTreeMap::new();
     let head_wasm_f1680 = compile_system_subject_wasm_bytes(
         DcShorthand::Format(1680),
         default_syntax_resolver().as_ref(),
@@ -627,10 +628,12 @@ fn test_substitute_parity_historical_dc_641_pin() -> Result<()> {
         if *count_entry >= 2 {
             continue;
         }
-        let Some(hist_wasm) = compile_graph_substitute_snapshot_wasm_bytes(
-            full_hist.nodes(),
-            snap,
-        )?
+        let Some(hist_wasm) =
+            ctb_formats_dcstring::converters::wasm::compile_graph_substitute_snapshot_wasm_bytes_with_cache(
+                full_hist.nodes(),
+                snap,
+                &mut resolver_cache,
+            )?
         else {
             continue;
         };

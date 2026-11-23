@@ -320,15 +320,11 @@ pub enum Command {
     #[command(
         name = "character_description",
         alias = "character-description",
-        alias = "chardesc",
-        after_help = ctb_formats_conversion::cli::CHARACTER_DESCRIPTION_AFTER_HELP.as_str()
+        alias = "chardesc"
     )]
     CharacterDescription(ctb_formats_conversion::cli::CharacterDescriptionArgs),
     /// Convert documents or text between supported formats
-    #[command(
-        name = "convert",
-        after_help = ctb_formats_conversion::cli::CONVERT_AFTER_HELP.as_str()
-    )]
+    #[command(name = "convert")]
     Convert(ctb_formats_conversion::cli::ConvertArgs),
     /// Generate GDB instructions from symbols
     #[command(name = "gdb_instructions_generate")]
@@ -583,7 +579,7 @@ pub enum Command {
     #[command(name = "fsearch")]
     Fsearch(ctb_io_csc::args::FsearchArgs),
     /// Calculate checksum for a file or stdin
-    #[command(name = "csum", after_help = ctb_formats_checksum::CSUM_AFTER_HELP.as_str())]
+    #[command(name = "csum")]
     Csum {
         /// Hash algorithm type (`sha256`, `xxh32`, `xxh64`, `xxh3`, `xxh128`)
         algo: ctb_formats_checksum::HashAlgorithm,
@@ -595,10 +591,10 @@ pub enum Command {
         prefix_0x: bool,
     },
     /// Compress a file or stdin using single-stream compression format
-    #[command(name = "compress", after_help = ctb_formats_compression::COMPRESSION_AFTER_HELP.as_str())]
+    #[command(name = "compress")]
     Compress(ctb_formats_compression_cli::CliCompressArgs),
     /// Decompress a compressed file or stdin
-    #[command(name = "decompress", after_help = ctb_formats_compression::COMPRESSION_AFTER_HELP.as_str())]
+    #[command(name = "decompress")]
     Decompress {
         /// Optional compression format (e.g. `br`, `gz`, `deflate`, `zlib`). If omitted, detected from file extension or magic bytes.
         format: Option<String>,
@@ -816,6 +812,33 @@ pub enum Command {
     /// Compile, execute, and render a Document Character (Dc) document or StageL 3 / StageR 3 program.
     #[command(name = "run")]
     Run(ctb_runtime::cli::RunArgs),
+}
+
+/// Attaches dynamically generated format-table `after_help` strings on demand
+/// when rendering `--help` output or CLI documentation.
+#[must_use]
+pub fn attach_dynamic_after_help(cmd: clap::Command) -> clap::Command {
+    cmd.mut_subcommand("character_description", |sub| {
+        sub.after_help(
+            ctb_formats_conversion::cli::CHARACTER_DESCRIPTION_AFTER_HELP
+                .as_str(),
+        )
+    })
+    .mut_subcommand("convert", |sub| {
+        sub.after_help(ctb_formats_conversion::cli::CONVERT_AFTER_HELP.as_str())
+    })
+    .mut_subcommand("csum", |sub| {
+        sub.after_help(ctb_formats_checksum::CSUM_AFTER_HELP.as_str())
+    })
+    .mut_subcommand("compress", |sub| {
+        sub.after_help(ctb_formats_compression::COMPRESSION_AFTER_HELP.as_str())
+    })
+    .mut_subcommand("decompress", |sub| {
+        sub.after_help(ctb_formats_compression::COMPRESSION_AFTER_HELP.as_str())
+    })
+    .mut_subcommand("run", |sub| {
+        sub.after_help(ctb_runtime::cli::RUN_AFTER_HELP.as_str())
+    })
 }
 
 fn read_file_or_stdin(path: &std::path::Path) -> Result<Vec<u8>> {

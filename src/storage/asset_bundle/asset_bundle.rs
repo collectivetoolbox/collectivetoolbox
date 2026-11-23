@@ -60,24 +60,33 @@ static PROJECT_ASSETS: OnceLock<Result<ResourceBundle, String>> =
 const CHUNK_SIZE: u64 = 128 * 1024 * 1024;
 const MAX_CACHED_CHUNKS: usize = 4;
 
-#[derive(Debug, Clone)]
-enum EntryLocation {
-    Direct {
-        mmap_index: usize,
-        data_range: Range<usize>,
-    },
-    Chunked {
-        chunked_bundle_index: usize,
-        data_offset: u64,
-        data_len: u64,
-    },
+#[derive(Debug)]
+struct DirectBundleEntry {
+    path: String,
+    flags: u32,
+    data_range: Range<usize>,
 }
 
 #[derive(Debug)]
-struct ResourceBundleEntry {
+struct ChunkedBundleEntry {
     path: String,
     flags: u32,
-    location: EntryLocation,
+    data_offset: u64,
+    data_len: u64,
+}
+
+#[derive(Debug)]
+struct DirectSubBundle {
+    mmap: Mmap,
+    entries: Vec<DirectBundleEntry>,
+    entry_by_path: HashMap<String, usize>,
+}
+
+#[derive(Debug)]
+struct ChunkedSubBundle {
+    chunked: ChunkedResourceBundle,
+    entries: Vec<ChunkedBundleEntry>,
+    entry_by_path: HashMap<String, usize>,
 }
 
 #[derive(Debug)]
@@ -284,10 +293,10 @@ impl ChunkedResourceBundle {
 
 #[derive(Debug)]
 struct ResourceBundle {
-    entries: Vec<ResourceBundleEntry>,
-    entry_by_path: HashMap<String, usize>,
-    mmaps: Vec<Mmap>,
-    chunked_bundles: Vec<ChunkedResourceBundle>,
+    bundle_path: PathBuf,
+    main: DirectSubBundle,
+    history: OnceLock<Option<DirectSubBundle>>,
+    v86: OnceLock<Option<ChunkedSubBundle>>,
     delta_cache: RwLock<HashMap<String, Arc<Vec<u8>>>>,
 }
 
@@ -527,13 +536,10 @@ impl ResourceBundle {
                             let abs_end = offset
                                 .saturating_add(inner_entry.data_range.end);
                             let entry_index = entries.len();
-                            entries.push(ResourceBundleEntry {
+                            entries.push(DirectBundleEntry {
                                 path: inner_entry.path.clone(),
                                 flags: inner_entry.flags,
-                                location: EntryLocation::Direct {
-                                    mmap_index: 0,
-                                    data_range: abs_start..abs_end,
-                                },
+                                data_range: abs_start..abs_end,
                             });
                             entry_by_path.insert(inner_entry.path, entry_index);
                         }
@@ -543,154 +549,209 @@ impl ResourceBundle {
             }
 
             let entry_index = entries.len();
-            entries.push(ResourceBundleEntry {
+            entries.push(DirectBundleEntry {
                 path: parsed_entry.path.clone(),
                 flags: parsed_entry.flags,
-                location: EntryLocation::Direct {
-                    mmap_index: 0,
-                    data_range: parsed_entry.data_range,
-                },
+                data_range: parsed_entry.data_range,
             });
             entry_by_path.insert(parsed_entry.path, entry_index);
         }
 
-        let mut mmaps = vec![main_mmap];
-        let mut chunked_bundles = Vec::new();
-
-        // Try loading optional separate system_graph_history.rsrc if present
-        let history_path =
-            bundle_path.with_file_name("system_graph_history.rsrc");
-        if history_path.is_file() {
-            let load_result = (|| -> Result<()> {
-                let history_file = open_resource_bundle_file(&history_path)?;
-                #[expect(unsafe_code, reason = "Mmap requires unsafe")]
-                // SAFETY: The resource bundle file is not modified by other processes during read-only mapping.
-                let history_mmap = unsafe { Mmap::map(&history_file) }
-                    .with_context(|| {
-                        format!("Failed to map {}", history_path.display())
-                    })?;
-                let parsed_history =
-                    asset_bundle_format::parse_asset_bundle(&history_mmap)
-                        .with_context(|| {
-                            format!(
-                                "Failed to parse {}",
-                                history_path.display()
-                            )
-                        })?;
-                verify_bundle_integrity(
-                    &history_path.display().to_string(),
-                    &parsed_history.header,
-                    EXPECTED_SYSTEM_GRAPH_HISTORY_RESOURCE_BUNDLE_UUID,
-                    EXPECTED_SYSTEM_GRAPH_HISTORY_RESOURCE_BUNDLE_SHA256,
-                )?;
-                let mmap_index = mmaps.len();
-                mmaps.push(history_mmap);
-                for parsed_entry in parsed_history.entries {
-                    let entry_index = entries.len();
-                    entries.push(ResourceBundleEntry {
-                        path: parsed_entry.path.clone(),
-                        flags: parsed_entry.flags,
-                        location: EntryLocation::Direct {
-                            mmap_index,
-                            data_range: parsed_entry.data_range,
-                        },
-                    });
-                    entry_by_path.insert(parsed_entry.path, entry_index);
-                }
-                Ok(())
-            })();
-
-            if let Err(err) = load_result {
-                warn_fmt!(
-                    "system graph history resource bundle at {} could not be loaded: {err:#}",
-                    history_path.display()
-                );
-            }
-        }
-
-        // Try loading separate v86_images.rsrc if present
-        let v86_path = bundle_path.with_file_name("v86_images.rsrc");
-        if v86_path.is_file() {
-            let load_result = (|| -> Result<()> {
-                let (chunked_bundle, raw_entries) =
-                    ChunkedResourceBundle::open(&v86_path)?;
-                let chunked_idx = chunked_bundles.len();
-                chunked_bundles.push(chunked_bundle);
-
-                for parsed_entry in raw_entries {
-                    let entry_index = entries.len();
-                    entries.push(ResourceBundleEntry {
-                        path: parsed_entry.path.clone(),
-                        flags: parsed_entry.flags,
-                        location: EntryLocation::Chunked {
-                            chunked_bundle_index: chunked_idx,
-                            data_offset: parsed_entry.data_offset,
-                            data_len: parsed_entry.data_len,
-                        },
-                    });
-                    entry_by_path.insert(parsed_entry.path, entry_index);
-                }
-                Ok(())
-            })();
-
-            if let Err(err) = load_result {
-                warn_fmt!(
-                    "v86 resource bundle at {} could not be loaded: {err:#}; v86 VM assets will not be loaded",
-                    v86_path.display()
-                );
-            }
-        } else {
-            warn!(
-                "v86 resource bundle not found at {}; v86 VM assets will not be loaded",
-                v86_path.display()
-            );
-        }
-
         Ok(Self {
-            entries,
-            entry_by_path,
-            mmaps,
-            chunked_bundles,
+            bundle_path,
+            main: DirectSubBundle {
+                mmap: main_mmap,
+                entries,
+                entry_by_path,
+            },
+            history: OnceLock::new(),
+            v86: OnceLock::new(),
             delta_cache: RwLock::new(HashMap::new()),
         })
     }
 
+    fn history_bundle(&self) -> Option<&DirectSubBundle> {
+        self.history
+            .get_or_init(|| {
+                let history_path =
+                    self.bundle_path.with_file_name("system_graph_history.rsrc");
+                if !history_path.is_file() {
+                    return None;
+                }
+                let load_result = (|| -> Result<DirectSubBundle> {
+                    let history_file = open_resource_bundle_file(&history_path)?;
+                    #[expect(unsafe_code, reason = "Mmap requires unsafe")]
+                    // SAFETY: The resource bundle file is not modified by other processes during read-only mapping.
+                    let history_mmap = unsafe { Mmap::map(&history_file) }
+                        .with_context(|| {
+                            format!("Failed to map {}", history_path.display())
+                        })?;
+                    let parsed_history =
+                        asset_bundle_format::parse_asset_bundle(&history_mmap)
+                            .with_context(|| {
+                                format!(
+                                    "Failed to parse {}",
+                                    history_path.display()
+                                )
+                            })?;
+                    verify_bundle_integrity(
+                        &history_path.display().to_string(),
+                        &parsed_history.header,
+                        EXPECTED_SYSTEM_GRAPH_HISTORY_RESOURCE_BUNDLE_UUID,
+                        EXPECTED_SYSTEM_GRAPH_HISTORY_RESOURCE_BUNDLE_SHA256,
+                    )?;
+                    let mut entries =
+                        Vec::with_capacity(parsed_history.entries.len());
+                    let mut entry_by_path =
+                        HashMap::with_capacity(parsed_history.entries.len());
+                    for parsed_entry in parsed_history.entries {
+                        let entry_index = entries.len();
+                        entries.push(DirectBundleEntry {
+                            path: parsed_entry.path.clone(),
+                            flags: parsed_entry.flags,
+                            data_range: parsed_entry.data_range,
+                        });
+                        entry_by_path.insert(parsed_entry.path, entry_index);
+                    }
+                    Ok(DirectSubBundle {
+                        mmap: history_mmap,
+                        entries,
+                        entry_by_path,
+                    })
+                })();
+
+                match load_result {
+                    Ok(sub) => Some(sub),
+                    Err(err) => {
+                        warn_fmt!(
+                            "system graph history resource bundle at {} could not be loaded: {err:#}",
+                            history_path.display()
+                        );
+                        None
+                    }
+                }
+            })
+            .as_ref()
+    }
+
+    fn v86_bundle(&self) -> Option<&ChunkedSubBundle> {
+        self.v86
+            .get_or_init(|| {
+                let v86_path = self.bundle_path.with_file_name("v86_images.rsrc");
+                if !v86_path.is_file() {
+                    warn!(
+                        "v86 resource bundle not found at {}; v86 VM assets will not be loaded",
+                        v86_path.display()
+                    );
+                    return None;
+                }
+                let load_result = (|| -> Result<ChunkedSubBundle> {
+                    let (chunked, raw_entries) =
+                        ChunkedResourceBundle::open(&v86_path)?;
+                    let mut entries = Vec::with_capacity(raw_entries.len());
+                    let mut entry_by_path =
+                        HashMap::with_capacity(raw_entries.len());
+                    for parsed_entry in raw_entries {
+                        let entry_index = entries.len();
+                        entries.push(ChunkedBundleEntry {
+                            path: parsed_entry.path.clone(),
+                            flags: parsed_entry.flags,
+                            data_offset: parsed_entry.data_offset,
+                            data_len: parsed_entry.data_len,
+                        });
+                        entry_by_path.insert(parsed_entry.path, entry_index);
+                    }
+                    Ok(ChunkedSubBundle {
+                        chunked,
+                        entries,
+                        entry_by_path,
+                    })
+                })();
+
+                match load_result {
+                    Ok(sub) => Some(sub),
+                    Err(err) => {
+                        warn_fmt!(
+                            "v86 resource bundle at {} could not be loaded: {err:#}; v86 VM assets will not be loaded",
+                            v86_path.display()
+                        );
+                        None
+                    }
+                }
+            })
+            .as_ref()
+    }
+
+    fn read_direct_entry(
+        sub: &DirectSubBundle,
+        path: &str,
+    ) -> Option<(u32, Vec<u8>)> {
+        let &idx = sub.entry_by_path.get(path)?;
+        let entry = sub.entries.get(idx)?;
+        let raw_slice = sub.mmap.get(entry.data_range.clone())?;
+        Some((entry.flags, raw_slice.to_vec()))
+    }
+
+    fn read_chunked_entry(
+        sub: &ChunkedSubBundle,
+        path: &str,
+    ) -> Option<(u32, Vec<u8>)> {
+        let &idx = sub.entry_by_path.get(path)?;
+        let entry = sub.entries.get(idx)?;
+        let raw_vec = sub.chunked.get_bytes(entry.data_offset, entry.data_len)?;
+        Some((entry.flags, raw_vec))
+    }
+
+    fn lookup_raw_asset(&self, normalized: &str) -> Option<(u32, Vec<u8>)> {
+        if normalized.starts_with("data/graph/system/") {
+            if let Some(hist) = self.history_bundle()
+                && let Some(found) = Self::read_direct_entry(hist, normalized)
+            {
+                return Some(found);
+            }
+            return Self::read_direct_entry(&self.main, normalized);
+        }
+
+        if normalized.starts_with("images/") {
+            if let Some(v86) = self.v86_bundle()
+                && let Some(found) = Self::read_chunked_entry(v86, normalized)
+            {
+                return Some(found);
+            }
+            return Self::read_direct_entry(&self.main, normalized);
+        }
+
+        if let Some(found) = Self::read_direct_entry(&self.main, normalized) {
+            return Some(found);
+        }
+
+        if let Some(tail) = normalized
+            .strip_prefix("vendor/v86_images/")
+            .or_else(|| normalized.strip_prefix("v86_images/"))
+        {
+            let alias = format!("images/{tail}");
+            if let Some(v86) = self.v86_bundle()
+                && let Some(found) = Self::read_chunked_entry(v86, &alias)
+            {
+                return Some(found);
+            }
+            return Self::read_direct_entry(&self.main, &alias);
+        }
+
+        if normalized.starts_with("data/")
+            && let Some(hist) = self.history_bundle()
+        {
+            return Self::read_direct_entry(hist, normalized);
+        }
+
+        None
+    }
+
     fn get_asset_vec(&self, key: &str) -> Option<Vec<u8>> {
         let normalized = normalize_asset_key(key);
-        let index = self.entry_by_path.get(normalized).or_else(|| {
-            if let Some(tail) = normalized
-                .strip_prefix("vendor/v86_images/")
-                .or_else(|| normalized.strip_prefix("v86_images/"))
-            {
-                let alias = format!("images/{tail}");
-                self.entry_by_path.get(&alias)
-            } else {
-                None
-            }
-        })?;
-        let entry = self.entries.get(*index)?;
+        let (flags, raw_vec) = self.lookup_raw_asset(normalized)?;
 
-        let raw_vec = match &entry.location {
-            EntryLocation::Direct {
-                mmap_index,
-                data_range,
-            } => {
-                let mmap = self.mmaps.get(*mmap_index)?;
-                let raw_slice = mmap.get(data_range.clone())?;
-                raw_slice.to_vec()
-            }
-            EntryLocation::Chunked {
-                chunked_bundle_index,
-                data_offset,
-                data_len,
-            } => {
-                let chunked =
-                    self.chunked_bundles.get(*chunked_bundle_index)?;
-                chunked.get_bytes(*data_offset, *data_len)?
-            }
-        };
-
-        if entry.flags & asset_bundle_format::ASSET_FLAG_DELTA == 0 {
+        if flags & asset_bundle_format::ASSET_FLAG_DELTA == 0 {
             return Some(raw_vec);
         }
 
@@ -719,14 +780,43 @@ impl ResourceBundle {
         let pattern = Pattern::new(glob)
             .with_context(|| format!("Failed to parse asset glob {glob}"))?;
         let mut matches = Vec::new();
-        for entry in &self.entries {
+        for entry in &self.main.entries {
             if pattern.matches(&entry.path) {
                 matches.push(entry.path.clone());
             }
         }
+        if glob_may_match_dir_prefix(glob, "data/graph/system/")
+            && let Some(hist) = self.history_bundle()
+        {
+            for entry in &hist.entries {
+                if pattern.matches(&entry.path) {
+                    matches.push(entry.path.clone());
+                }
+            }
+        }
+        if glob_may_match_dir_prefix(glob, "images/")
+            && let Some(v86) = self.v86_bundle()
+        {
+            for entry in &v86.entries {
+                if pattern.matches(&entry.path) {
+                    matches.push(entry.path.clone());
+                }
+            }
+        }
         matches.sort();
+        matches.dedup();
         Ok(matches)
     }
+}
+
+fn glob_may_match_dir_prefix(glob: &str, dir_prefix: &str) -> bool {
+    // Reason for fallback: globs with no wildcard characters have the full glob string as their literal prefix.
+    let meta_pos = glob.find(['*', '?', '[']).unwrap_or(glob.len());
+    let Some(literal_prefix) = glob.get(..meta_pos) else {
+        return true;
+    };
+    literal_prefix.starts_with(dir_prefix)
+        || dir_prefix.starts_with(literal_prefix)
 }
 
 fn open_resource_bundle_file(bundle_path: &Path) -> Result<File> {
