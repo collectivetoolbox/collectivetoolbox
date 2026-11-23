@@ -624,30 +624,50 @@ fn eval_convert_dc_string_to_wasm(
             resolver,
         )
     }) {
-        let mut nav_mstr = DcMstring::new();
-        for &tok in body_chars {
-            nav_mstr.push_char(tok);
-        }
-        let mut nav = DcDocumentNavigator::from_mstr(&nav_mstr);
-        let start_pos = nav.position();
-        let mut ctx = SyntaxEvalContext::new(resolver, None);
-        let matched_pin = nav.eval_term_single(
-            &SyntaxTerm::NamedConstruct {
-                name: "pin_description".to_owned(),
-                subtype: None,
-                capture_var: None,
-            },
-            &mut ctx,
-        )?;
-        ensure!(
-            matched_pin && !ctx.has_errors && nav.position() > start_pos,
-            "Invalid leading [pin_description] inside target Dc document"
-        );
-        let pin_end = nav.position();
-        let pin_u128s =
-            nav.read_tokens_in_span(DcByteSpan::new(start_pos, pin_end))?;
         let pin_tokens: Vec<DcChar> =
-            pin_u128s.into_iter().map(DcChar::from_u128).collect();
+            if resolver.resolve_named_type("pin_description").is_some() {
+                let mut nav_mstr = DcMstring::new();
+                for &tok in body_chars {
+                    nav_mstr.push_char(tok);
+                }
+                let mut nav = DcDocumentNavigator::from_mstr(&nav_mstr);
+                let start_pos = nav.position();
+                let mut ctx = SyntaxEvalContext::new(resolver, None);
+                let matched_pin = nav.eval_term_single(
+                    &SyntaxTerm::NamedConstruct {
+                        name: "pin_description".to_owned(),
+                        subtype: None,
+                        capture_var: None,
+                    },
+                    &mut ctx,
+                )?;
+                ensure!(
+                    matched_pin && !ctx.has_errors && nav.position() > start_pos,
+                    "Invalid leading [pin_description] inside target Dc document"
+                );
+                let pin_end = nav.position();
+                let pin_u128s = nav
+                    .read_tokens_in_span(DcByteSpan::new(start_pos, pin_end))?;
+                pin_u128s.into_iter().map(DcChar::from_u128).collect()
+            } else {
+                let second = body_chars.get(1).copied().context(
+                    "Missing System-block node ID operand after Dc 641",
+                )?;
+                let pin_len = if second.fills_role_with(DcRole::Escape, resolver)
+                    || second.fills_role_with(
+                        DcRole::QuoteFollowingDcAsAtom,
+                        resolver,
+                    )
+                {
+                    3usize
+                } else {
+                    2usize
+                };
+                body_chars
+                    .get(..pin_len)
+                    .context("Truncated leading Dc 641 pin inside target Dc document")?
+                    .to_vec()
+            };
         let inner_pin_id = extract_pin_node_id_from_pin_description(
             &pin_tokens,
             resolver,
@@ -973,10 +993,16 @@ fn build_static_output_dc_wasm_program(
     }
 
     let mut out_mstr = DcMstring::new();
-    for &ch in out_chars {
-        out_mstr.push_char(ch);
+    {
+        let mut writer = out_mstr.writer();
+        for &ch in out_chars {
+            writer.push_char(ch)?;
+        }
     }
-    let out_bytes = out_mstr.as_bytes();
+    let out_bytes = out_mstr
+        .as_bytes()
+        .get(DCMM_HEADER_LEN..)
+        .context("DcMstring missing header prefix")?;
     let out_len = out_bytes.len();
     let mut escaped_wat_bytes = String::with_capacity(out_bytes.len().saturating_mul(3));
     for &b in out_bytes {

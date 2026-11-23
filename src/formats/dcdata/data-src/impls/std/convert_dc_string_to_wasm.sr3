@@ -6885,7 +6885,7 @@ v/b/isUncompiledCodeToken dc/c
         return false
         nop.
     if and ge /sid u32:2192 le /sid u32:2242
-        return ne /sid u32:2215
+        return and ne /sid u32:2215 ne /sid u32:2239
         nop.
     if and ge /sid u32:2448 le /sid u32:2585
         return true

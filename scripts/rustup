@@ -78,3 +78,24 @@ if ! command -v cargo-deny >/dev/null 2>&1; then
 else
     echo "cargo-deny is already installed, skipping..."
 fi
+
+if ! command -v cargo-asm >/dev/null 2>&1; then
+    echo "Installing cargo-show-asm..."
+    cargo install --locked cargo-show-asm
+else
+    echo "cargo-show-asm is already installed, skipping..."
+fi
+
+if ! command -v cargo-flamegraph >/dev/null 2>&1; then
+    echo "Installing flamegraph..."
+    cargo install --locked flamegraph
+else
+    echo "flamegraph is already installed, skipping..."
+fi
+
+if ! command -v iai-callgrind-runner >/dev/null 2>&1; then
+    echo "Installing iai-callgrind-runner..."
+    cargo install --locked iai-callgrind-runner
+else
+    echo "iai-callgrind-runner is already installed, skipping..."
+fi

@@ -464,7 +464,7 @@ mod tests {
             |p| Ok(std::fs::read(p)?),
         )?
         .unwrap();
-        assert_eq!(String::from_utf8(out_idiom_emd)?, "Hello, World!\n");
+        assert_eq!(String::from_utf8(out_idiom_emd)?, "Hello, World!\n\n");
 
         let idiom_ems_path = workspace_fixture_path(
             "src/formats/dct_el/fixtures/examples/example-documents/hello-world/idiomatic-hello-world.ems",

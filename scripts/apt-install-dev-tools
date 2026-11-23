@@ -34,25 +34,28 @@ base_packages=(
 # Developer utilities and convenience tools (purged in CI via --remove)
 dev_packages=(
     brotli
+    genisoimage
+    hyperfine
+    iputils-ping
     libbz2-dev
     liblzo2-dev
+    librsvg2-bin
+    linux-perf
+    lld
     lz4
     lzip
     ncdu
-    genisoimage
-    iputils-ping
-    librsvg2-bin
-    lld
     nodejs
     npm
+    ovmf
     perl
     proot
     qemu-system-ppc
     qemu-system-x86
-    ovmf
     ripgrep
     shellcheck
     tmux
+    valgrind
     vim-common
     xxd
     xz-utils
