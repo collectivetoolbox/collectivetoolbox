@@ -17,8 +17,9 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Process-wide registry mapping `(accounting_version, wasm_sha256)` keys to
-//! compiled native WebAssembly substitute constructors.
+//! Process-wide registry mapping `(accounting_version, wasm_sha256)` and
+//! `(accounting_version, target_global_id, revision_sha256)` keys to compiled
+//! native WebAssembly substitute constructors.
 
 #[allow(
     unused_imports,
@@ -41,20 +42,31 @@ pub struct WasmSubstituteDescriptor {
     pub instantiate: fn() -> Box<dyn WasmSubstituteInstance>,
 }
 
-type SubstituteRegistryMap = HashMap<(u32, [u8; 32]), WasmSubstituteDescriptor>;
-
-static SUBSTITUTE_REGISTRY: OnceLock<RwLock<SubstituteRegistryMap>> =
-    OnceLock::new();
-
-fn registry_lock() -> &'static RwLock<SubstituteRegistryMap> {
-    SUBSTITUTE_REGISTRY.get_or_init(|| RwLock::new(HashMap::new()))
+#[derive(Default)]
+struct SubstituteRegistry {
+    by_wasm_sha256: HashMap<(u32, [u8; 32]), WasmSubstituteDescriptor>,
+    by_graph_target: HashMap<(u32, u128, [u8; 32]), WasmSubstituteDescriptor>,
 }
 
-/// Registers a native substitute keyed by `(meta.accounting_version, meta.wasm_sha256)`.
+static SUBSTITUTE_REGISTRY: OnceLock<RwLock<SubstituteRegistry>> =
+    OnceLock::new();
+
+fn registry_lock() -> &'static RwLock<SubstituteRegistry> {
+    SUBSTITUTE_REGISTRY.get_or_init(|| RwLock::new(SubstituteRegistry::default()))
+}
+
+/// Registers a native substitute keyed by `(meta.accounting_version, meta.wasm_sha256)`
+/// and any associated `(meta.accounting_version, target_global_id, revision_sha256)` entries.
 pub fn register_substitute(descriptor: WasmSubstituteDescriptor) {
-    let key = (descriptor.meta.accounting_version, descriptor.meta.wasm_sha256);
+    let ver = descriptor.meta.accounting_version;
+    let key = (ver, descriptor.meta.wasm_sha256);
     if let Ok(mut guard) = registry_lock().write() {
-        guard.insert(key, descriptor);
+        guard.by_wasm_sha256.insert(key, descriptor);
+        for &(target_global_id, rev_sha256) in descriptor.meta.graph_targets {
+            guard
+                .by_graph_target
+                .insert((ver, target_global_id, rev_sha256), descriptor);
+        }
     }
 }
 
@@ -64,5 +76,23 @@ pub fn lookup_substitute(
     wasm_sha256: &[u8; 32],
 ) -> Option<WasmSubstituteDescriptor> {
     let guard = registry_lock().read().ok()?;
-    guard.get(&(accounting_version, *wasm_sha256)).copied()
+    guard
+        .by_wasm_sha256
+        .get(&(accounting_version, *wasm_sha256))
+        .copied()
+}
+
+/// Looks up a registered native substitute directly by System-graph target global ID
+/// and its Merkle closure digest `revision_sha256`, avoiding cold-start bootstrap
+/// WASM compilation when a matching native substitute is already linked in.
+pub fn lookup_substitute_by_graph_revision(
+    accounting_version: u32,
+    target_global_id: u128,
+    revision_sha256: &[u8; 32],
+) -> Option<WasmSubstituteDescriptor> {
+    let guard = registry_lock().read().ok()?;
+    guard
+        .by_graph_target
+        .get(&(accounting_version, target_global_id, *revision_sha256))
+        .copied()
 }

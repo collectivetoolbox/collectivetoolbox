@@ -54,6 +54,7 @@ use ctb_utilities::format_id::FormatId;
 use ctb_wasm_substitute_rt::{
     SubstituteVm, WasmLinearMemory, WasmSubstituteDescriptor,
     WasmSubstituteHost, WasmSubstituteInstance, WasmTrap, lookup_substitute,
+    lookup_substitute_by_graph_revision,
 };
 use sha2::{Digest, Sha256};
 
@@ -3415,6 +3416,7 @@ fn native_vm_handle_query(
             None
         }
         WorkerCommand::ExportedGlobalI64 { name, reply } => {
+            vm.sync_fast_budget();
             let val = read_vm_ctb_global_u64(vm, &name)
                 .map(|u| i64::from_le_bytes(u.to_le_bytes()));
             let _ = reply.send(val);
@@ -3488,6 +3490,7 @@ fn native_vm_handle_query(
             None
         }
         WorkerCommand::ReadQuotaConsumed { reply } => {
+            vm.sync_fast_budget();
             let _ = reply.send(vm.quota_consumed);
             None
         }
@@ -3593,6 +3596,7 @@ impl WasmSubstituteHost for WorkerSubstituteHost<'_> {
         &mut self,
         vm: &mut SubstituteVm,
     ) -> std::result::Result<(), WasmTrap> {
+        vm.sync_fast_budget();
         if !self.allow_suspend {
             return Err(WasmTrap::HostAbort);
         }
@@ -3676,6 +3680,7 @@ impl WasmSubstituteHost for WorkerSubstituteHost<'_> {
                         vm.heap_ptr = i32::try_from(resp_end_aligned)
                             .map_err(|_| WasmTrap::HostAbort)?;
                     }
+                    vm.rearm_fast_budget();
                     return Ok(());
                 }
                 WorkerCommand::Shutdown
@@ -4607,6 +4612,8 @@ impl DcWasmSession {
 
         let matched_desc = match backend {
             DcWasmExecutionBackend::Auto => {
+                #[cfg(test)]
+                ctb_wasm_substitutes::ensure_registered();
                 let wasm_sha256: [u8; 32] = Sha256::digest(wasm_bytes).into();
                 lookup_substitute(WASM_RESOURCE_ACCOUNTING_VERSION, &wasm_sha256)
             }
@@ -4671,6 +4678,82 @@ impl DcWasmSession {
             raw_wasm_bytes,
             instrumented_bytes,
             used_native_substitute,
+            worker: std::sync::Mutex::new(worker),
+            entry_func_name: init_info.entry_func_name,
+            base_io_offset: init_info.base_io_offset,
+            current_input_ptr: 0,
+            current_input_len: 0,
+            default_output_ptr: 0,
+            most_recent_node_id,
+            resource_limits,
+            remaining_compute_quota: init_info.remaining_compute_quota,
+            current_compute_quota_limit: resource_limits
+                .max_instructions_per_step,
+            cumulative_output_bytes: 0,
+            last_step_instructions: 0,
+            total_instructions_executed: init_info.total_instructions_executed,
+            last_interrupted_op_ordinal: None,
+            last_interrupted_op_required_cost: None,
+            last_resource_interruption: None,
+            current_input_doc: initial_input.to_owned(),
+            paused_on_compute_quota: false,
+            paused_on_capability: false,
+            pending_capability_response: None,
+            pending_quota_increase_since_pause: 0,
+            shared_task_quota: None,
+        };
+        session.provide_input(initial_input)?;
+        Ok(session)
+    }
+
+    /// Instantiates a [`DcWasmSession`] directly from a pre-resolved native
+    /// [`WasmSubstituteDescriptor`], skipping WebAssembly binary compilation and
+    /// hashing when the graph revision closure already matches a linked substitute.
+    ///
+    /// # Errors
+    /// Returns an error if initial memory or table counts exceed `resource_limits`,
+    /// if the start section traps, or if writing `initial_input` into memory fails.
+    pub fn from_substitute_descriptor_with_limits(
+        desc: WasmSubstituteDescriptor,
+        initial_input: &DcMstr,
+        most_recent_node_id: Option<u128>,
+        resource_limits: DcWasmResourceLimits,
+    ) -> Result<Self> {
+        let effective_max_mem = resource_limits
+            .max_memory_pages
+            .min(resource_limits.physical_max_memory_pages);
+        let effective_max_tbl = resource_limits
+            .max_table_elements
+            .min(resource_limits.physical_max_table_elements);
+
+        if desc.meta.initial_memory_pages > effective_max_mem {
+            return Err(anyhow::Error::new(
+                WasmResourceInterruption::MemoryLimitExceeded {
+                    requested_pages: desc.meta.initial_memory_pages,
+                    max_pages: effective_max_mem,
+                },
+            ));
+        }
+        if desc.meta.initial_table_elements > effective_max_tbl {
+            return Err(anyhow::Error::new(
+                WasmResourceInterruption::TableLimitExceeded {
+                    requested_elements: desc.meta.initial_table_elements,
+                    max_elements: effective_max_tbl,
+                },
+            ));
+        }
+
+        let (worker, init_info) = spawn_session_worker(
+            WorkerInitBackend::NativeSubstitute(desc),
+            resource_limits,
+            effective_max_mem,
+            effective_max_tbl,
+        )?;
+
+        let mut session = Self {
+            raw_wasm_bytes: Vec::new(),
+            instrumented_bytes: std::sync::OnceLock::new(),
+            used_native_substitute: true,
             worker: std::sync::Mutex::new(worker),
             entry_func_name: init_info.entry_func_name,
             base_io_offset: init_info.base_io_offset,
@@ -5674,6 +5757,207 @@ pub fn run_dc_wasm_pure_conversion_with_resolver(
     )
 }
 
+const MAX_MEMOIZED_PURE_WASM_MODULE_BYTES: usize = 8 * 1024 * 1024;
+const MAX_MEMOIZED_PURE_INPUT_BYTES: usize = 256 * 1024;
+const MAX_MEMOIZED_PURE_OUTPUT_BYTES: usize = 1024 * 1024;
+const MAX_MEMOIZED_PURE_CACHE_ENTRIES: usize = 512;
+
+#[derive(Clone)]
+struct CachedPureWasmConversion {
+    output_doc_bytes: std::sync::Arc<Vec<u8>>,
+    executed_instructions: u64,
+    peak_memory_pages: usize,
+    peak_table_elements: usize,
+    max_step_output_bytes: usize,
+    total_output_payload_bytes: usize,
+}
+
+static PURE_WASM_CONVERSION_CACHE: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashMap<[u8; 32], CachedPureWasmConversion>>,
+> = std::sync::OnceLock::new();
+
+fn hash_pure_wasm_conversion_key(
+    wasm_sha256: &[u8; 32],
+    most_recent: Option<u128>,
+    input_bytes: &[u8],
+) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(b"ctb-pure-wasm-conv-v1");
+    hasher.update(WASM_RESOURCE_ACCOUNTING_VERSION.to_le_bytes());
+    hasher.update(wasm_sha256);
+    match most_recent {
+        Some(pin) => {
+            hasher.update([1u8]);
+            hasher.update(pin.to_le_bytes());
+        }
+        None => hasher.update([0u8]),
+    }
+    hasher.update(input_bytes);
+    hasher.finalize().into()
+}
+
+fn try_charge_cached_pure_conversion(
+    entry: &CachedPureWasmConversion,
+    limits: &DcWasmResourceLimits,
+    shared_quota: Option<&SharedWasmTaskQuota>,
+) -> Result<Option<DcMstring>> {
+    let eff_mem = limits.max_memory_pages.min(limits.physical_max_memory_pages);
+    let eff_tbl = limits
+        .max_table_elements
+        .min(limits.physical_max_table_elements);
+    if eff_mem < entry.peak_memory_pages
+        || eff_tbl < entry.peak_table_elements
+        || entry.max_step_output_bytes > limits.max_step_output_bytes
+    {
+        return Ok(None);
+    }
+    if let Some(shared) = shared_quota {
+        let charged = shared.with_lock(|st| {
+            let next_out = st
+                .cumulative_output_bytes
+                .saturating_add(entry.total_output_payload_bytes);
+            if st.remaining_compute_quota >= entry.executed_instructions
+                && next_out <= st.max_session_output_bytes
+            {
+                st.remaining_compute_quota = st
+                    .remaining_compute_quota
+                    .saturating_sub(entry.executed_instructions);
+                st.total_instructions_executed = st
+                    .total_instructions_executed
+                    .saturating_add(entry.executed_instructions);
+                st.cumulative_output_bytes = next_out;
+                true
+            } else {
+                false
+            }
+        })?;
+        if !charged {
+            return Ok(None);
+        }
+    } else if limits.max_instructions_per_step < entry.executed_instructions
+        || entry.total_output_payload_bytes > limits.max_session_output_bytes
+    {
+        return Ok(None);
+    }
+    Ok(Some(DcMstring {
+        inner: (*entry.output_doc_bytes).clone(),
+    }))
+}
+
+fn run_pure_conversion_session_and_maybe_cache(
+    mut session: DcWasmSession,
+    shared_quota: Option<SharedWasmTaskQuota>,
+    cache_key: Option<[u8; 32]>,
+) -> Result<DcMstring> {
+    if let Some(shared) = shared_quota {
+        session.set_shared_task_quota(shared)?;
+    }
+    let mut accumulated = DcMstring::new();
+    let mut max_step_out = 0usize;
+    for _ in 0..DEFAULT_MAX_PURE_CONVERSION_STEPS {
+        match session.step()? {
+            WasmStepOutcome::Complete(doc) => {
+                let step_payload_len =
+                    doc.as_bytes().len().saturating_sub(DCMM_HEADER_LEN);
+                max_step_out = max_step_out.max(step_payload_len);
+                let final_doc = if accumulated.is_empty() {
+                    doc
+                } else {
+                    if let Some(tail) = doc.as_bytes().get(DCMM_HEADER_LEN..) {
+                        accumulated.inner.extend_from_slice(tail);
+                    }
+                    accumulated
+                };
+                if let Some(key) = cache_key
+                    && final_doc.as_bytes().len() <= MAX_MEMOIZED_PURE_OUTPUT_BYTES
+                    && let Ok(peak_mem) = session.current_memory_pages()
+                {
+                    let entry = CachedPureWasmConversion {
+                        output_doc_bytes: std::sync::Arc::new(
+                            final_doc.as_bytes().to_vec(),
+                        ),
+                        executed_instructions: session
+                            .total_instructions_executed(),
+                        peak_memory_pages: peak_mem,
+                        peak_table_elements: session.current_table_elements(),
+                        max_step_output_bytes: max_step_out,
+                        total_output_payload_bytes: session
+                            .cumulative_output_bytes(),
+                    };
+                    let map_lock = PURE_WASM_CONVERSION_CACHE.get_or_init(|| {
+                        std::sync::Mutex::new(std::collections::HashMap::new())
+                    });
+                    if let Ok(mut guard) = map_lock.lock() {
+                        if guard.len() >= MAX_MEMOIZED_PURE_CACHE_ENTRIES {
+                            guard.clear();
+                        }
+                        guard.insert(key, entry);
+                    }
+                }
+                return Ok(final_doc);
+            }
+            WasmStepOutcome::YieldFrame(frame) => {
+                let step_payload_len =
+                    frame.as_bytes().len().saturating_sub(DCMM_HEADER_LEN);
+                max_step_out = max_step_out.max(step_payload_len);
+                if let Some(tail) = frame.as_bytes().get(DCMM_HEADER_LEN..) {
+                    accumulated.inner.extend_from_slice(tail);
+                }
+            }
+            WasmStepOutcome::RequestCapability(req) => {
+                bail!(
+                    "Pure Dc-WASM conversion denied capability request: {req}"
+                );
+            }
+        }
+    }
+    bail!(
+        "Pure Dc-WASM conversion exceeded maximum step limit ({DEFAULT_MAX_PURE_CONVERSION_STEPS})"
+    )
+}
+
+fn run_substitute_descriptor_pure_conversion_with_quota(
+    desc: WasmSubstituteDescriptor,
+    input: &DcMstr,
+    most_recent: Option<u128>,
+    shared_quota: Option<SharedWasmTaskQuota>,
+) -> Result<DcMstring> {
+    let limits = if let Some(ref shared) = shared_quota {
+        shared.active_limits()?
+    } else {
+        DcWasmResourceLimits::default()
+    };
+    let cache_key = (input.as_bytes().len() <= MAX_MEMOIZED_PURE_INPUT_BYTES)
+        .then(|| {
+            hash_pure_wasm_conversion_key(
+                &desc.meta.wasm_sha256,
+                most_recent,
+                input.as_bytes(),
+            )
+        });
+    if let Some(ref key) = cache_key {
+        let map_lock = PURE_WASM_CONVERSION_CACHE
+            .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+        let cached_opt = map_lock.lock().ok().and_then(|g| g.get(key).cloned());
+        if let Some(entry) = cached_opt
+            && let Some(hit) = try_charge_cached_pure_conversion(
+                &entry,
+                &limits,
+                shared_quota.as_ref(),
+            )?
+        {
+            return Ok(hit);
+        }
+    }
+    let session = DcWasmSession::from_substitute_descriptor_with_limits(
+        desc,
+        input,
+        most_recent,
+        limits,
+    )?;
+    run_pure_conversion_session_and_maybe_cache(session, shared_quota, cache_key)
+}
+
 /// Runs a pure-compute WebAssembly conversion from pre-assembled `.wasm` bytes over `input`
 /// using an optional [`SharedWasmTaskQuota`].
 ///
@@ -5691,42 +5975,33 @@ pub fn run_wasm_bytes_pure_conversion_with_quota(
     } else {
         DcWasmResourceLimits::default()
     };
-    let mut session = DcWasmSession::from_wasm_bytes_with_limits(
+    let cache_key = (wasm_bytes.len() <= MAX_MEMOIZED_PURE_WASM_MODULE_BYTES
+        && input.as_bytes().len() <= MAX_MEMOIZED_PURE_INPUT_BYTES)
+        .then(|| {
+            let wasm_sha256: [u8; 32] = Sha256::digest(wasm_bytes).into();
+            hash_pure_wasm_conversion_key(&wasm_sha256, most_recent, input.as_bytes())
+        });
+    if let Some(ref key) = cache_key {
+        let map_lock = PURE_WASM_CONVERSION_CACHE
+            .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+        let cached_opt = map_lock.lock().ok().and_then(|g| g.get(key).cloned());
+        if let Some(entry) = cached_opt
+            && let Some(hit) = try_charge_cached_pure_conversion(
+                &entry,
+                &limits,
+                shared_quota.as_ref(),
+            )?
+        {
+            return Ok(hit);
+        }
+    }
+    let session = DcWasmSession::from_wasm_bytes_with_limits(
         wasm_bytes,
         input,
         most_recent,
         limits,
     )?;
-    if let Some(shared) = shared_quota {
-        session.set_shared_task_quota(shared)?;
-    }
-    let mut accumulated = DcMstring::new();
-    for _ in 0..DEFAULT_MAX_PURE_CONVERSION_STEPS {
-        match session.step()? {
-            WasmStepOutcome::Complete(doc) => {
-                if accumulated.is_empty() {
-                    return Ok(doc);
-                }
-                if let Some(tail) = doc.as_bytes().get(DCMM_HEADER_LEN..) {
-                    accumulated.inner.extend_from_slice(tail);
-                }
-                return Ok(accumulated);
-            }
-            WasmStepOutcome::YieldFrame(frame) => {
-                if let Some(tail) = frame.as_bytes().get(DCMM_HEADER_LEN..) {
-                    accumulated.inner.extend_from_slice(tail);
-                }
-            }
-            WasmStepOutcome::RequestCapability(req) => {
-                bail!(
-                    "Pure Dc-WASM conversion denied capability request: {req}"
-                );
-            }
-        }
-    }
-    bail!(
-        "Pure Dc-WASM conversion exceeded maximum step limit ({DEFAULT_MAX_PURE_CONVERSION_STEPS})"
-    )
+    run_pure_conversion_session_and_maybe_cache(session, shared_quota, cache_key)
 }
 
 /// Runs a pure-compute Dc-WASM conversion (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`
@@ -6043,6 +6318,66 @@ pub fn run_graph_wasm_tokens_on_dc_slice(
     )
 }
 
+fn lookup_cached_graph_target_substitute(
+    sg: &ctb_formats_dcdata::seed_graph::SeedGraphIndex,
+    target: &ctb_formats_dcdata::seed_graph::SystemWasmSubstituteTarget,
+) -> Result<Option<WasmSubstituteDescriptor>> {
+    use ctb_formats_dcdata::seed_graph::SystemWasmSubstituteTargetKind;
+
+    static TARGET_SUB_CACHE: std::sync::OnceLock<
+        std::sync::Mutex<
+            std::collections::HashMap<
+                (u64, Option<u128>, u128, u8),
+                WasmSubstituteDescriptor,
+            >,
+        >,
+    > = std::sync::OnceLock::new();
+
+    #[cfg(test)]
+    ctb_wasm_substitutes::ensure_registered();
+
+    let kind_tag = match target.kind {
+        SystemWasmSubstituteTargetKind::SupervisorKernel => 1u8,
+        SystemWasmSubstituteTargetKind::StandaloneWasm => 2u8,
+        SystemWasmSubstituteTargetKind::StandaloneWasmValueNode { .. } => 3u8,
+        SystemWasmSubstituteTargetKind::WasmConverter { .. } => 4u8,
+        SystemWasmSubstituteTargetKind::StageLConverter { .. }
+        | SystemWasmSubstituteTargetKind::StageLRoutineBytes => 5u8,
+        SystemWasmSubstituteTargetKind::StageLRoutineDcs
+        | SystemWasmSubstituteTargetKind::StageRRoutineDcs => 6u8,
+        SystemWasmSubstituteTargetKind::StageRConverter { .. }
+        | SystemWasmSubstituteTargetKind::StageRRoutineBytes => 7u8,
+    };
+    let key = (
+        sg.instance_id(),
+        sg.system_block_most_recent_node_id(),
+        target.global_id,
+        kind_tag,
+    );
+    let cache = TARGET_SUB_CACHE
+        .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    if let Ok(guard) = cache.lock()
+        && let Some(&desc) = guard.get(&key)
+    {
+        return Ok(Some(desc));
+    }
+    let rev_sha256 = sg.compute_substitute_target_revision_sha256(target)?;
+    let found = lookup_substitute_by_graph_revision(
+        WASM_RESOURCE_ACCOUNTING_VERSION,
+        target.global_id,
+        &rev_sha256,
+    );
+    if let Some(desc) = found
+        && let Ok(mut guard) = cache.lock()
+    {
+        if guard.len() >= 1024 {
+            guard.clear();
+        }
+        guard.insert(key, desc);
+    }
+    Ok(found)
+}
+
 /// Runs a pure-compute Dc-WASM conversion from a slice of [`ctb_storage_minimal::shorthand::DcShorthand`]
 /// tokens over `input_tokens` using an optional [`SharedWasmTaskQuota`].
 ///
@@ -6054,17 +6389,80 @@ pub fn run_graph_wasm_tokens_on_dc_slice_with_quota(
     resolver: &dyn SyntaxRuleResolver,
     shared_quota: Option<SharedWasmTaskQuota>,
 ) -> Result<DcMstring> {
+    static GRAPH_WASM_SHORTHANDS_BYTECODE_CACHE: std::sync::OnceLock<
+        std::sync::Mutex<
+            std::collections::HashMap<
+                (u64, Option<u128>, [u8; 32]),
+                std::sync::Arc<Vec<u8>>,
+            >,
+        >,
+    > = std::sync::OnceLock::new();
+
+    let mut input_doc = DcMstring::new();
+    for &tok in input_tokens {
+        input_doc.push_char(tok);
+    }
+
+    if let Some(sg) = resolver.seed_graph() {
+        let most_recent = sg.system_block_most_recent_node_id();
+        let mut hasher = Sha256::new();
+        hasher.update(b"ctb-graph-wasm-sh-v1");
+        let mut all_valid = true;
+        for sh in wasm_shorthands {
+            if let Ok(gid) = sh.to_global_id() {
+                hasher.update(gid.to_le_bytes());
+            } else {
+                all_valid = false;
+                break;
+            }
+        }
+        if all_valid {
+            let sh_digest: [u8; 32] = hasher.finalize().into();
+            let key = (sg.instance_id(), most_recent, sh_digest);
+            let cache = GRAPH_WASM_SHORTHANDS_BYTECODE_CACHE.get_or_init(|| {
+                std::sync::Mutex::new(std::collections::HashMap::new())
+            });
+            let cached_bytes =
+                cache.lock().ok().and_then(|g| g.get(&key).cloned());
+            if let Some(wasm_bytes) = cached_bytes {
+                return run_wasm_bytes_pure_conversion_with_quota(
+                    &wasm_bytes,
+                    &input_doc,
+                    most_recent,
+                    shared_quota,
+                );
+            }
+            let mut wasm_doc = DcMstring::new();
+            expand_graph_wasm_shorthands(
+                wasm_shorthands,
+                resolver,
+                &mut wasm_doc,
+            )?;
+            let assembled =
+                std::sync::Arc::new(dcmstring_to_wasm_with_resolver(
+                    &wasm_doc, resolver,
+                )?);
+            if let Ok(mut guard) = cache.lock() {
+                if guard.len() >= 512 {
+                    guard.clear();
+                }
+                guard.insert(key, std::sync::Arc::clone(&assembled));
+            }
+            return run_wasm_bytes_pure_conversion_with_quota(
+                &assembled,
+                &input_doc,
+                most_recent,
+                shared_quota,
+            );
+        }
+    }
+
     let mut wasm_doc = DcMstring::new();
     expand_graph_wasm_shorthands(
         wasm_shorthands,
         resolver,
         &mut wasm_doc,
     )?;
-
-    let mut input_doc = DcMstring::new();
-    for &tok in input_tokens {
-        input_doc.push_char(tok);
-    }
 
     run_dc_wasm_pure_conversion_with_resolver_and_quota(
         &wasm_doc,
@@ -6200,6 +6598,39 @@ pub fn run_active_converter_step_on_dc_slice_with_quota(
 
     match &step.body {
         ActiveConverterBody::Wasm(wasm_tokens) => {
+            if let Ok(subject_gid) = step.subject.to_global_id() {
+                let target =
+                    ctb_formats_dcdata::seed_graph::SystemWasmSubstituteTarget {
+                        subject: step.subject,
+                        global_id: subject_gid,
+                        defining_node_id: 0,
+                        chunk_prefix: String::new(),
+                        kind: ctb_formats_dcdata::seed_graph::SystemWasmSubstituteTargetKind::WasmConverter {
+                            src: step.src,
+                            dst: step.dst,
+                        },
+                    };
+                if let Ok(Some(desc)) =
+                    lookup_cached_graph_target_substitute(sg, &target)
+                {
+                    let mut input_doc = DcMstring::new();
+                    for &tok in converter_input {
+                        input_doc.push_char(tok);
+                    }
+                    return run_substitute_descriptor_pure_conversion_with_quota(
+                        desc,
+                        &input_doc,
+                        sg.system_block_most_recent_node_id(),
+                        shared_quota,
+                    )
+                    .with_context(|| {
+                        format!(
+                            "WASM converter step {} ({} -> {}) failed",
+                            step.subject, step.src, step.dst
+                        )
+                    });
+                }
+            }
             run_graph_wasm_tokens_on_dc_slice_with_quota(
                 wasm_tokens,
                 converter_input,
@@ -6684,6 +7115,119 @@ fn decode_dc_error_record_if_present(
     Ok(Some(msg))
 }
 
+/// Aggregated call statistics and return tokens recorded for a Dc routine invocation
+/// when opt-in profiling ([`set_dc_routine_profiling_enabled`]) is active.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DcRoutineProfileEntry {
+    /// Invoked routine Document Character.
+    pub routine_dc: DcChar,
+    /// Active `Dc 641` System-block snapshot pin, if any.
+    pub most_recent_node_id: Option<u128>,
+    /// Exact input / call parameter tokens supplied to the routine.
+    pub call_tokens: Vec<DcChar>,
+    /// Deterministic return tokens emitted by the routine.
+    pub return_tokens: Vec<DcChar>,
+    /// Number of invocations observed with these exact inputs.
+    pub call_count: u64,
+    /// Cumulative wall-clock execution time in nanoseconds across all observed calls.
+    pub total_duration_ns: u128,
+    /// Portable V2 compute units consumed by a single invocation, if known.
+    pub executed_instructions: u64,
+}
+
+static DC_ROUTINE_PROFILING_ENABLED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+static DC_ROUTINE_PROFILE_MAP: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashMap<[u8; 32], DcRoutineProfileEntry>>,
+> = std::sync::OnceLock::new();
+
+/// Enables or disables opt-in Dc routine invocation profiling for harvesting
+/// frequent and expensive pure routine calls.
+pub fn set_dc_routine_profiling_enabled(enabled: bool) {
+    DC_ROUTINE_PROFILING_ENABLED
+        .store(enabled, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Returns `true` when opt-in Dc routine invocation profiling is enabled.
+#[must_use]
+pub fn is_dc_routine_profiling_enabled() -> bool {
+    DC_ROUTINE_PROFILING_ENABLED.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// Drains and returns all recorded [`DcRoutineProfileEntry`] items sorted by
+/// descending cumulative execution time (`total_duration_ns`).
+#[must_use]
+pub fn take_dc_routine_profile_snapshot() -> Vec<DcRoutineProfileEntry> {
+    let Some(lock) = DC_ROUTINE_PROFILE_MAP.get() else {
+        return Vec::new();
+    };
+    let Ok(mut guard) = lock.lock() else {
+        return Vec::new();
+    };
+    let mut entries: Vec<DcRoutineProfileEntry> =
+        guard.drain().map(|(_, v)| v).collect();
+    entries.sort_by(|a, b| {
+        b.total_duration_ns
+            .cmp(&a.total_duration_ns)
+            .then_with(|| b.call_count.cmp(&a.call_count))
+    });
+    entries
+}
+
+/// Records a single Dc routine invocation into the opt-in profiler table.
+pub fn record_dc_routine_invocation_profile(
+    routine_dc: DcChar,
+    most_recent_node_id: Option<u128>,
+    call_tokens: &[DcChar],
+    return_tokens: &[DcChar],
+    duration_ns: u128,
+    executed_instructions: u64,
+) {
+    if !is_dc_routine_profiling_enabled() {
+        return;
+    }
+    let mut hasher = Sha256::new();
+    hasher.update(b"ctb-dc-routine-prof-v1");
+    hasher.update(routine_dc.to_u128().to_le_bytes());
+    match most_recent_node_id {
+        Some(pin) => {
+            hasher.update([1u8]);
+            hasher.update(pin.to_le_bytes());
+        }
+        None => hasher.update([0u8]),
+    }
+    for &tok in call_tokens {
+        hasher.update(tok.to_u128().to_le_bytes());
+    }
+    let key: [u8; 32] = hasher.finalize().into();
+    let map = DC_ROUTINE_PROFILE_MAP
+        .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    if let Ok(mut guard) = map.lock() {
+        if let Some(existing) = guard.get_mut(&key) {
+            existing.call_count = existing.call_count.saturating_add(1);
+            existing.total_duration_ns =
+                existing.total_duration_ns.saturating_add(duration_ns);
+            if executed_instructions > 0 {
+                existing.executed_instructions = executed_instructions;
+            }
+        } else if guard.len() < 4096 {
+            guard.insert(
+                key,
+                DcRoutineProfileEntry {
+                    routine_dc,
+                    most_recent_node_id,
+                    call_tokens: call_tokens.to_vec(),
+                    return_tokens: return_tokens.to_vec(),
+                    call_count: 1,
+                    total_duration_ns: duration_ns,
+                    executed_instructions,
+                },
+            );
+        }
+    }
+}
+
 /// Executes a System-graph StageR 3 `(dcs -> dcs)` routine (`routine_dc`, such as
 /// `Dc 2608 "Convert Dc string to WASM"` or `f19 "Semantic Dcs to text"`) via
 /// [`DcWasmSession`] with Option B capability support (`Dc 1939` / `Dc 1940`),
@@ -6705,6 +7249,12 @@ pub fn run_graph_stager_dcs_routine_with_quota(
 ) -> Result<Option<DcMstring>> {
     use ctb_storage_minimal::shorthand::DcShorthand;
 
+    static PURE_STAGER_DCS_ROUTINE_CACHE: std::sync::OnceLock<
+        std::sync::Mutex<
+            std::collections::HashMap<[u8; 32], CachedPureWasmConversion>,
+        >,
+    > = std::sync::OnceLock::new();
+
     const DIRECT_STAGER_DCS_MAX_INSTRUCTIONS: u64 = 4_000_000_000;
     const DIRECT_STAGER_DCS_MAX_MEMORY_PAGES: usize = 8192;
     const DIRECT_STAGER_DCS_MAX_STEP_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
@@ -6713,14 +7263,13 @@ pub fn run_graph_stager_dcs_routine_with_quota(
     let Some(sg) = resolver.seed_graph() else {
         return Ok(None);
     };
-    let Some(wasm_bytes) = compile_and_cache_graph_stager_dcs_routine_to_wasm_bytes(
-        routine_dc,
-        sg,
-        resolver,
-    )?
-    else {
+    let routine_sh = DcShorthand::from_global_id(routine_dc.to_u128());
+    if sg.resolve_stagel_decomposition_tokens(routine_sh)?.is_none() {
         return Ok(None);
-    };
+    }
+
+    let prof_start = is_dc_routine_profiling_enabled()
+        .then(std::time::Instant::now);
 
     let mut input_doc = DcMstring::new();
     for &tok in input_tokens {
@@ -6743,25 +7292,153 @@ pub fn run_graph_stager_dcs_routine_with_quota(
                 ),
         )
     });
-    let mut limits = active_quota.snapshot()?.active_limits;
+    let before_snap = active_quota.snapshot()?;
+    let mut limits = before_snap.active_limits;
     limits.max_capability_payload_bytes =
         limits.max_capability_payload_bytes.max(limits.max_step_output_bytes);
-    let mut session = DcWasmSession::from_wasm_bytes_with_limits(
-        wasm_bytes.as_slice(),
-        &input_doc,
-        most_recent,
-        limits,
-    )?;
+
+    let cache_key = (input_doc.as_bytes().len() <= MAX_MEMOIZED_PURE_INPUT_BYTES)
+        .then(|| {
+            let mut hasher = Sha256::new();
+            hasher.update(b"ctb-stager-dcs-routine-v1");
+            hasher.update(WASM_RESOURCE_ACCOUNTING_VERSION.to_le_bytes());
+            hasher.update(sg.instance_id().to_le_bytes());
+            match most_recent {
+                Some(pin) => {
+                    hasher.update([1u8]);
+                    hasher.update(pin.to_le_bytes());
+                }
+                None => hasher.update([0u8]),
+            }
+            hasher.update(routine_dc.to_u128().to_le_bytes());
+            hasher.update(input_doc.as_bytes());
+            let key: [u8; 32] = hasher.finalize().into();
+            key
+        });
+
+    if let Some(ref key) = cache_key {
+        let map_lock = PURE_STAGER_DCS_ROUTINE_CACHE
+            .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+        let cached_opt = map_lock.lock().ok().and_then(|g| g.get(key).cloned());
+        if let Some(entry) = cached_opt
+            && let Some(hit) = try_charge_cached_pure_conversion(
+                &entry,
+                &limits,
+                Some(&active_quota),
+            )?
+        {
+            if let Some(t0) = prof_start
+                && let Ok(ret_str) = hit.to_dc_string()
+            {
+                let ret_chars: Vec<DcChar> = ret_str.chars().collect();
+                record_dc_routine_invocation_profile(
+                    routine_dc,
+                    most_recent,
+                    input_tokens,
+                    &ret_chars,
+                    t0.elapsed().as_nanos(),
+                    entry.executed_instructions,
+                );
+            }
+            if let Some(err_msg) =
+                decode_dc_error_record_if_present(&hit, resolver)?
+            {
+                if routine_dc
+                    == ctb_formats_dcdata::dc::DC_CONVERT_DC_STRING_TO_WASM
+                {
+                    bail!("Dc 2608 Convert Dc string to WASM failed: {err_msg}");
+                }
+                bail!("StageR 3 graph routine {routine_sh} failed: {err_msg}");
+            }
+            return Ok(Some(hit));
+        }
+    }
+
+    let graph_target = ctb_formats_dcdata::seed_graph::SystemWasmSubstituteTarget {
+        subject: routine_sh,
+        global_id: routine_dc.to_u128(),
+        defining_node_id: 0,
+        chunk_prefix: String::new(),
+        kind: ctb_formats_dcdata::seed_graph::SystemWasmSubstituteTargetKind::StageRRoutineDcs,
+    };
+    let mut session = if let Ok(Some(desc)) =
+        lookup_cached_graph_target_substitute(sg, &graph_target)
+    {
+        DcWasmSession::from_substitute_descriptor_with_limits(
+            desc,
+            &input_doc,
+            most_recent,
+            limits,
+        )?
+    } else {
+        let Some(wasm_bytes) =
+            compile_and_cache_graph_stager_dcs_routine_to_wasm_bytes(
+                routine_dc,
+                sg,
+                resolver,
+            )?
+        else {
+            return Ok(None);
+        };
+        DcWasmSession::from_wasm_bytes_with_limits(
+            wasm_bytes.as_slice(),
+            &input_doc,
+            most_recent,
+            limits,
+        )?
+    };
     session.set_shared_task_quota(active_quota.clone())?;
     let output = super::run_wasm_session_pure_with_graph_capabilities(
         &mut session,
         resolver,
-        Some(active_quota),
+        Some(active_quota.clone()),
     )?;
+    let after_snap = active_quota.snapshot()?;
+    let delta_instructions = after_snap
+        .total_instructions_executed
+        .saturating_sub(before_snap.total_instructions_executed);
+    let delta_output_bytes = after_snap
+        .cumulative_output_bytes
+        .saturating_sub(before_snap.cumulative_output_bytes);
+    if let Some(key) = cache_key
+        && output.as_bytes().len() <= MAX_MEMOIZED_PURE_OUTPUT_BYTES
+        && let Ok(peak_mem) = session.current_memory_pages()
+    {
+        let out_payload_len =
+            output.as_bytes().len().saturating_sub(DCMM_HEADER_LEN);
+        let entry = CachedPureWasmConversion {
+            output_doc_bytes: std::sync::Arc::new(output.as_bytes().to_vec()),
+            executed_instructions: delta_instructions,
+            peak_memory_pages: peak_mem.max(64),
+            peak_table_elements: session.current_table_elements(),
+            max_step_output_bytes: out_payload_len.max(delta_output_bytes),
+            total_output_payload_bytes: delta_output_bytes,
+        };
+        let map_lock = PURE_STAGER_DCS_ROUTINE_CACHE
+            .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+        if let Ok(mut guard) = map_lock.lock() {
+            if guard.len() >= MAX_MEMOIZED_PURE_CACHE_ENTRIES {
+                guard.clear();
+            }
+            guard.insert(key, entry);
+        }
+    }
+    if let Some(t0) = prof_start
+        && let Ok(ret_str) = output.to_dc_string()
+    {
+        let ret_chars: Vec<DcChar> = ret_str.chars().collect();
+        record_dc_routine_invocation_profile(
+            routine_dc,
+            most_recent,
+            input_tokens,
+            &ret_chars,
+            t0.elapsed().as_nanos(),
+            delta_instructions,
+        );
+    }
     if let Some(err_msg) =
         decode_dc_error_record_if_present(&output, resolver)?
     {
-        let routine_sh = DcShorthand::from_global_id(routine_dc.to_u128());
         if routine_dc == ctb_formats_dcdata::dc::DC_CONVERT_DC_STRING_TO_WASM {
             bail!("Dc 2608 Convert Dc string to WASM failed: {err_msg}");
         }
@@ -11385,6 +12062,102 @@ mod tests {
                 .contains("Unknown symbolic WASM function target 'zorward_helper'"),
             "Unexpected error: {err}"
         );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_pure_wasm_memoization_quota_fidelity_and_routine_profiler()
+    -> Result<()> {
+        let wat = r#"
+            (module
+              (memory (export "memory") 1)
+              (func (export "step") (result i32)
+                (local $i i32)
+                (loop $l
+                  (local.set $i (i32.add (local.get $i) (i32.const 1)))
+                  (br_if $l (i32.lt_u (local.get $i) (i32.const 8))))
+                (i32.store8 (i32.const 512) (i32.const 0x20))
+                (i32.store8 (i32.const 513) (i32.const 0x41))
+                (i32.store (i32.const 8) (i32.const 512))
+                (i32.store (i32.const 12) (i32.const 2))
+                (i32.const 0)))
+        "#;
+        let wasm_bytes = crate::converters::wat::wat_to_wasm(wat)?;
+        let mut input = DcMstring::new();
+        input.push_char(DcChar::from_unicode(u32::from(b'x'))?);
+
+        let q1 = SharedWasmTaskQuota::new(
+            DcWasmResourceLimits::default().with_max_instructions_per_step(10_000),
+        );
+        let out1 = run_wasm_bytes_pure_conversion_with_quota(
+            &wasm_bytes,
+            &input,
+            None,
+            Some(q1.clone()),
+        )?;
+        let snap1 = q1.snapshot()?;
+        assert!(snap1.total_instructions_executed > 1);
+
+        // Second call hits PURE_WASM_CONVERSION_CACHE and charges identical compute/output units.
+        let q2 = SharedWasmTaskQuota::new(
+            DcWasmResourceLimits::default().with_max_instructions_per_step(10_000),
+        );
+        let out2 = run_wasm_bytes_pure_conversion_with_quota(
+            &wasm_bytes,
+            &input,
+            None,
+            Some(q2.clone()),
+        )?;
+        let snap2 = q2.snapshot()?;
+        assert_eq!(out1, out2);
+        assert_eq!(
+            snap1.total_instructions_executed,
+            snap2.total_instructions_executed
+        );
+        assert_eq!(snap1.cumulative_output_bytes, snap2.cumulative_output_bytes);
+
+        // Tighter quota than cached cost falls through to VM execution and exhausts cleanly.
+        let q_tight = SharedWasmTaskQuota::new(
+            DcWasmResourceLimits::default().with_max_instructions_per_step(2),
+        );
+        assert!(
+            run_wasm_bytes_pure_conversion_with_quota(
+                &wasm_bytes,
+                &input,
+                None,
+                Some(q_tight),
+            )
+            .is_err()
+        );
+
+        // Verify opt-in Dc routine invocation profiler aggregation.
+        let _ = take_dc_routine_profile_snapshot();
+        set_dc_routine_profiling_enabled(true);
+        let routine_dc = DcChar::from_short(2608);
+        let params = vec![DcChar::from_unicode(u32::from(b'a'))?];
+        let ret = vec![DcChar::from_unicode(u32::from(b'A'))?];
+        record_dc_routine_invocation_profile(
+            routine_dc,
+            Some(8_589_934_592),
+            &params,
+            &ret,
+            1_500,
+            42,
+        );
+        record_dc_routine_invocation_profile(
+            routine_dc,
+            Some(8_589_934_592),
+            &params,
+            &ret,
+            2_500,
+            42,
+        );
+        set_dc_routine_profiling_enabled(false);
+        let entries = take_dc_routine_profile_snapshot();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].call_count, 2);
+        assert_eq!(entries[0].total_duration_ns, 4_000);
+        assert_eq!(entries[0].executed_instructions, 42);
         Ok(())
     }
 }

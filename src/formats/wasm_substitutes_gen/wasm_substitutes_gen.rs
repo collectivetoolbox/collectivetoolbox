@@ -237,10 +237,27 @@ fn compute_bundle_state_hash(
     head_watermark_id: u128,
 ) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"ctb-wasm-substitute-state-v5");
+    hasher.update(b"ctb-wasm-substitute-state-v6");
     hasher.update(codegen_digest);
     hasher.update(head_watermark_id.to_le_bytes());
     hasher.finalize().into()
+}
+
+fn decode_sha256_hex(hex: &str) -> Result<[u8; 32]> {
+    ensure!(
+        hex.len() == 64,
+        "Expected 64-char SHA-256 hex digest, found {} chars",
+        hex.len()
+    );
+    let mut out = [0u8; 32];
+    for (i, slot) in out.iter_mut().enumerate() {
+        let start = i.saturating_mul(2);
+        let end = start.saturating_add(2);
+        let pair = hex.get(start..end).context("Hex slice out of bounds")?;
+        *slot = u8::from_str_radix(pair, 16)
+            .with_context(|| format!("Invalid hex byte '{pair}' in SHA-256"))?;
+    }
+    Ok(out)
 }
 
 fn hash_snapshot_wasm_cache_key(
@@ -438,7 +455,7 @@ fn generate_substitutes_for_nodes_with_cache(
             Ok::<_, anyhow::Error>(results)
         })?;
 
-    let mut compiled: Vec<(String, String, Vec<u8>)> =
+    let mut compiled: Vec<(String, String, Vec<u8>, (u128, [u8; 32]))> =
         Vec::with_capacity(snapshots.len());
     for batch_res in lowered_batches {
         for (snap_idx, wasm_opt) in batch_res? {
@@ -460,10 +477,12 @@ fn generate_substitutes_for_nodes_with_cache(
                 );
                 continue;
             }
+            let rev_bytes = decode_sha256_hex(&snap.revision_sha256_hex)?;
             compiled.push((
                 snap.target.chunk_prefix.clone(),
                 label,
                 wasm_bytes,
+                (snap.target.global_id, rev_bytes),
             ));
         }
     }
@@ -474,11 +493,16 @@ fn generate_substitutes_for_nodes_with_cache(
 
     let bundle_inputs: Vec<SubstituteBundleInput<'_>> = compiled
         .iter()
-        .map(|(chunk_prefix, label, wasm_bytes)| SubstituteBundleInput {
-            chunk_prefix: chunk_prefix.as_str(),
-            label: label.as_str(),
-            wasm_bytes: wasm_bytes.as_slice(),
-        })
+        .map(
+            |(chunk_prefix, label, wasm_bytes, graph_target)| {
+                SubstituteBundleInput {
+                    chunk_prefix: chunk_prefix.as_str(),
+                    label: label.as_str(),
+                    wasm_bytes: wasm_bytes.as_slice(),
+                    graph_target: Some(*graph_target),
+                }
+            },
+        )
         .collect();
     let compiled_count = bundle_inputs.len();
     let files =

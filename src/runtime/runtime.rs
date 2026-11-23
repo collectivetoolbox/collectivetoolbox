@@ -451,43 +451,69 @@ impl SystemSupervisorAdmission {
         definition_tokens: &[DcShorthand],
         user_limits: DcWasmResourceLimits,
     ) -> Result<DcWasmResourceLimits> {
+        static SUPERVISOR_LIMITS_CACHE: std::sync::OnceLock<
+            std::sync::Mutex<
+                std::collections::HashMap<
+                    (Vec<DcShorthand>, Vec<u8>),
+                    DcWasmResourceLimits,
+                >,
+            >,
+        > = std::sync::OnceLock::new();
+
         ctb_wasm_substitutes::ensure_registered();
         if definition_tokens.len() <= 2 {
             return Ok(user_limits);
         }
+        let encoded_cfg = user_limits.encode_canonical_config_bytes();
+        let cache_key = (definition_tokens.to_vec(), encoded_cfg.clone());
+        let cache = SUPERVISOR_LIMITS_CACHE
+            .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+        if let Ok(guard) = cache.lock()
+            && let Some(&cached) = guard.get(&cache_key)
+        {
+            return Ok(cached);
+        }
         let mut sup_doc = DcMstring::new();
         for &tok in definition_tokens {
-            let ch = DcChar::from_u128(tok.to_global_id()?);
-            sup_doc.push_char(ch);
+            let gid = tok.to_global_id()?;
+            sup_doc.push_char(DcChar::from_u128(gid));
         }
         let mut input_doc = DcMstring::new();
-        for b in user_limits.encode_canonical_config_bytes() {
+        for b in encoded_cfg {
             let ch = DcChar::from_unicode(u32::from(b))?;
             input_doc.push_char(ch);
         }
         let mut session =
             DcWasmSession::from_dc_wasm(&sup_doc, &input_doc, None)
                 .context("Failed to instantiate System supervisor Dc-WASM document")?;
-        match session.step()? {
+        let validated = match session.step()? {
             WasmStepOutcome::Complete(out_doc) => {
                 if out_doc.as_bytes().is_empty() {
-                    return Ok(user_limits);
+                    user_limits
+                } else {
+                    let out_str = out_doc.to_dc_string()?;
+                    let mut out_bytes = Vec::with_capacity(76);
+                    for ch in out_str.chars() {
+                        let code = ch.to_unicode()?;
+                        let b = u8::try_from(code).context(
+                            "Supervisor output config contains non-byte character",
+                        )?;
+                        out_bytes.push(b);
+                    }
+                    DcWasmResourceLimits::decode_canonical_config_bytes(&out_bytes)?
                 }
-                let out_str = out_doc.to_dc_string()?;
-                let mut out_bytes = Vec::with_capacity(76);
-                for ch in out_str.chars() {
-                    let code = ch.to_unicode()?;
-                    let b = u8::try_from(code).context(
-                        "Supervisor output config contains non-byte character",
-                    )?;
-                    out_bytes.push(b);
-                }
-                DcWasmResourceLimits::decode_canonical_config_bytes(&out_bytes)
             }
             other => bail!(
                 "System supervisor validation step must return Complete(config), got {other:?}"
             ),
+        };
+        if let Ok(mut guard) = cache.lock() {
+            if guard.len() >= 256 {
+                guard.clear();
+            }
+            guard.insert(cache_key, validated);
         }
+        Ok(validated)
     }
 
     /// Verifies that an ordinary user document does not attempt to claim System supervisor

@@ -65,8 +65,7 @@ clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
 impl ChunkFns {
-    #[inline(never)]
-    pub(crate) fn f_f99da218d0da(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+    pub(crate) fn f_f99da218d0da(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -76,7 +75,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -251,7 +250,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_3c777e7664b4(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_3c777e7664b4(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -301,7 +300,7 @@ impl ChunkFns {
     let mut s_i32_11: i32 = 0i32;
     let mut s_i32_12: i32 = 0i32;
     let mut s_i32_13: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -323,7 +322,7 @@ impl ChunkFns {
     l6 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = 0i64;
             s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
@@ -1020,7 +1019,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_218b53dab712(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_218b53dab712(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -1067,7 +1066,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -1422,7 +1421,7 @@ impl ChunkFns {
             ops::i32_store8(vm, 0, s_i32_1, 17u32, s_i32_2)?;
             s_i32_1 = l13;
             s_i32_2 = 100i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             ops::i32_store8(vm, 0, s_i32_1, 18u32, s_i32_2)?;
             s_i32_1 = l13;
             s_i32_2 = 47i32;
@@ -1708,7 +1707,7 @@ impl ChunkFns {
             l30 = s_i32_0;
             'blk_14: {
                 'blk_15: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l30;
                     s_i32_1 = l29;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -1785,8 +1784,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_9361c4e9179a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_9361c4e9179a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -1804,7 +1802,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -1885,7 +1883,7 @@ impl ChunkFns {
     l7 = s_i64_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l7;
             s_i64_1 = l3;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -1980,10 +1978,10 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_61a16d9614ba(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_61a16d9614ba(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut s_i32_0: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -1993,14 +1991,14 @@ impl ChunkFns {
     return dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, __t0, host);
     }
 
-    pub(crate) fn f_03e481579af4(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_03e481579af4(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l0;
     s_i32_1 = l1;
     s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
@@ -2038,12 +2036,12 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_162b60a1a7e7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_162b60a1a7e7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l0;
     s_i32_1 = l1;
     s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
@@ -2085,12 +2083,12 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_0630896cabfc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_0630896cabfc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l0;
     s_i32_1 = l1;
     s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
@@ -2148,12 +2146,12 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_cb1aa58541c6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_cb1aa58541c6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -2166,7 +2164,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_638e3fd61a80(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_638e3fd61a80(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -2260,7 +2258,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -2494,7 +2492,7 @@ impl ChunkFns {
     l19 = s_i64_0;
     'blk_5: {
         'blk_6: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l18;
             s_i64_1 = l19;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -2860,7 +2858,7 @@ impl ChunkFns {
     }
     'blk_21: {
         'blk_22: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l18;
             s_i64_1 = l7;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -3461,7 +3459,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_7503dfb81265(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_7503dfb81265(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -3512,7 +3510,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -3904,7 +3902,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_ea9ae49cf4e8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_ea9ae49cf4e8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -3971,7 +3969,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -4206,7 +4204,7 @@ impl ChunkFns {
     l19 = s_i64_0;
     'blk_5: {
         'blk_6: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l19;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -4639,7 +4637,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_a73ab5eebd75(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a73ab5eebd75(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -4695,7 +4693,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -4796,7 +4794,7 @@ impl ChunkFns {
     l10 = s_i64_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l10;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -5324,351 +5322,351 @@ use crate::utilities::*;
 use super::*;
 
 const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize];
-const FN_0_CALLEES: &[u32] = &[92u32];
-const FN_1_CALLEES: &[u32] = &[0u32, 24u32];
-const FN_2_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_3_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_4_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_5_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_0_CALLEES: &[usize] = &[92usize];
+const FN_1_CALLEES: &[usize] = &[0usize, 24usize];
+const FN_2_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_3_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_4_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_5_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_6_CALLEES: &[usize] = &[0usize, 34usize, 10usize];
 const FN_7_GLOBALS: &[usize] = &[14usize];
-const FN_7_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_8_CALLEES: &[u32] = &[0u32, 0u32];
-const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
-const FN_10_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_11_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_12_CALLEES: &[u32] = &[0u32, 25u32];
-const FN_13_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_14_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_15_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_16_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_17_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_19_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_20_CALLEES: &[u32] = &[0u32];
-const FN_21_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_22_CALLEES: &[u32] = &[0u32, 27u32];
-const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 1u32, 1u32, 92u32];
-const FN_24_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_25_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_26_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_27_CALLEES: &[u32] = &[0u32, 32u32, 112u32, 33u32, 2u32];
-const FN_28_CALLEES: &[u32] = &[0u32, 33u32, 112u32, 32u32, 2u32];
-const FN_29_CALLEES: &[u32] = &[0u32, 28u32];
-const FN_30_CALLEES: &[u32] = &[0u32, 29u32];
-const FN_31_CALLEES: &[u32] = &[0u32, 30u32];
-const FN_32_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_7_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_8_CALLEES: &[usize] = &[0usize, 0usize];
+const FN_9_CALLEES: &[usize] = &[0usize, 10usize];
+const FN_10_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_11_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_12_CALLEES: &[usize] = &[0usize, 25usize];
+const FN_13_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_14_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_15_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_16_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_17_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_18_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_19_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_20_CALLEES: &[usize] = &[0usize];
+const FN_21_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_22_CALLEES: &[usize] = &[0usize, 27usize];
+const FN_23_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 1usize, 1usize, 92usize];
+const FN_24_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_25_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_26_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_27_CALLEES: &[usize] = &[0usize, 32usize, 112usize, 33usize, 2usize];
+const FN_28_CALLEES: &[usize] = &[0usize, 33usize, 112usize, 32usize, 2usize];
+const FN_29_CALLEES: &[usize] = &[0usize, 28usize];
+const FN_30_CALLEES: &[usize] = &[0usize, 29usize];
+const FN_31_CALLEES: &[usize] = &[0usize, 30usize];
+const FN_32_CALLEES: &[usize] = &[0usize, 26usize];
 const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 92u32];
-const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 92u32];
+const FN_33_CALLEES: &[usize] = &[0usize, 34usize, 10usize, 92usize];
+const FN_34_CALLEES: &[usize] = &[0usize, 31usize, 92usize];
 const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_35_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_35_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
 const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_36_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
-const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 92u32];
+const FN_36_CALLEES: &[usize] = &[0usize, 0usize, 92usize];
+const FN_37_CALLEES: &[usize] = &[0usize, 31usize, 92usize];
 const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 92u32];
+const FN_38_CALLEES: &[usize] = &[0usize, 6usize, 35usize, 92usize];
 const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_39_CALLEES: &[u32] = &[0u32, 92u32, 32u32];
+const FN_39_CALLEES: &[usize] = &[0usize, 92usize, 32usize];
 const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_40_CALLEES: &[u32] = &[0u32, 92u32, 33u32];
+const FN_40_CALLEES: &[usize] = &[0usize, 92usize, 33usize];
 const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 92u32];
+const FN_41_CALLEES: &[usize] = &[0usize, 10usize, 36usize, 92usize];
 const FN_42_GLOBALS: &[usize] = &[9usize];
-const FN_42_CALLEES: &[u32] = &[0u32, 10u32, 92u32];
+const FN_42_CALLEES: &[usize] = &[0usize, 10usize, 92usize];
 const FN_43_GLOBALS: &[usize] = &[9usize];
-const FN_43_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_43_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
 const FN_44_GLOBALS: &[usize] = &[9usize];
-const FN_44_CALLEES: &[u32] = &[0u32, 11u32, 92u32];
+const FN_44_CALLEES: &[usize] = &[0usize, 11usize, 92usize];
 const FN_45_GLOBALS: &[usize] = &[9usize];
-const FN_45_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_45_CALLEES: &[usize] = &[0usize, 92usize];
 const FN_46_GLOBALS: &[usize] = &[9usize];
-const FN_46_CALLEES: &[u32] = &[0u32, 12u32, 92u32];
+const FN_46_CALLEES: &[usize] = &[0usize, 12usize, 92usize];
 const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
-const FN_47_CALLEES: &[u32] = &[0u32, 110u32, 92u32, 13u32, 93u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 113u32];
-const FN_48_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_49_CALLEES: &[u32] = &[0u32, 1u32, 112u32, 0u32, 92u32];
-const FN_50_CALLEES: &[u32] = &[0u32, 0u32, 112u32, 1u32, 92u32];
-const FN_51_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_52_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
-const FN_53_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_54_CALLEES: &[u32] = &[0u32, 0u32, 112u32];
-const FN_55_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 112u32];
-const FN_56_CALLEES: &[u32] = &[0u32, 18u32];
-const FN_57_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_47_CALLEES: &[usize] = &[0usize, 110usize, 92usize, 13usize, 93usize, 0usize, 32usize, 2usize, 10usize, 36usize, 37usize, 113usize];
+const FN_48_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_49_CALLEES: &[usize] = &[0usize, 1usize, 112usize, 0usize, 92usize];
+const FN_50_CALLEES: &[usize] = &[0usize, 0usize, 112usize, 1usize, 92usize];
+const FN_51_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_52_CALLEES: &[usize] = &[0usize, 0usize, 92usize];
+const FN_53_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_54_CALLEES: &[usize] = &[0usize, 0usize, 112usize];
+const FN_55_CALLEES: &[usize] = &[0usize, 1usize, 92usize, 112usize];
+const FN_56_CALLEES: &[usize] = &[0usize, 18usize];
+const FN_57_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
 const FN_58_GLOBALS: &[usize] = &[15usize];
-const FN_58_CALLEES: &[u32] = &[0u32, 16u32, 2u32, 11u32];
-const FN_59_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_60_CALLEES: &[u32] = &[0u32];
-const FN_61_CALLEES: &[u32] = &[0u32];
-const FN_62_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_63_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_58_CALLEES: &[usize] = &[0usize, 16usize, 2usize, 11usize];
+const FN_59_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_60_CALLEES: &[usize] = &[0usize];
+const FN_61_CALLEES: &[usize] = &[0usize];
+const FN_62_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_63_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
 const FN_64_GLOBALS: &[usize] = &[15usize];
-const FN_64_CALLEES: &[u32] = &[0u32, 17u32, 2u32, 11u32];
-const FN_65_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_66_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_67_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 22u32, 114u32, 92u32, 13u32, 115u32, 116u32, 117u32, 1u32, 0u32, 94u32];
-const FN_68_CALLEES: &[u32] = &[0u32, 2u32, 92u32, 22u32, 114u32, 1u32, 118u32, 117u32, 119u32, 0u32, 32u32, 2u32, 120u32, 111u32, 13u32, 15u32, 1u32];
+const FN_64_CALLEES: &[usize] = &[0usize, 17usize, 2usize, 11usize];
+const FN_65_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_66_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_67_CALLEES: &[usize] = &[0usize, 0usize, 13usize, 22usize, 114usize, 92usize, 13usize, 115usize, 116usize, 117usize, 1usize, 0usize, 94usize];
+const FN_68_CALLEES: &[usize] = &[0usize, 2usize, 92usize, 22usize, 114usize, 1usize, 118usize, 117usize, 119usize, 0usize, 32usize, 2usize, 120usize, 111usize, 13usize, 15usize, 1usize];
 const FN_69_GLOBALS: &[usize] = &[14usize];
-const FN_69_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 92u32, 32u32, 0u32, 2u32];
-const FN_70_CALLEES: &[u32] = &[0u32, 9u32, 12u32, 14u32, 0u32, 0u32, 94u32];
-const FN_71_CALLEES: &[u32] = &[0u32, 0u32, 9u32, 0u32, 94u32];
-const FN_72_CALLEES: &[u32] = &[0u32, 19u32];
-const FN_73_CALLEES: &[u32] = &[0u32, 20u32, 1u32, 112u32, 111u32, 1u32];
-const FN_74_CALLEES: &[u32] = &[0u32, 2u32, 92u32, 23u32, 19u32, 1u32];
-const FN_75_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 92u32, 1u32, 5u32, 23u32, 9u32, 94u32, 112u32, 95u32, 121u32, 119u32, 14u32];
-const FN_76_CALLEES: &[u32] = &[0u32, 1u32, 2u32, 92u32, 23u32, 19u32, 13u32, 94u32, 13u32];
-const FN_77_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 92u32, 9u32, 1u32, 94u32, 12u32, 14u32];
-const FN_78_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 23u32, 19u32, 16u32, 14u32, 9u32, 94u32, 112u32, 95u32, 14u32];
-const FN_79_CALLEES: &[u32] = &[0u32, 23u32, 26u32, 1u32];
-const FN_80_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 1u32];
-const FN_81_CALLEES: &[u32] = &[0u32, 19u32, 18u32, 92u32];
-const FN_82_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 13u32, 18u32, 13u32, 2u32, 15u32, 22u32, 119u32, 111u32, 121u32, 2u32, 94u32];
-const FN_83_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_84_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 18u32, 13u32, 19u32, 94u32];
-const FN_85_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 18u32, 13u32, 22u32, 21u32, 19u32, 16u32, 94u32];
-const FN_86_CALLEES: &[u32] = &[0u32, 27u32, 18u32, 92u32];
+const FN_69_CALLEES: &[usize] = &[0usize, 1usize, 10usize, 92usize, 32usize, 0usize, 2usize];
+const FN_70_CALLEES: &[usize] = &[0usize, 9usize, 12usize, 14usize, 0usize, 0usize, 94usize];
+const FN_71_CALLEES: &[usize] = &[0usize, 0usize, 9usize, 0usize, 94usize];
+const FN_72_CALLEES: &[usize] = &[0usize, 19usize];
+const FN_73_CALLEES: &[usize] = &[0usize, 20usize, 1usize, 112usize, 111usize, 1usize];
+const FN_74_CALLEES: &[usize] = &[0usize, 2usize, 92usize, 23usize, 19usize, 1usize];
+const FN_75_CALLEES: &[usize] = &[0usize, 23usize, 19usize, 92usize, 1usize, 5usize, 23usize, 9usize, 94usize, 112usize, 95usize, 121usize, 119usize, 14usize];
+const FN_76_CALLEES: &[usize] = &[0usize, 1usize, 2usize, 92usize, 23usize, 19usize, 13usize, 94usize, 13usize];
+const FN_77_CALLEES: &[usize] = &[0usize, 23usize, 19usize, 92usize, 9usize, 1usize, 94usize, 12usize, 14usize];
+const FN_78_CALLEES: &[usize] = &[0usize, 1usize, 92usize, 23usize, 19usize, 16usize, 14usize, 9usize, 94usize, 112usize, 95usize, 14usize];
+const FN_79_CALLEES: &[usize] = &[0usize, 23usize, 26usize, 1usize];
+const FN_80_CALLEES: &[usize] = &[0usize, 23usize, 19usize, 1usize];
+const FN_81_CALLEES: &[usize] = &[0usize, 19usize, 18usize, 92usize];
+const FN_82_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 13usize, 18usize, 13usize, 2usize, 15usize, 22usize, 119usize, 111usize, 121usize, 2usize, 94usize];
+const FN_83_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_84_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 18usize, 13usize, 19usize, 94usize];
+const FN_85_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 18usize, 13usize, 22usize, 21usize, 19usize, 16usize, 94usize];
+const FN_86_CALLEES: &[usize] = &[0usize, 27usize, 18usize, 92usize];
 const FN_87_GLOBALS: &[usize] = &[14usize];
-const FN_87_CALLEES: &[u32] = &[0u32, 110u32, 18u32, 13u32, 92u32, 13u32, 13u32, 14u32, 11u32, 111u32, 16u32, 33u32, 2u32, 24u32, 94u32];
-const FN_88_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_89_CALLEES: &[u32] = &[0u32, 92u32, 0u32, 122u32, 9u32, 22u32, 17u32, 0u32, 94u32];
-const FN_90_CALLEES: &[u32] = &[0u32, 12u32, 14u32, 120u32, 0u32, 112u32, 111u32, 20u32, 1u32, 33u32, 95u32, 121u32];
-const FN_91_CALLEES: &[u32] = &[0u32, 22u32, 114u32, 118u32, 117u32, 119u32];
+const FN_87_CALLEES: &[usize] = &[0usize, 110usize, 18usize, 13usize, 92usize, 13usize, 13usize, 14usize, 11usize, 111usize, 16usize, 33usize, 2usize, 24usize, 94usize];
+const FN_88_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_89_CALLEES: &[usize] = &[0usize, 92usize, 0usize, 122usize, 9usize, 22usize, 17usize, 0usize, 94usize];
+const FN_90_CALLEES: &[usize] = &[0usize, 12usize, 14usize, 120usize, 0usize, 112usize, 111usize, 20usize, 1usize, 33usize, 95usize, 121usize];
+const FN_91_CALLEES: &[usize] = &[0usize, 22usize, 114usize, 118usize, 117usize, 119usize];
 const FN_92_GLOBALS: &[usize] = &[14usize];
-const FN_92_CALLEES: &[u32] = &[0u32, 40u32, 43u32, 36u32];
-const FN_93_CALLEES: &[u32] = &[0u32, 62u32];
-const FN_94_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_95_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_96_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_97_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_98_CALLEES: &[u32] = &[0u32, 70u32];
+const FN_92_CALLEES: &[usize] = &[0usize, 40usize, 43usize, 36usize];
+const FN_93_CALLEES: &[usize] = &[0usize, 62usize];
+const FN_94_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_95_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_96_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_97_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_98_CALLEES: &[usize] = &[0usize, 70usize];
 const FN_99_GLOBALS: &[usize] = &[20usize, 17usize, 18usize];
-const FN_99_CALLEES: &[u32] = &[0u32, 123u32];
+const FN_99_CALLEES: &[usize] = &[0usize, 123usize];
 const FN_100_GLOBALS: &[usize] = &[20usize];
-const FN_100_CALLEES: &[u32] = &[0u32, 123u32, 31u32, 6u32, 35u32, 40u32, 1u32, 12u32];
+const FN_100_CALLEES: &[usize] = &[0usize, 123usize, 31usize, 6usize, 35usize, 40usize, 1usize, 12usize];
 const FN_101_GLOBALS: &[usize] = &[17usize];
-const FN_101_CALLEES: &[u32] = &[0u32, 123u32];
-const FN_102_CALLEES: &[u32] = &[0u32, 72u32];
-const FN_103_CALLEES: &[u32] = &[0u32, 43u32, 1u32];
-const FN_104_CALLEES: &[u32] = &[0u32, 43u32, 2u32];
-const FN_105_CALLEES: &[u32] = &[0u32, 63u32];
-const FN_106_CALLEES: &[u32] = &[0u32, 123u32];
-const FN_107_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_108_CALLEES: &[u32] = &[0u32, 3u32];
-const FN_109_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_110_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_111_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_112_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_113_CALLEES: &[u32] = &[0u32, 53u32];
-const FN_114_CALLEES: &[u32] = &[0u32, 53u32];
-const FN_115_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_116_CALLEES: &[u32] = &[0u32];
-const FN_117_CALLEES: &[u32] = &[0u32, 53u32];
-const FN_118_CALLEES: &[u32] = &[0u32];
-const FN_119_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_120_CALLEES: &[u32] = &[0u32, 65u32];
-const FN_121_CALLEES: &[u32] = &[0u32, 123u32];
-const FN_122_CALLEES: &[u32] = &[0u32, 45u32];
-const FN_123_CALLEES: &[u32] = &[0u32, 43u32, 5u32];
-const FN_124_CALLEES: &[u32] = &[0u32, 45u32, 69u32];
-const FN_125_CALLEES: &[u32] = &[0u32, 66u32];
-const FN_126_CALLEES: &[u32] = &[0u32, 67u32];
-const FN_127_CALLEES: &[u32] = &[0u32, 68u32];
-const FN_128_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_129_CALLEES: &[u32] = &[0u32, 69u32];
+const FN_101_CALLEES: &[usize] = &[0usize, 123usize];
+const FN_102_CALLEES: &[usize] = &[0usize, 72usize];
+const FN_103_CALLEES: &[usize] = &[0usize, 43usize, 1usize];
+const FN_104_CALLEES: &[usize] = &[0usize, 43usize, 2usize];
+const FN_105_CALLEES: &[usize] = &[0usize, 63usize];
+const FN_106_CALLEES: &[usize] = &[0usize, 123usize];
+const FN_107_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_108_CALLEES: &[usize] = &[0usize, 3usize];
+const FN_109_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_110_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_111_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_112_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_113_CALLEES: &[usize] = &[0usize, 53usize];
+const FN_114_CALLEES: &[usize] = &[0usize, 53usize];
+const FN_115_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_116_CALLEES: &[usize] = &[0usize];
+const FN_117_CALLEES: &[usize] = &[0usize, 53usize];
+const FN_118_CALLEES: &[usize] = &[0usize];
+const FN_119_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_120_CALLEES: &[usize] = &[0usize, 65usize];
+const FN_121_CALLEES: &[usize] = &[0usize, 123usize];
+const FN_122_CALLEES: &[usize] = &[0usize, 45usize];
+const FN_123_CALLEES: &[usize] = &[0usize, 43usize, 5usize];
+const FN_124_CALLEES: &[usize] = &[0usize, 45usize, 69usize];
+const FN_125_CALLEES: &[usize] = &[0usize, 66usize];
+const FN_126_CALLEES: &[usize] = &[0usize, 67usize];
+const FN_127_CALLEES: &[usize] = &[0usize, 68usize];
+const FN_128_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_129_CALLEES: &[usize] = &[0usize, 69usize];
 const FN_130_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_130_CALLEES: &[u32] = &[0u32, 44u32, 70u32, 92u32];
+const FN_130_CALLEES: &[usize] = &[0usize, 44usize, 70usize, 92usize];
 const FN_131_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize, 9usize];
-const FN_131_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 31u32, 31u32, 39u32, 40u32, 52u32];
+const FN_131_CALLEES: &[usize] = &[0usize, 123usize, 92usize, 31usize, 31usize, 39usize, 40usize, 52usize];
 const FN_132_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_132_CALLEES: &[u32] = &[0u32, 39u32, 92u32];
-const FN_133_CALLEES: &[u32] = &[0u32, 69u32, 40u32, 92u32, 70u32, 72u32];
+const FN_132_CALLEES: &[usize] = &[0usize, 39usize, 92usize];
+const FN_133_CALLEES: &[usize] = &[0usize, 69usize, 40usize, 92usize, 70usize, 72usize];
 const FN_134_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_134_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 92u32];
+const FN_134_CALLEES: &[usize] = &[0usize, 46usize, 71usize, 92usize];
 const FN_135_GLOBALS: &[usize] = &[17usize, 20usize, 9usize];
-const FN_135_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 52u32];
+const FN_135_CALLEES: &[usize] = &[0usize, 123usize, 92usize, 52usize];
 const FN_136_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_136_CALLEES: &[u32] = &[0u32, 92u32, 43u32, 32u32, 39u32];
+const FN_136_CALLEES: &[usize] = &[0usize, 92usize, 43usize, 32usize, 39usize];
 const FN_137_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_137_CALLEES: &[u32] = &[0u32, 92u32, 0u32, 112u32, 1u32, 2u32];
+const FN_137_CALLEES: &[usize] = &[0usize, 92usize, 0usize, 112usize, 1usize, 2usize];
 const FN_138_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_138_CALLEES: &[u32] = &[0u32, 47u32, 72u32, 92u32];
+const FN_138_CALLEES: &[usize] = &[0usize, 47usize, 72usize, 92usize];
 const FN_139_GLOBALS: &[usize] = &[9usize];
-const FN_139_CALLEES: &[u32] = &[0u32, 47u32, 92u32, 15u32];
+const FN_139_CALLEES: &[usize] = &[0usize, 47usize, 92usize, 15usize];
 const FN_140_GLOBALS: &[usize] = &[9usize];
-const FN_140_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_140_CALLEES: &[usize] = &[0usize, 92usize];
 const FN_141_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_141_CALLEES: &[u32] = &[0u32, 40u32, 92u32, 43u32];
+const FN_141_CALLEES: &[usize] = &[0usize, 40usize, 92usize, 43usize];
 const FN_142_GLOBALS: &[usize] = &[9usize];
-const FN_142_CALLEES: &[u32] = &[0u32, 11u32, 92u32];
+const FN_142_CALLEES: &[usize] = &[0usize, 11usize, 92usize];
 const FN_143_GLOBALS: &[usize] = &[9usize];
-const FN_143_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_143_CALLEES: &[usize] = &[0usize, 92usize];
 const FN_144_GLOBALS: &[usize] = &[9usize];
-const FN_144_CALLEES: &[u32] = &[0u32, 12u32, 92u32];
+const FN_144_CALLEES: &[usize] = &[0usize, 12usize, 92usize];
 const FN_145_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize];
-const FN_145_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 31u32, 31u32, 39u32, 40u32, 52u32];
-const FN_146_CALLEES: &[u32] = &[0u32, 43u32, 34u32, 39u32];
-const FN_147_CALLEES: &[u32] = &[0u32, 43u32, 35u32, 39u32];
+const FN_145_CALLEES: &[usize] = &[0usize, 123usize, 92usize, 31usize, 31usize, 39usize, 40usize, 52usize];
+const FN_146_CALLEES: &[usize] = &[0usize, 43usize, 34usize, 39usize];
+const FN_147_CALLEES: &[usize] = &[0usize, 43usize, 35usize, 39usize];
 const FN_148_GLOBALS: &[usize] = &[20usize];
-const FN_148_CALLEES: &[u32] = &[0u32, 72u32];
-const FN_149_CALLEES: &[u32] = &[0u32, 43u32, 36u32, 39u32];
-const FN_150_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_148_CALLEES: &[usize] = &[0usize, 72usize];
+const FN_149_CALLEES: &[usize] = &[0usize, 43usize, 36usize, 39usize];
+const FN_150_CALLEES: &[usize] = &[0usize, 92usize];
 const FN_151_GLOBALS: &[usize] = &[23usize];
-const FN_151_CALLEES: &[u32] = &[0u32, 98u32, 87u32, 97u32, 99u32];
-const FN_152_CALLEES: &[u32] = &[0u32];
-const FN_153_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_154_CALLEES: &[u32] = &[0u32];
-const FN_155_CALLEES: &[u32] = &[0u32];
-const FN_156_CALLEES: &[u32] = &[0u32];
-const FN_157_CALLEES: &[u32] = &[0u32, 97u32, 96u32];
-const FN_158_CALLEES: &[u32] = &[0u32, 94u32];
-const FN_159_CALLEES: &[u32] = &[0u32, 124u32];
+const FN_151_CALLEES: &[usize] = &[0usize, 98usize, 87usize, 97usize, 99usize];
+const FN_152_CALLEES: &[usize] = &[0usize];
+const FN_153_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_154_CALLEES: &[usize] = &[0usize];
+const FN_155_CALLEES: &[usize] = &[0usize];
+const FN_156_CALLEES: &[usize] = &[0usize];
+const FN_157_CALLEES: &[usize] = &[0usize, 97usize, 96usize];
+const FN_158_CALLEES: &[usize] = &[0usize, 94usize];
+const FN_159_CALLEES: &[usize] = &[0usize, 124usize];
 const FN_160_GLOBALS: &[usize] = &[23usize];
-const FN_160_CALLEES: &[u32] = &[0u32, 11u32, 0u32, 92u32];
+const FN_160_CALLEES: &[usize] = &[0usize, 11usize, 0usize, 92usize];
 const FN_161_GLOBALS: &[usize] = &[23usize];
-const FN_161_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_162_CALLEES: &[u32] = &[0u32, 55u32];
-const FN_163_CALLEES: &[u32] = &[0u32, 11u32, 0u32, 92u32, 87u32];
-const FN_164_CALLEES: &[u32] = &[0u32, 31u32, 57u32, 40u32, 87u32];
-const FN_165_CALLEES: &[u32] = &[0u32, 5u32, 87u32, 0u32];
-const FN_166_CALLEES: &[u32] = &[0u32, 6u32];
-const FN_167_CALLEES: &[u32] = &[0u32, 102u32, 87u32];
-const FN_168_CALLEES: &[u32] = &[0u32, 78u32];
-const FN_169_CALLEES: &[u32] = &[0u32, 78u32];
-const FN_170_CALLEES: &[u32] = &[0u32, 1u32, 14u32, 24u32, 1u32, 11u32, 1u32, 0u32, 16u32, 94u32, 87u32];
-const FN_171_CALLEES: &[u32] = &[0u32];
-const FN_172_CALLEES: &[u32] = &[0u32, 78u32];
-const FN_173_CALLEES: &[u32] = &[0u32, 78u32];
+const FN_161_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_162_CALLEES: &[usize] = &[0usize, 55usize];
+const FN_163_CALLEES: &[usize] = &[0usize, 11usize, 0usize, 92usize, 87usize];
+const FN_164_CALLEES: &[usize] = &[0usize, 31usize, 57usize, 40usize, 87usize];
+const FN_165_CALLEES: &[usize] = &[0usize, 5usize, 87usize, 0usize];
+const FN_166_CALLEES: &[usize] = &[0usize, 6usize];
+const FN_167_CALLEES: &[usize] = &[0usize, 102usize, 87usize];
+const FN_168_CALLEES: &[usize] = &[0usize, 78usize];
+const FN_169_CALLEES: &[usize] = &[0usize, 78usize];
+const FN_170_CALLEES: &[usize] = &[0usize, 1usize, 14usize, 24usize, 1usize, 11usize, 1usize, 0usize, 16usize, 94usize, 87usize];
+const FN_171_CALLEES: &[usize] = &[0usize];
+const FN_172_CALLEES: &[usize] = &[0usize, 78usize];
+const FN_173_CALLEES: &[usize] = &[0usize, 78usize];
 const FN_174_GLOBALS: &[usize] = &[23usize];
-const FN_174_CALLEES: &[u32] = &[0u32, 69u32, 92u32];
-const FN_175_CALLEES: &[u32] = &[0u32, 95u32];
-const FN_176_CALLEES: &[u32] = &[0u32, 100u32, 87u32];
-const FN_177_CALLEES: &[u32] = &[0u32, 124u32];
+const FN_174_CALLEES: &[usize] = &[0usize, 69usize, 92usize];
+const FN_175_CALLEES: &[usize] = &[0usize, 95usize];
+const FN_176_CALLEES: &[usize] = &[0usize, 100usize, 87usize];
+const FN_177_CALLEES: &[usize] = &[0usize, 124usize];
 const FN_178_GLOBALS: &[usize] = &[23usize];
-const FN_178_CALLEES: &[u32] = &[0u32, 60u32, 92u32];
-const FN_179_CALLEES: &[u32] = &[0u32, 96u32];
-const FN_180_CALLEES: &[u32] = &[0u32, 61u32, 73u32];
-const FN_181_CALLEES: &[u32] = &[0u32, 96u32];
+const FN_178_CALLEES: &[usize] = &[0usize, 60usize, 92usize];
+const FN_179_CALLEES: &[usize] = &[0usize, 96usize];
+const FN_180_CALLEES: &[usize] = &[0usize, 61usize, 73usize];
+const FN_181_CALLEES: &[usize] = &[0usize, 96usize];
 const FN_182_GLOBALS: &[usize] = &[23usize, 1usize];
-const FN_182_CALLEES: &[u32] = &[0u32, 60u32, 92u32, 102u32, 87u32];
-const FN_183_CALLEES: &[u32] = &[0u32, 96u32, 53u32, 73u32, 92u32];
+const FN_182_CALLEES: &[usize] = &[0usize, 60usize, 92usize, 102usize, 87usize];
+const FN_183_CALLEES: &[usize] = &[0usize, 96usize, 53usize, 73usize, 92usize];
 const FN_184_GLOBALS: &[usize] = &[20usize, 9usize, 17usize];
-const FN_184_CALLEES: &[u32] = &[0u32, 70u32, 92u32, 1u32, 110u32, 44u32, 45u32];
+const FN_184_CALLEES: &[usize] = &[0usize, 70usize, 92usize, 1usize, 110usize, 44usize, 45usize];
 const FN_185_GLOBALS: &[usize] = &[9usize];
-const FN_185_CALLEES: &[u32] = &[0u32, 62u32, 92u32, 46u32];
+const FN_185_CALLEES: &[usize] = &[0usize, 62usize, 92usize, 46usize];
 const FN_186_GLOBALS: &[usize] = &[9usize];
-const FN_186_CALLEES: &[u32] = &[0u32, 62u32, 92u32, 47u32];
+const FN_186_CALLEES: &[usize] = &[0usize, 62usize, 92usize, 47usize];
 const FN_187_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_187_CALLEES: &[u32] = &[0u32, 92u32, 70u32];
+const FN_187_CALLEES: &[usize] = &[0usize, 92usize, 70usize];
 const FN_188_GLOBALS: &[usize] = &[9usize];
-const FN_188_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 9u32];
+const FN_188_CALLEES: &[usize] = &[0usize, 65usize, 92usize, 9usize];
 const FN_189_GLOBALS: &[usize] = &[9usize];
-const FN_189_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 10u32];
+const FN_189_CALLEES: &[usize] = &[0usize, 65usize, 92usize, 10usize];
 const FN_190_GLOBALS: &[usize] = &[9usize];
-const FN_190_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 11u32];
+const FN_190_CALLEES: &[usize] = &[0usize, 65usize, 92usize, 11usize];
 const FN_191_GLOBALS: &[usize] = &[23usize, 1usize];
-const FN_191_CALLEES: &[u32] = &[0u32, 60u32, 92u32, 102u32, 87u32];
-const FN_192_CALLEES: &[u32] = &[0u32, 2u32, 25u32, 1u32];
+const FN_191_CALLEES: &[usize] = &[0usize, 60usize, 92usize, 102usize, 87usize];
+const FN_192_CALLEES: &[usize] = &[0usize, 2usize, 25usize, 1usize];
 const FN_193_GLOBALS: &[usize] = &[14usize];
-const FN_193_CALLEES: &[u32] = &[0u32, 92u32, 25u32, 1u32, 1u32];
-const FN_194_CALLEES: &[u32] = &[0u32, 2u32, 25u32];
-const FN_195_CALLEES: &[u32] = &[0u32, 1u32, 14u32, 25u32, 11u32, 16u32, 0u32, 94u32];
-const FN_196_CALLEES: &[u32] = &[0u32, 14u32, 25u32, 1u32, 2u32, 11u32, 16u32, 94u32, 69u32];
-const FN_197_CALLEES: &[u32] = &[0u32, 92u32, 1u32, 26u32, 25u32, 24u32, 0u32, 11u32, 1u32, 0u32, 94u32, 69u32];
-const FN_198_CALLEES: &[u32] = &[0u32, 24u32, 2u32, 25u32];
-const FN_199_CALLEES: &[u32] = &[0u32, 97u32, 92u32, 25u32, 26u32, 2u32, 1u32, 11u32, 1u32, 94u32, 69u32, 1u32, 112u32, 0u32, 0u32, 126u32, 24u32, 127u32, 101u32];
-const FN_200_CALLEES: &[u32] = &[0u32, 22u32, 89u32, 24u32];
-const FN_201_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_202_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_203_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
-const FN_204_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
-const FN_205_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_206_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_207_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_208_CALLEES: &[u32] = &[0u32, 0u32, 92u32, 1u32, 0u32];
-const FN_209_CALLEES: &[u32] = &[0u32, 92u32, 1u32];
-const FN_210_CALLEES: &[u32] = &[0u32, 18u32, 13u32];
-const FN_211_CALLEES: &[u32] = &[0u32, 13u32, 13u32];
-const FN_212_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_213_CALLEES: &[u32] = &[0u32, 27u32, 15u32];
-const FN_214_CALLEES: &[u32] = &[0u32, 39u32, 15u32];
-const FN_215_CALLEES: &[u32] = &[0u32, 29u32, 15u32];
-const FN_216_CALLEES: &[u32] = &[0u32, 4u32, 6u32];
-const FN_217_CALLEES: &[u32] = &[0u32, 2u32, 15u32];
-const FN_218_CALLEES: &[u32] = &[0u32, 6u32, 15u32];
-const FN_219_CALLEES: &[u32] = &[0u32, 92u32, 9u32, 12u32, 128u32, 14u32, 2u32, 27u32, 94u32];
-const FN_220_CALLEES: &[u32] = &[0u32, 5u32, 1u32, 0u32, 92u32, 8u32, 129u32];
-const FN_221_CALLEES: &[u32] = &[0u32, 9u32, 14u32, 23u32, 12u32, 0u32, 1u32, 94u32];
-const FN_222_CALLEES: &[u32] = &[0u32, 1u32, 2u32, 18u32, 23u32, 38u32, 15u32, 1u32];
-const FN_223_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32];
-const FN_224_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 92u32];
-const FN_225_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 0u32, 92u32, 1u32, 1u32];
-const FN_226_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 92u32];
-const FN_227_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 9u32, 0u32, 92u32, 1u32];
-const FN_228_CALLEES: &[u32] = &[0u32, 0u32, 5u32, 23u32, 92u32];
-const FN_229_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 14u32, 1u32, 0u32, 19u32, 13u32, 3u32, 13u32, 94u32, 92u32];
-const FN_230_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 16u32, 19u32];
-const FN_231_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 2u32, 14u32];
-const FN_232_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 1u32, 16u32, 14u32, 72u32, 92u32, 19u32, 0u32, 1u32, 11u32, 2u32, 13u32, 13u32, 94u32, 10u32];
-const FN_233_CALLEES: &[u32] = &[0u32, 92u32, 130u32];
-const FN_234_CALLEES: &[u32] = &[0u32];
-const FN_235_CALLEES: &[u32] = &[0u32];
-const FN_236_CALLEES: &[u32] = &[0u32];
-const FN_237_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 92u32, 1u32, 5u32, 0u32, 1u32, 0u32, 2u32, 3u32, 9u32, 76u32, 14u32, 13u32, 13u32, 94u32, 11u32, 13u32, 2u32, 0u32, 11u32, 10u32, 8u32, 16u32, 2u32, 77u32, 78u32, 79u32, 72u32];
-const FN_238_CALLEES: &[u32] = &[0u32, 0u32, 7u32, 8u32, 14u32, 9u32, 13u32, 0u32, 23u32, 19u32, 1u32, 92u32, 13u32, 15u32, 94u32, 2u32];
-const FN_239_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 5u32, 2u32, 14u32, 11u32, 13u32, 2u32, 0u32, 10u32, 9u32, 8u32, 4u32];
-const FN_240_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 23u32, 19u32, 1u32, 2u32];
-const FN_241_CALLEES: &[u32] = &[0u32, 0u32, 92u32, 23u32, 19u32, 1u32, 12u32, 75u32, 0u32, 13u32, 10u32, 9u32, 13u32, 94u32];
-const FN_242_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 13u32, 0u32, 23u32, 19u32, 1u32, 7u32, 8u32, 9u32, 14u32, 92u32, 13u32, 94u32, 3u32, 2u32, 21u32];
-const FN_243_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 13u32, 0u32, 23u32, 19u32, 1u32, 7u32, 8u32, 14u32, 9u32, 92u32, 13u32, 94u32, 72u32, 15u32, 16u32];
-const FN_244_CALLEES: &[u32] = &[0u32, 131u32];
-const FN_245_CALLEES: &[u32] = &[0u32, 104u32, 28u32, 131u32, 1u32, 92u32, 13u32];
-const FN_246_CALLEES: &[u32] = &[0u32, 7u32, 0u32, 4u32];
-const FN_247_CALLEES: &[u32] = &[0u32, 104u32, 28u32, 131u32, 1u32, 92u32, 13u32];
-const FN_248_CALLEES: &[u32] = &[0u32, 28u32, 118u32, 1u32, 92u32, 8u32, 129u32, 13u32];
-const FN_249_CALLEES: &[u32] = &[0u32, 118u32, 92u32];
-const FN_250_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32];
-const FN_251_CALLEES: &[u32] = &[0u32, 3u32, 6u32, 23u32, 0u32, 4u32, 2u32, 0u32];
-const FN_252_CALLEES: &[u32] = &[0u32, 118u32, 2u32, 1u32, 0u32, 23u32, 1u32, 117u32, 115u32, 116u32, 132u32, 0u32];
-const FN_253_CALLEES: &[u32] = &[0u32, 118u32, 3u32, 0u32, 1u32, 0u32, 2u32, 23u32, 0u32, 0u32, 1u32, 0u32];
-const FN_254_CALLEES: &[u32] = &[0u32, 23u32, 131u32, 11u32, 92u32, 1u32, 130u32, 116u32, 133u32, 128u32];
-const FN_255_CALLEES: &[u32] = &[0u32, 116u32, 73u32, 115u32, 13u32, 118u32, 13u32, 94u32, 92u32, 0u32];
-const FN_256_CALLEES: &[u32] = &[0u32, 118u32, 73u32, 23u32, 117u32, 1u32];
-const FN_257_CALLEES: &[u32] = &[0u32, 23u32, 4u32, 1u32];
-const FN_258_CALLEES: &[u32] = &[0u32, 118u32, 115u32, 116u32, 132u32, 1u32, 1u32];
-const FN_259_CALLEES: &[u32] = &[0u32];
-const FN_260_CALLEES: &[u32] = &[0u32, 20u32, 92u32, 134u32, 0u32, 12u32, 16u32, 118u32, 23u32, 9u32, 94u32];
-const FN_261_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 0u32, 1u32];
-const FN_262_CALLEES: &[u32] = &[0u32, 17u32, 13u32, 23u32, 11u32, 130u32, 1u32, 18u32, 13u32, 92u32, 73u32, 94u32, 131u32, 1u32, 118u32, 0u32, 28u32, 6u32, 135u32, 5u32, 8u32, 129u32, 90u32, 29u32, 30u32, 2u32, 15u32];
-const FN_263_CALLEES: &[u32] = &[0u32, 115u32, 116u32];
-const FN_264_CALLEES: &[u32] = &[0u32, 115u32, 116u32];
-const FN_265_CALLEES: &[u32] = &[0u32, 118u32];
-const FN_266_CALLEES: &[u32] = &[0u32, 136u32, 118u32, 23u32, 82u32, 115u32, 116u32];
-const FN_267_CALLEES: &[u32] = &[0u32, 118u32, 136u32];
-const FN_268_CALLEES: &[u32] = &[0u32, 118u32, 136u32];
-const FN_269_CALLEES: &[u32] = &[0u32, 131u32, 2u32, 23u32, 130u32, 118u32];
-const FN_270_CALLEES: &[u32] = &[0u32, 23u32, 106u32, 1u32];
-const FN_271_CALLEES: &[u32] = &[0u32, 23u32, 131u32, 108u32, 11u32, 92u32, 1u32, 2u32, 130u32, 73u32, 111u32, 118u32];
-const FN_272_CALLEES: &[u32] = &[0u32, 73u32];
-const FN_273_CALLEES: &[u32] = &[0u32, 118u32, 73u32, 84u32, 103u32, 23u32, 1u32, 13u32, 13u32, 94u32, 92u32, 2u32, 115u32, 116u32, 1u32, 137u32, 107u32, 83u32, 81u32, 105u32, 0u32, 117u32, 130u32];
-const FN_274_CALLEES: &[u32] = &[0u32, 118u32];
-const FN_275_CALLEES: &[u32] = &[0u32, 118u32];
-const FN_276_CALLEES: &[u32] = &[0u32, 118u32, 1u32, 0u32, 15u32];
-const FN_277_CALLEES: &[u32] = &[0u32, 85u32, 1u32, 0u32, 15u32];
-const FN_278_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 6u32, 0u32];
-const FN_279_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 85u32, 0u32];
-const FN_280_CALLEES: &[u32] = &[0u32, 1u32, 6u32];
-const FN_281_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_282_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_283_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_284_CALLEES: &[u32] = &[0u32, 116u32, 118u32, 115u32];
-const FN_285_CALLEES: &[u32] = &[0u32, 84u32, 1u32, 0u32, 3u32, 2u32, 0u32, 23u32, 1u32, 12u32, 0u32, 15u32];
-const FN_286_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 105u32, 0u32, 116u32, 1u32, 85u32, 2u32, 0u32, 74u32, 6u32, 83u32, 12u32, 0u32, 1u32, 0u32, 15u32, 0u32, 3u32, 1u32];
-const FN_287_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 0u32, 1u32, 116u32, 0u32, 74u32, 85u32, 2u32, 6u32, 12u32, 10u32, 1u32, 0u32, 3u32, 0u32];
-const FN_288_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 118u32, 74u32, 0u32, 6u32, 116u32, 0u32, 112u32, 1u32, 0u32, 0u32, 0u32, 85u32, 2u32, 83u32, 12u32, 0u32, 1u32, 0u32, 1u32, 0u32, 15u32, 3u32, 10u32, 11u32, 86u32, 23u32, 1u32];
-const FN_289_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 0u32, 74u32, 1u32, 0u32, 6u32, 0u32, 2u32, 12u32, 0u32, 3u32, 1u32, 23u32, 0u32];
-const FN_290_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
-const FN_291_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
+const FN_193_CALLEES: &[usize] = &[0usize, 92usize, 25usize, 1usize, 1usize];
+const FN_194_CALLEES: &[usize] = &[0usize, 2usize, 25usize];
+const FN_195_CALLEES: &[usize] = &[0usize, 1usize, 14usize, 25usize, 11usize, 16usize, 0usize, 94usize];
+const FN_196_CALLEES: &[usize] = &[0usize, 14usize, 25usize, 1usize, 2usize, 11usize, 16usize, 94usize, 69usize];
+const FN_197_CALLEES: &[usize] = &[0usize, 92usize, 1usize, 26usize, 25usize, 24usize, 0usize, 11usize, 1usize, 0usize, 94usize, 69usize];
+const FN_198_CALLEES: &[usize] = &[0usize, 24usize, 2usize, 25usize];
+const FN_199_CALLEES: &[usize] = &[0usize, 97usize, 92usize, 25usize, 26usize, 2usize, 1usize, 11usize, 1usize, 94usize, 69usize, 1usize, 112usize, 0usize, 0usize, 126usize, 24usize, 127usize, 101usize];
+const FN_200_CALLEES: &[usize] = &[0usize, 22usize, 89usize, 24usize];
+const FN_201_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_202_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_203_CALLEES: &[usize] = &[0usize, 0usize, 92usize];
+const FN_204_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
+const FN_205_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_206_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_207_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_208_CALLEES: &[usize] = &[0usize, 0usize, 92usize, 1usize, 0usize];
+const FN_209_CALLEES: &[usize] = &[0usize, 92usize, 1usize];
+const FN_210_CALLEES: &[usize] = &[0usize, 18usize, 13usize];
+const FN_211_CALLEES: &[usize] = &[0usize, 13usize, 13usize];
+const FN_212_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_213_CALLEES: &[usize] = &[0usize, 27usize, 15usize];
+const FN_214_CALLEES: &[usize] = &[0usize, 39usize, 15usize];
+const FN_215_CALLEES: &[usize] = &[0usize, 29usize, 15usize];
+const FN_216_CALLEES: &[usize] = &[0usize, 4usize, 6usize];
+const FN_217_CALLEES: &[usize] = &[0usize, 2usize, 15usize];
+const FN_218_CALLEES: &[usize] = &[0usize, 6usize, 15usize];
+const FN_219_CALLEES: &[usize] = &[0usize, 92usize, 9usize, 12usize, 128usize, 14usize, 2usize, 27usize, 94usize];
+const FN_220_CALLEES: &[usize] = &[0usize, 5usize, 1usize, 0usize, 92usize, 8usize, 129usize];
+const FN_221_CALLEES: &[usize] = &[0usize, 9usize, 14usize, 23usize, 12usize, 0usize, 1usize, 94usize];
+const FN_222_CALLEES: &[usize] = &[0usize, 1usize, 2usize, 18usize, 23usize, 38usize, 15usize, 1usize];
+const FN_223_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize];
+const FN_224_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize, 92usize];
+const FN_225_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 0usize, 92usize, 1usize, 1usize];
+const FN_226_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 92usize];
+const FN_227_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 9usize, 0usize, 92usize, 1usize];
+const FN_228_CALLEES: &[usize] = &[0usize, 0usize, 5usize, 23usize, 92usize];
+const FN_229_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 14usize, 1usize, 0usize, 19usize, 13usize, 3usize, 13usize, 94usize, 92usize];
+const FN_230_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 16usize, 19usize];
+const FN_231_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize, 2usize, 14usize];
+const FN_232_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 1usize, 16usize, 14usize, 72usize, 92usize, 19usize, 0usize, 1usize, 11usize, 2usize, 13usize, 13usize, 94usize, 10usize];
+const FN_233_CALLEES: &[usize] = &[0usize, 92usize, 130usize];
+const FN_234_CALLEES: &[usize] = &[0usize];
+const FN_235_CALLEES: &[usize] = &[0usize];
+const FN_236_CALLEES: &[usize] = &[0usize];
+const FN_237_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize, 92usize, 1usize, 5usize, 0usize, 1usize, 0usize, 2usize, 3usize, 9usize, 76usize, 14usize, 13usize, 13usize, 94usize, 11usize, 13usize, 2usize, 0usize, 11usize, 10usize, 8usize, 16usize, 2usize, 77usize, 78usize, 79usize, 72usize];
+const FN_238_CALLEES: &[usize] = &[0usize, 0usize, 7usize, 8usize, 14usize, 9usize, 13usize, 0usize, 23usize, 19usize, 1usize, 92usize, 13usize, 15usize, 94usize, 2usize];
+const FN_239_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize, 5usize, 2usize, 14usize, 11usize, 13usize, 2usize, 0usize, 10usize, 9usize, 8usize, 4usize];
+const FN_240_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 23usize, 19usize, 1usize, 2usize];
+const FN_241_CALLEES: &[usize] = &[0usize, 0usize, 92usize, 23usize, 19usize, 1usize, 12usize, 75usize, 0usize, 13usize, 10usize, 9usize, 13usize, 94usize];
+const FN_242_CALLEES: &[usize] = &[0usize, 0usize, 17usize, 13usize, 0usize, 23usize, 19usize, 1usize, 7usize, 8usize, 9usize, 14usize, 92usize, 13usize, 94usize, 3usize, 2usize, 21usize];
+const FN_243_CALLEES: &[usize] = &[0usize, 0usize, 17usize, 13usize, 0usize, 23usize, 19usize, 1usize, 7usize, 8usize, 14usize, 9usize, 92usize, 13usize, 94usize, 72usize, 15usize, 16usize];
+const FN_244_CALLEES: &[usize] = &[0usize, 131usize];
+const FN_245_CALLEES: &[usize] = &[0usize, 104usize, 28usize, 131usize, 1usize, 92usize, 13usize];
+const FN_246_CALLEES: &[usize] = &[0usize, 7usize, 0usize, 4usize];
+const FN_247_CALLEES: &[usize] = &[0usize, 104usize, 28usize, 131usize, 1usize, 92usize, 13usize];
+const FN_248_CALLEES: &[usize] = &[0usize, 28usize, 118usize, 1usize, 92usize, 8usize, 129usize, 13usize];
+const FN_249_CALLEES: &[usize] = &[0usize, 118usize, 92usize];
+const FN_250_CALLEES: &[usize] = &[0usize, 118usize, 23usize, 92usize];
+const FN_251_CALLEES: &[usize] = &[0usize, 3usize, 6usize, 23usize, 0usize, 4usize, 2usize, 0usize];
+const FN_252_CALLEES: &[usize] = &[0usize, 118usize, 2usize, 1usize, 0usize, 23usize, 1usize, 117usize, 115usize, 116usize, 132usize, 0usize];
+const FN_253_CALLEES: &[usize] = &[0usize, 118usize, 3usize, 0usize, 1usize, 0usize, 2usize, 23usize, 0usize, 0usize, 1usize, 0usize];
+const FN_254_CALLEES: &[usize] = &[0usize, 23usize, 131usize, 11usize, 92usize, 1usize, 130usize, 116usize, 133usize, 128usize];
+const FN_255_CALLEES: &[usize] = &[0usize, 116usize, 73usize, 115usize, 13usize, 118usize, 13usize, 94usize, 92usize, 0usize];
+const FN_256_CALLEES: &[usize] = &[0usize, 118usize, 73usize, 23usize, 117usize, 1usize];
+const FN_257_CALLEES: &[usize] = &[0usize, 23usize, 4usize, 1usize];
+const FN_258_CALLEES: &[usize] = &[0usize, 118usize, 115usize, 116usize, 132usize, 1usize, 1usize];
+const FN_259_CALLEES: &[usize] = &[0usize];
+const FN_260_CALLEES: &[usize] = &[0usize, 20usize, 92usize, 134usize, 0usize, 12usize, 16usize, 118usize, 23usize, 9usize, 94usize];
+const FN_261_CALLEES: &[usize] = &[0usize, 1usize, 92usize, 0usize, 1usize];
+const FN_262_CALLEES: &[usize] = &[0usize, 17usize, 13usize, 23usize, 11usize, 130usize, 1usize, 18usize, 13usize, 92usize, 73usize, 94usize, 131usize, 1usize, 118usize, 0usize, 28usize, 6usize, 135usize, 5usize, 8usize, 129usize, 90usize, 29usize, 30usize, 2usize, 15usize];
+const FN_263_CALLEES: &[usize] = &[0usize, 115usize, 116usize];
+const FN_264_CALLEES: &[usize] = &[0usize, 115usize, 116usize];
+const FN_265_CALLEES: &[usize] = &[0usize, 118usize];
+const FN_266_CALLEES: &[usize] = &[0usize, 136usize, 118usize, 23usize, 82usize, 115usize, 116usize];
+const FN_267_CALLEES: &[usize] = &[0usize, 118usize, 136usize];
+const FN_268_CALLEES: &[usize] = &[0usize, 118usize, 136usize];
+const FN_269_CALLEES: &[usize] = &[0usize, 131usize, 2usize, 23usize, 130usize, 118usize];
+const FN_270_CALLEES: &[usize] = &[0usize, 23usize, 106usize, 1usize];
+const FN_271_CALLEES: &[usize] = &[0usize, 23usize, 131usize, 108usize, 11usize, 92usize, 1usize, 2usize, 130usize, 73usize, 111usize, 118usize];
+const FN_272_CALLEES: &[usize] = &[0usize, 73usize];
+const FN_273_CALLEES: &[usize] = &[0usize, 118usize, 73usize, 84usize, 103usize, 23usize, 1usize, 13usize, 13usize, 94usize, 92usize, 2usize, 115usize, 116usize, 1usize, 137usize, 107usize, 83usize, 81usize, 105usize, 0usize, 117usize, 130usize];
+const FN_274_CALLEES: &[usize] = &[0usize, 118usize];
+const FN_275_CALLEES: &[usize] = &[0usize, 118usize];
+const FN_276_CALLEES: &[usize] = &[0usize, 118usize, 1usize, 0usize, 15usize];
+const FN_277_CALLEES: &[usize] = &[0usize, 85usize, 1usize, 0usize, 15usize];
+const FN_278_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 6usize, 0usize];
+const FN_279_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 85usize, 0usize];
+const FN_280_CALLEES: &[usize] = &[0usize, 1usize, 6usize];
+const FN_281_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_282_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_283_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_284_CALLEES: &[usize] = &[0usize, 116usize, 118usize, 115usize];
+const FN_285_CALLEES: &[usize] = &[0usize, 84usize, 1usize, 0usize, 3usize, 2usize, 0usize, 23usize, 1usize, 12usize, 0usize, 15usize];
+const FN_286_CALLEES: &[usize] = &[0usize, 3usize, 118usize, 105usize, 0usize, 116usize, 1usize, 85usize, 2usize, 0usize, 74usize, 6usize, 83usize, 12usize, 0usize, 1usize, 0usize, 15usize, 0usize, 3usize, 1usize];
+const FN_287_CALLEES: &[usize] = &[0usize, 3usize, 118usize, 0usize, 1usize, 116usize, 0usize, 74usize, 85usize, 2usize, 6usize, 12usize, 10usize, 1usize, 0usize, 3usize, 0usize];
+const FN_288_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 118usize, 74usize, 0usize, 6usize, 116usize, 0usize, 112usize, 1usize, 0usize, 0usize, 0usize, 85usize, 2usize, 83usize, 12usize, 0usize, 1usize, 0usize, 1usize, 0usize, 15usize, 3usize, 10usize, 11usize, 86usize, 23usize, 1usize];
+const FN_289_CALLEES: &[usize] = &[0usize, 3usize, 118usize, 0usize, 74usize, 1usize, 0usize, 6usize, 0usize, 2usize, 12usize, 0usize, 3usize, 1usize, 23usize, 0usize];
+const FN_290_CALLEES: &[usize] = &[0usize, 23usize, 130usize, 1usize];
+const FN_291_CALLEES: &[usize] = &[0usize, 23usize, 130usize, 1usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -5693,7 +5691,7 @@ clippy::type_complexity,
 clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
-fn bound_adapter_292(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+fn bound_adapter_292(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     SubstituteInstance::fn_292(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, host)
 }
 
@@ -5721,45 +5719,45 @@ clippy::type_complexity,
 clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
-fn bound_adapter_293(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+fn bound_adapter_293(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     SubstituteInstance::fn_293(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, host)
 }
 
-const FN_294_CALLEES: &[u32] = &[0u32, 1u32, 118u32, 1u32, 3u32, 5u32, 0u32, 6u32, 13u32, 92u32, 13u32, 73u32, 0u32, 94u32];
-const FN_295_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 1u32, 3u32, 5u32, 6u32, 0u32, 2u32, 73u32, 92u32, 1u32, 0u32, 13u32, 94u32, 23u32, 2u32, 1u32, 8u32, 130u32, 7u32, 15u32];
-const FN_296_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 23u32, 19u32, 18u32, 13u32, 19u32, 94u32];
-const FN_297_CALLEES: &[u32] = &[0u32, 88u32, 80u32, 13u32, 23u32, 1u32, 2u32, 15u32, 1u32, 94u32];
-const FN_298_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32, 73u32];
-const FN_299_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
-const FN_300_CALLEES: &[u32] = &[0u32, 118u32, 1u32, 12u32, 0u32, 0u32];
-const FN_301_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 23u32, 19u32, 1u32, 9u32, 3u32, 2u32, 5u32, 2u32, 10u32, 0u32, 92u32, 0u32, 13u32, 1u32, 94u32];
-const FN_302_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32, 130u32, 73u32, 13u32, 13u32, 94u32];
-const FN_303_CALLEES: &[u32] = &[0u32, 92u32, 2u32, 1u32, 22u32, 115u32, 116u32, 128u32, 117u32];
-const FN_304_CALLEES: &[u32] = &[0u32, 71u32];
-const FN_305_CALLEES: &[u32] = &[92u32];
-const FN_323_CALLEES: &[u32] = &[92u32];
-const FN_326_CALLEES: &[u32] = &[92u32];
-const FN_334_CALLEES: &[u32] = &[92u32];
-const FN_338_CALLEES: &[u32] = &[92u32];
-const FN_339_CALLEES: &[u32] = &[92u32];
-const FN_340_CALLEES: &[u32] = &[92u32];
-const FN_342_CALLEES: &[u32] = &[92u32];
-const FN_344_CALLEES: &[u32] = &[92u32];
-const FN_349_CALLEES: &[u32] = &[125u32];
-const FN_353_CALLEES: &[u32] = &[92u32];
-const FN_354_CALLEES: &[u32] = &[92u32];
-const FN_361_CALLEES: &[u32] = &[92u32];
-const FN_367_CALLEES: &[u32] = &[92u32];
-const FN_368_CALLEES: &[u32] = &[92u32];
-const FN_369_CALLEES: &[u32] = &[92u32];
-const FN_370_CALLEES: &[u32] = &[92u32];
-const FN_371_CALLEES: &[u32] = &[92u32];
-const FN_372_CALLEES: &[u32] = &[136u32];
-const FN_373_CALLEES: &[u32] = &[118u32, 135u32];
-const FN_377_CALLEES: &[u32] = &[92u32];
-const FN_379_CALLEES: &[u32] = &[92u32];
-const FN_380_CALLEES: &[u32] = &[92u32];
-const FN_381_CALLEES: &[u32] = &[0u32, 92u32, 91u32];
+const FN_294_CALLEES: &[usize] = &[0usize, 1usize, 118usize, 1usize, 3usize, 5usize, 0usize, 6usize, 13usize, 92usize, 13usize, 73usize, 0usize, 94usize];
+const FN_295_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 1usize, 3usize, 5usize, 6usize, 0usize, 2usize, 73usize, 92usize, 1usize, 0usize, 13usize, 94usize, 23usize, 2usize, 1usize, 8usize, 130usize, 7usize, 15usize];
+const FN_296_CALLEES: &[usize] = &[0usize, 0usize, 13usize, 23usize, 19usize, 18usize, 13usize, 19usize, 94usize];
+const FN_297_CALLEES: &[usize] = &[0usize, 88usize, 80usize, 13usize, 23usize, 1usize, 2usize, 15usize, 1usize, 94usize];
+const FN_298_CALLEES: &[usize] = &[0usize, 118usize, 23usize, 92usize, 73usize];
+const FN_299_CALLEES: &[usize] = &[0usize, 23usize, 130usize, 1usize];
+const FN_300_CALLEES: &[usize] = &[0usize, 118usize, 1usize, 12usize, 0usize, 0usize];
+const FN_301_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 23usize, 19usize, 1usize, 9usize, 3usize, 2usize, 5usize, 2usize, 10usize, 0usize, 92usize, 0usize, 13usize, 1usize, 94usize];
+const FN_302_CALLEES: &[usize] = &[0usize, 118usize, 23usize, 92usize, 130usize, 73usize, 13usize, 13usize, 94usize];
+const FN_303_CALLEES: &[usize] = &[0usize, 92usize, 2usize, 1usize, 22usize, 115usize, 116usize, 128usize, 117usize];
+const FN_304_CALLEES: &[usize] = &[0usize, 71usize];
+const FN_305_CALLEES: &[usize] = &[92usize];
+const FN_323_CALLEES: &[usize] = &[92usize];
+const FN_326_CALLEES: &[usize] = &[92usize];
+const FN_334_CALLEES: &[usize] = &[92usize];
+const FN_338_CALLEES: &[usize] = &[92usize];
+const FN_339_CALLEES: &[usize] = &[92usize];
+const FN_340_CALLEES: &[usize] = &[92usize];
+const FN_342_CALLEES: &[usize] = &[92usize];
+const FN_344_CALLEES: &[usize] = &[92usize];
+const FN_349_CALLEES: &[usize] = &[125usize];
+const FN_353_CALLEES: &[usize] = &[92usize];
+const FN_354_CALLEES: &[usize] = &[92usize];
+const FN_361_CALLEES: &[usize] = &[92usize];
+const FN_367_CALLEES: &[usize] = &[92usize];
+const FN_368_CALLEES: &[usize] = &[92usize];
+const FN_369_CALLEES: &[usize] = &[92usize];
+const FN_370_CALLEES: &[usize] = &[92usize];
+const FN_371_CALLEES: &[usize] = &[92usize];
+const FN_372_CALLEES: &[usize] = &[136usize];
+const FN_373_CALLEES: &[usize] = &[118usize, 135usize];
+const FN_377_CALLEES: &[usize] = &[92usize];
+const FN_379_CALLEES: &[usize] = &[92usize];
+const FN_380_CALLEES: &[usize] = &[92usize];
+const FN_381_CALLEES: &[usize] = &[0usize, 92usize, 91usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -7357,6 +7355,10 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (2229905u128, [0xcf, 0x40, 0xa4, 0x0a, 0x97, 0xb3, 0xa2, 0x9c, 0xde, 0x1a, 0x71, 0x76, 0x80, 0x4b, 0x78, 0x9a, 0x01, 0x73, 0x6a, 0xb6, 0xb7, 0x16, 0x7a, 0x32, 0x46, 0x79, 0x97, 0x81, 0x5f, 0x42, 0x40, 0x5e]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_88792/f1681@l8589994023",
     accounting_version: 2u32,
@@ -7368,6 +7370,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -7558,7 +7561,6 @@ clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
 impl SubstituteInstance {
-    #[inline(never)]
     fn fn_292(vm: &mut SubstituteVm, p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
@@ -7600,7 +7602,7 @@ impl SubstituteInstance {
     let mut s_i32_8: i32 = 0i32;
     let mut s_i32_9: i32 = 0i32;
     let mut s_i32_10: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
     vm.exit_call();
@@ -8063,7 +8065,7 @@ impl SubstituteInstance {
     let mut s_i32_14: i32 = 0i32;
     let mut s_i64_14: i64 = 0i64;
     let mut s_i64_15: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
     vm.exit_call();
@@ -8197,7 +8199,7 @@ impl SubstituteInstance {
             l19 = s_i32_0;
             'blk_5: {
                 'blk_6: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l19;
                     s_i32_1 = l18;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8398,7 +8400,7 @@ impl SubstituteInstance {
             l25 = s_i32_0;
             'blk_11: {
                 'blk_12: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l25;
                     s_i32_1 = l24;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8474,7 +8476,7 @@ impl SubstituteInstance {
             l27 = s_i64_0;
             'blk_15: {
                 'blk_16: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l27;
                     s_i32_1 = l15;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -8674,7 +8676,7 @@ impl SubstituteInstance {
             s_i32_0 = l0;
             s_i32_1 = l1;
             s_i32_2 = l2;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_3 = l4;
             s_i32_4 = l5;
             s_i32_5 = l6;
@@ -8735,7 +8737,7 @@ impl SubstituteInstance {
         if s_i32_0 != 0 {
             s_i32_0 = l0;
             s_i32_1 = 2202i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
@@ -8795,7 +8797,7 @@ impl SubstituteInstance {
     }
     s_i32_0 = l11;
     s_i32_1 = 12i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
     vm.exit_call();
@@ -9160,7 +9162,7 @@ impl SubstituteInstance {
             l37 = s_i32_0;
             'blk_31: {
                 'blk_32: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l37;
                     s_i32_1 = l36;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -9272,7 +9274,7 @@ impl SubstituteInstance {
                                     s_i32_2 = l1;
                                     s_i32_2 = ops::i32_load(vm, 0, s_i32_2, 4u32)?;
                                     s_i32_3 = l42;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_3 = ops::i64_extend_i32_u(s_i32_3);
                                     vm.enter_call()?;
                                     let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_2, s_i64_3, host);
@@ -9315,7 +9317,7 @@ impl SubstituteInstance {
                                         if s_i32_0 != 0 {
                                             s_i32_0 = l7;
                                             s_i32_1 = l5;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_2 = l1;
                                             s_i32_2 = ops::i32_load(vm, 0, s_i32_2, 4u32)?;
                                             s_i32_3 = l42;
@@ -9341,7 +9343,7 @@ impl SubstituteInstance {
                                         } else {
                                             s_i32_0 = l45;
                                             s_i32_1 = l44;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             vm.enter_call()?;
                                             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 130usize, s_i32_0, s_i32_1, host);
                                             vm.exit_call();
@@ -9393,7 +9395,7 @@ impl SubstituteInstance {
                 }
             }
             s_i32_0 = l15;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l47 = s_i32_0;
             s_i32_0 = l47;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
@@ -9405,7 +9407,7 @@ impl SubstituteInstance {
             l50 = s_i32_0;
             'blk_40: {
                 'blk_41: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l50;
                     s_i32_1 = l49;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -9481,7 +9483,7 @@ impl SubstituteInstance {
             l57 = s_i32_0;
             'blk_44: {
                 'blk_45: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l57;
                     s_i32_1 = l56;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -9538,7 +9540,7 @@ impl SubstituteInstance {
                                 l64 = s_i32_0;
                                 'blk_48: {
                                     'blk_49: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l64;
                                         s_i32_1 = l63;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -9678,7 +9680,7 @@ impl SubstituteInstance {
             l75 = s_i32_0;
             'blk_51: {
                 'blk_52: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l75;
                     s_i32_1 = l74;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -9889,7 +9891,7 @@ impl SubstituteInstance {
             s_i32_1 = l1;
             s_i32_2 = l2;
             s_i32_3 = l3;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_4 = l4;
             s_i32_5 = l5;
             s_i32_6 = l6;
@@ -9968,7 +9970,7 @@ impl SubstituteInstance {
             let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
             vm.exit_call();
             __call_res?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             s_i32_1 = l1;
             s_i32_2 = l2;
@@ -10024,7 +10026,7 @@ impl SubstituteInstance {
             l90 = s_i32_0;
             s_i32_0 = l0;
             s_i32_1 = 2450i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
@@ -10201,7 +10203,7 @@ impl SubstituteInstance {
     'blk_60: {
         if s_i32_0 != 0 {
             s_i32_0 = l0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = 2452i32;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
@@ -10212,7 +10214,7 @@ impl SubstituteInstance {
         }
     }
     s_i32_0 = l11;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_1 = 23i32;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
@@ -10533,7 +10535,7 @@ impl SubstituteInstance {
             l108 = s_i64_0;
             'blk_71: {
                 'blk_72: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l108;
                     s_i64_1 = l107;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -10545,7 +10547,7 @@ impl SubstituteInstance {
                     l109 = s_i64_0;
                     'blk_73: {
                         'blk_74: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l109;
                             s_i64_1 = l108;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -10617,7 +10619,7 @@ impl SubstituteInstance {
             l112 = s_i64_0;
             'blk_76: {
                 'blk_77: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l112;
                     s_i64_1 = l107;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -10642,7 +10644,7 @@ impl SubstituteInstance {
                     l116 = s_i64_0;
                     'blk_78: {
                         'blk_79: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l116;
                             s_i64_1 = l107;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -10765,7 +10767,7 @@ impl SubstituteInstance {
                     l118 = s_i64_0;
                     'blk_85: {
                         'blk_86: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l118;
                             s_i64_1 = l107;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -10838,7 +10840,7 @@ impl SubstituteInstance {
                     l120 = s_i64_0;
                     'blk_87: {
                         'blk_88: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l120;
                             s_i64_1 = l107;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -11020,7 +11022,7 @@ impl SubstituteInstance {
                     l127 = s_i64_0;
                     'blk_90: {
                         'blk_91: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l127;
                             s_i64_1 = l107;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -11125,7 +11127,7 @@ impl SubstituteInstance {
                     s_i32_8 = l8;
                     s_i32_9 = l9;
                     s_i32_10 = l128;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     vm.enter_call()?;
                     let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
                     vm.exit_call();
@@ -11153,7 +11155,7 @@ impl SubstituteInstance {
             s_i32_1 = l129;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
             s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
             vm.exit_call();
@@ -11244,7 +11246,7 @@ impl SubstituteInstance {
                     s_i32_4 = l4;
                     s_i32_5 = l5;
                     s_i32_6 = l6;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_7 = l7;
                     s_i32_8 = l8;
                     s_i32_9 = l9;
@@ -11272,7 +11274,7 @@ impl SubstituteInstance {
                 }
             }
             s_i32_0 = l1;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
             s_i32_1 = l133;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -11383,7 +11385,7 @@ impl SubstituteInstance {
             s_i32_0 = l1;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 24u32)?;
             s_i32_1 = l137;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
@@ -11536,7 +11538,7 @@ impl SubstituteInstance {
             l143 = s_i64_0;
             'blk_105: {
                 'blk_106: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l143;
                     s_i32_1 = l142;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -11667,7 +11669,7 @@ impl SubstituteInstance {
             let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
             vm.exit_call();
             __call_res?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             s_i32_1 = 0i32;
             vm.enter_call()?;
@@ -11730,7 +11732,7 @@ impl SubstituteInstance {
             let __t171 = __call_res?;
             s_i32_0 = __t171;
             l146 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l146;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
             s_i32_1 = 1i32;
@@ -11828,7 +11830,7 @@ impl SubstituteInstance {
             vm.exit_call();
             let __t174 = __call_res?;
             s_i32_3 = __t174;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
             vm.exit_call();
@@ -12082,7 +12084,7 @@ impl SubstituteInstance {
         if s_i32_0 != 0 {
             s_i32_0 = l1;
             s_i32_1 = l2;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_2 = 1i32;
             s_i32_3 = l14;
             s_i64_4 = 0i64;
@@ -12272,7 +12274,7 @@ impl SubstituteInstance {
     }
     s_i32_0 = l11;
     s_i32_1 = 37i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
     vm.exit_call();
@@ -12645,7 +12647,7 @@ impl SubstituteInstance {
             l166 = s_i64_0;
             'blk_131: {
                 'blk_132: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l166;
                     s_i32_1 = l164;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -12674,7 +12676,7 @@ impl SubstituteInstance {
                     l168 = s_i64_0;
                     'blk_133: {
                         'blk_134: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l168;
                             s_i64_1 = l166;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -12813,7 +12815,7 @@ impl SubstituteInstance {
             vm.exit_call();
             __call_res?;
             s_i32_0 = l0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l1;
             s_i32_2 = l2;
             s_i32_3 = l3;
@@ -12880,7 +12882,7 @@ impl SubstituteInstance {
                             l171 = s_i64_0;
                             'blk_142: {
                                 'blk_143: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l171;
                                     s_i32_1 = l164;
                                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -12989,7 +12991,7 @@ impl SubstituteInstance {
                             l174 = s_i64_0;
                             'blk_144: {
                                 'blk_145: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l174;
                                     s_i64_1 = l173;
                                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -13259,7 +13261,7 @@ impl SubstituteInstance {
                     __call_res?;
                     s_i32_0 = l0;
                     s_i32_1 = l180;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     vm.enter_call()?;
                     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
                     vm.exit_call();
@@ -13574,7 +13576,7 @@ impl SubstituteInstance {
                     s_i32_5 = l6;
                     s_i32_6 = l7;
                     s_i32_7 = l8;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_8 = l178;
                     vm.enter_call()?;
                     let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
@@ -13905,7 +13907,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 3usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }
@@ -13959,352 +13963,352 @@ use crate::utilities::*;
 use super::*;
 
 const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize];
-const FN_0_CALLEES: &[u32] = &[92u32];
-const FN_1_CALLEES: &[u32] = &[0u32, 24u32];
-const FN_2_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_3_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_4_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_5_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_0_CALLEES: &[usize] = &[92usize];
+const FN_1_CALLEES: &[usize] = &[0usize, 24usize];
+const FN_2_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_3_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_4_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_5_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_6_CALLEES: &[usize] = &[0usize, 34usize, 10usize];
 const FN_7_GLOBALS: &[usize] = &[14usize];
-const FN_7_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_8_CALLEES: &[u32] = &[0u32, 0u32];
-const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
-const FN_10_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_11_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_12_CALLEES: &[u32] = &[0u32, 25u32];
-const FN_13_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_14_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_15_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_16_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_17_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_19_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_20_CALLEES: &[u32] = &[0u32];
-const FN_21_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_22_CALLEES: &[u32] = &[0u32, 27u32];
-const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 1u32, 1u32, 92u32];
-const FN_24_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_25_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_26_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_27_CALLEES: &[u32] = &[0u32, 32u32, 112u32, 33u32, 2u32];
-const FN_28_CALLEES: &[u32] = &[0u32, 33u32, 112u32, 32u32, 2u32];
-const FN_29_CALLEES: &[u32] = &[0u32, 28u32];
-const FN_30_CALLEES: &[u32] = &[0u32, 29u32];
-const FN_31_CALLEES: &[u32] = &[0u32, 30u32];
-const FN_32_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_7_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_8_CALLEES: &[usize] = &[0usize, 0usize];
+const FN_9_CALLEES: &[usize] = &[0usize, 10usize];
+const FN_10_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_11_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_12_CALLEES: &[usize] = &[0usize, 25usize];
+const FN_13_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_14_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_15_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_16_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_17_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_18_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_19_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_20_CALLEES: &[usize] = &[0usize];
+const FN_21_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_22_CALLEES: &[usize] = &[0usize, 27usize];
+const FN_23_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 1usize, 1usize, 92usize];
+const FN_24_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_25_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_26_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_27_CALLEES: &[usize] = &[0usize, 32usize, 112usize, 33usize, 2usize];
+const FN_28_CALLEES: &[usize] = &[0usize, 33usize, 112usize, 32usize, 2usize];
+const FN_29_CALLEES: &[usize] = &[0usize, 28usize];
+const FN_30_CALLEES: &[usize] = &[0usize, 29usize];
+const FN_31_CALLEES: &[usize] = &[0usize, 30usize];
+const FN_32_CALLEES: &[usize] = &[0usize, 26usize];
 const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 92u32];
-const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 92u32];
+const FN_33_CALLEES: &[usize] = &[0usize, 34usize, 10usize, 92usize];
+const FN_34_CALLEES: &[usize] = &[0usize, 31usize, 92usize];
 const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_35_CALLEES: &[u32] = &[0u32, 2u32, 92u32];
+const FN_35_CALLEES: &[usize] = &[0usize, 2usize, 92usize];
 const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_36_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
-const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 92u32];
+const FN_36_CALLEES: &[usize] = &[0usize, 0usize, 92usize];
+const FN_37_CALLEES: &[usize] = &[0usize, 31usize, 92usize];
 const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 92u32];
+const FN_38_CALLEES: &[usize] = &[0usize, 6usize, 35usize, 92usize];
 const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_39_CALLEES: &[u32] = &[0u32, 92u32, 32u32];
+const FN_39_CALLEES: &[usize] = &[0usize, 92usize, 32usize];
 const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_40_CALLEES: &[u32] = &[0u32, 92u32, 33u32];
+const FN_40_CALLEES: &[usize] = &[0usize, 92usize, 33usize];
 const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 92u32];
+const FN_41_CALLEES: &[usize] = &[0usize, 10usize, 36usize, 92usize];
 const FN_42_GLOBALS: &[usize] = &[9usize];
-const FN_42_CALLEES: &[u32] = &[0u32, 10u32, 92u32];
+const FN_42_CALLEES: &[usize] = &[0usize, 10usize, 92usize];
 const FN_43_GLOBALS: &[usize] = &[9usize];
-const FN_43_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_43_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
 const FN_44_GLOBALS: &[usize] = &[9usize];
-const FN_44_CALLEES: &[u32] = &[0u32, 11u32, 92u32];
+const FN_44_CALLEES: &[usize] = &[0usize, 11usize, 92usize];
 const FN_45_GLOBALS: &[usize] = &[9usize];
-const FN_45_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_45_CALLEES: &[usize] = &[0usize, 92usize];
 const FN_46_GLOBALS: &[usize] = &[9usize];
-const FN_46_CALLEES: &[u32] = &[0u32, 12u32, 92u32];
+const FN_46_CALLEES: &[usize] = &[0usize, 12usize, 92usize];
 const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
-const FN_47_CALLEES: &[u32] = &[0u32, 110u32, 92u32, 13u32, 93u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 113u32];
-const FN_48_CALLEES: &[u32] = &[0u32];
-const FN_49_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_50_CALLEES: &[u32] = &[0u32, 1u32, 112u32, 0u32, 92u32];
-const FN_51_CALLEES: &[u32] = &[0u32, 0u32, 112u32, 1u32, 92u32];
-const FN_52_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_53_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
-const FN_54_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_55_CALLEES: &[u32] = &[0u32, 0u32, 112u32];
-const FN_56_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 112u32];
-const FN_57_CALLEES: &[u32] = &[0u32, 18u32];
-const FN_58_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_47_CALLEES: &[usize] = &[0usize, 110usize, 92usize, 13usize, 93usize, 0usize, 32usize, 2usize, 10usize, 36usize, 37usize, 113usize];
+const FN_48_CALLEES: &[usize] = &[0usize];
+const FN_49_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_50_CALLEES: &[usize] = &[0usize, 1usize, 112usize, 0usize, 92usize];
+const FN_51_CALLEES: &[usize] = &[0usize, 0usize, 112usize, 1usize, 92usize];
+const FN_52_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_53_CALLEES: &[usize] = &[0usize, 0usize, 92usize];
+const FN_54_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_55_CALLEES: &[usize] = &[0usize, 0usize, 112usize];
+const FN_56_CALLEES: &[usize] = &[0usize, 1usize, 92usize, 112usize];
+const FN_57_CALLEES: &[usize] = &[0usize, 18usize];
+const FN_58_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
 const FN_59_GLOBALS: &[usize] = &[15usize];
-const FN_59_CALLEES: &[u32] = &[0u32, 16u32, 2u32, 11u32];
-const FN_60_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_61_CALLEES: &[u32] = &[0u32];
-const FN_62_CALLEES: &[u32] = &[0u32];
-const FN_63_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_64_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_59_CALLEES: &[usize] = &[0usize, 16usize, 2usize, 11usize];
+const FN_60_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_61_CALLEES: &[usize] = &[0usize];
+const FN_62_CALLEES: &[usize] = &[0usize];
+const FN_63_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_64_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
 const FN_65_GLOBALS: &[usize] = &[15usize];
-const FN_65_CALLEES: &[u32] = &[0u32, 17u32, 2u32, 11u32];
-const FN_66_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_67_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_68_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 22u32, 114u32, 92u32, 13u32, 115u32, 116u32, 117u32, 1u32, 0u32, 94u32];
-const FN_69_CALLEES: &[u32] = &[0u32, 2u32, 92u32, 22u32, 114u32, 1u32, 118u32, 117u32, 119u32, 0u32, 32u32, 2u32, 120u32, 111u32, 13u32, 15u32, 1u32];
+const FN_65_CALLEES: &[usize] = &[0usize, 17usize, 2usize, 11usize];
+const FN_66_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_67_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_68_CALLEES: &[usize] = &[0usize, 0usize, 13usize, 22usize, 114usize, 92usize, 13usize, 115usize, 116usize, 117usize, 1usize, 0usize, 94usize];
+const FN_69_CALLEES: &[usize] = &[0usize, 2usize, 92usize, 22usize, 114usize, 1usize, 118usize, 117usize, 119usize, 0usize, 32usize, 2usize, 120usize, 111usize, 13usize, 15usize, 1usize];
 const FN_70_GLOBALS: &[usize] = &[14usize];
-const FN_70_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 92u32, 32u32, 0u32, 2u32];
-const FN_71_CALLEES: &[u32] = &[0u32, 9u32, 12u32, 14u32, 0u32, 0u32, 94u32];
-const FN_72_CALLEES: &[u32] = &[0u32, 1u32, 9u32, 0u32, 94u32];
-const FN_73_CALLEES: &[u32] = &[0u32, 19u32];
-const FN_74_CALLEES: &[u32] = &[0u32, 20u32, 1u32, 112u32, 111u32, 1u32];
-const FN_75_CALLEES: &[u32] = &[0u32, 2u32, 92u32, 23u32, 19u32, 1u32];
-const FN_76_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 92u32, 1u32, 5u32, 23u32, 9u32, 94u32, 112u32, 95u32, 121u32, 119u32, 14u32];
-const FN_77_CALLEES: &[u32] = &[0u32, 1u32, 2u32, 92u32, 23u32, 19u32, 13u32, 94u32, 13u32];
-const FN_78_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 92u32, 9u32, 1u32, 94u32, 12u32, 14u32];
-const FN_79_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 23u32, 19u32, 16u32, 14u32, 9u32, 94u32, 112u32, 95u32, 14u32];
-const FN_80_CALLEES: &[u32] = &[0u32, 23u32, 26u32, 1u32];
-const FN_81_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 1u32];
-const FN_82_CALLEES: &[u32] = &[0u32, 19u32, 18u32, 92u32];
-const FN_83_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 13u32, 18u32, 13u32, 2u32, 15u32, 22u32, 119u32, 111u32, 121u32, 2u32, 94u32];
-const FN_84_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_85_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 18u32, 13u32, 19u32, 94u32];
-const FN_86_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 18u32, 13u32, 22u32, 21u32, 19u32, 16u32, 94u32];
-const FN_87_CALLEES: &[u32] = &[0u32, 27u32, 18u32, 92u32];
+const FN_70_CALLEES: &[usize] = &[0usize, 1usize, 10usize, 92usize, 32usize, 0usize, 2usize];
+const FN_71_CALLEES: &[usize] = &[0usize, 9usize, 12usize, 14usize, 0usize, 0usize, 94usize];
+const FN_72_CALLEES: &[usize] = &[0usize, 1usize, 9usize, 0usize, 94usize];
+const FN_73_CALLEES: &[usize] = &[0usize, 19usize];
+const FN_74_CALLEES: &[usize] = &[0usize, 20usize, 1usize, 112usize, 111usize, 1usize];
+const FN_75_CALLEES: &[usize] = &[0usize, 2usize, 92usize, 23usize, 19usize, 1usize];
+const FN_76_CALLEES: &[usize] = &[0usize, 23usize, 19usize, 92usize, 1usize, 5usize, 23usize, 9usize, 94usize, 112usize, 95usize, 121usize, 119usize, 14usize];
+const FN_77_CALLEES: &[usize] = &[0usize, 1usize, 2usize, 92usize, 23usize, 19usize, 13usize, 94usize, 13usize];
+const FN_78_CALLEES: &[usize] = &[0usize, 23usize, 19usize, 92usize, 9usize, 1usize, 94usize, 12usize, 14usize];
+const FN_79_CALLEES: &[usize] = &[0usize, 1usize, 92usize, 23usize, 19usize, 16usize, 14usize, 9usize, 94usize, 112usize, 95usize, 14usize];
+const FN_80_CALLEES: &[usize] = &[0usize, 23usize, 26usize, 1usize];
+const FN_81_CALLEES: &[usize] = &[0usize, 23usize, 19usize, 1usize];
+const FN_82_CALLEES: &[usize] = &[0usize, 19usize, 18usize, 92usize];
+const FN_83_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 13usize, 18usize, 13usize, 2usize, 15usize, 22usize, 119usize, 111usize, 121usize, 2usize, 94usize];
+const FN_84_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_85_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 18usize, 13usize, 19usize, 94usize];
+const FN_86_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 18usize, 13usize, 22usize, 21usize, 19usize, 16usize, 94usize];
+const FN_87_CALLEES: &[usize] = &[0usize, 27usize, 18usize, 92usize];
 const FN_88_GLOBALS: &[usize] = &[14usize];
-const FN_88_CALLEES: &[u32] = &[0u32, 110u32, 18u32, 13u32, 92u32, 13u32, 13u32, 14u32, 11u32, 111u32, 16u32, 33u32, 2u32, 24u32, 94u32];
-const FN_89_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_90_CALLEES: &[u32] = &[0u32, 92u32, 0u32, 122u32, 9u32, 22u32, 17u32, 0u32, 94u32];
-const FN_91_CALLEES: &[u32] = &[0u32, 12u32, 14u32, 120u32, 0u32, 112u32, 111u32, 20u32, 1u32, 33u32, 95u32, 121u32];
-const FN_92_CALLEES: &[u32] = &[0u32, 22u32, 114u32, 118u32, 117u32, 119u32];
+const FN_88_CALLEES: &[usize] = &[0usize, 110usize, 18usize, 13usize, 92usize, 13usize, 13usize, 14usize, 11usize, 111usize, 16usize, 33usize, 2usize, 24usize, 94usize];
+const FN_89_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_90_CALLEES: &[usize] = &[0usize, 92usize, 0usize, 122usize, 9usize, 22usize, 17usize, 0usize, 94usize];
+const FN_91_CALLEES: &[usize] = &[0usize, 12usize, 14usize, 120usize, 0usize, 112usize, 111usize, 20usize, 1usize, 33usize, 95usize, 121usize];
+const FN_92_CALLEES: &[usize] = &[0usize, 22usize, 114usize, 118usize, 117usize, 119usize];
 const FN_93_GLOBALS: &[usize] = &[14usize];
-const FN_93_CALLEES: &[u32] = &[0u32, 40u32, 43u32, 36u32];
-const FN_94_CALLEES: &[u32] = &[0u32, 62u32];
-const FN_95_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_96_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_97_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_98_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_99_CALLEES: &[u32] = &[0u32, 70u32];
+const FN_93_CALLEES: &[usize] = &[0usize, 40usize, 43usize, 36usize];
+const FN_94_CALLEES: &[usize] = &[0usize, 62usize];
+const FN_95_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_96_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_97_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_98_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_99_CALLEES: &[usize] = &[0usize, 70usize];
 const FN_100_GLOBALS: &[usize] = &[20usize, 17usize, 18usize];
-const FN_100_CALLEES: &[u32] = &[0u32, 123u32];
+const FN_100_CALLEES: &[usize] = &[0usize, 123usize];
 const FN_101_GLOBALS: &[usize] = &[20usize];
-const FN_101_CALLEES: &[u32] = &[0u32, 123u32, 31u32, 6u32, 35u32, 40u32, 1u32, 12u32];
+const FN_101_CALLEES: &[usize] = &[0usize, 123usize, 31usize, 6usize, 35usize, 40usize, 1usize, 12usize];
 const FN_102_GLOBALS: &[usize] = &[17usize];
-const FN_102_CALLEES: &[u32] = &[0u32, 123u32];
-const FN_103_CALLEES: &[u32] = &[0u32, 72u32];
-const FN_104_CALLEES: &[u32] = &[0u32, 43u32, 1u32];
-const FN_105_CALLEES: &[u32] = &[0u32, 43u32, 2u32];
-const FN_106_CALLEES: &[u32] = &[0u32, 63u32];
-const FN_107_CALLEES: &[u32] = &[0u32, 123u32];
-const FN_108_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_109_CALLEES: &[u32] = &[0u32, 3u32];
-const FN_110_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_111_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_112_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_113_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_114_CALLEES: &[u32] = &[0u32, 53u32];
-const FN_115_CALLEES: &[u32] = &[0u32, 53u32];
-const FN_116_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_117_CALLEES: &[u32] = &[0u32];
-const FN_118_CALLEES: &[u32] = &[0u32, 53u32];
-const FN_119_CALLEES: &[u32] = &[0u32];
-const FN_120_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_121_CALLEES: &[u32] = &[0u32, 65u32];
-const FN_122_CALLEES: &[u32] = &[0u32, 123u32];
-const FN_123_CALLEES: &[u32] = &[0u32, 45u32];
-const FN_124_CALLEES: &[u32] = &[0u32, 43u32, 5u32];
-const FN_125_CALLEES: &[u32] = &[0u32, 45u32, 69u32];
-const FN_126_CALLEES: &[u32] = &[0u32, 66u32];
-const FN_127_CALLEES: &[u32] = &[0u32, 67u32];
-const FN_128_CALLEES: &[u32] = &[0u32, 68u32];
-const FN_129_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_130_CALLEES: &[u32] = &[0u32, 69u32];
+const FN_102_CALLEES: &[usize] = &[0usize, 123usize];
+const FN_103_CALLEES: &[usize] = &[0usize, 72usize];
+const FN_104_CALLEES: &[usize] = &[0usize, 43usize, 1usize];
+const FN_105_CALLEES: &[usize] = &[0usize, 43usize, 2usize];
+const FN_106_CALLEES: &[usize] = &[0usize, 63usize];
+const FN_107_CALLEES: &[usize] = &[0usize, 123usize];
+const FN_108_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_109_CALLEES: &[usize] = &[0usize, 3usize];
+const FN_110_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_111_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_112_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_113_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_114_CALLEES: &[usize] = &[0usize, 53usize];
+const FN_115_CALLEES: &[usize] = &[0usize, 53usize];
+const FN_116_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_117_CALLEES: &[usize] = &[0usize];
+const FN_118_CALLEES: &[usize] = &[0usize, 53usize];
+const FN_119_CALLEES: &[usize] = &[0usize];
+const FN_120_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_121_CALLEES: &[usize] = &[0usize, 65usize];
+const FN_122_CALLEES: &[usize] = &[0usize, 123usize];
+const FN_123_CALLEES: &[usize] = &[0usize, 45usize];
+const FN_124_CALLEES: &[usize] = &[0usize, 43usize, 5usize];
+const FN_125_CALLEES: &[usize] = &[0usize, 45usize, 69usize];
+const FN_126_CALLEES: &[usize] = &[0usize, 66usize];
+const FN_127_CALLEES: &[usize] = &[0usize, 67usize];
+const FN_128_CALLEES: &[usize] = &[0usize, 68usize];
+const FN_129_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_130_CALLEES: &[usize] = &[0usize, 69usize];
 const FN_131_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_131_CALLEES: &[u32] = &[0u32, 44u32, 70u32, 92u32];
+const FN_131_CALLEES: &[usize] = &[0usize, 44usize, 70usize, 92usize];
 const FN_132_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize, 9usize];
-const FN_132_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 31u32, 31u32, 39u32, 40u32, 52u32];
+const FN_132_CALLEES: &[usize] = &[0usize, 123usize, 92usize, 31usize, 31usize, 39usize, 40usize, 52usize];
 const FN_133_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_133_CALLEES: &[u32] = &[0u32, 39u32, 92u32];
-const FN_134_CALLEES: &[u32] = &[0u32, 69u32, 40u32, 92u32, 70u32, 72u32];
+const FN_133_CALLEES: &[usize] = &[0usize, 39usize, 92usize];
+const FN_134_CALLEES: &[usize] = &[0usize, 69usize, 40usize, 92usize, 70usize, 72usize];
 const FN_135_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_135_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 92u32];
+const FN_135_CALLEES: &[usize] = &[0usize, 46usize, 71usize, 92usize];
 const FN_136_GLOBALS: &[usize] = &[17usize, 20usize, 9usize];
-const FN_136_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 52u32];
+const FN_136_CALLEES: &[usize] = &[0usize, 123usize, 92usize, 52usize];
 const FN_137_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_137_CALLEES: &[u32] = &[0u32, 92u32, 43u32, 32u32, 39u32];
+const FN_137_CALLEES: &[usize] = &[0usize, 92usize, 43usize, 32usize, 39usize];
 const FN_138_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_138_CALLEES: &[u32] = &[0u32, 92u32, 0u32, 112u32, 1u32, 2u32];
+const FN_138_CALLEES: &[usize] = &[0usize, 92usize, 0usize, 112usize, 1usize, 2usize];
 const FN_139_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_139_CALLEES: &[u32] = &[0u32, 47u32, 72u32, 92u32];
+const FN_139_CALLEES: &[usize] = &[0usize, 47usize, 72usize, 92usize];
 const FN_140_GLOBALS: &[usize] = &[9usize];
-const FN_140_CALLEES: &[u32] = &[0u32, 47u32, 92u32, 15u32];
+const FN_140_CALLEES: &[usize] = &[0usize, 47usize, 92usize, 15usize];
 const FN_141_GLOBALS: &[usize] = &[9usize];
-const FN_141_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_141_CALLEES: &[usize] = &[0usize, 92usize];
 const FN_142_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_142_CALLEES: &[u32] = &[0u32, 40u32, 92u32, 43u32];
+const FN_142_CALLEES: &[usize] = &[0usize, 40usize, 92usize, 43usize];
 const FN_143_GLOBALS: &[usize] = &[9usize];
-const FN_143_CALLEES: &[u32] = &[0u32, 11u32, 92u32];
+const FN_143_CALLEES: &[usize] = &[0usize, 11usize, 92usize];
 const FN_144_GLOBALS: &[usize] = &[9usize];
-const FN_144_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_144_CALLEES: &[usize] = &[0usize, 92usize];
 const FN_145_GLOBALS: &[usize] = &[9usize];
-const FN_145_CALLEES: &[u32] = &[0u32, 12u32, 92u32];
+const FN_145_CALLEES: &[usize] = &[0usize, 12usize, 92usize];
 const FN_146_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize];
-const FN_146_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 31u32, 31u32, 39u32, 40u32, 52u32];
-const FN_147_CALLEES: &[u32] = &[0u32, 43u32, 34u32, 39u32];
-const FN_148_CALLEES: &[u32] = &[0u32, 43u32, 35u32, 39u32];
+const FN_146_CALLEES: &[usize] = &[0usize, 123usize, 92usize, 31usize, 31usize, 39usize, 40usize, 52usize];
+const FN_147_CALLEES: &[usize] = &[0usize, 43usize, 34usize, 39usize];
+const FN_148_CALLEES: &[usize] = &[0usize, 43usize, 35usize, 39usize];
 const FN_149_GLOBALS: &[usize] = &[20usize];
-const FN_149_CALLEES: &[u32] = &[0u32, 72u32];
-const FN_150_CALLEES: &[u32] = &[0u32, 43u32, 36u32, 39u32];
-const FN_151_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_149_CALLEES: &[usize] = &[0usize, 72usize];
+const FN_150_CALLEES: &[usize] = &[0usize, 43usize, 36usize, 39usize];
+const FN_151_CALLEES: &[usize] = &[0usize, 92usize];
 const FN_152_GLOBALS: &[usize] = &[23usize];
-const FN_152_CALLEES: &[u32] = &[0u32, 98u32, 87u32, 97u32, 99u32];
-const FN_153_CALLEES: &[u32] = &[0u32];
-const FN_154_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_155_CALLEES: &[u32] = &[0u32];
-const FN_156_CALLEES: &[u32] = &[0u32];
-const FN_157_CALLEES: &[u32] = &[0u32];
-const FN_158_CALLEES: &[u32] = &[0u32, 97u32, 96u32];
-const FN_159_CALLEES: &[u32] = &[0u32, 94u32];
-const FN_160_CALLEES: &[u32] = &[0u32, 124u32];
+const FN_152_CALLEES: &[usize] = &[0usize, 98usize, 87usize, 97usize, 99usize];
+const FN_153_CALLEES: &[usize] = &[0usize];
+const FN_154_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_155_CALLEES: &[usize] = &[0usize];
+const FN_156_CALLEES: &[usize] = &[0usize];
+const FN_157_CALLEES: &[usize] = &[0usize];
+const FN_158_CALLEES: &[usize] = &[0usize, 97usize, 96usize];
+const FN_159_CALLEES: &[usize] = &[0usize, 94usize];
+const FN_160_CALLEES: &[usize] = &[0usize, 124usize];
 const FN_161_GLOBALS: &[usize] = &[23usize];
-const FN_161_CALLEES: &[u32] = &[0u32, 11u32, 0u32, 92u32];
+const FN_161_CALLEES: &[usize] = &[0usize, 11usize, 0usize, 92usize];
 const FN_162_GLOBALS: &[usize] = &[23usize];
-const FN_162_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_163_CALLEES: &[u32] = &[0u32, 55u32];
-const FN_164_CALLEES: &[u32] = &[0u32, 11u32, 0u32, 92u32, 87u32];
-const FN_165_CALLEES: &[u32] = &[0u32, 31u32, 57u32, 40u32, 87u32];
-const FN_166_CALLEES: &[u32] = &[0u32, 5u32, 87u32, 0u32];
-const FN_167_CALLEES: &[u32] = &[0u32, 6u32];
-const FN_168_CALLEES: &[u32] = &[0u32, 102u32, 87u32];
-const FN_169_CALLEES: &[u32] = &[0u32, 78u32];
-const FN_170_CALLEES: &[u32] = &[0u32, 78u32];
-const FN_171_CALLEES: &[u32] = &[0u32, 1u32, 14u32, 24u32, 1u32, 11u32, 1u32, 0u32, 16u32, 94u32, 87u32];
-const FN_172_CALLEES: &[u32] = &[0u32];
-const FN_173_CALLEES: &[u32] = &[0u32, 78u32];
-const FN_174_CALLEES: &[u32] = &[0u32, 78u32];
+const FN_162_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_163_CALLEES: &[usize] = &[0usize, 55usize];
+const FN_164_CALLEES: &[usize] = &[0usize, 11usize, 0usize, 92usize, 87usize];
+const FN_165_CALLEES: &[usize] = &[0usize, 31usize, 57usize, 40usize, 87usize];
+const FN_166_CALLEES: &[usize] = &[0usize, 5usize, 87usize, 0usize];
+const FN_167_CALLEES: &[usize] = &[0usize, 6usize];
+const FN_168_CALLEES: &[usize] = &[0usize, 102usize, 87usize];
+const FN_169_CALLEES: &[usize] = &[0usize, 78usize];
+const FN_170_CALLEES: &[usize] = &[0usize, 78usize];
+const FN_171_CALLEES: &[usize] = &[0usize, 1usize, 14usize, 24usize, 1usize, 11usize, 1usize, 0usize, 16usize, 94usize, 87usize];
+const FN_172_CALLEES: &[usize] = &[0usize];
+const FN_173_CALLEES: &[usize] = &[0usize, 78usize];
+const FN_174_CALLEES: &[usize] = &[0usize, 78usize];
 const FN_175_GLOBALS: &[usize] = &[23usize];
-const FN_175_CALLEES: &[u32] = &[0u32, 69u32, 92u32];
-const FN_176_CALLEES: &[u32] = &[0u32, 95u32];
-const FN_177_CALLEES: &[u32] = &[0u32, 100u32, 87u32];
-const FN_178_CALLEES: &[u32] = &[0u32, 124u32];
+const FN_175_CALLEES: &[usize] = &[0usize, 69usize, 92usize];
+const FN_176_CALLEES: &[usize] = &[0usize, 95usize];
+const FN_177_CALLEES: &[usize] = &[0usize, 100usize, 87usize];
+const FN_178_CALLEES: &[usize] = &[0usize, 124usize];
 const FN_179_GLOBALS: &[usize] = &[23usize];
-const FN_179_CALLEES: &[u32] = &[0u32, 60u32, 92u32];
-const FN_180_CALLEES: &[u32] = &[0u32, 96u32];
-const FN_181_CALLEES: &[u32] = &[0u32, 61u32, 73u32];
-const FN_182_CALLEES: &[u32] = &[0u32, 96u32];
+const FN_179_CALLEES: &[usize] = &[0usize, 60usize, 92usize];
+const FN_180_CALLEES: &[usize] = &[0usize, 96usize];
+const FN_181_CALLEES: &[usize] = &[0usize, 61usize, 73usize];
+const FN_182_CALLEES: &[usize] = &[0usize, 96usize];
 const FN_183_GLOBALS: &[usize] = &[23usize, 1usize];
-const FN_183_CALLEES: &[u32] = &[0u32, 60u32, 92u32, 102u32, 87u32];
-const FN_184_CALLEES: &[u32] = &[0u32, 96u32, 53u32, 73u32, 92u32];
+const FN_183_CALLEES: &[usize] = &[0usize, 60usize, 92usize, 102usize, 87usize];
+const FN_184_CALLEES: &[usize] = &[0usize, 96usize, 53usize, 73usize, 92usize];
 const FN_185_GLOBALS: &[usize] = &[20usize, 9usize, 17usize];
-const FN_185_CALLEES: &[u32] = &[0u32, 70u32, 92u32, 1u32, 110u32, 44u32, 45u32];
+const FN_185_CALLEES: &[usize] = &[0usize, 70usize, 92usize, 1usize, 110usize, 44usize, 45usize];
 const FN_186_GLOBALS: &[usize] = &[9usize];
-const FN_186_CALLEES: &[u32] = &[0u32, 62u32, 92u32, 46u32];
+const FN_186_CALLEES: &[usize] = &[0usize, 62usize, 92usize, 46usize];
 const FN_187_GLOBALS: &[usize] = &[9usize];
-const FN_187_CALLEES: &[u32] = &[0u32, 62u32, 92u32, 47u32];
+const FN_187_CALLEES: &[usize] = &[0usize, 62usize, 92usize, 47usize];
 const FN_188_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_188_CALLEES: &[u32] = &[0u32, 92u32, 70u32];
+const FN_188_CALLEES: &[usize] = &[0usize, 92usize, 70usize];
 const FN_189_GLOBALS: &[usize] = &[9usize];
-const FN_189_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 9u32];
+const FN_189_CALLEES: &[usize] = &[0usize, 65usize, 92usize, 9usize];
 const FN_190_GLOBALS: &[usize] = &[9usize];
-const FN_190_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 10u32];
+const FN_190_CALLEES: &[usize] = &[0usize, 65usize, 92usize, 10usize];
 const FN_191_GLOBALS: &[usize] = &[9usize];
-const FN_191_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 11u32];
+const FN_191_CALLEES: &[usize] = &[0usize, 65usize, 92usize, 11usize];
 const FN_192_GLOBALS: &[usize] = &[23usize, 1usize];
-const FN_192_CALLEES: &[u32] = &[0u32, 60u32, 92u32, 102u32, 87u32];
-const FN_193_CALLEES: &[u32] = &[0u32, 2u32, 25u32, 1u32];
+const FN_192_CALLEES: &[usize] = &[0usize, 60usize, 92usize, 102usize, 87usize];
+const FN_193_CALLEES: &[usize] = &[0usize, 2usize, 25usize, 1usize];
 const FN_194_GLOBALS: &[usize] = &[14usize];
-const FN_194_CALLEES: &[u32] = &[0u32, 92u32, 25u32, 1u32, 1u32];
-const FN_195_CALLEES: &[u32] = &[0u32, 2u32, 25u32];
-const FN_196_CALLEES: &[u32] = &[0u32, 1u32, 14u32, 25u32, 11u32, 16u32, 0u32, 94u32];
-const FN_197_CALLEES: &[u32] = &[0u32, 14u32, 25u32, 1u32, 2u32, 11u32, 16u32, 94u32, 69u32];
-const FN_198_CALLEES: &[u32] = &[0u32, 92u32, 1u32, 26u32, 25u32, 24u32, 0u32, 11u32, 1u32, 0u32, 94u32, 69u32];
-const FN_199_CALLEES: &[u32] = &[0u32, 24u32, 2u32, 25u32];
-const FN_200_CALLEES: &[u32] = &[0u32, 97u32, 92u32, 25u32, 26u32, 2u32, 1u32, 11u32, 1u32, 94u32, 69u32, 1u32, 112u32, 0u32, 0u32, 126u32, 24u32, 127u32, 101u32];
-const FN_201_CALLEES: &[u32] = &[0u32, 22u32, 89u32, 24u32];
-const FN_202_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_203_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_204_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
-const FN_205_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
-const FN_206_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_207_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_208_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_209_CALLEES: &[u32] = &[0u32, 0u32, 92u32, 1u32, 0u32];
-const FN_210_CALLEES: &[u32] = &[0u32, 92u32, 1u32];
-const FN_211_CALLEES: &[u32] = &[0u32, 18u32, 13u32];
-const FN_212_CALLEES: &[u32] = &[0u32, 13u32, 13u32];
-const FN_213_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_214_CALLEES: &[u32] = &[0u32, 27u32, 15u32];
-const FN_215_CALLEES: &[u32] = &[0u32, 39u32, 15u32];
-const FN_216_CALLEES: &[u32] = &[0u32, 29u32, 15u32];
-const FN_217_CALLEES: &[u32] = &[0u32, 4u32, 6u32];
-const FN_218_CALLEES: &[u32] = &[0u32, 2u32, 15u32];
-const FN_219_CALLEES: &[u32] = &[0u32, 6u32, 15u32];
-const FN_220_CALLEES: &[u32] = &[0u32, 92u32, 9u32, 12u32, 128u32, 14u32, 2u32, 27u32, 94u32];
-const FN_221_CALLEES: &[u32] = &[0u32, 5u32, 1u32, 0u32, 92u32, 8u32, 129u32];
-const FN_222_CALLEES: &[u32] = &[0u32, 9u32, 14u32, 23u32, 12u32, 0u32, 1u32, 94u32];
-const FN_223_CALLEES: &[u32] = &[0u32, 1u32, 2u32, 18u32, 23u32, 38u32, 15u32, 1u32];
-const FN_224_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32];
-const FN_225_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 92u32];
-const FN_226_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 0u32, 92u32, 1u32, 1u32];
-const FN_227_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 92u32];
-const FN_228_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 9u32, 0u32, 92u32, 1u32];
-const FN_229_CALLEES: &[u32] = &[0u32, 0u32, 5u32, 23u32, 92u32];
-const FN_230_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 14u32, 1u32, 0u32, 19u32, 13u32, 3u32, 13u32, 94u32, 92u32];
-const FN_231_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 16u32, 19u32];
-const FN_232_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 2u32, 14u32];
-const FN_233_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 1u32, 16u32, 14u32, 72u32, 92u32, 19u32, 0u32, 1u32, 11u32, 2u32, 13u32, 13u32, 94u32, 10u32];
-const FN_234_CALLEES: &[u32] = &[0u32, 92u32, 130u32];
-const FN_235_CALLEES: &[u32] = &[0u32];
-const FN_236_CALLEES: &[u32] = &[0u32];
-const FN_237_CALLEES: &[u32] = &[0u32];
-const FN_238_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 92u32, 1u32, 5u32, 0u32, 1u32, 0u32, 2u32, 3u32, 9u32, 76u32, 14u32, 13u32, 13u32, 94u32, 11u32, 13u32, 2u32, 0u32, 11u32, 10u32, 8u32, 16u32, 2u32, 77u32, 78u32, 79u32, 72u32];
-const FN_239_CALLEES: &[u32] = &[0u32, 0u32, 7u32, 8u32, 14u32, 9u32, 13u32, 0u32, 23u32, 19u32, 1u32, 92u32, 13u32, 15u32, 94u32, 2u32];
-const FN_240_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 5u32, 2u32, 14u32, 11u32, 13u32, 2u32, 0u32, 10u32, 9u32, 8u32, 4u32];
-const FN_241_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 23u32, 19u32, 1u32, 2u32];
-const FN_242_CALLEES: &[u32] = &[0u32, 0u32, 92u32, 23u32, 19u32, 1u32, 12u32, 75u32, 0u32, 13u32, 10u32, 9u32, 13u32, 94u32];
-const FN_243_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 13u32, 0u32, 23u32, 19u32, 1u32, 7u32, 8u32, 9u32, 14u32, 92u32, 13u32, 94u32, 3u32, 2u32, 21u32];
-const FN_244_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 13u32, 0u32, 23u32, 19u32, 1u32, 7u32, 8u32, 14u32, 9u32, 92u32, 13u32, 94u32, 72u32, 15u32, 16u32];
-const FN_245_CALLEES: &[u32] = &[0u32, 131u32];
-const FN_246_CALLEES: &[u32] = &[0u32, 104u32, 28u32, 131u32, 1u32, 92u32, 13u32];
-const FN_247_CALLEES: &[u32] = &[0u32, 7u32, 0u32, 4u32];
-const FN_248_CALLEES: &[u32] = &[0u32, 104u32, 28u32, 131u32, 1u32, 92u32, 13u32];
-const FN_249_CALLEES: &[u32] = &[0u32, 28u32, 118u32, 1u32, 92u32, 8u32, 129u32, 13u32];
-const FN_250_CALLEES: &[u32] = &[0u32, 118u32, 92u32];
-const FN_251_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32];
-const FN_252_CALLEES: &[u32] = &[0u32, 3u32, 6u32, 23u32, 0u32, 4u32, 2u32, 0u32];
-const FN_253_CALLEES: &[u32] = &[0u32, 118u32, 2u32, 1u32, 0u32, 23u32, 1u32, 117u32, 115u32, 116u32, 132u32, 0u32];
-const FN_254_CALLEES: &[u32] = &[0u32, 118u32, 3u32, 0u32, 1u32, 0u32, 2u32, 23u32, 0u32, 0u32, 1u32, 0u32];
-const FN_255_CALLEES: &[u32] = &[0u32, 23u32, 131u32, 11u32, 92u32, 1u32, 130u32, 116u32, 133u32, 128u32];
-const FN_256_CALLEES: &[u32] = &[0u32, 116u32, 73u32, 115u32, 13u32, 118u32, 13u32, 94u32, 92u32, 0u32];
-const FN_257_CALLEES: &[u32] = &[0u32, 118u32, 73u32, 23u32, 117u32, 1u32];
-const FN_258_CALLEES: &[u32] = &[0u32, 23u32, 4u32, 1u32];
-const FN_259_CALLEES: &[u32] = &[0u32, 118u32, 115u32, 116u32, 132u32, 1u32, 1u32];
-const FN_260_CALLEES: &[u32] = &[0u32];
-const FN_261_CALLEES: &[u32] = &[0u32, 20u32, 92u32, 134u32, 0u32, 12u32, 16u32, 118u32, 23u32, 9u32, 94u32];
-const FN_262_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 0u32, 1u32];
-const FN_263_CALLEES: &[u32] = &[0u32, 17u32, 13u32, 23u32, 11u32, 130u32, 1u32, 18u32, 13u32, 92u32, 73u32, 94u32, 131u32, 1u32, 118u32, 0u32, 28u32, 6u32, 135u32, 5u32, 8u32, 129u32, 90u32, 29u32, 30u32, 2u32, 15u32];
-const FN_264_CALLEES: &[u32] = &[0u32, 115u32, 116u32];
-const FN_265_CALLEES: &[u32] = &[0u32, 115u32, 116u32];
-const FN_266_CALLEES: &[u32] = &[0u32, 118u32];
-const FN_267_CALLEES: &[u32] = &[0u32, 136u32, 118u32, 23u32, 82u32, 115u32, 116u32];
-const FN_268_CALLEES: &[u32] = &[0u32, 118u32, 136u32];
-const FN_269_CALLEES: &[u32] = &[0u32, 118u32, 136u32];
-const FN_270_CALLEES: &[u32] = &[0u32, 131u32, 2u32, 23u32, 130u32, 118u32];
-const FN_271_CALLEES: &[u32] = &[0u32, 23u32, 106u32, 1u32];
-const FN_272_CALLEES: &[u32] = &[0u32, 23u32, 131u32, 108u32, 11u32, 92u32, 1u32, 2u32, 130u32, 73u32, 111u32, 118u32];
-const FN_273_CALLEES: &[u32] = &[0u32, 73u32];
-const FN_274_CALLEES: &[u32] = &[0u32, 118u32, 73u32, 84u32, 103u32, 23u32, 1u32, 13u32, 13u32, 94u32, 92u32, 2u32, 115u32, 116u32, 1u32, 137u32, 107u32, 83u32, 81u32, 105u32, 0u32, 117u32, 130u32];
-const FN_275_CALLEES: &[u32] = &[0u32, 118u32];
-const FN_276_CALLEES: &[u32] = &[0u32, 118u32];
-const FN_277_CALLEES: &[u32] = &[0u32, 118u32, 1u32, 0u32, 15u32];
-const FN_278_CALLEES: &[u32] = &[0u32, 85u32, 1u32, 0u32, 15u32];
-const FN_279_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 6u32, 0u32];
-const FN_280_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 85u32, 0u32];
-const FN_281_CALLEES: &[u32] = &[0u32, 1u32, 6u32];
-const FN_282_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_283_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_284_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_285_CALLEES: &[u32] = &[0u32, 116u32, 118u32, 115u32];
-const FN_286_CALLEES: &[u32] = &[0u32, 84u32, 1u32, 0u32, 3u32, 2u32, 0u32, 23u32, 1u32, 12u32, 0u32, 15u32];
-const FN_287_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 105u32, 0u32, 116u32, 1u32, 85u32, 2u32, 0u32, 74u32, 6u32, 83u32, 12u32, 0u32, 1u32, 0u32, 15u32, 0u32, 3u32, 1u32];
-const FN_288_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 0u32, 1u32, 116u32, 0u32, 74u32, 85u32, 2u32, 6u32, 12u32, 10u32, 1u32, 0u32, 3u32, 0u32];
-const FN_289_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 118u32, 74u32, 0u32, 6u32, 116u32, 0u32, 112u32, 1u32, 0u32, 0u32, 0u32, 85u32, 2u32, 83u32, 12u32, 0u32, 1u32, 0u32, 1u32, 0u32, 15u32, 3u32, 10u32, 11u32, 86u32, 23u32, 1u32];
-const FN_290_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 0u32, 74u32, 1u32, 0u32, 6u32, 0u32, 2u32, 12u32, 0u32, 3u32, 1u32, 23u32, 0u32];
-const FN_291_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
-const FN_292_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
+const FN_194_CALLEES: &[usize] = &[0usize, 92usize, 25usize, 1usize, 1usize];
+const FN_195_CALLEES: &[usize] = &[0usize, 2usize, 25usize];
+const FN_196_CALLEES: &[usize] = &[0usize, 1usize, 14usize, 25usize, 11usize, 16usize, 0usize, 94usize];
+const FN_197_CALLEES: &[usize] = &[0usize, 14usize, 25usize, 1usize, 2usize, 11usize, 16usize, 94usize, 69usize];
+const FN_198_CALLEES: &[usize] = &[0usize, 92usize, 1usize, 26usize, 25usize, 24usize, 0usize, 11usize, 1usize, 0usize, 94usize, 69usize];
+const FN_199_CALLEES: &[usize] = &[0usize, 24usize, 2usize, 25usize];
+const FN_200_CALLEES: &[usize] = &[0usize, 97usize, 92usize, 25usize, 26usize, 2usize, 1usize, 11usize, 1usize, 94usize, 69usize, 1usize, 112usize, 0usize, 0usize, 126usize, 24usize, 127usize, 101usize];
+const FN_201_CALLEES: &[usize] = &[0usize, 22usize, 89usize, 24usize];
+const FN_202_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_203_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_204_CALLEES: &[usize] = &[0usize, 0usize, 92usize];
+const FN_205_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
+const FN_206_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_207_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_208_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_209_CALLEES: &[usize] = &[0usize, 0usize, 92usize, 1usize, 0usize];
+const FN_210_CALLEES: &[usize] = &[0usize, 92usize, 1usize];
+const FN_211_CALLEES: &[usize] = &[0usize, 18usize, 13usize];
+const FN_212_CALLEES: &[usize] = &[0usize, 13usize, 13usize];
+const FN_213_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_214_CALLEES: &[usize] = &[0usize, 27usize, 15usize];
+const FN_215_CALLEES: &[usize] = &[0usize, 39usize, 15usize];
+const FN_216_CALLEES: &[usize] = &[0usize, 29usize, 15usize];
+const FN_217_CALLEES: &[usize] = &[0usize, 4usize, 6usize];
+const FN_218_CALLEES: &[usize] = &[0usize, 2usize, 15usize];
+const FN_219_CALLEES: &[usize] = &[0usize, 6usize, 15usize];
+const FN_220_CALLEES: &[usize] = &[0usize, 92usize, 9usize, 12usize, 128usize, 14usize, 2usize, 27usize, 94usize];
+const FN_221_CALLEES: &[usize] = &[0usize, 5usize, 1usize, 0usize, 92usize, 8usize, 129usize];
+const FN_222_CALLEES: &[usize] = &[0usize, 9usize, 14usize, 23usize, 12usize, 0usize, 1usize, 94usize];
+const FN_223_CALLEES: &[usize] = &[0usize, 1usize, 2usize, 18usize, 23usize, 38usize, 15usize, 1usize];
+const FN_224_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize];
+const FN_225_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize, 92usize];
+const FN_226_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 0usize, 92usize, 1usize, 1usize];
+const FN_227_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 92usize];
+const FN_228_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 9usize, 0usize, 92usize, 1usize];
+const FN_229_CALLEES: &[usize] = &[0usize, 0usize, 5usize, 23usize, 92usize];
+const FN_230_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 14usize, 1usize, 0usize, 19usize, 13usize, 3usize, 13usize, 94usize, 92usize];
+const FN_231_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 16usize, 19usize];
+const FN_232_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize, 2usize, 14usize];
+const FN_233_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 1usize, 16usize, 14usize, 72usize, 92usize, 19usize, 0usize, 1usize, 11usize, 2usize, 13usize, 13usize, 94usize, 10usize];
+const FN_234_CALLEES: &[usize] = &[0usize, 92usize, 130usize];
+const FN_235_CALLEES: &[usize] = &[0usize];
+const FN_236_CALLEES: &[usize] = &[0usize];
+const FN_237_CALLEES: &[usize] = &[0usize];
+const FN_238_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize, 92usize, 1usize, 5usize, 0usize, 1usize, 0usize, 2usize, 3usize, 9usize, 76usize, 14usize, 13usize, 13usize, 94usize, 11usize, 13usize, 2usize, 0usize, 11usize, 10usize, 8usize, 16usize, 2usize, 77usize, 78usize, 79usize, 72usize];
+const FN_239_CALLEES: &[usize] = &[0usize, 0usize, 7usize, 8usize, 14usize, 9usize, 13usize, 0usize, 23usize, 19usize, 1usize, 92usize, 13usize, 15usize, 94usize, 2usize];
+const FN_240_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize, 5usize, 2usize, 14usize, 11usize, 13usize, 2usize, 0usize, 10usize, 9usize, 8usize, 4usize];
+const FN_241_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 23usize, 19usize, 1usize, 2usize];
+const FN_242_CALLEES: &[usize] = &[0usize, 0usize, 92usize, 23usize, 19usize, 1usize, 12usize, 75usize, 0usize, 13usize, 10usize, 9usize, 13usize, 94usize];
+const FN_243_CALLEES: &[usize] = &[0usize, 0usize, 17usize, 13usize, 0usize, 23usize, 19usize, 1usize, 7usize, 8usize, 9usize, 14usize, 92usize, 13usize, 94usize, 3usize, 2usize, 21usize];
+const FN_244_CALLEES: &[usize] = &[0usize, 0usize, 17usize, 13usize, 0usize, 23usize, 19usize, 1usize, 7usize, 8usize, 14usize, 9usize, 92usize, 13usize, 94usize, 72usize, 15usize, 16usize];
+const FN_245_CALLEES: &[usize] = &[0usize, 131usize];
+const FN_246_CALLEES: &[usize] = &[0usize, 104usize, 28usize, 131usize, 1usize, 92usize, 13usize];
+const FN_247_CALLEES: &[usize] = &[0usize, 7usize, 0usize, 4usize];
+const FN_248_CALLEES: &[usize] = &[0usize, 104usize, 28usize, 131usize, 1usize, 92usize, 13usize];
+const FN_249_CALLEES: &[usize] = &[0usize, 28usize, 118usize, 1usize, 92usize, 8usize, 129usize, 13usize];
+const FN_250_CALLEES: &[usize] = &[0usize, 118usize, 92usize];
+const FN_251_CALLEES: &[usize] = &[0usize, 118usize, 23usize, 92usize];
+const FN_252_CALLEES: &[usize] = &[0usize, 3usize, 6usize, 23usize, 0usize, 4usize, 2usize, 0usize];
+const FN_253_CALLEES: &[usize] = &[0usize, 118usize, 2usize, 1usize, 0usize, 23usize, 1usize, 117usize, 115usize, 116usize, 132usize, 0usize];
+const FN_254_CALLEES: &[usize] = &[0usize, 118usize, 3usize, 0usize, 1usize, 0usize, 2usize, 23usize, 0usize, 0usize, 1usize, 0usize];
+const FN_255_CALLEES: &[usize] = &[0usize, 23usize, 131usize, 11usize, 92usize, 1usize, 130usize, 116usize, 133usize, 128usize];
+const FN_256_CALLEES: &[usize] = &[0usize, 116usize, 73usize, 115usize, 13usize, 118usize, 13usize, 94usize, 92usize, 0usize];
+const FN_257_CALLEES: &[usize] = &[0usize, 118usize, 73usize, 23usize, 117usize, 1usize];
+const FN_258_CALLEES: &[usize] = &[0usize, 23usize, 4usize, 1usize];
+const FN_259_CALLEES: &[usize] = &[0usize, 118usize, 115usize, 116usize, 132usize, 1usize, 1usize];
+const FN_260_CALLEES: &[usize] = &[0usize];
+const FN_261_CALLEES: &[usize] = &[0usize, 20usize, 92usize, 134usize, 0usize, 12usize, 16usize, 118usize, 23usize, 9usize, 94usize];
+const FN_262_CALLEES: &[usize] = &[0usize, 1usize, 92usize, 0usize, 1usize];
+const FN_263_CALLEES: &[usize] = &[0usize, 17usize, 13usize, 23usize, 11usize, 130usize, 1usize, 18usize, 13usize, 92usize, 73usize, 94usize, 131usize, 1usize, 118usize, 0usize, 28usize, 6usize, 135usize, 5usize, 8usize, 129usize, 90usize, 29usize, 30usize, 2usize, 15usize];
+const FN_264_CALLEES: &[usize] = &[0usize, 115usize, 116usize];
+const FN_265_CALLEES: &[usize] = &[0usize, 115usize, 116usize];
+const FN_266_CALLEES: &[usize] = &[0usize, 118usize];
+const FN_267_CALLEES: &[usize] = &[0usize, 136usize, 118usize, 23usize, 82usize, 115usize, 116usize];
+const FN_268_CALLEES: &[usize] = &[0usize, 118usize, 136usize];
+const FN_269_CALLEES: &[usize] = &[0usize, 118usize, 136usize];
+const FN_270_CALLEES: &[usize] = &[0usize, 131usize, 2usize, 23usize, 130usize, 118usize];
+const FN_271_CALLEES: &[usize] = &[0usize, 23usize, 106usize, 1usize];
+const FN_272_CALLEES: &[usize] = &[0usize, 23usize, 131usize, 108usize, 11usize, 92usize, 1usize, 2usize, 130usize, 73usize, 111usize, 118usize];
+const FN_273_CALLEES: &[usize] = &[0usize, 73usize];
+const FN_274_CALLEES: &[usize] = &[0usize, 118usize, 73usize, 84usize, 103usize, 23usize, 1usize, 13usize, 13usize, 94usize, 92usize, 2usize, 115usize, 116usize, 1usize, 137usize, 107usize, 83usize, 81usize, 105usize, 0usize, 117usize, 130usize];
+const FN_275_CALLEES: &[usize] = &[0usize, 118usize];
+const FN_276_CALLEES: &[usize] = &[0usize, 118usize];
+const FN_277_CALLEES: &[usize] = &[0usize, 118usize, 1usize, 0usize, 15usize];
+const FN_278_CALLEES: &[usize] = &[0usize, 85usize, 1usize, 0usize, 15usize];
+const FN_279_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 6usize, 0usize];
+const FN_280_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 85usize, 0usize];
+const FN_281_CALLEES: &[usize] = &[0usize, 1usize, 6usize];
+const FN_282_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_283_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_284_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_285_CALLEES: &[usize] = &[0usize, 116usize, 118usize, 115usize];
+const FN_286_CALLEES: &[usize] = &[0usize, 84usize, 1usize, 0usize, 3usize, 2usize, 0usize, 23usize, 1usize, 12usize, 0usize, 15usize];
+const FN_287_CALLEES: &[usize] = &[0usize, 3usize, 118usize, 105usize, 0usize, 116usize, 1usize, 85usize, 2usize, 0usize, 74usize, 6usize, 83usize, 12usize, 0usize, 1usize, 0usize, 15usize, 0usize, 3usize, 1usize];
+const FN_288_CALLEES: &[usize] = &[0usize, 3usize, 118usize, 0usize, 1usize, 116usize, 0usize, 74usize, 85usize, 2usize, 6usize, 12usize, 10usize, 1usize, 0usize, 3usize, 0usize];
+const FN_289_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 118usize, 74usize, 0usize, 6usize, 116usize, 0usize, 112usize, 1usize, 0usize, 0usize, 0usize, 85usize, 2usize, 83usize, 12usize, 0usize, 1usize, 0usize, 1usize, 0usize, 15usize, 3usize, 10usize, 11usize, 86usize, 23usize, 1usize];
+const FN_290_CALLEES: &[usize] = &[0usize, 3usize, 118usize, 0usize, 74usize, 1usize, 0usize, 6usize, 0usize, 2usize, 12usize, 0usize, 3usize, 1usize, 23usize, 0usize];
+const FN_291_CALLEES: &[usize] = &[0usize, 23usize, 130usize, 1usize];
+const FN_292_CALLEES: &[usize] = &[0usize, 23usize, 130usize, 1usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -14329,7 +14333,7 @@ clippy::type_complexity,
 clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
-fn bound_adapter_293(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+fn bound_adapter_293(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     SubstituteInstance::fn_293(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, host)
 }
 
@@ -14357,45 +14361,45 @@ clippy::type_complexity,
 clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
-fn bound_adapter_294(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+fn bound_adapter_294(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     SubstituteInstance::fn_294(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, host)
 }
 
-const FN_295_CALLEES: &[u32] = &[0u32, 1u32, 118u32, 1u32, 3u32, 5u32, 0u32, 6u32, 13u32, 92u32, 13u32, 73u32, 0u32, 94u32];
-const FN_296_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 1u32, 3u32, 5u32, 6u32, 0u32, 2u32, 73u32, 92u32, 1u32, 0u32, 13u32, 94u32, 23u32, 2u32, 1u32, 8u32, 130u32, 7u32, 15u32];
-const FN_297_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 23u32, 19u32, 18u32, 13u32, 19u32, 94u32];
-const FN_298_CALLEES: &[u32] = &[0u32, 88u32, 80u32, 13u32, 23u32, 1u32, 2u32, 15u32, 1u32, 94u32];
-const FN_299_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32, 73u32];
-const FN_300_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
-const FN_301_CALLEES: &[u32] = &[0u32, 118u32, 1u32, 12u32, 0u32, 0u32];
-const FN_302_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 23u32, 19u32, 1u32, 9u32, 3u32, 2u32, 5u32, 2u32, 10u32, 0u32, 92u32, 0u32, 13u32, 1u32, 94u32];
-const FN_303_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32, 130u32, 73u32, 13u32, 13u32, 94u32];
-const FN_304_CALLEES: &[u32] = &[0u32, 92u32, 2u32, 1u32, 22u32, 115u32, 116u32, 128u32, 117u32];
-const FN_305_CALLEES: &[u32] = &[0u32, 71u32];
-const FN_306_CALLEES: &[u32] = &[92u32];
-const FN_324_CALLEES: &[u32] = &[92u32];
-const FN_327_CALLEES: &[u32] = &[92u32];
-const FN_335_CALLEES: &[u32] = &[92u32];
-const FN_339_CALLEES: &[u32] = &[92u32];
-const FN_340_CALLEES: &[u32] = &[92u32];
-const FN_341_CALLEES: &[u32] = &[92u32];
-const FN_343_CALLEES: &[u32] = &[92u32];
-const FN_345_CALLEES: &[u32] = &[92u32];
-const FN_350_CALLEES: &[u32] = &[125u32];
-const FN_354_CALLEES: &[u32] = &[92u32];
-const FN_355_CALLEES: &[u32] = &[92u32];
-const FN_362_CALLEES: &[u32] = &[92u32];
-const FN_368_CALLEES: &[u32] = &[92u32];
-const FN_369_CALLEES: &[u32] = &[92u32];
-const FN_370_CALLEES: &[u32] = &[92u32];
-const FN_371_CALLEES: &[u32] = &[92u32];
-const FN_372_CALLEES: &[u32] = &[92u32];
-const FN_373_CALLEES: &[u32] = &[136u32];
-const FN_374_CALLEES: &[u32] = &[118u32, 135u32];
-const FN_378_CALLEES: &[u32] = &[92u32];
-const FN_380_CALLEES: &[u32] = &[92u32];
-const FN_381_CALLEES: &[u32] = &[92u32];
-const FN_382_CALLEES: &[u32] = &[0u32, 92u32, 91u32];
+const FN_295_CALLEES: &[usize] = &[0usize, 1usize, 118usize, 1usize, 3usize, 5usize, 0usize, 6usize, 13usize, 92usize, 13usize, 73usize, 0usize, 94usize];
+const FN_296_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 1usize, 3usize, 5usize, 6usize, 0usize, 2usize, 73usize, 92usize, 1usize, 0usize, 13usize, 94usize, 23usize, 2usize, 1usize, 8usize, 130usize, 7usize, 15usize];
+const FN_297_CALLEES: &[usize] = &[0usize, 0usize, 13usize, 23usize, 19usize, 18usize, 13usize, 19usize, 94usize];
+const FN_298_CALLEES: &[usize] = &[0usize, 88usize, 80usize, 13usize, 23usize, 1usize, 2usize, 15usize, 1usize, 94usize];
+const FN_299_CALLEES: &[usize] = &[0usize, 118usize, 23usize, 92usize, 73usize];
+const FN_300_CALLEES: &[usize] = &[0usize, 23usize, 130usize, 1usize];
+const FN_301_CALLEES: &[usize] = &[0usize, 118usize, 1usize, 12usize, 0usize, 0usize];
+const FN_302_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 23usize, 19usize, 1usize, 9usize, 3usize, 2usize, 5usize, 2usize, 10usize, 0usize, 92usize, 0usize, 13usize, 1usize, 94usize];
+const FN_303_CALLEES: &[usize] = &[0usize, 118usize, 23usize, 92usize, 130usize, 73usize, 13usize, 13usize, 94usize];
+const FN_304_CALLEES: &[usize] = &[0usize, 92usize, 2usize, 1usize, 22usize, 115usize, 116usize, 128usize, 117usize];
+const FN_305_CALLEES: &[usize] = &[0usize, 71usize];
+const FN_306_CALLEES: &[usize] = &[92usize];
+const FN_324_CALLEES: &[usize] = &[92usize];
+const FN_327_CALLEES: &[usize] = &[92usize];
+const FN_335_CALLEES: &[usize] = &[92usize];
+const FN_339_CALLEES: &[usize] = &[92usize];
+const FN_340_CALLEES: &[usize] = &[92usize];
+const FN_341_CALLEES: &[usize] = &[92usize];
+const FN_343_CALLEES: &[usize] = &[92usize];
+const FN_345_CALLEES: &[usize] = &[92usize];
+const FN_350_CALLEES: &[usize] = &[125usize];
+const FN_354_CALLEES: &[usize] = &[92usize];
+const FN_355_CALLEES: &[usize] = &[92usize];
+const FN_362_CALLEES: &[usize] = &[92usize];
+const FN_368_CALLEES: &[usize] = &[92usize];
+const FN_369_CALLEES: &[usize] = &[92usize];
+const FN_370_CALLEES: &[usize] = &[92usize];
+const FN_371_CALLEES: &[usize] = &[92usize];
+const FN_372_CALLEES: &[usize] = &[92usize];
+const FN_373_CALLEES: &[usize] = &[136usize];
+const FN_374_CALLEES: &[usize] = &[118usize, 135usize];
+const FN_378_CALLEES: &[usize] = &[92usize];
+const FN_380_CALLEES: &[usize] = &[92usize];
+const FN_381_CALLEES: &[usize] = &[92usize];
+const FN_382_CALLEES: &[usize] = &[0usize, 92usize, 91usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -15994,6 +15998,11 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (2229905u128, [0xeb, 0x4e, 0x41, 0x77, 0xca, 0x5d, 0xd0, 0x47, 0x71, 0x25, 0x9f, 0x10, 0x2a, 0xdf, 0x2b, 0x58, 0x1b, 0xd4, 0x3b, 0x27, 0x38, 0x35, 0x42, 0x4c, 0xb2, 0x91, 0xe9, 0x44, 0x56, 0x93, 0x69, 0xb5]),
+    (2229905u128, [0xbf, 0x34, 0x58, 0xb7, 0xf3, 0xc1, 0x9e, 0x0b, 0xeb, 0x87, 0x55, 0x12, 0xcb, 0x93, 0x8b, 0xdc, 0xb6, 0x4f, 0x47, 0xfb, 0x84, 0x8f, 0x88, 0x03, 0xb4, 0x8b, 0xe8, 0x8b, 0x61, 0x83, 0x6e, 0x1d]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_88792/f1681@l8589994064",
     accounting_version: 2u32,
@@ -16005,6 +16014,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -16195,7 +16205,6 @@ clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
 impl SubstituteInstance {
-    #[inline(never)]
     fn fn_293(vm: &mut SubstituteVm, p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
@@ -16237,7 +16246,7 @@ impl SubstituteInstance {
     let mut s_i32_8: i32 = 0i32;
     let mut s_i32_9: i32 = 0i32;
     let mut s_i32_10: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
     vm.exit_call();
@@ -16700,7 +16709,7 @@ impl SubstituteInstance {
     let mut s_i32_14: i32 = 0i32;
     let mut s_i64_14: i64 = 0i64;
     let mut s_i64_15: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
     vm.exit_call();
@@ -16834,7 +16843,7 @@ impl SubstituteInstance {
             l19 = s_i32_0;
             'blk_5: {
                 'blk_6: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l19;
                     s_i32_1 = l18;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -17035,7 +17044,7 @@ impl SubstituteInstance {
             l25 = s_i32_0;
             'blk_11: {
                 'blk_12: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l25;
                     s_i32_1 = l24;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -17111,7 +17120,7 @@ impl SubstituteInstance {
             l27 = s_i64_0;
             'blk_15: {
                 'blk_16: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l27;
                     s_i32_1 = l15;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -17311,7 +17320,7 @@ impl SubstituteInstance {
             s_i32_0 = l0;
             s_i32_1 = l1;
             s_i32_2 = l2;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_3 = l4;
             s_i32_4 = l5;
             s_i32_5 = l6;
@@ -17372,7 +17381,7 @@ impl SubstituteInstance {
         if s_i32_0 != 0 {
             s_i32_0 = l0;
             s_i32_1 = 2202i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
@@ -17432,7 +17441,7 @@ impl SubstituteInstance {
     }
     s_i32_0 = l11;
     s_i32_1 = 12i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
     vm.exit_call();
@@ -17797,7 +17806,7 @@ impl SubstituteInstance {
             l37 = s_i32_0;
             'blk_31: {
                 'blk_32: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l37;
                     s_i32_1 = l36;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -17909,7 +17918,7 @@ impl SubstituteInstance {
                                     s_i32_2 = l1;
                                     s_i32_2 = ops::i32_load(vm, 0, s_i32_2, 4u32)?;
                                     s_i32_3 = l42;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_3 = ops::i64_extend_i32_u(s_i32_3);
                                     vm.enter_call()?;
                                     let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_2, s_i64_3, host);
@@ -17952,7 +17961,7 @@ impl SubstituteInstance {
                                         if s_i32_0 != 0 {
                                             s_i32_0 = l7;
                                             s_i32_1 = l5;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_2 = l1;
                                             s_i32_2 = ops::i32_load(vm, 0, s_i32_2, 4u32)?;
                                             s_i32_3 = l42;
@@ -17978,7 +17987,7 @@ impl SubstituteInstance {
                                         } else {
                                             s_i32_0 = l45;
                                             s_i32_1 = l44;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             vm.enter_call()?;
                                             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 130usize, s_i32_0, s_i32_1, host);
                                             vm.exit_call();
@@ -18030,7 +18039,7 @@ impl SubstituteInstance {
                 }
             }
             s_i32_0 = l15;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l47 = s_i32_0;
             s_i32_0 = l47;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
@@ -18042,7 +18051,7 @@ impl SubstituteInstance {
             l50 = s_i32_0;
             'blk_40: {
                 'blk_41: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l50;
                     s_i32_1 = l49;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -18118,7 +18127,7 @@ impl SubstituteInstance {
             l57 = s_i32_0;
             'blk_44: {
                 'blk_45: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l57;
                     s_i32_1 = l56;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -18175,7 +18184,7 @@ impl SubstituteInstance {
                                 l64 = s_i32_0;
                                 'blk_48: {
                                     'blk_49: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l64;
                                         s_i32_1 = l63;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -18315,7 +18324,7 @@ impl SubstituteInstance {
             l75 = s_i32_0;
             'blk_51: {
                 'blk_52: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l75;
                     s_i32_1 = l74;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -18526,7 +18535,7 @@ impl SubstituteInstance {
             s_i32_1 = l1;
             s_i32_2 = l2;
             s_i32_3 = l3;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_4 = l4;
             s_i32_5 = l5;
             s_i32_6 = l6;
@@ -18605,7 +18614,7 @@ impl SubstituteInstance {
             let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
             vm.exit_call();
             __call_res?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             s_i32_1 = l1;
             s_i32_2 = l2;
@@ -18661,7 +18670,7 @@ impl SubstituteInstance {
             l90 = s_i32_0;
             s_i32_0 = l0;
             s_i32_1 = 2450i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
@@ -18838,7 +18847,7 @@ impl SubstituteInstance {
     'blk_60: {
         if s_i32_0 != 0 {
             s_i32_0 = l0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = 2452i32;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
@@ -18849,7 +18858,7 @@ impl SubstituteInstance {
         }
     }
     s_i32_0 = l11;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_1 = 23i32;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
@@ -19170,7 +19179,7 @@ impl SubstituteInstance {
             l108 = s_i64_0;
             'blk_71: {
                 'blk_72: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l108;
                     s_i64_1 = l107;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -19182,7 +19191,7 @@ impl SubstituteInstance {
                     l109 = s_i64_0;
                     'blk_73: {
                         'blk_74: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l109;
                             s_i64_1 = l108;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -19254,7 +19263,7 @@ impl SubstituteInstance {
             l112 = s_i64_0;
             'blk_76: {
                 'blk_77: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l112;
                     s_i64_1 = l107;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -19279,7 +19288,7 @@ impl SubstituteInstance {
                     l116 = s_i64_0;
                     'blk_78: {
                         'blk_79: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l116;
                             s_i64_1 = l107;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -19402,7 +19411,7 @@ impl SubstituteInstance {
                     l118 = s_i64_0;
                     'blk_85: {
                         'blk_86: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l118;
                             s_i64_1 = l107;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -19475,7 +19484,7 @@ impl SubstituteInstance {
                     l120 = s_i64_0;
                     'blk_87: {
                         'blk_88: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l120;
                             s_i64_1 = l107;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -19657,7 +19666,7 @@ impl SubstituteInstance {
                     l127 = s_i64_0;
                     'blk_90: {
                         'blk_91: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l127;
                             s_i64_1 = l107;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -19762,7 +19771,7 @@ impl SubstituteInstance {
                     s_i32_8 = l8;
                     s_i32_9 = l9;
                     s_i32_10 = l128;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     vm.enter_call()?;
                     let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
                     vm.exit_call();
@@ -19790,7 +19799,7 @@ impl SubstituteInstance {
             s_i32_1 = l129;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
             s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
             vm.exit_call();
@@ -19881,7 +19890,7 @@ impl SubstituteInstance {
                     s_i32_4 = l4;
                     s_i32_5 = l5;
                     s_i32_6 = l6;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_7 = l7;
                     s_i32_8 = l8;
                     s_i32_9 = l9;
@@ -19909,7 +19918,7 @@ impl SubstituteInstance {
                 }
             }
             s_i32_0 = l1;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
             s_i32_1 = l133;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -20020,7 +20029,7 @@ impl SubstituteInstance {
             s_i32_0 = l1;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 24u32)?;
             s_i32_1 = l137;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
@@ -20173,7 +20182,7 @@ impl SubstituteInstance {
             l143 = s_i64_0;
             'blk_105: {
                 'blk_106: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l143;
                     s_i32_1 = l142;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -20304,7 +20313,7 @@ impl SubstituteInstance {
             let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
             vm.exit_call();
             __call_res?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             s_i32_1 = 0i32;
             vm.enter_call()?;
@@ -20367,7 +20376,7 @@ impl SubstituteInstance {
             let __t171 = __call_res?;
             s_i32_0 = __t171;
             l146 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l146;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
             s_i32_1 = 1i32;
@@ -20465,7 +20474,7 @@ impl SubstituteInstance {
             vm.exit_call();
             let __t174 = __call_res?;
             s_i32_3 = __t174;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
             vm.exit_call();
@@ -20719,7 +20728,7 @@ impl SubstituteInstance {
         if s_i32_0 != 0 {
             s_i32_0 = l1;
             s_i32_1 = l2;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_2 = 1i32;
             s_i32_3 = l14;
             s_i64_4 = 0i64;
@@ -20909,7 +20918,7 @@ impl SubstituteInstance {
     }
     s_i32_0 = l11;
     s_i32_1 = 37i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
     vm.exit_call();
@@ -21282,7 +21291,7 @@ impl SubstituteInstance {
             l166 = s_i64_0;
             'blk_131: {
                 'blk_132: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l166;
                     s_i32_1 = l164;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -21311,7 +21320,7 @@ impl SubstituteInstance {
                     l168 = s_i64_0;
                     'blk_133: {
                         'blk_134: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l168;
                             s_i64_1 = l166;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -21450,7 +21459,7 @@ impl SubstituteInstance {
             vm.exit_call();
             __call_res?;
             s_i32_0 = l0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l1;
             s_i32_2 = l2;
             s_i32_3 = l3;
@@ -21517,7 +21526,7 @@ impl SubstituteInstance {
                             l171 = s_i64_0;
                             'blk_142: {
                                 'blk_143: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l171;
                                     s_i32_1 = l164;
                                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -21626,7 +21635,7 @@ impl SubstituteInstance {
                             l174 = s_i64_0;
                             'blk_144: {
                                 'blk_145: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l174;
                                     s_i64_1 = l173;
                                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -21896,7 +21905,7 @@ impl SubstituteInstance {
                     __call_res?;
                     s_i32_0 = l0;
                     s_i32_1 = l180;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     vm.enter_call()?;
                     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
                     vm.exit_call();
@@ -22211,7 +22220,7 @@ impl SubstituteInstance {
                     s_i32_5 = l6;
                     s_i32_6 = l7;
                     s_i32_7 = l8;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_8 = l178;
                     vm.enter_call()?;
                     let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
@@ -22542,7 +22551,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 3usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }
@@ -22596,352 +22607,352 @@ use crate::utilities::*;
 use super::*;
 
 const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize];
-const FN_0_CALLEES: &[u32] = &[92u32];
-const FN_1_CALLEES: &[u32] = &[0u32, 24u32];
-const FN_2_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_3_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_4_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_5_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_0_CALLEES: &[usize] = &[92usize];
+const FN_1_CALLEES: &[usize] = &[0usize, 24usize];
+const FN_2_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_3_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_4_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_5_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_6_CALLEES: &[usize] = &[0usize, 34usize, 10usize];
 const FN_7_GLOBALS: &[usize] = &[14usize];
-const FN_7_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_8_CALLEES: &[u32] = &[0u32, 0u32];
-const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
-const FN_10_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_11_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_12_CALLEES: &[u32] = &[0u32, 25u32];
-const FN_13_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_14_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_15_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_16_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_17_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_19_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_20_CALLEES: &[u32] = &[0u32];
-const FN_21_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_22_CALLEES: &[u32] = &[0u32, 27u32];
-const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 1u32, 1u32, 92u32];
-const FN_24_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_25_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_26_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_27_CALLEES: &[u32] = &[0u32, 32u32, 112u32, 33u32, 2u32];
-const FN_28_CALLEES: &[u32] = &[0u32, 33u32, 112u32, 32u32, 2u32];
-const FN_29_CALLEES: &[u32] = &[0u32, 28u32];
-const FN_30_CALLEES: &[u32] = &[0u32, 29u32];
-const FN_31_CALLEES: &[u32] = &[0u32, 30u32];
-const FN_32_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_7_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_8_CALLEES: &[usize] = &[0usize, 0usize];
+const FN_9_CALLEES: &[usize] = &[0usize, 10usize];
+const FN_10_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_11_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_12_CALLEES: &[usize] = &[0usize, 25usize];
+const FN_13_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_14_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_15_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_16_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_17_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_18_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_19_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_20_CALLEES: &[usize] = &[0usize];
+const FN_21_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_22_CALLEES: &[usize] = &[0usize, 27usize];
+const FN_23_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 1usize, 1usize, 92usize];
+const FN_24_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_25_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_26_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_27_CALLEES: &[usize] = &[0usize, 32usize, 112usize, 33usize, 2usize];
+const FN_28_CALLEES: &[usize] = &[0usize, 33usize, 112usize, 32usize, 2usize];
+const FN_29_CALLEES: &[usize] = &[0usize, 28usize];
+const FN_30_CALLEES: &[usize] = &[0usize, 29usize];
+const FN_31_CALLEES: &[usize] = &[0usize, 30usize];
+const FN_32_CALLEES: &[usize] = &[0usize, 26usize];
 const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 92u32];
-const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 92u32];
+const FN_33_CALLEES: &[usize] = &[0usize, 34usize, 10usize, 92usize];
+const FN_34_CALLEES: &[usize] = &[0usize, 31usize, 92usize];
 const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_35_CALLEES: &[u32] = &[0u32, 2u32, 92u32];
+const FN_35_CALLEES: &[usize] = &[0usize, 2usize, 92usize];
 const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_36_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
-const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 92u32];
+const FN_36_CALLEES: &[usize] = &[0usize, 0usize, 92usize];
+const FN_37_CALLEES: &[usize] = &[0usize, 31usize, 92usize];
 const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 92u32];
+const FN_38_CALLEES: &[usize] = &[0usize, 6usize, 35usize, 92usize];
 const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_39_CALLEES: &[u32] = &[0u32, 92u32, 32u32];
+const FN_39_CALLEES: &[usize] = &[0usize, 92usize, 32usize];
 const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_40_CALLEES: &[u32] = &[0u32, 92u32, 33u32];
+const FN_40_CALLEES: &[usize] = &[0usize, 92usize, 33usize];
 const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 92u32];
+const FN_41_CALLEES: &[usize] = &[0usize, 10usize, 36usize, 92usize];
 const FN_42_GLOBALS: &[usize] = &[9usize];
-const FN_42_CALLEES: &[u32] = &[0u32, 10u32, 92u32];
+const FN_42_CALLEES: &[usize] = &[0usize, 10usize, 92usize];
 const FN_43_GLOBALS: &[usize] = &[9usize];
-const FN_43_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_43_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
 const FN_44_GLOBALS: &[usize] = &[9usize];
-const FN_44_CALLEES: &[u32] = &[0u32, 11u32, 92u32];
+const FN_44_CALLEES: &[usize] = &[0usize, 11usize, 92usize];
 const FN_45_GLOBALS: &[usize] = &[9usize];
-const FN_45_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_45_CALLEES: &[usize] = &[0usize, 92usize];
 const FN_46_GLOBALS: &[usize] = &[9usize];
-const FN_46_CALLEES: &[u32] = &[0u32, 12u32, 92u32];
+const FN_46_CALLEES: &[usize] = &[0usize, 12usize, 92usize];
 const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
-const FN_47_CALLEES: &[u32] = &[0u32, 110u32, 92u32, 13u32, 93u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 113u32];
-const FN_48_CALLEES: &[u32] = &[0u32];
-const FN_49_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_50_CALLEES: &[u32] = &[0u32, 1u32, 112u32, 0u32, 92u32];
-const FN_51_CALLEES: &[u32] = &[0u32, 0u32, 112u32, 1u32, 92u32];
-const FN_52_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_53_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
-const FN_54_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_55_CALLEES: &[u32] = &[0u32, 0u32, 112u32];
-const FN_56_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 112u32];
-const FN_57_CALLEES: &[u32] = &[0u32, 18u32];
-const FN_58_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_47_CALLEES: &[usize] = &[0usize, 110usize, 92usize, 13usize, 93usize, 0usize, 32usize, 2usize, 10usize, 36usize, 37usize, 113usize];
+const FN_48_CALLEES: &[usize] = &[0usize];
+const FN_49_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_50_CALLEES: &[usize] = &[0usize, 1usize, 112usize, 0usize, 92usize];
+const FN_51_CALLEES: &[usize] = &[0usize, 0usize, 112usize, 1usize, 92usize];
+const FN_52_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_53_CALLEES: &[usize] = &[0usize, 0usize, 92usize];
+const FN_54_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_55_CALLEES: &[usize] = &[0usize, 0usize, 112usize];
+const FN_56_CALLEES: &[usize] = &[0usize, 1usize, 92usize, 112usize];
+const FN_57_CALLEES: &[usize] = &[0usize, 18usize];
+const FN_58_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
 const FN_59_GLOBALS: &[usize] = &[15usize];
-const FN_59_CALLEES: &[u32] = &[0u32, 16u32, 2u32, 11u32];
-const FN_60_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_61_CALLEES: &[u32] = &[0u32];
-const FN_62_CALLEES: &[u32] = &[0u32];
-const FN_63_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_64_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
+const FN_59_CALLEES: &[usize] = &[0usize, 16usize, 2usize, 11usize];
+const FN_60_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_61_CALLEES: &[usize] = &[0usize];
+const FN_62_CALLEES: &[usize] = &[0usize];
+const FN_63_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_64_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
 const FN_65_GLOBALS: &[usize] = &[15usize];
-const FN_65_CALLEES: &[u32] = &[0u32, 17u32, 2u32, 11u32];
-const FN_66_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_67_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_68_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 22u32, 114u32, 92u32, 13u32, 115u32, 116u32, 117u32, 1u32, 0u32, 94u32];
-const FN_69_CALLEES: &[u32] = &[0u32, 2u32, 92u32, 22u32, 114u32, 1u32, 118u32, 117u32, 119u32, 0u32, 32u32, 2u32, 120u32, 111u32, 13u32, 15u32, 1u32];
+const FN_65_CALLEES: &[usize] = &[0usize, 17usize, 2usize, 11usize];
+const FN_66_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_67_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_68_CALLEES: &[usize] = &[0usize, 0usize, 13usize, 22usize, 114usize, 92usize, 13usize, 115usize, 116usize, 117usize, 1usize, 0usize, 94usize];
+const FN_69_CALLEES: &[usize] = &[0usize, 2usize, 92usize, 22usize, 114usize, 1usize, 118usize, 117usize, 119usize, 0usize, 32usize, 2usize, 120usize, 111usize, 13usize, 15usize, 1usize];
 const FN_70_GLOBALS: &[usize] = &[14usize];
-const FN_70_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 92u32, 32u32, 0u32, 2u32];
-const FN_71_CALLEES: &[u32] = &[0u32, 9u32, 12u32, 14u32, 0u32, 0u32, 94u32];
-const FN_72_CALLEES: &[u32] = &[0u32, 1u32, 9u32, 0u32, 94u32];
-const FN_73_CALLEES: &[u32] = &[0u32, 19u32];
-const FN_74_CALLEES: &[u32] = &[0u32, 20u32, 1u32, 112u32, 111u32, 1u32];
-const FN_75_CALLEES: &[u32] = &[0u32, 2u32, 92u32, 23u32, 19u32, 1u32];
-const FN_76_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 92u32, 1u32, 5u32, 23u32, 9u32, 94u32, 112u32, 95u32, 121u32, 119u32, 14u32];
-const FN_77_CALLEES: &[u32] = &[0u32, 1u32, 2u32, 92u32, 23u32, 19u32, 13u32, 94u32, 13u32];
-const FN_78_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 92u32, 9u32, 1u32, 94u32, 12u32, 14u32];
-const FN_79_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 23u32, 19u32, 16u32, 14u32, 9u32, 94u32, 112u32, 95u32, 14u32];
-const FN_80_CALLEES: &[u32] = &[0u32, 23u32, 26u32, 1u32];
-const FN_81_CALLEES: &[u32] = &[0u32, 23u32, 19u32, 1u32];
-const FN_82_CALLEES: &[u32] = &[0u32, 19u32, 18u32, 92u32];
-const FN_83_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 13u32, 18u32, 13u32, 2u32, 15u32, 22u32, 119u32, 111u32, 121u32, 2u32, 94u32];
-const FN_84_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_85_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 18u32, 13u32, 19u32, 94u32];
-const FN_86_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 18u32, 13u32, 22u32, 21u32, 19u32, 16u32, 94u32];
-const FN_87_CALLEES: &[u32] = &[0u32, 27u32, 18u32, 92u32];
+const FN_70_CALLEES: &[usize] = &[0usize, 1usize, 10usize, 92usize, 32usize, 0usize, 2usize];
+const FN_71_CALLEES: &[usize] = &[0usize, 9usize, 12usize, 14usize, 0usize, 0usize, 94usize];
+const FN_72_CALLEES: &[usize] = &[0usize, 1usize, 9usize, 0usize, 94usize];
+const FN_73_CALLEES: &[usize] = &[0usize, 19usize];
+const FN_74_CALLEES: &[usize] = &[0usize, 20usize, 1usize, 112usize, 111usize, 1usize];
+const FN_75_CALLEES: &[usize] = &[0usize, 2usize, 92usize, 23usize, 19usize, 1usize];
+const FN_76_CALLEES: &[usize] = &[0usize, 23usize, 19usize, 92usize, 1usize, 5usize, 23usize, 9usize, 94usize, 112usize, 95usize, 121usize, 119usize, 14usize];
+const FN_77_CALLEES: &[usize] = &[0usize, 1usize, 2usize, 92usize, 23usize, 19usize, 13usize, 94usize, 13usize];
+const FN_78_CALLEES: &[usize] = &[0usize, 23usize, 19usize, 92usize, 9usize, 1usize, 94usize, 12usize, 14usize];
+const FN_79_CALLEES: &[usize] = &[0usize, 1usize, 92usize, 23usize, 19usize, 16usize, 14usize, 9usize, 94usize, 112usize, 95usize, 14usize];
+const FN_80_CALLEES: &[usize] = &[0usize, 23usize, 26usize, 1usize];
+const FN_81_CALLEES: &[usize] = &[0usize, 23usize, 19usize, 1usize];
+const FN_82_CALLEES: &[usize] = &[0usize, 19usize, 18usize, 92usize];
+const FN_83_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 13usize, 18usize, 13usize, 2usize, 15usize, 22usize, 119usize, 111usize, 121usize, 2usize, 94usize];
+const FN_84_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_85_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 18usize, 13usize, 19usize, 94usize];
+const FN_86_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 18usize, 13usize, 22usize, 21usize, 19usize, 16usize, 94usize];
+const FN_87_CALLEES: &[usize] = &[0usize, 27usize, 18usize, 92usize];
 const FN_88_GLOBALS: &[usize] = &[14usize];
-const FN_88_CALLEES: &[u32] = &[0u32, 110u32, 18u32, 13u32, 92u32, 13u32, 13u32, 14u32, 11u32, 111u32, 16u32, 33u32, 2u32, 24u32, 94u32];
-const FN_89_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_90_CALLEES: &[u32] = &[0u32, 92u32, 0u32, 122u32, 9u32, 22u32, 17u32, 0u32, 94u32];
-const FN_91_CALLEES: &[u32] = &[0u32, 12u32, 14u32, 120u32, 0u32, 112u32, 111u32, 20u32, 1u32, 33u32, 95u32, 121u32];
-const FN_92_CALLEES: &[u32] = &[0u32, 22u32, 114u32, 118u32, 117u32, 119u32];
+const FN_88_CALLEES: &[usize] = &[0usize, 110usize, 18usize, 13usize, 92usize, 13usize, 13usize, 14usize, 11usize, 111usize, 16usize, 33usize, 2usize, 24usize, 94usize];
+const FN_89_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_90_CALLEES: &[usize] = &[0usize, 92usize, 0usize, 122usize, 9usize, 22usize, 17usize, 0usize, 94usize];
+const FN_91_CALLEES: &[usize] = &[0usize, 12usize, 14usize, 120usize, 0usize, 112usize, 111usize, 20usize, 1usize, 33usize, 95usize, 121usize];
+const FN_92_CALLEES: &[usize] = &[0usize, 22usize, 114usize, 118usize, 117usize, 119usize];
 const FN_93_GLOBALS: &[usize] = &[14usize];
-const FN_93_CALLEES: &[u32] = &[0u32, 40u32, 43u32, 36u32];
-const FN_94_CALLEES: &[u32] = &[0u32, 62u32];
-const FN_95_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_96_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_97_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_98_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_99_CALLEES: &[u32] = &[0u32, 70u32];
+const FN_93_CALLEES: &[usize] = &[0usize, 40usize, 43usize, 36usize];
+const FN_94_CALLEES: &[usize] = &[0usize, 62usize];
+const FN_95_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_96_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_97_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_98_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_99_CALLEES: &[usize] = &[0usize, 70usize];
 const FN_100_GLOBALS: &[usize] = &[20usize, 17usize, 18usize];
-const FN_100_CALLEES: &[u32] = &[0u32, 123u32];
+const FN_100_CALLEES: &[usize] = &[0usize, 123usize];
 const FN_101_GLOBALS: &[usize] = &[20usize];
-const FN_101_CALLEES: &[u32] = &[0u32, 123u32, 31u32, 6u32, 35u32, 40u32, 1u32, 12u32];
+const FN_101_CALLEES: &[usize] = &[0usize, 123usize, 31usize, 6usize, 35usize, 40usize, 1usize, 12usize];
 const FN_102_GLOBALS: &[usize] = &[17usize];
-const FN_102_CALLEES: &[u32] = &[0u32, 123u32];
-const FN_103_CALLEES: &[u32] = &[0u32, 72u32];
-const FN_104_CALLEES: &[u32] = &[0u32, 43u32, 1u32];
-const FN_105_CALLEES: &[u32] = &[0u32, 43u32, 2u32];
-const FN_106_CALLEES: &[u32] = &[0u32, 63u32];
-const FN_107_CALLEES: &[u32] = &[0u32, 123u32];
-const FN_108_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_109_CALLEES: &[u32] = &[0u32, 3u32];
-const FN_110_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_111_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_112_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_113_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_114_CALLEES: &[u32] = &[0u32, 53u32];
-const FN_115_CALLEES: &[u32] = &[0u32, 53u32];
-const FN_116_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_117_CALLEES: &[u32] = &[0u32];
-const FN_118_CALLEES: &[u32] = &[0u32, 53u32];
-const FN_119_CALLEES: &[u32] = &[0u32];
-const FN_120_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_121_CALLEES: &[u32] = &[0u32, 65u32];
-const FN_122_CALLEES: &[u32] = &[0u32, 123u32];
-const FN_123_CALLEES: &[u32] = &[0u32, 45u32];
-const FN_124_CALLEES: &[u32] = &[0u32, 43u32, 5u32];
-const FN_125_CALLEES: &[u32] = &[0u32, 45u32, 69u32];
-const FN_126_CALLEES: &[u32] = &[0u32, 66u32];
-const FN_127_CALLEES: &[u32] = &[0u32, 67u32];
-const FN_128_CALLEES: &[u32] = &[0u32, 68u32];
-const FN_129_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_130_CALLEES: &[u32] = &[0u32, 69u32];
+const FN_102_CALLEES: &[usize] = &[0usize, 123usize];
+const FN_103_CALLEES: &[usize] = &[0usize, 72usize];
+const FN_104_CALLEES: &[usize] = &[0usize, 43usize, 1usize];
+const FN_105_CALLEES: &[usize] = &[0usize, 43usize, 2usize];
+const FN_106_CALLEES: &[usize] = &[0usize, 63usize];
+const FN_107_CALLEES: &[usize] = &[0usize, 123usize];
+const FN_108_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_109_CALLEES: &[usize] = &[0usize, 3usize];
+const FN_110_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_111_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_112_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_113_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_114_CALLEES: &[usize] = &[0usize, 53usize];
+const FN_115_CALLEES: &[usize] = &[0usize, 53usize];
+const FN_116_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_117_CALLEES: &[usize] = &[0usize];
+const FN_118_CALLEES: &[usize] = &[0usize, 53usize];
+const FN_119_CALLEES: &[usize] = &[0usize];
+const FN_120_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_121_CALLEES: &[usize] = &[0usize, 65usize];
+const FN_122_CALLEES: &[usize] = &[0usize, 123usize];
+const FN_123_CALLEES: &[usize] = &[0usize, 45usize];
+const FN_124_CALLEES: &[usize] = &[0usize, 43usize, 5usize];
+const FN_125_CALLEES: &[usize] = &[0usize, 45usize, 69usize];
+const FN_126_CALLEES: &[usize] = &[0usize, 66usize];
+const FN_127_CALLEES: &[usize] = &[0usize, 67usize];
+const FN_128_CALLEES: &[usize] = &[0usize, 68usize];
+const FN_129_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_130_CALLEES: &[usize] = &[0usize, 69usize];
 const FN_131_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_131_CALLEES: &[u32] = &[0u32, 44u32, 70u32, 92u32];
+const FN_131_CALLEES: &[usize] = &[0usize, 44usize, 70usize, 92usize];
 const FN_132_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize, 9usize];
-const FN_132_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 31u32, 31u32, 39u32, 40u32, 52u32];
+const FN_132_CALLEES: &[usize] = &[0usize, 123usize, 92usize, 31usize, 31usize, 39usize, 40usize, 52usize];
 const FN_133_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_133_CALLEES: &[u32] = &[0u32, 39u32, 92u32];
-const FN_134_CALLEES: &[u32] = &[0u32, 69u32, 40u32, 92u32, 70u32, 72u32];
+const FN_133_CALLEES: &[usize] = &[0usize, 39usize, 92usize];
+const FN_134_CALLEES: &[usize] = &[0usize, 69usize, 40usize, 92usize, 70usize, 72usize];
 const FN_135_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_135_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 92u32];
+const FN_135_CALLEES: &[usize] = &[0usize, 46usize, 71usize, 92usize];
 const FN_136_GLOBALS: &[usize] = &[17usize, 20usize, 9usize];
-const FN_136_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 52u32];
+const FN_136_CALLEES: &[usize] = &[0usize, 123usize, 92usize, 52usize];
 const FN_137_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_137_CALLEES: &[u32] = &[0u32, 92u32, 43u32, 32u32, 39u32];
+const FN_137_CALLEES: &[usize] = &[0usize, 92usize, 43usize, 32usize, 39usize];
 const FN_138_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_138_CALLEES: &[u32] = &[0u32, 92u32, 0u32, 112u32, 1u32, 2u32];
+const FN_138_CALLEES: &[usize] = &[0usize, 92usize, 0usize, 112usize, 1usize, 2usize];
 const FN_139_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_139_CALLEES: &[u32] = &[0u32, 47u32, 72u32, 92u32];
+const FN_139_CALLEES: &[usize] = &[0usize, 47usize, 72usize, 92usize];
 const FN_140_GLOBALS: &[usize] = &[9usize];
-const FN_140_CALLEES: &[u32] = &[0u32, 47u32, 92u32, 15u32];
+const FN_140_CALLEES: &[usize] = &[0usize, 47usize, 92usize, 15usize];
 const FN_141_GLOBALS: &[usize] = &[9usize];
-const FN_141_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_141_CALLEES: &[usize] = &[0usize, 92usize];
 const FN_142_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_142_CALLEES: &[u32] = &[0u32, 40u32, 92u32, 43u32];
+const FN_142_CALLEES: &[usize] = &[0usize, 40usize, 92usize, 43usize];
 const FN_143_GLOBALS: &[usize] = &[9usize];
-const FN_143_CALLEES: &[u32] = &[0u32, 11u32, 92u32];
+const FN_143_CALLEES: &[usize] = &[0usize, 11usize, 92usize];
 const FN_144_GLOBALS: &[usize] = &[9usize];
-const FN_144_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_144_CALLEES: &[usize] = &[0usize, 92usize];
 const FN_145_GLOBALS: &[usize] = &[9usize];
-const FN_145_CALLEES: &[u32] = &[0u32, 12u32, 92u32];
+const FN_145_CALLEES: &[usize] = &[0usize, 12usize, 92usize];
 const FN_146_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize];
-const FN_146_CALLEES: &[u32] = &[0u32, 123u32, 92u32, 31u32, 31u32, 39u32, 40u32, 52u32];
-const FN_147_CALLEES: &[u32] = &[0u32, 43u32, 34u32, 39u32];
-const FN_148_CALLEES: &[u32] = &[0u32, 43u32, 35u32, 39u32];
+const FN_146_CALLEES: &[usize] = &[0usize, 123usize, 92usize, 31usize, 31usize, 39usize, 40usize, 52usize];
+const FN_147_CALLEES: &[usize] = &[0usize, 43usize, 34usize, 39usize];
+const FN_148_CALLEES: &[usize] = &[0usize, 43usize, 35usize, 39usize];
 const FN_149_GLOBALS: &[usize] = &[20usize];
-const FN_149_CALLEES: &[u32] = &[0u32, 72u32];
-const FN_150_CALLEES: &[u32] = &[0u32, 43u32, 36u32, 39u32];
-const FN_151_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_149_CALLEES: &[usize] = &[0usize, 72usize];
+const FN_150_CALLEES: &[usize] = &[0usize, 43usize, 36usize, 39usize];
+const FN_151_CALLEES: &[usize] = &[0usize, 92usize];
 const FN_152_GLOBALS: &[usize] = &[23usize];
-const FN_152_CALLEES: &[u32] = &[0u32, 98u32, 87u32, 97u32, 99u32];
-const FN_153_CALLEES: &[u32] = &[0u32];
-const FN_154_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_155_CALLEES: &[u32] = &[0u32];
-const FN_156_CALLEES: &[u32] = &[0u32];
-const FN_157_CALLEES: &[u32] = &[0u32];
-const FN_158_CALLEES: &[u32] = &[0u32, 97u32, 96u32];
-const FN_159_CALLEES: &[u32] = &[0u32, 94u32];
-const FN_160_CALLEES: &[u32] = &[0u32, 124u32];
+const FN_152_CALLEES: &[usize] = &[0usize, 98usize, 87usize, 97usize, 99usize];
+const FN_153_CALLEES: &[usize] = &[0usize];
+const FN_154_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_155_CALLEES: &[usize] = &[0usize];
+const FN_156_CALLEES: &[usize] = &[0usize];
+const FN_157_CALLEES: &[usize] = &[0usize];
+const FN_158_CALLEES: &[usize] = &[0usize, 97usize, 96usize];
+const FN_159_CALLEES: &[usize] = &[0usize, 94usize];
+const FN_160_CALLEES: &[usize] = &[0usize, 124usize];
 const FN_161_GLOBALS: &[usize] = &[23usize];
-const FN_161_CALLEES: &[u32] = &[0u32, 11u32, 0u32, 92u32];
+const FN_161_CALLEES: &[usize] = &[0usize, 11usize, 0usize, 92usize];
 const FN_162_GLOBALS: &[usize] = &[23usize];
-const FN_162_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_163_CALLEES: &[u32] = &[0u32, 55u32];
-const FN_164_CALLEES: &[u32] = &[0u32, 11u32, 0u32, 92u32, 87u32];
-const FN_165_CALLEES: &[u32] = &[0u32, 31u32, 57u32, 40u32, 87u32];
-const FN_166_CALLEES: &[u32] = &[0u32, 5u32, 87u32, 0u32];
-const FN_167_CALLEES: &[u32] = &[0u32, 6u32];
-const FN_168_CALLEES: &[u32] = &[0u32, 102u32, 87u32];
-const FN_169_CALLEES: &[u32] = &[0u32, 78u32];
-const FN_170_CALLEES: &[u32] = &[0u32, 78u32];
-const FN_171_CALLEES: &[u32] = &[0u32, 1u32, 14u32, 24u32, 1u32, 11u32, 1u32, 0u32, 16u32, 94u32, 87u32];
-const FN_172_CALLEES: &[u32] = &[0u32];
-const FN_173_CALLEES: &[u32] = &[0u32, 78u32];
-const FN_174_CALLEES: &[u32] = &[0u32, 78u32];
+const FN_162_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_163_CALLEES: &[usize] = &[0usize, 55usize];
+const FN_164_CALLEES: &[usize] = &[0usize, 11usize, 0usize, 92usize, 87usize];
+const FN_165_CALLEES: &[usize] = &[0usize, 31usize, 57usize, 40usize, 87usize];
+const FN_166_CALLEES: &[usize] = &[0usize, 5usize, 87usize, 0usize];
+const FN_167_CALLEES: &[usize] = &[0usize, 6usize];
+const FN_168_CALLEES: &[usize] = &[0usize, 102usize, 87usize];
+const FN_169_CALLEES: &[usize] = &[0usize, 78usize];
+const FN_170_CALLEES: &[usize] = &[0usize, 78usize];
+const FN_171_CALLEES: &[usize] = &[0usize, 1usize, 14usize, 24usize, 1usize, 11usize, 1usize, 0usize, 16usize, 94usize, 87usize];
+const FN_172_CALLEES: &[usize] = &[0usize];
+const FN_173_CALLEES: &[usize] = &[0usize, 78usize];
+const FN_174_CALLEES: &[usize] = &[0usize, 78usize];
 const FN_175_GLOBALS: &[usize] = &[23usize];
-const FN_175_CALLEES: &[u32] = &[0u32, 69u32, 92u32];
-const FN_176_CALLEES: &[u32] = &[0u32, 95u32];
-const FN_177_CALLEES: &[u32] = &[0u32, 100u32, 87u32];
-const FN_178_CALLEES: &[u32] = &[0u32, 124u32];
+const FN_175_CALLEES: &[usize] = &[0usize, 69usize, 92usize];
+const FN_176_CALLEES: &[usize] = &[0usize, 95usize];
+const FN_177_CALLEES: &[usize] = &[0usize, 100usize, 87usize];
+const FN_178_CALLEES: &[usize] = &[0usize, 124usize];
 const FN_179_GLOBALS: &[usize] = &[23usize];
-const FN_179_CALLEES: &[u32] = &[0u32, 60u32, 92u32];
-const FN_180_CALLEES: &[u32] = &[0u32, 96u32];
-const FN_181_CALLEES: &[u32] = &[0u32, 61u32, 73u32];
-const FN_182_CALLEES: &[u32] = &[0u32, 96u32];
+const FN_179_CALLEES: &[usize] = &[0usize, 60usize, 92usize];
+const FN_180_CALLEES: &[usize] = &[0usize, 96usize];
+const FN_181_CALLEES: &[usize] = &[0usize, 61usize, 73usize];
+const FN_182_CALLEES: &[usize] = &[0usize, 96usize];
 const FN_183_GLOBALS: &[usize] = &[23usize, 1usize];
-const FN_183_CALLEES: &[u32] = &[0u32, 60u32, 92u32, 102u32, 87u32];
-const FN_184_CALLEES: &[u32] = &[0u32, 96u32, 53u32, 73u32, 92u32];
+const FN_183_CALLEES: &[usize] = &[0usize, 60usize, 92usize, 102usize, 87usize];
+const FN_184_CALLEES: &[usize] = &[0usize, 96usize, 53usize, 73usize, 92usize];
 const FN_185_GLOBALS: &[usize] = &[20usize, 9usize, 17usize];
-const FN_185_CALLEES: &[u32] = &[0u32, 70u32, 92u32, 1u32, 110u32, 44u32, 45u32];
+const FN_185_CALLEES: &[usize] = &[0usize, 70usize, 92usize, 1usize, 110usize, 44usize, 45usize];
 const FN_186_GLOBALS: &[usize] = &[9usize];
-const FN_186_CALLEES: &[u32] = &[0u32, 62u32, 92u32, 46u32];
+const FN_186_CALLEES: &[usize] = &[0usize, 62usize, 92usize, 46usize];
 const FN_187_GLOBALS: &[usize] = &[9usize];
-const FN_187_CALLEES: &[u32] = &[0u32, 62u32, 92u32, 47u32];
+const FN_187_CALLEES: &[usize] = &[0usize, 62usize, 92usize, 47usize];
 const FN_188_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_188_CALLEES: &[u32] = &[0u32, 92u32, 70u32];
+const FN_188_CALLEES: &[usize] = &[0usize, 92usize, 70usize];
 const FN_189_GLOBALS: &[usize] = &[9usize];
-const FN_189_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 9u32];
+const FN_189_CALLEES: &[usize] = &[0usize, 65usize, 92usize, 9usize];
 const FN_190_GLOBALS: &[usize] = &[9usize];
-const FN_190_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 10u32];
+const FN_190_CALLEES: &[usize] = &[0usize, 65usize, 92usize, 10usize];
 const FN_191_GLOBALS: &[usize] = &[9usize];
-const FN_191_CALLEES: &[u32] = &[0u32, 65u32, 92u32, 11u32];
+const FN_191_CALLEES: &[usize] = &[0usize, 65usize, 92usize, 11usize];
 const FN_192_GLOBALS: &[usize] = &[23usize, 1usize];
-const FN_192_CALLEES: &[u32] = &[0u32, 60u32, 92u32, 102u32, 87u32];
-const FN_193_CALLEES: &[u32] = &[0u32, 2u32, 25u32, 1u32];
+const FN_192_CALLEES: &[usize] = &[0usize, 60usize, 92usize, 102usize, 87usize];
+const FN_193_CALLEES: &[usize] = &[0usize, 2usize, 25usize, 1usize];
 const FN_194_GLOBALS: &[usize] = &[14usize];
-const FN_194_CALLEES: &[u32] = &[0u32, 92u32, 25u32, 1u32, 1u32];
-const FN_195_CALLEES: &[u32] = &[0u32, 2u32, 25u32];
-const FN_196_CALLEES: &[u32] = &[0u32, 1u32, 14u32, 25u32, 11u32, 16u32, 0u32, 94u32];
-const FN_197_CALLEES: &[u32] = &[0u32, 14u32, 25u32, 1u32, 2u32, 11u32, 16u32, 94u32, 69u32];
-const FN_198_CALLEES: &[u32] = &[0u32, 92u32, 1u32, 26u32, 25u32, 24u32, 0u32, 11u32, 1u32, 0u32, 94u32, 69u32];
-const FN_199_CALLEES: &[u32] = &[0u32, 24u32, 2u32, 25u32];
-const FN_200_CALLEES: &[u32] = &[0u32, 97u32, 92u32, 25u32, 26u32, 2u32, 1u32, 11u32, 1u32, 94u32, 69u32, 1u32, 112u32, 0u32, 0u32, 126u32, 24u32, 127u32, 101u32];
-const FN_201_CALLEES: &[u32] = &[0u32, 22u32, 89u32, 24u32];
-const FN_202_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_203_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_204_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
-const FN_205_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
-const FN_206_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_207_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_208_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_209_CALLEES: &[u32] = &[0u32, 0u32, 92u32, 1u32, 0u32];
-const FN_210_CALLEES: &[u32] = &[0u32, 92u32, 1u32];
-const FN_211_CALLEES: &[u32] = &[0u32, 18u32, 13u32];
-const FN_212_CALLEES: &[u32] = &[0u32, 13u32, 13u32];
-const FN_213_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_214_CALLEES: &[u32] = &[0u32, 27u32, 15u32];
-const FN_215_CALLEES: &[u32] = &[0u32, 39u32, 15u32];
-const FN_216_CALLEES: &[u32] = &[0u32, 29u32, 15u32];
-const FN_217_CALLEES: &[u32] = &[0u32, 4u32, 6u32];
-const FN_218_CALLEES: &[u32] = &[0u32, 2u32, 15u32];
-const FN_219_CALLEES: &[u32] = &[0u32, 6u32, 15u32];
-const FN_220_CALLEES: &[u32] = &[0u32, 92u32, 9u32, 12u32, 128u32, 14u32, 2u32, 27u32, 94u32];
-const FN_221_CALLEES: &[u32] = &[0u32, 5u32, 1u32, 0u32, 92u32, 8u32, 129u32];
-const FN_222_CALLEES: &[u32] = &[0u32, 9u32, 14u32, 23u32, 12u32, 0u32, 1u32, 94u32];
-const FN_223_CALLEES: &[u32] = &[0u32, 1u32, 2u32, 18u32, 23u32, 38u32, 15u32, 1u32];
-const FN_224_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32];
-const FN_225_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 92u32];
-const FN_226_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 0u32, 92u32, 1u32, 1u32];
-const FN_227_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 92u32];
-const FN_228_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 9u32, 0u32, 92u32, 1u32];
-const FN_229_CALLEES: &[u32] = &[0u32, 0u32, 5u32, 23u32, 92u32];
-const FN_230_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 14u32, 1u32, 0u32, 19u32, 13u32, 3u32, 13u32, 94u32, 92u32];
-const FN_231_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 16u32, 19u32];
-const FN_232_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 2u32, 14u32];
-const FN_233_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 1u32, 16u32, 14u32, 72u32, 92u32, 19u32, 0u32, 1u32, 11u32, 2u32, 13u32, 13u32, 94u32, 10u32];
-const FN_234_CALLEES: &[u32] = &[0u32, 92u32, 130u32];
-const FN_235_CALLEES: &[u32] = &[0u32];
-const FN_236_CALLEES: &[u32] = &[0u32];
-const FN_237_CALLEES: &[u32] = &[0u32];
-const FN_238_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 92u32, 1u32, 5u32, 0u32, 1u32, 0u32, 2u32, 3u32, 9u32, 76u32, 14u32, 13u32, 13u32, 94u32, 11u32, 13u32, 2u32, 0u32, 11u32, 10u32, 8u32, 16u32, 2u32, 77u32, 78u32, 79u32, 72u32];
-const FN_239_CALLEES: &[u32] = &[0u32, 0u32, 7u32, 8u32, 14u32, 9u32, 13u32, 0u32, 23u32, 19u32, 1u32, 92u32, 13u32, 15u32, 94u32, 2u32];
-const FN_240_CALLEES: &[u32] = &[0u32, 0u32, 23u32, 19u32, 1u32, 5u32, 2u32, 14u32, 11u32, 13u32, 2u32, 0u32, 10u32, 9u32, 8u32, 4u32];
-const FN_241_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 23u32, 19u32, 1u32, 2u32];
-const FN_242_CALLEES: &[u32] = &[0u32, 0u32, 92u32, 23u32, 19u32, 1u32, 12u32, 75u32, 0u32, 13u32, 10u32, 9u32, 13u32, 94u32];
-const FN_243_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 13u32, 0u32, 23u32, 19u32, 1u32, 7u32, 8u32, 9u32, 14u32, 92u32, 13u32, 94u32, 3u32, 2u32, 21u32];
-const FN_244_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 13u32, 0u32, 23u32, 19u32, 1u32, 7u32, 8u32, 14u32, 9u32, 92u32, 13u32, 94u32, 72u32, 15u32, 16u32];
-const FN_245_CALLEES: &[u32] = &[0u32, 131u32];
-const FN_246_CALLEES: &[u32] = &[0u32, 104u32, 28u32, 131u32, 1u32, 92u32, 13u32];
-const FN_247_CALLEES: &[u32] = &[0u32, 7u32, 0u32, 4u32];
-const FN_248_CALLEES: &[u32] = &[0u32, 104u32, 28u32, 131u32, 1u32, 92u32, 13u32];
-const FN_249_CALLEES: &[u32] = &[0u32, 28u32, 118u32, 1u32, 92u32, 8u32, 129u32, 13u32];
-const FN_250_CALLEES: &[u32] = &[0u32, 118u32, 92u32];
-const FN_251_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32];
-const FN_252_CALLEES: &[u32] = &[0u32, 3u32, 6u32, 23u32, 0u32, 4u32, 2u32, 0u32];
-const FN_253_CALLEES: &[u32] = &[0u32, 118u32, 2u32, 1u32, 0u32, 23u32, 1u32, 117u32, 115u32, 116u32, 132u32, 0u32];
-const FN_254_CALLEES: &[u32] = &[0u32, 118u32, 3u32, 0u32, 1u32, 0u32, 2u32, 23u32, 0u32, 0u32, 1u32, 0u32];
-const FN_255_CALLEES: &[u32] = &[0u32, 23u32, 131u32, 11u32, 92u32, 1u32, 130u32, 116u32, 133u32, 128u32];
-const FN_256_CALLEES: &[u32] = &[0u32, 116u32, 73u32, 115u32, 13u32, 118u32, 13u32, 94u32, 92u32, 0u32];
-const FN_257_CALLEES: &[u32] = &[0u32, 118u32, 73u32, 23u32, 117u32, 1u32];
-const FN_258_CALLEES: &[u32] = &[0u32, 23u32, 4u32, 1u32];
-const FN_259_CALLEES: &[u32] = &[0u32, 118u32, 115u32, 116u32, 132u32, 1u32, 1u32];
-const FN_260_CALLEES: &[u32] = &[0u32];
-const FN_261_CALLEES: &[u32] = &[0u32, 20u32, 92u32, 134u32, 0u32, 12u32, 16u32, 118u32, 23u32, 9u32, 94u32];
-const FN_262_CALLEES: &[u32] = &[0u32, 1u32, 92u32, 0u32, 1u32];
-const FN_263_CALLEES: &[u32] = &[0u32, 17u32, 13u32, 23u32, 11u32, 130u32, 1u32, 18u32, 13u32, 92u32, 73u32, 94u32, 131u32, 1u32, 118u32, 0u32, 28u32, 6u32, 135u32, 5u32, 8u32, 129u32, 90u32, 29u32, 30u32, 2u32, 15u32];
-const FN_264_CALLEES: &[u32] = &[0u32, 115u32, 116u32];
-const FN_265_CALLEES: &[u32] = &[0u32, 115u32, 116u32];
-const FN_266_CALLEES: &[u32] = &[0u32, 118u32];
-const FN_267_CALLEES: &[u32] = &[0u32, 136u32, 118u32, 23u32, 82u32, 115u32, 116u32];
-const FN_268_CALLEES: &[u32] = &[0u32, 118u32, 136u32];
-const FN_269_CALLEES: &[u32] = &[0u32, 118u32, 136u32];
-const FN_270_CALLEES: &[u32] = &[0u32, 131u32, 2u32, 23u32, 130u32, 118u32];
-const FN_271_CALLEES: &[u32] = &[0u32, 23u32, 106u32, 1u32];
-const FN_272_CALLEES: &[u32] = &[0u32, 23u32, 131u32, 108u32, 11u32, 92u32, 1u32, 2u32, 130u32, 73u32, 111u32, 118u32];
-const FN_273_CALLEES: &[u32] = &[0u32, 73u32];
-const FN_274_CALLEES: &[u32] = &[0u32, 118u32, 73u32, 84u32, 103u32, 23u32, 1u32, 13u32, 13u32, 94u32, 92u32, 2u32, 115u32, 116u32, 1u32, 137u32, 107u32, 83u32, 81u32, 105u32, 0u32, 117u32, 130u32];
-const FN_275_CALLEES: &[u32] = &[0u32, 118u32];
-const FN_276_CALLEES: &[u32] = &[0u32, 118u32];
-const FN_277_CALLEES: &[u32] = &[0u32, 118u32, 1u32, 0u32, 15u32];
-const FN_278_CALLEES: &[u32] = &[0u32, 85u32, 1u32, 0u32, 15u32];
-const FN_279_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 6u32, 0u32];
-const FN_280_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 85u32, 0u32];
-const FN_281_CALLEES: &[u32] = &[0u32, 1u32, 6u32];
-const FN_282_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_283_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_284_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_285_CALLEES: &[u32] = &[0u32, 116u32, 118u32, 115u32];
-const FN_286_CALLEES: &[u32] = &[0u32, 84u32, 1u32, 0u32, 3u32, 2u32, 0u32, 23u32, 1u32, 12u32, 0u32, 15u32];
-const FN_287_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 105u32, 0u32, 116u32, 1u32, 85u32, 2u32, 0u32, 74u32, 6u32, 83u32, 12u32, 0u32, 1u32, 0u32, 15u32, 0u32, 3u32, 1u32];
-const FN_288_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 0u32, 1u32, 116u32, 0u32, 74u32, 85u32, 2u32, 6u32, 12u32, 10u32, 1u32, 0u32, 3u32, 0u32];
-const FN_289_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 118u32, 74u32, 0u32, 6u32, 116u32, 0u32, 112u32, 1u32, 0u32, 0u32, 0u32, 85u32, 2u32, 83u32, 12u32, 0u32, 1u32, 0u32, 1u32, 0u32, 15u32, 3u32, 10u32, 11u32, 86u32, 23u32, 1u32];
-const FN_290_CALLEES: &[u32] = &[0u32, 3u32, 118u32, 0u32, 74u32, 1u32, 0u32, 6u32, 0u32, 2u32, 12u32, 0u32, 3u32, 1u32, 23u32, 0u32];
-const FN_291_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
-const FN_292_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
+const FN_194_CALLEES: &[usize] = &[0usize, 92usize, 25usize, 1usize, 1usize];
+const FN_195_CALLEES: &[usize] = &[0usize, 2usize, 25usize];
+const FN_196_CALLEES: &[usize] = &[0usize, 1usize, 14usize, 25usize, 11usize, 16usize, 0usize, 94usize];
+const FN_197_CALLEES: &[usize] = &[0usize, 14usize, 25usize, 1usize, 2usize, 11usize, 16usize, 94usize, 69usize];
+const FN_198_CALLEES: &[usize] = &[0usize, 92usize, 1usize, 26usize, 25usize, 24usize, 0usize, 11usize, 1usize, 0usize, 94usize, 69usize];
+const FN_199_CALLEES: &[usize] = &[0usize, 24usize, 2usize, 25usize];
+const FN_200_CALLEES: &[usize] = &[0usize, 97usize, 92usize, 25usize, 26usize, 2usize, 1usize, 11usize, 1usize, 94usize, 69usize, 1usize, 112usize, 0usize, 0usize, 126usize, 24usize, 127usize, 101usize];
+const FN_201_CALLEES: &[usize] = &[0usize, 22usize, 89usize, 24usize];
+const FN_202_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_203_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_204_CALLEES: &[usize] = &[0usize, 0usize, 92usize];
+const FN_205_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
+const FN_206_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_207_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_208_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_209_CALLEES: &[usize] = &[0usize, 0usize, 92usize, 1usize, 0usize];
+const FN_210_CALLEES: &[usize] = &[0usize, 92usize, 1usize];
+const FN_211_CALLEES: &[usize] = &[0usize, 18usize, 13usize];
+const FN_212_CALLEES: &[usize] = &[0usize, 13usize, 13usize];
+const FN_213_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_214_CALLEES: &[usize] = &[0usize, 27usize, 15usize];
+const FN_215_CALLEES: &[usize] = &[0usize, 39usize, 15usize];
+const FN_216_CALLEES: &[usize] = &[0usize, 29usize, 15usize];
+const FN_217_CALLEES: &[usize] = &[0usize, 4usize, 6usize];
+const FN_218_CALLEES: &[usize] = &[0usize, 2usize, 15usize];
+const FN_219_CALLEES: &[usize] = &[0usize, 6usize, 15usize];
+const FN_220_CALLEES: &[usize] = &[0usize, 92usize, 9usize, 12usize, 128usize, 14usize, 2usize, 27usize, 94usize];
+const FN_221_CALLEES: &[usize] = &[0usize, 5usize, 1usize, 0usize, 92usize, 8usize, 129usize];
+const FN_222_CALLEES: &[usize] = &[0usize, 9usize, 14usize, 23usize, 12usize, 0usize, 1usize, 94usize];
+const FN_223_CALLEES: &[usize] = &[0usize, 1usize, 2usize, 18usize, 23usize, 38usize, 15usize, 1usize];
+const FN_224_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize];
+const FN_225_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize, 92usize];
+const FN_226_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 0usize, 92usize, 1usize, 1usize];
+const FN_227_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 92usize];
+const FN_228_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 9usize, 0usize, 92usize, 1usize];
+const FN_229_CALLEES: &[usize] = &[0usize, 0usize, 5usize, 23usize, 92usize];
+const FN_230_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 14usize, 1usize, 0usize, 19usize, 13usize, 3usize, 13usize, 94usize, 92usize];
+const FN_231_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 16usize, 19usize];
+const FN_232_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize, 2usize, 14usize];
+const FN_233_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 1usize, 16usize, 14usize, 72usize, 92usize, 19usize, 0usize, 1usize, 11usize, 2usize, 13usize, 13usize, 94usize, 10usize];
+const FN_234_CALLEES: &[usize] = &[0usize, 92usize, 130usize];
+const FN_235_CALLEES: &[usize] = &[0usize];
+const FN_236_CALLEES: &[usize] = &[0usize];
+const FN_237_CALLEES: &[usize] = &[0usize];
+const FN_238_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize, 92usize, 1usize, 5usize, 0usize, 1usize, 0usize, 2usize, 3usize, 9usize, 76usize, 14usize, 13usize, 13usize, 94usize, 11usize, 13usize, 2usize, 0usize, 11usize, 10usize, 8usize, 16usize, 2usize, 77usize, 78usize, 79usize, 72usize];
+const FN_239_CALLEES: &[usize] = &[0usize, 0usize, 7usize, 8usize, 14usize, 9usize, 13usize, 0usize, 23usize, 19usize, 1usize, 92usize, 13usize, 15usize, 94usize, 2usize];
+const FN_240_CALLEES: &[usize] = &[0usize, 0usize, 23usize, 19usize, 1usize, 5usize, 2usize, 14usize, 11usize, 13usize, 2usize, 0usize, 10usize, 9usize, 8usize, 4usize];
+const FN_241_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 23usize, 19usize, 1usize, 2usize];
+const FN_242_CALLEES: &[usize] = &[0usize, 0usize, 92usize, 23usize, 19usize, 1usize, 12usize, 75usize, 0usize, 13usize, 10usize, 9usize, 13usize, 94usize];
+const FN_243_CALLEES: &[usize] = &[0usize, 0usize, 17usize, 13usize, 0usize, 23usize, 19usize, 1usize, 7usize, 8usize, 9usize, 14usize, 92usize, 13usize, 94usize, 3usize, 2usize, 21usize];
+const FN_244_CALLEES: &[usize] = &[0usize, 0usize, 17usize, 13usize, 0usize, 23usize, 19usize, 1usize, 7usize, 8usize, 14usize, 9usize, 92usize, 13usize, 94usize, 72usize, 15usize, 16usize];
+const FN_245_CALLEES: &[usize] = &[0usize, 131usize];
+const FN_246_CALLEES: &[usize] = &[0usize, 104usize, 28usize, 131usize, 1usize, 92usize, 13usize];
+const FN_247_CALLEES: &[usize] = &[0usize, 7usize, 0usize, 4usize];
+const FN_248_CALLEES: &[usize] = &[0usize, 104usize, 28usize, 131usize, 1usize, 92usize, 13usize];
+const FN_249_CALLEES: &[usize] = &[0usize, 28usize, 118usize, 1usize, 92usize, 8usize, 129usize, 13usize];
+const FN_250_CALLEES: &[usize] = &[0usize, 118usize, 92usize];
+const FN_251_CALLEES: &[usize] = &[0usize, 118usize, 23usize, 92usize];
+const FN_252_CALLEES: &[usize] = &[0usize, 3usize, 6usize, 23usize, 0usize, 4usize, 2usize, 0usize];
+const FN_253_CALLEES: &[usize] = &[0usize, 118usize, 2usize, 1usize, 0usize, 23usize, 1usize, 117usize, 115usize, 116usize, 132usize, 0usize];
+const FN_254_CALLEES: &[usize] = &[0usize, 118usize, 3usize, 0usize, 1usize, 0usize, 2usize, 23usize, 0usize, 0usize, 1usize, 0usize];
+const FN_255_CALLEES: &[usize] = &[0usize, 23usize, 131usize, 11usize, 92usize, 1usize, 130usize, 116usize, 133usize, 128usize];
+const FN_256_CALLEES: &[usize] = &[0usize, 116usize, 73usize, 115usize, 13usize, 118usize, 13usize, 94usize, 92usize, 0usize];
+const FN_257_CALLEES: &[usize] = &[0usize, 118usize, 73usize, 23usize, 117usize, 1usize];
+const FN_258_CALLEES: &[usize] = &[0usize, 23usize, 4usize, 1usize];
+const FN_259_CALLEES: &[usize] = &[0usize, 118usize, 115usize, 116usize, 132usize, 1usize, 1usize];
+const FN_260_CALLEES: &[usize] = &[0usize];
+const FN_261_CALLEES: &[usize] = &[0usize, 20usize, 92usize, 134usize, 0usize, 12usize, 16usize, 118usize, 23usize, 9usize, 94usize];
+const FN_262_CALLEES: &[usize] = &[0usize, 1usize, 92usize, 0usize, 1usize];
+const FN_263_CALLEES: &[usize] = &[0usize, 17usize, 13usize, 23usize, 11usize, 130usize, 1usize, 18usize, 13usize, 92usize, 73usize, 94usize, 131usize, 1usize, 118usize, 0usize, 28usize, 6usize, 135usize, 5usize, 8usize, 129usize, 90usize, 29usize, 30usize, 2usize, 15usize];
+const FN_264_CALLEES: &[usize] = &[0usize, 115usize, 116usize];
+const FN_265_CALLEES: &[usize] = &[0usize, 115usize, 116usize];
+const FN_266_CALLEES: &[usize] = &[0usize, 118usize];
+const FN_267_CALLEES: &[usize] = &[0usize, 136usize, 118usize, 23usize, 82usize, 115usize, 116usize];
+const FN_268_CALLEES: &[usize] = &[0usize, 118usize, 136usize];
+const FN_269_CALLEES: &[usize] = &[0usize, 118usize, 136usize];
+const FN_270_CALLEES: &[usize] = &[0usize, 131usize, 2usize, 23usize, 130usize, 118usize];
+const FN_271_CALLEES: &[usize] = &[0usize, 23usize, 106usize, 1usize];
+const FN_272_CALLEES: &[usize] = &[0usize, 23usize, 131usize, 108usize, 11usize, 92usize, 1usize, 2usize, 130usize, 73usize, 111usize, 118usize];
+const FN_273_CALLEES: &[usize] = &[0usize, 73usize];
+const FN_274_CALLEES: &[usize] = &[0usize, 118usize, 73usize, 84usize, 103usize, 23usize, 1usize, 13usize, 13usize, 94usize, 92usize, 2usize, 115usize, 116usize, 1usize, 137usize, 107usize, 83usize, 81usize, 105usize, 0usize, 117usize, 130usize];
+const FN_275_CALLEES: &[usize] = &[0usize, 118usize];
+const FN_276_CALLEES: &[usize] = &[0usize, 118usize];
+const FN_277_CALLEES: &[usize] = &[0usize, 118usize, 1usize, 0usize, 15usize];
+const FN_278_CALLEES: &[usize] = &[0usize, 85usize, 1usize, 0usize, 15usize];
+const FN_279_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 6usize, 0usize];
+const FN_280_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 85usize, 0usize];
+const FN_281_CALLEES: &[usize] = &[0usize, 1usize, 6usize];
+const FN_282_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_283_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_284_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_285_CALLEES: &[usize] = &[0usize, 116usize, 118usize, 115usize];
+const FN_286_CALLEES: &[usize] = &[0usize, 84usize, 1usize, 0usize, 3usize, 2usize, 0usize, 23usize, 1usize, 12usize, 0usize, 15usize];
+const FN_287_CALLEES: &[usize] = &[0usize, 3usize, 118usize, 105usize, 0usize, 116usize, 1usize, 85usize, 2usize, 0usize, 74usize, 6usize, 83usize, 12usize, 0usize, 1usize, 0usize, 15usize, 0usize, 3usize, 1usize];
+const FN_288_CALLEES: &[usize] = &[0usize, 3usize, 118usize, 0usize, 1usize, 116usize, 0usize, 74usize, 85usize, 2usize, 6usize, 12usize, 10usize, 1usize, 0usize, 3usize, 0usize];
+const FN_289_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 118usize, 74usize, 0usize, 6usize, 116usize, 0usize, 112usize, 1usize, 0usize, 0usize, 0usize, 85usize, 2usize, 83usize, 12usize, 0usize, 1usize, 0usize, 1usize, 0usize, 15usize, 3usize, 10usize, 11usize, 86usize, 23usize, 1usize];
+const FN_290_CALLEES: &[usize] = &[0usize, 3usize, 118usize, 0usize, 74usize, 1usize, 0usize, 6usize, 0usize, 2usize, 12usize, 0usize, 3usize, 1usize, 23usize, 0usize];
+const FN_291_CALLEES: &[usize] = &[0usize, 23usize, 130usize, 1usize];
+const FN_292_CALLEES: &[usize] = &[0usize, 23usize, 130usize, 1usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -22966,7 +22977,7 @@ clippy::type_complexity,
 clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
-fn bound_adapter_293(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+fn bound_adapter_293(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     SubstituteInstance::fn_293(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, host)
 }
 
@@ -22994,45 +23005,45 @@ clippy::type_complexity,
 clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
-fn bound_adapter_294(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+fn bound_adapter_294(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     SubstituteInstance::fn_294(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, host)
 }
 
-const FN_295_CALLEES: &[u32] = &[0u32, 1u32, 118u32, 1u32, 3u32, 5u32, 0u32, 6u32, 13u32, 92u32, 13u32, 73u32, 0u32, 94u32];
-const FN_296_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 1u32, 3u32, 5u32, 6u32, 0u32, 2u32, 73u32, 92u32, 1u32, 0u32, 13u32, 94u32, 23u32, 2u32, 1u32, 8u32, 130u32, 7u32, 15u32];
-const FN_297_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 23u32, 19u32, 18u32, 13u32, 19u32, 94u32];
-const FN_298_CALLEES: &[u32] = &[0u32, 88u32, 80u32, 13u32, 23u32, 1u32, 2u32, 15u32, 1u32, 94u32];
-const FN_299_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32, 73u32];
-const FN_300_CALLEES: &[u32] = &[0u32, 23u32, 130u32, 1u32];
-const FN_301_CALLEES: &[u32] = &[0u32, 118u32, 1u32, 12u32, 0u32, 0u32];
-const FN_302_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 23u32, 19u32, 1u32, 9u32, 3u32, 2u32, 5u32, 2u32, 10u32, 0u32, 92u32, 0u32, 13u32, 1u32, 94u32];
-const FN_303_CALLEES: &[u32] = &[0u32, 118u32, 23u32, 92u32, 130u32, 73u32, 13u32, 13u32, 94u32];
-const FN_304_CALLEES: &[u32] = &[0u32, 92u32, 2u32, 1u32, 22u32, 115u32, 116u32, 128u32, 117u32];
-const FN_305_CALLEES: &[u32] = &[0u32, 71u32];
-const FN_306_CALLEES: &[u32] = &[92u32];
-const FN_324_CALLEES: &[u32] = &[92u32];
-const FN_327_CALLEES: &[u32] = &[92u32];
-const FN_335_CALLEES: &[u32] = &[92u32];
-const FN_339_CALLEES: &[u32] = &[92u32];
-const FN_340_CALLEES: &[u32] = &[92u32];
-const FN_341_CALLEES: &[u32] = &[92u32];
-const FN_343_CALLEES: &[u32] = &[92u32];
-const FN_345_CALLEES: &[u32] = &[92u32];
-const FN_350_CALLEES: &[u32] = &[125u32];
-const FN_354_CALLEES: &[u32] = &[92u32];
-const FN_355_CALLEES: &[u32] = &[92u32];
-const FN_362_CALLEES: &[u32] = &[92u32];
-const FN_368_CALLEES: &[u32] = &[92u32];
-const FN_369_CALLEES: &[u32] = &[92u32];
-const FN_370_CALLEES: &[u32] = &[92u32];
-const FN_371_CALLEES: &[u32] = &[92u32];
-const FN_372_CALLEES: &[u32] = &[92u32];
-const FN_373_CALLEES: &[u32] = &[136u32];
-const FN_374_CALLEES: &[u32] = &[118u32, 135u32];
-const FN_378_CALLEES: &[u32] = &[92u32];
-const FN_380_CALLEES: &[u32] = &[92u32];
-const FN_381_CALLEES: &[u32] = &[92u32];
-const FN_382_CALLEES: &[u32] = &[0u32, 92u32, 91u32];
+const FN_295_CALLEES: &[usize] = &[0usize, 1usize, 118usize, 1usize, 3usize, 5usize, 0usize, 6usize, 13usize, 92usize, 13usize, 73usize, 0usize, 94usize];
+const FN_296_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 1usize, 3usize, 5usize, 6usize, 0usize, 2usize, 73usize, 92usize, 1usize, 0usize, 13usize, 94usize, 23usize, 2usize, 1usize, 8usize, 130usize, 7usize, 15usize];
+const FN_297_CALLEES: &[usize] = &[0usize, 0usize, 13usize, 23usize, 19usize, 18usize, 13usize, 19usize, 94usize];
+const FN_298_CALLEES: &[usize] = &[0usize, 88usize, 80usize, 13usize, 23usize, 1usize, 2usize, 15usize, 1usize, 94usize];
+const FN_299_CALLEES: &[usize] = &[0usize, 118usize, 23usize, 92usize, 73usize];
+const FN_300_CALLEES: &[usize] = &[0usize, 23usize, 130usize, 1usize];
+const FN_301_CALLEES: &[usize] = &[0usize, 118usize, 1usize, 12usize, 0usize, 0usize];
+const FN_302_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 23usize, 19usize, 1usize, 9usize, 3usize, 2usize, 5usize, 2usize, 10usize, 0usize, 92usize, 0usize, 13usize, 1usize, 94usize];
+const FN_303_CALLEES: &[usize] = &[0usize, 118usize, 23usize, 92usize, 130usize, 73usize, 13usize, 13usize, 94usize];
+const FN_304_CALLEES: &[usize] = &[0usize, 92usize, 2usize, 1usize, 22usize, 115usize, 116usize, 128usize, 117usize];
+const FN_305_CALLEES: &[usize] = &[0usize, 71usize];
+const FN_306_CALLEES: &[usize] = &[92usize];
+const FN_324_CALLEES: &[usize] = &[92usize];
+const FN_327_CALLEES: &[usize] = &[92usize];
+const FN_335_CALLEES: &[usize] = &[92usize];
+const FN_339_CALLEES: &[usize] = &[92usize];
+const FN_340_CALLEES: &[usize] = &[92usize];
+const FN_341_CALLEES: &[usize] = &[92usize];
+const FN_343_CALLEES: &[usize] = &[92usize];
+const FN_345_CALLEES: &[usize] = &[92usize];
+const FN_350_CALLEES: &[usize] = &[125usize];
+const FN_354_CALLEES: &[usize] = &[92usize];
+const FN_355_CALLEES: &[usize] = &[92usize];
+const FN_362_CALLEES: &[usize] = &[92usize];
+const FN_368_CALLEES: &[usize] = &[92usize];
+const FN_369_CALLEES: &[usize] = &[92usize];
+const FN_370_CALLEES: &[usize] = &[92usize];
+const FN_371_CALLEES: &[usize] = &[92usize];
+const FN_372_CALLEES: &[usize] = &[92usize];
+const FN_373_CALLEES: &[usize] = &[136usize];
+const FN_374_CALLEES: &[usize] = &[118usize, 135usize];
+const FN_378_CALLEES: &[usize] = &[92usize];
+const FN_380_CALLEES: &[usize] = &[92usize];
+const FN_381_CALLEES: &[usize] = &[92usize];
+const FN_382_CALLEES: &[usize] = &[0usize, 92usize, 91usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -24631,6 +24642,11 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (2229905u128, [0xb4, 0x66, 0x03, 0xc1, 0x18, 0x0b, 0xce, 0x3a, 0x2e, 0xf3, 0x19, 0xcb, 0x7d, 0x2d, 0xeb, 0x10, 0x8c, 0x66, 0xf9, 0x82, 0x1b, 0xcc, 0x5e, 0x5a, 0x4d, 0xc1, 0x21, 0x72, 0xa5, 0x5b, 0x7f, 0x8e]),
+    (2229905u128, [0x6f, 0x57, 0xc9, 0x14, 0xdd, 0x01, 0x48, 0x1f, 0x58, 0x32, 0xd0, 0x22, 0x39, 0x78, 0x92, 0xd0, 0x29, 0xd9, 0xc0, 0x37, 0x02, 0x43, 0xd2, 0xd6, 0xae, 0x9f, 0x8e, 0x74, 0x39, 0x16, 0x96, 0xd9]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_88792/f1681@l8589998096",
     accounting_version: 2u32,
@@ -24642,6 +24658,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -24832,7 +24849,6 @@ clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
 impl SubstituteInstance {
-    #[inline(never)]
     fn fn_293(vm: &mut SubstituteVm, p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
@@ -24874,7 +24890,7 @@ impl SubstituteInstance {
     let mut s_i32_8: i32 = 0i32;
     let mut s_i32_9: i32 = 0i32;
     let mut s_i32_10: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
     vm.exit_call();
@@ -25337,7 +25353,7 @@ impl SubstituteInstance {
     let mut s_i32_14: i32 = 0i32;
     let mut s_i64_14: i64 = 0i64;
     let mut s_i64_15: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
     vm.exit_call();
@@ -25471,7 +25487,7 @@ impl SubstituteInstance {
             l19 = s_i32_0;
             'blk_5: {
                 'blk_6: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l19;
                     s_i32_1 = l18;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -25672,7 +25688,7 @@ impl SubstituteInstance {
             l25 = s_i32_0;
             'blk_11: {
                 'blk_12: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l25;
                     s_i32_1 = l24;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -25748,7 +25764,7 @@ impl SubstituteInstance {
             l27 = s_i64_0;
             'blk_15: {
                 'blk_16: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l27;
                     s_i32_1 = l15;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -25948,7 +25964,7 @@ impl SubstituteInstance {
             s_i32_0 = l0;
             s_i32_1 = l1;
             s_i32_2 = l2;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_3 = l4;
             s_i32_4 = l5;
             s_i32_5 = l6;
@@ -26009,7 +26025,7 @@ impl SubstituteInstance {
         if s_i32_0 != 0 {
             s_i32_0 = l0;
             s_i32_1 = 2202i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
@@ -26069,7 +26085,7 @@ impl SubstituteInstance {
     }
     s_i32_0 = l11;
     s_i32_1 = 12i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
     vm.exit_call();
@@ -26434,7 +26450,7 @@ impl SubstituteInstance {
             l37 = s_i32_0;
             'blk_31: {
                 'blk_32: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l37;
                     s_i32_1 = l36;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -26546,7 +26562,7 @@ impl SubstituteInstance {
                                     s_i32_2 = l1;
                                     s_i32_2 = ops::i32_load(vm, 0, s_i32_2, 4u32)?;
                                     s_i32_3 = l42;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_3 = ops::i64_extend_i32_u(s_i32_3);
                                     vm.enter_call()?;
                                     let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_2, s_i64_3, host);
@@ -26589,7 +26605,7 @@ impl SubstituteInstance {
                                         if s_i32_0 != 0 {
                                             s_i32_0 = l7;
                                             s_i32_1 = l5;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_2 = l1;
                                             s_i32_2 = ops::i32_load(vm, 0, s_i32_2, 4u32)?;
                                             s_i32_3 = l42;
@@ -26615,7 +26631,7 @@ impl SubstituteInstance {
                                         } else {
                                             s_i32_0 = l45;
                                             s_i32_1 = l44;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             vm.enter_call()?;
                                             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 130usize, s_i32_0, s_i32_1, host);
                                             vm.exit_call();
@@ -26667,7 +26683,7 @@ impl SubstituteInstance {
                 }
             }
             s_i32_0 = l15;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l47 = s_i32_0;
             s_i32_0 = l47;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
@@ -26679,7 +26695,7 @@ impl SubstituteInstance {
             l50 = s_i32_0;
             'blk_40: {
                 'blk_41: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l50;
                     s_i32_1 = l49;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -26755,7 +26771,7 @@ impl SubstituteInstance {
             l57 = s_i32_0;
             'blk_44: {
                 'blk_45: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l57;
                     s_i32_1 = l56;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -26812,7 +26828,7 @@ impl SubstituteInstance {
                                 l64 = s_i32_0;
                                 'blk_48: {
                                     'blk_49: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l64;
                                         s_i32_1 = l63;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -26952,7 +26968,7 @@ impl SubstituteInstance {
             l75 = s_i32_0;
             'blk_51: {
                 'blk_52: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l75;
                     s_i32_1 = l74;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -27163,7 +27179,7 @@ impl SubstituteInstance {
             s_i32_1 = l1;
             s_i32_2 = l2;
             s_i32_3 = l3;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_4 = l4;
             s_i32_5 = l5;
             s_i32_6 = l6;
@@ -27242,7 +27258,7 @@ impl SubstituteInstance {
             let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
             vm.exit_call();
             __call_res?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             s_i32_1 = l1;
             s_i32_2 = l2;
@@ -27298,7 +27314,7 @@ impl SubstituteInstance {
             l90 = s_i32_0;
             s_i32_0 = l0;
             s_i32_1 = 2450i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
@@ -27475,7 +27491,7 @@ impl SubstituteInstance {
     'blk_60: {
         if s_i32_0 != 0 {
             s_i32_0 = l0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = 2452i32;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
@@ -27486,7 +27502,7 @@ impl SubstituteInstance {
         }
     }
     s_i32_0 = l11;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_1 = 23i32;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
@@ -27807,7 +27823,7 @@ impl SubstituteInstance {
             l108 = s_i64_0;
             'blk_71: {
                 'blk_72: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l108;
                     s_i64_1 = l107;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -27819,7 +27835,7 @@ impl SubstituteInstance {
                     l109 = s_i64_0;
                     'blk_73: {
                         'blk_74: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l109;
                             s_i64_1 = l108;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -27891,7 +27907,7 @@ impl SubstituteInstance {
             l112 = s_i64_0;
             'blk_76: {
                 'blk_77: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l112;
                     s_i64_1 = l107;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -27916,7 +27932,7 @@ impl SubstituteInstance {
                     l116 = s_i64_0;
                     'blk_78: {
                         'blk_79: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l116;
                             s_i64_1 = l107;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -28039,7 +28055,7 @@ impl SubstituteInstance {
                     l118 = s_i64_0;
                     'blk_85: {
                         'blk_86: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l118;
                             s_i64_1 = l107;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -28112,7 +28128,7 @@ impl SubstituteInstance {
                     l120 = s_i64_0;
                     'blk_87: {
                         'blk_88: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l120;
                             s_i64_1 = l107;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -28294,7 +28310,7 @@ impl SubstituteInstance {
                     l127 = s_i64_0;
                     'blk_90: {
                         'blk_91: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l127;
                             s_i64_1 = l107;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -28399,7 +28415,7 @@ impl SubstituteInstance {
                     s_i32_8 = l8;
                     s_i32_9 = l9;
                     s_i32_10 = l128;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     vm.enter_call()?;
                     let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, s_i32_9, s_i32_10, host);
                     vm.exit_call();
@@ -28427,7 +28443,7 @@ impl SubstituteInstance {
             s_i32_1 = l129;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
             s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
             vm.exit_call();
@@ -28518,7 +28534,7 @@ impl SubstituteInstance {
                     s_i32_4 = l4;
                     s_i32_5 = l5;
                     s_i32_6 = l6;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_7 = l7;
                     s_i32_8 = l8;
                     s_i32_9 = l9;
@@ -28546,7 +28562,7 @@ impl SubstituteInstance {
                 }
             }
             s_i32_0 = l1;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 16u32)?;
             s_i32_1 = l133;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -28657,7 +28673,7 @@ impl SubstituteInstance {
             s_i32_0 = l1;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 24u32)?;
             s_i32_1 = l137;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i64_ret_i32(vm, 23usize, s_i32_0, s_i64_1, host);
@@ -28810,7 +28826,7 @@ impl SubstituteInstance {
             l143 = s_i64_0;
             'blk_105: {
                 'blk_106: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l143;
                     s_i32_1 = l142;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -28941,7 +28957,7 @@ impl SubstituteInstance {
             let __call_res = DISPATCH.call_direct_p_i32_i64_ret_void(vm, 0usize, s_i32_0, s_i64_1, host);
             vm.exit_call();
             __call_res?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             s_i32_1 = 0i32;
             vm.enter_call()?;
@@ -29004,7 +29020,7 @@ impl SubstituteInstance {
             let __t171 = __call_res?;
             s_i32_0 = __t171;
             l146 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l146;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
             s_i32_1 = 1i32;
@@ -29102,7 +29118,7 @@ impl SubstituteInstance {
             vm.exit_call();
             let __t174 = __call_res?;
             s_i32_3 = __t174;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_ret_i32(vm, 1usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, host);
             vm.exit_call();
@@ -29356,7 +29372,7 @@ impl SubstituteInstance {
         if s_i32_0 != 0 {
             s_i32_0 = l1;
             s_i32_1 = l2;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_2 = 1i32;
             s_i32_3 = l14;
             s_i64_4 = 0i64;
@@ -29546,7 +29562,7 @@ impl SubstituteInstance {
     }
     s_i32_0 = l11;
     s_i32_1 = 37i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 118usize, s_i32_0, s_i32_1, host);
     vm.exit_call();
@@ -29919,7 +29935,7 @@ impl SubstituteInstance {
             l166 = s_i64_0;
             'blk_131: {
                 'blk_132: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l166;
                     s_i32_1 = l164;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -29948,7 +29964,7 @@ impl SubstituteInstance {
                     l168 = s_i64_0;
                     'blk_133: {
                         'blk_134: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l168;
                             s_i64_1 = l166;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -30087,7 +30103,7 @@ impl SubstituteInstance {
             vm.exit_call();
             __call_res?;
             s_i32_0 = l0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l1;
             s_i32_2 = l2;
             s_i32_3 = l3;
@@ -30154,7 +30170,7 @@ impl SubstituteInstance {
                             l171 = s_i64_0;
                             'blk_142: {
                                 'blk_143: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l171;
                                     s_i32_1 = l164;
                                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -30263,7 +30279,7 @@ impl SubstituteInstance {
                             l174 = s_i64_0;
                             'blk_144: {
                                 'blk_145: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l174;
                                     s_i64_1 = l173;
                                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -30533,7 +30549,7 @@ impl SubstituteInstance {
                     __call_res?;
                     s_i32_0 = l0;
                     s_i32_1 = l180;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     vm.enter_call()?;
                     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 12usize, s_i32_0, s_i32_1, host);
                     vm.exit_call();
@@ -30848,7 +30864,7 @@ impl SubstituteInstance {
                     s_i32_5 = l6;
                     s_i32_6 = l7;
                     s_i32_7 = l8;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_8 = l178;
                     vm.enter_call()?;
                     let __call_res = DISPATCH.call_direct_p_i32_i32_i32_i32_i32_i32_i32_i32_i32_ret_void(vm, 0usize, s_i32_0, s_i32_1, s_i32_2, s_i32_3, s_i32_4, s_i32_5, s_i32_6, s_i32_7, s_i32_8, host);
@@ -31179,7 +31195,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 3usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }

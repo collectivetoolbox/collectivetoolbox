@@ -45,7 +45,7 @@ use super::wasm_quota::{
 };
 
 const MAX_ITEMS_PER_CHUNK_FILE: usize = 120;
-const INLINE_NEVER_BYTECODE_THRESHOLD: usize = 128;
+const INLINE_NEVER_BYTECODE_THRESHOLD: usize = 512;
 
 /// Options controlling generated Rust module metadata and source hashing.
 #[derive(Debug, Clone, Copy, Default)]
@@ -65,6 +65,8 @@ pub struct SubstituteBundleInput<'a> {
     pub label: &'a str,
     /// Uninstrumented canonical `.wasm` binary bytes.
     pub wasm_bytes: &'a [u8],
+    /// Optional System-graph `(target_global_id, revision_sha256)` closure key.
+    pub graph_target: Option<(u128, [u8; 32])>,
 }
 
 /// Returns a deterministic SHA-256 fingerprint of the transpiler and V2 metering
@@ -506,6 +508,7 @@ struct AnalyzedModule<'a> {
     chunk_prefix: &'a str,
     name: &'a str,
     wasm_sha256: [u8; 32],
+    graph_targets: Vec<(u128, [u8; 32])>,
     parsed: TinyWasmModule,
     code_bodies: Vec<CodeBodyRaw<'a>>,
     initial_memory_pages: usize,
@@ -1139,6 +1142,7 @@ fn analyze_module<'a>(
         chunk_prefix,
         name,
         wasm_sha256,
+        graph_targets: Vec::new(),
         parsed,
         code_bodies,
         initial_memory_pages,
@@ -1276,7 +1280,7 @@ fn format_call_invocation(
     caller_fn_idx: Option<usize>,
 ) -> Result<String> {
     if Some(target_idx) == module.cap_yield_func_idx {
-        return Ok("host.request_capability(vm)".to_owned());
+        return Ok("{ vm.sync_fast_budget(); let __cap_res = host.request_capability(vm); vm.rearm_fast_budget(); __cap_res }".to_owned());
     }
 
     match call_mode {
@@ -1532,7 +1536,7 @@ impl<'a> FuncLowerer<'a> {
     fn maybe_emit_ordinary_deduct(&mut self) -> Result<()> {
         let emit_check = self.planner.before_ordinary_op();
         if emit_check && !self.is_unreachable()? {
-            self.emit_line("vm.deduct(host, 1)?;");
+            self.emit_line("vm.deduct_1(host)?;");
         }
         Ok(())
     }
@@ -1639,17 +1643,20 @@ impl<'a> FuncLowerer<'a> {
     fn lower_body(&mut self, bytes: &[u8]) -> Result<String> {
         let is_cap_yield = self.module.cap_yield_func_idx == Some(self.fn_idx);
         if is_cap_yield {
-            self.emit_line("host.request_capability(vm)?;");
+            self.emit_line("vm.sync_fast_budget();");
+            self.emit_line("let __cap_res = host.request_capability(vm);");
+            self.emit_line("vm.rearm_fast_budget();");
+            self.emit_line("__cap_res?;");
             let ret_expr = self.return_expr_from_slots(&[]);
             self.emit_line(&format!("return Ok({ret_expr});"));
             return Ok(self.finalize_function_source());
         }
 
         if !self.use_self_tail_loop {
-            self.emit_line("vm.deduct(host, 1)?;");
+            self.emit_line("vm.deduct_1(host)?;");
         } else {
             self.emit_line_at(1, "'self_tail: loop {");
-            self.emit_line("vm.deduct(host, 1)?;");
+            self.emit_line("vm.deduct_1(host)?;");
             for idx in self.num_params..self.locals.len() {
                 let ty = *self
                     .locals
@@ -1777,7 +1784,7 @@ impl<'a> FuncLowerer<'a> {
                     );
                     self.emit_line_at(
                         base_indent.saturating_add(1),
-                        "vm.deduct(host, 1)?;",
+                        "vm.deduct_1(host)?;",
                     );
                 }
                 self.ctrl_stack.push(CtrlFrame {
@@ -1804,7 +1811,7 @@ impl<'a> FuncLowerer<'a> {
                 let emit_check = self.planner.before_block_or_if();
                 let parent_unreach = self.is_unreachable()?;
                 if emit_check && !parent_unreach {
-                    self.emit_line("vm.deduct(host, 1)?;");
+                    self.emit_line("vm.deduct_1(host)?;");
                 }
                 let label_id = self.next_label;
                 self.next_label = self.next_label.saturating_add(1);
@@ -2327,7 +2334,10 @@ impl<'a> FuncLowerer<'a> {
                     }
                     self.emit_line("continue 'self_tail;");
                 } else if Some(target_idx) == self.module.cap_yield_func_idx {
-                    self.emit_line("host.request_capability(vm)?;");
+                    self.emit_line("vm.sync_fast_budget();");
+                    self.emit_line("let __cap_res = host.request_capability(vm);");
+                    self.emit_line("vm.rearm_fast_budget();");
+                    self.emit_line("__cap_res?;");
                     let done_expr = self.return_expr_from_slots(&[]);
                     self.emit_line(&format!("return Ok({done_expr});"));
                 } else {
@@ -3195,6 +3205,23 @@ fn emit_struct_and_instantiate(
 
     let hex_bytes: Vec<String> =
         module.wasm_sha256.iter().map(|b| format!("0x{b:02x}")).collect();
+    let graph_targets_ref = if module.graph_targets.is_empty() {
+        "&[]".to_owned()
+    } else {
+        let mut items: Vec<String> =
+            Vec::with_capacity(module.graph_targets.len());
+        for &(gid, rev) in &module.graph_targets {
+            let rev_hex: Vec<String> =
+                rev.iter().map(|b| format!("0x{b:02x}")).collect();
+            items.push(format!("    ({gid}u128, [{}]),", rev_hex.join(", ")));
+        }
+        let _ = writeln!(
+            out,
+            "const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[\n{}\n];\n",
+            items.join("\n")
+        );
+        "GRAPH_TARGETS".to_owned()
+    };
     let _ = writeln!(
         out,
         "const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {{\n\
@@ -3208,6 +3235,7 @@ fn emit_struct_and_instantiate(
          \x20   static_data_end: {}usize,\n\
          \x20   num_memories: {}usize,\n\
          \x20   num_tables: {}usize,\n\
+         \x20   graph_targets: {graph_targets_ref},\n\
          }};\n\n",
         module.name,
         hex_bytes.join(", "),
@@ -3430,7 +3458,9 @@ fn emit_trait_impl(
                 "    fn call_start(&mut self, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {{\n\
                  \x20       let vm = &mut self.vm;\n\
                  \x20       vm.enter_call()?;\n\
+                 \x20       vm.begin_fast_epoch();\n\
                  \x20       let res = {start_call};\n\
+                 \x20       vm.end_fast_epoch();\n\
                  \x20       vm.exit_call();\n\
                  \x20       res\n\
                  \x20   }}\n"
@@ -3472,7 +3502,9 @@ fn emit_trait_impl(
          \x20       let _ = (in_ptr, in_len);\n\
          \x20       let vm = &mut self.vm;\n\
          \x20       vm.enter_call()?;\n\
+         \x20       vm.begin_fast_epoch();\n\
          \x20       let res = {entry_body};\n\
+         \x20       vm.end_fast_epoch();\n\
          \x20       vm.exit_call();\n\
          \x20       res\n\
          \x20   }}\n\
@@ -3689,11 +3721,11 @@ fn emit_bundle_descriptor_submodule(
                                 "Normalized callee fn_{callee_fn_idx} missing bound dispatch slot"
                             )
                         })?;
-                    c_vals.push(format!("{}u32", u32::try_from(*bound_idx)?));
+                    c_vals.push(format!("{bound_idx}usize"));
                 }
                 let _ = writeln!(
                     inner,
-                    "const FN_{fn_idx}_CALLEES: &[u32] = &[{}];",
+                    "const FN_{fn_idx}_CALLEES: &[usize] = &[{}];",
                     c_vals.join(", ")
                 );
             }
@@ -3707,7 +3739,7 @@ fn emit_bundle_descriptor_submodule(
                 "vm: &mut SubstituteVm".to_owned(),
                 "_dispatch: &'static crate::ModuleDispatch".to_owned(),
                 "_g_map: &'static [usize]".to_owned(),
-                "_c_map: &'static [u32]".to_owned(),
+                "_c_map: &'static [usize]".to_owned(),
             ];
             let mut fwd_args =
                 Vec::with_capacity(sig.params.len().saturating_add(2));
@@ -3898,7 +3930,7 @@ fn emit_chunk_shard_source(
                 "vm: &mut SubstituteVm".to_owned(),
                 "dispatch: &'static crate::ModuleDispatch".to_owned(),
                 "g_map: &'static [usize]".to_owned(),
-                "c_map: &'static [u32]".to_owned(),
+                "c_map: &'static [usize]".to_owned(),
             ];
             for (i, pt) in sig.params.iter().enumerate() {
                 params_decl.push(format!("p{i}: {}", pt.rust_ty()));
@@ -3946,7 +3978,7 @@ fn emit_registry_dispatch_types(
             "&mut SubstituteVm".to_owned(),
             "&'static ModuleDispatch".to_owned(),
             "&'static [usize]".to_owned(),
-            "&'static [u32]".to_owned(),
+            "&'static [usize]".to_owned(),
         ];
         for pt in &sig.params {
             fn_ptr_params.push(pt.rust_ty().to_owned());
@@ -3962,7 +3994,7 @@ fn emit_registry_dispatch_types(
         emit_generated_allows(reg_out, 0);
         let _ = writeln!(
             reg_out,
-            "#[derive(Clone, Copy)]\npub(crate) struct Bound_{sig_slug} {{\n    pub(crate) func: Callee_{sig_slug},\n    pub(crate) globals: &'static [usize],\n    pub(crate) callees: &'static [u32],\n}}\n"
+            "#[derive(Clone, Copy)]\npub(crate) struct Bound_{sig_slug} {{\n    pub(crate) func: Callee_{sig_slug},\n    pub(crate) globals: &'static [usize],\n    pub(crate) callees: &'static [usize],\n}}\n"
         );
     }
 
@@ -3984,7 +4016,7 @@ fn emit_registry_dispatch_types(
             let mut call_params = vec![
                 "&'static self".to_owned(),
                 "vm: &mut SubstituteVm".to_owned(),
-                "c_map: &'static [u32]".to_owned(),
+                "c_map: &'static [usize]".to_owned(),
                 "local_slot: usize".to_owned(),
             ];
             let mut direct_params = vec![
@@ -4011,7 +4043,7 @@ fn emit_registry_dispatch_types(
 
             let _ = writeln!(
                 reg_out,
-                "    #[inline(always)]\n    pub(crate) fn call_{sig_slug}({}) -> std::result::Result<{ret_ty}, WasmTrap> {{\n        let idx = usize::try_from(*c_map.get(local_slot).ok_or(WasmTrap::Unreachable)?).map_err(|_| WasmTrap::Unreachable)?;\n        let bound = self.sig_{sig_slug}.get(idx).ok_or(WasmTrap::Unreachable)?;\n        (bound.func)({invoke_str})\n    }}\n",
+                "    #[inline(always)]\n    pub(crate) fn call_{sig_slug}({}) -> std::result::Result<{ret_ty}, WasmTrap> {{\n        let idx = *c_map.get(local_slot).ok_or(WasmTrap::Unreachable)?;\n        let bound = self.sig_{sig_slug}.get(idx).ok_or(WasmTrap::Unreachable)?;\n        (bound.func)({invoke_str})\n    }}\n",
                 call_params.join(", ")
             );
             let _ = writeln!(
@@ -4046,20 +4078,33 @@ pub fn transpile_wasm_bundle_to_safe_rust(
         Descriptor(usize),
     }
 
-    let mut seen_wasm_sha256: BTreeSet<[u8; 32]> = BTreeSet::new();
+    let mut mod_idx_by_wasm_sha256: BTreeMap<[u8; 32], usize> = BTreeMap::new();
     let mut analyzed_modules: Vec<AnalyzedModule<'_>> =
         Vec::with_capacity(inputs.len());
     for input in inputs {
         validate_bundle_chunk_prefix(input.chunk_prefix)?;
         let digest: [u8; 32] = Sha256::digest(input.wasm_bytes).into();
-        if !seen_wasm_sha256.insert(digest) {
+        if let Some(&existing_idx) = mod_idx_by_wasm_sha256.get(&digest) {
+            if let Some(gt) = input.graph_target
+                && let Some(existing_mod) =
+                    analyzed_modules.get_mut(existing_idx)
+                && !existing_mod.graph_targets.contains(&gt)
+            {
+                existing_mod.graph_targets.push(gt);
+            }
             continue;
         }
-        analyzed_modules.push(analyze_module(
+        let mut analyzed = analyze_module(
             input.chunk_prefix,
             input.label,
             input.wasm_bytes,
-        )?);
+        )?;
+        if let Some(gt) = input.graph_target {
+            analyzed.graph_targets.push(gt);
+        }
+        let assigned_idx = analyzed_modules.len();
+        analyzed_modules.push(analyzed);
+        mod_idx_by_wasm_sha256.insert(digest, assigned_idx);
     }
 
     let mut bundle_sigs: BTreeMap<String, FnSigInfo> = BTreeMap::new();
@@ -4558,11 +4603,13 @@ mod tests {
                     chunk_prefix: "85899_34592",
                     label: "85899_34592/rev1",
                     wasm_bytes: &wasm_a,
+                    graph_target: Some((1936, [0x11; 32])),
                 },
                 SubstituteBundleInput {
                     chunk_prefix: "85899_34692",
                     label: "85899_34692/rev2",
                     wasm_bytes: &wasm_b,
+                    graph_target: Some((2608, [0x22; 32])),
                 },
             ],
             Some("bundle123"),

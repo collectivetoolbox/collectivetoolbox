@@ -65,8 +65,7 @@ clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
 impl ChunkFns {
-    #[inline(never)]
-    pub(crate) fn f_d5e5a025fa98(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_d5e5a025fa98(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = 0i32;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -77,7 +76,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = 0i32;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
     l0 = s_i32_0;
@@ -131,7 +130,7 @@ impl ChunkFns {
             l2 = s_i32_0;
             'blk_2: {
                 'blk_3: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l0;
                     s_i32_1 = l1;
                     s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
@@ -246,7 +245,7 @@ impl ChunkFns {
     l2 = s_i32_0;
     'blk_12: {
         'blk_13: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l2;
             s_i32_1 = 76i32;
             s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
@@ -306,8 +305,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_4bf6bfa83d2d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_4bf6bfa83d2d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = 0i32;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -318,7 +316,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = 0i32;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
     l0 = s_i32_0;
@@ -372,7 +370,7 @@ impl ChunkFns {
             l2 = s_i32_0;
             'blk_2: {
                 'blk_3: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l0;
                     s_i32_1 = l1;
                     s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
@@ -487,7 +485,7 @@ impl ChunkFns {
     l2 = s_i32_0;
     'blk_12: {
         'blk_13: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l2;
             s_i32_1 = 76i32;
             s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
@@ -723,6 +721,10 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (1116048u128, [0x1a, 0x1b, 0xbc, 0x6d, 0x80, 0x71, 0xb1, 0x18, 0xd4, 0x3a, 0xf7, 0xbd, 0xec, 0x03, 0xac, 0xb2, 0xee, 0x2a, 0x23, 0xc5, 0xfc, 0xcf, 0x65, 0xf3, 0x76, 0xd9, 0x9d, 0x1b, 0x62, 0x3a, 0xcf, 0x64]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_93992/1936@l8589994064",
     accounting_version: 2u32,
@@ -734,6 +736,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -840,7 +843,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 0usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }
@@ -1029,6 +1034,10 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (1116048u128, [0x49, 0x1a, 0x5a, 0xb1, 0x29, 0x98, 0x20, 0x1c, 0xad, 0x36, 0x06, 0x7c, 0xfc, 0xde, 0x1e, 0x4a, 0x39, 0x00, 0xe3, 0x5e, 0xca, 0x85, 0xa9, 0xef, 0xf1, 0xf4, 0x71, 0x94, 0xa0, 0x1b, 0xc5, 0xd5]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_93992/1936@l8589994093",
     accounting_version: 2u32,
@@ -1040,6 +1049,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -1146,7 +1156,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 0usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }

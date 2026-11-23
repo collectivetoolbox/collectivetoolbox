@@ -1517,15 +1517,49 @@ fn eval_stream_splice_impl(
             return Ok(Some(chars));
         }
         if let Some(wasm_shorthands) = wasm_definition {
+            let prof_start =
+                crate::converters::wasm::is_dc_routine_profiling_enabled()
+                    .then(std::time::Instant::now);
+            let before_insns = if prof_start.is_some() {
+                shared_quota
+                    .as_ref()
+                    .and_then(|q| q.snapshot().ok())
+                    .map(|s| s.total_instructions_executed)
+            } else {
+                None
+            };
             let doc =
                 crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice_with_quota(
                     wasm_shorthands,
                     call_tokens,
                     resolver,
-                    shared_quota,
+                    shared_quota.clone(),
                 )?;
             let dc_str = doc.to_dc_string()?;
-            return Ok(Some(dc_str.chars().collect()));
+            let out_chars: Vec<DcChar> = dc_str.chars().collect();
+            if let Some(t0) = prof_start {
+                // Reason for fallback: un-metered calls without a SharedWasmTaskQuota report 0 tracked task instructions.
+                let used_insns = before_insns
+                    .and_then(|b| {
+                        shared_quota
+                            .as_ref()
+                            .and_then(|q| q.snapshot().ok())
+                            .map(|a| a.total_instructions_executed.saturating_sub(b))
+                    })
+                    .unwrap_or(0);
+                let most_recent = resolver.seed_graph().and_then(
+                    ctb_formats_dcdata::seed_graph::SeedGraphIndex::system_block_most_recent_node_id,
+                );
+                crate::converters::wasm::record_dc_routine_invocation_profile(
+                    *first,
+                    most_recent,
+                    call_tokens,
+                    &out_chars,
+                    t0.elapsed().as_nanos(),
+                    used_insns,
+                );
+            }
+            return Ok(Some(out_chars));
         }
         Ok(None)
 }

@@ -65,8 +65,7 @@ clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
 impl ChunkFns {
-    #[inline(never)]
-    pub(crate) fn f_b1b1097f0e9e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_b1b1097f0e9e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -95,7 +94,7 @@ impl ChunkFns {
     let mut l25: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -304,7 +303,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_9bd42d6a210a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_9bd42d6a210a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -317,7 +316,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i32_4: i32 = 0i32;
     'self_tail: loop {
-        vm.deduct(host, 1)?;
+        vm.deduct_1(host)?;
         let mut l4: i32 = 0i32;
         let mut l5: i32 = 0i32;
         let mut l6: i32 = 0i32;
@@ -1258,7 +1257,7 @@ impl ChunkFns {
                 l47 = s_i32_0;
                 'blk_9: {
                     'blk_10: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l47;
                         s_i32_1 = l46;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -1493,7 +1492,7 @@ impl ChunkFns {
                         s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 12u32)?;
                         l83 = s_i32_0;
                         s_i32_0 = l72;
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
                         vm.enter_call()?;
                         let __call_res = dispatch.call_p_i32_ret_i64(vm, c_map, 13usize, s_i32_0, host);
@@ -1537,7 +1536,7 @@ impl ChunkFns {
         s_i32_0 = l4;
         l88 = s_i32_0;
         s_i32_0 = 9i32;
-        vm.deduct(host, 1)?;
+        vm.deduct_1(host)?;
         l89 = s_i32_0;
         s_i32_0 = l88;
         s_i32_1 = l89;
@@ -1742,7 +1741,7 @@ impl ChunkFns {
                 l123 = s_i32_0;
                 'blk_24: {
                     'blk_25: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l123;
                         s_i32_1 = l122;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -1858,7 +1857,7 @@ impl ChunkFns {
                 l145 = s_i32_0;
                 'blk_28: {
                     'blk_29: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l145;
                         s_i32_1 = l144;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -1926,7 +1925,7 @@ impl ChunkFns {
                                     l156 = s_i32_0;
                                     'blk_32: {
                                         'blk_33: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l156;
                                             s_i32_1 = l155;
                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -2095,7 +2094,7 @@ impl ChunkFns {
                 l182 = s_i32_0;
                 'blk_35: {
                     'blk_36: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l182;
                         s_i32_1 = l181;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -2504,7 +2503,7 @@ impl ChunkFns {
                 l252 = s_i64_0;
                 s_i32_0 = l251;
                 s_i64_1 = l252;
-                vm.deduct(host, 1)?;
+                vm.deduct_1(host)?;
                 vm.enter_call()?;
                 let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 6usize, s_i32_0, s_i64_1, host);
                 vm.exit_call();
@@ -2652,7 +2651,7 @@ impl ChunkFns {
             } else {
             }
         }
-        vm.deduct(host, 1)?;
+        vm.deduct_1(host)?;
         s_i32_0 = l4;
         l273 = s_i32_0;
         s_i32_0 = 25i32;
@@ -3094,7 +3093,7 @@ impl ChunkFns {
                 s_i32_0 = l2;
                 l340 = s_i32_0;
                 s_i32_0 = l7;
-                vm.deduct(host, 1)?;
+                vm.deduct_1(host)?;
                 l341 = s_i32_0;
                 s_i64_0 = 0i64;
                 l342 = s_i64_0;
@@ -3548,7 +3547,7 @@ impl ChunkFns {
                             } else {
                             }
                         }
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = 19i32;
                         l408 = s_i32_0;
                         s_i32_0 = l344;
@@ -3625,7 +3624,7 @@ impl ChunkFns {
                 l419 = s_i32_0;
                 s_i32_0 = 2571i32;
                 l420 = s_i32_0;
-                vm.deduct(host, 1)?;
+                vm.deduct_1(host)?;
                 s_i32_0 = l419;
                 s_i32_1 = l420;
                 vm.enter_call()?;
@@ -3888,7 +3887,7 @@ impl ChunkFns {
         vm.exit_call();
         let __t220 = __call_res?;
         s_i32_0 = __t220;
-        vm.deduct(host, 1)?;
+        vm.deduct_1(host)?;
         'blk_102: {
             if s_i32_0 != 0 {
                 s_i32_0 = l0;
@@ -4279,7 +4278,7 @@ impl ChunkFns {
                 vm.exit_call();
                 let __t250 = __call_res?;
                 s_i32_0 = __t250;
-                vm.deduct(host, 1)?;
+                vm.deduct_1(host)?;
                 'blk_112: {
                     if s_i32_0 != 0 {
                         return Err(WasmTrap::Unreachable);
@@ -4318,7 +4317,7 @@ impl ChunkFns {
                 l533 = s_i32_0;
                 'blk_113: {
                     'blk_114: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l533;
                         s_i32_1 = l532;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -4435,7 +4434,7 @@ impl ChunkFns {
                 l549 = s_i32_0;
                 s_i32_0 = 1i32;
                 l550 = s_i32_0;
-                vm.deduct(host, 1)?;
+                vm.deduct_1(host)?;
                 s_i32_0 = l3;
                 s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 20u32)?;
                 l551 = s_i32_0;
@@ -4524,7 +4523,7 @@ impl ChunkFns {
         l562 = s_i32_0;
         s_i32_0 = l561;
         s_i32_1 = l562;
-        vm.deduct(host, 1)?;
+        vm.deduct_1(host)?;
         vm.enter_call()?;
         let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 1usize, s_i32_0, s_i32_1, host);
         vm.exit_call();
@@ -4953,7 +4952,7 @@ impl ChunkFns {
                 l631 = s_i32_0;
                 s_i32_0 = l625;
                 l633 = s_i32_0;
-                vm.deduct(host, 1)?;
+                vm.deduct_1(host)?;
                 s_i32_0 = l633;
                 s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
                 l634 = s_i32_0;
@@ -4964,7 +4963,7 @@ impl ChunkFns {
                 l636 = s_i32_0;
                 'blk_134: {
                     'blk_135: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l636;
                         s_i32_1 = l635;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -5287,7 +5286,7 @@ impl ChunkFns {
                         l688 = s_i32_0;
                         s_i64_0 = 0i64;
                         l689 = s_i64_0;
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l688;
                         s_i64_1 = l689;
                         vm.enter_call()?;
@@ -5311,7 +5310,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_f7cacb51732f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+    pub(crate) fn f_f7cacb51732f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -5677,7 +5676,7 @@ impl ChunkFns {
     let mut s_i32_10: i32 = 0i32;
     let mut s_i32_11: i32 = 0i32;
     let mut s_i32_12: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -6053,7 +6052,7 @@ impl ChunkFns {
                     s_i32_0 = l7;
                     l89 = s_i32_0;
                     s_i32_0 = l8;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l90 = s_i32_0;
                     s_i32_0 = l9;
                     l91 = s_i32_0;
@@ -6154,7 +6153,7 @@ impl ChunkFns {
             s_i32_0 = l7;
             l109 = s_i32_0;
             s_i32_0 = l8;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l110 = s_i32_0;
             s_i32_0 = l9;
             l111 = s_i32_0;
@@ -6331,7 +6330,7 @@ impl ChunkFns {
                     l143 = s_i32_0;
                     s_i32_0 = 2448i32;
                     l144 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l143;
                     s_i32_1 = l144;
                     vm.enter_call()?;
@@ -6585,7 +6584,7 @@ impl ChunkFns {
                     l202 = s_i32_0;
                     s_i32_0 = l9;
                     l203 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l11;
                     l204 = s_i32_0;
                     s_i32_0 = l192;
@@ -6633,7 +6632,7 @@ impl ChunkFns {
             l215 = s_i32_0;
             s_i32_0 = l9;
             l216 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l11;
             l217 = s_i32_0;
             s_i32_0 = l205;
@@ -6800,7 +6799,7 @@ impl ChunkFns {
             __call_res?;
             s_i32_0 = l0;
             l245 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1;
             l246 = s_i32_0;
             s_i32_0 = l2;
@@ -6871,7 +6870,7 @@ impl ChunkFns {
             l262 = s_i32_0;
             s_i32_0 = l5;
             l263 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = 5i32;
             l264 = s_i32_0;
             s_i64_0 = 8589982134i64;
@@ -6924,7 +6923,7 @@ impl ChunkFns {
     s_i32_0 = __t28;
     'blk_26: {
         if s_i32_0 != 0 {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             l275 = s_i32_0;
             s_i32_0 = l6;
@@ -6972,7 +6971,7 @@ impl ChunkFns {
         } else {
         }
     }
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l10;
     l288 = s_i32_0;
     s_i32_0 = 2611i32;
@@ -7217,7 +7216,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_774d341edf9c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_774d341edf9c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -7230,7 +7229,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i32_4: i32 = 0i32;
     'self_tail: loop {
-        vm.deduct(host, 1)?;
+        vm.deduct_1(host)?;
         let mut l4: i32 = 0i32;
         let mut l5: i32 = 0i32;
         let mut l6: i32 = 0i32;
@@ -8173,7 +8172,7 @@ impl ChunkFns {
                 l47 = s_i32_0;
                 'blk_9: {
                     'blk_10: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l47;
                         s_i32_1 = l46;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8408,7 +8407,7 @@ impl ChunkFns {
                         s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 12u32)?;
                         l83 = s_i32_0;
                         s_i32_0 = l72;
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
                         vm.enter_call()?;
                         let __call_res = dispatch.call_p_i32_ret_i64(vm, c_map, 13usize, s_i32_0, host);
@@ -8452,7 +8451,7 @@ impl ChunkFns {
         s_i32_0 = l4;
         l88 = s_i32_0;
         s_i32_0 = 9i32;
-        vm.deduct(host, 1)?;
+        vm.deduct_1(host)?;
         l89 = s_i32_0;
         s_i32_0 = l88;
         s_i32_1 = l89;
@@ -8657,7 +8656,7 @@ impl ChunkFns {
                 l123 = s_i32_0;
                 'blk_24: {
                     'blk_25: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l123;
                         s_i32_1 = l122;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8773,7 +8772,7 @@ impl ChunkFns {
                 l145 = s_i32_0;
                 'blk_28: {
                     'blk_29: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l145;
                         s_i32_1 = l144;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8841,7 +8840,7 @@ impl ChunkFns {
                                     l156 = s_i32_0;
                                     'blk_32: {
                                         'blk_33: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l156;
                                             s_i32_1 = l155;
                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -9010,7 +9009,7 @@ impl ChunkFns {
                 l182 = s_i32_0;
                 'blk_35: {
                     'blk_36: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l182;
                         s_i32_1 = l181;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -9419,7 +9418,7 @@ impl ChunkFns {
                 l252 = s_i64_0;
                 s_i32_0 = l251;
                 s_i64_1 = l252;
-                vm.deduct(host, 1)?;
+                vm.deduct_1(host)?;
                 vm.enter_call()?;
                 let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 6usize, s_i32_0, s_i64_1, host);
                 vm.exit_call();
@@ -9567,7 +9566,7 @@ impl ChunkFns {
             } else {
             }
         }
-        vm.deduct(host, 1)?;
+        vm.deduct_1(host)?;
         s_i32_0 = l4;
         l273 = s_i32_0;
         s_i32_0 = 25i32;
@@ -10009,7 +10008,7 @@ impl ChunkFns {
                 s_i32_0 = l2;
                 l340 = s_i32_0;
                 s_i32_0 = l7;
-                vm.deduct(host, 1)?;
+                vm.deduct_1(host)?;
                 l341 = s_i32_0;
                 s_i64_0 = 0i64;
                 l342 = s_i64_0;
@@ -10463,7 +10462,7 @@ impl ChunkFns {
                             } else {
                             }
                         }
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = 19i32;
                         l408 = s_i32_0;
                         s_i32_0 = l344;
@@ -10540,7 +10539,7 @@ impl ChunkFns {
                 l419 = s_i32_0;
                 s_i32_0 = 2571i32;
                 l420 = s_i32_0;
-                vm.deduct(host, 1)?;
+                vm.deduct_1(host)?;
                 s_i32_0 = l419;
                 s_i32_1 = l420;
                 vm.enter_call()?;
@@ -10821,7 +10820,7 @@ impl ChunkFns {
         vm.exit_call();
         let __t221 = __call_res?;
         s_i32_0 = __t221;
-        vm.deduct(host, 1)?;
+        vm.deduct_1(host)?;
         'blk_103: {
             if s_i32_0 != 0 {
                 s_i32_0 = l0;
@@ -11212,7 +11211,7 @@ impl ChunkFns {
                 vm.exit_call();
                 let __t251 = __call_res?;
                 s_i32_0 = __t251;
-                vm.deduct(host, 1)?;
+                vm.deduct_1(host)?;
                 'blk_113: {
                     if s_i32_0 != 0 {
                         return Err(WasmTrap::Unreachable);
@@ -11251,7 +11250,7 @@ impl ChunkFns {
                 l535 = s_i32_0;
                 'blk_114: {
                     'blk_115: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l535;
                         s_i32_1 = l534;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -11368,7 +11367,7 @@ impl ChunkFns {
                 l551 = s_i32_0;
                 s_i32_0 = 1i32;
                 l552 = s_i32_0;
-                vm.deduct(host, 1)?;
+                vm.deduct_1(host)?;
                 s_i32_0 = l3;
                 s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 20u32)?;
                 l553 = s_i32_0;
@@ -11457,7 +11456,7 @@ impl ChunkFns {
         l564 = s_i32_0;
         s_i32_0 = l563;
         s_i32_1 = l564;
-        vm.deduct(host, 1)?;
+        vm.deduct_1(host)?;
         vm.enter_call()?;
         let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 1usize, s_i32_0, s_i32_1, host);
         vm.exit_call();
@@ -11886,7 +11885,7 @@ impl ChunkFns {
                 l633 = s_i32_0;
                 s_i32_0 = l627;
                 l635 = s_i32_0;
-                vm.deduct(host, 1)?;
+                vm.deduct_1(host)?;
                 s_i32_0 = l635;
                 s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
                 l636 = s_i32_0;
@@ -11897,7 +11896,7 @@ impl ChunkFns {
                 l638 = s_i32_0;
                 'blk_135: {
                     'blk_136: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l638;
                         s_i32_1 = l637;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -12220,7 +12219,7 @@ impl ChunkFns {
                         l690 = s_i32_0;
                         s_i64_0 = 0i64;
                         l691 = s_i64_0;
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l690;
                         s_i64_1 = l691;
                         vm.enter_call()?;
@@ -12244,7 +12243,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_628abaf9cd8d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_628abaf9cd8d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -12457,7 +12456,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -12490,7 +12489,7 @@ impl ChunkFns {
     l5 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l5;
             l6 = s_i64_0;
             s_i64_0 = l1;
@@ -12896,7 +12895,7 @@ impl ChunkFns {
                     l70 = s_i64_0;
                     s_i32_0 = l38;
                     l71 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = 63i32;
                     l72 = s_i32_0;
                     s_i32_0 = l71;
@@ -13300,7 +13299,7 @@ impl ChunkFns {
                             l138 = s_i32_0;
                             s_i32_0 = l137;
                             s_i32_1 = l138;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             vm.enter_call()?;
                             let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 14usize, s_i32_0, s_i32_1, host);
                             vm.exit_call();
@@ -13382,7 +13381,7 @@ impl ChunkFns {
                             vm.exit_call();
                             let __t69 = __call_res?;
                             s_i32_0 = __t69;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             l150 = s_i32_0;
                             s_i32_0 = l150;
                             s_i32_1 = l150;
@@ -13424,7 +13423,7 @@ impl ChunkFns {
                     l154 = s_i32_0;
                     s_i32_0 = 3i32;
                     l155 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l154;
                     s_i32_1 = l155;
                     vm.enter_call()?;
@@ -13782,7 +13781,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_cac3fd7d8af5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_cac3fd7d8af5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -13884,7 +13883,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -13933,7 +13932,7 @@ impl ChunkFns {
     l9 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l9;
             s_i32_1 = l8;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -14473,7 +14472,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_6a0cf7259dcd(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_6a0cf7259dcd(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -14586,7 +14585,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -14922,7 +14921,7 @@ impl ChunkFns {
     l52 = s_i64_0;
     'blk_5: {
         'blk_6: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l52;
             l55 = s_i64_0;
             s_i64_0 = l2;
@@ -15240,7 +15239,7 @@ impl ChunkFns {
     s_i32_0 = l105;
     s_i32_1 = l103;
     ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l105;
     s_i64_1 = l104;
     ops::i64_store(vm, 0, s_i32_0, 16u32, s_i64_1)?;
@@ -15251,7 +15250,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_94155fa1d87a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_94155fa1d87a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -15474,7 +15473,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -15744,7 +15743,7 @@ impl ChunkFns {
     l35 = s_i64_0;
     'blk_4: {
         'blk_5: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l35;
             l36 = s_i64_0;
             s_i64_0 = l12;
@@ -16128,10 +16127,10 @@ impl ChunkFns {
                                             s_i32_0 = __t38;
                                             'blk_14: {
                                                 if s_i32_0 != 0 {
-                                                    vm.deduct(host, 1)?;
+                                                    vm.deduct_1(host)?;
                                                     s_i32_0 = 1i32;
                                                 } else {
-                                                    vm.deduct(host, 1)?;
+                                                    vm.deduct_1(host)?;
                                                     s_i64_0 = l35;
                                                     l100 = s_i64_0;
                                                     s_i64_0 = l97;
@@ -16899,7 +16898,7 @@ impl ChunkFns {
     }
     s_i32_0 = 1i32;
     l211 = s_i32_0;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l34;
     l212 = s_i32_0;
     s_i32_0 = l31;
@@ -16931,8 +16930,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_7d5f0d1bbfcc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_7d5f0d1bbfcc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = p2;
@@ -16988,7 +16986,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -17280,7 +17278,7 @@ impl ChunkFns {
     return Ok(s_i64_0);
     }
 
-    pub(crate) fn f_9607d677c9db(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_9607d677c9db(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = p2;
@@ -17292,7 +17290,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i64_0 = l1;
     s_i64_1 = l2;
     s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
@@ -17343,7 +17341,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_deffe42432b7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_deffe42432b7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -17353,7 +17351,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l0;
     s_i32_1 = l1;
     s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
@@ -17386,7 +17384,7 @@ impl ChunkFns {
     l5 = s_i32_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l5;
             s_i32_1 = l2;
             s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
@@ -17420,12 +17418,12 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_0b27f875702b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_0b27f875702b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l0;
     s_i32_1 = l1;
     s_i32_0 = ops::i32_sub(s_i32_0, s_i32_1);
@@ -17434,8 +17432,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_8fa562cbc853(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+    pub(crate) fn f_8fa562cbc853(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -17451,7 +17448,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l0;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 12u32)?;
     s_i32_1 = 0i32;
@@ -17566,14 +17563,14 @@ impl ChunkFns {
     return Ok(());
     }
 
-    pub(crate) fn f_7c1b3db89f36(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_7c1b3db89f36(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
     let mut l3: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -17602,7 +17599,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_27aaa3cb9114(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_27aaa3cb9114(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -17613,7 +17610,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -17649,7 +17646,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_1d111f94255c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_1d111f94255c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -17658,7 +17655,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -17692,7 +17689,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_f2340190950c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f2340190950c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -17703,7 +17700,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -17739,7 +17736,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_0ece3b1734d5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_0ece3b1734d5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -17750,7 +17747,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -17786,12 +17783,12 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_803fb230173c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_803fb230173c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -17809,14 +17806,14 @@ impl ChunkFns {
     return dispatch.call_p_i32_i32_ret_i32(vm, c_map, 2usize, __t1, __t2, host);
     }
 
-    pub(crate) fn f_8ed247cfa309(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_8ed247cfa309(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
     let mut l3: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -17836,8 +17833,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_a9acae168912(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a9acae168912(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -17855,7 +17851,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -17953,12 +17949,12 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_dcce91d2e133(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_dcce91d2e133(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -17970,7 +17966,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_i32_ret_i32(vm, c_map, 1usize, __t0, __t1, host);
     }
 
-    pub(crate) fn f_7eb29a59d915(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_7eb29a59d915(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -17978,7 +17974,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18012,7 +18008,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_fab6c7792bec(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_fab6c7792bec(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -18020,7 +18016,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18054,13 +18050,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_1e6ff4c83b62(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_1e6ff4c83b62(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18077,7 +18073,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_a45a26c14c17(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a45a26c14c17(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -18086,7 +18082,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18115,7 +18111,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_8f0ec661a804(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_8f0ec661a804(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -18125,7 +18121,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18156,13 +18152,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_da0e89bc9783(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_da0e89bc9783(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18180,12 +18176,12 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_6df8689f059b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_6df8689f059b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18197,13 +18193,13 @@ impl ChunkFns {
     return dispatch.call_p_i32_i32_ret_i32(vm, c_map, 1usize, __t0, __t1, host);
     }
 
-    pub(crate) fn f_f9ce687d90ae(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f9ce687d90ae(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18221,7 +18217,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_30ec60d4302a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_30ec60d4302a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -18229,7 +18225,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18259,8 +18255,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_470053343055(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i64, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_470053343055(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i64, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i64 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -18288,7 +18283,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i32_4: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18450,14 +18445,14 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_3979fdeb44f5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_3979fdeb44f5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18480,7 +18475,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_7e58af41e27d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_7e58af41e27d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -18489,7 +18484,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18535,7 +18530,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_ace0563243a6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_ace0563243a6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -18550,7 +18545,7 @@ impl ChunkFns {
     let mut l11: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18626,7 +18621,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_c69686cacf82(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_c69686cacf82(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -18637,7 +18632,7 @@ impl ChunkFns {
     let mut l7: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18681,8 +18676,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_de050b4b81f1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_de050b4b81f1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -18700,7 +18694,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18786,8 +18780,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_8d4ef5bbec94(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_8d4ef5bbec94(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i64 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -18805,7 +18798,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18891,7 +18884,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_1a5f3f7571e2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_1a5f3f7571e2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -18902,7 +18895,7 @@ impl ChunkFns {
     let mut l7: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18946,7 +18939,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_f1c0a657afaa(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f1c0a657afaa(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -18960,7 +18953,7 @@ impl ChunkFns {
     let mut l10: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -19034,7 +19027,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_acb2a186ecef(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_acb2a186ecef(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -19048,7 +19041,7 @@ impl ChunkFns {
     let mut l10: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -19118,7 +19111,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_327504b23599(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_327504b23599(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -19133,7 +19126,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -19214,8 +19207,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_703887b4ca0f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_703887b4ca0f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -19230,7 +19222,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -19311,7 +19303,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_671a96cacef8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_671a96cacef8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -19326,7 +19318,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -19407,7 +19399,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_f1674ef8dccc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f1674ef8dccc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -19422,7 +19414,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -19488,7 +19480,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_e75c24ce5706(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_e75c24ce5706(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -19503,7 +19495,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -19585,7 +19577,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_5cfd1c966ee0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_5cfd1c966ee0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -19635,7 +19627,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -19830,7 +19822,7 @@ impl ChunkFns {
     l31 = s_i64_0;
     'blk_5: {
         'blk_6: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l30;
             s_i32_1 = 0i32;
             s_i32_0 = ops::i32_ge_s(s_i32_0, s_i32_1);
@@ -19971,8 +19963,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_c1a365c57784(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_c1a365c57784(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -19993,7 +19984,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20126,8 +20117,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_f15f52fd10ac(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f15f52fd10ac(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -20148,7 +20138,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20281,7 +20271,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_b9ec3478b1be(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_b9ec3478b1be(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -20295,7 +20285,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20349,7 +20339,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_f5ab0dd84882(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f5ab0dd84882(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -20364,7 +20354,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20418,7 +20408,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_a07d59a0459c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a07d59a0459c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -20432,7 +20422,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20487,7 +20477,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_3abc88984867(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_3abc88984867(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -20496,7 +20486,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20540,7 +20530,7 @@ impl ChunkFns {
     return Ok(s_i64_0);
     }
 
-    pub(crate) fn f_998c31a576d2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_998c31a576d2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -20556,7 +20546,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20636,10 +20626,10 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_2a1df693f599(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_2a1df693f599(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut s_i32_0: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20656,7 +20646,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, __t0, host);
     }
 
-    pub(crate) fn f_428301bbe702(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_428301bbe702(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -20666,7 +20656,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20701,13 +20691,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_16b21026a7f2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_16b21026a7f2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20742,13 +20732,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_ffdee7c93cbe(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_ffdee7c93cbe(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20782,13 +20772,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_3eb654e927a1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_3eb654e927a1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20822,7 +20812,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_3927290801c7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_3927290801c7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -20832,7 +20822,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20867,13 +20857,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_d89853f7c7c5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_d89853f7c7c5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20908,13 +20898,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_49de3a4260ff(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_49de3a4260ff(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20929,7 +20919,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_5e048dbe7c1f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_5e048dbe7c1f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -21006,7 +20996,7 @@ impl ChunkFns {
     let mut s_i32_4: i32 = 0i32;
     let mut s_i64_4: i64 = 0i64;
     let mut s_i32_5: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -21032,7 +21022,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -21410,7 +21400,7 @@ impl ChunkFns {
                     ops::i64_store(vm, 0, s_i32_1, 0u32, s_i64_2)?;
                     s_i32_1 = l30;
                     s_i64_2 = l29;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     ops::i64_store(vm, 0, s_i32_1, 8u32, s_i64_2)?;
                     s_i32_1 = l30;
                     vm.enter_call()?;
@@ -21740,7 +21730,7 @@ impl ChunkFns {
                             s_i32_1 = 0i32;
                             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
                             s_i32_0 = l48;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_1 = 0i32;
                             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
                             s_i32_0 = l48;
@@ -21786,7 +21776,7 @@ impl ChunkFns {
                     s_i32_1 = l54;
                     s_i64_2 = l53;
                     ops::i64_store(vm, 0, s_i32_1, 8u32, s_i64_2)?;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_1 = l54;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 6usize, s_i32_0, s_i32_1, host);
@@ -21899,7 +21889,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_f0da2366c908(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f0da2366c908(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -21989,7 +21979,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -22347,7 +22337,7 @@ impl ChunkFns {
             l38 = s_i64_0;
             'blk_8: {
                 'blk_9: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l38;
                     s_i64_1 = l31;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -22513,7 +22503,7 @@ impl ChunkFns {
                     s_i64_0 = l1;
                     l49 = s_i64_0;
                     s_i32_0 = 16i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 2usize, s_i32_0, host);
                     vm.exit_call();
@@ -22553,7 +22543,7 @@ impl ChunkFns {
             let __t42 = __call_res?;
             s_i64_0 = __t42;
             l54 = s_i64_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = 16i32;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 2usize, s_i32_0, host);
@@ -22752,7 +22742,7 @@ impl ChunkFns {
     l66 = s_i64_0;
     'blk_19: {
         'blk_20: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l66;
             s_i64_1 = l57;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -22931,8 +22921,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_f26f1b9b1ce2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f26f1b9b1ce2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -22954,7 +22943,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -22981,7 +22970,7 @@ impl ChunkFns {
     l6 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l6;
             s_i32_1 = l5;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -23084,8 +23073,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_a4b8b05c5fad(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a4b8b05c5fad(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -23104,7 +23092,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23134,7 +23122,7 @@ impl ChunkFns {
     l5 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l5;
             s_i32_1 = l4;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -23439,14 +23427,14 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_45817b7043dc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_45817b7043dc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23480,13 +23468,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_fdb0906f56bb(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_fdb0906f56bb(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23533,8 +23521,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_6f07359304f0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_6f07359304f0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -23549,7 +23536,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23742,8 +23729,7 @@ impl ChunkFns {
     return Ok(s_i64_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_6952202a54be(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_6952202a54be(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -23771,7 +23757,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23960,7 +23946,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_deaf01e451f9(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_deaf01e451f9(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -24049,7 +24035,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -24310,7 +24296,7 @@ impl ChunkFns {
     l25 = s_i64_0;
     'blk_8: {
         'blk_9: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l25;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -24818,7 +24804,7 @@ impl ChunkFns {
                         } else {
                         }
                     }
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l45;
                     s_i32_1 = 127i32;
                     vm.enter_call()?;
@@ -24973,7 +24959,7 @@ impl ChunkFns {
             let __t54 = __call_res?;
             s_i64_0 = __t54;
             l25 = s_i64_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             continue 'blk_9;
             break 'blk_9;
         }
@@ -25028,7 +25014,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_e47cbb0bbd9e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_e47cbb0bbd9e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -25078,7 +25064,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -25313,7 +25299,7 @@ impl ChunkFns {
     l19 = s_i64_0;
     'blk_5: {
         'blk_6: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l19;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -25551,7 +25537,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_1161eced000b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_1161eced000b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -25595,7 +25581,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -25696,7 +25682,7 @@ impl ChunkFns {
     l10 = s_i64_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l10;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -25997,7 +25983,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_b96282108807(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_b96282108807(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -26068,7 +26054,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -26362,7 +26348,7 @@ impl ChunkFns {
     l31 = s_i32_0;
     'blk_5: {
         'blk_6: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l29;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -26668,7 +26654,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_2bae3ae8abdb(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_2bae3ae8abdb(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -26677,7 +26663,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -26690,7 +26676,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -26734,8 +26720,7 @@ impl ChunkFns {
     return Ok(s_i64_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_241fa345f31b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_241fa345f31b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -26750,7 +26735,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -26814,7 +26799,7 @@ impl ChunkFns {
     l6 = s_i64_0;
     'blk_4: {
         'blk_5: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l6;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -26887,8 +26872,7 @@ impl ChunkFns {
     return Ok(s_i64_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_bdc4fb2aaab1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_bdc4fb2aaab1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -26900,7 +26884,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -27008,7 +26992,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_990600c4a836(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_990600c4a836(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -27029,7 +27013,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i32_4: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -27091,7 +27075,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = 3i64;
             vm.enter_call()?;
@@ -27535,13 +27519,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_4ce1c3955399(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_4ce1c3955399(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i64 = p0;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -27560,8 +27544,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_i32_i32_ret_i32(vm, c_map, 2usize, __t1, __t2, __t3, host);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_b238ded6c3fe(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_b238ded6c3fe(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -27577,7 +27560,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -27648,7 +27631,7 @@ impl ChunkFns {
     l6 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l6;
             s_i32_1 = l5;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -27735,8 +27718,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_34a49f345dca(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_34a49f345dca(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -27748,7 +27730,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -27785,7 +27767,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -27913,7 +27895,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_fbaa521b0850(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_fbaa521b0850(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -27922,7 +27904,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -27973,8 +27955,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_0ba96dccaf47(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_0ba96dccaf47(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -27996,7 +27977,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -28135,7 +28116,7 @@ impl ChunkFns {
     l11 = s_i32_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l11;
             s_i32_1 = vm.get_i32(*g_map.get(0usize).ok_or(WasmTrap::Unreachable)?)?;
             vm.enter_call()?;
@@ -28188,7 +28169,7 @@ impl ChunkFns {
     l13 = s_i64_0;
     'blk_5: {
         'blk_6: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l13;
             s_i64_1 = 0i64;
             s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
@@ -28247,14 +28228,14 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_419c292e1d24(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_419c292e1d24(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -28274,7 +28255,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_3d9a0eff9f90(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_3d9a0eff9f90(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -28368,7 +28349,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -28600,7 +28581,7 @@ impl ChunkFns {
     l19 = s_i64_0;
     'blk_5: {
         'blk_6: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l18;
             s_i64_1 = l19;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -28966,7 +28947,7 @@ impl ChunkFns {
     }
     'blk_21: {
         'blk_22: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l18;
             s_i64_1 = l7;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -29566,8 +29547,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_c55926dd782d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+    pub(crate) fn f_c55926dd782d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -29595,7 +29575,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -29746,7 +29726,7 @@ impl ChunkFns {
             l7 = s_i32_0;
             'blk_10: {
                 'blk_11: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l7;
                     s_i32_1 = l4;
                     s_i32_0 = ops::i32_lt_u(s_i32_0, s_i32_1);
@@ -29936,7 +29916,7 @@ impl ChunkFns {
     l16 = s_i32_0;
     'blk_14: {
         'blk_15: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l16;
             s_i32_1 = l13;
             s_i32_0 = ops::i32_lt_u(s_i32_0, s_i32_1);
@@ -30005,8 +29985,7 @@ impl ChunkFns {
     return Ok(());
     }
 
-    #[inline(never)]
-    pub(crate) fn f_31af32cb558c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_31af32cb558c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = p2;
@@ -30029,7 +30008,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30235,11 +30214,11 @@ impl ChunkFns {
     return Ok(s_i64_0);
     }
 
-    pub(crate) fn f_7d101c2d913a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_7d101c2d913a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30271,7 +30250,7 @@ impl ChunkFns {
     return Err(WasmTrap::Unreachable);
     }
 
-    pub(crate) fn f_f8850b1df958(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f8850b1df958(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -30284,7 +30263,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30320,13 +30299,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_609b70a572c5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_609b70a572c5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30371,7 +30350,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_f148b5f5c14f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f148b5f5c14f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -30383,7 +30362,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30499,12 +30478,12 @@ impl ChunkFns {
     return Err(WasmTrap::Unreachable);
     }
 
-    pub(crate) fn f_c65ede4802f8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_c65ede4802f8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30522,7 +30501,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_e23aae24b862(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_e23aae24b862(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -30535,7 +30514,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30571,10 +30550,10 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_005520f212f5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_005520f212f5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut s_i32_0: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30589,7 +30568,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_ret_i32(vm, c_map, 2usize, __t1, host);
     }
 
-    pub(crate) fn f_16a5c648c247(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_16a5c648c247(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i64 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -30600,7 +30579,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30641,11 +30620,11 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_1e881702eb44(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_1e881702eb44(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30656,13 +30635,13 @@ impl ChunkFns {
     return dispatch.call_p_i64_ret_i32(vm, c_map, 1usize, __t0, host);
     }
 
-    pub(crate) fn f_0cbcbc1ef76e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_0cbcbc1ef76e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30676,7 +30655,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_7ec8bf846782(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_7ec8bf846782(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -30686,7 +30665,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30718,12 +30697,12 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_9d92c7701c67(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_9d92c7701c67(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30751,13 +30730,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_293ae2a09ea3(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_293ae2a09ea3(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30789,8 +30768,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_28a9f52b5bce(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_28a9f52b5bce(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -30813,7 +30791,7 @@ impl ChunkFns {
     let mut l19: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30987,7 +30965,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_e32d590b954e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_e32d590b954e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -31002,7 +30980,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -31072,8 +31050,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_4cf93470be08(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_4cf93470be08(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -31094,7 +31071,7 @@ impl ChunkFns {
     let mut l17: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -31232,7 +31209,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_329f5ce01511(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_329f5ce01511(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -31245,7 +31222,7 @@ impl ChunkFns {
     let mut l9: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -31318,7 +31295,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_1acc39445a44(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_1acc39445a44(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -31332,7 +31309,7 @@ impl ChunkFns {
     let mut l10: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -31412,8 +31389,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_5230ac976967(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_5230ac976967(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -31458,7 +31434,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -31726,8 +31702,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_dbe6bf1cc46b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_dbe6bf1cc46b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -31749,7 +31724,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -31871,7 +31846,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_0fabceb05d99(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_0fabceb05d99(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -31888,7 +31863,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -31967,7 +31942,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_b6a8cfd6ecb8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_b6a8cfd6ecb8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -31980,7 +31955,7 @@ impl ChunkFns {
     let mut l9: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -32052,8 +32027,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_3c62ec56fda8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_3c62ec56fda8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -32076,7 +32050,7 @@ impl ChunkFns {
     let mut l19: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -32243,12 +32217,12 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_f90a3e72a759(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f90a3e72a759(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -32274,11 +32248,11 @@ impl ChunkFns {
     return dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, __t3, host);
     }
 
-    pub(crate) fn f_b828c3bb90f0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_b828c3bb90f0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -32290,7 +32264,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_i32_ret_i32(vm, c_map, 1usize, __t0, __t1, host);
     }
 
-    pub(crate) fn f_40871f360722(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_40871f360722(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -32302,7 +32276,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -32391,12 +32365,12 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_67329667d7fd(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_67329667d7fd(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -32413,7 +32387,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_ca8d871e077c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_ca8d871e077c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -32422,7 +32396,7 @@ impl ChunkFns {
     let mut l5: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -32477,8 +32451,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_956ac04c06f0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_956ac04c06f0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i64 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -32499,7 +32472,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -32641,7 +32614,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_64d7099dbc77(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_64d7099dbc77(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -32652,7 +32625,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -32756,349 +32729,349 @@ use crate::utilities::*;
 use super::*;
 
 const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize];
-const FN_0_CALLEES: &[u32] = &[91u32];
-const FN_1_CALLEES: &[u32] = &[0u32, 24u32, 92u32];
-const FN_2_CALLEES: &[u32] = &[0u32, 0u32, 91u32];
-const FN_3_CALLEES: &[u32] = &[0u32, 0u32, 91u32];
-const FN_4_CALLEES: &[u32] = &[0u32, 1u32, 91u32];
-const FN_5_CALLEES: &[u32] = &[0u32, 2u32, 91u32];
-const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_0_CALLEES: &[usize] = &[91usize];
+const FN_1_CALLEES: &[usize] = &[0usize, 24usize, 92usize];
+const FN_2_CALLEES: &[usize] = &[0usize, 0usize, 91usize];
+const FN_3_CALLEES: &[usize] = &[0usize, 0usize, 91usize];
+const FN_4_CALLEES: &[usize] = &[0usize, 1usize, 91usize];
+const FN_5_CALLEES: &[usize] = &[0usize, 2usize, 91usize];
+const FN_6_CALLEES: &[usize] = &[0usize, 34usize, 10usize];
 const FN_7_GLOBALS: &[usize] = &[14usize];
-const FN_7_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_8_CALLEES: &[u32] = &[0u32, 5u32, 0u32, 1u32, 3u32, 6u32];
-const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
-const FN_10_CALLEES: &[u32] = &[0u32, 5u32, 10u32, 111u32];
-const FN_11_CALLEES: &[u32] = &[0u32, 5u32, 11u32, 111u32];
-const FN_12_CALLEES: &[u32] = &[0u32, 25u32, 92u32];
-const FN_13_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_14_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_15_CALLEES: &[u32] = &[0u32, 1u32, 91u32];
-const FN_16_CALLEES: &[u32] = &[0u32, 2u32, 91u32];
-const FN_17_CALLEES: &[u32] = &[0u32, 13u32, 92u32];
-const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_19_CALLEES: &[u32] = &[0u32, 13u32, 92u32];
-const FN_20_CALLEES: &[u32] = &[0u32, 5u32, 7u32];
-const FN_21_CALLEES: &[u32] = &[0u32, 26u32, 92u32];
-const FN_22_CALLEES: &[u32] = &[0u32, 27u32, 92u32];
-const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 4u32, 5u32, 1u32, 1u32, 91u32];
-const FN_24_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_25_CALLEES: &[u32] = &[0u32, 12u32, 111u32];
-const FN_26_CALLEES: &[u32] = &[0u32, 26u32, 92u32];
-const FN_27_CALLEES: &[u32] = &[0u32, 112u32, 113u32, 32u32, 114u32, 33u32, 2u32];
-const FN_28_CALLEES: &[u32] = &[0u32, 112u32, 113u32, 33u32, 114u32, 32u32, 2u32];
-const FN_29_CALLEES: &[u32] = &[0u32, 28u32, 92u32];
-const FN_30_CALLEES: &[u32] = &[0u32, 29u32, 92u32];
-const FN_31_CALLEES: &[u32] = &[0u32, 30u32, 92u32];
-const FN_32_CALLEES: &[u32] = &[0u32, 26u32, 92u32];
+const FN_7_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_8_CALLEES: &[usize] = &[0usize, 5usize, 0usize, 1usize, 3usize, 6usize];
+const FN_9_CALLEES: &[usize] = &[0usize, 10usize];
+const FN_10_CALLEES: &[usize] = &[0usize, 5usize, 10usize, 111usize];
+const FN_11_CALLEES: &[usize] = &[0usize, 5usize, 11usize, 111usize];
+const FN_12_CALLEES: &[usize] = &[0usize, 25usize, 92usize];
+const FN_13_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_14_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_15_CALLEES: &[usize] = &[0usize, 1usize, 91usize];
+const FN_16_CALLEES: &[usize] = &[0usize, 2usize, 91usize];
+const FN_17_CALLEES: &[usize] = &[0usize, 13usize, 92usize];
+const FN_18_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_19_CALLEES: &[usize] = &[0usize, 13usize, 92usize];
+const FN_20_CALLEES: &[usize] = &[0usize, 5usize, 7usize];
+const FN_21_CALLEES: &[usize] = &[0usize, 26usize, 92usize];
+const FN_22_CALLEES: &[usize] = &[0usize, 27usize, 92usize];
+const FN_23_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 4usize, 5usize, 1usize, 1usize, 91usize];
+const FN_24_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_25_CALLEES: &[usize] = &[0usize, 12usize, 111usize];
+const FN_26_CALLEES: &[usize] = &[0usize, 26usize, 92usize];
+const FN_27_CALLEES: &[usize] = &[0usize, 112usize, 113usize, 32usize, 114usize, 33usize, 2usize];
+const FN_28_CALLEES: &[usize] = &[0usize, 112usize, 113usize, 33usize, 114usize, 32usize, 2usize];
+const FN_29_CALLEES: &[usize] = &[0usize, 28usize, 92usize];
+const FN_30_CALLEES: &[usize] = &[0usize, 29usize, 92usize];
+const FN_31_CALLEES: &[usize] = &[0usize, 30usize, 92usize];
+const FN_32_CALLEES: &[usize] = &[0usize, 26usize, 92usize];
 const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 91u32];
-const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 91u32];
+const FN_33_CALLEES: &[usize] = &[0usize, 34usize, 10usize, 91usize];
+const FN_34_CALLEES: &[usize] = &[0usize, 31usize, 91usize];
 const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_35_CALLEES: &[u32] = &[0u32, 115u32, 3u32, 91u32];
+const FN_35_CALLEES: &[usize] = &[0usize, 115usize, 3usize, 91usize];
 const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_36_CALLEES: &[u32] = &[0u32, 8u32, 1u32, 91u32];
-const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 91u32];
+const FN_36_CALLEES: &[usize] = &[0usize, 8usize, 1usize, 91usize];
+const FN_37_CALLEES: &[usize] = &[0usize, 31usize, 91usize];
 const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 91u32];
+const FN_38_CALLEES: &[usize] = &[0usize, 6usize, 35usize, 91usize];
 const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_39_CALLEES: &[u32] = &[0u32, 116u32, 91u32, 32u32];
+const FN_39_CALLEES: &[usize] = &[0usize, 116usize, 91usize, 32usize];
 const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_40_CALLEES: &[u32] = &[0u32, 116u32, 91u32, 33u32];
+const FN_40_CALLEES: &[usize] = &[0usize, 116usize, 91usize, 33usize];
 const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 91u32];
+const FN_41_CALLEES: &[usize] = &[0usize, 10usize, 36usize, 91usize];
 const FN_42_GLOBALS: &[usize] = &[9usize];
-const FN_42_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 13u32, 91u32];
+const FN_42_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 13usize, 91usize];
 const FN_43_GLOBALS: &[usize] = &[9usize];
-const FN_43_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 2u32, 91u32];
+const FN_43_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 2usize, 91usize];
 const FN_44_GLOBALS: &[usize] = &[9usize];
-const FN_44_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 14u32, 91u32];
+const FN_44_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 14usize, 91usize];
 const FN_45_GLOBALS: &[usize] = &[9usize];
-const FN_45_CALLEES: &[u32] = &[0u32, 4u32, 91u32];
+const FN_45_CALLEES: &[usize] = &[0usize, 4usize, 91usize];
 const FN_46_GLOBALS: &[usize] = &[9usize];
-const FN_46_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 15u32, 91u32];
+const FN_46_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 15usize, 91usize];
 const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
-const FN_47_CALLEES: &[u32] = &[0u32, 110u32, 91u32, 13u32, 4u32, 6u32, 7u32, 115u32, 93u32, 0u32, 5u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 117u32];
-const FN_48_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_49_CALLEES: &[u32] = &[0u32, 113u32, 118u32, 1u32, 114u32, 0u32, 1u32, 91u32];
-const FN_50_CALLEES: &[u32] = &[0u32, 113u32, 118u32, 0u32, 114u32, 1u32, 1u32, 91u32];
-const FN_51_CALLEES: &[u32] = &[0u32, 3u32, 7u32, 91u32];
-const FN_52_CALLEES: &[u32] = &[0u32, 0u32, 8u32, 3u32, 91u32];
-const FN_53_CALLEES: &[u32] = &[0u32, 9u32, 7u32, 91u32];
-const FN_54_CALLEES: &[u32] = &[0u32, 118u32, 0u32, 0u32, 114u32];
-const FN_55_CALLEES: &[u32] = &[0u32, 118u32, 1u32, 1u32, 91u32, 114u32];
-const FN_56_CALLEES: &[u32] = &[0u32, 18u32];
-const FN_57_CALLEES: &[u32] = &[0u32, 1u32, 5u32, 91u32];
+const FN_47_CALLEES: &[usize] = &[0usize, 110usize, 91usize, 13usize, 4usize, 6usize, 7usize, 115usize, 93usize, 0usize, 5usize, 0usize, 32usize, 2usize, 10usize, 36usize, 37usize, 117usize];
+const FN_48_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_49_CALLEES: &[usize] = &[0usize, 113usize, 118usize, 1usize, 114usize, 0usize, 1usize, 91usize];
+const FN_50_CALLEES: &[usize] = &[0usize, 113usize, 118usize, 0usize, 114usize, 1usize, 1usize, 91usize];
+const FN_51_CALLEES: &[usize] = &[0usize, 3usize, 7usize, 91usize];
+const FN_52_CALLEES: &[usize] = &[0usize, 0usize, 8usize, 3usize, 91usize];
+const FN_53_CALLEES: &[usize] = &[0usize, 9usize, 7usize, 91usize];
+const FN_54_CALLEES: &[usize] = &[0usize, 118usize, 0usize, 0usize, 114usize];
+const FN_55_CALLEES: &[usize] = &[0usize, 118usize, 1usize, 1usize, 91usize, 114usize];
+const FN_56_CALLEES: &[usize] = &[0usize, 18usize];
+const FN_57_CALLEES: &[usize] = &[0usize, 1usize, 5usize, 91usize];
 const FN_58_GLOBALS: &[usize] = &[15usize];
-const FN_58_CALLEES: &[u32] = &[0u32, 16u32, 10u32, 14u32];
-const FN_59_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_60_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 9u32];
-const FN_61_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 9u32];
-const FN_62_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_63_CALLEES: &[u32] = &[0u32, 1u32, 5u32, 91u32];
+const FN_58_CALLEES: &[usize] = &[0usize, 16usize, 10usize, 14usize];
+const FN_59_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_60_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 9usize];
+const FN_61_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 9usize];
+const FN_62_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_63_CALLEES: &[usize] = &[0usize, 1usize, 5usize, 91usize];
 const FN_64_GLOBALS: &[usize] = &[15usize];
-const FN_64_CALLEES: &[u32] = &[0u32, 17u32, 10u32, 14u32];
-const FN_65_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_66_CALLEES: &[u32] = &[0u32, 1u32, 91u32];
-const FN_67_CALLEES: &[u32] = &[0u32, 4u32, 0u32, 16u32, 7u32, 0u32, 92u32, 91u32, 13u32, 94u32];
-const FN_68_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 2u32, 91u32, 22u32, 119u32, 2u32, 5u32, 120u32, 121u32, 122u32, 123u32, 95u32, 1u32, 10u32, 0u32, 7u32, 32u32, 2u32, 113u32, 124u32, 111u32, 13u32, 15u32, 1u32, 1u32];
+const FN_64_CALLEES: &[usize] = &[0usize, 17usize, 10usize, 14usize];
+const FN_65_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_66_CALLEES: &[usize] = &[0usize, 1usize, 91usize];
+const FN_67_CALLEES: &[usize] = &[0usize, 4usize, 0usize, 16usize, 7usize, 0usize, 92usize, 91usize, 13usize, 94usize];
+const FN_68_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 2usize, 91usize, 22usize, 119usize, 2usize, 5usize, 120usize, 121usize, 122usize, 123usize, 95usize, 1usize, 10usize, 0usize, 7usize, 32usize, 2usize, 113usize, 124usize, 111usize, 13usize, 15usize, 1usize, 1usize];
 const FN_69_GLOBALS: &[usize] = &[14usize];
-const FN_69_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 92u32, 91u32, 32u32, 2u32, 0u32, 2u32];
-const FN_70_CALLEES: &[u32] = &[0u32, 0u32, 5u32, 9u32, 0u32, 94u32];
-const FN_71_CALLEES: &[u32] = &[0u32, 0u32, 9u32, 0u32, 94u32];
-const FN_72_CALLEES: &[u32] = &[0u32, 19u32, 113u32];
-const FN_73_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 20u32, 1u32, 114u32, 125u32, 111u32, 126u32, 1u32, 5u32];
-const FN_74_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 2u32, 91u32, 23u32, 19u32, 113u32, 5u32];
-const FN_75_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 23u32, 19u32, 127u32, 91u32, 5u32, 5u32, 92u32, 23u32, 5u32, 9u32, 7u32, 113u32, 5u32, 4u32, 94u32, 10u32, 118u32, 128u32, 114u32, 96u32, 129u32, 123u32, 130u32, 14u32, 121u32];
-const FN_76_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 10u32, 2u32, 91u32, 23u32, 19u32, 127u32, 16u32, 7u32, 113u32, 94u32, 6u32, 13u32];
-const FN_77_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 23u32, 19u32, 127u32, 91u32, 9u32, 5u32, 7u32, 113u32, 94u32, 5u32, 10u32, 15u32, 14u32];
-const FN_78_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 10u32, 91u32, 23u32, 19u32, 127u32, 16u32, 92u32, 14u32, 113u32, 9u32, 7u32, 5u32, 4u32, 94u32, 118u32, 128u32, 114u32, 96u32, 14u32];
-const FN_79_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 26u32, 1u32];
-const FN_80_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 7u32];
-const FN_81_CALLEES: &[u32] = &[0u32, 19u32, 113u32, 18u32, 91u32];
-const FN_82_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 6u32, 4u32, 16u32, 18u32, 13u32, 2u32, 15u32, 9u32, 22u32, 123u32, 95u32, 111u32, 121u32, 129u32, 130u32, 10u32, 4u32, 94u32];
-const FN_83_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_84_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 16u32, 18u32, 13u32, 19u32, 113u32, 94u32];
-const FN_85_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 16u32, 18u32, 13u32, 7u32, 22u32, 95u32, 21u32, 19u32, 113u32, 4u32, 16u32, 94u32];
-const FN_86_CALLEES: &[u32] = &[0u32, 27u32, 18u32, 91u32];
+const FN_69_CALLEES: &[usize] = &[0usize, 1usize, 10usize, 92usize, 91usize, 32usize, 2usize, 0usize, 2usize];
+const FN_70_CALLEES: &[usize] = &[0usize, 0usize, 5usize, 9usize, 0usize, 94usize];
+const FN_71_CALLEES: &[usize] = &[0usize, 0usize, 9usize, 0usize, 94usize];
+const FN_72_CALLEES: &[usize] = &[0usize, 19usize, 113usize];
+const FN_73_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 20usize, 1usize, 114usize, 125usize, 111usize, 126usize, 1usize, 5usize];
+const FN_74_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 2usize, 91usize, 23usize, 19usize, 113usize, 5usize];
+const FN_75_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 23usize, 19usize, 127usize, 91usize, 5usize, 5usize, 92usize, 23usize, 5usize, 9usize, 7usize, 113usize, 5usize, 4usize, 94usize, 10usize, 118usize, 128usize, 114usize, 96usize, 129usize, 123usize, 130usize, 14usize, 121usize];
+const FN_76_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 10usize, 2usize, 91usize, 23usize, 19usize, 127usize, 16usize, 7usize, 113usize, 94usize, 6usize, 13usize];
+const FN_77_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 23usize, 19usize, 127usize, 91usize, 9usize, 5usize, 7usize, 113usize, 94usize, 5usize, 10usize, 15usize, 14usize];
+const FN_78_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 10usize, 91usize, 23usize, 19usize, 127usize, 16usize, 92usize, 14usize, 113usize, 9usize, 7usize, 5usize, 4usize, 94usize, 118usize, 128usize, 114usize, 96usize, 14usize];
+const FN_79_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 26usize, 1usize];
+const FN_80_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 7usize];
+const FN_81_CALLEES: &[usize] = &[0usize, 19usize, 113usize, 18usize, 91usize];
+const FN_82_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 6usize, 4usize, 16usize, 18usize, 13usize, 2usize, 15usize, 9usize, 22usize, 123usize, 95usize, 111usize, 121usize, 129usize, 130usize, 10usize, 4usize, 94usize];
+const FN_83_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_84_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 16usize, 18usize, 13usize, 19usize, 113usize, 94usize];
+const FN_85_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 16usize, 18usize, 13usize, 7usize, 22usize, 95usize, 21usize, 19usize, 113usize, 4usize, 16usize, 94usize];
+const FN_86_CALLEES: &[usize] = &[0usize, 27usize, 18usize, 91usize];
 const FN_87_GLOBALS: &[usize] = &[14usize];
-const FN_87_CALLEES: &[u32] = &[0u32, 110u32, 18u32, 13u32, 91u32, 16u32, 13u32, 17u32, 0u32, 14u32, 111u32, 16u32, 33u32, 5u32, 10u32, 10u32, 24u32, 94u32];
-const FN_88_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_89_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 15u32, 14u32, 124u32, 0u32, 130u32, 118u32, 114u32, 0u32, 111u32, 20u32, 1u32, 125u32, 126u32, 33u32, 96u32, 129u32];
+const FN_87_CALLEES: &[usize] = &[0usize, 110usize, 18usize, 13usize, 91usize, 16usize, 13usize, 17usize, 0usize, 14usize, 111usize, 16usize, 33usize, 5usize, 10usize, 10usize, 24usize, 94usize];
+const FN_88_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_89_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 15usize, 14usize, 124usize, 0usize, 130usize, 118usize, 114usize, 0usize, 111usize, 20usize, 1usize, 125usize, 126usize, 33usize, 96usize, 129usize];
 const FN_90_GLOBALS: &[usize] = &[14usize];
-const FN_90_CALLEES: &[u32] = &[0u32, 39u32, 42u32, 36u32];
-const FN_91_CALLEES: &[u32] = &[0u32, 62u32, 92u32];
-const FN_92_CALLEES: &[u32] = &[0u32, 0u32, 91u32];
-const FN_93_CALLEES: &[u32] = &[0u32, 0u32, 91u32];
-const FN_94_CALLEES: &[u32] = &[0u32, 1u32, 91u32];
-const FN_95_CALLEES: &[u32] = &[0u32, 2u32, 91u32];
-const FN_96_CALLEES: &[u32] = &[0u32, 70u32, 3u32, 11u32, 12u32, 8u32];
+const FN_90_CALLEES: &[usize] = &[0usize, 39usize, 42usize, 36usize];
+const FN_91_CALLEES: &[usize] = &[0usize, 62usize, 92usize];
+const FN_92_CALLEES: &[usize] = &[0usize, 0usize, 91usize];
+const FN_93_CALLEES: &[usize] = &[0usize, 0usize, 91usize];
+const FN_94_CALLEES: &[usize] = &[0usize, 1usize, 91usize];
+const FN_95_CALLEES: &[usize] = &[0usize, 2usize, 91usize];
+const FN_96_CALLEES: &[usize] = &[0usize, 70usize, 3usize, 11usize, 12usize, 8usize];
 const FN_97_GLOBALS: &[usize] = &[20usize, 17usize, 18usize];
-const FN_97_CALLEES: &[u32] = &[0u32, 131u32, 92u32];
+const FN_97_CALLEES: &[usize] = &[0usize, 131usize, 92usize];
 const FN_98_GLOBALS: &[usize] = &[20usize];
-const FN_98_CALLEES: &[u32] = &[0u32, 131u32, 30u32, 6u32, 92u32, 35u32, 39u32, 132u32, 1u32, 12u32];
+const FN_98_CALLEES: &[usize] = &[0usize, 131usize, 30usize, 6usize, 92usize, 35usize, 39usize, 132usize, 1usize, 12usize];
 const FN_99_GLOBALS: &[usize] = &[17usize];
-const FN_99_CALLEES: &[u32] = &[0u32, 131u32];
-const FN_100_CALLEES: &[u32] = &[0u32, 72u32, 3u32, 11u32, 12u32, 8u32];
-const FN_101_CALLEES: &[u32] = &[0u32, 42u32, 1u32];
-const FN_102_CALLEES: &[u32] = &[0u32, 42u32, 2u32];
-const FN_103_CALLEES: &[u32] = &[0u32, 63u32, 92u32];
-const FN_104_CALLEES: &[u32] = &[0u32, 131u32];
-const FN_105_CALLEES: &[u32] = &[0u32, 4u32, 11u32, 91u32];
-const FN_106_CALLEES: &[u32] = &[0u32, 6u32, 3u32];
-const FN_107_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_108_CALLEES: &[u32] = &[0u32, 1u32, 91u32];
-const FN_109_CALLEES: &[u32] = &[0u32, 2u32, 91u32];
-const FN_110_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_111_CALLEES: &[u32] = &[0u32, 53u32, 92u32];
-const FN_112_CALLEES: &[u32] = &[0u32, 53u32];
-const FN_113_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_114_CALLEES: &[u32] = &[0u32, 3u32, 11u32];
-const FN_115_CALLEES: &[u32] = &[0u32, 53u32, 92u32];
-const FN_116_CALLEES: &[u32] = &[0u32, 3u32, 12u32, 11u32, 7u32];
-const FN_117_CALLEES: &[u32] = &[0u32, 64u32, 92u32];
-const FN_118_CALLEES: &[u32] = &[0u32, 65u32, 92u32];
-const FN_119_CALLEES: &[u32] = &[0u32, 131u32];
-const FN_120_CALLEES: &[u32] = &[0u32, 44u32, 92u32];
-const FN_121_CALLEES: &[u32] = &[0u32, 42u32, 5u32];
-const FN_122_CALLEES: &[u32] = &[0u32, 45u32, 92u32, 69u32];
-const FN_123_CALLEES: &[u32] = &[0u32, 66u32, 92u32];
-const FN_124_CALLEES: &[u32] = &[0u32, 67u32, 92u32];
-const FN_125_CALLEES: &[u32] = &[0u32, 68u32, 92u32];
-const FN_126_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_127_CALLEES: &[u32] = &[0u32, 69u32, 92u32];
+const FN_99_CALLEES: &[usize] = &[0usize, 131usize];
+const FN_100_CALLEES: &[usize] = &[0usize, 72usize, 3usize, 11usize, 12usize, 8usize];
+const FN_101_CALLEES: &[usize] = &[0usize, 42usize, 1usize];
+const FN_102_CALLEES: &[usize] = &[0usize, 42usize, 2usize];
+const FN_103_CALLEES: &[usize] = &[0usize, 63usize, 92usize];
+const FN_104_CALLEES: &[usize] = &[0usize, 131usize];
+const FN_105_CALLEES: &[usize] = &[0usize, 4usize, 11usize, 91usize];
+const FN_106_CALLEES: &[usize] = &[0usize, 6usize, 3usize];
+const FN_107_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_108_CALLEES: &[usize] = &[0usize, 1usize, 91usize];
+const FN_109_CALLEES: &[usize] = &[0usize, 2usize, 91usize];
+const FN_110_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_111_CALLEES: &[usize] = &[0usize, 53usize, 92usize];
+const FN_112_CALLEES: &[usize] = &[0usize, 53usize];
+const FN_113_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_114_CALLEES: &[usize] = &[0usize, 3usize, 11usize];
+const FN_115_CALLEES: &[usize] = &[0usize, 53usize, 92usize];
+const FN_116_CALLEES: &[usize] = &[0usize, 3usize, 12usize, 11usize, 7usize];
+const FN_117_CALLEES: &[usize] = &[0usize, 64usize, 92usize];
+const FN_118_CALLEES: &[usize] = &[0usize, 65usize, 92usize];
+const FN_119_CALLEES: &[usize] = &[0usize, 131usize];
+const FN_120_CALLEES: &[usize] = &[0usize, 44usize, 92usize];
+const FN_121_CALLEES: &[usize] = &[0usize, 42usize, 5usize];
+const FN_122_CALLEES: &[usize] = &[0usize, 45usize, 92usize, 69usize];
+const FN_123_CALLEES: &[usize] = &[0usize, 66usize, 92usize];
+const FN_124_CALLEES: &[usize] = &[0usize, 67usize, 92usize];
+const FN_125_CALLEES: &[usize] = &[0usize, 68usize, 92usize];
+const FN_126_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_127_CALLEES: &[usize] = &[0usize, 69usize, 92usize];
 const FN_128_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_128_CALLEES: &[u32] = &[0u32, 44u32, 70u32, 91u32];
+const FN_128_CALLEES: &[usize] = &[0usize, 44usize, 70usize, 91usize];
 const FN_129_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize, 9usize];
-const FN_129_CALLEES: &[u32] = &[0u32, 131u32, 91u32, 30u32, 31u32, 38u32, 39u32, 132u32, 51u32];
+const FN_129_CALLEES: &[usize] = &[0usize, 131usize, 91usize, 30usize, 31usize, 38usize, 39usize, 132usize, 51usize];
 const FN_130_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_130_CALLEES: &[u32] = &[0u32, 3u32, 8u32, 38u32, 91u32];
-const FN_131_CALLEES: &[u32] = &[0u32, 69u32, 92u32, 39u32, 91u32, 70u32, 72u32];
+const FN_130_CALLEES: &[usize] = &[0usize, 3usize, 8usize, 38usize, 91usize];
+const FN_131_CALLEES: &[usize] = &[0usize, 69usize, 92usize, 39usize, 91usize, 70usize, 72usize];
 const FN_132_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_132_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 91u32];
+const FN_132_CALLEES: &[usize] = &[0usize, 46usize, 71usize, 91usize];
 const FN_133_GLOBALS: &[usize] = &[17usize, 20usize, 9usize];
-const FN_133_CALLEES: &[u32] = &[0u32, 131u32, 91u32, 51u32];
+const FN_133_CALLEES: &[usize] = &[0usize, 131usize, 91usize, 51usize];
 const FN_134_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_134_CALLEES: &[u32] = &[0u32, 116u32, 91u32, 42u32, 32u32, 38u32];
+const FN_134_CALLEES: &[usize] = &[0usize, 116usize, 91usize, 42usize, 32usize, 38usize];
 const FN_135_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_135_CALLEES: &[u32] = &[0u32, 116u32, 91u32, 113u32, 3u32, 118u32, 0u32, 114u32, 1u32, 1u32, 2u32, 4u32];
+const FN_135_CALLEES: &[usize] = &[0usize, 116usize, 91usize, 113usize, 3usize, 118usize, 0usize, 114usize, 1usize, 1usize, 2usize, 4usize];
 const FN_136_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_136_CALLEES: &[u32] = &[0u32, 47u32, 72u32, 91u32];
+const FN_136_CALLEES: &[usize] = &[0usize, 47usize, 72usize, 91usize];
 const FN_137_GLOBALS: &[usize] = &[9usize];
-const FN_137_CALLEES: &[u32] = &[0u32, 46u32, 92u32, 91u32, 8u32, 13u32, 18u32];
+const FN_137_CALLEES: &[usize] = &[0usize, 46usize, 92usize, 91usize, 8usize, 13usize, 18usize];
 const FN_138_GLOBALS: &[usize] = &[9usize];
-const FN_138_CALLEES: &[u32] = &[0u32, 3u32, 11u32, 4u32, 91u32];
+const FN_138_CALLEES: &[usize] = &[0usize, 3usize, 11usize, 4usize, 91usize];
 const FN_139_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_139_CALLEES: &[u32] = &[0u32, 39u32, 91u32, 42u32];
+const FN_139_CALLEES: &[usize] = &[0usize, 39usize, 91usize, 42usize];
 const FN_140_GLOBALS: &[usize] = &[9usize];
-const FN_140_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 14u32, 91u32];
+const FN_140_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 14usize, 91usize];
 const FN_141_GLOBALS: &[usize] = &[9usize];
-const FN_141_CALLEES: &[u32] = &[0u32, 4u32, 91u32];
+const FN_141_CALLEES: &[usize] = &[0usize, 4usize, 91usize];
 const FN_142_GLOBALS: &[usize] = &[9usize];
-const FN_142_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 15u32, 91u32];
+const FN_142_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 15usize, 91usize];
 const FN_143_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize];
-const FN_143_CALLEES: &[u32] = &[0u32, 131u32, 91u32, 30u32, 31u32, 38u32, 39u32, 51u32];
-const FN_144_CALLEES: &[u32] = &[0u32, 42u32, 34u32, 38u32];
-const FN_145_CALLEES: &[u32] = &[0u32, 42u32, 35u32, 38u32];
+const FN_143_CALLEES: &[usize] = &[0usize, 131usize, 91usize, 30usize, 31usize, 38usize, 39usize, 51usize];
+const FN_144_CALLEES: &[usize] = &[0usize, 42usize, 34usize, 38usize];
+const FN_145_CALLEES: &[usize] = &[0usize, 42usize, 35usize, 38usize];
 const FN_146_GLOBALS: &[usize] = &[20usize];
-const FN_146_CALLEES: &[u32] = &[0u32, 72u32];
-const FN_147_CALLEES: &[u32] = &[0u32, 42u32, 36u32, 38u32];
-const FN_148_CALLEES: &[u32] = &[0u32, 91u32];
+const FN_146_CALLEES: &[usize] = &[0usize, 72usize];
+const FN_147_CALLEES: &[usize] = &[0usize, 42usize, 36usize, 38usize];
+const FN_148_CALLEES: &[usize] = &[0usize, 91usize];
 const FN_149_GLOBALS: &[usize] = &[23usize];
-const FN_149_CALLEES: &[u32] = &[0u32, 133u32, 98u32, 87u32, 97u32, 134u32, 135u32, 99u32];
-const FN_150_CALLEES: &[u32] = &[0u32];
-const FN_151_CALLEES: &[u32] = &[0u32, 59u32, 92u32];
-const FN_152_CALLEES: &[u32] = &[0u32];
-const FN_153_CALLEES: &[u32] = &[0u32];
-const FN_154_CALLEES: &[u32] = &[0u32];
-const FN_155_CALLEES: &[u32] = &[0u32, 132u32, 97u32, 97u32];
-const FN_156_CALLEES: &[u32] = &[0u32, 94u32, 92u32];
-const FN_157_CALLEES: &[u32] = &[0u32, 136u32];
+const FN_149_CALLEES: &[usize] = &[0usize, 133usize, 98usize, 87usize, 97usize, 134usize, 135usize, 99usize];
+const FN_150_CALLEES: &[usize] = &[0usize];
+const FN_151_CALLEES: &[usize] = &[0usize, 59usize, 92usize];
+const FN_152_CALLEES: &[usize] = &[0usize];
+const FN_153_CALLEES: &[usize] = &[0usize];
+const FN_154_CALLEES: &[usize] = &[0usize];
+const FN_155_CALLEES: &[usize] = &[0usize, 132usize, 97usize, 97usize];
+const FN_156_CALLEES: &[usize] = &[0usize, 94usize, 92usize];
+const FN_157_CALLEES: &[usize] = &[0usize, 136usize];
 const FN_158_GLOBALS: &[usize] = &[23usize];
-const FN_158_CALLEES: &[u32] = &[0u32, 4u32, 0u32, 14u32, 0u32, 113u32, 91u32];
+const FN_158_CALLEES: &[usize] = &[0usize, 4usize, 0usize, 14usize, 0usize, 113usize, 91usize];
 const FN_159_GLOBALS: &[usize] = &[23usize];
-const FN_159_CALLEES: &[u32] = &[0u32, 113u32, 91u32];
-const FN_160_CALLEES: &[u32] = &[0u32, 95u32, 54u32];
-const FN_161_CALLEES: &[u32] = &[0u32, 0u32, 14u32, 0u32, 91u32, 87u32];
-const FN_162_CALLEES: &[u32] = &[0u32, 30u32, 56u32, 39u32, 87u32];
-const FN_163_CALLEES: &[u32] = &[0u32, 11u32, 4u32, 9u32, 5u32, 87u32, 1u32];
-const FN_164_CALLEES: &[u32] = &[0u32, 6u32, 6u32];
-const FN_165_CALLEES: &[u32] = &[0u32, 4u32, 10u32, 102u32, 87u32];
-const FN_166_CALLEES: &[u32] = &[0u32, 78u32, 115u32];
-const FN_167_CALLEES: &[u32] = &[0u32, 78u32, 135u32];
-const FN_168_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 5u32, 17u32, 2u32, 5u32, 7u32, 24u32, 1u32, 1u32, 0u32, 14u32, 1u32, 0u32, 5u32, 16u32, 94u32, 87u32];
-const FN_169_CALLEES: &[u32] = &[0u32, 4u32, 4u32];
-const FN_170_CALLEES: &[u32] = &[0u32, 78u32, 138u32];
-const FN_171_CALLEES: &[u32] = &[0u32, 78u32, 139u32];
+const FN_159_CALLEES: &[usize] = &[0usize, 113usize, 91usize];
+const FN_160_CALLEES: &[usize] = &[0usize, 95usize, 54usize];
+const FN_161_CALLEES: &[usize] = &[0usize, 0usize, 14usize, 0usize, 91usize, 87usize];
+const FN_162_CALLEES: &[usize] = &[0usize, 30usize, 56usize, 39usize, 87usize];
+const FN_163_CALLEES: &[usize] = &[0usize, 11usize, 4usize, 9usize, 5usize, 87usize, 1usize];
+const FN_164_CALLEES: &[usize] = &[0usize, 6usize, 6usize];
+const FN_165_CALLEES: &[usize] = &[0usize, 4usize, 10usize, 102usize, 87usize];
+const FN_166_CALLEES: &[usize] = &[0usize, 78usize, 115usize];
+const FN_167_CALLEES: &[usize] = &[0usize, 78usize, 135usize];
+const FN_168_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 5usize, 17usize, 2usize, 5usize, 7usize, 24usize, 1usize, 1usize, 0usize, 14usize, 1usize, 0usize, 5usize, 16usize, 94usize, 87usize];
+const FN_169_CALLEES: &[usize] = &[0usize, 4usize, 4usize];
+const FN_170_CALLEES: &[usize] = &[0usize, 78usize, 138usize];
+const FN_171_CALLEES: &[usize] = &[0usize, 78usize, 139usize];
 const FN_172_GLOBALS: &[usize] = &[23usize];
-const FN_172_CALLEES: &[u32] = &[0u32, 68u32, 4u32, 4u32, 91u32];
-const FN_173_CALLEES: &[u32] = &[0u32, 95u32, 92u32];
-const FN_174_CALLEES: &[u32] = &[0u32, 132u32, 100u32, 87u32];
-const FN_175_CALLEES: &[u32] = &[0u32, 136u32];
+const FN_172_CALLEES: &[usize] = &[0usize, 68usize, 4usize, 4usize, 91usize];
+const FN_173_CALLEES: &[usize] = &[0usize, 95usize, 92usize];
+const FN_174_CALLEES: &[usize] = &[0usize, 132usize, 100usize, 87usize];
+const FN_175_CALLEES: &[usize] = &[0usize, 136usize];
 const FN_176_GLOBALS: &[usize] = &[23usize];
-const FN_176_CALLEES: &[u32] = &[0u32, 59u32, 92u32, 91u32];
-const FN_177_CALLEES: &[u32] = &[0u32, 96u32, 92u32];
-const FN_178_CALLEES: &[u32] = &[0u32, 60u32, 73u32];
-const FN_179_CALLEES: &[u32] = &[0u32, 96u32, 92u32];
+const FN_176_CALLEES: &[usize] = &[0usize, 59usize, 92usize, 91usize];
+const FN_177_CALLEES: &[usize] = &[0usize, 96usize, 92usize];
+const FN_178_CALLEES: &[usize] = &[0usize, 60usize, 73usize];
+const FN_179_CALLEES: &[usize] = &[0usize, 96usize, 92usize];
 const FN_180_GLOBALS: &[usize] = &[23usize, 1usize];
-const FN_180_CALLEES: &[u32] = &[0u32, 59u32, 91u32, 102u32, 132u32, 87u32];
-const FN_181_CALLEES: &[u32] = &[0u32, 96u32, 92u32, 52u32, 73u32, 91u32];
+const FN_180_CALLEES: &[usize] = &[0usize, 59usize, 91usize, 102usize, 132usize, 87usize];
+const FN_181_CALLEES: &[usize] = &[0usize, 96usize, 92usize, 52usize, 73usize, 91usize];
 const FN_182_GLOBALS: &[usize] = &[20usize, 9usize, 17usize];
-const FN_182_CALLEES: &[u32] = &[0u32, 69u32, 92u32, 91u32, 1u32, 110u32, 43u32, 44u32];
+const FN_182_CALLEES: &[usize] = &[0usize, 69usize, 92usize, 91usize, 1usize, 110usize, 43usize, 44usize];
 const FN_183_GLOBALS: &[usize] = &[9usize];
-const FN_183_CALLEES: &[u32] = &[0u32, 61u32, 92u32, 91u32, 45u32];
+const FN_183_CALLEES: &[usize] = &[0usize, 61usize, 92usize, 91usize, 45usize];
 const FN_184_GLOBALS: &[usize] = &[9usize];
-const FN_184_CALLEES: &[u32] = &[0u32, 61u32, 92u32, 91u32, 46u32];
+const FN_184_CALLEES: &[usize] = &[0usize, 61usize, 92usize, 91usize, 46usize];
 const FN_185_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_185_CALLEES: &[u32] = &[0u32, 91u32, 69u32];
+const FN_185_CALLEES: &[usize] = &[0usize, 91usize, 69usize];
 const FN_186_GLOBALS: &[usize] = &[9usize];
-const FN_186_CALLEES: &[u32] = &[0u32, 64u32, 92u32, 91u32, 9u32];
+const FN_186_CALLEES: &[usize] = &[0usize, 64usize, 92usize, 91usize, 9usize];
 const FN_187_GLOBALS: &[usize] = &[9usize];
-const FN_187_CALLEES: &[u32] = &[0u32, 64u32, 92u32, 91u32, 10u32];
+const FN_187_CALLEES: &[usize] = &[0usize, 64usize, 92usize, 91usize, 10usize];
 const FN_188_GLOBALS: &[usize] = &[9usize];
-const FN_188_CALLEES: &[u32] = &[0u32, 64u32, 92u32, 91u32, 11u32];
+const FN_188_CALLEES: &[usize] = &[0usize, 64usize, 92usize, 91usize, 11usize];
 const FN_189_GLOBALS: &[usize] = &[23usize, 1usize];
-const FN_189_CALLEES: &[u32] = &[0u32, 59u32, 91u32, 102u32, 87u32];
-const FN_190_CALLEES: &[u32] = &[0u32, 4u32, 10u32, 10u32, 25u32, 113u32, 4u32, 0u32];
+const FN_189_CALLEES: &[usize] = &[0usize, 59usize, 91usize, 102usize, 87usize];
+const FN_190_CALLEES: &[usize] = &[0usize, 4usize, 10usize, 10usize, 25usize, 113usize, 4usize, 0usize];
 const FN_191_GLOBALS: &[usize] = &[14usize];
-const FN_191_CALLEES: &[u32] = &[0u32, 4u32, 10u32, 91u32, 25u32, 1u32, 1u32, 1u32, 1u32];
-const FN_192_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 10u32, 10u32, 25u32, 118u32, 128u32];
-const FN_193_CALLEES: &[u32] = &[0u32, 4u32, 10u32, 5u32, 17u32, 7u32, 25u32, 1u32, 0u32, 14u32, 16u32, 0u32, 5u32, 94u32];
-const FN_194_CALLEES: &[u32] = &[0u32, 4u32, 17u32, 7u32, 25u32, 1u32, 5u32, 6u32, 10u32, 14u32, 16u32, 94u32, 68u32];
-const FN_195_CALLEES: &[u32] = &[0u32, 4u32, 4u32, 91u32, 5u32, 26u32, 7u32, 25u32, 1u32, 24u32, 4u32, 0u32, 14u32, 1u32, 0u32, 94u32, 68u32];
-const FN_196_CALLEES: &[u32] = &[0u32, 4u32, 24u32, 127u32, 10u32, 10u32, 25u32, 128u32, 118u32];
-const FN_197_CALLEES: &[u32] = &[0u32, 97u32, 139u32, 91u32, 134u32, 4u32, 4u32, 25u32, 1u32, 26u32, 10u32, 10u32, 1u32, 1u32, 6u32, 14u32, 1u32, 7u32, 94u32, 68u32, 5u32, 98u32, 114u32, 4u32, 0u32, 0u32, 140u32, 112u32, 9u32, 24u32, 141u32, 142u32, 101u32, 7u32, 6u32];
-const FN_198_CALLEES: &[u32] = &[0u32, 22u32, 92u32, 88u32, 24u32];
-const FN_199_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_200_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_201_CALLEES: &[u32] = &[0u32, 0u32, 91u32];
-const FN_202_CALLEES: &[u32] = &[0u32, 1u32, 91u32];
-const FN_203_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_204_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_205_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_206_CALLEES: &[u32] = &[0u32, 0u32, 91u32, 1u32, 0u32];
-const FN_207_CALLEES: &[u32] = &[0u32, 91u32, 1u32];
-const FN_208_CALLEES: &[u32] = &[0u32, 18u32, 13u32];
-const FN_209_CALLEES: &[u32] = &[0u32, 13u32, 13u32];
-const FN_210_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_211_CALLEES: &[u32] = &[0u32, 27u32, 15u32];
-const FN_212_CALLEES: &[u32] = &[0u32, 39u32, 15u32];
-const FN_213_CALLEES: &[u32] = &[0u32, 29u32, 15u32];
-const FN_214_CALLEES: &[u32] = &[0u32, 4u32, 6u32];
-const FN_215_CALLEES: &[u32] = &[0u32, 2u32, 15u32];
-const FN_216_CALLEES: &[u32] = &[0u32, 6u32, 15u32];
-const FN_217_CALLEES: &[u32] = &[0u32, 4u32, 91u32, 9u32, 10u32, 7u32, 15u32, 143u32, 14u32, 6u32, 5u32, 10u32, 27u32, 94u32];
-const FN_218_CALLEES: &[u32] = &[0u32, 5u32, 5u32, 0u32, 91u32, 8u32, 144u32];
-const FN_219_CALLEES: &[u32] = &[0u32, 9u32, 4u32, 7u32, 10u32, 14u32, 23u32, 0u32, 15u32, 0u32, 5u32, 94u32];
-const FN_220_CALLEES: &[u32] = &[0u32, 1u32, 2u32, 4u32, 7u32, 10u32, 18u32, 23u32, 38u32, 15u32, 5u32];
-const FN_221_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 127u32, 5u32];
-const FN_222_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 91u32];
-const FN_223_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 0u32, 91u32, 5u32, 1u32, 92u32];
-const FN_224_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 92u32, 4u32, 4u32, 91u32];
-const FN_225_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 9u32, 0u32, 91u32, 1u32, 92u32];
-const FN_226_CALLEES: &[u32] = &[0u32, 0u32, 5u32, 92u32, 127u32, 23u32, 5u32, 91u32];
-const FN_227_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 14u32, 127u32, 5u32, 0u32, 7u32, 19u32, 113u32, 16u32, 92u32, 3u32, 4u32, 13u32, 5u32, 94u32, 91u32];
-const FN_228_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 16u32, 19u32, 113u32, 116u32, 125u32];
-const FN_229_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 10u32, 10u32, 14u32];
-const FN_230_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 5u32, 16u32, 14u32, 113u32, 71u32, 91u32, 19u32, 0u32, 1u32, 7u32, 11u32, 2u32, 16u32, 92u32, 13u32, 94u32, 10u32];
-const FN_231_CALLEES: &[u32] = &[0u32, 91u32, 145u32];
-const FN_232_CALLEES: &[u32] = &[0u32, 113u32, 116u32, 125u32];
-const FN_233_CALLEES: &[u32] = &[0u32, 116u32, 125u32, 113u32];
-const FN_234_CALLEES: &[u32] = &[0u32, 113u32];
-const FN_235_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 5u32, 113u32, 91u32, 1u32, 5u32, 92u32, 142u32, 0u32, 1u32, 0u32, 2u32, 3u32, 4u32, 9u32, 75u32, 14u32, 16u32, 13u32, 94u32, 11u32, 7u32, 13u32, 2u32, 10u32, 0u32, 14u32, 10u32, 8u32, 16u32, 2u32, 76u32, 77u32, 78u32, 5u32, 127u32, 71u32];
-const FN_236_CALLEES: &[u32] = &[0u32, 0u32, 7u32, 8u32, 14u32, 9u32, 16u32, 92u32, 0u32, 4u32, 7u32, 23u32, 19u32, 113u32, 5u32, 91u32, 13u32, 6u32, 127u32, 15u32, 94u32, 2u32];
-const FN_237_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 5u32, 113u32, 5u32, 92u32, 2u32, 14u32, 11u32, 7u32, 13u32, 2u32, 10u32, 0u32, 10u32, 9u32, 8u32, 4u32, 116u32, 125u32];
-const FN_238_CALLEES: &[u32] = &[0u32, 0u32, 10u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 10u32];
-const FN_239_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 91u32, 23u32, 19u32, 113u32, 5u32, 12u32, 74u32, 0u32, 16u32, 92u32, 7u32, 10u32, 9u32, 13u32, 94u32];
-const FN_240_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 16u32, 92u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 7u32, 8u32, 9u32, 14u32, 91u32, 13u32, 94u32, 3u32, 2u32, 7u32, 21u32];
-const FN_241_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 16u32, 92u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 7u32, 8u32, 14u32, 9u32, 91u32, 13u32, 5u32, 4u32, 94u32, 71u32, 7u32, 15u32, 16u32];
-const FN_242_CALLEES: &[u32] = &[0u32, 146u32, 4u32, 4u32];
-const FN_243_CALLEES: &[u32] = &[0u32, 104u32, 5u32, 7u32, 28u32, 146u32, 5u32, 91u32, 13u32];
-const FN_244_CALLEES: &[u32] = &[0u32, 7u32, 0u32, 4u32];
-const FN_245_CALLEES: &[u32] = &[0u32, 104u32, 5u32, 7u32, 28u32, 146u32, 5u32, 91u32, 13u32];
-const FN_246_CALLEES: &[u32] = &[0u32, 5u32, 7u32, 28u32, 120u32, 113u32, 5u32, 91u32, 8u32, 144u32, 13u32];
-const FN_247_CALLEES: &[u32] = &[0u32, 120u32, 113u32, 91u32];
-const FN_248_CALLEES: &[u32] = &[0u32, 1u32, 120u32, 23u32, 91u32];
-const FN_249_CALLEES: &[u32] = &[0u32, 3u32, 113u32, 6u32, 1u32, 23u32, 0u32, 4u32, 2u32, 0u32];
-const FN_250_CALLEES: &[u32] = &[0u32, 120u32, 2u32, 1u32, 0u32, 23u32, 4u32, 7u32, 10u32, 5u32, 122u32, 147u32, 148u32, 149u32, 0u32];
-const FN_251_CALLEES: &[u32] = &[0u32, 120u32, 3u32, 0u32, 1u32, 0u32, 2u32, 23u32, 0u32, 4u32, 0u32, 7u32, 10u32, 5u32, 1u32, 4u32, 0u32];
-const FN_252_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 146u32, 14u32, 91u32, 5u32, 92u32, 113u32, 145u32, 148u32, 150u32, 143u32];
-const FN_253_CALLEES: &[u32] = &[0u32, 148u32, 72u32, 147u32, 4u32, 16u32, 120u32, 13u32, 94u32, 91u32, 92u32, 0u32];
-const FN_254_CALLEES: &[u32] = &[0u32, 120u32, 4u32, 4u32, 72u32, 23u32, 122u32, 127u32, 5u32, 7u32, 92u32, 5u32];
-const FN_255_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 7u32, 23u32, 4u32, 92u32, 5u32];
-const FN_256_CALLEES: &[u32] = &[0u32, 120u32, 147u32, 148u32, 149u32, 2u32, 1u32, 1u32, 1u32, 1u32];
-const FN_257_CALLEES: &[u32] = &[0u32, 4u32];
-const FN_258_CALLEES: &[u32] = &[0u32, 20u32, 91u32, 151u32, 0u32, 15u32, 0u32, 19u32, 120u32, 23u32, 9u32, 94u32];
-const FN_259_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 1u32, 1u32, 91u32, 0u32, 5u32];
-const FN_260_CALLEES: &[u32] = &[0u32, 4u32, 20u32, 16u32, 7u32, 23u32, 14u32, 145u32, 92u32, 5u32, 17u32, 13u32, 91u32, 72u32, 94u32, 10u32, 113u32, 146u32, 4u32, 1u32, 120u32, 5u32, 0u32, 1u32, 127u32, 28u32, 6u32, 5u32, 152u32, 5u32, 8u32, 144u32, 89u32, 29u32, 30u32, 2u32, 15u32];
-const FN_261_CALLEES: &[u32] = &[0u32, 147u32, 148u32];
-const FN_262_CALLEES: &[u32] = &[0u32, 147u32, 148u32];
-const FN_263_CALLEES: &[u32] = &[0u32, 120u32];
-const FN_264_CALLEES: &[u32] = &[0u32, 153u32, 120u32, 4u32, 4u32, 23u32, 81u32, 92u32, 147u32, 148u32];
-const FN_265_CALLEES: &[u32] = &[0u32, 120u32, 153u32];
-const FN_266_CALLEES: &[u32] = &[0u32, 120u32, 153u32];
-const FN_267_CALLEES: &[u32] = &[0u32, 146u32, 4u32, 10u32, 10u32, 23u32, 145u32, 113u32, 120u32, 1u32];
-const FN_268_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 7u32, 23u32, 106u32, 92u32, 5u32];
-const FN_269_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 146u32, 4u32, 108u32, 92u32, 14u32, 91u32, 5u32, 10u32, 10u32, 145u32, 72u32, 113u32, 111u32, 120u32, 1u32, 127u32];
-const FN_270_CALLEES: &[u32] = &[0u32, 113u32, 72u32];
-const FN_271_CALLEES: &[u32] = &[0u32, 120u32, 72u32, 112u32, 83u32, 103u32, 23u32, 1u32, 4u32, 16u32, 13u32, 94u32, 91u32, 1u32, 2u32, 147u32, 148u32, 1u32, 154u32, 10u32, 107u32, 113u32, 116u32, 125u32, 82u32, 80u32, 105u32, 0u32, 122u32, 145u32, 127u32, 4u32];
-const FN_272_CALLEES: &[u32] = &[0u32, 120u32];
-const FN_273_CALLEES: &[u32] = &[0u32, 120u32];
-const FN_274_CALLEES: &[u32] = &[0u32, 120u32, 1u32, 0u32, 15u32];
-const FN_275_CALLEES: &[u32] = &[0u32, 84u32, 1u32, 0u32, 15u32];
-const FN_276_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 6u32, 0u32];
-const FN_277_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 84u32, 0u32, 2u32];
-const FN_278_CALLEES: &[u32] = &[0u32, 1u32, 6u32];
-const FN_279_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_280_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_281_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_282_CALLEES: &[u32] = &[0u32, 148u32, 120u32, 147u32, 92u32];
-const FN_283_CALLEES: &[u32] = &[0u32, 112u32, 127u32, 113u32, 84u32, 1u32, 0u32, 3u32, 2u32, 1u32, 0u32, 23u32, 92u32, 1u32, 12u32, 5u32, 0u32, 3u32, 4u32, 10u32, 0u32, 15u32];
-const FN_284_CALLEES: &[u32] = &[0u32, 3u32, 120u32, 105u32, 0u32, 148u32, 1u32, 84u32, 2u32, 0u32, 73u32, 6u32, 82u32, 12u32, 0u32, 1u32, 0u32, 15u32, 0u32, 3u32, 1u32];
-const FN_285_CALLEES: &[u32] = &[0u32, 3u32, 120u32, 0u32, 113u32, 1u32, 116u32, 125u32, 148u32, 0u32, 73u32, 84u32, 2u32, 6u32, 12u32, 10u32, 1u32, 0u32, 3u32, 0u32];
-const FN_286_CALLEES: &[u32] = &[0u32, 113u32, 116u32, 125u32, 1u32, 0u32, 3u32, 120u32, 73u32, 0u32, 6u32, 148u32, 0u32, 114u32, 1u32, 5u32, 0u32, 0u32, 0u32, 84u32, 2u32, 82u32, 12u32, 0u32, 1u32, 0u32, 1u32, 0u32, 15u32, 3u32, 10u32, 11u32, 85u32, 23u32, 1u32];
-const FN_287_CALLEES: &[u32] = &[0u32, 3u32, 120u32, 0u32, 73u32, 1u32, 0u32, 6u32, 92u32, 113u32, 0u32, 2u32, 12u32, 0u32, 3u32, 1u32, 23u32, 0u32];
-const FN_288_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 145u32, 5u32];
-const FN_289_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 145u32, 5u32];
+const FN_191_CALLEES: &[usize] = &[0usize, 4usize, 10usize, 91usize, 25usize, 1usize, 1usize, 1usize, 1usize];
+const FN_192_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 10usize, 10usize, 25usize, 118usize, 128usize];
+const FN_193_CALLEES: &[usize] = &[0usize, 4usize, 10usize, 5usize, 17usize, 7usize, 25usize, 1usize, 0usize, 14usize, 16usize, 0usize, 5usize, 94usize];
+const FN_194_CALLEES: &[usize] = &[0usize, 4usize, 17usize, 7usize, 25usize, 1usize, 5usize, 6usize, 10usize, 14usize, 16usize, 94usize, 68usize];
+const FN_195_CALLEES: &[usize] = &[0usize, 4usize, 4usize, 91usize, 5usize, 26usize, 7usize, 25usize, 1usize, 24usize, 4usize, 0usize, 14usize, 1usize, 0usize, 94usize, 68usize];
+const FN_196_CALLEES: &[usize] = &[0usize, 4usize, 24usize, 127usize, 10usize, 10usize, 25usize, 128usize, 118usize];
+const FN_197_CALLEES: &[usize] = &[0usize, 97usize, 139usize, 91usize, 134usize, 4usize, 4usize, 25usize, 1usize, 26usize, 10usize, 10usize, 1usize, 1usize, 6usize, 14usize, 1usize, 7usize, 94usize, 68usize, 5usize, 98usize, 114usize, 4usize, 0usize, 0usize, 140usize, 112usize, 9usize, 24usize, 141usize, 142usize, 101usize, 7usize, 6usize];
+const FN_198_CALLEES: &[usize] = &[0usize, 22usize, 92usize, 88usize, 24usize];
+const FN_199_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_200_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_201_CALLEES: &[usize] = &[0usize, 0usize, 91usize];
+const FN_202_CALLEES: &[usize] = &[0usize, 1usize, 91usize];
+const FN_203_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_204_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_205_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_206_CALLEES: &[usize] = &[0usize, 0usize, 91usize, 1usize, 0usize];
+const FN_207_CALLEES: &[usize] = &[0usize, 91usize, 1usize];
+const FN_208_CALLEES: &[usize] = &[0usize, 18usize, 13usize];
+const FN_209_CALLEES: &[usize] = &[0usize, 13usize, 13usize];
+const FN_210_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_211_CALLEES: &[usize] = &[0usize, 27usize, 15usize];
+const FN_212_CALLEES: &[usize] = &[0usize, 39usize, 15usize];
+const FN_213_CALLEES: &[usize] = &[0usize, 29usize, 15usize];
+const FN_214_CALLEES: &[usize] = &[0usize, 4usize, 6usize];
+const FN_215_CALLEES: &[usize] = &[0usize, 2usize, 15usize];
+const FN_216_CALLEES: &[usize] = &[0usize, 6usize, 15usize];
+const FN_217_CALLEES: &[usize] = &[0usize, 4usize, 91usize, 9usize, 10usize, 7usize, 15usize, 143usize, 14usize, 6usize, 5usize, 10usize, 27usize, 94usize];
+const FN_218_CALLEES: &[usize] = &[0usize, 5usize, 5usize, 0usize, 91usize, 8usize, 144usize];
+const FN_219_CALLEES: &[usize] = &[0usize, 9usize, 4usize, 7usize, 10usize, 14usize, 23usize, 0usize, 15usize, 0usize, 5usize, 94usize];
+const FN_220_CALLEES: &[usize] = &[0usize, 1usize, 2usize, 4usize, 7usize, 10usize, 18usize, 23usize, 38usize, 15usize, 5usize];
+const FN_221_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 127usize, 5usize];
+const FN_222_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 91usize];
+const FN_223_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 0usize, 91usize, 5usize, 1usize, 92usize];
+const FN_224_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 92usize, 4usize, 4usize, 91usize];
+const FN_225_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 9usize, 0usize, 91usize, 1usize, 92usize];
+const FN_226_CALLEES: &[usize] = &[0usize, 0usize, 5usize, 92usize, 127usize, 23usize, 5usize, 91usize];
+const FN_227_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 14usize, 127usize, 5usize, 0usize, 7usize, 19usize, 113usize, 16usize, 92usize, 3usize, 4usize, 13usize, 5usize, 94usize, 91usize];
+const FN_228_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 16usize, 19usize, 113usize, 116usize, 125usize];
+const FN_229_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 10usize, 10usize, 14usize];
+const FN_230_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 5usize, 16usize, 14usize, 113usize, 71usize, 91usize, 19usize, 0usize, 1usize, 7usize, 11usize, 2usize, 16usize, 92usize, 13usize, 94usize, 10usize];
+const FN_231_CALLEES: &[usize] = &[0usize, 91usize, 145usize];
+const FN_232_CALLEES: &[usize] = &[0usize, 113usize, 116usize, 125usize];
+const FN_233_CALLEES: &[usize] = &[0usize, 116usize, 125usize, 113usize];
+const FN_234_CALLEES: &[usize] = &[0usize, 113usize];
+const FN_235_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 5usize, 113usize, 91usize, 1usize, 5usize, 92usize, 142usize, 0usize, 1usize, 0usize, 2usize, 3usize, 4usize, 9usize, 75usize, 14usize, 16usize, 13usize, 94usize, 11usize, 7usize, 13usize, 2usize, 10usize, 0usize, 14usize, 10usize, 8usize, 16usize, 2usize, 76usize, 77usize, 78usize, 5usize, 127usize, 71usize];
+const FN_236_CALLEES: &[usize] = &[0usize, 0usize, 7usize, 8usize, 14usize, 9usize, 16usize, 92usize, 0usize, 4usize, 7usize, 23usize, 19usize, 113usize, 5usize, 91usize, 13usize, 6usize, 127usize, 15usize, 94usize, 2usize];
+const FN_237_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 5usize, 113usize, 5usize, 92usize, 2usize, 14usize, 11usize, 7usize, 13usize, 2usize, 10usize, 0usize, 10usize, 9usize, 8usize, 4usize, 116usize, 125usize];
+const FN_238_CALLEES: &[usize] = &[0usize, 0usize, 10usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 10usize];
+const FN_239_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 91usize, 23usize, 19usize, 113usize, 5usize, 12usize, 74usize, 0usize, 16usize, 92usize, 7usize, 10usize, 9usize, 13usize, 94usize];
+const FN_240_CALLEES: &[usize] = &[0usize, 0usize, 17usize, 16usize, 92usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 7usize, 8usize, 9usize, 14usize, 91usize, 13usize, 94usize, 3usize, 2usize, 7usize, 21usize];
+const FN_241_CALLEES: &[usize] = &[0usize, 0usize, 17usize, 16usize, 92usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 7usize, 8usize, 14usize, 9usize, 91usize, 13usize, 5usize, 4usize, 94usize, 71usize, 7usize, 15usize, 16usize];
+const FN_242_CALLEES: &[usize] = &[0usize, 146usize, 4usize, 4usize];
+const FN_243_CALLEES: &[usize] = &[0usize, 104usize, 5usize, 7usize, 28usize, 146usize, 5usize, 91usize, 13usize];
+const FN_244_CALLEES: &[usize] = &[0usize, 7usize, 0usize, 4usize];
+const FN_245_CALLEES: &[usize] = &[0usize, 104usize, 5usize, 7usize, 28usize, 146usize, 5usize, 91usize, 13usize];
+const FN_246_CALLEES: &[usize] = &[0usize, 5usize, 7usize, 28usize, 120usize, 113usize, 5usize, 91usize, 8usize, 144usize, 13usize];
+const FN_247_CALLEES: &[usize] = &[0usize, 120usize, 113usize, 91usize];
+const FN_248_CALLEES: &[usize] = &[0usize, 1usize, 120usize, 23usize, 91usize];
+const FN_249_CALLEES: &[usize] = &[0usize, 3usize, 113usize, 6usize, 1usize, 23usize, 0usize, 4usize, 2usize, 0usize];
+const FN_250_CALLEES: &[usize] = &[0usize, 120usize, 2usize, 1usize, 0usize, 23usize, 4usize, 7usize, 10usize, 5usize, 122usize, 147usize, 148usize, 149usize, 0usize];
+const FN_251_CALLEES: &[usize] = &[0usize, 120usize, 3usize, 0usize, 1usize, 0usize, 2usize, 23usize, 0usize, 4usize, 0usize, 7usize, 10usize, 5usize, 1usize, 4usize, 0usize];
+const FN_252_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 146usize, 14usize, 91usize, 5usize, 92usize, 113usize, 145usize, 148usize, 150usize, 143usize];
+const FN_253_CALLEES: &[usize] = &[0usize, 148usize, 72usize, 147usize, 4usize, 16usize, 120usize, 13usize, 94usize, 91usize, 92usize, 0usize];
+const FN_254_CALLEES: &[usize] = &[0usize, 120usize, 4usize, 4usize, 72usize, 23usize, 122usize, 127usize, 5usize, 7usize, 92usize, 5usize];
+const FN_255_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 7usize, 23usize, 4usize, 92usize, 5usize];
+const FN_256_CALLEES: &[usize] = &[0usize, 120usize, 147usize, 148usize, 149usize, 2usize, 1usize, 1usize, 1usize, 1usize];
+const FN_257_CALLEES: &[usize] = &[0usize, 4usize];
+const FN_258_CALLEES: &[usize] = &[0usize, 20usize, 91usize, 151usize, 0usize, 15usize, 0usize, 19usize, 120usize, 23usize, 9usize, 94usize];
+const FN_259_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 1usize, 1usize, 91usize, 0usize, 5usize];
+const FN_260_CALLEES: &[usize] = &[0usize, 4usize, 20usize, 16usize, 7usize, 23usize, 14usize, 145usize, 92usize, 5usize, 17usize, 13usize, 91usize, 72usize, 94usize, 10usize, 113usize, 146usize, 4usize, 1usize, 120usize, 5usize, 0usize, 1usize, 127usize, 28usize, 6usize, 5usize, 152usize, 5usize, 8usize, 144usize, 89usize, 29usize, 30usize, 2usize, 15usize];
+const FN_261_CALLEES: &[usize] = &[0usize, 147usize, 148usize];
+const FN_262_CALLEES: &[usize] = &[0usize, 147usize, 148usize];
+const FN_263_CALLEES: &[usize] = &[0usize, 120usize];
+const FN_264_CALLEES: &[usize] = &[0usize, 153usize, 120usize, 4usize, 4usize, 23usize, 81usize, 92usize, 147usize, 148usize];
+const FN_265_CALLEES: &[usize] = &[0usize, 120usize, 153usize];
+const FN_266_CALLEES: &[usize] = &[0usize, 120usize, 153usize];
+const FN_267_CALLEES: &[usize] = &[0usize, 146usize, 4usize, 10usize, 10usize, 23usize, 145usize, 113usize, 120usize, 1usize];
+const FN_268_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 7usize, 23usize, 106usize, 92usize, 5usize];
+const FN_269_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 146usize, 4usize, 108usize, 92usize, 14usize, 91usize, 5usize, 10usize, 10usize, 145usize, 72usize, 113usize, 111usize, 120usize, 1usize, 127usize];
+const FN_270_CALLEES: &[usize] = &[0usize, 113usize, 72usize];
+const FN_271_CALLEES: &[usize] = &[0usize, 120usize, 72usize, 112usize, 83usize, 103usize, 23usize, 1usize, 4usize, 16usize, 13usize, 94usize, 91usize, 1usize, 2usize, 147usize, 148usize, 1usize, 154usize, 10usize, 107usize, 113usize, 116usize, 125usize, 82usize, 80usize, 105usize, 0usize, 122usize, 145usize, 127usize, 4usize];
+const FN_272_CALLEES: &[usize] = &[0usize, 120usize];
+const FN_273_CALLEES: &[usize] = &[0usize, 120usize];
+const FN_274_CALLEES: &[usize] = &[0usize, 120usize, 1usize, 0usize, 15usize];
+const FN_275_CALLEES: &[usize] = &[0usize, 84usize, 1usize, 0usize, 15usize];
+const FN_276_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 6usize, 0usize];
+const FN_277_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 84usize, 0usize, 2usize];
+const FN_278_CALLEES: &[usize] = &[0usize, 1usize, 6usize];
+const FN_279_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_280_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_281_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_282_CALLEES: &[usize] = &[0usize, 148usize, 120usize, 147usize, 92usize];
+const FN_283_CALLEES: &[usize] = &[0usize, 112usize, 127usize, 113usize, 84usize, 1usize, 0usize, 3usize, 2usize, 1usize, 0usize, 23usize, 92usize, 1usize, 12usize, 5usize, 0usize, 3usize, 4usize, 10usize, 0usize, 15usize];
+const FN_284_CALLEES: &[usize] = &[0usize, 3usize, 120usize, 105usize, 0usize, 148usize, 1usize, 84usize, 2usize, 0usize, 73usize, 6usize, 82usize, 12usize, 0usize, 1usize, 0usize, 15usize, 0usize, 3usize, 1usize];
+const FN_285_CALLEES: &[usize] = &[0usize, 3usize, 120usize, 0usize, 113usize, 1usize, 116usize, 125usize, 148usize, 0usize, 73usize, 84usize, 2usize, 6usize, 12usize, 10usize, 1usize, 0usize, 3usize, 0usize];
+const FN_286_CALLEES: &[usize] = &[0usize, 113usize, 116usize, 125usize, 1usize, 0usize, 3usize, 120usize, 73usize, 0usize, 6usize, 148usize, 0usize, 114usize, 1usize, 5usize, 0usize, 0usize, 0usize, 84usize, 2usize, 82usize, 12usize, 0usize, 1usize, 0usize, 1usize, 0usize, 15usize, 3usize, 10usize, 11usize, 85usize, 23usize, 1usize];
+const FN_287_CALLEES: &[usize] = &[0usize, 3usize, 120usize, 0usize, 73usize, 1usize, 0usize, 6usize, 92usize, 113usize, 0usize, 2usize, 12usize, 0usize, 3usize, 1usize, 23usize, 0usize];
+const FN_288_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 145usize, 5usize];
+const FN_289_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 145usize, 5usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -33123,7 +33096,7 @@ clippy::type_complexity,
 clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
-fn bound_adapter_290(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+fn bound_adapter_290(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     SubstituteInstance::fn_290(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, host)
 }
 
@@ -33151,46 +33124,46 @@ clippy::type_complexity,
 clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
-fn bound_adapter_291(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+fn bound_adapter_291(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     SubstituteInstance::fn_291(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, host)
 }
 
-const FN_292_CALLEES: &[u32] = &[0u32, 1u32, 120u32, 1u32, 3u32, 5u32, 0u32, 6u32, 4u32, 16u32, 91u32, 13u32, 10u32, 72u32, 0u32, 94u32];
-const FN_293_CALLEES: &[u32] = &[0u32, 16u32, 14u32, 113u32, 1u32, 3u32, 5u32, 6u32, 0u32, 2u32, 72u32, 91u32, 1u32, 0u32, 4u32, 13u32, 94u32, 7u32, 23u32, 2u32, 5u32, 8u32, 145u32, 7u32, 4u32, 15u32];
-const FN_294_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 16u32, 7u32, 23u32, 19u32, 113u32, 18u32, 13u32, 19u32, 94u32];
-const FN_295_CALLEES: &[u32] = &[0u32, 87u32, 92u32, 79u32, 4u32, 16u32, 7u32, 23u32, 1u32, 1u32, 15u32, 5u32, 94u32];
-const FN_296_CALLEES: &[u32] = &[0u32, 120u32, 23u32, 91u32, 72u32, 92u32, 1u32];
-const FN_297_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 145u32, 5u32];
-const FN_298_CALLEES: &[u32] = &[0u32, 120u32, 4u32, 1u32, 12u32, 0u32, 0u32];
-const FN_299_CALLEES: &[u32] = &[0u32, 16u32, 10u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 9u32, 3u32, 92u32, 2u32, 5u32, 4u32, 10u32, 10u32, 0u32, 91u32, 0u32, 13u32, 1u32, 94u32];
-const FN_300_CALLEES: &[u32] = &[0u32, 120u32, 1u32, 23u32, 91u32, 145u32, 72u32, 4u32, 16u32, 13u32, 94u32];
-const FN_301_CALLEES: &[u32] = &[0u32, 91u32, 4u32, 7u32, 10u32, 5u32, 22u32, 147u32, 148u32, 143u32, 122u32];
-const FN_302_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_303_CALLEES: &[u32] = &[91u32];
-const FN_310_CALLEES: &[u32] = &[4u32];
-const FN_348_CALLEES: &[u32] = &[91u32];
-const FN_349_CALLEES: &[u32] = &[91u32];
-const FN_369_CALLEES: &[u32] = &[91u32];
-const FN_370_CALLEES: &[u32] = &[91u32];
-const FN_371_CALLEES: &[u32] = &[91u32];
-const FN_372_CALLEES: &[u32] = &[91u32];
-const FN_377_CALLEES: &[u32] = &[4u32];
-const FN_390_CALLEES: &[u32] = &[133u32, 137u32];
-const FN_396_CALLEES: &[u32] = &[91u32];
-const FN_397_CALLEES: &[u32] = &[91u32];
-const FN_406_CALLEES: &[u32] = &[91u32];
-const FN_408_CALLEES: &[u32] = &[4u32];
-const FN_414_CALLEES: &[u32] = &[91u32];
-const FN_415_CALLEES: &[u32] = &[91u32];
-const FN_416_CALLEES: &[u32] = &[91u32];
-const FN_417_CALLEES: &[u32] = &[91u32];
-const FN_418_CALLEES: &[u32] = &[91u32];
-const FN_419_CALLEES: &[u32] = &[153u32];
-const FN_420_CALLEES: &[u32] = &[120u32, 113u32, 152u32];
-const FN_424_CALLEES: &[u32] = &[91u32];
-const FN_426_CALLEES: &[u32] = &[91u32];
-const FN_427_CALLEES: &[u32] = &[91u32];
-const FN_428_CALLEES: &[u32] = &[0u32, 91u32, 90u32];
+const FN_292_CALLEES: &[usize] = &[0usize, 1usize, 120usize, 1usize, 3usize, 5usize, 0usize, 6usize, 4usize, 16usize, 91usize, 13usize, 10usize, 72usize, 0usize, 94usize];
+const FN_293_CALLEES: &[usize] = &[0usize, 16usize, 14usize, 113usize, 1usize, 3usize, 5usize, 6usize, 0usize, 2usize, 72usize, 91usize, 1usize, 0usize, 4usize, 13usize, 94usize, 7usize, 23usize, 2usize, 5usize, 8usize, 145usize, 7usize, 4usize, 15usize];
+const FN_294_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 16usize, 7usize, 23usize, 19usize, 113usize, 18usize, 13usize, 19usize, 94usize];
+const FN_295_CALLEES: &[usize] = &[0usize, 87usize, 92usize, 79usize, 4usize, 16usize, 7usize, 23usize, 1usize, 1usize, 15usize, 5usize, 94usize];
+const FN_296_CALLEES: &[usize] = &[0usize, 120usize, 23usize, 91usize, 72usize, 92usize, 1usize];
+const FN_297_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 145usize, 5usize];
+const FN_298_CALLEES: &[usize] = &[0usize, 120usize, 4usize, 1usize, 12usize, 0usize, 0usize];
+const FN_299_CALLEES: &[usize] = &[0usize, 16usize, 10usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 9usize, 3usize, 92usize, 2usize, 5usize, 4usize, 10usize, 10usize, 0usize, 91usize, 0usize, 13usize, 1usize, 94usize];
+const FN_300_CALLEES: &[usize] = &[0usize, 120usize, 1usize, 23usize, 91usize, 145usize, 72usize, 4usize, 16usize, 13usize, 94usize];
+const FN_301_CALLEES: &[usize] = &[0usize, 91usize, 4usize, 7usize, 10usize, 5usize, 22usize, 147usize, 148usize, 143usize, 122usize];
+const FN_302_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_303_CALLEES: &[usize] = &[91usize];
+const FN_310_CALLEES: &[usize] = &[4usize];
+const FN_348_CALLEES: &[usize] = &[91usize];
+const FN_349_CALLEES: &[usize] = &[91usize];
+const FN_369_CALLEES: &[usize] = &[91usize];
+const FN_370_CALLEES: &[usize] = &[91usize];
+const FN_371_CALLEES: &[usize] = &[91usize];
+const FN_372_CALLEES: &[usize] = &[91usize];
+const FN_377_CALLEES: &[usize] = &[4usize];
+const FN_390_CALLEES: &[usize] = &[133usize, 137usize];
+const FN_396_CALLEES: &[usize] = &[91usize];
+const FN_397_CALLEES: &[usize] = &[91usize];
+const FN_406_CALLEES: &[usize] = &[91usize];
+const FN_408_CALLEES: &[usize] = &[4usize];
+const FN_414_CALLEES: &[usize] = &[91usize];
+const FN_415_CALLEES: &[usize] = &[91usize];
+const FN_416_CALLEES: &[usize] = &[91usize];
+const FN_417_CALLEES: &[usize] = &[91usize];
+const FN_418_CALLEES: &[usize] = &[91usize];
+const FN_419_CALLEES: &[usize] = &[153usize];
+const FN_420_CALLEES: &[usize] = &[120usize, 113usize, 152usize];
+const FN_424_CALLEES: &[usize] = &[91usize];
+const FN_426_CALLEES: &[usize] = &[91usize];
+const FN_427_CALLEES: &[usize] = &[91usize];
+const FN_428_CALLEES: &[usize] = &[0usize, 91usize, 90usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -34808,6 +34781,10 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (2229905u128, [0x61, 0xa5, 0xd5, 0x23, 0x82, 0x0b, 0x3f, 0x08, 0x11, 0x21, 0xa5, 0x11, 0x28, 0x68, 0x56, 0x4f, 0xfb, 0x22, 0x04, 0xdd, 0xd2, 0x1e, 0x7a, 0x28, 0xcd, 0xe7, 0x98, 0x2f, 0x2c, 0x73, 0xc3, 0x1a]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_88792/f1681@l8589992763",
     accounting_version: 2u32,
@@ -34819,6 +34796,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -35108,7 +35086,7 @@ impl SubstituteInstance {
     let mut s_i32_8: i32 = 0i32;
     let mut s_i32_9: i32 = 0i32;
     let mut s_i32_10: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
     vm.exit_call();
@@ -37524,7 +37502,7 @@ impl SubstituteInstance {
     let mut s_i32_11: i32 = 0i32;
     let mut s_i32_12: i32 = 0i32;
     let mut s_i32_13: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
     vm.exit_call();
@@ -37724,7 +37702,7 @@ impl SubstituteInstance {
             l50 = s_i32_0;
             'blk_5: {
                 'blk_6: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l50;
                     s_i32_1 = l49;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -37986,7 +37964,7 @@ impl SubstituteInstance {
             l99 = s_i32_0;
             s_i32_0 = l2;
             l100 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l4;
             l101 = s_i32_0;
             s_i32_0 = l5;
@@ -38050,7 +38028,7 @@ impl SubstituteInstance {
             l116 = s_i32_0;
             'blk_11: {
                 'blk_12: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l116;
                     s_i32_1 = l115;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -38143,7 +38121,7 @@ impl SubstituteInstance {
             s_i32_0 = 2215i32;
             l134 = s_i32_0;
             s_i32_0 = l133;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l134;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
@@ -38168,7 +38146,7 @@ impl SubstituteInstance {
             l137 = s_i64_0;
             'blk_15: {
                 'blk_16: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l137;
                     l138 = s_i64_0;
                     s_i32_0 = l15;
@@ -38297,7 +38275,7 @@ impl SubstituteInstance {
     s_i32_0 = 8i32;
     l162 = s_i32_0;
     s_i32_0 = l161;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_1 = l162;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 120usize, s_i32_0, s_i32_1, host);
@@ -38634,7 +38612,7 @@ impl SubstituteInstance {
             s_i32_1 = l232;
             s_i32_2 = l233;
             s_i32_3 = l234;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_4 = l235;
             s_i32_5 = l236;
             s_i32_6 = l237;
@@ -38786,7 +38764,7 @@ impl SubstituteInstance {
     vm.exit_call();
     let __t35 = __call_res?;
     s_i32_0 = __t35;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     'blk_23: {
         if s_i32_0 != 0 {
             s_i32_0 = l0;
@@ -39138,7 +39116,7 @@ impl SubstituteInstance {
             s_i32_5 = l343;
             s_i32_6 = l344;
             s_i32_7 = l345;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_8 = l346;
             s_i32_9 = l347;
             s_i32_10 = l350;
@@ -39349,7 +39327,7 @@ impl SubstituteInstance {
             let __t55 = __call_res?;
             s_i32_0 = __t55;
             l393 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             l394 = s_i32_0;
             s_i32_0 = l1;
@@ -39410,7 +39388,7 @@ impl SubstituteInstance {
     'blk_30: {
         if s_i32_0 != 0 {
             s_i32_0 = l15;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_ret_i64(vm, 4usize, s_i32_0, host);
             vm.exit_call();
@@ -39434,7 +39412,7 @@ impl SubstituteInstance {
             l412 = s_i32_0;
             'blk_31: {
                 'blk_32: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l412;
                     s_i32_1 = l411;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -39803,7 +39781,7 @@ impl SubstituteInstance {
             l477 = s_i32_0;
             'blk_40: {
                 'blk_41: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l477;
                     s_i32_1 = l476;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -39879,7 +39857,7 @@ impl SubstituteInstance {
         }
     }
     s_i32_0 = l11;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l492 = s_i32_0;
     s_i32_0 = 17i32;
     l493 = s_i32_0;
@@ -39910,7 +39888,7 @@ impl SubstituteInstance {
             l499 = s_i32_0;
             'blk_44: {
                 'blk_45: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l499;
                     s_i32_1 = l498;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -39978,7 +39956,7 @@ impl SubstituteInstance {
                                 l510 = s_i32_0;
                                 'blk_48: {
                                     'blk_49: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l510;
                                         s_i32_1 = l509;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -40146,7 +40124,7 @@ impl SubstituteInstance {
             l535 = s_i32_0;
             'blk_51: {
                 'blk_52: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l535;
                     s_i32_1 = l534;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -40620,7 +40598,7 @@ impl SubstituteInstance {
             s_i32_0 = l6;
             l640 = s_i32_0;
             s_i32_0 = l7;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l641 = s_i32_0;
             s_i32_0 = l8;
             l642 = s_i32_0;
@@ -40735,7 +40713,7 @@ impl SubstituteInstance {
             s_i32_3 = l662;
             s_i32_4 = l663;
             s_i32_5 = l664;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_6 = l665;
             s_i32_7 = l666;
             s_i32_8 = l667;
@@ -41021,7 +40999,7 @@ impl SubstituteInstance {
             l722 = s_i64_0;
             s_i64_0 = l721;
             s_i64_1 = l722;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i32(vm, 4usize, s_i64_0, s_i64_1, host);
             vm.exit_call();
@@ -41112,7 +41090,7 @@ impl SubstituteInstance {
             l741 = s_i32_0;
             s_i32_0 = l740;
             s_i32_1 = l741;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
@@ -41127,7 +41105,7 @@ impl SubstituteInstance {
     l743 = s_i32_0;
     s_i32_0 = l742;
     s_i32_1 = l743;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 120usize, s_i32_0, s_i32_1, host);
     vm.exit_call();
@@ -41469,7 +41447,7 @@ impl SubstituteInstance {
     'blk_68: {
         if s_i32_0 != 0 {
             s_i32_0 = l1;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l823 = s_i32_0;
             s_i32_0 = l2;
             l824 = s_i32_0;
@@ -41565,7 +41543,7 @@ impl SubstituteInstance {
             l839 = s_i64_0;
             'blk_71: {
                 'blk_72: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l839;
                     l840 = s_i64_0;
                     s_i64_0 = l836;
@@ -41585,7 +41563,7 @@ impl SubstituteInstance {
                     l842 = s_i64_0;
                     'blk_73: {
                         'blk_74: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l842;
                             l843 = s_i64_0;
                             s_i64_0 = l839;
@@ -41685,7 +41663,7 @@ impl SubstituteInstance {
             l857 = s_i64_0;
             'blk_76: {
                 'blk_77: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l857;
                     l858 = s_i64_0;
                     s_i64_0 = l836;
@@ -41722,7 +41700,7 @@ impl SubstituteInstance {
                     l865 = s_i64_0;
                     'blk_78: {
                         'blk_79: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l865;
                             l866 = s_i64_0;
                             s_i64_0 = l836;
@@ -41907,7 +41885,7 @@ impl SubstituteInstance {
                     l892 = s_i64_0;
                     'blk_85: {
                         'blk_86: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l892;
                             l893 = s_i64_0;
                             s_i64_0 = l836;
@@ -42030,7 +42008,7 @@ impl SubstituteInstance {
                     l917 = s_i64_0;
                     'blk_87: {
                         'blk_88: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l917;
                             l918 = s_i64_0;
                             s_i64_0 = l836;
@@ -42352,7 +42330,7 @@ impl SubstituteInstance {
                     l992 = s_i64_0;
                     'blk_90: {
                         'blk_91: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l992;
                             l993 = s_i64_0;
                             s_i64_0 = l836;
@@ -42442,7 +42420,7 @@ impl SubstituteInstance {
         }
     }
     s_i32_0 = l11;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l1007 = s_i32_0;
     s_i32_0 = 30i32;
     l1008 = s_i32_0;
@@ -42799,7 +42777,7 @@ impl SubstituteInstance {
             let __t189 = __call_res?;
             s_i64_0 = __t189;
             l1083 = s_i64_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             l1084 = s_i32_0;
             s_i32_0 = 2548i32;
@@ -43058,7 +43036,7 @@ impl SubstituteInstance {
                     let __t201 = __call_res?;
                     s_i32_0 = __t201;
                     l1139 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l1139;
                     s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                     l1140 = s_i32_0;
@@ -43195,7 +43173,7 @@ impl SubstituteInstance {
             s_i32_0 = l8;
             l1166 = s_i32_0;
             s_i32_0 = 3i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l1167 = s_i32_0;
             s_i32_0 = l1121;
             l1168 = s_i32_0;
@@ -43231,7 +43209,7 @@ impl SubstituteInstance {
             l1173 = s_i64_0;
             'blk_105: {
                 'blk_106: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l1173;
                     l1174 = s_i64_0;
                     s_i32_0 = l1172;
@@ -43516,7 +43494,7 @@ impl SubstituteInstance {
             l1232 = s_i32_0;
             s_i32_0 = 2216i32;
             l1233 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1232;
             s_i32_1 = l1233;
             vm.enter_call()?;
@@ -43631,7 +43609,7 @@ impl SubstituteInstance {
             l1258 = s_i32_0;
             s_i32_0 = l1257;
             s_i32_1 = l1258;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
@@ -43815,7 +43793,7 @@ impl SubstituteInstance {
                     s_i32_0 = l5;
                     l1302 = s_i32_0;
                     s_i32_0 = l6;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1303 = s_i32_0;
                     s_i32_0 = l7;
                     l1304 = s_i32_0;
@@ -43862,7 +43840,7 @@ impl SubstituteInstance {
                     s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                     l1310 = s_i32_0;
                     s_i32_0 = 24i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1311 = s_i32_0;
                     s_i32_0 = l1310;
                     s_i32_1 = l1311;
@@ -44064,7 +44042,7 @@ impl SubstituteInstance {
                     l1353 = s_i32_0;
                     s_i32_0 = 2215i32;
                     l1354 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l1353;
                     s_i32_1 = l1354;
                     vm.enter_call()?;
@@ -44267,7 +44245,7 @@ impl SubstituteInstance {
                     s_i32_0 = l1;
                     l1399 = s_i32_0;
                     s_i32_0 = l2;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1400 = s_i32_0;
                     s_i32_0 = l3;
                     l1401 = s_i32_0;
@@ -44309,7 +44287,7 @@ impl SubstituteInstance {
             l1409 = s_i32_0;
             s_i32_0 = 0i32;
             l1410 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1409;
             s_i32_1 = l1410;
             vm.enter_call()?;
@@ -44627,7 +44605,7 @@ impl SubstituteInstance {
                     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
                     l1478 = s_i32_0;
                     s_i32_0 = l2;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
                     l1479 = s_i32_0;
                     s_i32_0 = l1478;
@@ -44648,7 +44626,7 @@ impl SubstituteInstance {
                 }
             }
             s_i32_0 = l15;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l1480 = s_i32_0;
             s_i64_0 = 0i64;
             l1481 = s_i64_0;
@@ -44889,7 +44867,7 @@ impl SubstituteInstance {
                     s_i32_0 = l3;
                     l1539 = s_i32_0;
                     s_i32_0 = l4;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1540 = s_i32_0;
                     s_i32_0 = l5;
                     l1541 = s_i32_0;
@@ -44936,12 +44914,12 @@ impl SubstituteInstance {
             s_i32_0 = __t251;
             'blk_126: {
                 if s_i32_0 != 0 {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     return Err(WasmTrap::Unreachable);
                 } else {
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 20u32)?;
             l1549 = s_i32_0;
@@ -45107,7 +45085,7 @@ impl SubstituteInstance {
             'blk_130: {
                 if s_i32_0 != 0 {
                     s_i32_0 = l0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1581 = s_i32_0;
                     s_i32_0 = l1;
                     l1582 = s_i32_0;
@@ -45149,7 +45127,7 @@ impl SubstituteInstance {
                 }
             }
             s_i32_0 = l1578;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
             l1592 = s_i32_0;
             s_i32_0 = l1;
@@ -45183,7 +45161,7 @@ impl SubstituteInstance {
             l1598 = s_i64_0;
             'blk_131: {
                 'blk_132: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l1598;
                     l1599 = s_i64_0;
                     s_i32_0 = l1596;
@@ -45231,7 +45209,7 @@ impl SubstituteInstance {
                     l1606 = s_i64_0;
                     'blk_133: {
                         'blk_134: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l1606;
                             l1607 = s_i64_0;
                             s_i64_0 = l1598;
@@ -45619,7 +45597,7 @@ impl SubstituteInstance {
                             l1677 = s_i64_0;
                             'blk_142: {
                                 'blk_143: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l1677;
                                     l1678 = s_i64_0;
                                     s_i32_0 = l1596;
@@ -45826,7 +45804,7 @@ impl SubstituteInstance {
                             l1724 = s_i64_0;
                             'blk_144: {
                                 'blk_145: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l1724;
                                     l1725 = s_i64_0;
                                     s_i64_0 = l1723;
@@ -46083,7 +46061,7 @@ impl SubstituteInstance {
             l1783 = s_i32_0;
             s_i32_0 = l3;
             l1784 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1781;
             l1785 = s_i32_0;
             s_i32_0 = l1782;
@@ -46417,7 +46395,7 @@ impl SubstituteInstance {
                             l1862 = s_i32_0;
                             s_i32_0 = l1800;
                             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             l1863 = s_i32_0;
                             s_i64_0 = 0i64;
                             l1864 = s_i64_0;
@@ -46519,7 +46497,7 @@ impl SubstituteInstance {
                                             s_i32_0 = 0i32;
                                             l1880 = s_i32_0;
                                             s_i32_0 = l1879;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_1 = l1880;
                                             vm.enter_call()?;
                                             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
@@ -46564,7 +46542,7 @@ impl SubstituteInstance {
                                             s_i32_0 = 0i32;
                                             l1889 = s_i32_0;
                                             s_i32_0 = l1888;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_1 = l1889;
                                             vm.enter_call()?;
                                             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
@@ -46706,7 +46684,7 @@ impl SubstituteInstance {
                 } else {
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1786;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
             l1918 = s_i32_0;
@@ -47113,7 +47091,7 @@ impl SubstituteInstance {
                             l2004 = s_i32_0;
                             s_i32_0 = 2547i32;
                             l2005 = s_i32_0;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l2004;
                             s_i32_1 = l2005;
                             vm.enter_call()?;
@@ -47166,7 +47144,7 @@ impl SubstituteInstance {
                     s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                     l2014 = s_i32_0;
                     s_i32_0 = 0i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l2015 = s_i32_0;
                     s_i32_0 = l2014;
                     s_i32_1 = l2015;
@@ -47329,7 +47307,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 3usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }
@@ -47383,349 +47363,349 @@ use crate::utilities::*;
 use super::*;
 
 const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize];
-const FN_0_CALLEES: &[u32] = &[91u32];
-const FN_1_CALLEES: &[u32] = &[0u32, 24u32, 92u32];
-const FN_2_CALLEES: &[u32] = &[0u32, 0u32, 91u32];
-const FN_3_CALLEES: &[u32] = &[0u32, 0u32, 91u32];
-const FN_4_CALLEES: &[u32] = &[0u32, 1u32, 91u32];
-const FN_5_CALLEES: &[u32] = &[0u32, 2u32, 91u32];
-const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_0_CALLEES: &[usize] = &[91usize];
+const FN_1_CALLEES: &[usize] = &[0usize, 24usize, 92usize];
+const FN_2_CALLEES: &[usize] = &[0usize, 0usize, 91usize];
+const FN_3_CALLEES: &[usize] = &[0usize, 0usize, 91usize];
+const FN_4_CALLEES: &[usize] = &[0usize, 1usize, 91usize];
+const FN_5_CALLEES: &[usize] = &[0usize, 2usize, 91usize];
+const FN_6_CALLEES: &[usize] = &[0usize, 34usize, 10usize];
 const FN_7_GLOBALS: &[usize] = &[14usize];
-const FN_7_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_8_CALLEES: &[u32] = &[0u32, 5u32, 0u32, 1u32, 3u32, 6u32];
-const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
-const FN_10_CALLEES: &[u32] = &[0u32, 5u32, 10u32, 111u32];
-const FN_11_CALLEES: &[u32] = &[0u32, 5u32, 11u32, 111u32];
-const FN_12_CALLEES: &[u32] = &[0u32, 25u32, 92u32];
-const FN_13_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_14_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_15_CALLEES: &[u32] = &[0u32, 1u32, 91u32];
-const FN_16_CALLEES: &[u32] = &[0u32, 2u32, 91u32];
-const FN_17_CALLEES: &[u32] = &[0u32, 13u32, 92u32];
-const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_19_CALLEES: &[u32] = &[0u32, 13u32, 92u32];
-const FN_20_CALLEES: &[u32] = &[0u32, 5u32, 7u32];
-const FN_21_CALLEES: &[u32] = &[0u32, 26u32, 92u32];
-const FN_22_CALLEES: &[u32] = &[0u32, 27u32, 92u32];
-const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 4u32, 5u32, 1u32, 1u32, 91u32];
-const FN_24_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_25_CALLEES: &[u32] = &[0u32, 12u32, 111u32];
-const FN_26_CALLEES: &[u32] = &[0u32, 26u32, 92u32];
-const FN_27_CALLEES: &[u32] = &[0u32, 112u32, 113u32, 32u32, 114u32, 33u32, 2u32];
-const FN_28_CALLEES: &[u32] = &[0u32, 112u32, 113u32, 33u32, 114u32, 32u32, 2u32];
-const FN_29_CALLEES: &[u32] = &[0u32, 28u32, 92u32];
-const FN_30_CALLEES: &[u32] = &[0u32, 29u32, 92u32];
-const FN_31_CALLEES: &[u32] = &[0u32, 30u32, 92u32];
-const FN_32_CALLEES: &[u32] = &[0u32, 26u32, 92u32];
+const FN_7_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_8_CALLEES: &[usize] = &[0usize, 5usize, 0usize, 1usize, 3usize, 6usize];
+const FN_9_CALLEES: &[usize] = &[0usize, 10usize];
+const FN_10_CALLEES: &[usize] = &[0usize, 5usize, 10usize, 111usize];
+const FN_11_CALLEES: &[usize] = &[0usize, 5usize, 11usize, 111usize];
+const FN_12_CALLEES: &[usize] = &[0usize, 25usize, 92usize];
+const FN_13_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_14_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_15_CALLEES: &[usize] = &[0usize, 1usize, 91usize];
+const FN_16_CALLEES: &[usize] = &[0usize, 2usize, 91usize];
+const FN_17_CALLEES: &[usize] = &[0usize, 13usize, 92usize];
+const FN_18_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_19_CALLEES: &[usize] = &[0usize, 13usize, 92usize];
+const FN_20_CALLEES: &[usize] = &[0usize, 5usize, 7usize];
+const FN_21_CALLEES: &[usize] = &[0usize, 26usize, 92usize];
+const FN_22_CALLEES: &[usize] = &[0usize, 27usize, 92usize];
+const FN_23_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 4usize, 5usize, 1usize, 1usize, 91usize];
+const FN_24_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_25_CALLEES: &[usize] = &[0usize, 12usize, 111usize];
+const FN_26_CALLEES: &[usize] = &[0usize, 26usize, 92usize];
+const FN_27_CALLEES: &[usize] = &[0usize, 112usize, 113usize, 32usize, 114usize, 33usize, 2usize];
+const FN_28_CALLEES: &[usize] = &[0usize, 112usize, 113usize, 33usize, 114usize, 32usize, 2usize];
+const FN_29_CALLEES: &[usize] = &[0usize, 28usize, 92usize];
+const FN_30_CALLEES: &[usize] = &[0usize, 29usize, 92usize];
+const FN_31_CALLEES: &[usize] = &[0usize, 30usize, 92usize];
+const FN_32_CALLEES: &[usize] = &[0usize, 26usize, 92usize];
 const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 91u32];
-const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 91u32];
+const FN_33_CALLEES: &[usize] = &[0usize, 34usize, 10usize, 91usize];
+const FN_34_CALLEES: &[usize] = &[0usize, 31usize, 91usize];
 const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_35_CALLEES: &[u32] = &[0u32, 115u32, 3u32, 91u32];
+const FN_35_CALLEES: &[usize] = &[0usize, 115usize, 3usize, 91usize];
 const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_36_CALLEES: &[u32] = &[0u32, 8u32, 1u32, 91u32];
-const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 91u32];
+const FN_36_CALLEES: &[usize] = &[0usize, 8usize, 1usize, 91usize];
+const FN_37_CALLEES: &[usize] = &[0usize, 31usize, 91usize];
 const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 91u32];
+const FN_38_CALLEES: &[usize] = &[0usize, 6usize, 35usize, 91usize];
 const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_39_CALLEES: &[u32] = &[0u32, 116u32, 91u32, 32u32];
+const FN_39_CALLEES: &[usize] = &[0usize, 116usize, 91usize, 32usize];
 const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_40_CALLEES: &[u32] = &[0u32, 116u32, 91u32, 33u32];
+const FN_40_CALLEES: &[usize] = &[0usize, 116usize, 91usize, 33usize];
 const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 91u32];
+const FN_41_CALLEES: &[usize] = &[0usize, 10usize, 36usize, 91usize];
 const FN_42_GLOBALS: &[usize] = &[9usize];
-const FN_42_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 13u32, 91u32];
+const FN_42_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 13usize, 91usize];
 const FN_43_GLOBALS: &[usize] = &[9usize];
-const FN_43_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 2u32, 91u32];
+const FN_43_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 2usize, 91usize];
 const FN_44_GLOBALS: &[usize] = &[9usize];
-const FN_44_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 14u32, 91u32];
+const FN_44_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 14usize, 91usize];
 const FN_45_GLOBALS: &[usize] = &[9usize];
-const FN_45_CALLEES: &[u32] = &[0u32, 4u32, 91u32];
+const FN_45_CALLEES: &[usize] = &[0usize, 4usize, 91usize];
 const FN_46_GLOBALS: &[usize] = &[9usize];
-const FN_46_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 15u32, 91u32];
+const FN_46_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 15usize, 91usize];
 const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
-const FN_47_CALLEES: &[u32] = &[0u32, 110u32, 91u32, 13u32, 4u32, 6u32, 7u32, 115u32, 93u32, 0u32, 5u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 117u32];
-const FN_48_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_49_CALLEES: &[u32] = &[0u32, 113u32, 118u32, 1u32, 114u32, 0u32, 1u32, 91u32];
-const FN_50_CALLEES: &[u32] = &[0u32, 113u32, 118u32, 0u32, 114u32, 1u32, 1u32, 91u32];
-const FN_51_CALLEES: &[u32] = &[0u32, 3u32, 7u32, 91u32];
-const FN_52_CALLEES: &[u32] = &[0u32, 0u32, 8u32, 3u32, 91u32];
-const FN_53_CALLEES: &[u32] = &[0u32, 9u32, 7u32, 91u32];
-const FN_54_CALLEES: &[u32] = &[0u32, 118u32, 0u32, 0u32, 114u32];
-const FN_55_CALLEES: &[u32] = &[0u32, 118u32, 1u32, 1u32, 91u32, 114u32];
-const FN_56_CALLEES: &[u32] = &[0u32, 18u32];
-const FN_57_CALLEES: &[u32] = &[0u32, 1u32, 5u32, 91u32];
+const FN_47_CALLEES: &[usize] = &[0usize, 110usize, 91usize, 13usize, 4usize, 6usize, 7usize, 115usize, 93usize, 0usize, 5usize, 0usize, 32usize, 2usize, 10usize, 36usize, 37usize, 117usize];
+const FN_48_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_49_CALLEES: &[usize] = &[0usize, 113usize, 118usize, 1usize, 114usize, 0usize, 1usize, 91usize];
+const FN_50_CALLEES: &[usize] = &[0usize, 113usize, 118usize, 0usize, 114usize, 1usize, 1usize, 91usize];
+const FN_51_CALLEES: &[usize] = &[0usize, 3usize, 7usize, 91usize];
+const FN_52_CALLEES: &[usize] = &[0usize, 0usize, 8usize, 3usize, 91usize];
+const FN_53_CALLEES: &[usize] = &[0usize, 9usize, 7usize, 91usize];
+const FN_54_CALLEES: &[usize] = &[0usize, 118usize, 0usize, 0usize, 114usize];
+const FN_55_CALLEES: &[usize] = &[0usize, 118usize, 1usize, 1usize, 91usize, 114usize];
+const FN_56_CALLEES: &[usize] = &[0usize, 18usize];
+const FN_57_CALLEES: &[usize] = &[0usize, 1usize, 5usize, 91usize];
 const FN_58_GLOBALS: &[usize] = &[15usize];
-const FN_58_CALLEES: &[u32] = &[0u32, 16u32, 10u32, 14u32];
-const FN_59_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_60_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 9u32];
-const FN_61_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 9u32];
-const FN_62_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_63_CALLEES: &[u32] = &[0u32, 1u32, 5u32, 91u32];
+const FN_58_CALLEES: &[usize] = &[0usize, 16usize, 10usize, 14usize];
+const FN_59_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_60_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 9usize];
+const FN_61_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 9usize];
+const FN_62_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_63_CALLEES: &[usize] = &[0usize, 1usize, 5usize, 91usize];
 const FN_64_GLOBALS: &[usize] = &[15usize];
-const FN_64_CALLEES: &[u32] = &[0u32, 17u32, 10u32, 14u32];
-const FN_65_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_66_CALLEES: &[u32] = &[0u32, 1u32, 91u32];
-const FN_67_CALLEES: &[u32] = &[0u32, 4u32, 0u32, 16u32, 7u32, 0u32, 92u32, 91u32, 13u32, 94u32];
-const FN_68_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 2u32, 91u32, 22u32, 119u32, 2u32, 5u32, 120u32, 121u32, 122u32, 123u32, 95u32, 1u32, 10u32, 0u32, 7u32, 32u32, 2u32, 113u32, 124u32, 111u32, 13u32, 15u32, 1u32, 1u32];
+const FN_64_CALLEES: &[usize] = &[0usize, 17usize, 10usize, 14usize];
+const FN_65_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_66_CALLEES: &[usize] = &[0usize, 1usize, 91usize];
+const FN_67_CALLEES: &[usize] = &[0usize, 4usize, 0usize, 16usize, 7usize, 0usize, 92usize, 91usize, 13usize, 94usize];
+const FN_68_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 2usize, 91usize, 22usize, 119usize, 2usize, 5usize, 120usize, 121usize, 122usize, 123usize, 95usize, 1usize, 10usize, 0usize, 7usize, 32usize, 2usize, 113usize, 124usize, 111usize, 13usize, 15usize, 1usize, 1usize];
 const FN_69_GLOBALS: &[usize] = &[14usize];
-const FN_69_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 92u32, 91u32, 32u32, 2u32, 0u32, 2u32];
-const FN_70_CALLEES: &[u32] = &[0u32, 0u32, 5u32, 9u32, 0u32, 94u32];
-const FN_71_CALLEES: &[u32] = &[0u32, 0u32, 9u32, 0u32, 94u32];
-const FN_72_CALLEES: &[u32] = &[0u32, 19u32, 113u32];
-const FN_73_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 20u32, 1u32, 114u32, 125u32, 111u32, 126u32, 1u32, 5u32];
-const FN_74_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 2u32, 91u32, 23u32, 19u32, 113u32, 5u32];
-const FN_75_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 23u32, 19u32, 127u32, 91u32, 5u32, 5u32, 92u32, 23u32, 5u32, 9u32, 7u32, 113u32, 5u32, 4u32, 94u32, 10u32, 118u32, 128u32, 114u32, 96u32, 129u32, 123u32, 130u32, 14u32, 121u32];
-const FN_76_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 10u32, 2u32, 91u32, 23u32, 19u32, 127u32, 16u32, 7u32, 113u32, 94u32, 6u32, 13u32];
-const FN_77_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 23u32, 19u32, 127u32, 91u32, 9u32, 5u32, 7u32, 113u32, 94u32, 5u32, 10u32, 15u32, 14u32];
-const FN_78_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 10u32, 91u32, 23u32, 19u32, 127u32, 16u32, 92u32, 14u32, 113u32, 9u32, 7u32, 5u32, 4u32, 94u32, 118u32, 128u32, 114u32, 96u32, 14u32];
-const FN_79_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 26u32, 1u32];
-const FN_80_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 7u32];
-const FN_81_CALLEES: &[u32] = &[0u32, 19u32, 113u32, 18u32, 91u32];
-const FN_82_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 6u32, 4u32, 16u32, 18u32, 13u32, 2u32, 15u32, 9u32, 22u32, 123u32, 95u32, 111u32, 121u32, 129u32, 130u32, 10u32, 4u32, 94u32];
-const FN_83_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_84_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 16u32, 18u32, 13u32, 19u32, 113u32, 94u32];
-const FN_85_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 16u32, 18u32, 13u32, 7u32, 22u32, 95u32, 21u32, 19u32, 113u32, 4u32, 16u32, 94u32];
-const FN_86_CALLEES: &[u32] = &[0u32, 27u32, 18u32, 91u32];
+const FN_69_CALLEES: &[usize] = &[0usize, 1usize, 10usize, 92usize, 91usize, 32usize, 2usize, 0usize, 2usize];
+const FN_70_CALLEES: &[usize] = &[0usize, 0usize, 5usize, 9usize, 0usize, 94usize];
+const FN_71_CALLEES: &[usize] = &[0usize, 0usize, 9usize, 0usize, 94usize];
+const FN_72_CALLEES: &[usize] = &[0usize, 19usize, 113usize];
+const FN_73_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 20usize, 1usize, 114usize, 125usize, 111usize, 126usize, 1usize, 5usize];
+const FN_74_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 2usize, 91usize, 23usize, 19usize, 113usize, 5usize];
+const FN_75_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 23usize, 19usize, 127usize, 91usize, 5usize, 5usize, 92usize, 23usize, 5usize, 9usize, 7usize, 113usize, 5usize, 4usize, 94usize, 10usize, 118usize, 128usize, 114usize, 96usize, 129usize, 123usize, 130usize, 14usize, 121usize];
+const FN_76_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 10usize, 2usize, 91usize, 23usize, 19usize, 127usize, 16usize, 7usize, 113usize, 94usize, 6usize, 13usize];
+const FN_77_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 23usize, 19usize, 127usize, 91usize, 9usize, 5usize, 7usize, 113usize, 94usize, 5usize, 10usize, 15usize, 14usize];
+const FN_78_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 10usize, 91usize, 23usize, 19usize, 127usize, 16usize, 92usize, 14usize, 113usize, 9usize, 7usize, 5usize, 4usize, 94usize, 118usize, 128usize, 114usize, 96usize, 14usize];
+const FN_79_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 26usize, 1usize];
+const FN_80_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 7usize];
+const FN_81_CALLEES: &[usize] = &[0usize, 19usize, 113usize, 18usize, 91usize];
+const FN_82_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 6usize, 4usize, 16usize, 18usize, 13usize, 2usize, 15usize, 9usize, 22usize, 123usize, 95usize, 111usize, 121usize, 129usize, 130usize, 10usize, 4usize, 94usize];
+const FN_83_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_84_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 16usize, 18usize, 13usize, 19usize, 113usize, 94usize];
+const FN_85_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 16usize, 18usize, 13usize, 7usize, 22usize, 95usize, 21usize, 19usize, 113usize, 4usize, 16usize, 94usize];
+const FN_86_CALLEES: &[usize] = &[0usize, 27usize, 18usize, 91usize];
 const FN_87_GLOBALS: &[usize] = &[14usize];
-const FN_87_CALLEES: &[u32] = &[0u32, 110u32, 18u32, 13u32, 91u32, 16u32, 13u32, 17u32, 0u32, 14u32, 111u32, 16u32, 33u32, 5u32, 10u32, 10u32, 24u32, 94u32];
-const FN_88_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_89_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 15u32, 14u32, 124u32, 0u32, 130u32, 118u32, 114u32, 0u32, 111u32, 20u32, 1u32, 125u32, 126u32, 33u32, 96u32, 129u32];
+const FN_87_CALLEES: &[usize] = &[0usize, 110usize, 18usize, 13usize, 91usize, 16usize, 13usize, 17usize, 0usize, 14usize, 111usize, 16usize, 33usize, 5usize, 10usize, 10usize, 24usize, 94usize];
+const FN_88_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_89_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 15usize, 14usize, 124usize, 0usize, 130usize, 118usize, 114usize, 0usize, 111usize, 20usize, 1usize, 125usize, 126usize, 33usize, 96usize, 129usize];
 const FN_90_GLOBALS: &[usize] = &[14usize];
-const FN_90_CALLEES: &[u32] = &[0u32, 39u32, 42u32, 36u32];
-const FN_91_CALLEES: &[u32] = &[0u32, 62u32, 92u32];
-const FN_92_CALLEES: &[u32] = &[0u32, 0u32, 91u32];
-const FN_93_CALLEES: &[u32] = &[0u32, 0u32, 91u32];
-const FN_94_CALLEES: &[u32] = &[0u32, 1u32, 91u32];
-const FN_95_CALLEES: &[u32] = &[0u32, 2u32, 91u32];
-const FN_96_CALLEES: &[u32] = &[0u32, 70u32, 3u32, 11u32, 12u32, 8u32];
+const FN_90_CALLEES: &[usize] = &[0usize, 39usize, 42usize, 36usize];
+const FN_91_CALLEES: &[usize] = &[0usize, 62usize, 92usize];
+const FN_92_CALLEES: &[usize] = &[0usize, 0usize, 91usize];
+const FN_93_CALLEES: &[usize] = &[0usize, 0usize, 91usize];
+const FN_94_CALLEES: &[usize] = &[0usize, 1usize, 91usize];
+const FN_95_CALLEES: &[usize] = &[0usize, 2usize, 91usize];
+const FN_96_CALLEES: &[usize] = &[0usize, 70usize, 3usize, 11usize, 12usize, 8usize];
 const FN_97_GLOBALS: &[usize] = &[20usize, 17usize, 18usize];
-const FN_97_CALLEES: &[u32] = &[0u32, 131u32, 92u32];
+const FN_97_CALLEES: &[usize] = &[0usize, 131usize, 92usize];
 const FN_98_GLOBALS: &[usize] = &[20usize];
-const FN_98_CALLEES: &[u32] = &[0u32, 131u32, 30u32, 6u32, 92u32, 35u32, 39u32, 132u32, 1u32, 12u32];
+const FN_98_CALLEES: &[usize] = &[0usize, 131usize, 30usize, 6usize, 92usize, 35usize, 39usize, 132usize, 1usize, 12usize];
 const FN_99_GLOBALS: &[usize] = &[17usize];
-const FN_99_CALLEES: &[u32] = &[0u32, 131u32];
-const FN_100_CALLEES: &[u32] = &[0u32, 72u32, 3u32, 11u32, 12u32, 8u32];
-const FN_101_CALLEES: &[u32] = &[0u32, 42u32, 1u32];
-const FN_102_CALLEES: &[u32] = &[0u32, 42u32, 2u32];
-const FN_103_CALLEES: &[u32] = &[0u32, 63u32, 92u32];
-const FN_104_CALLEES: &[u32] = &[0u32, 131u32];
-const FN_105_CALLEES: &[u32] = &[0u32, 4u32, 11u32, 91u32];
-const FN_106_CALLEES: &[u32] = &[0u32, 6u32, 3u32];
-const FN_107_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_108_CALLEES: &[u32] = &[0u32, 1u32, 91u32];
-const FN_109_CALLEES: &[u32] = &[0u32, 2u32, 91u32];
-const FN_110_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_111_CALLEES: &[u32] = &[0u32, 53u32, 92u32];
-const FN_112_CALLEES: &[u32] = &[0u32, 53u32];
-const FN_113_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_114_CALLEES: &[u32] = &[0u32, 3u32, 11u32];
-const FN_115_CALLEES: &[u32] = &[0u32, 53u32, 92u32];
-const FN_116_CALLEES: &[u32] = &[0u32, 3u32, 12u32, 11u32, 7u32];
-const FN_117_CALLEES: &[u32] = &[0u32, 64u32, 92u32];
-const FN_118_CALLEES: &[u32] = &[0u32, 65u32, 92u32];
-const FN_119_CALLEES: &[u32] = &[0u32, 131u32];
-const FN_120_CALLEES: &[u32] = &[0u32, 44u32, 92u32];
-const FN_121_CALLEES: &[u32] = &[0u32, 42u32, 5u32];
-const FN_122_CALLEES: &[u32] = &[0u32, 45u32, 92u32, 69u32];
-const FN_123_CALLEES: &[u32] = &[0u32, 66u32, 92u32];
-const FN_124_CALLEES: &[u32] = &[0u32, 67u32, 92u32];
-const FN_125_CALLEES: &[u32] = &[0u32, 68u32, 92u32];
-const FN_126_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_127_CALLEES: &[u32] = &[0u32, 69u32, 92u32];
+const FN_99_CALLEES: &[usize] = &[0usize, 131usize];
+const FN_100_CALLEES: &[usize] = &[0usize, 72usize, 3usize, 11usize, 12usize, 8usize];
+const FN_101_CALLEES: &[usize] = &[0usize, 42usize, 1usize];
+const FN_102_CALLEES: &[usize] = &[0usize, 42usize, 2usize];
+const FN_103_CALLEES: &[usize] = &[0usize, 63usize, 92usize];
+const FN_104_CALLEES: &[usize] = &[0usize, 131usize];
+const FN_105_CALLEES: &[usize] = &[0usize, 4usize, 11usize, 91usize];
+const FN_106_CALLEES: &[usize] = &[0usize, 6usize, 3usize];
+const FN_107_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_108_CALLEES: &[usize] = &[0usize, 1usize, 91usize];
+const FN_109_CALLEES: &[usize] = &[0usize, 2usize, 91usize];
+const FN_110_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_111_CALLEES: &[usize] = &[0usize, 53usize, 92usize];
+const FN_112_CALLEES: &[usize] = &[0usize, 53usize];
+const FN_113_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_114_CALLEES: &[usize] = &[0usize, 3usize, 11usize];
+const FN_115_CALLEES: &[usize] = &[0usize, 53usize, 92usize];
+const FN_116_CALLEES: &[usize] = &[0usize, 3usize, 12usize, 11usize, 7usize];
+const FN_117_CALLEES: &[usize] = &[0usize, 64usize, 92usize];
+const FN_118_CALLEES: &[usize] = &[0usize, 65usize, 92usize];
+const FN_119_CALLEES: &[usize] = &[0usize, 131usize];
+const FN_120_CALLEES: &[usize] = &[0usize, 44usize, 92usize];
+const FN_121_CALLEES: &[usize] = &[0usize, 42usize, 5usize];
+const FN_122_CALLEES: &[usize] = &[0usize, 45usize, 92usize, 69usize];
+const FN_123_CALLEES: &[usize] = &[0usize, 66usize, 92usize];
+const FN_124_CALLEES: &[usize] = &[0usize, 67usize, 92usize];
+const FN_125_CALLEES: &[usize] = &[0usize, 68usize, 92usize];
+const FN_126_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_127_CALLEES: &[usize] = &[0usize, 69usize, 92usize];
 const FN_128_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_128_CALLEES: &[u32] = &[0u32, 44u32, 70u32, 91u32];
+const FN_128_CALLEES: &[usize] = &[0usize, 44usize, 70usize, 91usize];
 const FN_129_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize, 9usize];
-const FN_129_CALLEES: &[u32] = &[0u32, 131u32, 91u32, 30u32, 31u32, 38u32, 39u32, 132u32, 51u32];
+const FN_129_CALLEES: &[usize] = &[0usize, 131usize, 91usize, 30usize, 31usize, 38usize, 39usize, 132usize, 51usize];
 const FN_130_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_130_CALLEES: &[u32] = &[0u32, 3u32, 8u32, 38u32, 91u32];
-const FN_131_CALLEES: &[u32] = &[0u32, 69u32, 92u32, 39u32, 91u32, 70u32, 72u32];
+const FN_130_CALLEES: &[usize] = &[0usize, 3usize, 8usize, 38usize, 91usize];
+const FN_131_CALLEES: &[usize] = &[0usize, 69usize, 92usize, 39usize, 91usize, 70usize, 72usize];
 const FN_132_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_132_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 91u32];
+const FN_132_CALLEES: &[usize] = &[0usize, 46usize, 71usize, 91usize];
 const FN_133_GLOBALS: &[usize] = &[17usize, 20usize, 9usize];
-const FN_133_CALLEES: &[u32] = &[0u32, 131u32, 91u32, 51u32];
+const FN_133_CALLEES: &[usize] = &[0usize, 131usize, 91usize, 51usize];
 const FN_134_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_134_CALLEES: &[u32] = &[0u32, 116u32, 91u32, 42u32, 32u32, 38u32];
+const FN_134_CALLEES: &[usize] = &[0usize, 116usize, 91usize, 42usize, 32usize, 38usize];
 const FN_135_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_135_CALLEES: &[u32] = &[0u32, 116u32, 91u32, 113u32, 3u32, 118u32, 0u32, 114u32, 1u32, 1u32, 2u32, 4u32];
+const FN_135_CALLEES: &[usize] = &[0usize, 116usize, 91usize, 113usize, 3usize, 118usize, 0usize, 114usize, 1usize, 1usize, 2usize, 4usize];
 const FN_136_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_136_CALLEES: &[u32] = &[0u32, 47u32, 72u32, 91u32];
+const FN_136_CALLEES: &[usize] = &[0usize, 47usize, 72usize, 91usize];
 const FN_137_GLOBALS: &[usize] = &[9usize];
-const FN_137_CALLEES: &[u32] = &[0u32, 46u32, 92u32, 91u32, 8u32, 13u32, 18u32];
+const FN_137_CALLEES: &[usize] = &[0usize, 46usize, 92usize, 91usize, 8usize, 13usize, 18usize];
 const FN_138_GLOBALS: &[usize] = &[9usize];
-const FN_138_CALLEES: &[u32] = &[0u32, 3u32, 11u32, 4u32, 91u32];
+const FN_138_CALLEES: &[usize] = &[0usize, 3usize, 11usize, 4usize, 91usize];
 const FN_139_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_139_CALLEES: &[u32] = &[0u32, 39u32, 91u32, 42u32];
+const FN_139_CALLEES: &[usize] = &[0usize, 39usize, 91usize, 42usize];
 const FN_140_GLOBALS: &[usize] = &[9usize];
-const FN_140_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 14u32, 91u32];
+const FN_140_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 14usize, 91usize];
 const FN_141_GLOBALS: &[usize] = &[9usize];
-const FN_141_CALLEES: &[u32] = &[0u32, 4u32, 91u32];
+const FN_141_CALLEES: &[usize] = &[0usize, 4usize, 91usize];
 const FN_142_GLOBALS: &[usize] = &[9usize];
-const FN_142_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 15u32, 91u32];
+const FN_142_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 15usize, 91usize];
 const FN_143_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize];
-const FN_143_CALLEES: &[u32] = &[0u32, 131u32, 91u32, 30u32, 31u32, 38u32, 39u32, 51u32];
-const FN_144_CALLEES: &[u32] = &[0u32, 42u32, 34u32, 38u32];
-const FN_145_CALLEES: &[u32] = &[0u32, 42u32, 35u32, 38u32];
+const FN_143_CALLEES: &[usize] = &[0usize, 131usize, 91usize, 30usize, 31usize, 38usize, 39usize, 51usize];
+const FN_144_CALLEES: &[usize] = &[0usize, 42usize, 34usize, 38usize];
+const FN_145_CALLEES: &[usize] = &[0usize, 42usize, 35usize, 38usize];
 const FN_146_GLOBALS: &[usize] = &[20usize];
-const FN_146_CALLEES: &[u32] = &[0u32, 72u32];
-const FN_147_CALLEES: &[u32] = &[0u32, 42u32, 36u32, 38u32];
-const FN_148_CALLEES: &[u32] = &[0u32, 91u32];
+const FN_146_CALLEES: &[usize] = &[0usize, 72usize];
+const FN_147_CALLEES: &[usize] = &[0usize, 42usize, 36usize, 38usize];
+const FN_148_CALLEES: &[usize] = &[0usize, 91usize];
 const FN_149_GLOBALS: &[usize] = &[23usize];
-const FN_149_CALLEES: &[u32] = &[0u32, 133u32, 98u32, 87u32, 97u32, 134u32, 135u32, 99u32];
-const FN_150_CALLEES: &[u32] = &[0u32];
-const FN_151_CALLEES: &[u32] = &[0u32, 59u32, 92u32];
-const FN_152_CALLEES: &[u32] = &[0u32];
-const FN_153_CALLEES: &[u32] = &[0u32];
-const FN_154_CALLEES: &[u32] = &[0u32];
-const FN_155_CALLEES: &[u32] = &[0u32, 132u32, 97u32, 97u32];
-const FN_156_CALLEES: &[u32] = &[0u32, 94u32, 92u32];
-const FN_157_CALLEES: &[u32] = &[0u32, 136u32];
+const FN_149_CALLEES: &[usize] = &[0usize, 133usize, 98usize, 87usize, 97usize, 134usize, 135usize, 99usize];
+const FN_150_CALLEES: &[usize] = &[0usize];
+const FN_151_CALLEES: &[usize] = &[0usize, 59usize, 92usize];
+const FN_152_CALLEES: &[usize] = &[0usize];
+const FN_153_CALLEES: &[usize] = &[0usize];
+const FN_154_CALLEES: &[usize] = &[0usize];
+const FN_155_CALLEES: &[usize] = &[0usize, 132usize, 97usize, 97usize];
+const FN_156_CALLEES: &[usize] = &[0usize, 94usize, 92usize];
+const FN_157_CALLEES: &[usize] = &[0usize, 136usize];
 const FN_158_GLOBALS: &[usize] = &[23usize];
-const FN_158_CALLEES: &[u32] = &[0u32, 4u32, 0u32, 14u32, 0u32, 113u32, 91u32];
+const FN_158_CALLEES: &[usize] = &[0usize, 4usize, 0usize, 14usize, 0usize, 113usize, 91usize];
 const FN_159_GLOBALS: &[usize] = &[23usize];
-const FN_159_CALLEES: &[u32] = &[0u32, 113u32, 91u32];
-const FN_160_CALLEES: &[u32] = &[0u32, 95u32, 54u32];
-const FN_161_CALLEES: &[u32] = &[0u32, 0u32, 14u32, 0u32, 91u32, 87u32];
-const FN_162_CALLEES: &[u32] = &[0u32, 30u32, 56u32, 39u32, 87u32];
-const FN_163_CALLEES: &[u32] = &[0u32, 11u32, 4u32, 9u32, 5u32, 87u32, 1u32];
-const FN_164_CALLEES: &[u32] = &[0u32, 6u32, 6u32];
-const FN_165_CALLEES: &[u32] = &[0u32, 4u32, 10u32, 102u32, 87u32];
-const FN_166_CALLEES: &[u32] = &[0u32, 78u32, 115u32];
-const FN_167_CALLEES: &[u32] = &[0u32, 78u32, 135u32];
-const FN_168_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 5u32, 17u32, 2u32, 5u32, 7u32, 24u32, 1u32, 1u32, 0u32, 14u32, 1u32, 0u32, 5u32, 16u32, 94u32, 87u32];
-const FN_169_CALLEES: &[u32] = &[0u32, 4u32, 4u32];
-const FN_170_CALLEES: &[u32] = &[0u32, 78u32, 138u32];
-const FN_171_CALLEES: &[u32] = &[0u32, 78u32, 139u32];
+const FN_159_CALLEES: &[usize] = &[0usize, 113usize, 91usize];
+const FN_160_CALLEES: &[usize] = &[0usize, 95usize, 54usize];
+const FN_161_CALLEES: &[usize] = &[0usize, 0usize, 14usize, 0usize, 91usize, 87usize];
+const FN_162_CALLEES: &[usize] = &[0usize, 30usize, 56usize, 39usize, 87usize];
+const FN_163_CALLEES: &[usize] = &[0usize, 11usize, 4usize, 9usize, 5usize, 87usize, 1usize];
+const FN_164_CALLEES: &[usize] = &[0usize, 6usize, 6usize];
+const FN_165_CALLEES: &[usize] = &[0usize, 4usize, 10usize, 102usize, 87usize];
+const FN_166_CALLEES: &[usize] = &[0usize, 78usize, 115usize];
+const FN_167_CALLEES: &[usize] = &[0usize, 78usize, 135usize];
+const FN_168_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 5usize, 17usize, 2usize, 5usize, 7usize, 24usize, 1usize, 1usize, 0usize, 14usize, 1usize, 0usize, 5usize, 16usize, 94usize, 87usize];
+const FN_169_CALLEES: &[usize] = &[0usize, 4usize, 4usize];
+const FN_170_CALLEES: &[usize] = &[0usize, 78usize, 138usize];
+const FN_171_CALLEES: &[usize] = &[0usize, 78usize, 139usize];
 const FN_172_GLOBALS: &[usize] = &[23usize];
-const FN_172_CALLEES: &[u32] = &[0u32, 68u32, 4u32, 4u32, 91u32];
-const FN_173_CALLEES: &[u32] = &[0u32, 95u32, 92u32];
-const FN_174_CALLEES: &[u32] = &[0u32, 132u32, 100u32, 87u32];
-const FN_175_CALLEES: &[u32] = &[0u32, 136u32];
+const FN_172_CALLEES: &[usize] = &[0usize, 68usize, 4usize, 4usize, 91usize];
+const FN_173_CALLEES: &[usize] = &[0usize, 95usize, 92usize];
+const FN_174_CALLEES: &[usize] = &[0usize, 132usize, 100usize, 87usize];
+const FN_175_CALLEES: &[usize] = &[0usize, 136usize];
 const FN_176_GLOBALS: &[usize] = &[23usize];
-const FN_176_CALLEES: &[u32] = &[0u32, 59u32, 92u32, 91u32];
-const FN_177_CALLEES: &[u32] = &[0u32, 96u32, 92u32];
-const FN_178_CALLEES: &[u32] = &[0u32, 60u32, 73u32];
-const FN_179_CALLEES: &[u32] = &[0u32, 96u32, 92u32];
+const FN_176_CALLEES: &[usize] = &[0usize, 59usize, 92usize, 91usize];
+const FN_177_CALLEES: &[usize] = &[0usize, 96usize, 92usize];
+const FN_178_CALLEES: &[usize] = &[0usize, 60usize, 73usize];
+const FN_179_CALLEES: &[usize] = &[0usize, 96usize, 92usize];
 const FN_180_GLOBALS: &[usize] = &[23usize, 1usize];
-const FN_180_CALLEES: &[u32] = &[0u32, 59u32, 91u32, 102u32, 132u32, 87u32];
-const FN_181_CALLEES: &[u32] = &[0u32, 96u32, 92u32, 52u32, 73u32, 91u32];
+const FN_180_CALLEES: &[usize] = &[0usize, 59usize, 91usize, 102usize, 132usize, 87usize];
+const FN_181_CALLEES: &[usize] = &[0usize, 96usize, 92usize, 52usize, 73usize, 91usize];
 const FN_182_GLOBALS: &[usize] = &[20usize, 9usize, 17usize];
-const FN_182_CALLEES: &[u32] = &[0u32, 69u32, 92u32, 91u32, 1u32, 110u32, 43u32, 44u32];
+const FN_182_CALLEES: &[usize] = &[0usize, 69usize, 92usize, 91usize, 1usize, 110usize, 43usize, 44usize];
 const FN_183_GLOBALS: &[usize] = &[9usize];
-const FN_183_CALLEES: &[u32] = &[0u32, 61u32, 92u32, 91u32, 45u32];
+const FN_183_CALLEES: &[usize] = &[0usize, 61usize, 92usize, 91usize, 45usize];
 const FN_184_GLOBALS: &[usize] = &[9usize];
-const FN_184_CALLEES: &[u32] = &[0u32, 61u32, 92u32, 91u32, 46u32];
+const FN_184_CALLEES: &[usize] = &[0usize, 61usize, 92usize, 91usize, 46usize];
 const FN_185_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_185_CALLEES: &[u32] = &[0u32, 91u32, 69u32];
+const FN_185_CALLEES: &[usize] = &[0usize, 91usize, 69usize];
 const FN_186_GLOBALS: &[usize] = &[9usize];
-const FN_186_CALLEES: &[u32] = &[0u32, 64u32, 92u32, 91u32, 9u32];
+const FN_186_CALLEES: &[usize] = &[0usize, 64usize, 92usize, 91usize, 9usize];
 const FN_187_GLOBALS: &[usize] = &[9usize];
-const FN_187_CALLEES: &[u32] = &[0u32, 64u32, 92u32, 91u32, 10u32];
+const FN_187_CALLEES: &[usize] = &[0usize, 64usize, 92usize, 91usize, 10usize];
 const FN_188_GLOBALS: &[usize] = &[9usize];
-const FN_188_CALLEES: &[u32] = &[0u32, 64u32, 92u32, 91u32, 11u32];
+const FN_188_CALLEES: &[usize] = &[0usize, 64usize, 92usize, 91usize, 11usize];
 const FN_189_GLOBALS: &[usize] = &[23usize, 1usize];
-const FN_189_CALLEES: &[u32] = &[0u32, 59u32, 91u32, 102u32, 87u32];
-const FN_190_CALLEES: &[u32] = &[0u32, 4u32, 10u32, 10u32, 25u32, 113u32, 4u32, 0u32];
+const FN_189_CALLEES: &[usize] = &[0usize, 59usize, 91usize, 102usize, 87usize];
+const FN_190_CALLEES: &[usize] = &[0usize, 4usize, 10usize, 10usize, 25usize, 113usize, 4usize, 0usize];
 const FN_191_GLOBALS: &[usize] = &[14usize];
-const FN_191_CALLEES: &[u32] = &[0u32, 4u32, 10u32, 91u32, 25u32, 1u32, 1u32, 1u32, 1u32];
-const FN_192_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 10u32, 10u32, 25u32, 118u32, 128u32];
-const FN_193_CALLEES: &[u32] = &[0u32, 4u32, 10u32, 5u32, 17u32, 7u32, 25u32, 1u32, 0u32, 14u32, 16u32, 0u32, 5u32, 94u32];
-const FN_194_CALLEES: &[u32] = &[0u32, 4u32, 17u32, 7u32, 25u32, 1u32, 5u32, 6u32, 10u32, 14u32, 16u32, 94u32, 68u32];
-const FN_195_CALLEES: &[u32] = &[0u32, 4u32, 4u32, 91u32, 5u32, 26u32, 7u32, 25u32, 1u32, 24u32, 4u32, 0u32, 14u32, 1u32, 0u32, 94u32, 68u32];
-const FN_196_CALLEES: &[u32] = &[0u32, 4u32, 24u32, 127u32, 10u32, 10u32, 25u32, 128u32, 118u32];
-const FN_197_CALLEES: &[u32] = &[0u32, 97u32, 139u32, 91u32, 134u32, 4u32, 4u32, 25u32, 1u32, 26u32, 10u32, 10u32, 1u32, 1u32, 6u32, 14u32, 1u32, 7u32, 94u32, 68u32, 5u32, 98u32, 114u32, 4u32, 0u32, 0u32, 140u32, 112u32, 9u32, 24u32, 141u32, 142u32, 101u32, 7u32, 6u32];
-const FN_198_CALLEES: &[u32] = &[0u32, 22u32, 92u32, 88u32, 24u32];
-const FN_199_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_200_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_201_CALLEES: &[u32] = &[0u32, 0u32, 91u32];
-const FN_202_CALLEES: &[u32] = &[0u32, 1u32, 91u32];
-const FN_203_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_204_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_205_CALLEES: &[u32] = &[0u32, 91u32];
-const FN_206_CALLEES: &[u32] = &[0u32, 0u32, 91u32, 1u32, 0u32];
-const FN_207_CALLEES: &[u32] = &[0u32, 91u32, 1u32];
-const FN_208_CALLEES: &[u32] = &[0u32, 18u32, 13u32];
-const FN_209_CALLEES: &[u32] = &[0u32, 13u32, 13u32];
-const FN_210_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_211_CALLEES: &[u32] = &[0u32, 27u32, 15u32];
-const FN_212_CALLEES: &[u32] = &[0u32, 39u32, 15u32];
-const FN_213_CALLEES: &[u32] = &[0u32, 29u32, 15u32];
-const FN_214_CALLEES: &[u32] = &[0u32, 4u32, 6u32];
-const FN_215_CALLEES: &[u32] = &[0u32, 2u32, 15u32];
-const FN_216_CALLEES: &[u32] = &[0u32, 6u32, 15u32];
-const FN_217_CALLEES: &[u32] = &[0u32, 4u32, 91u32, 9u32, 10u32, 7u32, 15u32, 143u32, 14u32, 6u32, 5u32, 10u32, 27u32, 94u32];
-const FN_218_CALLEES: &[u32] = &[0u32, 5u32, 5u32, 0u32, 91u32, 8u32, 144u32];
-const FN_219_CALLEES: &[u32] = &[0u32, 9u32, 4u32, 7u32, 10u32, 14u32, 23u32, 0u32, 15u32, 0u32, 5u32, 94u32];
-const FN_220_CALLEES: &[u32] = &[0u32, 1u32, 2u32, 4u32, 7u32, 10u32, 18u32, 23u32, 38u32, 15u32, 5u32];
-const FN_221_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 127u32, 5u32];
-const FN_222_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 91u32];
-const FN_223_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 0u32, 91u32, 5u32, 1u32, 92u32];
-const FN_224_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 92u32, 4u32, 4u32, 91u32];
-const FN_225_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 9u32, 0u32, 91u32, 1u32, 92u32];
-const FN_226_CALLEES: &[u32] = &[0u32, 0u32, 5u32, 92u32, 127u32, 23u32, 5u32, 91u32];
-const FN_227_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 14u32, 127u32, 5u32, 0u32, 7u32, 19u32, 113u32, 16u32, 92u32, 3u32, 4u32, 13u32, 5u32, 94u32, 91u32];
-const FN_228_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 16u32, 19u32, 113u32, 116u32, 125u32];
-const FN_229_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 10u32, 10u32, 14u32];
-const FN_230_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 5u32, 16u32, 14u32, 113u32, 71u32, 91u32, 19u32, 0u32, 1u32, 7u32, 11u32, 2u32, 16u32, 92u32, 13u32, 94u32, 10u32];
-const FN_231_CALLEES: &[u32] = &[0u32, 91u32, 145u32];
-const FN_232_CALLEES: &[u32] = &[0u32, 113u32, 116u32, 125u32];
-const FN_233_CALLEES: &[u32] = &[0u32, 116u32, 125u32, 113u32];
-const FN_234_CALLEES: &[u32] = &[0u32, 113u32];
-const FN_235_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 5u32, 113u32, 91u32, 1u32, 5u32, 92u32, 142u32, 0u32, 1u32, 0u32, 2u32, 3u32, 4u32, 9u32, 75u32, 14u32, 16u32, 13u32, 94u32, 11u32, 7u32, 13u32, 2u32, 10u32, 0u32, 14u32, 10u32, 8u32, 16u32, 2u32, 76u32, 77u32, 78u32, 5u32, 127u32, 71u32];
-const FN_236_CALLEES: &[u32] = &[0u32, 0u32, 7u32, 8u32, 14u32, 9u32, 16u32, 92u32, 0u32, 4u32, 7u32, 23u32, 19u32, 113u32, 5u32, 91u32, 13u32, 6u32, 127u32, 15u32, 94u32, 2u32];
-const FN_237_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 5u32, 113u32, 5u32, 92u32, 2u32, 14u32, 11u32, 7u32, 13u32, 2u32, 10u32, 0u32, 10u32, 9u32, 8u32, 4u32, 116u32, 125u32];
-const FN_238_CALLEES: &[u32] = &[0u32, 0u32, 10u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 10u32];
-const FN_239_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 91u32, 23u32, 19u32, 113u32, 5u32, 12u32, 74u32, 0u32, 16u32, 92u32, 7u32, 10u32, 9u32, 13u32, 94u32];
-const FN_240_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 16u32, 92u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 7u32, 8u32, 9u32, 14u32, 91u32, 13u32, 94u32, 3u32, 2u32, 7u32, 21u32];
-const FN_241_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 16u32, 92u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 7u32, 8u32, 14u32, 9u32, 91u32, 13u32, 5u32, 4u32, 94u32, 71u32, 7u32, 15u32, 16u32];
-const FN_242_CALLEES: &[u32] = &[0u32, 146u32, 4u32, 4u32];
-const FN_243_CALLEES: &[u32] = &[0u32, 104u32, 5u32, 7u32, 28u32, 146u32, 5u32, 91u32, 13u32];
-const FN_244_CALLEES: &[u32] = &[0u32, 7u32, 0u32, 4u32];
-const FN_245_CALLEES: &[u32] = &[0u32, 104u32, 5u32, 7u32, 28u32, 146u32, 5u32, 91u32, 13u32];
-const FN_246_CALLEES: &[u32] = &[0u32, 5u32, 7u32, 28u32, 120u32, 113u32, 5u32, 91u32, 8u32, 144u32, 13u32];
-const FN_247_CALLEES: &[u32] = &[0u32, 120u32, 113u32, 91u32];
-const FN_248_CALLEES: &[u32] = &[0u32, 1u32, 120u32, 23u32, 91u32];
-const FN_249_CALLEES: &[u32] = &[0u32, 3u32, 113u32, 6u32, 1u32, 23u32, 0u32, 4u32, 2u32, 0u32];
-const FN_250_CALLEES: &[u32] = &[0u32, 120u32, 2u32, 1u32, 0u32, 23u32, 4u32, 7u32, 10u32, 5u32, 122u32, 147u32, 148u32, 149u32, 0u32];
-const FN_251_CALLEES: &[u32] = &[0u32, 120u32, 3u32, 0u32, 1u32, 0u32, 2u32, 23u32, 0u32, 4u32, 0u32, 7u32, 10u32, 5u32, 1u32, 4u32, 0u32];
-const FN_252_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 146u32, 14u32, 91u32, 5u32, 92u32, 113u32, 145u32, 148u32, 150u32, 143u32];
-const FN_253_CALLEES: &[u32] = &[0u32, 148u32, 72u32, 147u32, 4u32, 16u32, 120u32, 13u32, 94u32, 91u32, 92u32, 0u32];
-const FN_254_CALLEES: &[u32] = &[0u32, 120u32, 4u32, 4u32, 72u32, 23u32, 122u32, 127u32, 5u32, 7u32, 92u32, 5u32];
-const FN_255_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 7u32, 23u32, 4u32, 92u32, 5u32];
-const FN_256_CALLEES: &[u32] = &[0u32, 120u32, 147u32, 148u32, 149u32, 2u32, 1u32, 1u32, 1u32, 1u32];
-const FN_257_CALLEES: &[u32] = &[0u32, 4u32];
-const FN_258_CALLEES: &[u32] = &[0u32, 20u32, 91u32, 151u32, 0u32, 15u32, 0u32, 19u32, 120u32, 23u32, 9u32, 94u32];
-const FN_259_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 1u32, 1u32, 91u32, 0u32, 5u32];
-const FN_260_CALLEES: &[u32] = &[0u32, 4u32, 20u32, 16u32, 7u32, 23u32, 14u32, 145u32, 92u32, 5u32, 17u32, 13u32, 91u32, 72u32, 94u32, 10u32, 113u32, 146u32, 4u32, 1u32, 120u32, 5u32, 0u32, 1u32, 127u32, 28u32, 6u32, 5u32, 152u32, 5u32, 8u32, 144u32, 89u32, 29u32, 30u32, 2u32, 15u32];
-const FN_261_CALLEES: &[u32] = &[0u32, 147u32, 148u32];
-const FN_262_CALLEES: &[u32] = &[0u32, 147u32, 148u32];
-const FN_263_CALLEES: &[u32] = &[0u32, 120u32];
-const FN_264_CALLEES: &[u32] = &[0u32, 153u32, 120u32, 4u32, 4u32, 23u32, 81u32, 92u32, 147u32, 148u32];
-const FN_265_CALLEES: &[u32] = &[0u32, 120u32, 153u32];
-const FN_266_CALLEES: &[u32] = &[0u32, 120u32, 153u32];
-const FN_267_CALLEES: &[u32] = &[0u32, 146u32, 4u32, 10u32, 10u32, 23u32, 145u32, 113u32, 120u32, 1u32];
-const FN_268_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 7u32, 23u32, 106u32, 92u32, 5u32];
-const FN_269_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 146u32, 4u32, 108u32, 92u32, 14u32, 91u32, 5u32, 10u32, 10u32, 145u32, 72u32, 113u32, 111u32, 120u32, 1u32, 127u32];
-const FN_270_CALLEES: &[u32] = &[0u32, 113u32, 72u32];
-const FN_271_CALLEES: &[u32] = &[0u32, 120u32, 72u32, 112u32, 83u32, 103u32, 23u32, 1u32, 4u32, 16u32, 13u32, 94u32, 91u32, 1u32, 2u32, 147u32, 148u32, 1u32, 154u32, 10u32, 107u32, 113u32, 116u32, 125u32, 82u32, 80u32, 105u32, 0u32, 122u32, 145u32, 127u32, 4u32];
-const FN_272_CALLEES: &[u32] = &[0u32, 120u32];
-const FN_273_CALLEES: &[u32] = &[0u32, 120u32];
-const FN_274_CALLEES: &[u32] = &[0u32, 120u32, 1u32, 0u32, 15u32];
-const FN_275_CALLEES: &[u32] = &[0u32, 84u32, 1u32, 0u32, 15u32];
-const FN_276_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 6u32, 0u32];
-const FN_277_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 84u32, 0u32, 2u32];
-const FN_278_CALLEES: &[u32] = &[0u32, 1u32, 6u32];
-const FN_279_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_280_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_281_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_282_CALLEES: &[u32] = &[0u32, 148u32, 120u32, 147u32, 92u32];
-const FN_283_CALLEES: &[u32] = &[0u32, 112u32, 127u32, 113u32, 84u32, 1u32, 0u32, 3u32, 2u32, 1u32, 0u32, 23u32, 92u32, 1u32, 12u32, 5u32, 0u32, 3u32, 4u32, 10u32, 0u32, 15u32];
-const FN_284_CALLEES: &[u32] = &[0u32, 3u32, 120u32, 105u32, 0u32, 148u32, 1u32, 84u32, 2u32, 0u32, 73u32, 6u32, 82u32, 12u32, 0u32, 1u32, 0u32, 15u32, 0u32, 3u32, 1u32];
-const FN_285_CALLEES: &[u32] = &[0u32, 3u32, 120u32, 0u32, 113u32, 1u32, 116u32, 125u32, 148u32, 0u32, 73u32, 84u32, 2u32, 6u32, 12u32, 10u32, 1u32, 0u32, 3u32, 0u32];
-const FN_286_CALLEES: &[u32] = &[0u32, 113u32, 116u32, 125u32, 1u32, 0u32, 3u32, 120u32, 73u32, 0u32, 6u32, 148u32, 0u32, 114u32, 1u32, 5u32, 0u32, 0u32, 0u32, 84u32, 2u32, 82u32, 12u32, 0u32, 1u32, 0u32, 1u32, 0u32, 15u32, 3u32, 10u32, 11u32, 85u32, 23u32, 1u32];
-const FN_287_CALLEES: &[u32] = &[0u32, 3u32, 120u32, 0u32, 73u32, 1u32, 0u32, 6u32, 92u32, 113u32, 0u32, 2u32, 12u32, 0u32, 3u32, 1u32, 23u32, 0u32];
-const FN_288_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 145u32, 5u32];
-const FN_289_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 145u32, 5u32];
+const FN_191_CALLEES: &[usize] = &[0usize, 4usize, 10usize, 91usize, 25usize, 1usize, 1usize, 1usize, 1usize];
+const FN_192_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 10usize, 10usize, 25usize, 118usize, 128usize];
+const FN_193_CALLEES: &[usize] = &[0usize, 4usize, 10usize, 5usize, 17usize, 7usize, 25usize, 1usize, 0usize, 14usize, 16usize, 0usize, 5usize, 94usize];
+const FN_194_CALLEES: &[usize] = &[0usize, 4usize, 17usize, 7usize, 25usize, 1usize, 5usize, 6usize, 10usize, 14usize, 16usize, 94usize, 68usize];
+const FN_195_CALLEES: &[usize] = &[0usize, 4usize, 4usize, 91usize, 5usize, 26usize, 7usize, 25usize, 1usize, 24usize, 4usize, 0usize, 14usize, 1usize, 0usize, 94usize, 68usize];
+const FN_196_CALLEES: &[usize] = &[0usize, 4usize, 24usize, 127usize, 10usize, 10usize, 25usize, 128usize, 118usize];
+const FN_197_CALLEES: &[usize] = &[0usize, 97usize, 139usize, 91usize, 134usize, 4usize, 4usize, 25usize, 1usize, 26usize, 10usize, 10usize, 1usize, 1usize, 6usize, 14usize, 1usize, 7usize, 94usize, 68usize, 5usize, 98usize, 114usize, 4usize, 0usize, 0usize, 140usize, 112usize, 9usize, 24usize, 141usize, 142usize, 101usize, 7usize, 6usize];
+const FN_198_CALLEES: &[usize] = &[0usize, 22usize, 92usize, 88usize, 24usize];
+const FN_199_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_200_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_201_CALLEES: &[usize] = &[0usize, 0usize, 91usize];
+const FN_202_CALLEES: &[usize] = &[0usize, 1usize, 91usize];
+const FN_203_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_204_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_205_CALLEES: &[usize] = &[0usize, 91usize];
+const FN_206_CALLEES: &[usize] = &[0usize, 0usize, 91usize, 1usize, 0usize];
+const FN_207_CALLEES: &[usize] = &[0usize, 91usize, 1usize];
+const FN_208_CALLEES: &[usize] = &[0usize, 18usize, 13usize];
+const FN_209_CALLEES: &[usize] = &[0usize, 13usize, 13usize];
+const FN_210_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_211_CALLEES: &[usize] = &[0usize, 27usize, 15usize];
+const FN_212_CALLEES: &[usize] = &[0usize, 39usize, 15usize];
+const FN_213_CALLEES: &[usize] = &[0usize, 29usize, 15usize];
+const FN_214_CALLEES: &[usize] = &[0usize, 4usize, 6usize];
+const FN_215_CALLEES: &[usize] = &[0usize, 2usize, 15usize];
+const FN_216_CALLEES: &[usize] = &[0usize, 6usize, 15usize];
+const FN_217_CALLEES: &[usize] = &[0usize, 4usize, 91usize, 9usize, 10usize, 7usize, 15usize, 143usize, 14usize, 6usize, 5usize, 10usize, 27usize, 94usize];
+const FN_218_CALLEES: &[usize] = &[0usize, 5usize, 5usize, 0usize, 91usize, 8usize, 144usize];
+const FN_219_CALLEES: &[usize] = &[0usize, 9usize, 4usize, 7usize, 10usize, 14usize, 23usize, 0usize, 15usize, 0usize, 5usize, 94usize];
+const FN_220_CALLEES: &[usize] = &[0usize, 1usize, 2usize, 4usize, 7usize, 10usize, 18usize, 23usize, 38usize, 15usize, 5usize];
+const FN_221_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 127usize, 5usize];
+const FN_222_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 91usize];
+const FN_223_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 0usize, 91usize, 5usize, 1usize, 92usize];
+const FN_224_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 92usize, 4usize, 4usize, 91usize];
+const FN_225_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 9usize, 0usize, 91usize, 1usize, 92usize];
+const FN_226_CALLEES: &[usize] = &[0usize, 0usize, 5usize, 92usize, 127usize, 23usize, 5usize, 91usize];
+const FN_227_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 14usize, 127usize, 5usize, 0usize, 7usize, 19usize, 113usize, 16usize, 92usize, 3usize, 4usize, 13usize, 5usize, 94usize, 91usize];
+const FN_228_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 16usize, 19usize, 113usize, 116usize, 125usize];
+const FN_229_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 10usize, 10usize, 14usize];
+const FN_230_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 5usize, 16usize, 14usize, 113usize, 71usize, 91usize, 19usize, 0usize, 1usize, 7usize, 11usize, 2usize, 16usize, 92usize, 13usize, 94usize, 10usize];
+const FN_231_CALLEES: &[usize] = &[0usize, 91usize, 145usize];
+const FN_232_CALLEES: &[usize] = &[0usize, 113usize, 116usize, 125usize];
+const FN_233_CALLEES: &[usize] = &[0usize, 116usize, 125usize, 113usize];
+const FN_234_CALLEES: &[usize] = &[0usize, 113usize];
+const FN_235_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 5usize, 113usize, 91usize, 1usize, 5usize, 92usize, 142usize, 0usize, 1usize, 0usize, 2usize, 3usize, 4usize, 9usize, 75usize, 14usize, 16usize, 13usize, 94usize, 11usize, 7usize, 13usize, 2usize, 10usize, 0usize, 14usize, 10usize, 8usize, 16usize, 2usize, 76usize, 77usize, 78usize, 5usize, 127usize, 71usize];
+const FN_236_CALLEES: &[usize] = &[0usize, 0usize, 7usize, 8usize, 14usize, 9usize, 16usize, 92usize, 0usize, 4usize, 7usize, 23usize, 19usize, 113usize, 5usize, 91usize, 13usize, 6usize, 127usize, 15usize, 94usize, 2usize];
+const FN_237_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 5usize, 113usize, 5usize, 92usize, 2usize, 14usize, 11usize, 7usize, 13usize, 2usize, 10usize, 0usize, 10usize, 9usize, 8usize, 4usize, 116usize, 125usize];
+const FN_238_CALLEES: &[usize] = &[0usize, 0usize, 10usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 10usize];
+const FN_239_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 91usize, 23usize, 19usize, 113usize, 5usize, 12usize, 74usize, 0usize, 16usize, 92usize, 7usize, 10usize, 9usize, 13usize, 94usize];
+const FN_240_CALLEES: &[usize] = &[0usize, 0usize, 17usize, 16usize, 92usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 7usize, 8usize, 9usize, 14usize, 91usize, 13usize, 94usize, 3usize, 2usize, 7usize, 21usize];
+const FN_241_CALLEES: &[usize] = &[0usize, 0usize, 17usize, 16usize, 92usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 7usize, 8usize, 14usize, 9usize, 91usize, 13usize, 5usize, 4usize, 94usize, 71usize, 7usize, 15usize, 16usize];
+const FN_242_CALLEES: &[usize] = &[0usize, 146usize, 4usize, 4usize];
+const FN_243_CALLEES: &[usize] = &[0usize, 104usize, 5usize, 7usize, 28usize, 146usize, 5usize, 91usize, 13usize];
+const FN_244_CALLEES: &[usize] = &[0usize, 7usize, 0usize, 4usize];
+const FN_245_CALLEES: &[usize] = &[0usize, 104usize, 5usize, 7usize, 28usize, 146usize, 5usize, 91usize, 13usize];
+const FN_246_CALLEES: &[usize] = &[0usize, 5usize, 7usize, 28usize, 120usize, 113usize, 5usize, 91usize, 8usize, 144usize, 13usize];
+const FN_247_CALLEES: &[usize] = &[0usize, 120usize, 113usize, 91usize];
+const FN_248_CALLEES: &[usize] = &[0usize, 1usize, 120usize, 23usize, 91usize];
+const FN_249_CALLEES: &[usize] = &[0usize, 3usize, 113usize, 6usize, 1usize, 23usize, 0usize, 4usize, 2usize, 0usize];
+const FN_250_CALLEES: &[usize] = &[0usize, 120usize, 2usize, 1usize, 0usize, 23usize, 4usize, 7usize, 10usize, 5usize, 122usize, 147usize, 148usize, 149usize, 0usize];
+const FN_251_CALLEES: &[usize] = &[0usize, 120usize, 3usize, 0usize, 1usize, 0usize, 2usize, 23usize, 0usize, 4usize, 0usize, 7usize, 10usize, 5usize, 1usize, 4usize, 0usize];
+const FN_252_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 146usize, 14usize, 91usize, 5usize, 92usize, 113usize, 145usize, 148usize, 150usize, 143usize];
+const FN_253_CALLEES: &[usize] = &[0usize, 148usize, 72usize, 147usize, 4usize, 16usize, 120usize, 13usize, 94usize, 91usize, 92usize, 0usize];
+const FN_254_CALLEES: &[usize] = &[0usize, 120usize, 4usize, 4usize, 72usize, 23usize, 122usize, 127usize, 5usize, 7usize, 92usize, 5usize];
+const FN_255_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 7usize, 23usize, 4usize, 92usize, 5usize];
+const FN_256_CALLEES: &[usize] = &[0usize, 120usize, 147usize, 148usize, 149usize, 2usize, 1usize, 1usize, 1usize, 1usize];
+const FN_257_CALLEES: &[usize] = &[0usize, 4usize];
+const FN_258_CALLEES: &[usize] = &[0usize, 20usize, 91usize, 151usize, 0usize, 15usize, 0usize, 19usize, 120usize, 23usize, 9usize, 94usize];
+const FN_259_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 1usize, 1usize, 91usize, 0usize, 5usize];
+const FN_260_CALLEES: &[usize] = &[0usize, 4usize, 20usize, 16usize, 7usize, 23usize, 14usize, 145usize, 92usize, 5usize, 17usize, 13usize, 91usize, 72usize, 94usize, 10usize, 113usize, 146usize, 4usize, 1usize, 120usize, 5usize, 0usize, 1usize, 127usize, 28usize, 6usize, 5usize, 152usize, 5usize, 8usize, 144usize, 89usize, 29usize, 30usize, 2usize, 15usize];
+const FN_261_CALLEES: &[usize] = &[0usize, 147usize, 148usize];
+const FN_262_CALLEES: &[usize] = &[0usize, 147usize, 148usize];
+const FN_263_CALLEES: &[usize] = &[0usize, 120usize];
+const FN_264_CALLEES: &[usize] = &[0usize, 153usize, 120usize, 4usize, 4usize, 23usize, 81usize, 92usize, 147usize, 148usize];
+const FN_265_CALLEES: &[usize] = &[0usize, 120usize, 153usize];
+const FN_266_CALLEES: &[usize] = &[0usize, 120usize, 153usize];
+const FN_267_CALLEES: &[usize] = &[0usize, 146usize, 4usize, 10usize, 10usize, 23usize, 145usize, 113usize, 120usize, 1usize];
+const FN_268_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 7usize, 23usize, 106usize, 92usize, 5usize];
+const FN_269_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 146usize, 4usize, 108usize, 92usize, 14usize, 91usize, 5usize, 10usize, 10usize, 145usize, 72usize, 113usize, 111usize, 120usize, 1usize, 127usize];
+const FN_270_CALLEES: &[usize] = &[0usize, 113usize, 72usize];
+const FN_271_CALLEES: &[usize] = &[0usize, 120usize, 72usize, 112usize, 83usize, 103usize, 23usize, 1usize, 4usize, 16usize, 13usize, 94usize, 91usize, 1usize, 2usize, 147usize, 148usize, 1usize, 154usize, 10usize, 107usize, 113usize, 116usize, 125usize, 82usize, 80usize, 105usize, 0usize, 122usize, 145usize, 127usize, 4usize];
+const FN_272_CALLEES: &[usize] = &[0usize, 120usize];
+const FN_273_CALLEES: &[usize] = &[0usize, 120usize];
+const FN_274_CALLEES: &[usize] = &[0usize, 120usize, 1usize, 0usize, 15usize];
+const FN_275_CALLEES: &[usize] = &[0usize, 84usize, 1usize, 0usize, 15usize];
+const FN_276_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 6usize, 0usize];
+const FN_277_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 84usize, 0usize, 2usize];
+const FN_278_CALLEES: &[usize] = &[0usize, 1usize, 6usize];
+const FN_279_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_280_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_281_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_282_CALLEES: &[usize] = &[0usize, 148usize, 120usize, 147usize, 92usize];
+const FN_283_CALLEES: &[usize] = &[0usize, 112usize, 127usize, 113usize, 84usize, 1usize, 0usize, 3usize, 2usize, 1usize, 0usize, 23usize, 92usize, 1usize, 12usize, 5usize, 0usize, 3usize, 4usize, 10usize, 0usize, 15usize];
+const FN_284_CALLEES: &[usize] = &[0usize, 3usize, 120usize, 105usize, 0usize, 148usize, 1usize, 84usize, 2usize, 0usize, 73usize, 6usize, 82usize, 12usize, 0usize, 1usize, 0usize, 15usize, 0usize, 3usize, 1usize];
+const FN_285_CALLEES: &[usize] = &[0usize, 3usize, 120usize, 0usize, 113usize, 1usize, 116usize, 125usize, 148usize, 0usize, 73usize, 84usize, 2usize, 6usize, 12usize, 10usize, 1usize, 0usize, 3usize, 0usize];
+const FN_286_CALLEES: &[usize] = &[0usize, 113usize, 116usize, 125usize, 1usize, 0usize, 3usize, 120usize, 73usize, 0usize, 6usize, 148usize, 0usize, 114usize, 1usize, 5usize, 0usize, 0usize, 0usize, 84usize, 2usize, 82usize, 12usize, 0usize, 1usize, 0usize, 1usize, 0usize, 15usize, 3usize, 10usize, 11usize, 85usize, 23usize, 1usize];
+const FN_287_CALLEES: &[usize] = &[0usize, 3usize, 120usize, 0usize, 73usize, 1usize, 0usize, 6usize, 92usize, 113usize, 0usize, 2usize, 12usize, 0usize, 3usize, 1usize, 23usize, 0usize];
+const FN_288_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 145usize, 5usize];
+const FN_289_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 145usize, 5usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -47750,7 +47730,7 @@ clippy::type_complexity,
 clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
-fn bound_adapter_290(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+fn bound_adapter_290(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     SubstituteInstance::fn_290(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, host)
 }
 
@@ -47778,46 +47758,46 @@ clippy::type_complexity,
 clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
-fn bound_adapter_291(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+fn bound_adapter_291(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     SubstituteInstance::fn_291(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, host)
 }
 
-const FN_292_CALLEES: &[u32] = &[0u32, 1u32, 120u32, 1u32, 3u32, 5u32, 0u32, 6u32, 4u32, 16u32, 91u32, 13u32, 10u32, 72u32, 0u32, 94u32];
-const FN_293_CALLEES: &[u32] = &[0u32, 16u32, 14u32, 113u32, 1u32, 3u32, 5u32, 6u32, 0u32, 2u32, 72u32, 91u32, 1u32, 0u32, 4u32, 13u32, 94u32, 7u32, 23u32, 2u32, 5u32, 8u32, 145u32, 7u32, 4u32, 15u32];
-const FN_294_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 16u32, 7u32, 23u32, 19u32, 113u32, 18u32, 13u32, 19u32, 94u32];
-const FN_295_CALLEES: &[u32] = &[0u32, 87u32, 92u32, 79u32, 4u32, 16u32, 7u32, 23u32, 1u32, 1u32, 15u32, 5u32, 94u32];
-const FN_296_CALLEES: &[u32] = &[0u32, 120u32, 23u32, 91u32, 72u32, 92u32, 1u32];
-const FN_297_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 145u32, 5u32];
-const FN_298_CALLEES: &[u32] = &[0u32, 120u32, 4u32, 1u32, 12u32, 0u32, 0u32];
-const FN_299_CALLEES: &[u32] = &[0u32, 16u32, 10u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 9u32, 3u32, 92u32, 2u32, 5u32, 4u32, 10u32, 10u32, 0u32, 91u32, 0u32, 13u32, 1u32, 94u32];
-const FN_300_CALLEES: &[u32] = &[0u32, 120u32, 1u32, 23u32, 91u32, 145u32, 72u32, 4u32, 16u32, 13u32, 94u32];
-const FN_301_CALLEES: &[u32] = &[0u32, 91u32, 4u32, 7u32, 10u32, 5u32, 22u32, 147u32, 148u32, 143u32, 122u32];
-const FN_302_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_303_CALLEES: &[u32] = &[91u32];
-const FN_310_CALLEES: &[u32] = &[4u32];
-const FN_348_CALLEES: &[u32] = &[91u32];
-const FN_349_CALLEES: &[u32] = &[91u32];
-const FN_369_CALLEES: &[u32] = &[91u32];
-const FN_370_CALLEES: &[u32] = &[91u32];
-const FN_371_CALLEES: &[u32] = &[91u32];
-const FN_372_CALLEES: &[u32] = &[91u32];
-const FN_377_CALLEES: &[u32] = &[4u32];
-const FN_390_CALLEES: &[u32] = &[133u32, 137u32];
-const FN_396_CALLEES: &[u32] = &[91u32];
-const FN_397_CALLEES: &[u32] = &[91u32];
-const FN_406_CALLEES: &[u32] = &[91u32];
-const FN_408_CALLEES: &[u32] = &[4u32];
-const FN_414_CALLEES: &[u32] = &[91u32];
-const FN_415_CALLEES: &[u32] = &[91u32];
-const FN_416_CALLEES: &[u32] = &[91u32];
-const FN_417_CALLEES: &[u32] = &[91u32];
-const FN_418_CALLEES: &[u32] = &[91u32];
-const FN_419_CALLEES: &[u32] = &[153u32];
-const FN_420_CALLEES: &[u32] = &[120u32, 113u32, 152u32];
-const FN_424_CALLEES: &[u32] = &[91u32];
-const FN_426_CALLEES: &[u32] = &[91u32];
-const FN_427_CALLEES: &[u32] = &[91u32];
-const FN_428_CALLEES: &[u32] = &[0u32, 91u32, 90u32];
+const FN_292_CALLEES: &[usize] = &[0usize, 1usize, 120usize, 1usize, 3usize, 5usize, 0usize, 6usize, 4usize, 16usize, 91usize, 13usize, 10usize, 72usize, 0usize, 94usize];
+const FN_293_CALLEES: &[usize] = &[0usize, 16usize, 14usize, 113usize, 1usize, 3usize, 5usize, 6usize, 0usize, 2usize, 72usize, 91usize, 1usize, 0usize, 4usize, 13usize, 94usize, 7usize, 23usize, 2usize, 5usize, 8usize, 145usize, 7usize, 4usize, 15usize];
+const FN_294_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 16usize, 7usize, 23usize, 19usize, 113usize, 18usize, 13usize, 19usize, 94usize];
+const FN_295_CALLEES: &[usize] = &[0usize, 87usize, 92usize, 79usize, 4usize, 16usize, 7usize, 23usize, 1usize, 1usize, 15usize, 5usize, 94usize];
+const FN_296_CALLEES: &[usize] = &[0usize, 120usize, 23usize, 91usize, 72usize, 92usize, 1usize];
+const FN_297_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 145usize, 5usize];
+const FN_298_CALLEES: &[usize] = &[0usize, 120usize, 4usize, 1usize, 12usize, 0usize, 0usize];
+const FN_299_CALLEES: &[usize] = &[0usize, 16usize, 10usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 9usize, 3usize, 92usize, 2usize, 5usize, 4usize, 10usize, 10usize, 0usize, 91usize, 0usize, 13usize, 1usize, 94usize];
+const FN_300_CALLEES: &[usize] = &[0usize, 120usize, 1usize, 23usize, 91usize, 145usize, 72usize, 4usize, 16usize, 13usize, 94usize];
+const FN_301_CALLEES: &[usize] = &[0usize, 91usize, 4usize, 7usize, 10usize, 5usize, 22usize, 147usize, 148usize, 143usize, 122usize];
+const FN_302_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_303_CALLEES: &[usize] = &[91usize];
+const FN_310_CALLEES: &[usize] = &[4usize];
+const FN_348_CALLEES: &[usize] = &[91usize];
+const FN_349_CALLEES: &[usize] = &[91usize];
+const FN_369_CALLEES: &[usize] = &[91usize];
+const FN_370_CALLEES: &[usize] = &[91usize];
+const FN_371_CALLEES: &[usize] = &[91usize];
+const FN_372_CALLEES: &[usize] = &[91usize];
+const FN_377_CALLEES: &[usize] = &[4usize];
+const FN_390_CALLEES: &[usize] = &[133usize, 137usize];
+const FN_396_CALLEES: &[usize] = &[91usize];
+const FN_397_CALLEES: &[usize] = &[91usize];
+const FN_406_CALLEES: &[usize] = &[91usize];
+const FN_408_CALLEES: &[usize] = &[4usize];
+const FN_414_CALLEES: &[usize] = &[91usize];
+const FN_415_CALLEES: &[usize] = &[91usize];
+const FN_416_CALLEES: &[usize] = &[91usize];
+const FN_417_CALLEES: &[usize] = &[91usize];
+const FN_418_CALLEES: &[usize] = &[91usize];
+const FN_419_CALLEES: &[usize] = &[153usize];
+const FN_420_CALLEES: &[usize] = &[120usize, 113usize, 152usize];
+const FN_424_CALLEES: &[usize] = &[91usize];
+const FN_426_CALLEES: &[usize] = &[91usize];
+const FN_427_CALLEES: &[usize] = &[91usize];
+const FN_428_CALLEES: &[usize] = &[0usize, 91usize, 90usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -49435,6 +49415,10 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (2229905u128, [0xf6, 0x14, 0xa8, 0x5b, 0x2b, 0x33, 0x57, 0x42, 0x23, 0x3d, 0x3d, 0xd4, 0xbf, 0xf4, 0x12, 0x8d, 0xf2, 0xf5, 0x02, 0x98, 0x8a, 0xc2, 0xec, 0xb1, 0x72, 0xda, 0x50, 0xf2, 0xb8, 0xc7, 0x31, 0xdc]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_88792/f1681@l8589993409",
     accounting_version: 2u32,
@@ -49446,6 +49430,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -49735,7 +49720,7 @@ impl SubstituteInstance {
     let mut s_i32_8: i32 = 0i32;
     let mut s_i32_9: i32 = 0i32;
     let mut s_i32_10: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
     vm.exit_call();
@@ -52151,7 +52136,7 @@ impl SubstituteInstance {
     let mut s_i32_11: i32 = 0i32;
     let mut s_i32_12: i32 = 0i32;
     let mut s_i32_13: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
     vm.exit_call();
@@ -52351,7 +52336,7 @@ impl SubstituteInstance {
             l50 = s_i32_0;
             'blk_5: {
                 'blk_6: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l50;
                     s_i32_1 = l49;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -52613,7 +52598,7 @@ impl SubstituteInstance {
             l99 = s_i32_0;
             s_i32_0 = l2;
             l100 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l4;
             l101 = s_i32_0;
             s_i32_0 = l5;
@@ -52677,7 +52662,7 @@ impl SubstituteInstance {
             l116 = s_i32_0;
             'blk_11: {
                 'blk_12: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l116;
                     s_i32_1 = l115;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -52770,7 +52755,7 @@ impl SubstituteInstance {
             s_i32_0 = 2215i32;
             l134 = s_i32_0;
             s_i32_0 = l133;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l134;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
@@ -52795,7 +52780,7 @@ impl SubstituteInstance {
             l137 = s_i64_0;
             'blk_15: {
                 'blk_16: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l137;
                     l138 = s_i64_0;
                     s_i32_0 = l15;
@@ -52924,7 +52909,7 @@ impl SubstituteInstance {
     s_i32_0 = 8i32;
     l162 = s_i32_0;
     s_i32_0 = l161;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_1 = l162;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 120usize, s_i32_0, s_i32_1, host);
@@ -53261,7 +53246,7 @@ impl SubstituteInstance {
             s_i32_1 = l232;
             s_i32_2 = l233;
             s_i32_3 = l234;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_4 = l235;
             s_i32_5 = l236;
             s_i32_6 = l237;
@@ -53413,7 +53398,7 @@ impl SubstituteInstance {
     vm.exit_call();
     let __t35 = __call_res?;
     s_i32_0 = __t35;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     'blk_23: {
         if s_i32_0 != 0 {
             s_i32_0 = l0;
@@ -53765,7 +53750,7 @@ impl SubstituteInstance {
             s_i32_5 = l343;
             s_i32_6 = l344;
             s_i32_7 = l345;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_8 = l346;
             s_i32_9 = l347;
             s_i32_10 = l350;
@@ -53976,7 +53961,7 @@ impl SubstituteInstance {
             let __t55 = __call_res?;
             s_i32_0 = __t55;
             l393 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             l394 = s_i32_0;
             s_i32_0 = l1;
@@ -54037,7 +54022,7 @@ impl SubstituteInstance {
     'blk_30: {
         if s_i32_0 != 0 {
             s_i32_0 = l15;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_ret_i64(vm, 4usize, s_i32_0, host);
             vm.exit_call();
@@ -54061,7 +54046,7 @@ impl SubstituteInstance {
             l412 = s_i32_0;
             'blk_31: {
                 'blk_32: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l412;
                     s_i32_1 = l411;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -54430,7 +54415,7 @@ impl SubstituteInstance {
             l477 = s_i32_0;
             'blk_40: {
                 'blk_41: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l477;
                     s_i32_1 = l476;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -54506,7 +54491,7 @@ impl SubstituteInstance {
         }
     }
     s_i32_0 = l11;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l492 = s_i32_0;
     s_i32_0 = 17i32;
     l493 = s_i32_0;
@@ -54537,7 +54522,7 @@ impl SubstituteInstance {
             l499 = s_i32_0;
             'blk_44: {
                 'blk_45: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l499;
                     s_i32_1 = l498;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -54605,7 +54590,7 @@ impl SubstituteInstance {
                                 l510 = s_i32_0;
                                 'blk_48: {
                                     'blk_49: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l510;
                                         s_i32_1 = l509;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -54773,7 +54758,7 @@ impl SubstituteInstance {
             l535 = s_i32_0;
             'blk_51: {
                 'blk_52: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l535;
                     s_i32_1 = l534;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -55247,7 +55232,7 @@ impl SubstituteInstance {
             s_i32_0 = l6;
             l640 = s_i32_0;
             s_i32_0 = l7;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l641 = s_i32_0;
             s_i32_0 = l8;
             l642 = s_i32_0;
@@ -55362,7 +55347,7 @@ impl SubstituteInstance {
             s_i32_3 = l662;
             s_i32_4 = l663;
             s_i32_5 = l664;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_6 = l665;
             s_i32_7 = l666;
             s_i32_8 = l667;
@@ -55648,7 +55633,7 @@ impl SubstituteInstance {
             l722 = s_i64_0;
             s_i64_0 = l721;
             s_i64_1 = l722;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i32(vm, 4usize, s_i64_0, s_i64_1, host);
             vm.exit_call();
@@ -55739,7 +55724,7 @@ impl SubstituteInstance {
             l741 = s_i32_0;
             s_i32_0 = l740;
             s_i32_1 = l741;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
@@ -55754,7 +55739,7 @@ impl SubstituteInstance {
     l743 = s_i32_0;
     s_i32_0 = l742;
     s_i32_1 = l743;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 120usize, s_i32_0, s_i32_1, host);
     vm.exit_call();
@@ -56096,7 +56081,7 @@ impl SubstituteInstance {
     'blk_68: {
         if s_i32_0 != 0 {
             s_i32_0 = l1;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l823 = s_i32_0;
             s_i32_0 = l2;
             l824 = s_i32_0;
@@ -56192,7 +56177,7 @@ impl SubstituteInstance {
             l839 = s_i64_0;
             'blk_71: {
                 'blk_72: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l839;
                     l840 = s_i64_0;
                     s_i64_0 = l836;
@@ -56212,7 +56197,7 @@ impl SubstituteInstance {
                     l842 = s_i64_0;
                     'blk_73: {
                         'blk_74: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l842;
                             l843 = s_i64_0;
                             s_i64_0 = l839;
@@ -56312,7 +56297,7 @@ impl SubstituteInstance {
             l857 = s_i64_0;
             'blk_76: {
                 'blk_77: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l857;
                     l858 = s_i64_0;
                     s_i64_0 = l836;
@@ -56349,7 +56334,7 @@ impl SubstituteInstance {
                     l865 = s_i64_0;
                     'blk_78: {
                         'blk_79: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l865;
                             l866 = s_i64_0;
                             s_i64_0 = l836;
@@ -56534,7 +56519,7 @@ impl SubstituteInstance {
                     l892 = s_i64_0;
                     'blk_85: {
                         'blk_86: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l892;
                             l893 = s_i64_0;
                             s_i64_0 = l836;
@@ -56657,7 +56642,7 @@ impl SubstituteInstance {
                     l917 = s_i64_0;
                     'blk_87: {
                         'blk_88: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l917;
                             l918 = s_i64_0;
                             s_i64_0 = l836;
@@ -56979,7 +56964,7 @@ impl SubstituteInstance {
                     l992 = s_i64_0;
                     'blk_90: {
                         'blk_91: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l992;
                             l993 = s_i64_0;
                             s_i64_0 = l836;
@@ -57069,7 +57054,7 @@ impl SubstituteInstance {
         }
     }
     s_i32_0 = l11;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l1007 = s_i32_0;
     s_i32_0 = 30i32;
     l1008 = s_i32_0;
@@ -57426,7 +57411,7 @@ impl SubstituteInstance {
             let __t189 = __call_res?;
             s_i64_0 = __t189;
             l1083 = s_i64_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             l1084 = s_i32_0;
             s_i32_0 = 2548i32;
@@ -57685,7 +57670,7 @@ impl SubstituteInstance {
                     let __t201 = __call_res?;
                     s_i32_0 = __t201;
                     l1139 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l1139;
                     s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                     l1140 = s_i32_0;
@@ -57822,7 +57807,7 @@ impl SubstituteInstance {
             s_i32_0 = l8;
             l1166 = s_i32_0;
             s_i32_0 = 3i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l1167 = s_i32_0;
             s_i32_0 = l1121;
             l1168 = s_i32_0;
@@ -57858,7 +57843,7 @@ impl SubstituteInstance {
             l1173 = s_i64_0;
             'blk_105: {
                 'blk_106: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l1173;
                     l1174 = s_i64_0;
                     s_i32_0 = l1172;
@@ -58143,7 +58128,7 @@ impl SubstituteInstance {
             l1232 = s_i32_0;
             s_i32_0 = 2216i32;
             l1233 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1232;
             s_i32_1 = l1233;
             vm.enter_call()?;
@@ -58258,7 +58243,7 @@ impl SubstituteInstance {
             l1258 = s_i32_0;
             s_i32_0 = l1257;
             s_i32_1 = l1258;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
@@ -58442,7 +58427,7 @@ impl SubstituteInstance {
                     s_i32_0 = l5;
                     l1302 = s_i32_0;
                     s_i32_0 = l6;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1303 = s_i32_0;
                     s_i32_0 = l7;
                     l1304 = s_i32_0;
@@ -58489,7 +58474,7 @@ impl SubstituteInstance {
                     s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                     l1310 = s_i32_0;
                     s_i32_0 = 24i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1311 = s_i32_0;
                     s_i32_0 = l1310;
                     s_i32_1 = l1311;
@@ -58691,7 +58676,7 @@ impl SubstituteInstance {
                     l1353 = s_i32_0;
                     s_i32_0 = 2215i32;
                     l1354 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l1353;
                     s_i32_1 = l1354;
                     vm.enter_call()?;
@@ -58894,7 +58879,7 @@ impl SubstituteInstance {
                     s_i32_0 = l1;
                     l1399 = s_i32_0;
                     s_i32_0 = l2;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1400 = s_i32_0;
                     s_i32_0 = l3;
                     l1401 = s_i32_0;
@@ -58936,7 +58921,7 @@ impl SubstituteInstance {
             l1409 = s_i32_0;
             s_i32_0 = 0i32;
             l1410 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1409;
             s_i32_1 = l1410;
             vm.enter_call()?;
@@ -59254,7 +59239,7 @@ impl SubstituteInstance {
                     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
                     l1478 = s_i32_0;
                     s_i32_0 = l2;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
                     l1479 = s_i32_0;
                     s_i32_0 = l1478;
@@ -59275,7 +59260,7 @@ impl SubstituteInstance {
                 }
             }
             s_i32_0 = l15;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l1480 = s_i32_0;
             s_i64_0 = 0i64;
             l1481 = s_i64_0;
@@ -59516,7 +59501,7 @@ impl SubstituteInstance {
                     s_i32_0 = l3;
                     l1539 = s_i32_0;
                     s_i32_0 = l4;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1540 = s_i32_0;
                     s_i32_0 = l5;
                     l1541 = s_i32_0;
@@ -59563,12 +59548,12 @@ impl SubstituteInstance {
             s_i32_0 = __t251;
             'blk_126: {
                 if s_i32_0 != 0 {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     return Err(WasmTrap::Unreachable);
                 } else {
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 20u32)?;
             l1549 = s_i32_0;
@@ -59734,7 +59719,7 @@ impl SubstituteInstance {
             'blk_130: {
                 if s_i32_0 != 0 {
                     s_i32_0 = l0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1581 = s_i32_0;
                     s_i32_0 = l1;
                     l1582 = s_i32_0;
@@ -59776,7 +59761,7 @@ impl SubstituteInstance {
                 }
             }
             s_i32_0 = l1578;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
             l1592 = s_i32_0;
             s_i32_0 = l1;
@@ -59810,7 +59795,7 @@ impl SubstituteInstance {
             l1598 = s_i64_0;
             'blk_131: {
                 'blk_132: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l1598;
                     l1599 = s_i64_0;
                     s_i32_0 = l1596;
@@ -59858,7 +59843,7 @@ impl SubstituteInstance {
                     l1606 = s_i64_0;
                     'blk_133: {
                         'blk_134: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l1606;
                             l1607 = s_i64_0;
                             s_i64_0 = l1598;
@@ -60246,7 +60231,7 @@ impl SubstituteInstance {
                             l1677 = s_i64_0;
                             'blk_142: {
                                 'blk_143: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l1677;
                                     l1678 = s_i64_0;
                                     s_i32_0 = l1596;
@@ -60453,7 +60438,7 @@ impl SubstituteInstance {
                             l1724 = s_i64_0;
                             'blk_144: {
                                 'blk_145: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l1724;
                                     l1725 = s_i64_0;
                                     s_i64_0 = l1723;
@@ -60710,7 +60695,7 @@ impl SubstituteInstance {
             l1783 = s_i32_0;
             s_i32_0 = l3;
             l1784 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1781;
             l1785 = s_i32_0;
             s_i32_0 = l1782;
@@ -61044,7 +61029,7 @@ impl SubstituteInstance {
                             l1862 = s_i32_0;
                             s_i32_0 = l1800;
                             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             l1863 = s_i32_0;
                             s_i64_0 = 0i64;
                             l1864 = s_i64_0;
@@ -61146,7 +61131,7 @@ impl SubstituteInstance {
                                             s_i32_0 = 0i32;
                                             l1880 = s_i32_0;
                                             s_i32_0 = l1879;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_1 = l1880;
                                             vm.enter_call()?;
                                             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
@@ -61191,7 +61176,7 @@ impl SubstituteInstance {
                                             s_i32_0 = 0i32;
                                             l1889 = s_i32_0;
                                             s_i32_0 = l1888;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_1 = l1889;
                                             vm.enter_call()?;
                                             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
@@ -61333,7 +61318,7 @@ impl SubstituteInstance {
                 } else {
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1786;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
             l1918 = s_i32_0;
@@ -61740,7 +61725,7 @@ impl SubstituteInstance {
                             l2004 = s_i32_0;
                             s_i32_0 = 2547i32;
                             l2005 = s_i32_0;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l2004;
                             s_i32_1 = l2005;
                             vm.enter_call()?;
@@ -61793,7 +61778,7 @@ impl SubstituteInstance {
                     s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                     l2014 = s_i32_0;
                     s_i32_0 = 0i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l2015 = s_i32_0;
                     s_i32_0 = l2014;
                     s_i32_1 = l2015;
@@ -61956,7 +61941,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 3usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }
@@ -62010,351 +61997,351 @@ use crate::utilities::*;
 use super::*;
 
 const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize];
-const FN_0_CALLEES: &[u32] = &[92u32];
-const FN_1_CALLEES: &[u32] = &[0u32, 24u32, 93u32];
-const FN_2_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
-const FN_3_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
-const FN_4_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
-const FN_5_CALLEES: &[u32] = &[0u32, 2u32, 92u32];
-const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_0_CALLEES: &[usize] = &[92usize];
+const FN_1_CALLEES: &[usize] = &[0usize, 24usize, 93usize];
+const FN_2_CALLEES: &[usize] = &[0usize, 0usize, 92usize];
+const FN_3_CALLEES: &[usize] = &[0usize, 0usize, 92usize];
+const FN_4_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
+const FN_5_CALLEES: &[usize] = &[0usize, 2usize, 92usize];
+const FN_6_CALLEES: &[usize] = &[0usize, 34usize, 10usize];
 const FN_7_GLOBALS: &[usize] = &[14usize];
-const FN_7_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_8_CALLEES: &[u32] = &[0u32, 5u32, 0u32, 1u32, 3u32, 6u32];
-const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
-const FN_10_CALLEES: &[u32] = &[0u32, 5u32, 10u32, 111u32];
-const FN_11_CALLEES: &[u32] = &[0u32, 5u32, 11u32, 111u32];
-const FN_12_CALLEES: &[u32] = &[0u32, 25u32, 93u32];
-const FN_13_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_14_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_15_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
-const FN_16_CALLEES: &[u32] = &[0u32, 2u32, 92u32];
-const FN_17_CALLEES: &[u32] = &[0u32, 13u32, 93u32];
-const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_19_CALLEES: &[u32] = &[0u32, 13u32, 93u32];
-const FN_20_CALLEES: &[u32] = &[0u32, 5u32, 7u32];
-const FN_21_CALLEES: &[u32] = &[0u32, 26u32, 93u32];
-const FN_22_CALLEES: &[u32] = &[0u32, 27u32, 93u32];
-const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 4u32, 5u32, 1u32, 1u32, 92u32];
-const FN_24_CALLEES: &[u32] = &[0u32, 110u32];
-const FN_25_CALLEES: &[u32] = &[0u32, 12u32, 111u32];
-const FN_26_CALLEES: &[u32] = &[0u32, 26u32, 93u32];
-const FN_27_CALLEES: &[u32] = &[0u32, 112u32, 113u32, 32u32, 114u32, 33u32, 2u32];
-const FN_28_CALLEES: &[u32] = &[0u32, 112u32, 113u32, 33u32, 114u32, 32u32, 2u32];
-const FN_29_CALLEES: &[u32] = &[0u32, 28u32, 93u32];
-const FN_30_CALLEES: &[u32] = &[0u32, 29u32, 93u32];
-const FN_31_CALLEES: &[u32] = &[0u32, 30u32, 93u32];
-const FN_32_CALLEES: &[u32] = &[0u32, 26u32, 93u32];
+const FN_7_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_8_CALLEES: &[usize] = &[0usize, 5usize, 0usize, 1usize, 3usize, 6usize];
+const FN_9_CALLEES: &[usize] = &[0usize, 10usize];
+const FN_10_CALLEES: &[usize] = &[0usize, 5usize, 10usize, 111usize];
+const FN_11_CALLEES: &[usize] = &[0usize, 5usize, 11usize, 111usize];
+const FN_12_CALLEES: &[usize] = &[0usize, 25usize, 93usize];
+const FN_13_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_14_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_15_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
+const FN_16_CALLEES: &[usize] = &[0usize, 2usize, 92usize];
+const FN_17_CALLEES: &[usize] = &[0usize, 13usize, 93usize];
+const FN_18_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_19_CALLEES: &[usize] = &[0usize, 13usize, 93usize];
+const FN_20_CALLEES: &[usize] = &[0usize, 5usize, 7usize];
+const FN_21_CALLEES: &[usize] = &[0usize, 26usize, 93usize];
+const FN_22_CALLEES: &[usize] = &[0usize, 27usize, 93usize];
+const FN_23_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 4usize, 5usize, 1usize, 1usize, 92usize];
+const FN_24_CALLEES: &[usize] = &[0usize, 110usize];
+const FN_25_CALLEES: &[usize] = &[0usize, 12usize, 111usize];
+const FN_26_CALLEES: &[usize] = &[0usize, 26usize, 93usize];
+const FN_27_CALLEES: &[usize] = &[0usize, 112usize, 113usize, 32usize, 114usize, 33usize, 2usize];
+const FN_28_CALLEES: &[usize] = &[0usize, 112usize, 113usize, 33usize, 114usize, 32usize, 2usize];
+const FN_29_CALLEES: &[usize] = &[0usize, 28usize, 93usize];
+const FN_30_CALLEES: &[usize] = &[0usize, 29usize, 93usize];
+const FN_31_CALLEES: &[usize] = &[0usize, 30usize, 93usize];
+const FN_32_CALLEES: &[usize] = &[0usize, 26usize, 93usize];
 const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 92u32];
-const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 92u32];
+const FN_33_CALLEES: &[usize] = &[0usize, 34usize, 10usize, 92usize];
+const FN_34_CALLEES: &[usize] = &[0usize, 31usize, 92usize];
 const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_35_CALLEES: &[u32] = &[0u32, 115u32, 3u32, 92u32];
+const FN_35_CALLEES: &[usize] = &[0usize, 115usize, 3usize, 92usize];
 const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_36_CALLEES: &[u32] = &[0u32, 8u32, 1u32, 92u32];
-const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 92u32];
+const FN_36_CALLEES: &[usize] = &[0usize, 8usize, 1usize, 92usize];
+const FN_37_CALLEES: &[usize] = &[0usize, 31usize, 92usize];
 const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 92u32];
+const FN_38_CALLEES: &[usize] = &[0usize, 6usize, 35usize, 92usize];
 const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_39_CALLEES: &[u32] = &[0u32, 116u32, 92u32, 32u32];
+const FN_39_CALLEES: &[usize] = &[0usize, 116usize, 92usize, 32usize];
 const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_40_CALLEES: &[u32] = &[0u32, 116u32, 92u32, 33u32];
+const FN_40_CALLEES: &[usize] = &[0usize, 116usize, 92usize, 33usize];
 const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 92u32];
+const FN_41_CALLEES: &[usize] = &[0usize, 10usize, 36usize, 92usize];
 const FN_42_GLOBALS: &[usize] = &[9usize];
-const FN_42_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 13u32, 92u32];
+const FN_42_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 13usize, 92usize];
 const FN_43_GLOBALS: &[usize] = &[9usize];
-const FN_43_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 2u32, 92u32];
+const FN_43_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 2usize, 92usize];
 const FN_44_GLOBALS: &[usize] = &[9usize];
-const FN_44_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 14u32, 92u32];
+const FN_44_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 14usize, 92usize];
 const FN_45_GLOBALS: &[usize] = &[9usize];
-const FN_45_CALLEES: &[u32] = &[0u32, 4u32, 92u32];
+const FN_45_CALLEES: &[usize] = &[0usize, 4usize, 92usize];
 const FN_46_GLOBALS: &[usize] = &[9usize];
-const FN_46_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 15u32, 92u32];
+const FN_46_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 15usize, 92usize];
 const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
-const FN_47_CALLEES: &[u32] = &[0u32, 110u32, 92u32, 13u32, 4u32, 6u32, 7u32, 115u32, 94u32, 0u32, 5u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 117u32];
-const FN_48_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_49_CALLEES: &[u32] = &[0u32, 113u32, 118u32, 1u32, 114u32, 0u32, 1u32, 92u32];
-const FN_50_CALLEES: &[u32] = &[0u32, 113u32, 118u32, 0u32, 114u32, 1u32, 1u32, 92u32];
-const FN_51_CALLEES: &[u32] = &[0u32, 3u32, 7u32, 92u32];
-const FN_52_CALLEES: &[u32] = &[0u32, 0u32, 8u32, 3u32, 92u32];
-const FN_53_CALLEES: &[u32] = &[0u32, 9u32, 7u32, 92u32];
-const FN_54_CALLEES: &[u32] = &[0u32, 118u32, 0u32, 0u32, 114u32];
-const FN_55_CALLEES: &[u32] = &[0u32, 118u32, 1u32, 1u32, 92u32, 114u32];
-const FN_56_CALLEES: &[u32] = &[0u32, 18u32];
-const FN_57_CALLEES: &[u32] = &[0u32, 1u32, 5u32, 92u32];
+const FN_47_CALLEES: &[usize] = &[0usize, 110usize, 92usize, 13usize, 4usize, 6usize, 7usize, 115usize, 94usize, 0usize, 5usize, 0usize, 32usize, 2usize, 10usize, 36usize, 37usize, 117usize];
+const FN_48_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_49_CALLEES: &[usize] = &[0usize, 113usize, 118usize, 1usize, 114usize, 0usize, 1usize, 92usize];
+const FN_50_CALLEES: &[usize] = &[0usize, 113usize, 118usize, 0usize, 114usize, 1usize, 1usize, 92usize];
+const FN_51_CALLEES: &[usize] = &[0usize, 3usize, 7usize, 92usize];
+const FN_52_CALLEES: &[usize] = &[0usize, 0usize, 8usize, 3usize, 92usize];
+const FN_53_CALLEES: &[usize] = &[0usize, 9usize, 7usize, 92usize];
+const FN_54_CALLEES: &[usize] = &[0usize, 118usize, 0usize, 0usize, 114usize];
+const FN_55_CALLEES: &[usize] = &[0usize, 118usize, 1usize, 1usize, 92usize, 114usize];
+const FN_56_CALLEES: &[usize] = &[0usize, 18usize];
+const FN_57_CALLEES: &[usize] = &[0usize, 1usize, 5usize, 92usize];
 const FN_58_GLOBALS: &[usize] = &[15usize];
-const FN_58_CALLEES: &[u32] = &[0u32, 16u32, 10u32, 14u32];
-const FN_59_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_60_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 9u32];
-const FN_61_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 9u32];
-const FN_62_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_63_CALLEES: &[u32] = &[0u32, 1u32, 5u32, 92u32];
+const FN_58_CALLEES: &[usize] = &[0usize, 16usize, 10usize, 14usize];
+const FN_59_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_60_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 9usize];
+const FN_61_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 9usize];
+const FN_62_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_63_CALLEES: &[usize] = &[0usize, 1usize, 5usize, 92usize];
 const FN_64_GLOBALS: &[usize] = &[15usize];
-const FN_64_CALLEES: &[u32] = &[0u32, 17u32, 10u32, 14u32];
-const FN_65_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_66_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
-const FN_67_CALLEES: &[u32] = &[0u32, 4u32, 0u32, 16u32, 7u32, 22u32, 119u32, 2u32, 92u32, 13u32, 3u32, 120u32, 121u32, 10u32, 122u32, 123u32, 1u32, 1u32, 0u32, 93u32, 95u32];
-const FN_68_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 2u32, 92u32, 22u32, 119u32, 2u32, 5u32, 124u32, 122u32, 123u32, 125u32, 96u32, 1u32, 10u32, 0u32, 7u32, 32u32, 2u32, 113u32, 126u32, 111u32, 13u32, 15u32, 1u32, 1u32];
+const FN_64_CALLEES: &[usize] = &[0usize, 17usize, 10usize, 14usize];
+const FN_65_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_66_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
+const FN_67_CALLEES: &[usize] = &[0usize, 4usize, 0usize, 16usize, 7usize, 22usize, 119usize, 2usize, 92usize, 13usize, 3usize, 120usize, 121usize, 10usize, 122usize, 123usize, 1usize, 1usize, 0usize, 93usize, 95usize];
+const FN_68_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 2usize, 92usize, 22usize, 119usize, 2usize, 5usize, 124usize, 122usize, 123usize, 125usize, 96usize, 1usize, 10usize, 0usize, 7usize, 32usize, 2usize, 113usize, 126usize, 111usize, 13usize, 15usize, 1usize, 1usize];
 const FN_69_GLOBALS: &[usize] = &[14usize];
-const FN_69_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 93u32, 92u32, 32u32, 2u32, 0u32, 2u32];
-const FN_70_CALLEES: &[u32] = &[0u32, 4u32, 8u32, 3u32, 9u32, 4u32, 9u32, 15u32, 14u32, 6u32, 0u32, 127u32, 0u32, 0u32, 95u32];
-const FN_71_CALLEES: &[u32] = &[0u32, 0u32, 9u32, 0u32, 95u32];
-const FN_72_CALLEES: &[u32] = &[0u32, 19u32, 113u32];
-const FN_73_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 20u32, 1u32, 114u32, 128u32, 111u32, 129u32, 1u32, 5u32];
-const FN_74_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 2u32, 92u32, 23u32, 19u32, 113u32, 5u32];
-const FN_75_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 23u32, 19u32, 130u32, 92u32, 5u32, 5u32, 93u32, 23u32, 5u32, 9u32, 7u32, 113u32, 5u32, 4u32, 95u32, 10u32, 118u32, 131u32, 114u32, 97u32, 132u32, 125u32, 127u32, 14u32, 122u32];
-const FN_76_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 10u32, 2u32, 92u32, 23u32, 19u32, 130u32, 3u32, 9u32, 16u32, 7u32, 113u32, 95u32, 6u32, 13u32];
-const FN_77_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 23u32, 19u32, 130u32, 92u32, 9u32, 5u32, 7u32, 113u32, 95u32, 5u32, 10u32, 15u32, 14u32];
-const FN_78_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 10u32, 92u32, 23u32, 19u32, 130u32, 16u32, 93u32, 14u32, 113u32, 9u32, 7u32, 5u32, 4u32, 95u32, 118u32, 131u32, 114u32, 97u32, 14u32];
-const FN_79_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 26u32, 1u32];
-const FN_80_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 7u32];
-const FN_81_CALLEES: &[u32] = &[0u32, 19u32, 113u32, 18u32, 92u32];
-const FN_82_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 6u32, 4u32, 16u32, 18u32, 13u32, 2u32, 15u32, 9u32, 22u32, 125u32, 96u32, 111u32, 122u32, 132u32, 127u32, 10u32, 4u32, 95u32];
-const FN_83_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_84_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 16u32, 18u32, 13u32, 19u32, 113u32, 95u32];
-const FN_85_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 16u32, 18u32, 13u32, 7u32, 22u32, 96u32, 21u32, 19u32, 113u32, 4u32, 16u32, 95u32];
-const FN_86_CALLEES: &[u32] = &[0u32, 27u32, 18u32, 92u32];
+const FN_69_CALLEES: &[usize] = &[0usize, 1usize, 10usize, 93usize, 92usize, 32usize, 2usize, 0usize, 2usize];
+const FN_70_CALLEES: &[usize] = &[0usize, 4usize, 8usize, 3usize, 9usize, 4usize, 9usize, 15usize, 14usize, 6usize, 0usize, 127usize, 0usize, 0usize, 95usize];
+const FN_71_CALLEES: &[usize] = &[0usize, 0usize, 9usize, 0usize, 95usize];
+const FN_72_CALLEES: &[usize] = &[0usize, 19usize, 113usize];
+const FN_73_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 20usize, 1usize, 114usize, 128usize, 111usize, 129usize, 1usize, 5usize];
+const FN_74_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 2usize, 92usize, 23usize, 19usize, 113usize, 5usize];
+const FN_75_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 23usize, 19usize, 130usize, 92usize, 5usize, 5usize, 93usize, 23usize, 5usize, 9usize, 7usize, 113usize, 5usize, 4usize, 95usize, 10usize, 118usize, 131usize, 114usize, 97usize, 132usize, 125usize, 127usize, 14usize, 122usize];
+const FN_76_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 10usize, 2usize, 92usize, 23usize, 19usize, 130usize, 3usize, 9usize, 16usize, 7usize, 113usize, 95usize, 6usize, 13usize];
+const FN_77_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 23usize, 19usize, 130usize, 92usize, 9usize, 5usize, 7usize, 113usize, 95usize, 5usize, 10usize, 15usize, 14usize];
+const FN_78_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 10usize, 92usize, 23usize, 19usize, 130usize, 16usize, 93usize, 14usize, 113usize, 9usize, 7usize, 5usize, 4usize, 95usize, 118usize, 131usize, 114usize, 97usize, 14usize];
+const FN_79_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 26usize, 1usize];
+const FN_80_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 7usize];
+const FN_81_CALLEES: &[usize] = &[0usize, 19usize, 113usize, 18usize, 92usize];
+const FN_82_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 6usize, 4usize, 16usize, 18usize, 13usize, 2usize, 15usize, 9usize, 22usize, 125usize, 96usize, 111usize, 122usize, 132usize, 127usize, 10usize, 4usize, 95usize];
+const FN_83_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_84_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 16usize, 18usize, 13usize, 19usize, 113usize, 95usize];
+const FN_85_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 16usize, 18usize, 13usize, 7usize, 22usize, 96usize, 21usize, 19usize, 113usize, 4usize, 16usize, 95usize];
+const FN_86_CALLEES: &[usize] = &[0usize, 27usize, 18usize, 92usize];
 const FN_87_GLOBALS: &[usize] = &[14usize];
-const FN_87_CALLEES: &[u32] = &[0u32, 110u32, 18u32, 13u32, 92u32, 16u32, 13u32, 17u32, 0u32, 14u32, 111u32, 16u32, 33u32, 5u32, 10u32, 10u32, 24u32, 95u32];
-const FN_88_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_89_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 92u32, 9u32, 0u32, 133u32, 9u32, 22u32, 124u32, 3u32, 10u32, 134u32, 121u32, 17u32, 6u32, 0u32, 4u32, 120u32, 135u32, 119u32, 93u32, 95u32];
-const FN_90_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 15u32, 14u32, 126u32, 0u32, 127u32, 118u32, 114u32, 0u32, 111u32, 20u32, 1u32, 128u32, 129u32, 33u32, 97u32, 132u32];
-const FN_91_CALLEES: &[u32] = &[0u32, 22u32, 119u32, 124u32, 3u32, 6u32, 122u32, 123u32, 125u32, 2u32];
+const FN_87_CALLEES: &[usize] = &[0usize, 110usize, 18usize, 13usize, 92usize, 16usize, 13usize, 17usize, 0usize, 14usize, 111usize, 16usize, 33usize, 5usize, 10usize, 10usize, 24usize, 95usize];
+const FN_88_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_89_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 92usize, 9usize, 0usize, 133usize, 9usize, 22usize, 124usize, 3usize, 10usize, 134usize, 121usize, 17usize, 6usize, 0usize, 4usize, 120usize, 135usize, 119usize, 93usize, 95usize];
+const FN_90_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 15usize, 14usize, 126usize, 0usize, 127usize, 118usize, 114usize, 0usize, 111usize, 20usize, 1usize, 128usize, 129usize, 33usize, 97usize, 132usize];
+const FN_91_CALLEES: &[usize] = &[0usize, 22usize, 119usize, 124usize, 3usize, 6usize, 122usize, 123usize, 125usize, 2usize];
 const FN_92_GLOBALS: &[usize] = &[14usize];
-const FN_92_CALLEES: &[u32] = &[0u32, 40u32, 43u32, 36u32];
-const FN_93_CALLEES: &[u32] = &[0u32, 62u32, 93u32];
-const FN_94_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
-const FN_95_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
-const FN_96_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
-const FN_97_CALLEES: &[u32] = &[0u32, 2u32, 92u32];
-const FN_98_CALLEES: &[u32] = &[0u32, 70u32, 3u32, 11u32, 12u32, 8u32];
+const FN_92_CALLEES: &[usize] = &[0usize, 40usize, 43usize, 36usize];
+const FN_93_CALLEES: &[usize] = &[0usize, 62usize, 93usize];
+const FN_94_CALLEES: &[usize] = &[0usize, 0usize, 92usize];
+const FN_95_CALLEES: &[usize] = &[0usize, 0usize, 92usize];
+const FN_96_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
+const FN_97_CALLEES: &[usize] = &[0usize, 2usize, 92usize];
+const FN_98_CALLEES: &[usize] = &[0usize, 70usize, 3usize, 11usize, 12usize, 8usize];
 const FN_99_GLOBALS: &[usize] = &[20usize, 17usize, 18usize];
-const FN_99_CALLEES: &[u32] = &[0u32, 136u32, 93u32];
+const FN_99_CALLEES: &[usize] = &[0usize, 136usize, 93usize];
 const FN_100_GLOBALS: &[usize] = &[20usize];
-const FN_100_CALLEES: &[u32] = &[0u32, 136u32, 31u32, 6u32, 93u32, 35u32, 40u32, 137u32, 1u32, 12u32];
+const FN_100_CALLEES: &[usize] = &[0usize, 136usize, 31usize, 6usize, 93usize, 35usize, 40usize, 137usize, 1usize, 12usize];
 const FN_101_GLOBALS: &[usize] = &[17usize];
-const FN_101_CALLEES: &[u32] = &[0u32, 136u32];
-const FN_102_CALLEES: &[u32] = &[0u32, 72u32, 3u32, 11u32, 12u32, 8u32];
-const FN_103_CALLEES: &[u32] = &[0u32, 43u32, 1u32];
-const FN_104_CALLEES: &[u32] = &[0u32, 43u32, 2u32];
-const FN_105_CALLEES: &[u32] = &[0u32, 63u32, 93u32];
-const FN_106_CALLEES: &[u32] = &[0u32, 136u32];
-const FN_107_CALLEES: &[u32] = &[0u32, 4u32, 11u32, 92u32];
-const FN_108_CALLEES: &[u32] = &[0u32, 6u32, 3u32];
-const FN_109_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_110_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
-const FN_111_CALLEES: &[u32] = &[0u32, 2u32, 92u32];
-const FN_112_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_113_CALLEES: &[u32] = &[0u32, 53u32, 93u32];
-const FN_114_CALLEES: &[u32] = &[0u32, 53u32];
-const FN_115_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_116_CALLEES: &[u32] = &[0u32, 3u32, 11u32];
-const FN_117_CALLEES: &[u32] = &[0u32, 53u32, 93u32];
-const FN_118_CALLEES: &[u32] = &[0u32, 3u32, 12u32, 11u32, 7u32];
-const FN_119_CALLEES: &[u32] = &[0u32, 64u32, 93u32];
-const FN_120_CALLEES: &[u32] = &[0u32, 65u32, 93u32];
-const FN_121_CALLEES: &[u32] = &[0u32, 136u32];
-const FN_122_CALLEES: &[u32] = &[0u32, 45u32, 93u32];
-const FN_123_CALLEES: &[u32] = &[0u32, 43u32, 5u32];
-const FN_124_CALLEES: &[u32] = &[0u32, 45u32, 93u32, 69u32];
-const FN_125_CALLEES: &[u32] = &[0u32, 66u32, 93u32];
-const FN_126_CALLEES: &[u32] = &[0u32, 67u32, 93u32];
-const FN_127_CALLEES: &[u32] = &[0u32, 68u32, 93u32];
-const FN_128_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_129_CALLEES: &[u32] = &[0u32, 69u32, 93u32];
+const FN_101_CALLEES: &[usize] = &[0usize, 136usize];
+const FN_102_CALLEES: &[usize] = &[0usize, 72usize, 3usize, 11usize, 12usize, 8usize];
+const FN_103_CALLEES: &[usize] = &[0usize, 43usize, 1usize];
+const FN_104_CALLEES: &[usize] = &[0usize, 43usize, 2usize];
+const FN_105_CALLEES: &[usize] = &[0usize, 63usize, 93usize];
+const FN_106_CALLEES: &[usize] = &[0usize, 136usize];
+const FN_107_CALLEES: &[usize] = &[0usize, 4usize, 11usize, 92usize];
+const FN_108_CALLEES: &[usize] = &[0usize, 6usize, 3usize];
+const FN_109_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_110_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
+const FN_111_CALLEES: &[usize] = &[0usize, 2usize, 92usize];
+const FN_112_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_113_CALLEES: &[usize] = &[0usize, 53usize, 93usize];
+const FN_114_CALLEES: &[usize] = &[0usize, 53usize];
+const FN_115_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_116_CALLEES: &[usize] = &[0usize, 3usize, 11usize];
+const FN_117_CALLEES: &[usize] = &[0usize, 53usize, 93usize];
+const FN_118_CALLEES: &[usize] = &[0usize, 3usize, 12usize, 11usize, 7usize];
+const FN_119_CALLEES: &[usize] = &[0usize, 64usize, 93usize];
+const FN_120_CALLEES: &[usize] = &[0usize, 65usize, 93usize];
+const FN_121_CALLEES: &[usize] = &[0usize, 136usize];
+const FN_122_CALLEES: &[usize] = &[0usize, 45usize, 93usize];
+const FN_123_CALLEES: &[usize] = &[0usize, 43usize, 5usize];
+const FN_124_CALLEES: &[usize] = &[0usize, 45usize, 93usize, 69usize];
+const FN_125_CALLEES: &[usize] = &[0usize, 66usize, 93usize];
+const FN_126_CALLEES: &[usize] = &[0usize, 67usize, 93usize];
+const FN_127_CALLEES: &[usize] = &[0usize, 68usize, 93usize];
+const FN_128_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_129_CALLEES: &[usize] = &[0usize, 69usize, 93usize];
 const FN_130_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_130_CALLEES: &[u32] = &[0u32, 44u32, 70u32, 92u32];
+const FN_130_CALLEES: &[usize] = &[0usize, 44usize, 70usize, 92usize];
 const FN_131_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize, 9usize];
-const FN_131_CALLEES: &[u32] = &[0u32, 136u32, 92u32, 31u32, 31u32, 39u32, 40u32, 137u32, 52u32];
+const FN_131_CALLEES: &[usize] = &[0usize, 136usize, 92usize, 31usize, 31usize, 39usize, 40usize, 137usize, 52usize];
 const FN_132_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_132_CALLEES: &[u32] = &[0u32, 3u32, 8u32, 39u32, 92u32];
-const FN_133_CALLEES: &[u32] = &[0u32, 69u32, 93u32, 40u32, 92u32, 70u32, 72u32];
+const FN_132_CALLEES: &[usize] = &[0usize, 3usize, 8usize, 39usize, 92usize];
+const FN_133_CALLEES: &[usize] = &[0usize, 69usize, 93usize, 40usize, 92usize, 70usize, 72usize];
 const FN_134_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_134_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 92u32];
+const FN_134_CALLEES: &[usize] = &[0usize, 46usize, 71usize, 92usize];
 const FN_135_GLOBALS: &[usize] = &[17usize, 20usize, 9usize];
-const FN_135_CALLEES: &[u32] = &[0u32, 136u32, 92u32, 52u32];
+const FN_135_CALLEES: &[usize] = &[0usize, 136usize, 92usize, 52usize];
 const FN_136_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_136_CALLEES: &[u32] = &[0u32, 116u32, 92u32, 43u32, 32u32, 39u32];
+const FN_136_CALLEES: &[usize] = &[0usize, 116usize, 92usize, 43usize, 32usize, 39usize];
 const FN_137_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_137_CALLEES: &[u32] = &[0u32, 116u32, 92u32, 113u32, 3u32, 118u32, 0u32, 114u32, 1u32, 1u32, 2u32, 4u32];
+const FN_137_CALLEES: &[usize] = &[0usize, 116usize, 92usize, 113usize, 3usize, 118usize, 0usize, 114usize, 1usize, 1usize, 2usize, 4usize];
 const FN_138_GLOBALS: &[usize] = &[20usize, 9usize];
-const FN_138_CALLEES: &[u32] = &[0u32, 47u32, 72u32, 92u32];
+const FN_138_CALLEES: &[usize] = &[0usize, 47usize, 72usize, 92usize];
 const FN_139_GLOBALS: &[usize] = &[9usize];
-const FN_139_CALLEES: &[u32] = &[0u32, 47u32, 93u32, 92u32, 8u32, 13u32, 18u32];
+const FN_139_CALLEES: &[usize] = &[0usize, 47usize, 93usize, 92usize, 8usize, 13usize, 18usize];
 const FN_140_GLOBALS: &[usize] = &[9usize];
-const FN_140_CALLEES: &[u32] = &[0u32, 3u32, 11u32, 4u32, 92u32];
+const FN_140_CALLEES: &[usize] = &[0usize, 3usize, 11usize, 4usize, 92usize];
 const FN_141_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_141_CALLEES: &[u32] = &[0u32, 40u32, 92u32, 43u32];
+const FN_141_CALLEES: &[usize] = &[0usize, 40usize, 92usize, 43usize];
 const FN_142_GLOBALS: &[usize] = &[9usize];
-const FN_142_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 14u32, 92u32];
+const FN_142_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 14usize, 92usize];
 const FN_143_GLOBALS: &[usize] = &[9usize];
-const FN_143_CALLEES: &[u32] = &[0u32, 4u32, 92u32];
+const FN_143_CALLEES: &[usize] = &[0usize, 4usize, 92usize];
 const FN_144_GLOBALS: &[usize] = &[9usize];
-const FN_144_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 15u32, 92u32];
+const FN_144_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 15usize, 92usize];
 const FN_145_GLOBALS: &[usize] = &[20usize, 1usize, 17usize, 18usize];
-const FN_145_CALLEES: &[u32] = &[0u32, 136u32, 92u32, 31u32, 31u32, 39u32, 40u32, 52u32];
-const FN_146_CALLEES: &[u32] = &[0u32, 43u32, 34u32, 39u32];
-const FN_147_CALLEES: &[u32] = &[0u32, 43u32, 35u32, 39u32];
+const FN_145_CALLEES: &[usize] = &[0usize, 136usize, 92usize, 31usize, 31usize, 39usize, 40usize, 52usize];
+const FN_146_CALLEES: &[usize] = &[0usize, 43usize, 34usize, 39usize];
+const FN_147_CALLEES: &[usize] = &[0usize, 43usize, 35usize, 39usize];
 const FN_148_GLOBALS: &[usize] = &[20usize];
-const FN_148_CALLEES: &[u32] = &[0u32, 72u32];
-const FN_149_CALLEES: &[u32] = &[0u32, 43u32, 36u32, 39u32];
-const FN_150_CALLEES: &[u32] = &[0u32, 92u32];
+const FN_148_CALLEES: &[usize] = &[0usize, 72usize];
+const FN_149_CALLEES: &[usize] = &[0usize, 43usize, 36usize, 39usize];
+const FN_150_CALLEES: &[usize] = &[0usize, 92usize];
 const FN_151_GLOBALS: &[usize] = &[23usize];
-const FN_151_CALLEES: &[u32] = &[0u32, 138u32, 98u32, 87u32, 97u32, 139u32, 140u32, 99u32];
-const FN_152_CALLEES: &[u32] = &[0u32];
-const FN_153_CALLEES: &[u32] = &[0u32, 60u32, 93u32];
-const FN_154_CALLEES: &[u32] = &[0u32];
-const FN_155_CALLEES: &[u32] = &[0u32];
-const FN_156_CALLEES: &[u32] = &[0u32];
-const FN_157_CALLEES: &[u32] = &[0u32, 137u32, 97u32, 98u32];
-const FN_158_CALLEES: &[u32] = &[0u32, 94u32, 93u32];
-const FN_159_CALLEES: &[u32] = &[0u32, 141u32];
+const FN_151_CALLEES: &[usize] = &[0usize, 138usize, 98usize, 87usize, 97usize, 139usize, 140usize, 99usize];
+const FN_152_CALLEES: &[usize] = &[0usize];
+const FN_153_CALLEES: &[usize] = &[0usize, 60usize, 93usize];
+const FN_154_CALLEES: &[usize] = &[0usize];
+const FN_155_CALLEES: &[usize] = &[0usize];
+const FN_156_CALLEES: &[usize] = &[0usize];
+const FN_157_CALLEES: &[usize] = &[0usize, 137usize, 97usize, 98usize];
+const FN_158_CALLEES: &[usize] = &[0usize, 94usize, 93usize];
+const FN_159_CALLEES: &[usize] = &[0usize, 141usize];
 const FN_160_GLOBALS: &[usize] = &[23usize];
-const FN_160_CALLEES: &[u32] = &[0u32, 4u32, 0u32, 14u32, 0u32, 113u32, 92u32];
+const FN_160_CALLEES: &[usize] = &[0usize, 4usize, 0usize, 14usize, 0usize, 113usize, 92usize];
 const FN_161_GLOBALS: &[usize] = &[23usize];
-const FN_161_CALLEES: &[u32] = &[0u32, 113u32, 92u32];
-const FN_162_CALLEES: &[u32] = &[0u32, 96u32, 55u32];
-const FN_163_CALLEES: &[u32] = &[0u32, 0u32, 14u32, 0u32, 92u32, 87u32];
-const FN_164_CALLEES: &[u32] = &[0u32, 31u32, 57u32, 40u32, 87u32];
-const FN_165_CALLEES: &[u32] = &[0u32, 11u32, 4u32, 9u32, 5u32, 87u32, 1u32];
-const FN_166_CALLEES: &[u32] = &[0u32, 6u32, 6u32];
-const FN_167_CALLEES: &[u32] = &[0u32, 4u32, 10u32, 102u32, 87u32];
-const FN_168_CALLEES: &[u32] = &[0u32, 78u32, 115u32];
-const FN_169_CALLEES: &[u32] = &[0u32, 78u32, 140u32];
-const FN_170_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 5u32, 17u32, 2u32, 5u32, 7u32, 24u32, 1u32, 1u32, 0u32, 14u32, 1u32, 0u32, 5u32, 16u32, 95u32, 87u32];
-const FN_171_CALLEES: &[u32] = &[0u32, 4u32, 4u32];
-const FN_172_CALLEES: &[u32] = &[0u32, 78u32, 143u32];
-const FN_173_CALLEES: &[u32] = &[0u32, 78u32, 144u32];
+const FN_161_CALLEES: &[usize] = &[0usize, 113usize, 92usize];
+const FN_162_CALLEES: &[usize] = &[0usize, 96usize, 55usize];
+const FN_163_CALLEES: &[usize] = &[0usize, 0usize, 14usize, 0usize, 92usize, 87usize];
+const FN_164_CALLEES: &[usize] = &[0usize, 31usize, 57usize, 40usize, 87usize];
+const FN_165_CALLEES: &[usize] = &[0usize, 11usize, 4usize, 9usize, 5usize, 87usize, 1usize];
+const FN_166_CALLEES: &[usize] = &[0usize, 6usize, 6usize];
+const FN_167_CALLEES: &[usize] = &[0usize, 4usize, 10usize, 102usize, 87usize];
+const FN_168_CALLEES: &[usize] = &[0usize, 78usize, 115usize];
+const FN_169_CALLEES: &[usize] = &[0usize, 78usize, 140usize];
+const FN_170_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 5usize, 17usize, 2usize, 5usize, 7usize, 24usize, 1usize, 1usize, 0usize, 14usize, 1usize, 0usize, 5usize, 16usize, 95usize, 87usize];
+const FN_171_CALLEES: &[usize] = &[0usize, 4usize, 4usize];
+const FN_172_CALLEES: &[usize] = &[0usize, 78usize, 143usize];
+const FN_173_CALLEES: &[usize] = &[0usize, 78usize, 144usize];
 const FN_174_GLOBALS: &[usize] = &[23usize];
-const FN_174_CALLEES: &[u32] = &[0u32, 69u32, 4u32, 4u32, 92u32];
-const FN_175_CALLEES: &[u32] = &[0u32, 95u32, 93u32];
-const FN_176_CALLEES: &[u32] = &[0u32, 137u32, 100u32, 87u32];
-const FN_177_CALLEES: &[u32] = &[0u32, 141u32];
+const FN_174_CALLEES: &[usize] = &[0usize, 69usize, 4usize, 4usize, 92usize];
+const FN_175_CALLEES: &[usize] = &[0usize, 95usize, 93usize];
+const FN_176_CALLEES: &[usize] = &[0usize, 137usize, 100usize, 87usize];
+const FN_177_CALLEES: &[usize] = &[0usize, 141usize];
 const FN_178_GLOBALS: &[usize] = &[23usize];
-const FN_178_CALLEES: &[u32] = &[0u32, 60u32, 93u32, 92u32];
-const FN_179_CALLEES: &[u32] = &[0u32, 96u32, 93u32];
-const FN_180_CALLEES: &[u32] = &[0u32, 61u32, 73u32];
-const FN_181_CALLEES: &[u32] = &[0u32, 96u32, 93u32];
+const FN_178_CALLEES: &[usize] = &[0usize, 60usize, 93usize, 92usize];
+const FN_179_CALLEES: &[usize] = &[0usize, 96usize, 93usize];
+const FN_180_CALLEES: &[usize] = &[0usize, 61usize, 73usize];
+const FN_181_CALLEES: &[usize] = &[0usize, 96usize, 93usize];
 const FN_182_GLOBALS: &[usize] = &[23usize, 1usize];
-const FN_182_CALLEES: &[u32] = &[0u32, 60u32, 92u32, 102u32, 137u32, 87u32];
-const FN_183_CALLEES: &[u32] = &[0u32, 96u32, 93u32, 53u32, 73u32, 92u32];
+const FN_182_CALLEES: &[usize] = &[0usize, 60usize, 92usize, 102usize, 137usize, 87usize];
+const FN_183_CALLEES: &[usize] = &[0usize, 96usize, 93usize, 53usize, 73usize, 92usize];
 const FN_184_GLOBALS: &[usize] = &[20usize, 9usize, 17usize];
-const FN_184_CALLEES: &[u32] = &[0u32, 70u32, 93u32, 92u32, 1u32, 110u32, 44u32, 45u32];
+const FN_184_CALLEES: &[usize] = &[0usize, 70usize, 93usize, 92usize, 1usize, 110usize, 44usize, 45usize];
 const FN_185_GLOBALS: &[usize] = &[9usize];
-const FN_185_CALLEES: &[u32] = &[0u32, 62u32, 93u32, 92u32, 46u32];
+const FN_185_CALLEES: &[usize] = &[0usize, 62usize, 93usize, 92usize, 46usize];
 const FN_186_GLOBALS: &[usize] = &[9usize];
-const FN_186_CALLEES: &[u32] = &[0u32, 62u32, 93u32, 92u32, 47u32];
+const FN_186_CALLEES: &[usize] = &[0usize, 62usize, 93usize, 92usize, 47usize];
 const FN_187_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_187_CALLEES: &[u32] = &[0u32, 92u32, 70u32];
+const FN_187_CALLEES: &[usize] = &[0usize, 92usize, 70usize];
 const FN_188_GLOBALS: &[usize] = &[9usize];
-const FN_188_CALLEES: &[u32] = &[0u32, 65u32, 93u32, 92u32, 9u32];
+const FN_188_CALLEES: &[usize] = &[0usize, 65usize, 93usize, 92usize, 9usize];
 const FN_189_GLOBALS: &[usize] = &[9usize];
-const FN_189_CALLEES: &[u32] = &[0u32, 65u32, 93u32, 92u32, 10u32];
+const FN_189_CALLEES: &[usize] = &[0usize, 65usize, 93usize, 92usize, 10usize];
 const FN_190_GLOBALS: &[usize] = &[9usize];
-const FN_190_CALLEES: &[u32] = &[0u32, 65u32, 93u32, 92u32, 11u32];
+const FN_190_CALLEES: &[usize] = &[0usize, 65usize, 93usize, 92usize, 11usize];
 const FN_191_GLOBALS: &[usize] = &[23usize, 1usize];
-const FN_191_CALLEES: &[u32] = &[0u32, 60u32, 92u32, 102u32, 87u32];
-const FN_192_CALLEES: &[u32] = &[0u32, 4u32, 10u32, 10u32, 25u32, 113u32, 4u32, 1u32];
+const FN_191_CALLEES: &[usize] = &[0usize, 60usize, 92usize, 102usize, 87usize];
+const FN_192_CALLEES: &[usize] = &[0usize, 4usize, 10usize, 10usize, 25usize, 113usize, 4usize, 1usize];
 const FN_193_GLOBALS: &[usize] = &[14usize];
-const FN_193_CALLEES: &[u32] = &[0u32, 4u32, 10u32, 92u32, 25u32, 1u32, 1u32, 1u32, 1u32];
-const FN_194_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 10u32, 10u32, 25u32, 118u32, 131u32];
-const FN_195_CALLEES: &[u32] = &[0u32, 4u32, 10u32, 5u32, 17u32, 7u32, 25u32, 1u32, 0u32, 14u32, 16u32, 0u32, 5u32, 95u32];
-const FN_196_CALLEES: &[u32] = &[0u32, 4u32, 17u32, 7u32, 25u32, 1u32, 5u32, 6u32, 10u32, 14u32, 16u32, 95u32, 69u32];
-const FN_197_CALLEES: &[u32] = &[0u32, 4u32, 4u32, 92u32, 5u32, 26u32, 7u32, 25u32, 1u32, 24u32, 4u32, 0u32, 14u32, 1u32, 0u32, 95u32, 69u32];
-const FN_198_CALLEES: &[u32] = &[0u32, 4u32, 24u32, 130u32, 10u32, 10u32, 25u32, 131u32, 118u32];
-const FN_199_CALLEES: &[u32] = &[0u32, 97u32, 144u32, 92u32, 139u32, 4u32, 4u32, 25u32, 1u32, 26u32, 10u32, 10u32, 1u32, 1u32, 6u32, 14u32, 1u32, 7u32, 95u32, 69u32, 5u32, 99u32, 114u32, 4u32, 0u32, 0u32, 145u32, 112u32, 9u32, 24u32, 146u32, 147u32, 101u32, 7u32, 6u32];
-const FN_200_CALLEES: &[u32] = &[0u32, 22u32, 93u32, 89u32, 24u32];
-const FN_201_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_202_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_203_CALLEES: &[u32] = &[0u32, 0u32, 92u32];
-const FN_204_CALLEES: &[u32] = &[0u32, 1u32, 92u32];
-const FN_205_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_206_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_207_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_208_CALLEES: &[u32] = &[0u32, 0u32, 92u32, 1u32, 0u32];
-const FN_209_CALLEES: &[u32] = &[0u32, 92u32, 1u32];
-const FN_210_CALLEES: &[u32] = &[0u32, 18u32, 13u32];
-const FN_211_CALLEES: &[u32] = &[0u32, 13u32, 13u32];
-const FN_212_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_213_CALLEES: &[u32] = &[0u32, 27u32, 15u32];
-const FN_214_CALLEES: &[u32] = &[0u32, 39u32, 15u32];
-const FN_215_CALLEES: &[u32] = &[0u32, 29u32, 15u32];
-const FN_216_CALLEES: &[u32] = &[0u32, 4u32, 6u32];
-const FN_217_CALLEES: &[u32] = &[0u32, 2u32, 15u32];
-const FN_218_CALLEES: &[u32] = &[0u32, 6u32, 15u32];
-const FN_219_CALLEES: &[u32] = &[0u32, 4u32, 92u32, 9u32, 10u32, 7u32, 15u32, 148u32, 14u32, 6u32, 5u32, 10u32, 27u32, 95u32];
-const FN_220_CALLEES: &[u32] = &[0u32, 5u32, 5u32, 0u32, 92u32, 8u32, 149u32];
-const FN_221_CALLEES: &[u32] = &[0u32, 9u32, 4u32, 7u32, 10u32, 14u32, 23u32, 0u32, 15u32, 0u32, 5u32, 95u32];
-const FN_222_CALLEES: &[u32] = &[0u32, 1u32, 2u32, 4u32, 7u32, 10u32, 18u32, 23u32, 38u32, 15u32, 5u32];
-const FN_223_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 130u32, 5u32];
-const FN_224_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 92u32];
-const FN_225_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 0u32, 92u32, 5u32, 1u32, 93u32];
-const FN_226_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 93u32, 4u32, 4u32, 92u32];
-const FN_227_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 9u32, 0u32, 92u32, 1u32, 93u32];
-const FN_228_CALLEES: &[u32] = &[0u32, 0u32, 5u32, 93u32, 130u32, 23u32, 5u32, 92u32];
-const FN_229_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 14u32, 130u32, 5u32, 0u32, 7u32, 19u32, 113u32, 16u32, 93u32, 3u32, 4u32, 13u32, 5u32, 95u32, 92u32];
-const FN_230_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 16u32, 19u32, 113u32, 116u32, 128u32];
-const FN_231_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 10u32, 10u32, 14u32];
-const FN_232_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 5u32, 16u32, 14u32, 113u32, 72u32, 92u32, 19u32, 0u32, 1u32, 7u32, 11u32, 2u32, 16u32, 93u32, 13u32, 95u32, 10u32];
-const FN_233_CALLEES: &[u32] = &[0u32, 92u32, 150u32];
-const FN_234_CALLEES: &[u32] = &[0u32, 113u32, 116u32, 128u32];
-const FN_235_CALLEES: &[u32] = &[0u32, 116u32, 128u32, 113u32];
-const FN_236_CALLEES: &[u32] = &[0u32, 113u32];
-const FN_237_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 5u32, 113u32, 92u32, 1u32, 5u32, 93u32, 147u32, 0u32, 1u32, 0u32, 2u32, 3u32, 4u32, 9u32, 76u32, 14u32, 16u32, 13u32, 95u32, 11u32, 7u32, 13u32, 2u32, 10u32, 0u32, 14u32, 10u32, 8u32, 16u32, 2u32, 77u32, 78u32, 79u32, 5u32, 130u32, 72u32];
-const FN_238_CALLEES: &[u32] = &[0u32, 0u32, 7u32, 8u32, 14u32, 9u32, 16u32, 93u32, 0u32, 4u32, 7u32, 23u32, 19u32, 113u32, 5u32, 92u32, 13u32, 6u32, 130u32, 15u32, 95u32, 2u32];
-const FN_239_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 23u32, 19u32, 5u32, 113u32, 5u32, 93u32, 2u32, 14u32, 11u32, 7u32, 13u32, 2u32, 10u32, 0u32, 10u32, 9u32, 8u32, 4u32, 116u32, 128u32];
-const FN_240_CALLEES: &[u32] = &[0u32, 0u32, 10u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 10u32];
-const FN_241_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 92u32, 23u32, 19u32, 113u32, 5u32, 12u32, 75u32, 0u32, 16u32, 93u32, 7u32, 10u32, 9u32, 13u32, 95u32];
-const FN_242_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 16u32, 93u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 7u32, 8u32, 9u32, 14u32, 92u32, 13u32, 95u32, 3u32, 2u32, 7u32, 21u32];
-const FN_243_CALLEES: &[u32] = &[0u32, 0u32, 17u32, 16u32, 93u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 7u32, 8u32, 14u32, 9u32, 92u32, 13u32, 5u32, 4u32, 95u32, 72u32, 7u32, 15u32, 16u32];
-const FN_244_CALLEES: &[u32] = &[0u32, 151u32, 4u32, 4u32];
-const FN_245_CALLEES: &[u32] = &[0u32, 104u32, 5u32, 7u32, 28u32, 151u32, 5u32, 92u32, 13u32];
-const FN_246_CALLEES: &[u32] = &[0u32, 7u32, 0u32, 4u32];
-const FN_247_CALLEES: &[u32] = &[0u32, 104u32, 5u32, 7u32, 28u32, 151u32, 5u32, 92u32, 13u32];
-const FN_248_CALLEES: &[u32] = &[0u32, 5u32, 7u32, 28u32, 124u32, 113u32, 5u32, 92u32, 8u32, 149u32, 13u32];
-const FN_249_CALLEES: &[u32] = &[0u32, 124u32, 113u32, 92u32];
-const FN_250_CALLEES: &[u32] = &[0u32, 1u32, 124u32, 23u32, 92u32];
-const FN_251_CALLEES: &[u32] = &[0u32, 3u32, 113u32, 6u32, 1u32, 23u32, 0u32, 4u32, 2u32, 0u32];
-const FN_252_CALLEES: &[u32] = &[0u32, 124u32, 2u32, 1u32, 0u32, 23u32, 4u32, 7u32, 10u32, 5u32, 123u32, 120u32, 121u32, 152u32, 0u32];
-const FN_253_CALLEES: &[u32] = &[0u32, 124u32, 3u32, 0u32, 1u32, 0u32, 2u32, 23u32, 0u32, 4u32, 0u32, 7u32, 10u32, 5u32, 1u32, 4u32, 0u32];
-const FN_254_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 151u32, 14u32, 92u32, 5u32, 93u32, 113u32, 150u32, 121u32, 135u32, 148u32];
-const FN_255_CALLEES: &[u32] = &[0u32, 121u32, 73u32, 120u32, 4u32, 16u32, 124u32, 13u32, 95u32, 92u32, 93u32, 0u32];
-const FN_256_CALLEES: &[u32] = &[0u32, 124u32, 4u32, 4u32, 73u32, 23u32, 123u32, 130u32, 5u32, 7u32, 93u32, 5u32];
-const FN_257_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 7u32, 23u32, 4u32, 93u32, 5u32];
-const FN_258_CALLEES: &[u32] = &[0u32, 124u32, 120u32, 121u32, 152u32, 2u32, 1u32, 1u32, 1u32, 1u32];
-const FN_259_CALLEES: &[u32] = &[0u32, 4u32];
-const FN_260_CALLEES: &[u32] = &[0u32, 20u32, 92u32, 153u32, 0u32, 15u32, 0u32, 19u32, 124u32, 23u32, 9u32, 95u32];
-const FN_261_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 1u32, 1u32, 92u32, 0u32, 5u32];
-const FN_262_CALLEES: &[u32] = &[0u32, 4u32, 20u32, 16u32, 7u32, 23u32, 14u32, 150u32, 93u32, 5u32, 18u32, 13u32, 92u32, 73u32, 95u32, 10u32, 113u32, 151u32, 4u32, 1u32, 124u32, 5u32, 0u32, 1u32, 130u32, 28u32, 6u32, 5u32, 154u32, 5u32, 8u32, 149u32, 90u32, 29u32, 30u32, 2u32, 15u32];
-const FN_263_CALLEES: &[u32] = &[0u32, 120u32, 121u32];
-const FN_264_CALLEES: &[u32] = &[0u32, 120u32, 121u32];
-const FN_265_CALLEES: &[u32] = &[0u32, 124u32];
-const FN_266_CALLEES: &[u32] = &[0u32, 155u32, 124u32, 4u32, 4u32, 23u32, 82u32, 93u32, 120u32, 121u32];
-const FN_267_CALLEES: &[u32] = &[0u32, 124u32, 155u32];
-const FN_268_CALLEES: &[u32] = &[0u32, 124u32, 155u32];
-const FN_269_CALLEES: &[u32] = &[0u32, 151u32, 4u32, 10u32, 10u32, 23u32, 150u32, 113u32, 124u32, 1u32];
-const FN_270_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 7u32, 23u32, 106u32, 93u32, 5u32];
-const FN_271_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 151u32, 4u32, 108u32, 93u32, 14u32, 92u32, 5u32, 10u32, 10u32, 150u32, 73u32, 113u32, 111u32, 124u32, 1u32, 130u32];
-const FN_272_CALLEES: &[u32] = &[0u32, 113u32, 73u32];
-const FN_273_CALLEES: &[u32] = &[0u32, 124u32, 73u32, 112u32, 84u32, 103u32, 23u32, 1u32, 4u32, 16u32, 13u32, 95u32, 92u32, 1u32, 2u32, 120u32, 121u32, 1u32, 156u32, 10u32, 107u32, 113u32, 116u32, 128u32, 83u32, 81u32, 105u32, 0u32, 123u32, 150u32, 130u32, 4u32];
-const FN_274_CALLEES: &[u32] = &[0u32, 124u32];
-const FN_275_CALLEES: &[u32] = &[0u32, 124u32];
-const FN_276_CALLEES: &[u32] = &[0u32, 124u32, 1u32, 0u32, 15u32];
-const FN_277_CALLEES: &[u32] = &[0u32, 85u32, 1u32, 0u32, 15u32];
-const FN_278_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 6u32, 0u32];
-const FN_279_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 3u32, 85u32, 0u32, 2u32];
-const FN_280_CALLEES: &[u32] = &[0u32, 1u32, 6u32];
-const FN_281_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_282_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_283_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 0u32];
-const FN_284_CALLEES: &[u32] = &[0u32, 121u32, 124u32, 120u32, 93u32];
-const FN_285_CALLEES: &[u32] = &[0u32, 112u32, 130u32, 113u32, 84u32, 1u32, 0u32, 3u32, 2u32, 1u32, 0u32, 23u32, 93u32, 1u32, 12u32, 5u32, 0u32, 3u32, 4u32, 10u32, 0u32, 15u32];
-const FN_286_CALLEES: &[u32] = &[0u32, 3u32, 124u32, 105u32, 0u32, 121u32, 1u32, 85u32, 2u32, 0u32, 74u32, 6u32, 83u32, 12u32, 0u32, 1u32, 0u32, 15u32, 0u32, 3u32, 1u32];
-const FN_287_CALLEES: &[u32] = &[0u32, 3u32, 124u32, 0u32, 113u32, 1u32, 116u32, 128u32, 121u32, 0u32, 74u32, 85u32, 2u32, 6u32, 12u32, 10u32, 1u32, 0u32, 3u32, 0u32];
-const FN_288_CALLEES: &[u32] = &[0u32, 113u32, 116u32, 128u32, 1u32, 0u32, 3u32, 124u32, 74u32, 0u32, 6u32, 121u32, 0u32, 114u32, 1u32, 5u32, 0u32, 0u32, 0u32, 85u32, 2u32, 83u32, 12u32, 0u32, 1u32, 0u32, 1u32, 0u32, 15u32, 3u32, 10u32, 11u32, 86u32, 23u32, 1u32];
-const FN_289_CALLEES: &[u32] = &[0u32, 3u32, 124u32, 0u32, 74u32, 1u32, 0u32, 6u32, 93u32, 113u32, 0u32, 2u32, 12u32, 0u32, 3u32, 1u32, 23u32, 0u32];
-const FN_290_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 150u32, 5u32];
-const FN_291_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 150u32, 5u32];
+const FN_193_CALLEES: &[usize] = &[0usize, 4usize, 10usize, 92usize, 25usize, 1usize, 1usize, 1usize, 1usize];
+const FN_194_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 10usize, 10usize, 25usize, 118usize, 131usize];
+const FN_195_CALLEES: &[usize] = &[0usize, 4usize, 10usize, 5usize, 17usize, 7usize, 25usize, 1usize, 0usize, 14usize, 16usize, 0usize, 5usize, 95usize];
+const FN_196_CALLEES: &[usize] = &[0usize, 4usize, 17usize, 7usize, 25usize, 1usize, 5usize, 6usize, 10usize, 14usize, 16usize, 95usize, 69usize];
+const FN_197_CALLEES: &[usize] = &[0usize, 4usize, 4usize, 92usize, 5usize, 26usize, 7usize, 25usize, 1usize, 24usize, 4usize, 0usize, 14usize, 1usize, 0usize, 95usize, 69usize];
+const FN_198_CALLEES: &[usize] = &[0usize, 4usize, 24usize, 130usize, 10usize, 10usize, 25usize, 131usize, 118usize];
+const FN_199_CALLEES: &[usize] = &[0usize, 97usize, 144usize, 92usize, 139usize, 4usize, 4usize, 25usize, 1usize, 26usize, 10usize, 10usize, 1usize, 1usize, 6usize, 14usize, 1usize, 7usize, 95usize, 69usize, 5usize, 99usize, 114usize, 4usize, 0usize, 0usize, 145usize, 112usize, 9usize, 24usize, 146usize, 147usize, 101usize, 7usize, 6usize];
+const FN_200_CALLEES: &[usize] = &[0usize, 22usize, 93usize, 89usize, 24usize];
+const FN_201_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_202_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_203_CALLEES: &[usize] = &[0usize, 0usize, 92usize];
+const FN_204_CALLEES: &[usize] = &[0usize, 1usize, 92usize];
+const FN_205_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_206_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_207_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_208_CALLEES: &[usize] = &[0usize, 0usize, 92usize, 1usize, 0usize];
+const FN_209_CALLEES: &[usize] = &[0usize, 92usize, 1usize];
+const FN_210_CALLEES: &[usize] = &[0usize, 18usize, 13usize];
+const FN_211_CALLEES: &[usize] = &[0usize, 13usize, 13usize];
+const FN_212_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_213_CALLEES: &[usize] = &[0usize, 27usize, 15usize];
+const FN_214_CALLEES: &[usize] = &[0usize, 39usize, 15usize];
+const FN_215_CALLEES: &[usize] = &[0usize, 29usize, 15usize];
+const FN_216_CALLEES: &[usize] = &[0usize, 4usize, 6usize];
+const FN_217_CALLEES: &[usize] = &[0usize, 2usize, 15usize];
+const FN_218_CALLEES: &[usize] = &[0usize, 6usize, 15usize];
+const FN_219_CALLEES: &[usize] = &[0usize, 4usize, 92usize, 9usize, 10usize, 7usize, 15usize, 148usize, 14usize, 6usize, 5usize, 10usize, 27usize, 95usize];
+const FN_220_CALLEES: &[usize] = &[0usize, 5usize, 5usize, 0usize, 92usize, 8usize, 149usize];
+const FN_221_CALLEES: &[usize] = &[0usize, 9usize, 4usize, 7usize, 10usize, 14usize, 23usize, 0usize, 15usize, 0usize, 5usize, 95usize];
+const FN_222_CALLEES: &[usize] = &[0usize, 1usize, 2usize, 4usize, 7usize, 10usize, 18usize, 23usize, 38usize, 15usize, 5usize];
+const FN_223_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 130usize, 5usize];
+const FN_224_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 92usize];
+const FN_225_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 0usize, 92usize, 5usize, 1usize, 93usize];
+const FN_226_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 93usize, 4usize, 4usize, 92usize];
+const FN_227_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 9usize, 0usize, 92usize, 1usize, 93usize];
+const FN_228_CALLEES: &[usize] = &[0usize, 0usize, 5usize, 93usize, 130usize, 23usize, 5usize, 92usize];
+const FN_229_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 14usize, 130usize, 5usize, 0usize, 7usize, 19usize, 113usize, 16usize, 93usize, 3usize, 4usize, 13usize, 5usize, 95usize, 92usize];
+const FN_230_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 16usize, 19usize, 113usize, 116usize, 128usize];
+const FN_231_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 10usize, 10usize, 14usize];
+const FN_232_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 5usize, 16usize, 14usize, 113usize, 72usize, 92usize, 19usize, 0usize, 1usize, 7usize, 11usize, 2usize, 16usize, 93usize, 13usize, 95usize, 10usize];
+const FN_233_CALLEES: &[usize] = &[0usize, 92usize, 150usize];
+const FN_234_CALLEES: &[usize] = &[0usize, 113usize, 116usize, 128usize];
+const FN_235_CALLEES: &[usize] = &[0usize, 116usize, 128usize, 113usize];
+const FN_236_CALLEES: &[usize] = &[0usize, 113usize];
+const FN_237_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 5usize, 113usize, 92usize, 1usize, 5usize, 93usize, 147usize, 0usize, 1usize, 0usize, 2usize, 3usize, 4usize, 9usize, 76usize, 14usize, 16usize, 13usize, 95usize, 11usize, 7usize, 13usize, 2usize, 10usize, 0usize, 14usize, 10usize, 8usize, 16usize, 2usize, 77usize, 78usize, 79usize, 5usize, 130usize, 72usize];
+const FN_238_CALLEES: &[usize] = &[0usize, 0usize, 7usize, 8usize, 14usize, 9usize, 16usize, 93usize, 0usize, 4usize, 7usize, 23usize, 19usize, 113usize, 5usize, 92usize, 13usize, 6usize, 130usize, 15usize, 95usize, 2usize];
+const FN_239_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 23usize, 19usize, 5usize, 113usize, 5usize, 93usize, 2usize, 14usize, 11usize, 7usize, 13usize, 2usize, 10usize, 0usize, 10usize, 9usize, 8usize, 4usize, 116usize, 128usize];
+const FN_240_CALLEES: &[usize] = &[0usize, 0usize, 10usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 10usize];
+const FN_241_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 92usize, 23usize, 19usize, 113usize, 5usize, 12usize, 75usize, 0usize, 16usize, 93usize, 7usize, 10usize, 9usize, 13usize, 95usize];
+const FN_242_CALLEES: &[usize] = &[0usize, 0usize, 17usize, 16usize, 93usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 7usize, 8usize, 9usize, 14usize, 92usize, 13usize, 95usize, 3usize, 2usize, 7usize, 21usize];
+const FN_243_CALLEES: &[usize] = &[0usize, 0usize, 17usize, 16usize, 93usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 7usize, 8usize, 14usize, 9usize, 92usize, 13usize, 5usize, 4usize, 95usize, 72usize, 7usize, 15usize, 16usize];
+const FN_244_CALLEES: &[usize] = &[0usize, 151usize, 4usize, 4usize];
+const FN_245_CALLEES: &[usize] = &[0usize, 104usize, 5usize, 7usize, 28usize, 151usize, 5usize, 92usize, 13usize];
+const FN_246_CALLEES: &[usize] = &[0usize, 7usize, 0usize, 4usize];
+const FN_247_CALLEES: &[usize] = &[0usize, 104usize, 5usize, 7usize, 28usize, 151usize, 5usize, 92usize, 13usize];
+const FN_248_CALLEES: &[usize] = &[0usize, 5usize, 7usize, 28usize, 124usize, 113usize, 5usize, 92usize, 8usize, 149usize, 13usize];
+const FN_249_CALLEES: &[usize] = &[0usize, 124usize, 113usize, 92usize];
+const FN_250_CALLEES: &[usize] = &[0usize, 1usize, 124usize, 23usize, 92usize];
+const FN_251_CALLEES: &[usize] = &[0usize, 3usize, 113usize, 6usize, 1usize, 23usize, 0usize, 4usize, 2usize, 0usize];
+const FN_252_CALLEES: &[usize] = &[0usize, 124usize, 2usize, 1usize, 0usize, 23usize, 4usize, 7usize, 10usize, 5usize, 123usize, 120usize, 121usize, 152usize, 0usize];
+const FN_253_CALLEES: &[usize] = &[0usize, 124usize, 3usize, 0usize, 1usize, 0usize, 2usize, 23usize, 0usize, 4usize, 0usize, 7usize, 10usize, 5usize, 1usize, 4usize, 0usize];
+const FN_254_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 151usize, 14usize, 92usize, 5usize, 93usize, 113usize, 150usize, 121usize, 135usize, 148usize];
+const FN_255_CALLEES: &[usize] = &[0usize, 121usize, 73usize, 120usize, 4usize, 16usize, 124usize, 13usize, 95usize, 92usize, 93usize, 0usize];
+const FN_256_CALLEES: &[usize] = &[0usize, 124usize, 4usize, 4usize, 73usize, 23usize, 123usize, 130usize, 5usize, 7usize, 93usize, 5usize];
+const FN_257_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 7usize, 23usize, 4usize, 93usize, 5usize];
+const FN_258_CALLEES: &[usize] = &[0usize, 124usize, 120usize, 121usize, 152usize, 2usize, 1usize, 1usize, 1usize, 1usize];
+const FN_259_CALLEES: &[usize] = &[0usize, 4usize];
+const FN_260_CALLEES: &[usize] = &[0usize, 20usize, 92usize, 153usize, 0usize, 15usize, 0usize, 19usize, 124usize, 23usize, 9usize, 95usize];
+const FN_261_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 1usize, 1usize, 92usize, 0usize, 5usize];
+const FN_262_CALLEES: &[usize] = &[0usize, 4usize, 20usize, 16usize, 7usize, 23usize, 14usize, 150usize, 93usize, 5usize, 18usize, 13usize, 92usize, 73usize, 95usize, 10usize, 113usize, 151usize, 4usize, 1usize, 124usize, 5usize, 0usize, 1usize, 130usize, 28usize, 6usize, 5usize, 154usize, 5usize, 8usize, 149usize, 90usize, 29usize, 30usize, 2usize, 15usize];
+const FN_263_CALLEES: &[usize] = &[0usize, 120usize, 121usize];
+const FN_264_CALLEES: &[usize] = &[0usize, 120usize, 121usize];
+const FN_265_CALLEES: &[usize] = &[0usize, 124usize];
+const FN_266_CALLEES: &[usize] = &[0usize, 155usize, 124usize, 4usize, 4usize, 23usize, 82usize, 93usize, 120usize, 121usize];
+const FN_267_CALLEES: &[usize] = &[0usize, 124usize, 155usize];
+const FN_268_CALLEES: &[usize] = &[0usize, 124usize, 155usize];
+const FN_269_CALLEES: &[usize] = &[0usize, 151usize, 4usize, 10usize, 10usize, 23usize, 150usize, 113usize, 124usize, 1usize];
+const FN_270_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 7usize, 23usize, 106usize, 93usize, 5usize];
+const FN_271_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 151usize, 4usize, 108usize, 93usize, 14usize, 92usize, 5usize, 10usize, 10usize, 150usize, 73usize, 113usize, 111usize, 124usize, 1usize, 130usize];
+const FN_272_CALLEES: &[usize] = &[0usize, 113usize, 73usize];
+const FN_273_CALLEES: &[usize] = &[0usize, 124usize, 73usize, 112usize, 84usize, 103usize, 23usize, 1usize, 4usize, 16usize, 13usize, 95usize, 92usize, 1usize, 2usize, 120usize, 121usize, 1usize, 156usize, 10usize, 107usize, 113usize, 116usize, 128usize, 83usize, 81usize, 105usize, 0usize, 123usize, 150usize, 130usize, 4usize];
+const FN_274_CALLEES: &[usize] = &[0usize, 124usize];
+const FN_275_CALLEES: &[usize] = &[0usize, 124usize];
+const FN_276_CALLEES: &[usize] = &[0usize, 124usize, 1usize, 0usize, 15usize];
+const FN_277_CALLEES: &[usize] = &[0usize, 85usize, 1usize, 0usize, 15usize];
+const FN_278_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 6usize, 0usize];
+const FN_279_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 3usize, 85usize, 0usize, 2usize];
+const FN_280_CALLEES: &[usize] = &[0usize, 1usize, 6usize];
+const FN_281_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_282_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_283_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 0usize];
+const FN_284_CALLEES: &[usize] = &[0usize, 121usize, 124usize, 120usize, 93usize];
+const FN_285_CALLEES: &[usize] = &[0usize, 112usize, 130usize, 113usize, 84usize, 1usize, 0usize, 3usize, 2usize, 1usize, 0usize, 23usize, 93usize, 1usize, 12usize, 5usize, 0usize, 3usize, 4usize, 10usize, 0usize, 15usize];
+const FN_286_CALLEES: &[usize] = &[0usize, 3usize, 124usize, 105usize, 0usize, 121usize, 1usize, 85usize, 2usize, 0usize, 74usize, 6usize, 83usize, 12usize, 0usize, 1usize, 0usize, 15usize, 0usize, 3usize, 1usize];
+const FN_287_CALLEES: &[usize] = &[0usize, 3usize, 124usize, 0usize, 113usize, 1usize, 116usize, 128usize, 121usize, 0usize, 74usize, 85usize, 2usize, 6usize, 12usize, 10usize, 1usize, 0usize, 3usize, 0usize];
+const FN_288_CALLEES: &[usize] = &[0usize, 113usize, 116usize, 128usize, 1usize, 0usize, 3usize, 124usize, 74usize, 0usize, 6usize, 121usize, 0usize, 114usize, 1usize, 5usize, 0usize, 0usize, 0usize, 85usize, 2usize, 83usize, 12usize, 0usize, 1usize, 0usize, 1usize, 0usize, 15usize, 3usize, 10usize, 11usize, 86usize, 23usize, 1usize];
+const FN_289_CALLEES: &[usize] = &[0usize, 3usize, 124usize, 0usize, 74usize, 1usize, 0usize, 6usize, 93usize, 113usize, 0usize, 2usize, 12usize, 0usize, 3usize, 1usize, 23usize, 0usize];
+const FN_290_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 150usize, 5usize];
+const FN_291_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 150usize, 5usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -62379,7 +62366,7 @@ clippy::type_complexity,
 clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
-fn bound_adapter_292(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+fn bound_adapter_292(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, p11: i32, p12: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     SubstituteInstance::fn_292(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, host)
 }
 
@@ -62407,48 +62394,48 @@ clippy::type_complexity,
 clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
-fn bound_adapter_293(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+fn bound_adapter_293(vm: &mut SubstituteVm, _dispatch: &'static crate::ModuleDispatch, _g_map: &'static [usize], _c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, p7: i32, p8: i32, p9: i32, p10: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     SubstituteInstance::fn_293(vm, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, host)
 }
 
-const FN_294_CALLEES: &[u32] = &[0u32, 1u32, 124u32, 1u32, 3u32, 5u32, 0u32, 6u32, 4u32, 16u32, 92u32, 13u32, 10u32, 73u32, 0u32, 95u32];
-const FN_295_CALLEES: &[u32] = &[0u32, 16u32, 14u32, 113u32, 1u32, 3u32, 5u32, 6u32, 0u32, 2u32, 73u32, 92u32, 1u32, 0u32, 4u32, 13u32, 95u32, 7u32, 23u32, 2u32, 5u32, 8u32, 150u32, 7u32, 4u32, 15u32];
-const FN_296_CALLEES: &[u32] = &[0u32, 0u32, 4u32, 6u32, 16u32, 7u32, 23u32, 19u32, 113u32, 18u32, 13u32, 19u32, 95u32];
-const FN_297_CALLEES: &[u32] = &[0u32, 88u32, 93u32, 80u32, 4u32, 16u32, 7u32, 23u32, 1u32, 2u32, 15u32, 5u32, 95u32];
-const FN_298_CALLEES: &[u32] = &[0u32, 124u32, 23u32, 92u32, 73u32, 93u32, 1u32];
-const FN_299_CALLEES: &[u32] = &[0u32, 4u32, 7u32, 23u32, 150u32, 5u32];
-const FN_300_CALLEES: &[u32] = &[0u32, 124u32, 4u32, 1u32, 12u32, 0u32, 0u32];
-const FN_301_CALLEES: &[u32] = &[0u32, 16u32, 10u32, 0u32, 4u32, 6u32, 23u32, 19u32, 113u32, 5u32, 9u32, 3u32, 93u32, 2u32, 5u32, 4u32, 10u32, 10u32, 0u32, 92u32, 0u32, 13u32, 1u32, 95u32];
-const FN_302_CALLEES: &[u32] = &[0u32, 124u32, 1u32, 23u32, 92u32, 150u32, 73u32, 4u32, 16u32, 13u32, 95u32];
-const FN_303_CALLEES: &[u32] = &[0u32, 92u32, 4u32, 7u32, 10u32, 5u32, 22u32, 120u32, 121u32, 148u32, 123u32];
-const FN_304_CALLEES: &[u32] = &[0u32, 71u32];
-const FN_305_CALLEES: &[u32] = &[92u32];
-const FN_312_CALLEES: &[u32] = &[4u32];
-const FN_350_CALLEES: &[u32] = &[92u32];
-const FN_353_CALLEES: &[u32] = &[92u32];
-const FN_364_CALLEES: &[u32] = &[92u32];
-const FN_374_CALLEES: &[u32] = &[92u32];
-const FN_375_CALLEES: &[u32] = &[92u32];
-const FN_376_CALLEES: &[u32] = &[92u32];
-const FN_378_CALLEES: &[u32] = &[92u32];
-const FN_381_CALLEES: &[u32] = &[92u32];
-const FN_386_CALLEES: &[u32] = &[4u32];
-const FN_399_CALLEES: &[u32] = &[138u32, 142u32];
-const FN_405_CALLEES: &[u32] = &[92u32];
-const FN_406_CALLEES: &[u32] = &[92u32];
-const FN_415_CALLEES: &[u32] = &[92u32];
-const FN_417_CALLEES: &[u32] = &[4u32];
-const FN_420_CALLEES: &[u32] = &[92u32];
-const FN_421_CALLEES: &[u32] = &[92u32];
-const FN_422_CALLEES: &[u32] = &[92u32];
-const FN_423_CALLEES: &[u32] = &[92u32];
-const FN_424_CALLEES: &[u32] = &[92u32];
-const FN_425_CALLEES: &[u32] = &[155u32];
-const FN_426_CALLEES: &[u32] = &[124u32, 113u32, 154u32];
-const FN_430_CALLEES: &[u32] = &[92u32];
-const FN_432_CALLEES: &[u32] = &[92u32];
-const FN_433_CALLEES: &[u32] = &[92u32];
-const FN_434_CALLEES: &[u32] = &[0u32, 92u32, 91u32];
+const FN_294_CALLEES: &[usize] = &[0usize, 1usize, 124usize, 1usize, 3usize, 5usize, 0usize, 6usize, 4usize, 16usize, 92usize, 13usize, 10usize, 73usize, 0usize, 95usize];
+const FN_295_CALLEES: &[usize] = &[0usize, 16usize, 14usize, 113usize, 1usize, 3usize, 5usize, 6usize, 0usize, 2usize, 73usize, 92usize, 1usize, 0usize, 4usize, 13usize, 95usize, 7usize, 23usize, 2usize, 5usize, 8usize, 150usize, 7usize, 4usize, 15usize];
+const FN_296_CALLEES: &[usize] = &[0usize, 0usize, 4usize, 6usize, 16usize, 7usize, 23usize, 19usize, 113usize, 18usize, 13usize, 19usize, 95usize];
+const FN_297_CALLEES: &[usize] = &[0usize, 88usize, 93usize, 80usize, 4usize, 16usize, 7usize, 23usize, 1usize, 2usize, 15usize, 5usize, 95usize];
+const FN_298_CALLEES: &[usize] = &[0usize, 124usize, 23usize, 92usize, 73usize, 93usize, 1usize];
+const FN_299_CALLEES: &[usize] = &[0usize, 4usize, 7usize, 23usize, 150usize, 5usize];
+const FN_300_CALLEES: &[usize] = &[0usize, 124usize, 4usize, 1usize, 12usize, 0usize, 0usize];
+const FN_301_CALLEES: &[usize] = &[0usize, 16usize, 10usize, 0usize, 4usize, 6usize, 23usize, 19usize, 113usize, 5usize, 9usize, 3usize, 93usize, 2usize, 5usize, 4usize, 10usize, 10usize, 0usize, 92usize, 0usize, 13usize, 1usize, 95usize];
+const FN_302_CALLEES: &[usize] = &[0usize, 124usize, 1usize, 23usize, 92usize, 150usize, 73usize, 4usize, 16usize, 13usize, 95usize];
+const FN_303_CALLEES: &[usize] = &[0usize, 92usize, 4usize, 7usize, 10usize, 5usize, 22usize, 120usize, 121usize, 148usize, 123usize];
+const FN_304_CALLEES: &[usize] = &[0usize, 71usize];
+const FN_305_CALLEES: &[usize] = &[92usize];
+const FN_312_CALLEES: &[usize] = &[4usize];
+const FN_350_CALLEES: &[usize] = &[92usize];
+const FN_353_CALLEES: &[usize] = &[92usize];
+const FN_364_CALLEES: &[usize] = &[92usize];
+const FN_374_CALLEES: &[usize] = &[92usize];
+const FN_375_CALLEES: &[usize] = &[92usize];
+const FN_376_CALLEES: &[usize] = &[92usize];
+const FN_378_CALLEES: &[usize] = &[92usize];
+const FN_381_CALLEES: &[usize] = &[92usize];
+const FN_386_CALLEES: &[usize] = &[4usize];
+const FN_399_CALLEES: &[usize] = &[138usize, 142usize];
+const FN_405_CALLEES: &[usize] = &[92usize];
+const FN_406_CALLEES: &[usize] = &[92usize];
+const FN_415_CALLEES: &[usize] = &[92usize];
+const FN_417_CALLEES: &[usize] = &[4usize];
+const FN_420_CALLEES: &[usize] = &[92usize];
+const FN_421_CALLEES: &[usize] = &[92usize];
+const FN_422_CALLEES: &[usize] = &[92usize];
+const FN_423_CALLEES: &[usize] = &[92usize];
+const FN_424_CALLEES: &[usize] = &[92usize];
+const FN_425_CALLEES: &[usize] = &[155usize];
+const FN_426_CALLEES: &[usize] = &[124usize, 113usize, 154usize];
+const FN_430_CALLEES: &[usize] = &[92usize];
+const FN_432_CALLEES: &[usize] = &[92usize];
+const FN_433_CALLEES: &[usize] = &[92usize];
+const FN_434_CALLEES: &[usize] = &[0usize, 92usize, 91usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -64099,6 +64086,10 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (2229905u128, [0x67, 0x7c, 0x83, 0xdf, 0xf6, 0x7c, 0x3d, 0x2d, 0xfa, 0x54, 0x58, 0x63, 0xc0, 0x0d, 0x0a, 0x0a, 0x68, 0x80, 0x65, 0xe8, 0x37, 0xe5, 0x6e, 0x94, 0x0a, 0xff, 0xb9, 0x97, 0xc5, 0xaa, 0x9d, 0x3d]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_88792/f1681@l8589993914",
     accounting_version: 2u32,
@@ -64110,6 +64101,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -64399,7 +64391,7 @@ impl SubstituteInstance {
     let mut s_i32_8: i32 = 0i32;
     let mut s_i32_9: i32 = 0i32;
     let mut s_i32_10: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
     vm.exit_call();
@@ -66815,7 +66807,7 @@ impl SubstituteInstance {
     let mut s_i32_11: i32 = 0i32;
     let mut s_i32_12: i32 = 0i32;
     let mut s_i32_13: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_unit_ret_void(vm, 0usize, host);
     vm.exit_call();
@@ -67015,7 +67007,7 @@ impl SubstituteInstance {
             l50 = s_i32_0;
             'blk_5: {
                 'blk_6: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l50;
                     s_i32_1 = l49;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -67277,7 +67269,7 @@ impl SubstituteInstance {
             l99 = s_i32_0;
             s_i32_0 = l2;
             l100 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l4;
             l101 = s_i32_0;
             s_i32_0 = l5;
@@ -67341,7 +67333,7 @@ impl SubstituteInstance {
             l116 = s_i32_0;
             'blk_11: {
                 'blk_12: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l116;
                     s_i32_1 = l115;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -67434,7 +67426,7 @@ impl SubstituteInstance {
             s_i32_0 = 2215i32;
             l134 = s_i32_0;
             s_i32_0 = l133;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l134;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
@@ -67459,7 +67451,7 @@ impl SubstituteInstance {
             l137 = s_i64_0;
             'blk_15: {
                 'blk_16: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l137;
                     l138 = s_i64_0;
                     s_i32_0 = l15;
@@ -67588,7 +67580,7 @@ impl SubstituteInstance {
     s_i32_0 = 8i32;
     l162 = s_i32_0;
     s_i32_0 = l161;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_1 = l162;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 124usize, s_i32_0, s_i32_1, host);
@@ -67925,7 +67917,7 @@ impl SubstituteInstance {
             s_i32_1 = l232;
             s_i32_2 = l233;
             s_i32_3 = l234;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_4 = l235;
             s_i32_5 = l236;
             s_i32_6 = l237;
@@ -68077,7 +68069,7 @@ impl SubstituteInstance {
     vm.exit_call();
     let __t35 = __call_res?;
     s_i32_0 = __t35;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     'blk_23: {
         if s_i32_0 != 0 {
             s_i32_0 = l0;
@@ -68429,7 +68421,7 @@ impl SubstituteInstance {
             s_i32_5 = l343;
             s_i32_6 = l344;
             s_i32_7 = l345;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_8 = l346;
             s_i32_9 = l347;
             s_i32_10 = l350;
@@ -68640,7 +68632,7 @@ impl SubstituteInstance {
             let __t55 = __call_res?;
             s_i32_0 = __t55;
             l393 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             l394 = s_i32_0;
             s_i32_0 = l1;
@@ -68701,7 +68693,7 @@ impl SubstituteInstance {
     'blk_30: {
         if s_i32_0 != 0 {
             s_i32_0 = l15;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_ret_i64(vm, 4usize, s_i32_0, host);
             vm.exit_call();
@@ -68725,7 +68717,7 @@ impl SubstituteInstance {
             l412 = s_i32_0;
             'blk_31: {
                 'blk_32: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l412;
                     s_i32_1 = l411;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -69094,7 +69086,7 @@ impl SubstituteInstance {
             l477 = s_i32_0;
             'blk_40: {
                 'blk_41: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l477;
                     s_i32_1 = l476;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -69170,7 +69162,7 @@ impl SubstituteInstance {
         }
     }
     s_i32_0 = l11;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l492 = s_i32_0;
     s_i32_0 = 17i32;
     l493 = s_i32_0;
@@ -69201,7 +69193,7 @@ impl SubstituteInstance {
             l499 = s_i32_0;
             'blk_44: {
                 'blk_45: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l499;
                     s_i32_1 = l498;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -69269,7 +69261,7 @@ impl SubstituteInstance {
                                 l510 = s_i32_0;
                                 'blk_48: {
                                     'blk_49: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l510;
                                         s_i32_1 = l509;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -69437,7 +69429,7 @@ impl SubstituteInstance {
             l535 = s_i32_0;
             'blk_51: {
                 'blk_52: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l535;
                     s_i32_1 = l534;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -69911,7 +69903,7 @@ impl SubstituteInstance {
             s_i32_0 = l6;
             l640 = s_i32_0;
             s_i32_0 = l7;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l641 = s_i32_0;
             s_i32_0 = l8;
             l642 = s_i32_0;
@@ -70026,7 +70018,7 @@ impl SubstituteInstance {
             s_i32_3 = l662;
             s_i32_4 = l663;
             s_i32_5 = l664;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_6 = l665;
             s_i32_7 = l666;
             s_i32_8 = l667;
@@ -70312,7 +70304,7 @@ impl SubstituteInstance {
             l722 = s_i64_0;
             s_i64_0 = l721;
             s_i64_1 = l722;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i64_i64_ret_i32(vm, 4usize, s_i64_0, s_i64_1, host);
             vm.exit_call();
@@ -70403,7 +70395,7 @@ impl SubstituteInstance {
             l741 = s_i32_0;
             s_i32_0 = l740;
             s_i32_1 = l741;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
@@ -70418,7 +70410,7 @@ impl SubstituteInstance {
     l743 = s_i32_0;
     s_i32_0 = l742;
     s_i32_1 = l743;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = DISPATCH.call_direct_p_i32_i32_ret_i32(vm, 124usize, s_i32_0, s_i32_1, host);
     vm.exit_call();
@@ -70760,7 +70752,7 @@ impl SubstituteInstance {
     'blk_68: {
         if s_i32_0 != 0 {
             s_i32_0 = l1;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l823 = s_i32_0;
             s_i32_0 = l2;
             l824 = s_i32_0;
@@ -70856,7 +70848,7 @@ impl SubstituteInstance {
             l839 = s_i64_0;
             'blk_71: {
                 'blk_72: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l839;
                     l840 = s_i64_0;
                     s_i64_0 = l836;
@@ -70876,7 +70868,7 @@ impl SubstituteInstance {
                     l842 = s_i64_0;
                     'blk_73: {
                         'blk_74: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l842;
                             l843 = s_i64_0;
                             s_i64_0 = l839;
@@ -70976,7 +70968,7 @@ impl SubstituteInstance {
             l857 = s_i64_0;
             'blk_76: {
                 'blk_77: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l857;
                     l858 = s_i64_0;
                     s_i64_0 = l836;
@@ -71013,7 +71005,7 @@ impl SubstituteInstance {
                     l865 = s_i64_0;
                     'blk_78: {
                         'blk_79: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l865;
                             l866 = s_i64_0;
                             s_i64_0 = l836;
@@ -71198,7 +71190,7 @@ impl SubstituteInstance {
                     l892 = s_i64_0;
                     'blk_85: {
                         'blk_86: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l892;
                             l893 = s_i64_0;
                             s_i64_0 = l836;
@@ -71321,7 +71313,7 @@ impl SubstituteInstance {
                     l917 = s_i64_0;
                     'blk_87: {
                         'blk_88: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l917;
                             l918 = s_i64_0;
                             s_i64_0 = l836;
@@ -71643,7 +71635,7 @@ impl SubstituteInstance {
                     l992 = s_i64_0;
                     'blk_90: {
                         'blk_91: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l992;
                             l993 = s_i64_0;
                             s_i64_0 = l836;
@@ -71733,7 +71725,7 @@ impl SubstituteInstance {
         }
     }
     s_i32_0 = l11;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l1007 = s_i32_0;
     s_i32_0 = 30i32;
     l1008 = s_i32_0;
@@ -72090,7 +72082,7 @@ impl SubstituteInstance {
             let __t189 = __call_res?;
             s_i64_0 = __t189;
             l1083 = s_i64_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             l1084 = s_i32_0;
             s_i32_0 = 2548i32;
@@ -72349,7 +72341,7 @@ impl SubstituteInstance {
                     let __t201 = __call_res?;
                     s_i32_0 = __t201;
                     l1139 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l1139;
                     s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                     l1140 = s_i32_0;
@@ -72486,7 +72478,7 @@ impl SubstituteInstance {
             s_i32_0 = l8;
             l1166 = s_i32_0;
             s_i32_0 = 3i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l1167 = s_i32_0;
             s_i32_0 = l1121;
             l1168 = s_i32_0;
@@ -72522,7 +72514,7 @@ impl SubstituteInstance {
             l1173 = s_i64_0;
             'blk_105: {
                 'blk_106: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l1173;
                     l1174 = s_i64_0;
                     s_i32_0 = l1172;
@@ -72807,7 +72799,7 @@ impl SubstituteInstance {
             l1232 = s_i32_0;
             s_i32_0 = 2216i32;
             l1233 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1232;
             s_i32_1 = l1233;
             vm.enter_call()?;
@@ -72922,7 +72914,7 @@ impl SubstituteInstance {
             l1258 = s_i32_0;
             s_i32_0 = l1257;
             s_i32_1 = l1258;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 1usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
@@ -73106,7 +73098,7 @@ impl SubstituteInstance {
                     s_i32_0 = l5;
                     l1302 = s_i32_0;
                     s_i32_0 = l6;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1303 = s_i32_0;
                     s_i32_0 = l7;
                     l1304 = s_i32_0;
@@ -73153,7 +73145,7 @@ impl SubstituteInstance {
                     s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                     l1310 = s_i32_0;
                     s_i32_0 = 24i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1311 = s_i32_0;
                     s_i32_0 = l1310;
                     s_i32_1 = l1311;
@@ -73355,7 +73347,7 @@ impl SubstituteInstance {
                     l1353 = s_i32_0;
                     s_i32_0 = 2215i32;
                     l1354 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l1353;
                     s_i32_1 = l1354;
                     vm.enter_call()?;
@@ -73558,7 +73550,7 @@ impl SubstituteInstance {
                     s_i32_0 = l1;
                     l1399 = s_i32_0;
                     s_i32_0 = l2;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1400 = s_i32_0;
                     s_i32_0 = l3;
                     l1401 = s_i32_0;
@@ -73600,7 +73592,7 @@ impl SubstituteInstance {
             l1409 = s_i32_0;
             s_i32_0 = 0i32;
             l1410 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1409;
             s_i32_1 = l1410;
             vm.enter_call()?;
@@ -73918,7 +73910,7 @@ impl SubstituteInstance {
                     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
                     l1478 = s_i32_0;
                     s_i32_0 = l2;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
                     l1479 = s_i32_0;
                     s_i32_0 = l1478;
@@ -73939,7 +73931,7 @@ impl SubstituteInstance {
                 }
             }
             s_i32_0 = l15;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l1480 = s_i32_0;
             s_i64_0 = 0i64;
             l1481 = s_i64_0;
@@ -74180,7 +74172,7 @@ impl SubstituteInstance {
                     s_i32_0 = l3;
                     l1539 = s_i32_0;
                     s_i32_0 = l4;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1540 = s_i32_0;
                     s_i32_0 = l5;
                     l1541 = s_i32_0;
@@ -74227,12 +74219,12 @@ impl SubstituteInstance {
             s_i32_0 = __t251;
             'blk_126: {
                 if s_i32_0 != 0 {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     return Err(WasmTrap::Unreachable);
                 } else {
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 20u32)?;
             l1549 = s_i32_0;
@@ -74398,7 +74390,7 @@ impl SubstituteInstance {
             'blk_130: {
                 if s_i32_0 != 0 {
                     s_i32_0 = l0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l1581 = s_i32_0;
                     s_i32_0 = l1;
                     l1582 = s_i32_0;
@@ -74440,7 +74432,7 @@ impl SubstituteInstance {
                 }
             }
             s_i32_0 = l1578;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
             l1592 = s_i32_0;
             s_i32_0 = l1;
@@ -74474,7 +74466,7 @@ impl SubstituteInstance {
             l1598 = s_i64_0;
             'blk_131: {
                 'blk_132: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l1598;
                     l1599 = s_i64_0;
                     s_i32_0 = l1596;
@@ -74522,7 +74514,7 @@ impl SubstituteInstance {
                     l1606 = s_i64_0;
                     'blk_133: {
                         'blk_134: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l1606;
                             l1607 = s_i64_0;
                             s_i64_0 = l1598;
@@ -74910,7 +74902,7 @@ impl SubstituteInstance {
                             l1677 = s_i64_0;
                             'blk_142: {
                                 'blk_143: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l1677;
                                     l1678 = s_i64_0;
                                     s_i32_0 = l1596;
@@ -75117,7 +75109,7 @@ impl SubstituteInstance {
                             l1724 = s_i64_0;
                             'blk_144: {
                                 'blk_145: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l1724;
                                     l1725 = s_i64_0;
                                     s_i64_0 = l1723;
@@ -75374,7 +75366,7 @@ impl SubstituteInstance {
             l1783 = s_i32_0;
             s_i32_0 = l3;
             l1784 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1781;
             l1785 = s_i32_0;
             s_i32_0 = l1782;
@@ -75708,7 +75700,7 @@ impl SubstituteInstance {
                             l1862 = s_i32_0;
                             s_i32_0 = l1800;
                             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             l1863 = s_i32_0;
                             s_i64_0 = 0i64;
                             l1864 = s_i64_0;
@@ -75810,7 +75802,7 @@ impl SubstituteInstance {
                                             s_i32_0 = 0i32;
                                             l1880 = s_i32_0;
                                             s_i32_0 = l1879;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_1 = l1880;
                                             vm.enter_call()?;
                                             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
@@ -75855,7 +75847,7 @@ impl SubstituteInstance {
                                             s_i32_0 = 0i32;
                                             l1889 = s_i32_0;
                                             s_i32_0 = l1888;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_1 = l1889;
                                             vm.enter_call()?;
                                             let __call_res = DISPATCH.call_direct_p_i32_i32_ret_void(vm, 3usize, s_i32_0, s_i32_1, host);
@@ -75997,7 +75989,7 @@ impl SubstituteInstance {
                 } else {
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1786;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
             l1918 = s_i32_0;
@@ -76404,7 +76396,7 @@ impl SubstituteInstance {
                             l2004 = s_i32_0;
                             s_i32_0 = 2547i32;
                             l2005 = s_i32_0;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l2004;
                             s_i32_1 = l2005;
                             vm.enter_call()?;
@@ -76457,7 +76449,7 @@ impl SubstituteInstance {
                     s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                     l2014 = s_i32_0;
                     s_i32_0 = 0i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l2015 = s_i32_0;
                     s_i32_0 = l2014;
                     s_i32_1 = l2015;
@@ -76620,7 +76612,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 3usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }

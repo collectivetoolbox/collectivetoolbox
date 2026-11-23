@@ -65,8 +65,7 @@ clippy::almost_swapped,
 reason = "Generated WASM-to-Rust substitute function"
 )]
 impl ChunkFns {
-    #[inline(never)]
-    pub(crate) fn f_0dd72d798dab(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_0dd72d798dab(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -83,7 +82,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l0;
     s_i32_1 = l1;
     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -166,7 +165,7 @@ impl ChunkFns {
             l7 = s_i32_0;
             'blk_8: {
                 'blk_9: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l7;
                     s_i32_1 = l6;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -350,7 +349,7 @@ impl ChunkFns {
     l7 = s_i32_0;
     'blk_20: {
         'blk_21: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l7;
             s_i32_1 = l6;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -414,8 +413,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_4bd10795638b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_4bd10795638b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = 0i32;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -430,7 +428,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = 0i32;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
     l0 = s_i32_0;
@@ -569,7 +567,7 @@ impl ChunkFns {
     l10 = s_i32_0;
     'blk_7: {
         'blk_8: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             s_i32_1 = l2;
             vm.enter_call()?;
@@ -656,7 +654,7 @@ impl ChunkFns {
     }
     'blk_13: {
         'blk_14: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l0;
             s_i32_1 = l2;
             vm.enter_call()?;
@@ -820,7 +818,7 @@ use super::*;
 
 const FN_0_GLOBALS: &[usize] = &[0usize];
 const FN_1_GLOBALS: &[usize] = &[0usize];
-const FN_1_CALLEES: &[u32] = &[0u32];
+const FN_1_CALLEES: &[usize] = &[0usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -985,6 +983,10 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (1116720u128, [0x91, 0xd7, 0x92, 0x3c, 0x91, 0x78, 0x27, 0x96, 0x03, 0x97, 0x96, 0x90, 0x56, 0x91, 0x51, 0xab, 0x79, 0x8d, 0x0c, 0x1d, 0xd7, 0x41, 0x2a, 0x70, 0xcb, 0x8e, 0x1b, 0xd7, 0xce, 0x06, 0x56, 0x1a]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_79092/2608@l8589979106",
     accounting_version: 2u32,
@@ -996,6 +998,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -1105,7 +1108,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 0usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }

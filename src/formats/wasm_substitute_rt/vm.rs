@@ -344,6 +344,12 @@ pub struct SubstituteVm {
     pub phys_max_table_elems: u64,
     /// Single-threaded replay resume target (`__ctb_resume_target_op`).
     pub resume_target_op: u64,
+    /// Whether execution is currently inside a `begin_fast_epoch`..`end_fast_epoch` window.
+    in_fast_epoch: bool,
+    /// Remaining 1-unit fast-path quota inside an active epoch (`0` when disarmed or replaying).
+    fast_budget: u64,
+    /// Snapshot of `quota_remaining` when `fast_budget` was armed (`elapsed_1 = sync_quota - fast_budget`).
+    sync_quota: u64,
 }
 
 impl SubstituteVm {
@@ -393,6 +399,9 @@ impl SubstituteVm {
             max_table_elems: 65_536,
             phys_max_table_elems: 65_536,
             resume_target_op: 0,
+            in_fast_epoch: false,
+            fast_budget: 0,
+            sync_quota: 0,
         }
     }
 
@@ -550,7 +559,101 @@ impl SubstituteVm {
         host: &mut dyn WasmSubstituteHost,
     ) -> std::result::Result<(), WasmTrap> {
         let init = self.init_fn.ok_or(WasmTrap::Unreachable)?;
-        (init.0)(self, host)
+        let was_in_epoch = self.in_fast_epoch;
+        if !was_in_epoch {
+            self.begin_fast_epoch();
+        }
+        let res = (init.0)(self, host);
+        if !was_in_epoch {
+            self.end_fast_epoch();
+        }
+        res
+    }
+
+    /// Flushes any accumulated 1-unit `deduct_1` fast-path checkpoints back into
+    /// `quota_remaining`, `quota_consumed`, and `op_ordinal`, disarming `fast_budget`.
+    #[inline(always)]
+    pub fn sync_fast_budget(&mut self) {
+        let elapsed_1 = self.sync_quota.saturating_sub(self.fast_budget);
+        if elapsed_1 != 0 {
+            self.quota_remaining =
+                self.quota_remaining.saturating_sub(elapsed_1);
+            self.quota_consumed = self.quota_consumed.saturating_add(elapsed_1);
+            self.op_ordinal = self.op_ordinal.saturating_add(elapsed_1);
+        }
+        self.fast_budget = 0;
+        self.sync_quota = 0;
+    }
+
+    /// Re-arms the single-counter `deduct_1` fast path from `quota_remaining` when
+    /// currently inside a `begin_fast_epoch`..`end_fast_epoch` window and past `resume_target_op`.
+    #[inline(always)]
+    pub fn rearm_fast_budget(&mut self) {
+        if self.in_fast_epoch
+            && self.op_ordinal.saturating_add(1) >= self.resume_target_op
+        {
+            self.fast_budget = self.quota_remaining;
+            self.sync_quota = self.quota_remaining;
+        } else {
+            self.fast_budget = 0;
+            self.sync_quota = 0;
+        }
+    }
+
+    /// Enters an active execution epoch (`call_start` / `call_entry`), arming `deduct_1`.
+    #[inline(always)]
+    pub fn begin_fast_epoch(&mut self) {
+        self.sync_fast_budget();
+        self.in_fast_epoch = true;
+        self.rearm_fast_budget();
+    }
+
+    /// Exits an active execution epoch (`call_start` / `call_entry`), syncing all counters.
+    #[inline(always)]
+    pub fn end_fast_epoch(&mut self) {
+        self.sync_fast_budget();
+        self.in_fast_epoch = false;
+    }
+
+    /// Deducts 1 compute unit on structural loop/call/stride checkpoints using the
+    /// single-counter epoch fast path while preserving exact V2 checkpoint-ordinal metering.
+    #[inline(always)]
+    pub fn deduct_1(
+        &mut self,
+        host: &mut dyn WasmSubstituteHost,
+    ) -> std::result::Result<(), WasmTrap> {
+        if let Some(next) = self.fast_budget.checked_sub(1) {
+            self.fast_budget = next;
+            return Ok(());
+        }
+        self.deduct_1_slow(host)
+    }
+
+    #[cold]
+    fn deduct_1_slow(
+        &mut self,
+        host: &mut dyn WasmSubstituteHost,
+    ) -> std::result::Result<(), WasmTrap> {
+        self.sync_fast_budget();
+        self.op_ordinal = self.op_ordinal.saturating_add(1);
+        if self.op_ordinal < self.resume_target_op {
+            self.rearm_fast_budget();
+            return Ok(());
+        }
+        while self.quota_remaining < 1 {
+            self.exhausted = 1;
+            self.interrupted_op = self.op_ordinal;
+            self.required_cost = 1;
+            host.suspend_on_quota(self)?;
+            if self.op_ordinal < self.resume_target_op {
+                self.rearm_fast_budget();
+                return Ok(());
+            }
+        }
+        self.quota_remaining = self.quota_remaining.saturating_sub(1);
+        self.quota_consumed = self.quota_consumed.saturating_add(1);
+        self.rearm_fast_budget();
+        Ok(())
     }
 
     /// Deducts `cost` compute units under exact V2 `deduct-before-effect`
@@ -561,8 +664,13 @@ impl SubstituteVm {
         host: &mut dyn WasmSubstituteHost,
         cost: u64,
     ) -> std::result::Result<(), WasmTrap> {
+        if cost == 1 {
+            return self.deduct_1(host);
+        }
+        self.sync_fast_budget();
         self.op_ordinal = self.op_ordinal.saturating_add(1);
         if self.op_ordinal < self.resume_target_op {
+            self.rearm_fast_budget();
             return Ok(());
         }
         if self.quota_remaining < cost {
@@ -570,6 +678,7 @@ impl SubstituteVm {
         }
         self.quota_remaining = self.quota_remaining.saturating_sub(cost);
         self.quota_consumed = self.quota_consumed.saturating_add(cost);
+        self.rearm_fast_budget();
         Ok(())
     }
 
@@ -584,9 +693,14 @@ impl SubstituteVm {
             self.interrupted_op = self.op_ordinal;
             self.required_cost = cost;
             host.suspend_on_quota(self)?;
+            if self.op_ordinal < self.resume_target_op {
+                self.rearm_fast_budget();
+                return Ok(());
+            }
         }
         self.quota_remaining = self.quota_remaining.saturating_sub(cost);
         self.quota_consumed = self.quota_consumed.saturating_add(cost);
+        self.rearm_fast_budget();
         Ok(())
     }
 
@@ -1448,5 +1562,53 @@ mod tests {
         host.request_capability(&mut vm).unwrap();
         assert_eq!(host.capability_calls, 1);
         assert_eq!(vm.heap_ptr, 264);
+    }
+
+    #[crate::ctb_test]
+    fn test_deduct_1_fast_epoch_resume_refill_and_bulk_sync() {
+        let mut vm = SubstituteVm::new(
+            vec![WasmLinearMemory::new(1, Some(2))],
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        vm.quota_remaining = 5;
+        vm.quota_consumed = 0;
+        vm.op_ordinal = 0;
+        vm.resume_target_op = 3;
+
+        let mut host = MockHost {
+            suspend_refill: Some(4),
+            suspend_calls: 0,
+            last_interrupted: 0,
+            last_required: 0,
+            capability_calls: 0,
+        };
+
+        vm.begin_fast_epoch();
+        // Checkpoints 1 and 2 (< resume_target_op = 3) must advance op_ordinal without charging quota.
+        vm.deduct_1(&mut host).unwrap();
+        vm.deduct_1(&mut host).unwrap();
+        // Checkpoints 3..=7 consume all 5 units via the armed fast_budget counter.
+        for _ in 0..5 {
+            vm.deduct_1(&mut host).unwrap();
+        }
+        assert_eq!(host.suspend_calls, 0);
+        // Checkpoint 8 hits fast_budget == 0 -> syncs op_ordinal=7, consumed=5, remaining=0,
+        // suspends at interrupted_op=8, refills 4, and deducts 1 (leaving remaining=3, consumed=6).
+        vm.deduct_1(&mut host).unwrap();
+        assert_eq!(host.suspend_calls, 1);
+        assert_eq!(host.last_interrupted, 8);
+        assert_eq!(host.last_required, 1);
+
+        // One more fast-path deduct_1 (op 9, remaining=2, consumed=7), then bulk memory_fill(len=1 -> cost=2 at op 10).
+        vm.deduct_1(&mut host).unwrap();
+        vm.memory_fill(0, 0, 0x5A, 1, &mut host).unwrap();
+        vm.end_fast_epoch();
+
+        assert_eq!(vm.op_ordinal, 10);
+        assert_eq!(vm.quota_consumed, 9);
+        assert_eq!(vm.quota_remaining, 0);
+        assert_eq!(vm.load_u8(0, 0, 0), Ok(0x5A));
     }
 }

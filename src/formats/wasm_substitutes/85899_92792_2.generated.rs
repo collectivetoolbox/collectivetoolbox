@@ -66,7 +66,7 @@ reason = "Generated WASM-to-Rust substitute function"
 )]
 impl ChunkFns {
     #[inline(never)]
-    pub(crate) fn f_aebbacb26e52(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_aebbacb26e52(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = p2;
@@ -219,7 +219,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -235,7 +235,7 @@ impl ChunkFns {
     l4 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l4;
             l5 = s_i64_0;
             s_i64_0 = l2;
@@ -447,7 +447,7 @@ impl ChunkFns {
                     l4 = s_i64_0;
                     'blk_11: {
                         'blk_12: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l4;
                             l35 = s_i64_0;
                             s_i64_0 = l2;
@@ -727,7 +727,7 @@ impl ChunkFns {
                             s_i32_0 = 1i32;
                         } else {
                             s_i32_0 = l12;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             l78 = s_i32_0;
                             s_i32_0 = 2211i32;
                             l79 = s_i32_0;
@@ -810,7 +810,7 @@ impl ChunkFns {
                     }
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             'blk_24: {
                 if s_i32_0 != 0 {
                     s_i64_0 = l4;
@@ -1168,7 +1168,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_c8ae3ca98c42(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_c8ae3ca98c42(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -1187,7 +1187,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -1273,7 +1273,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_39f4ec346fe6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_39f4ec346fe6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -1874,7 +1874,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -2225,7 +2225,7 @@ impl ChunkFns {
             s_i32_1 = 1i32;
             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
             s_i32_0 = l37;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_1 = 4932693271981748035i64;
             ops::i64_store(vm, 0, s_i32_0, 16u32, s_i64_1)?;
             s_i32_0 = l37;
@@ -2279,7 +2279,7 @@ impl ChunkFns {
     ops::i64_store(vm, 0, s_i32_0, 0u32, s_i64_1)?;
     s_i32_0 = l44;
     s_i64_1 = l43;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     ops::i64_store(vm, 0, s_i32_0, 8u32, s_i64_1)?;
     s_i32_0 = l44;
     l45 = s_i32_0;
@@ -2661,7 +2661,7 @@ impl ChunkFns {
             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
             s_i32_0 = l93;
             s_i32_1 = 1i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
             s_i32_0 = l93;
             s_i64_1 = 8386658464824651349i64;
@@ -2731,7 +2731,7 @@ impl ChunkFns {
             vm.exit_call();
             let __t50 = __call_res?;
             s_i32_0 = __t50;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l99 = s_i32_0;
             s_i32_0 = l99;
             s_i32_1 = l99;
@@ -2790,7 +2790,7 @@ impl ChunkFns {
     }
     s_i32_0 = l95;
     l101 = s_i32_0;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i64_0 = 0i64;
     l102 = s_i64_0;
     s_i64_0 = 1114112i64;
@@ -3207,7 +3207,7 @@ impl ChunkFns {
             s_i32_0 = 0i32;
             l165 = s_i32_0;
             s_i32_0 = l164;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l165;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 13usize, s_i32_0, s_i32_1, host);
@@ -3768,7 +3768,7 @@ impl ChunkFns {
             vm.exit_call();
             let __t107 = __call_res?;
             s_i64_0 = __t107;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l228 = s_i64_0;
             s_i64_0 = 0i64;
             l229 = s_i64_0;
@@ -4012,7 +4012,7 @@ impl ChunkFns {
             let __t120 = __call_res?;
             s_i32_0 = __t120;
             l256 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l256;
             s_i32_1 = l256;
             s_i32_2 = 16i32;
@@ -4142,7 +4142,7 @@ impl ChunkFns {
                     s_i32_0 = __t128;
                     l272 = s_i32_0;
                     s_i32_0 = l272;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_1 = l268;
                     ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                     s_i32_0 = l272;
@@ -4204,7 +4204,7 @@ impl ChunkFns {
                             s_i32_0 = __t132;
                             l280 = s_i32_0;
                             s_i32_0 = l280;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_1 = l280;
                             s_i32_2 = 16i32;
                             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
@@ -4252,7 +4252,7 @@ impl ChunkFns {
                     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
                     l286 = s_i32_0;
                     s_i32_0 = 16i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 5usize, s_i32_0, host);
                     vm.exit_call();
@@ -4333,7 +4333,7 @@ impl ChunkFns {
             vm.exit_call();
             let __t138 = __call_res?;
             s_i32_0 = __t138;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l295 = s_i32_0;
             s_i32_0 = l295;
             s_i32_1 = l295;
@@ -4381,7 +4381,7 @@ impl ChunkFns {
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
     l300 = s_i32_0;
     s_i32_0 = l300;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l301 = s_i32_0;
     s_i32_0 = vm.get_i32(*g_map.get(0usize).ok_or(WasmTrap::Unreachable)?)?;
     l302 = s_i32_0;
@@ -4728,7 +4728,7 @@ impl ChunkFns {
             s_i32_0 = l338;
             s_i32_1 = 1i32;
             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l338;
             l339 = s_i32_0;
             s_i32_0 = l336;
@@ -4780,7 +4780,7 @@ impl ChunkFns {
     ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
     s_i32_0 = l345;
     s_i32_1 = 1i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
     s_i32_0 = l345;
     l344 = s_i32_0;
@@ -5075,7 +5075,7 @@ impl ChunkFns {
     l378 = s_i32_0;
     'blk_46: {
         'blk_47: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l378;
             s_i32_1 = l377;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -5559,7 +5559,7 @@ impl ChunkFns {
                                 l444 = s_i32_0;
                                 s_i32_0 = l441;
                                 s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 l445 = s_i32_0;
                                 s_i32_0 = 12i32;
                                 vm.enter_call()?;
@@ -5641,7 +5641,7 @@ impl ChunkFns {
                         s_i32_0 = l343;
                         l454 = s_i32_0;
                         s_i32_0 = l454;
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
                         l455 = s_i32_0;
                         s_i32_0 = l454;
@@ -5651,7 +5651,7 @@ impl ChunkFns {
                         l457 = s_i32_0;
                         'blk_60: {
                             'blk_61: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l457;
                                 s_i32_1 = l456;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -5878,7 +5878,7 @@ impl ChunkFns {
                                 l480 = s_i32_0;
                                 'blk_70: {
                                     'blk_71: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l480;
                                         s_i32_1 = l479;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -6288,7 +6288,7 @@ impl ChunkFns {
                                 s_i32_0 = l522;
                                 l523 = s_i32_0;
                                 s_i32_0 = l523;
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 return Ok(s_i32_0);
                             } else {
                             }
@@ -6364,7 +6364,7 @@ impl ChunkFns {
                                 ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
                                 s_i32_0 = l532;
                                 s_i32_1 = 1i32;
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
                                 s_i32_0 = l532;
                                 l533 = s_i32_0;
@@ -6420,7 +6420,7 @@ impl ChunkFns {
                         vm.exit_call();
                         let __t245 = __call_res?;
                         s_i32_0 = __t245;
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         'blk_82: {
                             if s_i32_0 != 0 {
                                 s_i32_0 = 1i32;
@@ -6541,7 +6541,7 @@ impl ChunkFns {
             s_i32_0 = __t251;
             l556 = s_i32_0;
             s_i64_0 = 1116039i64;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l557 = s_i64_0;
             s_i64_0 = 0i64;
             l558 = s_i64_0;
@@ -6687,7 +6687,7 @@ impl ChunkFns {
             s_i32_1 = 71i32;
             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
             s_i32_0 = l576;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = 1i32;
             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
             s_i32_0 = l576;
@@ -6767,7 +6767,7 @@ impl ChunkFns {
             s_i32_0 = 1i32;
             l581 = s_i32_0;
             s_i32_0 = 16i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 5usize, s_i32_0, host);
             vm.exit_call();
@@ -6819,7 +6819,7 @@ impl ChunkFns {
     s_i32_0 = 0i32;
     l587 = s_i32_0;
     s_i32_0 = l580;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
     l588 = s_i32_0;
     s_i32_0 = 16i32;
@@ -6868,7 +6868,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_041a4bf2a491(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_041a4bf2a491(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -6956,7 +6956,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -7497,7 +7497,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_96843a5bd5ea(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_96843a5bd5ea(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -7515,7 +7515,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -7532,7 +7532,7 @@ impl ChunkFns {
     l4 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l4;
             s_i32_1 = l3;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -7609,7 +7609,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_8254b8b8a18e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_8254b8b8a18e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -7854,7 +7854,7 @@ impl ChunkFns {
     let mut s_i32_4: i32 = 0i32;
     let mut s_i32_5: i32 = 0i32;
     let mut s_i32_6: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -7972,7 +7972,7 @@ impl ChunkFns {
     l20 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l20;
             s_i32_1 = l19;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8009,7 +8009,7 @@ impl ChunkFns {
                 l27 = s_i32_0;
                 'blk_5: {
                     'blk_6: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l27;
                         s_i32_1 = l26;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8179,7 +8179,7 @@ impl ChunkFns {
                             l51 = s_i32_0;
                             'blk_9: {
                                 'blk_10: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l51;
                                     s_i32_1 = l50;
                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8355,7 +8355,7 @@ impl ChunkFns {
                                         l79 = s_i32_0;
                                         'blk_14: {
                                             'blk_15: loop {
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i32_0 = l79;
                                                 s_i32_1 = l78;
                                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8744,7 +8744,7 @@ impl ChunkFns {
                                                             s_i32_0 = l136;
                                                             s_i32_1 = l132;
                                                             ops::i32_store8(vm, 0, s_i32_0, 4u32, s_i32_1)?;
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             s_i32_0 = l136;
                                                             s_i32_1 = l134;
                                                             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
@@ -8811,7 +8811,7 @@ impl ChunkFns {
                                                                     ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                                                                     s_i32_0 = l144;
                                                                     s_i32_1 = 0i32;
-                                                                    vm.deduct(host, 1)?;
+                                                                    vm.deduct_1(host)?;
                                                                     ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
                                                                     s_i32_0 = l144;
                                                                     s_i32_1 = 0i32;
@@ -8868,7 +8868,7 @@ impl ChunkFns {
                                                             s_i32_0 = l23;
                                                             l152 = s_i32_0;
                                                             s_i32_0 = l30;
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             l153 = s_i32_0;
                                                             s_i32_0 = 0i32;
                                                             l154 = s_i32_0;
@@ -9151,7 +9151,7 @@ impl ChunkFns {
             l181 = s_i32_0;
             'blk_30: {
                 'blk_31: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l181;
                     s_i32_1 = l180;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -9314,7 +9314,7 @@ impl ChunkFns {
     l202 = s_i32_0;
     'blk_34: {
         'blk_35: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l202;
             s_i32_1 = l201;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -9595,7 +9595,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_a90f6775ffca(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a90f6775ffca(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -9656,7 +9656,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -10042,7 +10042,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_92f872aadd34(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_92f872aadd34(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -10189,7 +10189,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -10562,7 +10562,7 @@ impl ChunkFns {
             s_i32_0 = l58;
             s_i32_1 = l58;
             s_i32_2 = 16i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
             s_i32_0 = l58;
@@ -10640,7 +10640,7 @@ impl ChunkFns {
     s_i32_0 = l63;
     s_i32_1 = 134i32;
     ops::i32_store8(vm, 0, s_i32_0, 19u32, s_i32_1)?;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l63;
     l64 = s_i32_0;
     s_i32_0 = l62;
@@ -11017,7 +11017,7 @@ impl ChunkFns {
                             s_i32_0 = l108;
                             s_i32_1 = l103;
                             ops::i32_store8(vm, 0, s_i32_0, 4u32, s_i32_1)?;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l108;
                             s_i32_1 = l104;
                             ops::i32_store8(vm, 0, s_i32_0, 5u32, s_i32_1)?;
@@ -11079,7 +11079,7 @@ impl ChunkFns {
                     s_i32_1 = 37i32;
                     ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
                     s_i32_0 = l115;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_1 = 37i32;
                     ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
                     s_i32_0 = l115;
@@ -11215,7 +11215,7 @@ impl ChunkFns {
             s_i32_0 = l127;
             s_i32_1 = 36i32;
             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l127;
             s_i32_1 = 36i32;
             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
@@ -11328,7 +11328,7 @@ impl ChunkFns {
     s_i32_1 = l132;
     ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
     s_i32_0 = l138;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_1 = l133;
     ops::i32_store8(vm, 0, s_i32_0, 4u32, s_i32_1)?;
     s_i32_0 = l138;
@@ -11346,8 +11346,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_b8d14b6ebe1d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_b8d14b6ebe1d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -11379,7 +11378,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -11608,7 +11607,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_cdba2cc53bb3(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_cdba2cc53bb3(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -11691,7 +11690,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -12074,7 +12073,7 @@ impl ChunkFns {
                     l46 = s_i32_0;
                     s_i32_0 = 0i32;
                     l47 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = 48i32;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 2usize, s_i32_0, host);
@@ -12191,7 +12190,7 @@ impl ChunkFns {
             ops::i64_store(vm, 0, s_i32_0, 16u32, s_i64_1)?;
             s_i32_0 = l57;
             s_i64_1 = 3763092978818883684i64;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             ops::i64_store(vm, 0, s_i32_0, 24u32, s_i64_1)?;
             s_i32_0 = l57;
             s_i64_1 = 8391737126163521584i64;
@@ -12273,7 +12272,7 @@ impl ChunkFns {
             s_i32_1 = 37i32;
             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
             s_i32_0 = l66;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = 37i32;
             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
             s_i32_0 = l66;
@@ -12358,7 +12357,7 @@ impl ChunkFns {
     s_i32_0 = l74;
     s_i32_1 = l72;
     ops::i32_store8(vm, 0, s_i32_0, 4u32, s_i32_1)?;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l74;
     s_i32_1 = l73;
     ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
@@ -12368,8 +12367,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_824c5773d62b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_824c5773d62b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -12399,7 +12397,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -12556,8 +12554,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_i32_ret_i32(vm, c_map, 9usize, __t10, __t11, host);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_f008f64e784a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f008f64e784a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -12590,7 +12587,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -12652,7 +12649,7 @@ impl ChunkFns {
             l7 = s_i64_0;
             'blk_3: {
                 'blk_4: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l7;
                     s_i64_1 = l3;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -12733,7 +12730,7 @@ impl ChunkFns {
     l12 = s_i64_0;
     'blk_5: {
         'blk_6: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l12;
             s_i64_1 = l3;
             s_i32_0 = ops::i64_le_u(s_i64_0, s_i64_1);
@@ -12795,7 +12792,7 @@ impl ChunkFns {
             l18 = s_i64_0;
             'blk_8: {
                 'blk_9: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l16;
                     s_i32_0 = ops::i32_eqz(s_i32_0);
                     'blk_10: {
@@ -12963,8 +12960,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_9b9e4d79c2a8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_9b9e4d79c2a8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -12986,7 +12982,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -13058,7 +13054,7 @@ impl ChunkFns {
     l10 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l10;
             s_i32_1 = l9;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -13103,7 +13099,7 @@ impl ChunkFns {
     l13 = s_i64_0;
     'blk_5: {
         'blk_6: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l13;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -13160,7 +13156,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_a996482bc1ef(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a996482bc1ef(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i32 = 0i32;
@@ -13174,7 +13170,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -13242,8 +13238,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_b6cf541461dc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_b6cf541461dc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = p2;
@@ -13261,7 +13256,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -13354,8 +13349,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_c1c69edd038d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_c1c69edd038d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -13372,7 +13366,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -13387,7 +13381,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l2;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -13546,8 +13540,7 @@ impl ChunkFns {
     return Ok(s_i64_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_59a0410eeb26(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_59a0410eeb26(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -13576,7 +13569,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -13626,7 +13619,7 @@ impl ChunkFns {
     l8 = s_i64_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l8;
             s_i64_1 = l5;
             s_i32_0 = ops::i64_le_u(s_i64_0, s_i64_1);
@@ -13688,7 +13681,7 @@ impl ChunkFns {
             l14 = s_i64_0;
             'blk_5: {
                 'blk_6: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l12;
                     s_i32_0 = ops::i32_eqz(s_i32_0);
                     'blk_7: {
@@ -13856,8 +13849,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_cd58da62b9e3(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_cd58da62b9e3(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -13875,7 +13867,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -13981,8 +13973,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_a2186d19e2c0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a2186d19e2c0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -13996,7 +13987,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -14022,7 +14013,7 @@ impl ChunkFns {
     l5 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l5;
             s_i32_1 = l4;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -14107,8 +14098,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_aa32df195e2f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_aa32df195e2f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -14139,7 +14129,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -14159,7 +14149,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -14390,13 +14380,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_5e4fbe80a2d9(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_5e4fbe80a2d9(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -14434,8 +14424,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_3de4de76d7bc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_3de4de76d7bc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -14460,7 +14449,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -14479,7 +14468,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -14533,7 +14522,7 @@ impl ChunkFns {
     l6 = s_i64_0;
     'blk_4: {
         'blk_5: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l6;
             s_i64_1 = l3;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -14716,7 +14705,7 @@ impl ChunkFns {
             l13 = s_i64_0;
             'blk_13: {
                 'blk_14: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l13;
                     s_i64_1 = l5;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -14820,8 +14809,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_e4afd653eea2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_e4afd653eea2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -14842,7 +14830,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -14862,7 +14850,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -15020,7 +15008,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_a4773ed743de(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a4773ed743de(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = p2;
@@ -15034,7 +15022,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -15045,7 +15033,7 @@ impl ChunkFns {
     l4 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l4;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -15092,7 +15080,7 @@ impl ChunkFns {
     l6 = s_i64_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l6;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -15136,7 +15124,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_03c6e9c99b64(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_03c6e9c99b64(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -15219,7 +15207,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -15718,7 +15706,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_038735e9e9c7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_038735e9e9c7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -15733,7 +15721,7 @@ impl ChunkFns {
     let mut l11: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -15810,7 +15798,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_7425067462bd(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_7425067462bd(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -15824,7 +15812,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -15893,8 +15881,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_ret_i32(vm, c_map, 4usize, __t4, host);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_a4564f09a357(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a4564f09a357(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -15915,7 +15902,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -16013,8 +16000,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_975343290a87(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_975343290a87(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -16044,7 +16030,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -16213,8 +16199,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_2e9ae6967fad(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_2e9ae6967fad(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -16232,7 +16217,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -16323,7 +16308,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_fec92329e980(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_fec92329e980(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -16332,7 +16317,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -16366,7 +16351,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_i32_ret_i32(vm, c_map, 3usize, __t2, __t3, host);
     }
 
-    pub(crate) fn f_87a4332dcdea(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_87a4332dcdea(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -16384,7 +16369,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -16466,7 +16451,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_d725ff05410f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_d725ff05410f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -16479,7 +16464,7 @@ impl ChunkFns {
     let mut l9: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -16544,7 +16529,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_3505cdd4951f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_3505cdd4951f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -16557,7 +16542,7 @@ impl ChunkFns {
     let mut l9: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -16622,8 +16607,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_97d4a47a22ec(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_97d4a47a22ec(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -16639,7 +16623,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -16731,8 +16715,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_9b4a1c598462(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_9b4a1c598462(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -16760,7 +16743,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -16999,7 +16982,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_ret_i32(vm, c_map, 7usize, __t16, host);
     }
 
-    pub(crate) fn f_e3f6ab9ba400(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_e3f6ab9ba400(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -17013,7 +16996,7 @@ impl ChunkFns {
     let mut l10: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -17082,7 +17065,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_a2a7ff38a2b7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a2a7ff38a2b7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -17096,7 +17079,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -17170,7 +17153,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_ret_i32(vm, c_map, 5usize, __t5, host);
     }
 
-    pub(crate) fn f_d9ea1df92c5e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_d9ea1df92c5e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -17187,7 +17170,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -17262,7 +17245,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_7a27ed8e21d5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_7a27ed8e21d5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -17379,7 +17362,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -17438,7 +17421,7 @@ impl ChunkFns {
     l10 = s_i64_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l10;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -17710,7 +17693,7 @@ impl ChunkFns {
     l51 = s_i64_0;
     'blk_9: {
         'blk_10: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l51;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -18080,7 +18063,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_ee91944eafa8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_ee91944eafa8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -18218,7 +18201,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -18260,7 +18243,7 @@ impl ChunkFns {
     l7 = s_i64_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l7;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -18546,7 +18529,7 @@ impl ChunkFns {
     l47 = s_i64_0;
     'blk_11: {
         'blk_12: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l47;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -19087,8 +19070,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_9c15bf600887(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_9c15bf600887(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -19128,7 +19110,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -19148,7 +19130,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = 0i64;
             s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
@@ -19358,8 +19340,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_47fe2304968c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_47fe2304968c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -19406,7 +19387,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -19503,7 +19484,7 @@ impl ChunkFns {
     l11 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l11;
             s_i64_1 = 0i64;
             l12 = s_i64_1;
@@ -19721,7 +19702,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_94d168266957(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_94d168266957(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -19776,7 +19757,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -19852,7 +19833,7 @@ impl ChunkFns {
     l8 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l8;
             s_i32_1 = 0i32;
             s_i32_0 = ops::i32_gt_u(s_i32_0, s_i32_1);
@@ -20128,7 +20109,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_093751662340(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_093751662340(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -20184,7 +20165,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -20537,7 +20518,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_e59a8e4dd5a8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_e59a8e4dd5a8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -20695,7 +20676,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -21753,7 +21734,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_17e4d117a9e2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_17e4d117a9e2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -21761,7 +21742,7 @@ impl ChunkFns {
     let mut l4: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -21844,8 +21825,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_82736e089a63(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_82736e089a63(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -21853,7 +21833,7 @@ impl ChunkFns {
     let mut l4: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -22010,8 +21990,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_874a0f163f87(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_874a0f163f87(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -22022,7 +22001,7 @@ impl ChunkFns {
     let mut l7: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -22278,13 +22257,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_453b12f8e241(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_453b12f8e241(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -22372,8 +22351,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_a9d07fdbedd6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a9d07fdbedd6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -22385,7 +22363,7 @@ impl ChunkFns {
     let mut l8: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -22531,14 +22509,14 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_1cfdac67b063(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_1cfdac67b063(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
     let mut l3: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -22598,12 +22576,12 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_4ca954bae270(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_4ca954bae270(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -22652,14 +22630,14 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_a41907e41763(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a41907e41763(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
     let mut l3: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -22700,8 +22678,7 @@ impl ChunkFns {
     return Err(WasmTrap::Unreachable);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_323c5b183238(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_323c5b183238(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = 0i32;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -22716,7 +22693,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -22755,7 +22732,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = 256i64;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -22810,8 +22787,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_b953838600c1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_b953838600c1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i32 = p2;
@@ -22833,7 +22809,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -22929,7 +22905,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_6cb216adc685(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_6cb216adc685(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i32 = p2;
@@ -22948,7 +22924,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23027,7 +23003,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_fef4b833a275(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_fef4b833a275(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -23043,7 +23019,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23069,7 +23045,7 @@ impl ChunkFns {
     l5 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l5;
             s_i32_1 = l4;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -23132,8 +23108,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_d53d5875197a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_d53d5875197a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -23164,7 +23139,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23222,7 +23197,7 @@ impl ChunkFns {
     l9 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l9;
             s_i32_1 = l8;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -23368,7 +23343,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_048ae2039d19(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_048ae2039d19(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -23379,7 +23354,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23438,7 +23413,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_dd64d7da387f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_dd64d7da387f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -23455,7 +23430,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23527,8 +23502,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_f9611536c652(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f9611536c652(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -23551,7 +23525,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23578,7 +23552,7 @@ impl ChunkFns {
     l4 = s_i64_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l4;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -23665,7 +23639,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_0f8beff50967(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_0f8beff50967(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -23678,7 +23652,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23695,7 +23669,7 @@ impl ChunkFns {
     l5 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l5;
             s_i32_1 = l4;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -23741,7 +23715,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_027e6ffc1a1a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_027e6ffc1a1a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -23751,7 +23725,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23806,12 +23780,12 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_e35c1d781ec7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_e35c1d781ec7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23841,8 +23815,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_fe6b4389f8cd(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_fe6b4389f8cd(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -23859,7 +23832,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -23872,7 +23845,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -23946,7 +23919,7 @@ impl ChunkFns {
             l7 = s_i32_0;
             'blk_7: {
                 'blk_8: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l3;
                     s_i64_1 = l2;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -24030,8 +24003,7 @@ impl ChunkFns {
     return Ok(s_i64_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_47d0a89ab3c3(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_47d0a89ab3c3(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -24054,7 +24026,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -24198,7 +24170,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_f932b5a2a932(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f932b5a2a932(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -24295,7 +24267,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -24321,7 +24293,7 @@ impl ChunkFns {
     l5 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l5;
             s_i32_1 = l4;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -24430,7 +24402,7 @@ impl ChunkFns {
     l18 = s_i64_0;
     'blk_6: {
         'blk_7: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l17;
             s_i64_1 = l18;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -24509,7 +24481,7 @@ impl ChunkFns {
     }
     'blk_12: {
         'blk_13: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l18;
             s_i64_1 = l17;
             s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
@@ -24938,7 +24910,7 @@ impl ChunkFns {
             s_i64_0 = l36;
             s_i32_1 = l40;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_1 = ops::i64_extend_i32_u(s_i32_1);
             s_i32_0 = ops::i64_ge_u(s_i64_0, s_i64_1);
         } else {
@@ -24948,7 +24920,7 @@ impl ChunkFns {
     'blk_27: {
         if s_i32_0 != 0 {
             s_i32_0 = l35;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l57 = s_i32_0;
             s_i64_0 = 0i64;
             l58 = s_i64_0;
@@ -25073,7 +25045,7 @@ impl ChunkFns {
         }
     }
     s_i64_0 = l43;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i64_1 = 0i64;
     s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
     'blk_32: {
@@ -25277,7 +25249,7 @@ impl ChunkFns {
     l86 = s_i64_0;
     'blk_39: {
         'blk_40: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l86;
             s_i32_1 = l84;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -25335,7 +25307,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_f894fb5309a3(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f894fb5309a3(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -25450,7 +25422,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -25783,7 +25755,7 @@ impl ChunkFns {
             l33 = s_i64_1;
             s_i64_1 = 0i64;
             l34 = s_i64_1;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = 16i32;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_1, host);
@@ -25839,7 +25811,7 @@ impl ChunkFns {
                     l39 = s_i32_1;
                     s_i32_1 = l39;
                     s_i64_2 = l37;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     ops::i64_store(vm, 0, s_i32_1, 0u32, s_i64_2)?;
                     s_i32_1 = l39;
                     s_i64_2 = l38;
@@ -25868,7 +25840,7 @@ impl ChunkFns {
                     s_i32_1 = l41;
                     s_i32_2 = 16i32;
                     s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                     s_i32_0 = l41;
                     s_i32_1 = 0i32;
@@ -25976,7 +25948,7 @@ impl ChunkFns {
             s_i64_0 = ops::i64_load(vm, 0, s_i32_0, 16u32)?;
             l52 = s_i64_0;
             s_i32_0 = 16i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
             vm.exit_call();
@@ -26050,7 +26022,7 @@ impl ChunkFns {
     l61 = s_i32_0;
     'blk_7: {
         'blk_8: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l60;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -26336,7 +26308,7 @@ impl ChunkFns {
             s_i32_0 = l87;
             s_i32_1 = l87;
             s_i32_2 = 16i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
             s_i32_0 = l87;
@@ -26448,7 +26420,7 @@ impl ChunkFns {
     s_i64_0 = l60;
     l98 = s_i64_0;
     s_i32_0 = 16i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
     vm.exit_call();
@@ -26508,8 +26480,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_df0fa22086ad(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_df0fa22086ad(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -26524,7 +26495,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -26573,7 +26544,7 @@ impl ChunkFns {
     l4 = s_i64_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l4;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -26649,8 +26620,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_02bd3f85ecb6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_02bd3f85ecb6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -26666,7 +26636,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -26697,7 +26667,7 @@ impl ChunkFns {
     l5 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l5;
             s_i32_1 = l4;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -26779,8 +26749,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_3f42f48f24b8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_3f42f48f24b8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -26797,7 +26766,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -26894,7 +26863,7 @@ impl ChunkFns {
     l6 = s_i64_0;
     'blk_5: {
         'blk_6: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l6;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -26972,7 +26941,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_fae9531ba29b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_fae9531ba29b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -27093,7 +27062,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -27430,7 +27399,7 @@ impl ChunkFns {
             s_i32_0 = __t16;
             l44 = s_i32_0;
             s_i32_0 = l44;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l34;
             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
             s_i32_0 = l44;
@@ -27547,7 +27516,7 @@ impl ChunkFns {
                     s_i64_1 = l60;
                     ops::i64_store(vm, 0, s_i32_0, 0u32, s_i64_1)?;
                     s_i32_0 = l62;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_1 = l61;
                     ops::i64_store(vm, 0, s_i32_0, 8u32, s_i64_1)?;
                     s_i32_0 = l62;
@@ -27655,7 +27624,7 @@ impl ChunkFns {
             s_i64_3 = l71;
             ops::i64_store(vm, 0, s_i32_2, 0u32, s_i64_3)?;
             s_i32_2 = l73;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_3 = l72;
             ops::i64_store(vm, 0, s_i32_2, 8u32, s_i64_3)?;
             s_i32_2 = l73;
@@ -27707,7 +27676,7 @@ impl ChunkFns {
                     s_i64_1 = 1114728i64;
                     l77 = s_i64_1;
                     s_i64_1 = 0i64;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l78 = s_i64_1;
                     s_i32_1 = 16i32;
                     vm.enter_call()?;
@@ -27734,7 +27703,7 @@ impl ChunkFns {
                 if s_i32_0 != 0 {
                     s_i32_0 = 2i32;
                     l80 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = 0i64;
                     l81 = s_i64_0;
                     s_i64_0 = 0i64;
@@ -27861,7 +27830,7 @@ impl ChunkFns {
             vm.exit_call();
             let __t39 = __call_res?;
             s_i32_0 = __t39;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l50 = s_i32_0;
         }
     }
@@ -28059,8 +28028,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_2f87da254891(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_2f87da254891(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -28086,7 +28054,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -28274,8 +28242,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_5d937daefa9a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_5d937daefa9a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -28314,7 +28281,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -28515,8 +28482,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_f92ac6576087(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f92ac6576087(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i32 = p2;
@@ -28557,7 +28523,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -28710,7 +28676,7 @@ impl ChunkFns {
     l24 = s_i32_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l24;
             s_i32_1 = l23;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -28823,8 +28789,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_f43975d0fb67(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f43975d0fb67(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i32 = p2;
@@ -28867,7 +28832,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -29132,8 +29097,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_62b5432c2cef(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_62b5432c2cef(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -29174,7 +29138,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -29429,7 +29393,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_aed09ff7e27e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_aed09ff7e27e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -29518,7 +29482,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -29852,7 +29816,7 @@ impl ChunkFns {
             s_i32_0 = l41;
             s_i32_1 = 0i32;
             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l41;
             s_i32_1 = 0i32;
             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
@@ -29933,7 +29897,7 @@ impl ChunkFns {
             s_i32_2 = __t17;
             l49 = s_i32_2;
             s_i32_2 = l49;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_3 = l47;
             ops::i64_store(vm, 0, s_i32_2, 0u32, s_i64_3)?;
             s_i32_2 = l49;
@@ -29985,7 +29949,7 @@ impl ChunkFns {
             let __t21 = __call_res?;
             s_i32_0 = __t21;
             l55 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l55;
             s_i32_1 = l55;
             s_i32_2 = 16i32;
@@ -30092,7 +30056,7 @@ impl ChunkFns {
     vm.exit_call();
     let __t25 = __call_res?;
     s_i32_2 = __t25;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l63 = s_i32_2;
     s_i32_2 = l63;
     s_i64_3 = l61;
@@ -30232,7 +30196,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_2d42b20c8b6d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_2d42b20c8b6d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -30302,7 +30266,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -30695,7 +30659,7 @@ impl ChunkFns {
         } else {
         }
     }
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l34;
     s_i64_1 = 0i64;
     vm.enter_call()?;
@@ -30864,7 +30828,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_bb17f030ad20(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_bb17f030ad20(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -30917,7 +30881,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -31004,7 +30968,7 @@ impl ChunkFns {
     l19 = s_i64_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l19;
             s_i64_1 = l8;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -31532,7 +31496,7 @@ impl ChunkFns {
                                                     __call_res?;
                                                     s_i32_0 = vm.get_i32(*g_map.get(0usize).ok_or(WasmTrap::Unreachable)?)?;
                                                     l17 = s_i32_0;
-                                                    vm.deduct(host, 1)?;
+                                                    vm.deduct_1(host)?;
                                                     s_i32_0 = 1i32;
                                                     l18 = s_i32_0;
                                                     s_i64_0 = l19;
@@ -31560,7 +31524,7 @@ impl ChunkFns {
                     s_i32_0 = l21;
                     l17 = s_i32_0;
                     s_i32_0 = 1i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l18 = s_i32_0;
                     s_i64_0 = l19;
                     s_i64_1 = 1i64;
@@ -31791,7 +31755,7 @@ impl ChunkFns {
                                                                 if s_i32_0 != 0 {
                                                                     s_i32_0 = l38;
                                                                     l39 = s_i32_0;
-                                                                    vm.deduct(host, 1)?;
+                                                                    vm.deduct_1(host)?;
                                                                     s_i32_0 = l39;
                                                                     return Ok(s_i32_0);
                                                                 } else {
@@ -31799,7 +31763,7 @@ impl ChunkFns {
                                                             }
                                                             s_i32_0 = l38;
                                                             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             s_i32_1 = 1i32;
                                                             vm.enter_call()?;
                                                             let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 11usize, s_i32_0, s_i32_1, host);
@@ -31917,7 +31881,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_426d859a938f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_426d859a938f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -31929,7 +31893,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i32_4: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -31997,7 +31961,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_bbee40c093b4(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_bbee40c093b4(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -32095,7 +32059,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -32452,7 +32416,7 @@ impl ChunkFns {
                     s_i32_2 = l41;
                     s_i64_3 = l39;
                     ops::i64_store(vm, 0, s_i32_2, 0u32, s_i64_3)?;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_2 = l41;
                     s_i64_3 = l40;
                     ops::i64_store(vm, 0, s_i32_2, 8u32, s_i64_3)?;
@@ -32508,7 +32472,7 @@ impl ChunkFns {
             s_i32_1 = l47;
             s_i32_2 = 16i32;
             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
             s_i32_0 = l47;
             s_i32_1 = 0i32;
@@ -32624,11 +32588,11 @@ impl ChunkFns {
     s_i64_0 = ops::i64_sub(s_i64_0, s_i64_1);
     l55 = s_i64_0;
     s_i32_0 = 1i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l56 = s_i32_0;
     'blk_6: {
         'blk_7: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l54;
             s_i64_1 = l55;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -33032,7 +32996,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_174dfb33e5ba(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_174dfb33e5ba(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, p5: i32, p6: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -33184,7 +33148,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -33614,7 +33578,7 @@ impl ChunkFns {
             s_i32_2 = 16i32;
             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l48;
             s_i32_1 = 39i32;
             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
@@ -33705,7 +33669,7 @@ impl ChunkFns {
     l54 = s_i64_0;
     'blk_8: {
         'blk_9: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l53;
             s_i64_1 = l54;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -34040,7 +34004,7 @@ impl ChunkFns {
             s_i64_0 = l53;
             s_i64_1 = 2i64;
             s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l53 = s_i64_0;
             s_i64_0 = l53;
             s_i64_1 = l54;
@@ -34375,7 +34339,7 @@ impl ChunkFns {
                     s_i32_0 = l113;
                     s_i32_1 = l113;
                     s_i32_2 = 16i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
                     ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                     s_i32_0 = l113;
@@ -34472,7 +34436,7 @@ impl ChunkFns {
             s_i32_1 = l121;
             s_i32_2 = l120;
             ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l121;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 3usize, s_i32_0, s_i32_1, host);
@@ -34681,7 +34645,7 @@ impl ChunkFns {
     s_i32_0 = l139;
     s_i32_1 = 0i32;
     ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l139;
     s_i32_1 = 1i32;
     ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
@@ -34712,8 +34676,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_b732433177f0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_b732433177f0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -34749,7 +34712,7 @@ impl ChunkFns {
     let mut s_i32_6: i32 = 0i32;
     let mut s_i64_6: i64 = 0i64;
     let mut s_i64_7: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -34907,8 +34870,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_186d1c0e26c0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_186d1c0e26c0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -34936,7 +34898,7 @@ impl ChunkFns {
     let mut s_i32_4: i32 = 0i32;
     let mut s_i32_5: i32 = 0i32;
     let mut s_i32_6: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -35056,7 +35018,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_e8fc0c2f6c4c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_e8fc0c2f6c4c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -35120,7 +35082,7 @@ impl ChunkFns {
     let mut s_i32_6: i32 = 0i32;
     let mut s_i64_6: i64 = 0i64;
     let mut s_i64_7: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -35242,7 +35204,7 @@ impl ChunkFns {
     l19 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l19;
             s_i32_1 = l18;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -35389,7 +35351,7 @@ impl ChunkFns {
                 l39 = s_i32_0;
                 'blk_6: {
                     'blk_7: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l39;
                         s_i32_1 = l38;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -35506,7 +35468,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_30f0ddf8ccef(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_30f0ddf8ccef(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -35601,7 +35563,7 @@ impl ChunkFns {
     let mut s_i32_6: i32 = 0i32;
     let mut s_i64_6: i64 = 0i64;
     let mut s_i64_7: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -35998,7 +35960,7 @@ impl ChunkFns {
             s_i32_0 = l44;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
             s_i32_0 = ops::i32_eqz(s_i32_0);
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             'blk_10: {
                 if s_i32_0 != 0 {
                     s_i32_0 = l5;
@@ -36287,7 +36249,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_52b047a3c674(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_52b047a3c674(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -36555,7 +36517,7 @@ impl ChunkFns {
     let mut s_i32_6: i32 = 0i32;
     let mut s_i64_6: i64 = 0i64;
     let mut s_i64_7: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -36673,7 +36635,7 @@ impl ChunkFns {
     l14 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l13;
             s_i32_1 = l11;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -36899,7 +36861,7 @@ impl ChunkFns {
             l48 = s_i32_0;
             'blk_7: {
                 'blk_8: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l48;
                     s_i32_1 = l47;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -36992,7 +36954,7 @@ impl ChunkFns {
                         l59 = s_i64_0;
                         'blk_11: {
                             'blk_12: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i64_0 = l59;
                                 s_i32_1 = l12;
                                 s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -37241,7 +37203,7 @@ impl ChunkFns {
             l89 = s_i32_0;
             'blk_18: {
                 'blk_19: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l89;
                     s_i32_1 = l88;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -37334,7 +37296,7 @@ impl ChunkFns {
                         l100 = s_i64_0;
                         'blk_22: {
                             'blk_23: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i64_0 = l100;
                                 s_i32_1 = l12;
                                 s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -37512,7 +37474,7 @@ impl ChunkFns {
             s_i32_0 = l117;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
             s_i32_0 = ops::i32_eqz(s_i32_0);
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             'blk_28: {
                 if s_i32_0 != 0 {
                     s_i32_0 = l14;
@@ -37563,7 +37525,7 @@ impl ChunkFns {
             l127 = s_i32_0;
             'blk_29: {
                 'blk_30: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l127;
                     s_i32_1 = l126;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -37803,7 +37765,7 @@ impl ChunkFns {
                                                 l151 = s_i64_0;
                                                 'blk_39: {
                                                     'blk_40: loop {
-                                                        vm.deduct(host, 1)?;
+                                                        vm.deduct_1(host)?;
                                                         s_i64_0 = l151;
                                                         s_i32_1 = l12;
                                                         s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -38048,7 +38010,7 @@ impl ChunkFns {
             l177 = s_i32_0;
             'blk_46: {
                 'blk_47: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l177;
                     s_i32_1 = l176;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -38171,7 +38133,7 @@ impl ChunkFns {
                         l195 = s_i32_0;
                         'blk_50: {
                             'blk_51: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l195;
                                 s_i32_1 = l194;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -38520,7 +38482,7 @@ impl ChunkFns {
                                                             l231 = s_i64_0;
                                                             'blk_62: {
                                                                 'blk_63: loop {
-                                                                    vm.deduct(host, 1)?;
+                                                                    vm.deduct_1(host)?;
                                                                     s_i64_0 = l231;
                                                                     s_i32_1 = l12;
                                                                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -38743,7 +38705,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_cb52f1351618(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_cb52f1351618(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -38994,7 +38956,7 @@ impl ChunkFns {
     let mut s_i32_6: i32 = 0i32;
     let mut s_i64_6: i64 = 0i64;
     let mut s_i64_7: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -39038,7 +39000,7 @@ impl ChunkFns {
     l6 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l5;
             s_i32_1 = l2;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -39285,7 +39247,7 @@ impl ChunkFns {
             l41 = s_i32_0;
             'blk_6: {
                 'blk_7: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l41;
                     s_i32_1 = l40;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -39314,7 +39276,7 @@ impl ChunkFns {
                         l45 = s_i64_0;
                         'blk_9: {
                             'blk_10: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i64_0 = l45;
                                 s_i32_1 = l4;
                                 s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -39573,7 +39535,7 @@ impl ChunkFns {
             }
             s_i32_0 = l65;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l73 = s_i32_0;
             s_i32_0 = l73;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
@@ -39585,7 +39547,7 @@ impl ChunkFns {
             l76 = s_i32_0;
             'blk_16: {
                 'blk_17: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l76;
                     s_i32_1 = l75;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -39614,7 +39576,7 @@ impl ChunkFns {
                         l80 = s_i64_0;
                         'blk_19: {
                             'blk_20: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i64_0 = l80;
                                 s_i32_1 = l4;
                                 s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -39863,7 +39825,7 @@ impl ChunkFns {
             l108 = s_i32_0;
             'blk_26: {
                 'blk_27: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l108;
                     s_i32_1 = l107;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -40109,7 +40071,7 @@ impl ChunkFns {
                                                 l132 = s_i64_0;
                                                 'blk_35: {
                                                     'blk_36: loop {
-                                                        vm.deduct(host, 1)?;
+                                                        vm.deduct_1(host)?;
                                                         s_i64_0 = l132;
                                                         s_i32_1 = l4;
                                                         s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -40375,7 +40337,7 @@ impl ChunkFns {
             l159 = s_i32_0;
             'blk_42: {
                 'blk_43: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l159;
                     s_i32_1 = l158;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -40519,7 +40481,7 @@ impl ChunkFns {
                         l178 = s_i32_0;
                         'blk_46: {
                             'blk_47: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l178;
                                 s_i32_1 = l177;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -40874,7 +40836,7 @@ impl ChunkFns {
                                                             l214 = s_i64_0;
                                                             'blk_57: {
                                                                 'blk_58: loop {
-                                                                    vm.deduct(host, 1)?;
+                                                                    vm.deduct_1(host)?;
                                                                     s_i64_0 = l214;
                                                                     s_i32_1 = l4;
                                                                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -41101,7 +41063,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_9704072dbea0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_9704072dbea0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -41110,7 +41072,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -41158,8 +41120,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, __t2, host);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_98abdf0151b0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_98abdf0151b0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -41172,7 +41133,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -41298,7 +41259,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_94baac17cf0e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_94baac17cf0e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -41311,7 +41272,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -41328,7 +41289,7 @@ impl ChunkFns {
     l4 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l4;
             s_i32_1 = l3;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -41396,7 +41357,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_0c6d82a3663f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_0c6d82a3663f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -41462,7 +41423,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i32_4: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -41570,7 +41531,7 @@ impl ChunkFns {
     l21 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l21;
             s_i32_1 = l20;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -41645,7 +41606,7 @@ impl ChunkFns {
                 l32 = s_i32_0;
                 'blk_5: {
                     'blk_6: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l32;
                         s_i32_1 = l31;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -41973,7 +41934,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_34247aa10f37(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_34247aa10f37(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -42130,7 +42091,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i32_4: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -42343,7 +42304,7 @@ impl ChunkFns {
     l32 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l32;
             s_i32_1 = l31;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -42449,7 +42410,7 @@ impl ChunkFns {
                 l46 = s_i32_0;
                 'blk_6: {
                     'blk_7: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l46;
                         s_i32_1 = l45;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -42784,7 +42745,7 @@ impl ChunkFns {
                                                             s_i32_1 = 108i32;
                                                             ops::i32_store8(vm, 0, s_i32_0, 42u32, s_i32_1)?;
                                                             s_i32_0 = l80;
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             s_i32_1 = 111i32;
                                                             ops::i32_store8(vm, 0, s_i32_0, 43u32, s_i32_1)?;
                                                             s_i32_0 = l80;
@@ -42907,7 +42868,7 @@ impl ChunkFns {
                                                             s_i32_0 = l93;
                                                             s_i32_1 = l88;
                                                             ops::i32_store8(vm, 0, s_i32_0, 4u32, s_i32_1)?;
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             s_i32_0 = l93;
                                                             s_i32_1 = l89;
                                                             ops::i32_store8(vm, 0, s_i32_0, 5u32, s_i32_1)?;
@@ -42973,7 +42934,7 @@ impl ChunkFns {
                                                     'blk_17: {
                                                         if s_i32_0 != 0 {
                                                             s_i32_0 = l14;
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             l98 = s_i32_0;
                                                             s_i32_0 = 2i32;
                                                             l99 = s_i32_0;
@@ -43035,7 +42996,7 @@ impl ChunkFns {
                                                         }
                                                     }
                                                     s_i32_0 = l97;
-                                                    vm.deduct(host, 1)?;
+                                                    vm.deduct_1(host)?;
                                                     s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
                                                     s_i32_1 = 1i32;
                                                     vm.enter_call()?;
@@ -43522,7 +43483,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_8fe24f841c8a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_8fe24f841c8a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -43531,7 +43492,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i32_4: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -43566,8 +43527,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_i32_i32_ret_i32(vm, c_map, 2usize, __t1, __t2, __t3, host);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_130c9dc8dff0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_130c9dc8dff0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i32 = 0i32;
@@ -43592,7 +43552,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -43779,7 +43739,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_6a9162df8478(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i64, p3: i32, p4: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_6a9162df8478(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i64, p3: i32, p4: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = p2;
@@ -43916,7 +43876,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i32_4: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -43942,7 +43902,7 @@ impl ChunkFns {
     l9 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l9;
             s_i64_1 = l8;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -44029,7 +43989,7 @@ impl ChunkFns {
                     l9 = s_i64_0;
                     'blk_6: {
                         'blk_7: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l9;
                             s_i64_1 = l8;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -44095,7 +44055,7 @@ impl ChunkFns {
                     l9 = s_i64_0;
                     'blk_10: {
                         'blk_11: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l9;
                             s_i64_1 = l8;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -44161,7 +44121,7 @@ impl ChunkFns {
                     l9 = s_i64_0;
                     'blk_14: {
                         'blk_15: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l9;
                             s_i64_1 = l8;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -44534,7 +44494,7 @@ impl ChunkFns {
                                         if s_i32_0 != 0 {
                                             s_i64_0 = l6;
                                             s_i64_1 = 1i64;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i64_0 = ops::i64_sub(s_i64_0, s_i64_1);
                                             l6 = s_i64_0;
                                         } else {
@@ -44547,7 +44507,7 @@ impl ChunkFns {
                     }
                     s_i32_0 = l7;
                     s_i32_1 = l10;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 4usize, s_i32_0, s_i32_1, host);
                     vm.exit_call();
@@ -44833,7 +44793,7 @@ impl ChunkFns {
             'blk_36: {
                 if s_i32_0 != 0 {
                     s_i32_0 = l3;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_1 = l53;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 7usize, s_i32_0, s_i32_1, host);
@@ -45190,7 +45150,7 @@ impl ChunkFns {
                                     ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
                                     s_i32_0 = l80;
                                     s_i32_1 = 43i32;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
                                     s_i32_0 = l80;
                                     s_i32_1 = 1i32;
@@ -45283,7 +45243,7 @@ impl ChunkFns {
                             s_i32_0 = __t66;
                             'blk_44: {
                                 if s_i32_0 != 0 {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l5;
                                     l85 = s_i32_0;
                                     s_i32_0 = 0i32;
@@ -45314,7 +45274,7 @@ impl ChunkFns {
                                 } else {
                                 }
                             }
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l84;
                             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
                             s_i32_1 = 1i32;
@@ -45439,7 +45399,7 @@ impl ChunkFns {
                             s_i32_2 = l97;
                             s_i32_3 = 1i32;
                             ops::i32_store(vm, 0, s_i32_2, 12u32, s_i32_3)?;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_2 = l97;
                             s_i32_3 = l96;
                             ops::i32_store(vm, 0, s_i32_2, 16u32, s_i32_3)?;
@@ -45548,7 +45508,7 @@ impl ChunkFns {
                 }
             }
             s_i32_0 = l53;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = vm.get_i32(*g_map.get(2usize).ok_or(WasmTrap::Unreachable)?)?;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 22usize, s_i32_0, s_i32_1, host);
@@ -45832,8 +45792,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_693942cdcc00(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_693942cdcc00(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -45850,7 +45809,7 @@ impl ChunkFns {
     let mut s_i32_4: i32 = 0i32;
     let mut s_i32_5: i32 = 0i32;
     let mut s_i32_6: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -45949,7 +45908,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_7e9084dc9fc6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_7e9084dc9fc6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -46060,7 +46019,7 @@ impl ChunkFns {
     let mut s_i32_6: i32 = 0i32;
     let mut s_i64_6: i64 = 0i64;
     let mut s_i64_7: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -46286,7 +46245,7 @@ impl ChunkFns {
     l33 = s_i32_0;
     'blk_4: {
         'blk_5: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l33;
             s_i32_1 = l32;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -46534,7 +46493,7 @@ impl ChunkFns {
                         l63 = s_i32_0;
                         'blk_12: {
                             'blk_13: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l63;
                                 s_i32_1 = l62;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -46869,7 +46828,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_580a7922b5b6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_580a7922b5b6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -46932,7 +46891,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -47108,7 +47067,7 @@ impl ChunkFns {
     l29 = s_i32_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l29;
             s_i32_1 = l28;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -47188,7 +47147,7 @@ impl ChunkFns {
                 l41 = s_i32_0;
                 'blk_7: {
                     'blk_8: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l41;
                         s_i32_1 = l40;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -47310,7 +47269,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_2966cc564236(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_2966cc564236(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -47327,7 +47286,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -47383,7 +47342,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_daea03bcd7bc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_daea03bcd7bc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -47490,7 +47449,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -47528,7 +47487,7 @@ impl ChunkFns {
     l4 = s_i64_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l4;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -47775,7 +47734,7 @@ impl ChunkFns {
             l40 = s_i64_0;
             'blk_6: {
                 'blk_7: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l40;
                     s_i64_1 = 0i64;
                     s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
@@ -48234,7 +48193,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_b56a3042fc4f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_b56a3042fc4f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -48378,7 +48337,7 @@ impl ChunkFns {
     let mut s_i32_6: i32 = 0i32;
     let mut s_i64_6: i64 = 0i64;
     let mut s_i64_7: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -48538,7 +48497,7 @@ impl ChunkFns {
     l24 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l24;
             s_i32_1 = l23;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -48569,7 +48528,7 @@ impl ChunkFns {
                 l29 = s_i64_0;
                 'blk_5: {
                     'blk_6: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i64_0 = l29;
                         s_i32_1 = l20;
                         s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -49037,7 +48996,7 @@ impl ChunkFns {
                     if s_i32_0 != 0 {
                         s_i32_0 = l11;
                         l86 = s_i32_0;
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = 0i32;
                         l87 = s_i32_0;
                         s_i32_0 = 16i32;
@@ -49094,7 +49053,7 @@ impl ChunkFns {
                 }
                 s_i32_0 = l85;
                 s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
-                vm.deduct(host, 1)?;
+                vm.deduct_1(host)?;
                 s_i32_1 = 1i32;
                 vm.enter_call()?;
                 let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 13usize, s_i32_0, s_i32_1, host);
@@ -49402,7 +49361,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_17de53d44a90(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_17de53d44a90(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -49675,7 +49634,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -49887,7 +49846,7 @@ impl ChunkFns {
     l30 = s_i32_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l30;
             s_i32_1 = l29;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -49926,7 +49885,7 @@ impl ChunkFns {
                 l33 = s_i64_0;
                 'blk_6: {
                     'blk_7: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i64_0 = l33;
                         s_i32_1 = l26;
                         s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -50070,7 +50029,7 @@ impl ChunkFns {
     l47 = s_i64_0;
     'blk_12: {
         'blk_13: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l47;
             s_i32_1 = l23;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -50184,7 +50143,7 @@ impl ChunkFns {
             l65 = s_i32_0;
             'blk_16: {
                 'blk_17: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l65;
                     s_i32_1 = l64;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -50267,7 +50226,7 @@ impl ChunkFns {
                     l72 = s_i32_0;
                     'blk_21: {
                         'blk_22: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l72;
                             s_i32_1 = l71;
                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -50516,7 +50475,7 @@ impl ChunkFns {
                             l99 = s_i32_0;
                             'blk_29: {
                                 'blk_30: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l99;
                                     s_i32_1 = l98;
                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -50665,7 +50624,7 @@ impl ChunkFns {
                     l115 = s_i32_0;
                     'blk_33: {
                         'blk_34: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l115;
                             s_i32_1 = l114;
                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -50818,7 +50777,7 @@ impl ChunkFns {
                                         l129 = s_i64_0;
                                         'blk_39: {
                                             'blk_40: loop {
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i32_0 = 1i32;
                                                 s_i32_0 = ops::i32_eqz(s_i32_0);
                                                 if s_i32_0 != 0 {
@@ -51234,7 +51193,7 @@ impl ChunkFns {
                                         l185 = s_i64_0;
                                         'blk_48: {
                                             'blk_49: loop {
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i64_0 = l185;
                                                 s_i64_1 = 0i64;
                                                 s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
@@ -51636,7 +51595,7 @@ impl ChunkFns {
                                 l239 = s_i32_0;
                                 'blk_53: {
                                     'blk_54: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l239;
                                         s_i32_1 = l238;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -51657,7 +51616,7 @@ impl ChunkFns {
                                             l242 = s_i64_0;
                                             'blk_56: {
                                                 'blk_57: loop {
-                                                    vm.deduct(host, 1)?;
+                                                    vm.deduct_1(host)?;
                                                     s_i64_0 = l242;
                                                     s_i32_1 = l26;
                                                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -51910,8 +51869,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_da0ef5f250a2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_da0ef5f250a2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -51932,7 +51890,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -51948,7 +51906,7 @@ impl ChunkFns {
     l2 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l2;
             s_i32_1 = l0;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -52085,8 +52043,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_6774602392dd(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_6774602392dd(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -52111,7 +52068,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -52131,7 +52088,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -52143,7 +52100,7 @@ impl ChunkFns {
             l4 = s_i64_0;
             'blk_3: {
                 'blk_4: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l4;
                     s_i64_1 = l1;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -52313,7 +52270,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_23f5b44f7af2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_23f5b44f7af2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -52442,7 +52399,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -52819,7 +52776,7 @@ impl ChunkFns {
                     s_i64_1 = l3;
                     s_i64_2 = 1i64;
                     s_i64_1 = ops::i64_add(s_i64_1, s_i64_2);
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_2 = 1114112i64;
                     l40 = s_i64_2;
                     s_i64_2 = 0i64;
@@ -52878,7 +52835,7 @@ impl ChunkFns {
         if s_i32_0 != 0 {
             s_i64_0 = l3;
             s_i64_1 = 2i64;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
             l3 = s_i64_0;
             s_i64_0 = l3;
@@ -52956,7 +52913,7 @@ impl ChunkFns {
     vm.exit_call();
     let __t31 = __call_res?;
     s_i32_0 = __t31;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l52 = s_i32_0;
     s_i32_0 = 0i32;
     l53 = s_i32_0;
@@ -52964,7 +52921,7 @@ impl ChunkFns {
     l54 = s_i32_0;
     'blk_11: {
         'blk_12: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l53;
             s_i32_0 = ops::i32_eqz(s_i32_0);
             s_i32_0 = ops::i32_eqz(s_i32_0);
@@ -53367,7 +53324,7 @@ impl ChunkFns {
             l92 = s_i32_0;
             'blk_23: {
                 'blk_24: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l92;
                     s_i32_1 = l91;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -53423,7 +53380,7 @@ impl ChunkFns {
                 }
             }
             s_i32_0 = l52;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l88;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 11usize, s_i32_1, host);
@@ -53662,7 +53619,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_3683a2f8d7e9(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_3683a2f8d7e9(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -53766,7 +53723,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -53944,7 +53901,7 @@ impl ChunkFns {
     l23 = s_i64_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l23;
             s_i32_1 = l0;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -54386,7 +54343,7 @@ impl ChunkFns {
                             s_i32_0 = l4;
                             s_i64_1 = 1114376i64;
                             l75 = s_i64_1;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_1 = 0i64;
                             l76 = s_i64_1;
                             s_i32_1 = 16i32;
@@ -54526,7 +54483,7 @@ impl ChunkFns {
             let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 3usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
             __call_res?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l23;
             s_i64_1 = 1i64;
             s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
@@ -54593,7 +54550,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_7eccae14747f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_7eccae14747f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -54750,7 +54707,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -54791,7 +54748,7 @@ impl ChunkFns {
     l10 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l10;
             s_i32_1 = l9;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -55254,7 +55211,7 @@ impl ChunkFns {
     l70 = s_i32_0;
     'blk_12: {
         'blk_13: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l70;
             s_i32_1 = l69;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -55318,7 +55275,7 @@ impl ChunkFns {
                         l78 = s_i32_0;
                         'blk_17: {
                             'blk_18: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l78;
                                 s_i32_1 = l77;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -55339,7 +55296,7 @@ impl ChunkFns {
                                     l81 = s_i64_0;
                                     'blk_20: {
                                         'blk_21: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i64_0 = l81;
                                             s_i32_1 = l61;
                                             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -55531,7 +55488,7 @@ impl ChunkFns {
                         l101 = s_i32_0;
                         'blk_28: {
                             'blk_29: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l101;
                                 s_i32_1 = l100;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -55552,7 +55509,7 @@ impl ChunkFns {
                                     l104 = s_i64_0;
                                     'blk_31: {
                                         'blk_32: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i64_0 = l104;
                                             s_i32_1 = l61;
                                             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -55762,7 +55719,7 @@ impl ChunkFns {
                 l125 = s_i32_0;
                 'blk_38: {
                     'blk_39: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l125;
                         s_i32_1 = l124;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -55783,7 +55740,7 @@ impl ChunkFns {
                             l128 = s_i64_0;
                             'blk_41: {
                                 'blk_42: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l128;
                                     s_i32_1 = l61;
                                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -55991,8 +55948,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_8cd652216c79(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_8cd652216c79(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -56048,7 +56004,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -56358,8 +56314,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_fff6398d8994(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_fff6398d8994(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -56385,7 +56340,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -56518,8 +56473,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_i64_ret_i32(vm, c_map, 4usize, __t7, __t8, host);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_8ccf3fe25a0e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_8ccf3fe25a0e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i32 = p2;
@@ -56538,7 +56492,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -56583,7 +56537,7 @@ impl ChunkFns {
         if s_i32_0 != 0 {
             'blk_3: {
                 'blk_4: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l5;
                     s_i64_1 = l4;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -56678,7 +56632,7 @@ impl ChunkFns {
     }
     'blk_10: {
         'blk_11: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l5;
             s_i64_1 = l4;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -56778,8 +56732,7 @@ impl ChunkFns {
     return Ok(s_i64_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_996ffe4d5d76(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_996ffe4d5d76(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -56812,7 +56765,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -56827,7 +56780,7 @@ impl ChunkFns {
     l4 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -57121,7 +57074,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_27ad7f1d9479(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_27ad7f1d9479(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = p2;
@@ -57159,7 +57112,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -57175,7 +57128,7 @@ impl ChunkFns {
     l4 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l4;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -57287,7 +57240,7 @@ impl ChunkFns {
                     l4 = s_i64_0;
                     'blk_11: {
                         'blk_12: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l4;
                             s_i64_1 = l2;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -57653,7 +57606,7 @@ impl ChunkFns {
                                     s_i32_0 = l0;
                                     s_i64_1 = l4;
                                     s_i32_2 = vm.get_i32(*g_map.get(0usize).ok_or(WasmTrap::Unreachable)?)?;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     vm.enter_call()?;
                                     let __call_res = dispatch.call_p_i32_i64_i32_ret_i32(vm, c_map, 2usize, s_i32_0, s_i64_1, s_i32_2, host);
                                     vm.exit_call();
@@ -57673,7 +57626,7 @@ impl ChunkFns {
                             'blk_32: {
                                 if s_i32_0 != 0 {
                                     s_i32_0 = l0;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_1 = l4;
                                     vm.enter_call()?;
                                     let __call_res = dispatch.call_p_i32_i64_ret_i32(vm, c_map, 7usize, s_i32_0, s_i64_1, host);
@@ -57711,7 +57664,7 @@ impl ChunkFns {
                 } else {
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l4;
             s_i64_1 = 1i64;
             s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
@@ -57732,7 +57685,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_dc6e5bdb37fc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_dc6e5bdb37fc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -57913,7 +57866,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -58266,7 +58219,7 @@ impl ChunkFns {
                             l29 = s_i32_0;
                             s_i32_0 = l49;
                             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             l25 = s_i32_0;
                         } else {
                         }
@@ -58285,7 +58238,7 @@ impl ChunkFns {
                     l53 = s_i64_0;
                     s_i64_0 = 0i64;
                     l54 = s_i64_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = 16i32;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 2usize, s_i32_0, host);
@@ -58384,7 +58337,7 @@ impl ChunkFns {
                 }
             }
             s_i32_0 = l0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_1 = l40;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_i64_ret_i64(vm, c_map, 6usize, s_i32_0, s_i64_1, host);
@@ -58729,7 +58682,7 @@ impl ChunkFns {
             s_i32_1 = l104;
             s_i64_2 = l102;
             ops::i64_store(vm, 0, s_i32_1, 0u32, s_i64_2)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l104;
             s_i64_2 = l103;
             ops::i64_store(vm, 0, s_i32_1, 8u32, s_i64_2)?;
@@ -58843,7 +58796,7 @@ impl ChunkFns {
             'blk_15: {
                 if s_i32_0 != 0 {
                     s_i32_0 = l0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_1 = l114;
                     s_i64_2 = 1114112i64;
                     l115 = s_i64_2;
@@ -58906,7 +58859,7 @@ impl ChunkFns {
                 }
             }
             s_i32_0 = l21;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_1 = 1116335i64;
             l121 = s_i64_1;
             s_i64_1 = 0i64;
@@ -59275,7 +59228,7 @@ impl ChunkFns {
     s_i64_0 = 0i64;
     l162 = s_i64_0;
     s_i64_0 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l163 = s_i64_0;
     s_i32_0 = 16i32;
     vm.enter_call()?;
@@ -59375,7 +59328,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_1a76ae24d2e5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_1a76ae24d2e5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = p2;
@@ -59457,7 +59410,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -59472,7 +59425,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -59678,7 +59631,7 @@ impl ChunkFns {
                     l3 = s_i64_0;
                     'blk_12: {
                         'blk_13: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l3;
                             s_i64_1 = l2;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -59831,7 +59784,7 @@ impl ChunkFns {
                     }
                     'blk_21: {
                         'blk_22: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l18;
                             s_i64_1 = l2;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -60059,7 +60012,7 @@ impl ChunkFns {
                     s_i64_0 = __t30;
                     l38 = s_i64_0;
                     s_i64_0 = l38;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_1 = l2;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
                     'blk_32: {
@@ -60124,7 +60077,7 @@ impl ChunkFns {
                         }
                     }
                     s_i32_0 = l0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_1 = l41;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_i64_ret_i64(vm, c_map, 7usize, s_i32_0, s_i64_1, host);
@@ -60189,7 +60142,7 @@ impl ChunkFns {
                     ops::i64_store(vm, 0, s_i32_2, 0u32, s_i64_3)?;
                     s_i32_2 = l49;
                     s_i64_3 = l48;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     ops::i64_store(vm, 0, s_i32_2, 8u32, s_i64_3)?;
                     s_i32_2 = l49;
                     s_i64_3 = 1116330i64;
@@ -60267,7 +60220,7 @@ impl ChunkFns {
                     s_i32_2 = __t39;
                     l57 = s_i32_2;
                     s_i32_2 = l57;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_3 = l55;
                     ops::i64_store(vm, 0, s_i32_2, 0u32, s_i64_3)?;
                     s_i32_2 = l57;
@@ -60341,7 +60294,7 @@ impl ChunkFns {
                     l63 = s_i64_2;
                     s_i64_2 = 0i64;
                     l64 = s_i64_2;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_2 = 16i32;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 4usize, s_i32_2, host);
@@ -60427,7 +60380,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_bf5a1e814424(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_bf5a1e814424(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = p2;
@@ -60473,7 +60426,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -60493,7 +60446,7 @@ impl ChunkFns {
     l6 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l6;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -60599,7 +60552,7 @@ impl ChunkFns {
                     l6 = s_i64_0;
                     'blk_10: {
                         'blk_11: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l6;
                             s_i64_1 = l2;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -61090,7 +61043,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_2463e72cc539(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_2463e72cc539(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -61182,7 +61135,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -61373,7 +61326,7 @@ impl ChunkFns {
     l9 = s_i64_0;
     'blk_6: {
         'blk_7: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l9;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -61626,7 +61579,7 @@ impl ChunkFns {
     l43 = s_i64_0;
     'blk_14: {
         'blk_15: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l43;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -61900,7 +61853,7 @@ impl ChunkFns {
             s_i32_0 = l74;
             s_i32_1 = l72;
             ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l74;
             s_i32_1 = l73;
             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
@@ -61923,7 +61876,7 @@ impl ChunkFns {
             s_i32_0 = l76;
             s_i32_1 = 0i32;
             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l76;
             s_i32_1 = 0i32;
             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
@@ -62017,473 +61970,473 @@ use crate::utilities::*;
 use super::*;
 
 const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize, 24usize, 25usize, 26usize, 27usize, 28usize, 29usize, 30usize, 31usize, 32usize];
-const FN_0_CALLEES: &[u32] = &[144u32];
-const FN_1_CALLEES: &[u32] = &[0u32, 24u32, 145u32];
-const FN_2_CALLEES: &[u32] = &[0u32, 0u32, 144u32];
-const FN_3_CALLEES: &[u32] = &[0u32, 0u32, 144u32];
-const FN_4_CALLEES: &[u32] = &[0u32, 1u32, 144u32];
-const FN_5_CALLEES: &[u32] = &[0u32, 2u32, 144u32];
-const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_0_CALLEES: &[usize] = &[144usize];
+const FN_1_CALLEES: &[usize] = &[0usize, 24usize, 145usize];
+const FN_2_CALLEES: &[usize] = &[0usize, 0usize, 144usize];
+const FN_3_CALLEES: &[usize] = &[0usize, 0usize, 144usize];
+const FN_4_CALLEES: &[usize] = &[0usize, 1usize, 144usize];
+const FN_5_CALLEES: &[usize] = &[0usize, 2usize, 144usize];
+const FN_6_CALLEES: &[usize] = &[0usize, 34usize, 10usize];
 const FN_7_GLOBALS: &[usize] = &[14usize];
-const FN_7_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_8_CALLEES: &[u32] = &[0u32, 5u32, 0u32, 1u32, 3u32, 6u32];
-const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
-const FN_10_CALLEES: &[u32] = &[0u32, 5u32, 8u32, 141u32];
-const FN_11_CALLEES: &[u32] = &[0u32, 5u32, 9u32, 141u32];
-const FN_12_CALLEES: &[u32] = &[0u32, 25u32, 145u32];
-const FN_13_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_14_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_15_CALLEES: &[u32] = &[0u32, 4u32, 144u32];
-const FN_16_CALLEES: &[u32] = &[0u32, 5u32, 144u32];
-const FN_17_CALLEES: &[u32] = &[0u32, 13u32, 145u32];
-const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_19_CALLEES: &[u32] = &[0u32, 13u32, 145u32];
-const FN_20_CALLEES: &[u32] = &[0u32, 5u32, 7u32];
-const FN_21_CALLEES: &[u32] = &[0u32, 26u32, 145u32];
-const FN_22_CALLEES: &[u32] = &[0u32, 27u32, 145u32];
-const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 4u32, 5u32, 1u32, 1u32, 144u32];
-const FN_24_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_25_CALLEES: &[u32] = &[0u32, 10u32, 141u32];
-const FN_26_CALLEES: &[u32] = &[0u32, 26u32, 145u32];
-const FN_27_CALLEES: &[u32] = &[0u32, 142u32, 143u32, 32u32, 144u32, 33u32, 2u32];
-const FN_28_CALLEES: &[u32] = &[0u32, 142u32, 143u32, 33u32, 144u32, 32u32, 2u32];
-const FN_29_CALLEES: &[u32] = &[0u32, 28u32, 145u32];
-const FN_30_CALLEES: &[u32] = &[0u32, 29u32, 145u32];
-const FN_31_CALLEES: &[u32] = &[0u32, 30u32, 145u32];
-const FN_32_CALLEES: &[u32] = &[0u32, 26u32, 145u32];
+const FN_7_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_8_CALLEES: &[usize] = &[0usize, 5usize, 0usize, 1usize, 3usize, 6usize];
+const FN_9_CALLEES: &[usize] = &[0usize, 10usize];
+const FN_10_CALLEES: &[usize] = &[0usize, 5usize, 8usize, 141usize];
+const FN_11_CALLEES: &[usize] = &[0usize, 5usize, 9usize, 141usize];
+const FN_12_CALLEES: &[usize] = &[0usize, 25usize, 145usize];
+const FN_13_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_14_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_15_CALLEES: &[usize] = &[0usize, 4usize, 144usize];
+const FN_16_CALLEES: &[usize] = &[0usize, 5usize, 144usize];
+const FN_17_CALLEES: &[usize] = &[0usize, 13usize, 145usize];
+const FN_18_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_19_CALLEES: &[usize] = &[0usize, 13usize, 145usize];
+const FN_20_CALLEES: &[usize] = &[0usize, 5usize, 7usize];
+const FN_21_CALLEES: &[usize] = &[0usize, 26usize, 145usize];
+const FN_22_CALLEES: &[usize] = &[0usize, 27usize, 145usize];
+const FN_23_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 4usize, 5usize, 1usize, 1usize, 144usize];
+const FN_24_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_25_CALLEES: &[usize] = &[0usize, 10usize, 141usize];
+const FN_26_CALLEES: &[usize] = &[0usize, 26usize, 145usize];
+const FN_27_CALLEES: &[usize] = &[0usize, 142usize, 143usize, 32usize, 144usize, 33usize, 2usize];
+const FN_28_CALLEES: &[usize] = &[0usize, 142usize, 143usize, 33usize, 144usize, 32usize, 2usize];
+const FN_29_CALLEES: &[usize] = &[0usize, 28usize, 145usize];
+const FN_30_CALLEES: &[usize] = &[0usize, 29usize, 145usize];
+const FN_31_CALLEES: &[usize] = &[0usize, 30usize, 145usize];
+const FN_32_CALLEES: &[usize] = &[0usize, 26usize, 145usize];
 const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 144u32];
-const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 144u32];
+const FN_33_CALLEES: &[usize] = &[0usize, 34usize, 10usize, 144usize];
+const FN_34_CALLEES: &[usize] = &[0usize, 31usize, 144usize];
 const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_35_CALLEES: &[u32] = &[0u32, 145u32, 6u32, 144u32];
+const FN_35_CALLEES: &[usize] = &[0usize, 145usize, 6usize, 144usize];
 const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_36_CALLEES: &[u32] = &[0u32, 8u32, 1u32, 144u32];
-const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 144u32];
+const FN_36_CALLEES: &[usize] = &[0usize, 8usize, 1usize, 144usize];
+const FN_37_CALLEES: &[usize] = &[0usize, 31usize, 144usize];
 const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 144u32];
+const FN_38_CALLEES: &[usize] = &[0usize, 6usize, 35usize, 144usize];
 const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_39_CALLEES: &[u32] = &[0u32, 146u32, 144u32, 32u32];
+const FN_39_CALLEES: &[usize] = &[0usize, 146usize, 144usize, 32usize];
 const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_40_CALLEES: &[u32] = &[0u32, 146u32, 144u32, 33u32];
+const FN_40_CALLEES: &[usize] = &[0usize, 146usize, 144usize, 33usize];
 const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 144u32];
+const FN_41_CALLEES: &[usize] = &[0usize, 10usize, 36usize, 144usize];
 const FN_42_GLOBALS: &[usize] = &[9usize];
-const FN_42_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 11u32, 144u32];
+const FN_42_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 11usize, 144usize];
 const FN_43_GLOBALS: &[usize] = &[9usize];
-const FN_43_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 2u32, 144u32];
+const FN_43_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 2usize, 144usize];
 const FN_44_GLOBALS: &[usize] = &[9usize];
-const FN_44_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 12u32, 144u32];
+const FN_44_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 12usize, 144usize];
 const FN_45_GLOBALS: &[usize] = &[9usize];
-const FN_45_CALLEES: &[u32] = &[0u32, 4u32, 144u32];
+const FN_45_CALLEES: &[usize] = &[0usize, 4usize, 144usize];
 const FN_46_GLOBALS: &[usize] = &[9usize];
-const FN_46_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 13u32, 144u32];
+const FN_46_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 13usize, 144usize];
 const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
-const FN_47_CALLEES: &[u32] = &[0u32, 140u32, 144u32, 13u32, 4u32, 6u32, 7u32, 145u32, 146u32, 0u32, 5u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 147u32];
-const FN_48_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_49_CALLEES: &[u32] = &[0u32, 143u32, 148u32, 1u32, 144u32, 0u32, 1u32, 144u32];
-const FN_50_CALLEES: &[u32] = &[0u32, 143u32, 148u32, 0u32, 144u32, 1u32, 1u32, 144u32];
-const FN_51_CALLEES: &[u32] = &[0u32, 3u32, 7u32, 144u32];
-const FN_52_CALLEES: &[u32] = &[0u32, 0u32, 8u32, 3u32, 144u32];
-const FN_53_CALLEES: &[u32] = &[0u32, 9u32, 7u32, 144u32];
-const FN_54_CALLEES: &[u32] = &[0u32, 148u32, 0u32, 0u32, 144u32];
-const FN_55_CALLEES: &[u32] = &[0u32, 148u32, 1u32, 1u32, 144u32, 144u32];
+const FN_47_CALLEES: &[usize] = &[0usize, 140usize, 144usize, 13usize, 4usize, 6usize, 7usize, 145usize, 146usize, 0usize, 5usize, 0usize, 32usize, 2usize, 10usize, 36usize, 37usize, 147usize];
+const FN_48_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_49_CALLEES: &[usize] = &[0usize, 143usize, 148usize, 1usize, 144usize, 0usize, 1usize, 144usize];
+const FN_50_CALLEES: &[usize] = &[0usize, 143usize, 148usize, 0usize, 144usize, 1usize, 1usize, 144usize];
+const FN_51_CALLEES: &[usize] = &[0usize, 3usize, 7usize, 144usize];
+const FN_52_CALLEES: &[usize] = &[0usize, 0usize, 8usize, 3usize, 144usize];
+const FN_53_CALLEES: &[usize] = &[0usize, 9usize, 7usize, 144usize];
+const FN_54_CALLEES: &[usize] = &[0usize, 148usize, 0usize, 0usize, 144usize];
+const FN_55_CALLEES: &[usize] = &[0usize, 148usize, 1usize, 1usize, 144usize, 144usize];
 const FN_56_GLOBALS: &[usize] = &[14usize];
-const FN_56_CALLEES: &[u32] = &[0u32, 21u32, 24u32, 36u32];
-const FN_57_CALLEES: &[u32] = &[0u32, 60u32, 145u32];
-const FN_58_CALLEES: &[u32] = &[0u32, 0u32, 144u32];
-const FN_59_CALLEES: &[u32] = &[0u32, 0u32, 144u32];
-const FN_60_CALLEES: &[u32] = &[0u32, 1u32, 144u32];
-const FN_61_CALLEES: &[u32] = &[0u32, 2u32, 144u32];
-const FN_62_CALLEES: &[u32] = &[0u32, 68u32, 3u32, 10u32, 11u32, 8u32];
+const FN_56_CALLEES: &[usize] = &[0usize, 21usize, 24usize, 36usize];
+const FN_57_CALLEES: &[usize] = &[0usize, 60usize, 145usize];
+const FN_58_CALLEES: &[usize] = &[0usize, 0usize, 144usize];
+const FN_59_CALLEES: &[usize] = &[0usize, 0usize, 144usize];
+const FN_60_CALLEES: &[usize] = &[0usize, 1usize, 144usize];
+const FN_61_CALLEES: &[usize] = &[0usize, 2usize, 144usize];
+const FN_62_CALLEES: &[usize] = &[0usize, 68usize, 3usize, 10usize, 11usize, 8usize];
 const FN_63_GLOBALS: &[usize] = &[19usize, 16usize, 17usize];
-const FN_63_CALLEES: &[u32] = &[0u32, 149u32, 145u32];
+const FN_63_CALLEES: &[usize] = &[0usize, 149usize, 145usize];
 const FN_64_GLOBALS: &[usize] = &[19usize];
-const FN_64_CALLEES: &[u32] = &[0u32, 149u32, 12u32, 6u32, 145u32, 35u32, 21u32, 150u32, 1u32, 12u32];
+const FN_64_CALLEES: &[usize] = &[0usize, 149usize, 12usize, 6usize, 145usize, 35usize, 21usize, 150usize, 1usize, 12usize];
 const FN_65_GLOBALS: &[usize] = &[16usize];
-const FN_65_CALLEES: &[u32] = &[0u32, 149u32];
-const FN_66_CALLEES: &[u32] = &[0u32, 70u32, 3u32, 10u32, 11u32, 8u32];
-const FN_67_CALLEES: &[u32] = &[0u32, 24u32, 1u32];
-const FN_68_CALLEES: &[u32] = &[0u32, 24u32, 2u32];
-const FN_69_CALLEES: &[u32] = &[0u32, 61u32, 145u32];
-const FN_70_CALLEES: &[u32] = &[0u32, 149u32];
-const FN_71_CALLEES: &[u32] = &[0u32, 4u32, 10u32, 144u32];
-const FN_72_CALLEES: &[u32] = &[0u32, 7u32, 2u32];
-const FN_73_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_74_CALLEES: &[u32] = &[0u32, 4u32, 144u32];
-const FN_75_CALLEES: &[u32] = &[0u32, 5u32, 144u32];
-const FN_76_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_77_CALLEES: &[u32] = &[0u32, 51u32, 145u32];
-const FN_78_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_79_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_80_CALLEES: &[u32] = &[0u32, 3u32, 10u32];
-const FN_81_CALLEES: &[u32] = &[0u32, 51u32, 145u32];
-const FN_82_CALLEES: &[u32] = &[0u32, 3u32, 11u32, 10u32, 7u32];
-const FN_83_CALLEES: &[u32] = &[0u32, 62u32, 145u32];
-const FN_84_CALLEES: &[u32] = &[0u32, 63u32, 145u32];
-const FN_85_CALLEES: &[u32] = &[0u32, 149u32];
-const FN_86_CALLEES: &[u32] = &[0u32, 26u32, 145u32];
-const FN_87_CALLEES: &[u32] = &[0u32, 24u32, 5u32];
-const FN_88_CALLEES: &[u32] = &[0u32, 43u32, 145u32, 67u32];
-const FN_89_CALLEES: &[u32] = &[0u32, 64u32, 145u32];
-const FN_90_CALLEES: &[u32] = &[0u32, 65u32, 145u32];
-const FN_91_CALLEES: &[u32] = &[0u32, 66u32, 145u32];
-const FN_92_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_93_CALLEES: &[u32] = &[0u32, 67u32, 145u32];
+const FN_65_CALLEES: &[usize] = &[0usize, 149usize];
+const FN_66_CALLEES: &[usize] = &[0usize, 70usize, 3usize, 10usize, 11usize, 8usize];
+const FN_67_CALLEES: &[usize] = &[0usize, 24usize, 1usize];
+const FN_68_CALLEES: &[usize] = &[0usize, 24usize, 2usize];
+const FN_69_CALLEES: &[usize] = &[0usize, 61usize, 145usize];
+const FN_70_CALLEES: &[usize] = &[0usize, 149usize];
+const FN_71_CALLEES: &[usize] = &[0usize, 4usize, 10usize, 144usize];
+const FN_72_CALLEES: &[usize] = &[0usize, 7usize, 2usize];
+const FN_73_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_74_CALLEES: &[usize] = &[0usize, 4usize, 144usize];
+const FN_75_CALLEES: &[usize] = &[0usize, 5usize, 144usize];
+const FN_76_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_77_CALLEES: &[usize] = &[0usize, 51usize, 145usize];
+const FN_78_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_79_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_80_CALLEES: &[usize] = &[0usize, 3usize, 10usize];
+const FN_81_CALLEES: &[usize] = &[0usize, 51usize, 145usize];
+const FN_82_CALLEES: &[usize] = &[0usize, 3usize, 11usize, 10usize, 7usize];
+const FN_83_CALLEES: &[usize] = &[0usize, 62usize, 145usize];
+const FN_84_CALLEES: &[usize] = &[0usize, 63usize, 145usize];
+const FN_85_CALLEES: &[usize] = &[0usize, 149usize];
+const FN_86_CALLEES: &[usize] = &[0usize, 26usize, 145usize];
+const FN_87_CALLEES: &[usize] = &[0usize, 24usize, 5usize];
+const FN_88_CALLEES: &[usize] = &[0usize, 43usize, 145usize, 67usize];
+const FN_89_CALLEES: &[usize] = &[0usize, 64usize, 145usize];
+const FN_90_CALLEES: &[usize] = &[0usize, 65usize, 145usize];
+const FN_91_CALLEES: &[usize] = &[0usize, 66usize, 145usize];
+const FN_92_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_93_CALLEES: &[usize] = &[0usize, 67usize, 145usize];
 const FN_94_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_94_CALLEES: &[u32] = &[0u32, 42u32, 68u32, 144u32];
+const FN_94_CALLEES: &[usize] = &[0usize, 42usize, 68usize, 144usize];
 const FN_95_GLOBALS: &[usize] = &[19usize, 1usize, 16usize, 17usize, 9usize];
-const FN_95_CALLEES: &[u32] = &[0u32, 149u32, 144u32, 12u32, 31u32, 20u32, 21u32, 150u32, 33u32];
+const FN_95_CALLEES: &[usize] = &[0usize, 149usize, 144usize, 12usize, 31usize, 20usize, 21usize, 150usize, 33usize];
 const FN_96_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_96_CALLEES: &[u32] = &[0u32, 3u32, 8u32, 20u32, 144u32];
-const FN_97_CALLEES: &[u32] = &[0u32, 67u32, 145u32, 21u32, 144u32, 68u32, 70u32];
+const FN_96_CALLEES: &[usize] = &[0usize, 3usize, 8usize, 20usize, 144usize];
+const FN_97_CALLEES: &[usize] = &[0usize, 67usize, 145usize, 21usize, 144usize, 68usize, 70usize];
 const FN_98_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_98_CALLEES: &[u32] = &[0u32, 44u32, 69u32, 144u32];
+const FN_98_CALLEES: &[usize] = &[0usize, 44usize, 69usize, 144usize];
 const FN_99_GLOBALS: &[usize] = &[16usize, 19usize, 9usize];
-const FN_99_CALLEES: &[u32] = &[0u32, 149u32, 144u32, 33u32];
+const FN_99_CALLEES: &[usize] = &[0usize, 149usize, 144usize, 33usize];
 const FN_100_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_100_CALLEES: &[u32] = &[0u32, 146u32, 144u32, 24u32, 32u32, 20u32];
+const FN_100_CALLEES: &[usize] = &[0usize, 146usize, 144usize, 24usize, 32usize, 20usize];
 const FN_101_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_101_CALLEES: &[u32] = &[0u32, 146u32, 144u32, 143u32, 3u32, 148u32, 0u32, 144u32, 1u32, 1u32, 2u32, 4u32];
+const FN_101_CALLEES: &[usize] = &[0usize, 146usize, 144usize, 143usize, 3usize, 148usize, 0usize, 144usize, 1usize, 1usize, 2usize, 4usize];
 const FN_102_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_102_CALLEES: &[u32] = &[0u32, 45u32, 70u32, 144u32];
+const FN_102_CALLEES: &[usize] = &[0usize, 45usize, 70usize, 144usize];
 const FN_103_GLOBALS: &[usize] = &[9usize];
-const FN_103_CALLEES: &[u32] = &[0u32, 28u32, 145u32, 144u32, 8u32, 12u32, 14u32];
+const FN_103_CALLEES: &[usize] = &[0usize, 28usize, 145usize, 144usize, 8usize, 12usize, 14usize];
 const FN_104_GLOBALS: &[usize] = &[9usize];
-const FN_104_CALLEES: &[u32] = &[0u32, 3u32, 10u32, 4u32, 144u32];
+const FN_104_CALLEES: &[usize] = &[0usize, 3usize, 10usize, 4usize, 144usize];
 const FN_105_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_105_CALLEES: &[u32] = &[0u32, 21u32, 144u32, 24u32];
+const FN_105_CALLEES: &[usize] = &[0usize, 21usize, 144usize, 24usize];
 const FN_106_GLOBALS: &[usize] = &[9usize];
-const FN_106_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 12u32, 144u32];
+const FN_106_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 12usize, 144usize];
 const FN_107_GLOBALS: &[usize] = &[9usize];
-const FN_107_CALLEES: &[u32] = &[0u32, 4u32, 144u32];
+const FN_107_CALLEES: &[usize] = &[0usize, 4usize, 144usize];
 const FN_108_GLOBALS: &[usize] = &[9usize];
-const FN_108_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 13u32, 144u32];
+const FN_108_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 13usize, 144usize];
 const FN_109_GLOBALS: &[usize] = &[19usize, 1usize, 16usize, 17usize];
-const FN_109_CALLEES: &[u32] = &[0u32, 149u32, 144u32, 12u32, 31u32, 20u32, 21u32, 33u32];
-const FN_110_CALLEES: &[u32] = &[0u32, 24u32, 34u32, 20u32];
-const FN_111_CALLEES: &[u32] = &[0u32, 24u32, 35u32, 20u32];
+const FN_109_CALLEES: &[usize] = &[0usize, 149usize, 144usize, 12usize, 31usize, 20usize, 21usize, 33usize];
+const FN_110_CALLEES: &[usize] = &[0usize, 24usize, 34usize, 20usize];
+const FN_111_CALLEES: &[usize] = &[0usize, 24usize, 35usize, 20usize];
 const FN_112_GLOBALS: &[usize] = &[19usize];
-const FN_112_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_113_CALLEES: &[u32] = &[0u32, 24u32, 36u32, 20u32];
-const FN_114_CALLEES: &[u32] = &[0u32, 144u32];
+const FN_112_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_113_CALLEES: &[usize] = &[0usize, 24usize, 36usize, 20usize];
+const FN_114_CALLEES: &[usize] = &[0usize, 144usize];
 const FN_115_GLOBALS: &[usize] = &[22usize];
-const FN_115_CALLEES: &[u32] = &[0u32, 151u32, 96u32, 85u32, 95u32, 152u32, 153u32, 97u32];
-const FN_116_CALLEES: &[u32] = &[0u32];
-const FN_117_CALLEES: &[u32] = &[0u32, 41u32, 145u32];
-const FN_118_CALLEES: &[u32] = &[0u32];
-const FN_119_CALLEES: &[u32] = &[0u32];
-const FN_120_CALLEES: &[u32] = &[0u32];
-const FN_121_CALLEES: &[u32] = &[0u32, 150u32, 95u32, 147u32];
-const FN_122_CALLEES: &[u32] = &[0u32, 92u32, 145u32];
-const FN_123_CALLEES: &[u32] = &[0u32, 154u32];
+const FN_115_CALLEES: &[usize] = &[0usize, 151usize, 96usize, 85usize, 95usize, 152usize, 153usize, 97usize];
+const FN_116_CALLEES: &[usize] = &[0usize];
+const FN_117_CALLEES: &[usize] = &[0usize, 41usize, 145usize];
+const FN_118_CALLEES: &[usize] = &[0usize];
+const FN_119_CALLEES: &[usize] = &[0usize];
+const FN_120_CALLEES: &[usize] = &[0usize];
+const FN_121_CALLEES: &[usize] = &[0usize, 150usize, 95usize, 147usize];
+const FN_122_CALLEES: &[usize] = &[0usize, 92usize, 145usize];
+const FN_123_CALLEES: &[usize] = &[0usize, 154usize];
 const FN_124_GLOBALS: &[usize] = &[22usize];
-const FN_124_CALLEES: &[u32] = &[0u32, 4u32, 0u32, 12u32, 0u32, 143u32, 144u32];
+const FN_124_CALLEES: &[usize] = &[0usize, 4usize, 0usize, 12usize, 0usize, 143usize, 144usize];
 const FN_125_GLOBALS: &[usize] = &[22usize];
-const FN_125_CALLEES: &[u32] = &[0u32, 143u32, 144u32];
-const FN_126_CALLEES: &[u32] = &[0u32, 148u32, 36u32];
-const FN_127_CALLEES: &[u32] = &[0u32, 0u32, 12u32, 0u32, 144u32, 85u32];
-const FN_128_CALLEES: &[u32] = &[0u32, 12u32, 38u32, 21u32, 85u32];
-const FN_129_CALLEES: &[u32] = &[0u32, 10u32, 4u32, 9u32, 4u32, 85u32, 1u32];
-const FN_130_CALLEES: &[u32] = &[0u32, 7u32, 5u32];
-const FN_131_CALLEES: &[u32] = &[0u32, 8u32, 13u32, 100u32, 85u32];
-const FN_132_CALLEES: &[u32] = &[0u32, 76u32, 145u32];
-const FN_133_CALLEES: &[u32] = &[0u32, 76u32, 153u32];
-const FN_134_CALLEES: &[u32] = &[0u32, 8u32, 6u32, 5u32, 15u32, 5u32, 9u32, 7u32, 19u32, 4u32, 1u32, 0u32, 12u32, 0u32, 0u32, 5u32, 1u32, 149u32, 85u32];
-const FN_135_CALLEES: &[u32] = &[0u32, 8u32, 4u32];
-const FN_136_CALLEES: &[u32] = &[0u32, 76u32, 156u32];
-const FN_137_CALLEES: &[u32] = &[0u32, 76u32, 157u32];
+const FN_125_CALLEES: &[usize] = &[0usize, 143usize, 144usize];
+const FN_126_CALLEES: &[usize] = &[0usize, 148usize, 36usize];
+const FN_127_CALLEES: &[usize] = &[0usize, 0usize, 12usize, 0usize, 144usize, 85usize];
+const FN_128_CALLEES: &[usize] = &[0usize, 12usize, 38usize, 21usize, 85usize];
+const FN_129_CALLEES: &[usize] = &[0usize, 10usize, 4usize, 9usize, 4usize, 85usize, 1usize];
+const FN_130_CALLEES: &[usize] = &[0usize, 7usize, 5usize];
+const FN_131_CALLEES: &[usize] = &[0usize, 8usize, 13usize, 100usize, 85usize];
+const FN_132_CALLEES: &[usize] = &[0usize, 76usize, 145usize];
+const FN_133_CALLEES: &[usize] = &[0usize, 76usize, 153usize];
+const FN_134_CALLEES: &[usize] = &[0usize, 8usize, 6usize, 5usize, 15usize, 5usize, 9usize, 7usize, 19usize, 4usize, 1usize, 0usize, 12usize, 0usize, 0usize, 5usize, 1usize, 149usize, 85usize];
+const FN_135_CALLEES: &[usize] = &[0usize, 8usize, 4usize];
+const FN_136_CALLEES: &[usize] = &[0usize, 76usize, 156usize];
+const FN_137_CALLEES: &[usize] = &[0usize, 76usize, 157usize];
 const FN_138_GLOBALS: &[usize] = &[22usize];
-const FN_138_CALLEES: &[u32] = &[0u32, 50u32, 8u32, 4u32, 144u32];
-const FN_139_CALLEES: &[u32] = &[0u32, 93u32, 145u32];
-const FN_140_CALLEES: &[u32] = &[0u32, 150u32, 98u32, 85u32];
-const FN_141_CALLEES: &[u32] = &[0u32, 154u32];
+const FN_138_CALLEES: &[usize] = &[0usize, 50usize, 8usize, 4usize, 144usize];
+const FN_139_CALLEES: &[usize] = &[0usize, 93usize, 145usize];
+const FN_140_CALLEES: &[usize] = &[0usize, 150usize, 98usize, 85usize];
+const FN_141_CALLEES: &[usize] = &[0usize, 154usize];
 const FN_142_GLOBALS: &[usize] = &[22usize];
-const FN_142_CALLEES: &[u32] = &[0u32, 41u32, 145u32, 144u32];
-const FN_143_CALLEES: &[u32] = &[0u32, 94u32, 145u32];
-const FN_144_CALLEES: &[u32] = &[0u32, 42u32, 71u32];
-const FN_145_CALLEES: &[u32] = &[0u32, 94u32, 145u32];
+const FN_142_CALLEES: &[usize] = &[0usize, 41usize, 145usize, 144usize];
+const FN_143_CALLEES: &[usize] = &[0usize, 94usize, 145usize];
+const FN_144_CALLEES: &[usize] = &[0usize, 42usize, 71usize];
+const FN_145_CALLEES: &[usize] = &[0usize, 94usize, 145usize];
 const FN_146_GLOBALS: &[usize] = &[22usize, 1usize];
-const FN_146_CALLEES: &[u32] = &[0u32, 41u32, 144u32, 100u32, 150u32, 85u32];
-const FN_147_CALLEES: &[u32] = &[0u32, 94u32, 145u32, 34u32, 71u32, 144u32];
+const FN_146_CALLEES: &[usize] = &[0usize, 41usize, 144usize, 100usize, 150usize, 85usize];
+const FN_147_CALLEES: &[usize] = &[0usize, 94usize, 145usize, 34usize, 71usize, 144usize];
 const FN_148_GLOBALS: &[usize] = &[19usize, 9usize, 16usize];
-const FN_148_CALLEES: &[u32] = &[0u32, 51u32, 145u32, 144u32, 1u32, 140u32, 25u32, 26u32];
+const FN_148_CALLEES: &[usize] = &[0usize, 51usize, 145usize, 144usize, 1usize, 140usize, 25usize, 26usize];
 const FN_149_GLOBALS: &[usize] = &[9usize];
-const FN_149_CALLEES: &[u32] = &[0u32, 43u32, 145u32, 144u32, 27u32];
+const FN_149_CALLEES: &[usize] = &[0usize, 43usize, 145usize, 144usize, 27usize];
 const FN_150_GLOBALS: &[usize] = &[9usize];
-const FN_150_CALLEES: &[u32] = &[0u32, 43u32, 145u32, 144u32, 28u32];
+const FN_150_CALLEES: &[usize] = &[0usize, 43usize, 145usize, 144usize, 28usize];
 const FN_151_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_151_CALLEES: &[u32] = &[0u32, 144u32, 51u32];
+const FN_151_CALLEES: &[usize] = &[0usize, 144usize, 51usize];
 const FN_152_GLOBALS: &[usize] = &[9usize];
-const FN_152_CALLEES: &[u32] = &[0u32, 46u32, 145u32, 144u32, 9u32];
+const FN_152_CALLEES: &[usize] = &[0usize, 46usize, 145usize, 144usize, 9usize];
 const FN_153_GLOBALS: &[usize] = &[9usize];
-const FN_153_CALLEES: &[u32] = &[0u32, 46u32, 145u32, 144u32, 10u32];
+const FN_153_CALLEES: &[usize] = &[0usize, 46usize, 145usize, 144usize, 10usize];
 const FN_154_GLOBALS: &[usize] = &[9usize];
-const FN_154_CALLEES: &[u32] = &[0u32, 46u32, 145u32, 144u32, 11u32];
+const FN_154_CALLEES: &[usize] = &[0usize, 46usize, 145usize, 144usize, 11usize];
 const FN_155_GLOBALS: &[usize] = &[22usize, 1usize];
-const FN_155_CALLEES: &[u32] = &[0u32, 41u32, 144u32, 100u32, 85u32];
-const FN_156_CALLEES: &[u32] = &[0u32, 8u32, 13u32, 12u32, 20u32, 143u32, 4u32, 6u32];
+const FN_155_CALLEES: &[usize] = &[0usize, 41usize, 144usize, 100usize, 85usize];
+const FN_156_CALLEES: &[usize] = &[0usize, 8usize, 13usize, 12usize, 20usize, 143usize, 4usize, 6usize];
 const FN_157_GLOBALS: &[usize] = &[14usize];
-const FN_157_CALLEES: &[u32] = &[0u32, 8u32, 13u32, 144u32, 20u32, 4u32, 1u32, 1u32, 1u32];
-const FN_158_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 13u32, 12u32, 20u32, 148u32, 158u32];
-const FN_159_CALLEES: &[u32] = &[0u32, 8u32, 13u32, 5u32, 15u32, 7u32, 20u32, 4u32, 0u32, 12u32, 1u32, 0u32, 5u32, 149u32];
-const FN_160_CALLEES: &[u32] = &[0u32, 8u32, 15u32, 7u32, 20u32, 4u32, 5u32, 6u32, 12u32, 12u32, 1u32, 149u32, 50u32];
-const FN_161_CALLEES: &[u32] = &[0u32, 8u32, 4u32, 144u32, 5u32, 21u32, 7u32, 20u32, 4u32, 19u32, 4u32, 0u32, 12u32, 0u32, 0u32, 149u32, 50u32];
-const FN_162_CALLEES: &[u32] = &[0u32, 8u32, 19u32, 159u32, 13u32, 12u32, 20u32, 158u32, 148u32];
-const FN_163_CALLEES: &[u32] = &[0u32, 95u32, 157u32, 144u32, 152u32, 8u32, 4u32, 20u32, 4u32, 21u32, 13u32, 12u32, 1u32, 1u32, 6u32, 12u32, 0u32, 7u32, 149u32, 50u32, 5u32, 150u32, 144u32, 4u32, 0u32, 0u32, 160u32, 142u32, 9u32, 19u32, 161u32, 162u32, 99u32, 7u32, 6u32];
-const FN_164_CALLEES: &[u32] = &[0u32, 58u32];
-const FN_165_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 144u32];
+const FN_157_CALLEES: &[usize] = &[0usize, 8usize, 13usize, 144usize, 20usize, 4usize, 1usize, 1usize, 1usize];
+const FN_158_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 13usize, 12usize, 20usize, 148usize, 158usize];
+const FN_159_CALLEES: &[usize] = &[0usize, 8usize, 13usize, 5usize, 15usize, 7usize, 20usize, 4usize, 0usize, 12usize, 1usize, 0usize, 5usize, 149usize];
+const FN_160_CALLEES: &[usize] = &[0usize, 8usize, 15usize, 7usize, 20usize, 4usize, 5usize, 6usize, 12usize, 12usize, 1usize, 149usize, 50usize];
+const FN_161_CALLEES: &[usize] = &[0usize, 8usize, 4usize, 144usize, 5usize, 21usize, 7usize, 20usize, 4usize, 19usize, 4usize, 0usize, 12usize, 0usize, 0usize, 149usize, 50usize];
+const FN_162_CALLEES: &[usize] = &[0usize, 8usize, 19usize, 159usize, 13usize, 12usize, 20usize, 158usize, 148usize];
+const FN_163_CALLEES: &[usize] = &[0usize, 95usize, 157usize, 144usize, 152usize, 8usize, 4usize, 20usize, 4usize, 21usize, 13usize, 12usize, 1usize, 1usize, 6usize, 12usize, 0usize, 7usize, 149usize, 50usize, 5usize, 150usize, 144usize, 4usize, 0usize, 0usize, 160usize, 142usize, 9usize, 19usize, 161usize, 162usize, 99usize, 7usize, 6usize];
+const FN_164_CALLEES: &[usize] = &[0usize, 58usize];
+const FN_165_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 144usize];
 const FN_166_GLOBALS: &[usize] = &[23usize];
-const FN_166_CALLEES: &[u32] = &[0u32, 56u32, 12u32, 12u32];
-const FN_167_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_168_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 9u32];
-const FN_169_CALLEES: &[u32] = &[0u32, 4u32, 6u32, 9u32];
-const FN_170_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_171_CALLEES: &[u32] = &[0u32, 4u32, 5u32, 144u32];
+const FN_166_CALLEES: &[usize] = &[0usize, 56usize, 12usize, 12usize];
+const FN_167_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_168_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 9usize];
+const FN_169_CALLEES: &[usize] = &[0usize, 4usize, 6usize, 9usize];
+const FN_170_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_171_CALLEES: &[usize] = &[0usize, 4usize, 5usize, 144usize];
 const FN_172_GLOBALS: &[usize] = &[23usize];
-const FN_172_CALLEES: &[u32] = &[0u32, 57u32, 12u32, 12u32];
-const FN_173_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_174_CALLEES: &[u32] = &[0u32, 4u32, 144u32];
-const FN_175_CALLEES: &[u32] = &[0u32, 8u32, 0u32, 16u32, 7u32, 22u32, 163u32, 5u32, 144u32, 2u32, 3u32, 164u32, 165u32, 13u32, 166u32, 167u32, 1u32, 1u32, 0u32, 145u32, 149u32];
-const FN_176_CALLEES: &[u32] = &[0u32, 8u32, 6u32, 3u32, 144u32, 22u32, 163u32, 5u32, 5u32, 168u32, 166u32, 167u32, 169u32, 148u32, 4u32, 13u32, 0u32, 7u32, 32u32, 2u32, 143u32, 170u32, 141u32, 13u32, 55u32, 1u32, 1u32];
+const FN_172_CALLEES: &[usize] = &[0usize, 57usize, 12usize, 12usize];
+const FN_173_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_174_CALLEES: &[usize] = &[0usize, 4usize, 144usize];
+const FN_175_CALLEES: &[usize] = &[0usize, 8usize, 0usize, 16usize, 7usize, 22usize, 163usize, 5usize, 144usize, 2usize, 3usize, 164usize, 165usize, 13usize, 166usize, 167usize, 1usize, 1usize, 0usize, 145usize, 149usize];
+const FN_176_CALLEES: &[usize] = &[0usize, 8usize, 6usize, 3usize, 144usize, 22usize, 163usize, 5usize, 5usize, 168usize, 166usize, 167usize, 169usize, 148usize, 4usize, 13usize, 0usize, 7usize, 32usize, 2usize, 143usize, 170usize, 141usize, 13usize, 55usize, 1usize, 1usize];
 const FN_177_GLOBALS: &[usize] = &[14usize];
-const FN_177_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 145u32, 144u32, 32u32, 5u32, 0u32, 2u32];
-const FN_178_CALLEES: &[u32] = &[0u32, 8u32, 8u32, 3u32, 7u32, 4u32, 9u32, 13u32, 3u32, 6u32, 0u32, 171u32, 0u32, 0u32, 149u32];
-const FN_179_CALLEES: &[u32] = &[0u32, 0u32, 7u32, 0u32, 149u32];
-const FN_180_CALLEES: &[u32] = &[0u32, 59u32, 143u32];
-const FN_181_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 60u32, 1u32, 144u32, 172u32, 141u32, 173u32, 4u32, 5u32];
-const FN_182_CALLEES: &[u32] = &[0u32, 8u32, 6u32, 3u32, 144u32, 23u32, 59u32, 143u32, 5u32];
-const FN_183_CALLEES: &[u32] = &[0u32, 8u32, 6u32, 23u32, 59u32, 159u32, 144u32, 5u32, 5u32, 145u32, 63u32, 5u32, 7u32, 7u32, 143u32, 9u32, 4u32, 149u32, 13u32, 148u32, 158u32, 144u32, 151u32, 174u32, 169u32, 171u32, 3u32, 166u32];
-const FN_184_CALLEES: &[u32] = &[0u32, 8u32, 5u32, 13u32, 3u32, 144u32, 23u32, 59u32, 159u32, 3u32, 9u32, 16u32, 7u32, 143u32, 149u32, 6u32, 2u32];
-const FN_185_CALLEES: &[u32] = &[0u32, 8u32, 6u32, 23u32, 59u32, 159u32, 144u32, 7u32, 5u32, 7u32, 143u32, 149u32, 5u32, 13u32, 13u32, 3u32];
-const FN_186_CALLEES: &[u32] = &[0u32, 8u32, 5u32, 13u32, 144u32, 23u32, 59u32, 159u32, 56u32, 145u32, 54u32, 143u32, 7u32, 7u32, 9u32, 4u32, 149u32, 148u32, 158u32, 144u32, 151u32, 3u32];
-const FN_187_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 23u32, 66u32, 1u32];
-const FN_188_CALLEES: &[u32] = &[0u32, 8u32, 6u32, 23u32, 59u32, 143u32, 5u32, 7u32];
-const FN_189_CALLEES: &[u32] = &[0u32, 59u32, 143u32, 58u32, 144u32];
-const FN_190_CALLEES: &[u32] = &[0u32, 8u32, 5u32, 6u32, 4u32, 16u32, 58u32, 2u32, 6u32, 4u32, 9u32, 22u32, 169u32, 148u32, 141u32, 166u32, 174u32, 171u32, 12u32, 4u32, 149u32];
-const FN_191_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_192_CALLEES: &[u32] = &[0u32, 8u32, 5u32, 16u32, 58u32, 2u32, 59u32, 143u32, 149u32];
-const FN_193_CALLEES: &[u32] = &[0u32, 8u32, 5u32, 16u32, 58u32, 2u32, 7u32, 22u32, 148u32, 61u32, 59u32, 143u32, 4u32, 56u32, 149u32];
-const FN_194_CALLEES: &[u32] = &[0u32, 67u32, 58u32, 144u32];
+const FN_177_CALLEES: &[usize] = &[0usize, 1usize, 10usize, 145usize, 144usize, 32usize, 5usize, 0usize, 2usize];
+const FN_178_CALLEES: &[usize] = &[0usize, 8usize, 8usize, 3usize, 7usize, 4usize, 9usize, 13usize, 3usize, 6usize, 0usize, 171usize, 0usize, 0usize, 149usize];
+const FN_179_CALLEES: &[usize] = &[0usize, 0usize, 7usize, 0usize, 149usize];
+const FN_180_CALLEES: &[usize] = &[0usize, 59usize, 143usize];
+const FN_181_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 60usize, 1usize, 144usize, 172usize, 141usize, 173usize, 4usize, 5usize];
+const FN_182_CALLEES: &[usize] = &[0usize, 8usize, 6usize, 3usize, 144usize, 23usize, 59usize, 143usize, 5usize];
+const FN_183_CALLEES: &[usize] = &[0usize, 8usize, 6usize, 23usize, 59usize, 159usize, 144usize, 5usize, 5usize, 145usize, 63usize, 5usize, 7usize, 7usize, 143usize, 9usize, 4usize, 149usize, 13usize, 148usize, 158usize, 144usize, 151usize, 174usize, 169usize, 171usize, 3usize, 166usize];
+const FN_184_CALLEES: &[usize] = &[0usize, 8usize, 5usize, 13usize, 3usize, 144usize, 23usize, 59usize, 159usize, 3usize, 9usize, 16usize, 7usize, 143usize, 149usize, 6usize, 2usize];
+const FN_185_CALLEES: &[usize] = &[0usize, 8usize, 6usize, 23usize, 59usize, 159usize, 144usize, 7usize, 5usize, 7usize, 143usize, 149usize, 5usize, 13usize, 13usize, 3usize];
+const FN_186_CALLEES: &[usize] = &[0usize, 8usize, 5usize, 13usize, 144usize, 23usize, 59usize, 159usize, 56usize, 145usize, 54usize, 143usize, 7usize, 7usize, 9usize, 4usize, 149usize, 148usize, 158usize, 144usize, 151usize, 3usize];
+const FN_187_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 23usize, 66usize, 1usize];
+const FN_188_CALLEES: &[usize] = &[0usize, 8usize, 6usize, 23usize, 59usize, 143usize, 5usize, 7usize];
+const FN_189_CALLEES: &[usize] = &[0usize, 59usize, 143usize, 58usize, 144usize];
+const FN_190_CALLEES: &[usize] = &[0usize, 8usize, 5usize, 6usize, 4usize, 16usize, 58usize, 2usize, 6usize, 4usize, 9usize, 22usize, 169usize, 148usize, 141usize, 166usize, 174usize, 171usize, 12usize, 4usize, 149usize];
+const FN_191_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_192_CALLEES: &[usize] = &[0usize, 8usize, 5usize, 16usize, 58usize, 2usize, 59usize, 143usize, 149usize];
+const FN_193_CALLEES: &[usize] = &[0usize, 8usize, 5usize, 16usize, 58usize, 2usize, 7usize, 22usize, 148usize, 61usize, 59usize, 143usize, 4usize, 56usize, 149usize];
+const FN_194_CALLEES: &[usize] = &[0usize, 67usize, 58usize, 144usize];
 const FN_195_GLOBALS: &[usize] = &[14usize];
-const FN_195_CALLEES: &[u32] = &[0u32, 140u32, 58u32, 53u32, 144u32, 16u32, 2u32, 15u32, 0u32, 12u32, 141u32, 1u32, 33u32, 9u32, 13u32, 12u32, 19u32, 149u32];
-const FN_196_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_197_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 144u32, 9u32, 7u32, 175u32, 7u32, 22u32, 168u32, 3u32, 13u32, 176u32, 165u32, 5u32, 6u32, 0u32, 4u32, 164u32, 177u32, 163u32, 145u32, 149u32];
-const FN_198_CALLEES: &[u32] = &[0u32, 4u32, 9u32, 13u32, 3u32, 170u32, 0u32, 171u32, 148u32, 144u32, 0u32, 141u32, 60u32, 1u32, 172u32, 173u32, 33u32, 151u32, 174u32];
-const FN_199_CALLEES: &[u32] = &[0u32, 22u32, 163u32, 168u32, 3u32, 6u32, 166u32, 167u32, 169u32, 5u32];
-const FN_200_CALLEES: &[u32] = &[0u32, 55u32];
-const FN_201_CALLEES: &[u32] = &[0u32, 8u32, 4u32, 144u32, 16u32, 7u32, 23u32, 2u32, 5u32, 149u32, 9u32, 12u32, 8u32, 145u32, 178u32];
-const FN_202_CALLEES: &[u32] = &[0u32, 8u32, 4u32, 144u32, 12u32, 4u32, 5u32, 16u32, 7u32, 13u32, 4u32, 23u32, 149u32];
-const FN_203_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 23u32, 144u32, 3u32];
-const FN_204_CALLEES: &[u32] = &[0u32, 9u32, 8u32, 8u32, 144u32];
-const FN_205_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_206_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 23u32, 59u32, 143u32, 5u32, 0u32, 8u32];
-const FN_207_CALLEES: &[u32] = &[0u32, 77u32, 145u32];
-const FN_208_CALLEES: &[u32] = &[0u32, 79u32, 8u32, 4u32, 16u32, 9u32, 12u32, 7u32, 1u32, 2u32, 149u32, 145u32, 5u32, 8u32, 180u32, 144u32];
-const FN_209_CALLEES: &[u32] = &[0u32, 104u32];
-const FN_210_CALLEES: &[u32] = &[0u32, 152u32];
+const FN_195_CALLEES: &[usize] = &[0usize, 140usize, 58usize, 53usize, 144usize, 16usize, 2usize, 15usize, 0usize, 12usize, 141usize, 1usize, 33usize, 9usize, 13usize, 12usize, 19usize, 149usize];
+const FN_196_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_197_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 144usize, 9usize, 7usize, 175usize, 7usize, 22usize, 168usize, 3usize, 13usize, 176usize, 165usize, 5usize, 6usize, 0usize, 4usize, 164usize, 177usize, 163usize, 145usize, 149usize];
+const FN_198_CALLEES: &[usize] = &[0usize, 4usize, 9usize, 13usize, 3usize, 170usize, 0usize, 171usize, 148usize, 144usize, 0usize, 141usize, 60usize, 1usize, 172usize, 173usize, 33usize, 151usize, 174usize];
+const FN_199_CALLEES: &[usize] = &[0usize, 22usize, 163usize, 168usize, 3usize, 6usize, 166usize, 167usize, 169usize, 5usize];
+const FN_200_CALLEES: &[usize] = &[0usize, 55usize];
+const FN_201_CALLEES: &[usize] = &[0usize, 8usize, 4usize, 144usize, 16usize, 7usize, 23usize, 2usize, 5usize, 149usize, 9usize, 12usize, 8usize, 145usize, 178usize];
+const FN_202_CALLEES: &[usize] = &[0usize, 8usize, 4usize, 144usize, 12usize, 4usize, 5usize, 16usize, 7usize, 13usize, 4usize, 23usize, 149usize];
+const FN_203_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 23usize, 144usize, 3usize];
+const FN_204_CALLEES: &[usize] = &[0usize, 9usize, 8usize, 8usize, 144usize];
+const FN_205_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_206_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 23usize, 59usize, 143usize, 5usize, 0usize, 8usize];
+const FN_207_CALLEES: &[usize] = &[0usize, 77usize, 145usize];
+const FN_208_CALLEES: &[usize] = &[0usize, 79usize, 8usize, 4usize, 16usize, 9usize, 12usize, 7usize, 1usize, 2usize, 149usize, 145usize, 5usize, 8usize, 180usize, 144usize];
+const FN_209_CALLEES: &[usize] = &[0usize, 104usize];
+const FN_210_CALLEES: &[usize] = &[0usize, 152usize];
 const FN_211_GLOBALS: &[usize] = &[3usize];
-const FN_211_CALLEES: &[u32] = &[0u32, 64u32, 152u32, 62u32, 144u32];
-const FN_212_CALLEES: &[u32] = &[0u32, 8u32, 16u32, 59u32, 143u32, 58u32, 2u32, 149u32];
+const FN_211_CALLEES: &[usize] = &[0usize, 64usize, 152usize, 62usize, 144usize];
+const FN_212_CALLEES: &[usize] = &[0usize, 8usize, 16usize, 59usize, 143usize, 58usize, 2usize, 149usize];
 const FN_213_GLOBALS: &[usize] = &[3usize];
-const FN_213_CALLEES: &[u32] = &[0u32, 8u32, 16u32, 7u32, 23u32, 59u32, 143u32, 5u32, 6u32, 144u32, 2u32, 149u32];
-const FN_214_CALLEES: &[u32] = &[0u32, 59u32, 143u32, 146u32, 172u32];
-const FN_215_CALLEES: &[u32] = &[0u32, 8u32, 5u32, 7u32, 23u32, 59u32, 159u32, 4u32, 78u32, 12u32, 13u32, 143u32, 0u32, 4u32, 0u32, 144u32];
-const FN_216_CALLEES: &[u32] = &[0u32, 8u32, 16u32, 7u32, 23u32, 59u32, 143u32, 5u32, 8u32, 2u32, 8u32, 144u32, 149u32];
-const FN_217_CALLEES: &[u32] = &[0u32, 7u32, 23u32, 8u32, 5u32, 16u32, 4u32, 149u32];
-const FN_218_CALLEES: &[u32] = &[0u32, 72u32, 144u32, 12u32, 9u32, 30u32];
-const FN_219_CALLEES: &[u32] = &[0u32, 80u32, 143u32, 144u32];
-const FN_220_CALLEES: &[u32] = &[0u32, 144u32, 3u32, 24u32, 71u32];
-const FN_221_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 144u32];
-const FN_222_CALLEES: &[u32] = &[0u32, 158u32, 144u32, 3u32, 24u32, 145u32, 71u32];
-const FN_223_CALLEES: &[u32] = &[0u32, 158u32, 144u32, 3u32, 71u32];
-const FN_224_CALLEES: &[u32] = &[0u32, 72u32, 144u32, 12u32];
-const FN_225_CALLEES: &[u32] = &[0u32, 80u32, 143u32, 144u32];
-const FN_226_CALLEES: &[u32] = &[0u32, 80u32, 143u32, 144u32];
-const FN_227_CALLEES: &[u32] = &[0u32, 80u32, 143u32, 144u32];
-const FN_228_CALLEES: &[u32] = &[0u32];
-const FN_229_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_230_CALLEES: &[u32] = &[0u32];
-const FN_231_CALLEES: &[u32] = &[0u32, 62u32, 144u32];
-const FN_232_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_233_CALLEES: &[u32] = &[0u32, 80u32, 143u32, 144u32, 101u32, 181u32, 3u32, 100u32, 76u32];
-const FN_234_CALLEES: &[u32] = &[0u32, 77u32, 145u32, 144u32, 102u32];
-const FN_235_CALLEES: &[u32] = &[0u32, 144u32, 3u32, 100u32, 181u32, 76u32];
-const FN_236_CALLEES: &[u32] = &[0u32, 77u32, 145u32, 144u32, 103u32];
-const FN_237_CALLEES: &[u32] = &[0u32, 8u32, 6u32, 144u32, 7u32, 7u32, 145u32, 72u32, 13u32, 11u32, 3u32, 30u32, 27u32, 24u32];
-const FN_238_CALLEES: &[u32] = &[0u32, 8u32, 6u32, 144u32, 7u32, 7u32, 145u32, 72u32, 10u32, 12u32, 3u32, 30u32, 9u32, 4u32, 4u32, 9u32, 12u32, 182u32, 146u32];
-const FN_239_CALLEES: &[u32] = &[0u32, 8u32, 16u32, 13u32, 6u32, 9u32, 144u32, 7u32, 23u32, 71u32, 2u32, 149u32];
-const FN_240_CALLEES: &[u32] = &[0u32, 144u32, 140u32, 71u32, 16u32, 11u32, 26u32, 24u32, 2u32, 25u32, 149u32, 99u32];
-const FN_241_CALLEES: &[u32] = &[0u32, 143u32, 144u32, 71u32, 16u32, 158u32, 142u32, 148u32, 182u32, 146u32, 3u32, 2u32, 173u32, 149u32, 99u32];
-const FN_242_CALLEES: &[u32] = &[0u32, 7u32, 145u32, 144u32, 72u32, 140u32, 9u32, 143u32, 11u32, 9u32];
-const FN_243_CALLEES: &[u32] = &[0u32, 7u32, 145u32, 144u32, 72u32, 140u32, 9u32, 143u32, 11u32, 24u32, 71u32, 10u32, 158u32, 3u32];
-const FN_244_CALLEES: &[u32] = &[0u32, 164u32, 165u32, 183u32, 168u32];
-const FN_245_CALLEES: &[u32] = &[0u32, 143u32];
-const FN_246_CALLEES: &[u32] = &[0u32, 146u32, 172u32, 143u32];
-const FN_247_CALLEES: &[u32] = &[0u32, 143u32, 146u32, 172u32];
-const FN_248_CALLEES: &[u32] = &[0u32, 146u32, 172u32, 143u32];
-const FN_249_CALLEES: &[u32] = &[0u32, 143u32, 145u32];
-const FN_250_CALLEES: &[u32] = &[0u32, 146u32, 172u32, 143u32];
-const FN_251_CALLEES: &[u32] = &[0u32, 92u32, 134u32, 143u32, 90u32];
+const FN_213_CALLEES: &[usize] = &[0usize, 8usize, 16usize, 7usize, 23usize, 59usize, 143usize, 5usize, 6usize, 144usize, 2usize, 149usize];
+const FN_214_CALLEES: &[usize] = &[0usize, 59usize, 143usize, 146usize, 172usize];
+const FN_215_CALLEES: &[usize] = &[0usize, 8usize, 5usize, 7usize, 23usize, 59usize, 159usize, 4usize, 78usize, 12usize, 13usize, 143usize, 0usize, 4usize, 0usize, 144usize];
+const FN_216_CALLEES: &[usize] = &[0usize, 8usize, 16usize, 7usize, 23usize, 59usize, 143usize, 5usize, 8usize, 2usize, 8usize, 144usize, 149usize];
+const FN_217_CALLEES: &[usize] = &[0usize, 7usize, 23usize, 8usize, 5usize, 16usize, 4usize, 149usize];
+const FN_218_CALLEES: &[usize] = &[0usize, 72usize, 144usize, 12usize, 9usize, 30usize];
+const FN_219_CALLEES: &[usize] = &[0usize, 80usize, 143usize, 144usize];
+const FN_220_CALLEES: &[usize] = &[0usize, 144usize, 3usize, 24usize, 71usize];
+const FN_221_CALLEES: &[usize] = &[0usize, 46usize, 71usize, 144usize];
+const FN_222_CALLEES: &[usize] = &[0usize, 158usize, 144usize, 3usize, 24usize, 145usize, 71usize];
+const FN_223_CALLEES: &[usize] = &[0usize, 158usize, 144usize, 3usize, 71usize];
+const FN_224_CALLEES: &[usize] = &[0usize, 72usize, 144usize, 12usize];
+const FN_225_CALLEES: &[usize] = &[0usize, 80usize, 143usize, 144usize];
+const FN_226_CALLEES: &[usize] = &[0usize, 80usize, 143usize, 144usize];
+const FN_227_CALLEES: &[usize] = &[0usize, 80usize, 143usize, 144usize];
+const FN_228_CALLEES: &[usize] = &[0usize];
+const FN_229_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_230_CALLEES: &[usize] = &[0usize];
+const FN_231_CALLEES: &[usize] = &[0usize, 62usize, 144usize];
+const FN_232_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_233_CALLEES: &[usize] = &[0usize, 80usize, 143usize, 144usize, 101usize, 181usize, 3usize, 100usize, 76usize];
+const FN_234_CALLEES: &[usize] = &[0usize, 77usize, 145usize, 144usize, 102usize];
+const FN_235_CALLEES: &[usize] = &[0usize, 144usize, 3usize, 100usize, 181usize, 76usize];
+const FN_236_CALLEES: &[usize] = &[0usize, 77usize, 145usize, 144usize, 103usize];
+const FN_237_CALLEES: &[usize] = &[0usize, 8usize, 6usize, 144usize, 7usize, 7usize, 145usize, 72usize, 13usize, 11usize, 3usize, 30usize, 27usize, 24usize];
+const FN_238_CALLEES: &[usize] = &[0usize, 8usize, 6usize, 144usize, 7usize, 7usize, 145usize, 72usize, 10usize, 12usize, 3usize, 30usize, 9usize, 4usize, 4usize, 9usize, 12usize, 182usize, 146usize];
+const FN_239_CALLEES: &[usize] = &[0usize, 8usize, 16usize, 13usize, 6usize, 9usize, 144usize, 7usize, 23usize, 71usize, 2usize, 149usize];
+const FN_240_CALLEES: &[usize] = &[0usize, 144usize, 140usize, 71usize, 16usize, 11usize, 26usize, 24usize, 2usize, 25usize, 149usize, 99usize];
+const FN_241_CALLEES: &[usize] = &[0usize, 143usize, 144usize, 71usize, 16usize, 158usize, 142usize, 148usize, 182usize, 146usize, 3usize, 2usize, 173usize, 149usize, 99usize];
+const FN_242_CALLEES: &[usize] = &[0usize, 7usize, 145usize, 144usize, 72usize, 140usize, 9usize, 143usize, 11usize, 9usize];
+const FN_243_CALLEES: &[usize] = &[0usize, 7usize, 145usize, 144usize, 72usize, 140usize, 9usize, 143usize, 11usize, 24usize, 71usize, 10usize, 158usize, 3usize];
+const FN_244_CALLEES: &[usize] = &[0usize, 164usize, 165usize, 183usize, 168usize];
+const FN_245_CALLEES: &[usize] = &[0usize, 143usize];
+const FN_246_CALLEES: &[usize] = &[0usize, 146usize, 172usize, 143usize];
+const FN_247_CALLEES: &[usize] = &[0usize, 143usize, 146usize, 172usize];
+const FN_248_CALLEES: &[usize] = &[0usize, 146usize, 172usize, 143usize];
+const FN_249_CALLEES: &[usize] = &[0usize, 143usize, 145usize];
+const FN_250_CALLEES: &[usize] = &[0usize, 146usize, 172usize, 143usize];
+const FN_251_CALLEES: &[usize] = &[0usize, 92usize, 134usize, 143usize, 90usize];
 const FN_252_GLOBALS: &[usize] = &[26usize];
-const FN_252_CALLEES: &[u32] = &[0u32, 144u32, 16u32, 7u32, 2u32, 3u32, 149u32];
-const FN_253_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 23u32, 144u32];
-const FN_254_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 22u32, 144u32];
-const FN_255_CALLEES: &[u32] = &[0u32, 8u32, 16u32, 148u32, 85u32, 2u32, 149u32];
-const FN_256_CALLEES: &[u32] = &[0u32, 109u32, 8u32, 3u32, 16u32, 144u32, 2u32, 179u32, 149u32];
-const FN_257_CALLEES: &[u32] = &[0u32, 144u32, 110u32];
-const FN_258_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 144u32, 0u32, 179u32];
-const FN_259_CALLEES: &[u32] = &[0u32, 8u32, 5u32, 7u32, 144u32, 0u32, 179u32, 3u32];
-const FN_260_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_261_CALLEES: &[u32] = &[0u32, 111u32, 8u32, 3u32, 16u32, 4u32, 2u32, 149u32];
+const FN_252_CALLEES: &[usize] = &[0usize, 144usize, 16usize, 7usize, 2usize, 3usize, 149usize];
+const FN_253_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 23usize, 144usize];
+const FN_254_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 22usize, 144usize];
+const FN_255_CALLEES: &[usize] = &[0usize, 8usize, 16usize, 148usize, 85usize, 2usize, 149usize];
+const FN_256_CALLEES: &[usize] = &[0usize, 109usize, 8usize, 3usize, 16usize, 144usize, 2usize, 179usize, 149usize];
+const FN_257_CALLEES: &[usize] = &[0usize, 144usize, 110usize];
+const FN_258_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 144usize, 0usize, 179usize];
+const FN_259_CALLEES: &[usize] = &[0usize, 8usize, 5usize, 7usize, 144usize, 0usize, 179usize, 3usize];
+const FN_260_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_261_CALLEES: &[usize] = &[0usize, 111usize, 8usize, 3usize, 16usize, 4usize, 2usize, 149usize];
 const FN_262_GLOBALS: &[usize] = &[27usize, 28usize];
-const FN_262_CALLEES: &[u32] = &[0u32, 10u32, 12u32];
+const FN_262_CALLEES: &[usize] = &[0usize, 10usize, 12usize];
 const FN_263_GLOBALS: &[usize] = &[25usize];
-const FN_263_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 0u32, 59u32, 143u32, 3u32, 13u32, 145u32];
-const FN_264_CALLEES: &[u32] = &[0u32, 2u32, 8u32, 9u32, 8u32, 144u32];
-const FN_265_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 72u32, 144u32, 11u32, 11u32, 3u32, 149u32, 7u32, 1u32, 168u32, 3u32, 13u32, 9u32, 9u32, 7u32, 6u32, 137u32, 4u32, 5u32, 107u32, 145u32];
-const FN_266_CALLEES: &[u32] = &[0u32, 8u32, 6u32, 144u32, 110u32, 0u32, 179u32, 3u32, 7u32, 3u32, 145u32, 16u32, 2u32, 149u32];
+const FN_263_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 0usize, 59usize, 143usize, 3usize, 13usize, 145usize];
+const FN_264_CALLEES: &[usize] = &[0usize, 2usize, 8usize, 9usize, 8usize, 144usize];
+const FN_265_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 72usize, 144usize, 11usize, 11usize, 3usize, 149usize, 7usize, 1usize, 168usize, 3usize, 13usize, 9usize, 9usize, 7usize, 6usize, 137usize, 4usize, 5usize, 107usize, 145usize];
+const FN_266_CALLEES: &[usize] = &[0usize, 8usize, 6usize, 144usize, 110usize, 0usize, 179usize, 3usize, 7usize, 3usize, 145usize, 16usize, 2usize, 149usize];
 const FN_267_GLOBALS: &[usize] = &[25usize];
-const FN_267_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 0u32, 59u32, 159u32, 143u32, 3u32, 13u32, 4u32];
+const FN_267_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 0usize, 59usize, 159usize, 143usize, 3usize, 13usize, 4usize];
 const FN_268_GLOBALS: &[usize] = &[24usize, 30usize];
-const FN_268_CALLEES: &[u32] = &[0u32, 8u32, 4u32, 59u32, 159u32, 54u32, 72u32, 10u32];
+const FN_268_CALLEES: &[usize] = &[0usize, 8usize, 4usize, 59usize, 159usize, 54usize, 72usize, 10usize];
 const FN_269_GLOBALS: &[usize] = &[25usize];
-const FN_269_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 0u32, 59u32, 159u32, 143u32, 3u32, 13u32, 4u32];
-const FN_270_CALLEES: &[u32] = &[0u32, 8u32, 6u32, 144u32, 0u32, 179u32, 3u32, 110u32, 72u32, 113u32, 145u32];
-const FN_271_CALLEES: &[u32] = &[0u32, 8u32, 3u32, 16u32, 4u32, 144u32, 179u32, 2u32, 149u32];
-const FN_272_CALLEES: &[u32] = &[0u32, 144u32, 0u32, 179u32, 3u32, 8u32, 6u32];
-const FN_273_CALLEES: &[u32] = &[0u32, 0u32, 8u32, 7u32, 23u32, 144u32, 4u32, 110u32];
-const FN_274_CALLEES: &[u32] = &[0u32, 0u32, 8u32, 7u32, 23u32, 144u32, 3u32, 16u32, 4u32, 2u32, 149u32, 9u32, 1u32];
-const FN_275_CALLEES: &[u32] = &[0u32, 2u32, 2u32, 144u32, 90u32, 75u32, 145u32, 110u32, 92u32, 112u32, 0u32];
-const FN_276_CALLEES: &[u32] = &[0u32, 144u32, 113u32, 145u32, 8u32, 4u32, 0u32, 179u32, 5u32, 110u32, 72u32];
-const FN_277_CALLEES: &[u32] = &[0u32, 16u32, 144u32, 2u32, 71u32, 179u32, 149u32, 113u32, 145u32, 8u32, 4u32, 0u32, 3u32, 5u32, 110u32];
+const FN_269_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 0usize, 59usize, 159usize, 143usize, 3usize, 13usize, 4usize];
+const FN_270_CALLEES: &[usize] = &[0usize, 8usize, 6usize, 144usize, 0usize, 179usize, 3usize, 110usize, 72usize, 113usize, 145usize];
+const FN_271_CALLEES: &[usize] = &[0usize, 8usize, 3usize, 16usize, 4usize, 144usize, 179usize, 2usize, 149usize];
+const FN_272_CALLEES: &[usize] = &[0usize, 144usize, 0usize, 179usize, 3usize, 8usize, 6usize];
+const FN_273_CALLEES: &[usize] = &[0usize, 0usize, 8usize, 7usize, 23usize, 144usize, 4usize, 110usize];
+const FN_274_CALLEES: &[usize] = &[0usize, 0usize, 8usize, 7usize, 23usize, 144usize, 3usize, 16usize, 4usize, 2usize, 149usize, 9usize, 1usize];
+const FN_275_CALLEES: &[usize] = &[0usize, 2usize, 2usize, 144usize, 90usize, 75usize, 145usize, 110usize, 92usize, 112usize, 0usize];
+const FN_276_CALLEES: &[usize] = &[0usize, 144usize, 113usize, 145usize, 8usize, 4usize, 0usize, 179usize, 5usize, 110usize, 72usize];
+const FN_277_CALLEES: &[usize] = &[0usize, 16usize, 144usize, 2usize, 71usize, 179usize, 149usize, 113usize, 145usize, 8usize, 4usize, 0usize, 3usize, 5usize, 110usize];
 const FN_278_GLOBALS: &[usize] = &[24usize, 25usize];
-const FN_278_CALLEES: &[u32] = &[0u32, 139u32, 145u32, 144u32, 8u32, 6u32, 3u32, 16u32, 7u32, 0u32, 59u32, 143u32, 2u32, 138u32, 72u32, 111u32, 114u32, 168u32, 117u32, 4u32, 159u32, 104u32, 116u32, 149u32];
-const FN_279_CALLEES: &[u32] = &[0u32, 114u32, 167u32, 144u32, 2u32];
-const FN_280_CALLEES: &[u32] = &[0u32, 8u32, 4u32, 144u32, 3u32, 16u32, 2u32, 4u32, 149u32, 113u32, 145u32, 7u32, 0u32, 179u32, 9u32, 110u32, 72u32];
-const FN_281_CALLEES: &[u32] = &[0u32, 16u32, 144u32, 2u32, 1u32, 4u32, 149u32, 113u32, 145u32, 8u32, 7u32, 0u32, 179u32, 9u32, 110u32, 3u32, 6u32, 72u32, 13u32];
-const FN_282_CALLEES: &[u32] = &[0u32, 144u32, 71u32, 0u32, 145u32, 8u32, 13u32];
-const FN_283_CALLEES: &[u32] = &[0u32, 0u32, 145u32, 144u32, 8u32, 13u32];
-const FN_284_CALLEES: &[u32] = &[0u32, 144u32, 0u32, 145u32, 8u32, 16u32, 71u32, 2u32, 149u32];
-const FN_285_CALLEES: &[u32] = &[0u32, 113u32, 114u32, 168u32, 144u32, 8u32, 4u32, 0u32, 179u32, 71u32, 0u32, 0u32, 145u32, 13u32];
-const FN_286_CALLEES: &[u32] = &[0u32, 179u32, 144u32, 72u32, 16u32, 2u32, 9u32, 7u32, 24u32, 3u32, 71u32, 0u32, 145u32, 140u32, 3u32, 117u32, 113u32, 115u32, 168u32, 8u32, 4u32, 0u32, 116u32];
-const FN_287_CALLEES: &[u32] = &[0u32, 16u32, 72u32, 2u32, 9u32, 7u32, 24u32, 144u32, 3u32, 71u32, 0u32, 145u32, 140u32, 3u32, 117u32, 113u32, 115u32, 168u32, 8u32, 4u32, 0u32, 116u32, 179u32, 149u32];
+const FN_278_CALLEES: &[usize] = &[0usize, 139usize, 145usize, 144usize, 8usize, 6usize, 3usize, 16usize, 7usize, 0usize, 59usize, 143usize, 2usize, 138usize, 72usize, 111usize, 114usize, 168usize, 117usize, 4usize, 159usize, 104usize, 116usize, 149usize];
+const FN_279_CALLEES: &[usize] = &[0usize, 114usize, 167usize, 144usize, 2usize];
+const FN_280_CALLEES: &[usize] = &[0usize, 8usize, 4usize, 144usize, 3usize, 16usize, 2usize, 4usize, 149usize, 113usize, 145usize, 7usize, 0usize, 179usize, 9usize, 110usize, 72usize];
+const FN_281_CALLEES: &[usize] = &[0usize, 16usize, 144usize, 2usize, 1usize, 4usize, 149usize, 113usize, 145usize, 8usize, 7usize, 0usize, 179usize, 9usize, 110usize, 3usize, 6usize, 72usize, 13usize];
+const FN_282_CALLEES: &[usize] = &[0usize, 144usize, 71usize, 0usize, 145usize, 8usize, 13usize];
+const FN_283_CALLEES: &[usize] = &[0usize, 0usize, 145usize, 144usize, 8usize, 13usize];
+const FN_284_CALLEES: &[usize] = &[0usize, 144usize, 0usize, 145usize, 8usize, 16usize, 71usize, 2usize, 149usize];
+const FN_285_CALLEES: &[usize] = &[0usize, 113usize, 114usize, 168usize, 144usize, 8usize, 4usize, 0usize, 179usize, 71usize, 0usize, 0usize, 145usize, 13usize];
+const FN_286_CALLEES: &[usize] = &[0usize, 179usize, 144usize, 72usize, 16usize, 2usize, 9usize, 7usize, 24usize, 3usize, 71usize, 0usize, 145usize, 140usize, 3usize, 117usize, 113usize, 115usize, 168usize, 8usize, 4usize, 0usize, 116usize];
+const FN_287_CALLEES: &[usize] = &[0usize, 16usize, 72usize, 2usize, 9usize, 7usize, 24usize, 144usize, 3usize, 71usize, 0usize, 145usize, 140usize, 3usize, 117usize, 113usize, 115usize, 168usize, 8usize, 4usize, 0usize, 116usize, 179usize, 149usize];
 const FN_288_GLOBALS: &[usize] = &[25usize];
-const FN_288_CALLEES: &[u32] = &[0u32, 8u32, 4u32, 0u32, 59u32, 143u32, 118u32];
+const FN_288_CALLEES: &[usize] = &[0usize, 8usize, 4usize, 0usize, 59usize, 143usize, 118usize];
 const FN_289_GLOBALS: &[usize] = &[25usize];
-const FN_289_CALLEES: &[u32] = &[0u32, 114u32, 8u32, 4u32, 0u32, 59u32, 143u32];
+const FN_289_CALLEES: &[usize] = &[0usize, 114usize, 8usize, 4usize, 0usize, 59usize, 143usize];
 const FN_290_GLOBALS: &[usize] = &[24usize];
-const FN_290_CALLEES: &[u32] = &[0u32, 59u32, 159u32, 146u32, 172u32];
-const FN_291_CALLEES: &[u32] = &[0u32, 144u32, 3u32, 145u32, 117u32, 72u32, 113u32, 114u32, 168u32, 140u32, 2u32, 121u32];
-const FN_292_CALLEES: &[u32] = &[0u32, 72u32, 111u32, 144u32, 112u32, 3u32, 145u32, 117u32, 113u32, 135u32, 168u32, 141u32, 62u32, 110u32, 136u32, 2u32, 121u32, 120u32, 122u32, 8u32, 4u32, 0u32, 179u32];
-const FN_293_CALLEES: &[u32] = &[0u32, 144u32, 6u32];
+const FN_290_CALLEES: &[usize] = &[0usize, 59usize, 159usize, 146usize, 172usize];
+const FN_291_CALLEES: &[usize] = &[0usize, 144usize, 3usize, 145usize, 117usize, 72usize, 113usize, 114usize, 168usize, 140usize, 2usize, 121usize];
+const FN_292_CALLEES: &[usize] = &[0usize, 72usize, 111usize, 144usize, 112usize, 3usize, 145usize, 117usize, 113usize, 135usize, 168usize, 141usize, 62usize, 110usize, 136usize, 2usize, 121usize, 120usize, 122usize, 8usize, 4usize, 0usize, 179usize];
+const FN_293_CALLEES: &[usize] = &[0usize, 144usize, 6usize];
 const FN_294_GLOBALS: &[usize] = &[25usize];
-const FN_294_CALLEES: &[u32] = &[0u32, 4u32, 8u32, 7u32, 0u32, 59u32, 143u32, 9u32, 9u32, 8u32, 144u32];
+const FN_294_CALLEES: &[usize] = &[0usize, 4usize, 8usize, 7usize, 0usize, 59usize, 143usize, 9usize, 9usize, 8usize, 144usize];
 const FN_295_GLOBALS: &[usize] = &[25usize, 24usize, 31usize, 27usize];
-const FN_295_CALLEES: &[u32] = &[0u32, 8u32, 16u32, 7u32, 0u32, 59u32, 143u32, 2u32, 3u32, 159u32, 105u32, 145u32, 72u32, 111u32, 144u32, 110u32, 119u32, 142u32, 168u32, 112u32, 14u32, 4u32, 13u32, 9u32, 54u32, 106u32, 113u32, 114u32, 167u32, 4u32, 2u32, 10u32, 13u32, 149u32];
-const FN_296_CALLEES: &[u32] = &[0u32, 135u32, 145u32, 144u32, 0u32];
-const FN_297_CALLEES: &[u32] = &[0u32, 72u32, 144u32, 13u32, 11u32, 0u32, 145u32, 113u32, 115u32, 168u32, 115u32, 3u32, 8u32, 13u32, 0u32, 179u32, 11u32, 143u32];
-const FN_298_CALLEES: &[u32] = &[0u32, 144u32, 0u32, 145u32, 3u32, 123u32];
-const FN_299_CALLEES: &[u32] = &[0u32, 144u32, 71u32, 0u32];
-const FN_300_CALLEES: &[u32] = &[0u32, 8u32, 9u32, 16u32, 4u32, 7u32, 9u32, 24u32, 144u32, 13u32, 9u32, 145u32, 151u32, 13u32, 1u32, 3u32, 149u32];
-const FN_301_CALLEES: &[u32] = &[0u32, 144u32, 0u32, 145u32, 16u32, 72u32, 9u32, 7u32, 24u32, 140u32, 3u32, 2u32, 71u32, 8u32, 4u32, 23u32, 113u32, 114u32, 168u32, 167u32, 5u32, 0u32, 179u32, 149u32];
-const FN_302_CALLEES: &[u32] = &[0u32, 8u32, 4u32, 144u32, 118u32, 145u32, 16u32, 17u32, 2u32, 0u32, 9u32, 7u32, 24u32, 140u32, 3u32, 72u32, 13u32, 149u32, 1u32, 121u32, 122u32, 123u32, 129u32, 168u32, 111u32, 4u32, 9u32, 23u32];
-const FN_303_CALLEES: &[u32] = &[0u32, 7u32, 8u32, 7u32, 13u32, 3u32, 23u32, 144u32, 5u32, 3u32, 149u32];
-const FN_304_CALLEES: &[u32] = &[0u32, 8u32, 16u32, 7u32, 1u32, 168u32, 3u32, 13u32, 9u32, 7u32, 144u32, 2u32, 149u32];
-const FN_305_CALLEES: &[u32] = &[0u32, 8u32, 2u32, 3u32, 6u32, 144u32, 0u32, 179u32, 7u32, 16u32, 145u32, 3u32, 7u32, 72u32, 11u32, 3u32, 149u32, 2u32, 4u32];
-const FN_306_CALLEES: &[u32] = &[0u32, 16u32, 144u32, 2u32, 163u32, 168u32, 8u32, 7u32, 13u32, 23u32, 11u32, 71u32, 109u32, 101u32, 4u32, 3u32, 149u32];
-const FN_307_CALLEES: &[u32] = &[0u32, 8u32, 16u32, 109u32, 144u32, 101u32, 116u32, 145u32, 13u32, 7u32, 23u32, 2u32, 149u32, 3u32, 9u32, 24u32, 140u32, 3u32];
-const FN_308_CALLEES: &[u32] = &[0u32, 8u32, 6u32, 144u32, 0u32, 179u32, 3u32, 72u32];
-const FN_309_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 144u32, 0u32, 179u32, 3u32, 16u32];
+const FN_295_CALLEES: &[usize] = &[0usize, 8usize, 16usize, 7usize, 0usize, 59usize, 143usize, 2usize, 3usize, 159usize, 105usize, 145usize, 72usize, 111usize, 144usize, 110usize, 119usize, 142usize, 168usize, 112usize, 14usize, 4usize, 13usize, 9usize, 54usize, 106usize, 113usize, 114usize, 167usize, 4usize, 2usize, 10usize, 13usize, 149usize];
+const FN_296_CALLEES: &[usize] = &[0usize, 135usize, 145usize, 144usize, 0usize];
+const FN_297_CALLEES: &[usize] = &[0usize, 72usize, 144usize, 13usize, 11usize, 0usize, 145usize, 113usize, 115usize, 168usize, 115usize, 3usize, 8usize, 13usize, 0usize, 179usize, 11usize, 143usize];
+const FN_298_CALLEES: &[usize] = &[0usize, 144usize, 0usize, 145usize, 3usize, 123usize];
+const FN_299_CALLEES: &[usize] = &[0usize, 144usize, 71usize, 0usize];
+const FN_300_CALLEES: &[usize] = &[0usize, 8usize, 9usize, 16usize, 4usize, 7usize, 9usize, 24usize, 144usize, 13usize, 9usize, 145usize, 151usize, 13usize, 1usize, 3usize, 149usize];
+const FN_301_CALLEES: &[usize] = &[0usize, 144usize, 0usize, 145usize, 16usize, 72usize, 9usize, 7usize, 24usize, 140usize, 3usize, 2usize, 71usize, 8usize, 4usize, 23usize, 113usize, 114usize, 168usize, 167usize, 5usize, 0usize, 179usize, 149usize];
+const FN_302_CALLEES: &[usize] = &[0usize, 8usize, 4usize, 144usize, 118usize, 145usize, 16usize, 17usize, 2usize, 0usize, 9usize, 7usize, 24usize, 140usize, 3usize, 72usize, 13usize, 149usize, 1usize, 121usize, 122usize, 123usize, 129usize, 168usize, 111usize, 4usize, 9usize, 23usize];
+const FN_303_CALLEES: &[usize] = &[0usize, 7usize, 8usize, 7usize, 13usize, 3usize, 23usize, 144usize, 5usize, 3usize, 149usize];
+const FN_304_CALLEES: &[usize] = &[0usize, 8usize, 16usize, 7usize, 1usize, 168usize, 3usize, 13usize, 9usize, 7usize, 144usize, 2usize, 149usize];
+const FN_305_CALLEES: &[usize] = &[0usize, 8usize, 2usize, 3usize, 6usize, 144usize, 0usize, 179usize, 7usize, 16usize, 145usize, 3usize, 7usize, 72usize, 11usize, 3usize, 149usize, 2usize, 4usize];
+const FN_306_CALLEES: &[usize] = &[0usize, 16usize, 144usize, 2usize, 163usize, 168usize, 8usize, 7usize, 13usize, 23usize, 11usize, 71usize, 109usize, 101usize, 4usize, 3usize, 149usize];
+const FN_307_CALLEES: &[usize] = &[0usize, 8usize, 16usize, 109usize, 144usize, 101usize, 116usize, 145usize, 13usize, 7usize, 23usize, 2usize, 149usize, 3usize, 9usize, 24usize, 140usize, 3usize];
+const FN_308_CALLEES: &[usize] = &[0usize, 8usize, 6usize, 144usize, 0usize, 179usize, 3usize, 72usize];
+const FN_309_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 144usize, 0usize, 179usize, 3usize, 16usize];
 const FN_310_GLOBALS: &[usize] = &[24usize, 25usize];
-const FN_310_CALLEES: &[u32] = &[0u32, 8u32, 3u32, 59u32, 159u32, 7u32, 13u32, 0u32, 143u32, 9u32, 179u32];
+const FN_310_CALLEES: &[usize] = &[0usize, 8usize, 3usize, 59usize, 159usize, 7usize, 13usize, 0usize, 143usize, 9usize, 179usize];
 const FN_311_GLOBALS: &[usize] = &[25usize];
-const FN_311_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 13u32, 0u32, 59u32, 143u32, 3u32, 144u32, 0u32, 9u32, 4u32, 16u32];
+const FN_311_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 13usize, 0usize, 59usize, 143usize, 3usize, 144usize, 0usize, 9usize, 4usize, 16usize];
 const FN_312_GLOBALS: &[usize] = &[25usize];
-const FN_312_CALLEES: &[u32] = &[0u32, 16u32, 7u32, 0u32, 59u32, 143u32, 3u32, 13u32, 2u32, 144u32, 0u32, 159u32, 16u32, 2u32, 3u32, 4u32, 149u32];
-const FN_313_CALLEES: &[u32] = &[0u32, 2u32, 8u32, 6u32, 144u32, 0u32, 179u32, 3u32, 7u32, 17u32, 145u32, 3u32, 4u32];
+const FN_312_CALLEES: &[usize] = &[0usize, 16usize, 7usize, 0usize, 59usize, 143usize, 3usize, 13usize, 2usize, 144usize, 0usize, 159usize, 16usize, 2usize, 3usize, 4usize, 149usize];
+const FN_313_CALLEES: &[usize] = &[0usize, 2usize, 8usize, 6usize, 144usize, 0usize, 179usize, 3usize, 7usize, 17usize, 145usize, 3usize, 4usize];
 const FN_314_GLOBALS: &[usize] = &[25usize];
-const FN_314_CALLEES: &[u32] = &[0u32, 2u32, 7u32, 0u32, 59u32, 143u32, 3u32, 13u32, 144u32, 0u32, 17u32, 3u32, 5u32, 4u32, 6u32, 159u32];
+const FN_314_CALLEES: &[usize] = &[0usize, 2usize, 7usize, 0usize, 59usize, 143usize, 3usize, 13usize, 144usize, 0usize, 17usize, 3usize, 5usize, 4usize, 6usize, 159usize];
 const FN_315_GLOBALS: &[usize] = &[25usize, 24usize];
-const FN_315_CALLEES: &[u32] = &[0u32, 16u32, 7u32, 0u32, 59u32, 143u32, 3u32, 13u32, 2u32, 144u32, 0u32, 159u32, 108u32, 16u32, 2u32, 54u32, 109u32, 149u32];
-const FN_316_CALLEES: &[u32] = &[0u32, 8u32, 4u32, 144u32, 0u32, 179u32, 17u32, 3u32, 6u32, 4u32, 7u32, 2u32, 3u32, 0u32, 16u32, 9u32, 8u32, 4u32, 149u32];
-const FN_317_CALLEES: &[u32] = &[0u32, 8u32, 2u32, 6u32, 144u32, 0u32, 179u32, 0u32, 9u32, 8u32, 3u32, 7u32, 15u32, 145u32, 125u32, 16u32, 2u32, 4u32, 16u32, 9u32, 4u32, 2u32, 3u32, 149u32];
-const FN_318_CALLEES: &[u32] = &[0u32, 16u32, 8u32, 7u32, 2u32, 6u32, 1u32, 145u32, 144u32, 2u32, 149u32, 4u32];
-const FN_319_CALLEES: &[u32] = &[0u32, 114u32, 8u32, 4u32, 144u32, 0u32, 179u32, 1u32, 145u32, 150u32, 2u32, 7u32, 3u32, 15u32, 6u32, 0u32, 9u32, 8u32, 9u32, 127u32, 18u32, 4u32, 111u32, 112u32, 3u32, 2u32];
-const FN_320_CALLEES: &[u32] = &[0u32, 8u32, 4u32, 144u32, 0u32, 179u32, 16u32, 2u32, 9u32, 8u32, 4u32, 149u32, 13u32];
-const FN_321_CALLEES: &[u32] = &[0u32, 8u32, 3u32, 16u32, 144u32, 2u32, 3u32, 4u32, 149u32];
-const FN_322_CALLEES: &[u32] = &[0u32, 8u32, 9u32, 16u32, 4u32, 7u32, 9u32, 24u32, 144u32, 13u32, 9u32, 163u32, 168u32, 13u32, 145u32, 1u32, 3u32, 149u32];
-const FN_323_CALLEES: &[u32] = &[0u32, 16u32, 8u32, 13u32, 7u32, 2u32, 6u32, 144u32, 0u32, 179u32, 0u32, 9u32, 8u32, 15u32, 125u32, 137u32, 145u32, 9u32, 24u32, 110u32, 3u32, 2u32, 4u32, 149u32];
-const FN_324_CALLEES: &[u32] = &[0u32, 125u32, 124u32, 145u32, 144u32, 8u32, 4u32, 16u32, 1u32, 71u32, 0u32, 72u32, 113u32, 114u32, 168u32, 167u32, 5u32, 0u32, 179u32, 5u32, 0u32, 130u32, 131u32, 2u32, 149u32, 130u32, 13u32, 139u32, 4u32, 125u32];
-const FN_325_CALLEES: &[u32] = &[0u32, 144u32, 3u32, 145u32, 71u32, 0u32, 72u32, 113u32, 115u32, 168u32, 15u32, 8u32, 4u32];
-const FN_326_CALLEES: &[u32] = &[0u32, 144u32, 140u32, 7u32, 11u32, 26u32, 11u32, 183u32, 3u32, 25u32, 149u32, 8u32, 13u32, 9u32, 1u32];
-const FN_327_CALLEES: &[u32] = &[0u32, 72u32, 144u32, 10u32, 7u32, 3u32, 131u32, 5u32, 149u32, 36u32];
-const FN_328_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_329_CALLEES: &[u32] = &[0u32, 128u32, 145u32, 144u32, 16u32, 1u32, 131u32, 138u32, 139u32, 2u32, 130u32, 9u32, 7u32, 24u32, 3u32, 126u32, 7u32, 71u32, 126u32, 125u32, 5u32, 168u32, 167u32, 0u32, 7u32, 5u32, 132u32, 149u32, 8u32, 4u32, 137u32, 25u32, 17u32, 23u32, 127u32, 26u32, 2u32, 0u32, 4u32, 14u32, 0u32, 5u32, 151u32, 133u32, 27u32, 13u32, 111u32, 125u32, 134u32, 1u32, 137u32, 132u32, 4u32];
+const FN_315_CALLEES: &[usize] = &[0usize, 16usize, 7usize, 0usize, 59usize, 143usize, 3usize, 13usize, 2usize, 144usize, 0usize, 159usize, 108usize, 16usize, 2usize, 54usize, 109usize, 149usize];
+const FN_316_CALLEES: &[usize] = &[0usize, 8usize, 4usize, 144usize, 0usize, 179usize, 17usize, 3usize, 6usize, 4usize, 7usize, 2usize, 3usize, 0usize, 16usize, 9usize, 8usize, 4usize, 149usize];
+const FN_317_CALLEES: &[usize] = &[0usize, 8usize, 2usize, 6usize, 144usize, 0usize, 179usize, 0usize, 9usize, 8usize, 3usize, 7usize, 15usize, 145usize, 125usize, 16usize, 2usize, 4usize, 16usize, 9usize, 4usize, 2usize, 3usize, 149usize];
+const FN_318_CALLEES: &[usize] = &[0usize, 16usize, 8usize, 7usize, 2usize, 6usize, 1usize, 145usize, 144usize, 2usize, 149usize, 4usize];
+const FN_319_CALLEES: &[usize] = &[0usize, 114usize, 8usize, 4usize, 144usize, 0usize, 179usize, 1usize, 145usize, 150usize, 2usize, 7usize, 3usize, 15usize, 6usize, 0usize, 9usize, 8usize, 9usize, 127usize, 18usize, 4usize, 111usize, 112usize, 3usize, 2usize];
+const FN_320_CALLEES: &[usize] = &[0usize, 8usize, 4usize, 144usize, 0usize, 179usize, 16usize, 2usize, 9usize, 8usize, 4usize, 149usize, 13usize];
+const FN_321_CALLEES: &[usize] = &[0usize, 8usize, 3usize, 16usize, 144usize, 2usize, 3usize, 4usize, 149usize];
+const FN_322_CALLEES: &[usize] = &[0usize, 8usize, 9usize, 16usize, 4usize, 7usize, 9usize, 24usize, 144usize, 13usize, 9usize, 163usize, 168usize, 13usize, 145usize, 1usize, 3usize, 149usize];
+const FN_323_CALLEES: &[usize] = &[0usize, 16usize, 8usize, 13usize, 7usize, 2usize, 6usize, 144usize, 0usize, 179usize, 0usize, 9usize, 8usize, 15usize, 125usize, 137usize, 145usize, 9usize, 24usize, 110usize, 3usize, 2usize, 4usize, 149usize];
+const FN_324_CALLEES: &[usize] = &[0usize, 125usize, 124usize, 145usize, 144usize, 8usize, 4usize, 16usize, 1usize, 71usize, 0usize, 72usize, 113usize, 114usize, 168usize, 167usize, 5usize, 0usize, 179usize, 5usize, 0usize, 130usize, 131usize, 2usize, 149usize, 130usize, 13usize, 139usize, 4usize, 125usize];
+const FN_325_CALLEES: &[usize] = &[0usize, 144usize, 3usize, 145usize, 71usize, 0usize, 72usize, 113usize, 115usize, 168usize, 15usize, 8usize, 4usize];
+const FN_326_CALLEES: &[usize] = &[0usize, 144usize, 140usize, 7usize, 11usize, 26usize, 11usize, 183usize, 3usize, 25usize, 149usize, 8usize, 13usize, 9usize, 1usize];
+const FN_327_CALLEES: &[usize] = &[0usize, 72usize, 144usize, 10usize, 7usize, 3usize, 131usize, 5usize, 149usize, 36usize];
+const FN_328_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_329_CALLEES: &[usize] = &[0usize, 128usize, 145usize, 144usize, 16usize, 1usize, 131usize, 138usize, 139usize, 2usize, 130usize, 9usize, 7usize, 24usize, 3usize, 126usize, 7usize, 71usize, 126usize, 125usize, 5usize, 168usize, 167usize, 0usize, 7usize, 5usize, 132usize, 149usize, 8usize, 4usize, 137usize, 25usize, 17usize, 23usize, 127usize, 26usize, 2usize, 0usize, 4usize, 14usize, 0usize, 5usize, 151usize, 133usize, 27usize, 13usize, 111usize, 125usize, 134usize, 1usize, 137usize, 132usize, 4usize];
 const FN_330_GLOBALS: &[usize] = &[24usize];
-const FN_330_CALLEES: &[u32] = &[0u32, 16u32, 144u32, 2u32, 59u32, 159u32, 107u32, 9u32, 7u32, 24u32, 143u32, 3u32, 145u32, 149u32, 8u32, 3u32, 72u32, 113u32, 71u32, 0u32, 4u32, 115u32, 168u32, 167u32, 120u32, 122u32, 0u32, 179u32, 4u32, 114u32, 110u32];
-const FN_331_CALLEES: &[u32] = &[0u32, 16u32, 144u32, 2u32, 109u32, 4u32, 179u32, 149u32];
-const FN_332_CALLEES: &[u32] = &[0u32, 136u32, 145u32, 120u32, 64u32, 11u32];
+const FN_330_CALLEES: &[usize] = &[0usize, 16usize, 144usize, 2usize, 59usize, 159usize, 107usize, 9usize, 7usize, 24usize, 143usize, 3usize, 145usize, 149usize, 8usize, 3usize, 72usize, 113usize, 71usize, 0usize, 4usize, 115usize, 168usize, 167usize, 120usize, 122usize, 0usize, 179usize, 4usize, 114usize, 110usize];
+const FN_331_CALLEES: &[usize] = &[0usize, 16usize, 144usize, 2usize, 109usize, 4usize, 179usize, 149usize];
+const FN_332_CALLEES: &[usize] = &[0usize, 136usize, 145usize, 120usize, 64usize, 11usize];
 const FN_333_GLOBALS: &[usize] = &[32usize, 25usize];
-const FN_333_CALLEES: &[u32] = &[0u32, 0u32, 2u32, 8u32, 6u32, 144u32, 111u32, 0u32, 4u32, 145u32, 3u32, 179u32, 11u32, 143u32, 5u32, 114u32, 4u32, 72u32, 13u32, 16u32, 2u32, 9u32, 8u32, 4u32, 149u32, 12u32, 119u32, 7u32, 23u32, 11u32, 118u32, 120u32, 119u32, 142u32, 168u32, 118u32, 111u32, 10u32, 124u32, 2u32, 59u32, 8u32, 128u32, 11u32, 9u32, 133u32, 9u32];
+const FN_333_CALLEES: &[usize] = &[0usize, 0usize, 2usize, 8usize, 6usize, 144usize, 111usize, 0usize, 4usize, 145usize, 3usize, 179usize, 11usize, 143usize, 5usize, 114usize, 4usize, 72usize, 13usize, 16usize, 2usize, 9usize, 8usize, 4usize, 149usize, 12usize, 119usize, 7usize, 23usize, 11usize, 118usize, 120usize, 119usize, 142usize, 168usize, 118usize, 111usize, 10usize, 124usize, 2usize, 59usize, 8usize, 128usize, 11usize, 9usize, 133usize, 9usize];
 const FN_334_GLOBALS: &[usize] = &[25usize, 24usize, 31usize, 27usize];
-const FN_334_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 0u32, 59u32, 143u32, 3u32, 159u32, 105u32, 145u32, 54u32, 106u32, 72u32, 113u32, 10u32, 13u32];
-const FN_335_CALLEES: &[u32] = &[0u32, 144u32, 119u32, 168u32, 5u32];
+const FN_334_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 0usize, 59usize, 143usize, 3usize, 159usize, 105usize, 145usize, 54usize, 106usize, 72usize, 113usize, 10usize, 13usize];
+const FN_335_CALLEES: &[usize] = &[0usize, 144usize, 119usize, 168usize, 5usize];
 const FN_336_GLOBALS: &[usize] = &[24usize, 29usize, 26usize];
-const FN_336_CALLEES: &[u32] = &[0u32, 8u32, 2u32, 8u32, 59u32, 159u32, 4u32, 54u32, 3u32, 72u32, 12u32, 10u32, 1u32, 29u32, 5u32];
-const FN_337_CALLEES: &[u32] = &[0u32, 144u32, 1u32, 10u32];
-const FN_338_CALLEES: &[u32] = &[0u32, 144u32, 16u32, 7u32, 2u32, 3u32, 149u32];
-const FN_339_CALLEES: &[u32] = &[0u32, 3u32, 8u32, 7u32, 23u32, 144u32, 111u32];
-const FN_340_CALLEES: &[u32] = &[0u32, 3u32, 8u32, 7u32, 23u32, 144u32, 111u32, 3u32, 16u32, 4u32, 2u32, 149u32, 9u32, 1u32];
+const FN_336_CALLEES: &[usize] = &[0usize, 8usize, 2usize, 8usize, 59usize, 159usize, 4usize, 54usize, 3usize, 72usize, 12usize, 10usize, 1usize, 29usize, 5usize];
+const FN_337_CALLEES: &[usize] = &[0usize, 144usize, 1usize, 10usize];
+const FN_338_CALLEES: &[usize] = &[0usize, 144usize, 16usize, 7usize, 2usize, 3usize, 149usize];
+const FN_339_CALLEES: &[usize] = &[0usize, 3usize, 8usize, 7usize, 23usize, 144usize, 111usize];
+const FN_340_CALLEES: &[usize] = &[0usize, 3usize, 8usize, 7usize, 23usize, 144usize, 111usize, 3usize, 16usize, 4usize, 2usize, 149usize, 9usize, 1usize];
 const FN_341_GLOBALS: &[usize] = &[25usize];
-const FN_341_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 0u32, 59u32, 143u32, 9u32];
-const FN_342_CALLEES: &[u32] = &[0u32, 145u32, 137u32];
-const FN_343_CALLEES: &[u32] = &[0u32, 8u32, 16u32, 1u32, 131u32, 2u32, 149u32, 7u32, 23u32, 144u32, 17u32, 5u32, 145u32, 137u32, 138u32, 132u32, 130u32, 0u32, 3u32];
-const FN_344_CALLEES: &[u32] = &[0u32, 8u32, 16u32, 4u32, 1u32, 131u32, 139u32, 130u32, 145u32, 2u32, 149u32, 144u32];
-const FN_345_CALLEES: &[u32] = &[0u32, 130u32, 16u32, 145u32, 130u32, 129u32, 4u32, 149u32];
+const FN_341_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 0usize, 59usize, 143usize, 9usize];
+const FN_342_CALLEES: &[usize] = &[0usize, 145usize, 137usize];
+const FN_343_CALLEES: &[usize] = &[0usize, 8usize, 16usize, 1usize, 131usize, 2usize, 149usize, 7usize, 23usize, 144usize, 17usize, 5usize, 145usize, 137usize, 138usize, 132usize, 130usize, 0usize, 3usize];
+const FN_344_CALLEES: &[usize] = &[0usize, 8usize, 16usize, 4usize, 1usize, 131usize, 139usize, 130usize, 145usize, 2usize, 149usize, 144usize];
+const FN_345_CALLEES: &[usize] = &[0usize, 130usize, 16usize, 145usize, 130usize, 129usize, 4usize, 149usize];
 const FN_346_GLOBALS: &[usize] = &[24usize];
-const FN_346_CALLEES: &[u32] = &[0u32, 59u32, 159u32, 54u32, 72u32, 113u32];
+const FN_346_CALLEES: &[usize] = &[0usize, 59usize, 159usize, 54usize, 72usize, 113usize];
 const FN_347_GLOBALS: &[usize] = &[27usize, 28usize];
-const FN_347_CALLEES: &[u32] = &[0u32, 72u32, 10u32, 12u32];
+const FN_347_CALLEES: &[usize] = &[0usize, 72usize, 10usize, 12usize];
 const FN_348_GLOBALS: &[usize] = &[25usize, 24usize];
-const FN_348_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 0u32, 59u32, 143u32, 3u32, 13u32, 2u32, 144u32, 0u32, 159u32, 108u32, 54u32, 109u32];
+const FN_348_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 0usize, 59usize, 143usize, 3usize, 13usize, 2usize, 144usize, 0usize, 159usize, 108usize, 54usize, 109usize];
 const FN_349_GLOBALS: &[usize] = &[25usize];
-const FN_349_CALLEES: &[u32] = &[0u32, 118u32, 145u32, 144u32, 1u32, 16u32, 71u32, 116u32, 130u32, 131u32, 0u32, 72u32, 113u32, 114u32, 168u32, 167u32, 8u32, 5u32, 0u32, 59u32, 159u32, 1u32, 121u32, 2u32, 149u32, 4u32, 13u32, 122u32, 123u32, 129u32];
+const FN_349_CALLEES: &[usize] = &[0usize, 118usize, 145usize, 144usize, 1usize, 16usize, 71usize, 116usize, 130usize, 131usize, 0usize, 72usize, 113usize, 114usize, 168usize, 167usize, 8usize, 5usize, 0usize, 59usize, 159usize, 1usize, 121usize, 2usize, 149usize, 4usize, 13usize, 122usize, 123usize, 129usize];
 const FN_350_GLOBALS: &[usize] = &[25usize];
-const FN_350_CALLEES: &[u32] = &[0u32, 7u32, 0u32, 59u32, 143u32, 3u32, 13u32, 2u32, 144u32, 0u32];
-const FN_351_CALLEES: &[u32] = &[0u32, 8u32, 7u32, 9u32, 7u32, 144u32, 184u32, 145u32, 9u32];
-const FN_352_CALLEES: &[u32] = &[0u32, 16u32, 144u32, 2u32, 71u32, 179u32, 149u32, 64u32, 74u32, 184u32, 110u32, 8u32, 6u32, 9u32, 7u32, 62u32, 70u32, 145u32];
-const FN_353_CALLEES: &[u32] = &[0u32, 167u32, 144u32, 145u32, 62u32, 110u32];
-const FN_354_CALLEES: &[u32] = &[0u32, 74u32, 144u32, 184u32, 110u32, 8u32, 6u32, 9u32, 7u32, 62u32, 70u32, 145u32];
-const FN_355_CALLEES: &[u32] = &[0u32, 144u32, 101u32, 64u32, 8u32, 3u32, 7u32, 5u32, 149u32, 136u32];
-const FN_356_CALLEES: &[u32] = &[0u32, 8u32, 5u32, 7u32, 1u32, 167u32, 3u32];
-const FN_357_CALLEES: &[u32] = &[0u32, 137u32];
-const FN_358_CALLEES: &[u32] = &[0u32, 138u32, 8u32, 3u32, 16u32, 4u32, 2u32, 149u32];
-const FN_359_CALLEES: &[u32] = &[0u32, 93u32, 108u32, 94u32, 144u32];
-const FN_360_CALLEES: &[u32] = &[144u32];
-const FN_367_CALLEES: &[u32] = &[4u32];
-const FN_406_CALLEES: &[u32] = &[4u32];
-const FN_419_CALLEES: &[u32] = &[151u32, 155u32];
-const FN_424_CALLEES: &[u32] = &[144u32];
-const FN_428_CALLEES: &[u32] = &[144u32];
-const FN_434_CALLEES: &[u32] = &[144u32];
-const FN_436_CALLEES: &[u32] = &[144u32];
-const FN_442_CALLEES: &[u32] = &[144u32];
-const FN_445_CALLEES: &[u32] = &[144u32];
-const FN_453_CALLEES: &[u32] = &[144u32];
-const FN_460_CALLEES: &[u32] = &[144u32];
-const FN_461_CALLEES: &[u32] = &[144u32];
-const FN_464_CALLEES: &[u32] = &[144u32];
-const FN_466_CALLEES: &[u32] = &[144u32];
-const FN_467_CALLEES: &[u32] = &[179u32];
-const FN_468_CALLEES: &[u32] = &[4u32];
-const FN_469_CALLEES: &[u32] = &[178u32];
-const FN_470_CALLEES: &[u32] = &[144u32];
-const FN_472_CALLEES: &[u32] = &[144u32];
-const FN_477_CALLEES: &[u32] = &[144u32];
-const FN_478_CALLEES: &[u32] = &[144u32];
-const FN_480_CALLEES: &[u32] = &[144u32];
-const FN_483_CALLEES: &[u32] = &[144u32];
-const FN_487_CALLEES: &[u32] = &[0u32, 144u32, 143u32];
+const FN_350_CALLEES: &[usize] = &[0usize, 7usize, 0usize, 59usize, 143usize, 3usize, 13usize, 2usize, 144usize, 0usize];
+const FN_351_CALLEES: &[usize] = &[0usize, 8usize, 7usize, 9usize, 7usize, 144usize, 184usize, 145usize, 9usize];
+const FN_352_CALLEES: &[usize] = &[0usize, 16usize, 144usize, 2usize, 71usize, 179usize, 149usize, 64usize, 74usize, 184usize, 110usize, 8usize, 6usize, 9usize, 7usize, 62usize, 70usize, 145usize];
+const FN_353_CALLEES: &[usize] = &[0usize, 167usize, 144usize, 145usize, 62usize, 110usize];
+const FN_354_CALLEES: &[usize] = &[0usize, 74usize, 144usize, 184usize, 110usize, 8usize, 6usize, 9usize, 7usize, 62usize, 70usize, 145usize];
+const FN_355_CALLEES: &[usize] = &[0usize, 144usize, 101usize, 64usize, 8usize, 3usize, 7usize, 5usize, 149usize, 136usize];
+const FN_356_CALLEES: &[usize] = &[0usize, 8usize, 5usize, 7usize, 1usize, 167usize, 3usize];
+const FN_357_CALLEES: &[usize] = &[0usize, 137usize];
+const FN_358_CALLEES: &[usize] = &[0usize, 138usize, 8usize, 3usize, 16usize, 4usize, 2usize, 149usize];
+const FN_359_CALLEES: &[usize] = &[0usize, 93usize, 108usize, 94usize, 144usize];
+const FN_360_CALLEES: &[usize] = &[144usize];
+const FN_367_CALLEES: &[usize] = &[4usize];
+const FN_406_CALLEES: &[usize] = &[4usize];
+const FN_419_CALLEES: &[usize] = &[151usize, 155usize];
+const FN_424_CALLEES: &[usize] = &[144usize];
+const FN_428_CALLEES: &[usize] = &[144usize];
+const FN_434_CALLEES: &[usize] = &[144usize];
+const FN_436_CALLEES: &[usize] = &[144usize];
+const FN_442_CALLEES: &[usize] = &[144usize];
+const FN_445_CALLEES: &[usize] = &[144usize];
+const FN_453_CALLEES: &[usize] = &[144usize];
+const FN_460_CALLEES: &[usize] = &[144usize];
+const FN_461_CALLEES: &[usize] = &[144usize];
+const FN_464_CALLEES: &[usize] = &[144usize];
+const FN_466_CALLEES: &[usize] = &[144usize];
+const FN_467_CALLEES: &[usize] = &[179usize];
+const FN_468_CALLEES: &[usize] = &[4usize];
+const FN_469_CALLEES: &[usize] = &[178usize];
+const FN_470_CALLEES: &[usize] = &[144usize];
+const FN_472_CALLEES: &[usize] = &[144usize];
+const FN_477_CALLEES: &[usize] = &[144usize];
+const FN_478_CALLEES: &[usize] = &[144usize];
+const FN_480_CALLEES: &[usize] = &[144usize];
+const FN_483_CALLEES: &[usize] = &[144usize];
+const FN_487_CALLEES: &[usize] = &[0usize, 144usize, 143usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -63808,6 +63761,10 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (1116720u128, [0xe5, 0xb1, 0x57, 0xbd, 0xd5, 0x5e, 0xcb, 0x0c, 0x4c, 0x28, 0x9e, 0x32, 0x7d, 0x9d, 0x68, 0xed, 0x9b, 0x1d, 0xe5, 0x4e, 0xe1, 0x5a, 0x7a, 0x88, 0xb2, 0xe5, 0xfe, 0x81, 0x88, 0x3f, 0x96, 0xe4]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_92792/2608@l8589993914",
     accounting_version: 2u32,
@@ -63819,6 +63776,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -63997,7 +63955,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 2usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }

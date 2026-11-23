@@ -66,7 +66,7 @@ reason = "Generated WASM-to-Rust substitute function"
 )]
 impl ChunkFns {
     #[inline(never)]
-    pub(crate) fn f_86a5c067518d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_86a5c067518d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i32 = p2;
@@ -420,7 +420,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -729,7 +729,7 @@ impl ChunkFns {
             s_i32_1 = l34;
             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
             s_i32_0 = l36;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_1 = l35;
             ops::i64_store(vm, 0, s_i32_0, 8u32, s_i64_1)?;
             s_i32_0 = l36;
@@ -1070,7 +1070,7 @@ impl ChunkFns {
                     s_i32_0 = l81;
                     s_i32_1 = 0i32;
                     ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l81;
                     s_i32_1 = 0i32;
                     ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
@@ -1409,7 +1409,7 @@ impl ChunkFns {
             s_i32_0 = l120;
             s_i32_1 = 0i32;
             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l120;
             s_i32_1 = 0i32;
             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
@@ -1724,7 +1724,7 @@ impl ChunkFns {
                     s_i32_1 = l150;
                     s_i64_2 = l149;
                     ops::i64_store(vm, 0, s_i32_1, 8u32, s_i64_2)?;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_1 = l150;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 4usize, s_i32_0, s_i32_1, host);
@@ -2035,7 +2035,7 @@ impl ChunkFns {
                                     s_i32_1 = l180;
                                     ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
                                     s_i32_0 = l182;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_1 = l181;
                                     ops::i64_store(vm, 0, s_i32_0, 8u32, s_i64_1)?;
                                     s_i32_0 = l182;
@@ -2368,7 +2368,7 @@ impl ChunkFns {
     l216 = s_i32_0;
     'blk_11: {
         'blk_12: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l134;
             s_i64_1 = l88;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -2701,7 +2701,7 @@ impl ChunkFns {
                     ops::i32_store8(vm, 0, s_i32_0, 3u32, s_i32_1)?;
                     s_i32_0 = l251;
                     s_i32_1 = l229;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     ops::i32_store8(vm, 0, s_i32_0, 4u32, s_i32_1)?;
                     s_i32_0 = l251;
                     s_i32_1 = l230;
@@ -2783,7 +2783,7 @@ impl ChunkFns {
             l134 = s_i64_0;
             'blk_16: {
                 'blk_17: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l134;
                     s_i64_1 = l88;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -3111,7 +3111,7 @@ impl ChunkFns {
                             s_i32_0 = l293;
                             s_i32_1 = l269;
                             ops::i32_store8(vm, 0, s_i32_0, 2u32, s_i32_1)?;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l293;
                             s_i32_1 = l270;
                             ops::i32_store8(vm, 0, s_i32_0, 3u32, s_i32_1)?;
@@ -3358,7 +3358,7 @@ impl ChunkFns {
             break 'blk_12;
         }
     }
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i64_0 = l88;
     s_i64_1 = 1i64;
     s_i64_0 = ops::i64_sub(s_i64_0, s_i64_1);
@@ -3569,8 +3569,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_94015b9fbf5a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_94015b9fbf5a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -3597,7 +3596,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -3617,7 +3616,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l2;
             s_i64_1 = l3;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -3799,7 +3798,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_a9d0464685d5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a9d0464685d5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -3953,7 +3952,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -4331,7 +4330,7 @@ impl ChunkFns {
                             ops::i64_store(vm, 0, s_i32_1, 0u32, s_i64_2)?;
                             s_i32_1 = l46;
                             s_i64_2 = l45;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             ops::i64_store(vm, 0, s_i32_1, 8u32, s_i64_2)?;
                             s_i32_1 = l46;
                             vm.enter_call()?;
@@ -4366,7 +4365,7 @@ impl ChunkFns {
             l48 = s_i64_0;
             'blk_10: {
                 'blk_11: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l34;
                     s_i64_1 = l6;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -4526,7 +4525,7 @@ impl ChunkFns {
                     vm.exit_call();
                     let __t32 = __call_res?;
                     s_i32_0 = __t32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l65 = s_i32_0;
                     s_i32_0 = 8i32;
                     vm.enter_call()?;
@@ -4553,7 +4552,7 @@ impl ChunkFns {
                     s_i32_0 = __t34;
                     l68 = s_i32_0;
                     s_i32_0 = l68;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_1 = l68;
                     s_i32_2 = 16i32;
                     s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
@@ -4915,7 +4914,7 @@ impl ChunkFns {
             let __t48 = __call_res?;
             s_i32_0 = __t48;
             l112 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l112;
             s_i32_1 = l109;
             ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -4967,7 +4966,7 @@ impl ChunkFns {
             s_i32_2 = 16i32;
             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l117;
             s_i32_1 = 0i32;
             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
@@ -5014,7 +5013,7 @@ impl ChunkFns {
         if s_i32_0 != 0 {
             s_i32_0 = l121;
             s_i32_1 = l1;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 14usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
@@ -5030,7 +5029,7 @@ impl ChunkFns {
     vm.exit_call();
     let __t54 = __call_res?;
     s_i32_0 = __t54;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l122 = s_i32_0;
     s_i32_0 = l0;
     l123 = s_i32_0;
@@ -5208,7 +5207,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_de80390622fc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_de80390622fc(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -5281,7 +5280,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -5716,7 +5715,7 @@ impl ChunkFns {
     'blk_12: {
         if s_i32_0 != 0 {
             s_i32_0 = l0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
             s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
             vm.enter_call()?;
@@ -5875,14 +5874,13 @@ impl ChunkFns {
         }
     }
     s_i32_0 = l0;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l64 = s_i32_0;
     s_i32_0 = l64;
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_888748818ce1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_888748818ce1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, p3: i32, p4: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -5917,7 +5915,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i32_4: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -6142,7 +6140,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_b50766a42176(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_b50766a42176(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -6243,7 +6241,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -6281,7 +6279,7 @@ impl ChunkFns {
     l4 = s_i64_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l4;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -6562,7 +6560,7 @@ impl ChunkFns {
             l38 = s_i64_0;
             'blk_6: {
                 'blk_7: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l38;
                     s_i64_1 = 0i64;
                     s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
@@ -6924,7 +6922,7 @@ impl ChunkFns {
                             s_i32_1 = l76;
                             ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                             s_i32_0 = l78;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_1 = l77;
                             ops::i32_store8(vm, 0, s_i32_0, 1u32, s_i32_1)?;
                             s_i32_0 = l78;
@@ -6950,7 +6948,7 @@ impl ChunkFns {
                         }
                     }
                     l82 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l82;
                     s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                     'blk_14: {
@@ -7057,7 +7055,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_5608bc66d021(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_5608bc66d021(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -7116,7 +7114,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -7151,7 +7149,7 @@ impl ChunkFns {
     l6 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l6;
             s_i64_1 = l4;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -7426,7 +7424,7 @@ impl ChunkFns {
                             l35 = s_i64_0;
                             'blk_12: {
                                 'blk_13: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l35;
                                     s_i32_1 = l2;
                                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -7598,7 +7596,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_7598cb15252b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_7598cb15252b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -7792,7 +7790,7 @@ impl ChunkFns {
     let mut s_i32_5: i32 = 0i32;
     let mut s_i64_5: i64 = 0i64;
     let mut s_i32_6: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -8001,7 +7999,7 @@ impl ChunkFns {
     l28 = s_i32_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l28;
             s_i32_1 = l27;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8145,7 +8143,7 @@ impl ChunkFns {
                 l47 = s_i32_0;
                 'blk_7: {
                     'blk_8: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l47;
                         s_i32_1 = l46;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8534,7 +8532,7 @@ impl ChunkFns {
                             s_i32_0 = __t40;
                             l84 = s_i32_0;
                             s_i32_0 = l84;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                             'blk_18: {
                                 if s_i32_0 != 0 {
@@ -8551,7 +8549,7 @@ impl ChunkFns {
                                     l88 = s_i32_0;
                                     'blk_19: {
                                         'blk_20: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l88;
                                             s_i32_1 = l87;
                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8639,7 +8637,7 @@ impl ChunkFns {
                                             l94 = s_i32_0;
                                             'blk_25: {
                                                 'blk_26: loop {
-                                                    vm.deduct(host, 1)?;
+                                                    vm.deduct_1(host)?;
                                                     s_i32_0 = l94;
                                                     s_i32_1 = l93;
                                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8800,7 +8798,7 @@ impl ChunkFns {
             l107 = s_i32_0;
             'blk_30: {
                 'blk_31: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l107;
                     s_i32_1 = l106;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8828,7 +8826,7 @@ impl ChunkFns {
                         l112 = s_i32_0;
                         'blk_33: {
                             'blk_34: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l112;
                                 s_i32_1 = l111;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -8969,7 +8967,7 @@ impl ChunkFns {
             s_i32_1 = l97;
             l131 = s_i32_1;
             s_i32_1 = 16i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_1, host);
             vm.exit_call();
@@ -9129,7 +9127,7 @@ impl ChunkFns {
             l145 = s_i32_0;
             'blk_38: {
                 'blk_39: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l145;
                     s_i32_1 = l144;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -9157,7 +9155,7 @@ impl ChunkFns {
                         l150 = s_i32_0;
                         'blk_41: {
                             'blk_42: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l150;
                                 s_i32_1 = l149;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -9280,7 +9278,7 @@ impl ChunkFns {
             s_i32_1 = l139;
             l165 = s_i32_1;
             s_i32_1 = l152;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l166 = s_i32_1;
             s_i32_1 = l137;
             vm.enter_call()?;
@@ -9441,7 +9439,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_f96711f5d0ad(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f96711f5d0ad(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -9523,7 +9521,7 @@ impl ChunkFns {
     let mut s_i32_6: i32 = 0i32;
     let mut s_i64_6: i64 = 0i64;
     let mut s_i64_7: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -9638,7 +9636,7 @@ impl ChunkFns {
     l18 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l18;
             s_i32_1 = l17;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -9788,7 +9786,7 @@ impl ChunkFns {
                 l38 = s_i32_0;
                 'blk_6: {
                     'blk_7: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l38;
                         s_i32_1 = l37;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -10102,8 +10100,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_46d8beeec159(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_46d8beeec159(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -10149,7 +10146,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -10222,7 +10219,7 @@ impl ChunkFns {
     l7 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l6;
             s_i64_1 = 0i64;
             l8 = s_i64_1;
@@ -10426,7 +10423,7 @@ impl ChunkFns {
     l36 = s_i64_0;
     'blk_7: {
         'blk_8: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l36;
             s_i64_1 = 0i64;
             s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
@@ -10466,8 +10463,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_f8c1fa65c96f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f8c1fa65c96f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -10498,7 +10494,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -10747,12 +10743,12 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_00ffc2a16896(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_00ffc2a16896(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -10766,7 +10762,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_96621217d3c6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_96621217d3c6(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -12169,7 +12165,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i32_4: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -12317,7 +12313,7 @@ impl ChunkFns {
     l24 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l24;
             s_i32_1 = l23;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -12345,7 +12341,7 @@ impl ChunkFns {
                 l29 = s_i32_0;
                 'blk_5: {
                     'blk_6: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l29;
                         s_i32_1 = l28;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -12398,7 +12394,7 @@ impl ChunkFns {
                 l34 = s_i32_0;
                 'blk_8: {
                     'blk_9: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l34;
                         s_i32_1 = l33;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -12462,7 +12458,7 @@ impl ChunkFns {
                 l39 = s_i32_0;
                 'blk_12: {
                     'blk_13: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l39;
                         s_i32_1 = l38;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -12528,7 +12524,7 @@ impl ChunkFns {
     l42 = s_i64_0;
     'blk_16: {
         'blk_17: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l41;
             s_i32_1 = l16;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -12551,7 +12547,7 @@ impl ChunkFns {
             }
             'blk_19: {
                 'blk_20: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l41;
                     s_i32_1 = l16;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -12742,7 +12738,7 @@ impl ChunkFns {
                     l64 = s_i32_0;
                     'blk_25: {
                         'blk_26: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l64;
                             s_i32_1 = l63;
                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -12776,7 +12772,7 @@ impl ChunkFns {
                                 l69 = s_i32_0;
                                 'blk_28: {
                                     'blk_29: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l69;
                                         s_i32_1 = l68;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -12821,7 +12817,7 @@ impl ChunkFns {
                                 l74 = s_i32_0;
                                 'blk_31: {
                                     'blk_32: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l74;
                                         s_i32_1 = l73;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -12885,7 +12881,7 @@ impl ChunkFns {
                                 l79 = s_i32_0;
                                 'blk_35: {
                                     'blk_36: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l79;
                                         s_i32_1 = l78;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -13271,7 +13267,7 @@ impl ChunkFns {
                     l115 = s_i32_0;
                     'blk_49: {
                         'blk_50: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l115;
                             s_i32_1 = l114;
                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -13547,7 +13543,7 @@ impl ChunkFns {
                                 l145 = s_i32_0;
                                 'blk_54: {
                                     'blk_55: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l145;
                                         s_i32_1 = l144;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -13592,7 +13588,7 @@ impl ChunkFns {
                                 l150 = s_i32_0;
                                 'blk_57: {
                                     'blk_58: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l150;
                                         s_i32_1 = l149;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -13656,7 +13652,7 @@ impl ChunkFns {
                                 l155 = s_i32_0;
                                 'blk_61: {
                                     'blk_62: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l155;
                                         s_i32_1 = l154;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -13802,7 +13798,7 @@ impl ChunkFns {
     l170 = s_i32_0;
     'blk_66: {
         'blk_67: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l170;
             s_i32_1 = l169;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -13830,7 +13826,7 @@ impl ChunkFns {
                 l175 = s_i32_0;
                 'blk_69: {
                     'blk_70: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l175;
                         s_i32_1 = l174;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -13859,7 +13855,7 @@ impl ChunkFns {
                                     l177 = s_i64_0;
                                     'blk_73: {
                                         'blk_74: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i64_0 = l177;
                                             s_i64_1 = l158;
                                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -14190,7 +14186,7 @@ impl ChunkFns {
                                                     s_i32_0 = l212;
                                                 }
                                             }
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             l213 = s_i32_0;
                                             s_i32_0 = l213;
                                             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
@@ -14408,7 +14404,7 @@ impl ChunkFns {
     l236 = s_i64_0;
     'blk_84: {
         'blk_85: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l236;
             s_i32_1 = l166;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -14587,7 +14583,7 @@ impl ChunkFns {
                     l261 = s_i32_0;
                     'blk_90: {
                         'blk_91: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l261;
                             s_i32_1 = l260;
                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -14916,7 +14912,7 @@ impl ChunkFns {
                                         let __t104 = __call_res?;
                                         s_i32_0 = __t104;
                                         l297 = s_i32_0;
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l297;
                                         s_i32_1 = l268;
                                         ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -15134,7 +15130,7 @@ impl ChunkFns {
     l323 = s_i64_0;
     'blk_101: {
         'blk_102: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l323;
             s_i64_1 = l158;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -15465,7 +15461,7 @@ impl ChunkFns {
                     s_i32_0 = l358;
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l359 = s_i32_0;
             s_i32_0 = l359;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
@@ -15596,7 +15592,7 @@ impl ChunkFns {
                             l378 = s_i32_0;
                             'blk_108: {
                                 'blk_109: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l378;
                                     s_i32_1 = l377;
                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -15925,7 +15921,7 @@ impl ChunkFns {
                                                 let __t143 = __call_res?;
                                                 s_i32_0 = __t143;
                                                 l414 = s_i32_0;
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i32_0 = l414;
                                                 s_i32_1 = l385;
                                                 ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -16123,7 +16119,7 @@ impl ChunkFns {
                     l438 = s_i64_0;
                     'blk_119: {
                         'blk_120: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l438;
                             s_i32_1 = l363;
                             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -16516,7 +16512,7 @@ impl ChunkFns {
                                     l493 = s_i32_0;
                                     'blk_132: {
                                         'blk_133: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l493;
                                             s_i32_1 = l492;
                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -16845,7 +16841,7 @@ impl ChunkFns {
                                                         let __t175 = __call_res?;
                                                         s_i32_0 = __t175;
                                                         l529 = s_i32_0;
-                                                        vm.deduct(host, 1)?;
+                                                        vm.deduct_1(host)?;
                                                         s_i32_0 = l529;
                                                         s_i32_1 = l500;
                                                         ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -17074,7 +17070,7 @@ impl ChunkFns {
     l555 = s_i64_0;
     'blk_143: {
         'blk_144: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l555;
             s_i64_1 = l158;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -17405,7 +17401,7 @@ impl ChunkFns {
                     s_i32_0 = l590;
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l591 = s_i32_0;
             s_i32_0 = l591;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
@@ -17838,7 +17834,7 @@ impl ChunkFns {
                             s_i32_1 = 1i32;
                             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
                             s_i32_0 = l648;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             l649 = s_i32_0;
                             s_i32_0 = 16i32;
                             vm.enter_call()?;
@@ -18161,7 +18157,7 @@ impl ChunkFns {
     l683 = s_i64_0;
     'blk_164: {
         'blk_165: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l683;
             s_i64_1 = l158;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -18522,7 +18518,7 @@ impl ChunkFns {
                             s_i32_0 = l726;
                             s_i32_1 = l709;
                             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l726;
                             s_i32_1 = l711;
                             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
@@ -18590,7 +18586,7 @@ impl ChunkFns {
                     l733 = s_i64_0;
                     'blk_171: {
                         'blk_172: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l733;
                             s_i64_1 = l158;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -18951,7 +18947,7 @@ impl ChunkFns {
                                             ops::i32_store8(vm, 0, s_i32_0, 5u32, s_i32_1)?;
                                             s_i32_0 = l776;
                                             s_i32_1 = l759;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
                                             s_i32_0 = l776;
                                             s_i32_1 = l761;
@@ -19096,7 +19092,7 @@ impl ChunkFns {
     l785 = s_i64_0;
     'blk_179: {
         'blk_180: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l785;
             s_i64_1 = l782;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -19197,7 +19193,7 @@ impl ChunkFns {
             l798 = s_i64_0;
             'blk_183: {
                 'blk_184: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l798;
                     s_i32_1 = l797;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -19376,7 +19372,7 @@ impl ChunkFns {
                             l823 = s_i32_0;
                             'blk_189: {
                                 'blk_190: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l823;
                                     s_i32_1 = l822;
                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -19601,7 +19597,7 @@ impl ChunkFns {
     l848 = s_i64_0;
     'blk_197: {
         'blk_198: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l848;
             s_i64_1 = l782;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -19804,7 +19800,7 @@ impl ChunkFns {
                     l873 = s_i64_0;
                     'blk_204: {
                         'blk_205: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l873;
                             s_i64_1 = l782;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -20438,7 +20434,7 @@ impl ChunkFns {
                                     vm.exit_call();
                                     let __t315 = __call_res?;
                                     s_i32_0 = __t315;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     l956 = s_i32_0;
                                     s_i32_0 = l956;
                                     s_i32_1 = l956;
@@ -20608,7 +20604,7 @@ impl ChunkFns {
                             l973 = s_i32_0;
                             'blk_222: {
                                 'blk_223: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l973;
                                     s_i32_1 = l972;
                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -20937,7 +20933,7 @@ impl ChunkFns {
                                                 let __t332 = __call_res?;
                                                 s_i32_0 = __t332;
                                                 l1009 = s_i32_0;
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i32_0 = l1009;
                                                 s_i32_1 = l980;
                                                 ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -21023,7 +21019,7 @@ impl ChunkFns {
                                     l1015 = s_i32_0;
                                     'blk_232: {
                                         'blk_233: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l1015;
                                             s_i32_1 = l1014;
                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -21352,7 +21348,7 @@ impl ChunkFns {
                                                         let __t345 = __call_res?;
                                                         s_i32_0 = __t345;
                                                         l1051 = s_i32_0;
-                                                        vm.deduct(host, 1)?;
+                                                        vm.deduct_1(host)?;
                                                         s_i32_0 = l1051;
                                                         s_i32_1 = l1022;
                                                         ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -21559,7 +21555,7 @@ impl ChunkFns {
                                             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
                                             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                                             s_i32_0 = l1076;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_1 = 0i32;
                                             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
                                             s_i32_0 = l1076;
@@ -21761,7 +21757,7 @@ impl ChunkFns {
                                             l1095 = s_i32_0;
                                             'blk_241: {
                                                 'blk_242: loop {
-                                                    vm.deduct(host, 1)?;
+                                                    vm.deduct_1(host)?;
                                                     s_i32_0 = l1095;
                                                     s_i32_1 = l1094;
                                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -22087,7 +22083,7 @@ impl ChunkFns {
                                                                         s_i32_1 = l1128;
                                                                         ops::i32_store(vm, 0, s_i32_0, 40u32, s_i32_1)?;
                                                                         s_i32_0 = l1129;
-                                                                        vm.deduct(host, 1)?;
+                                                                        vm.deduct_1(host)?;
                                                                         l1130 = s_i32_0;
                                                                         s_i32_0 = 8i32;
                                                                         vm.enter_call()?;
@@ -22194,7 +22190,7 @@ impl ChunkFns {
     l1139 = s_i32_0;
     'blk_247: {
         'blk_248: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1139;
             s_i32_1 = l1138;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -22222,7 +22218,7 @@ impl ChunkFns {
                 l1144 = s_i32_0;
                 'blk_250: {
                     'blk_251: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l1144;
                         s_i32_1 = l1143;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -22289,7 +22285,7 @@ impl ChunkFns {
     l1149 = s_i32_0;
     'blk_254: {
         'blk_255: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1149;
             s_i32_1 = l1148;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -22317,7 +22313,7 @@ impl ChunkFns {
                 l1154 = s_i32_0;
                 'blk_257: {
                     'blk_258: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l1154;
                         s_i32_1 = l1153;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -22387,14 +22383,14 @@ impl ChunkFns {
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
     l1158 = s_i32_0;
     s_i32_0 = l1157;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
     l1159 = s_i32_0;
     s_i32_0 = 0i32;
     l1160 = s_i32_0;
     'blk_261: {
         'blk_262: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1160;
             s_i32_1 = l1159;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -22526,7 +22522,7 @@ impl ChunkFns {
     l1175 = s_i64_0;
     'blk_264: {
         'blk_265: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l1175;
             s_i64_1 = l1172;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -22540,7 +22536,7 @@ impl ChunkFns {
             l1177 = s_i64_0;
             'blk_266: {
                 'blk_267: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l1177;
                     s_i64_1 = l1172;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -22901,7 +22897,7 @@ impl ChunkFns {
                                     s_i32_0 = l1220;
                                     s_i32_1 = l1203;
                                     ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l1220;
                                     s_i32_1 = l1205;
                                     ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
@@ -22964,7 +22960,7 @@ impl ChunkFns {
                             l1227 = s_i64_0;
                             'blk_273: {
                                 'blk_274: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l1227;
                                     s_i64_1 = l1172;
                                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -23326,7 +23322,7 @@ impl ChunkFns {
                                                             ops::i32_store8(vm, 0, s_i32_0, 4u32, s_i32_1)?;
                                                             s_i32_0 = l1270;
                                                             s_i32_1 = l1249;
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             ops::i32_store8(vm, 0, s_i32_0, 5u32, s_i32_1)?;
                                                             s_i32_0 = l1270;
                                                             s_i32_1 = l1253;
@@ -23494,7 +23490,7 @@ impl ChunkFns {
                                                             l1280 = s_i32_0;
                                                             'blk_290: {
                                                                 'blk_291: loop {
-                                                                    vm.deduct(host, 1)?;
+                                                                    vm.deduct_1(host)?;
                                                                     s_i32_0 = l1280;
                                                                     s_i32_1 = l1279;
                                                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -23602,7 +23598,7 @@ impl ChunkFns {
                     l1282 = s_i64_0;
                     'blk_298: {
                         'blk_299: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l1282;
                             s_i64_1 = l1172;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -23963,7 +23959,7 @@ impl ChunkFns {
                                             s_i32_0 = l1325;
                                             s_i32_1 = l1308;
                                             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l1325;
                                             s_i32_1 = l1310;
                                             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
@@ -24051,7 +24047,7 @@ impl ChunkFns {
                             l1331 = s_i64_0;
                             'blk_307: {
                                 'blk_308: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l1331;
                                     s_i64_1 = l1172;
                                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -24482,7 +24478,7 @@ impl ChunkFns {
                     s_i32_0 = l1382;
                     l1383 = s_i32_0;
                     s_i32_0 = 44i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 2usize, s_i32_0, host);
                     vm.exit_call();
@@ -24618,7 +24614,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_6b9164238c03(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_6b9164238c03(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -24814,7 +24810,7 @@ impl ChunkFns {
     let mut s_i32_6: i32 = 0i32;
     let mut s_i64_6: i64 = 0i64;
     let mut s_i64_7: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -24863,7 +24859,7 @@ impl ChunkFns {
     l10 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l10;
             s_i32_1 = l9;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -24912,7 +24908,7 @@ impl ChunkFns {
                         l16 = s_i64_0;
                         'blk_6: {
                             'blk_7: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i64_0 = l16;
                                 s_i32_1 = l3;
                                 s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -25360,7 +25356,7 @@ impl ChunkFns {
     l65 = s_i32_0;
     'blk_20: {
         'blk_21: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l65;
             s_i32_1 = l64;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -25394,7 +25390,7 @@ impl ChunkFns {
                 l71 = s_i32_0;
                 'blk_23: {
                     'blk_24: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l71;
                         s_i32_1 = l70;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -25469,7 +25465,7 @@ impl ChunkFns {
                             l82 = s_i32_0;
                             'blk_27: {
                                 'blk_28: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l82;
                                     s_i32_1 = l81;
                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -25844,7 +25840,7 @@ impl ChunkFns {
                                         l121 = s_i32_0;
                                         'blk_38: {
                                             'blk_39: loop {
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i32_0 = l121;
                                                 s_i32_1 = l120;
                                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -26008,7 +26004,7 @@ impl ChunkFns {
                                                     l136 = s_i64_0;
                                                     'blk_44: {
                                                         'blk_45: loop {
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             s_i64_0 = l136;
                                                             s_i64_1 = l135;
                                                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -26228,7 +26224,7 @@ impl ChunkFns {
                                                     l160 = s_i32_0;
                                                     'blk_50: {
                                                         'blk_51: loop {
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             s_i32_0 = l160;
                                                             s_i32_1 = l159;
                                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -26455,7 +26451,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_89d41f426fd7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_89d41f426fd7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -26544,7 +26540,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -26914,7 +26910,7 @@ impl ChunkFns {
     ops::i32_store(vm, 0, s_i32_1, 0u32, s_i32_2)?;
     s_i32_1 = l42;
     s_i32_2 = 5i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     ops::i32_store(vm, 0, s_i32_1, 4u32, s_i32_2)?;
     s_i32_1 = l42;
     s_i32_2 = 5i32;
@@ -27284,7 +27280,7 @@ impl ChunkFns {
     s_i32_1 = l79;
     s_i64_2 = l78;
     ops::i64_store(vm, 0, s_i32_1, 8u32, s_i64_2)?;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_1 = l79;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 3usize, s_i32_0, s_i32_1, host);
@@ -27301,14 +27297,14 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_3649452f5136(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_3649452f5136(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -27326,7 +27322,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_d53599fc7203(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_d53599fc7203(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -27696,7 +27692,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -28023,7 +28019,7 @@ impl ChunkFns {
     s_i64_2 = 0i64;
     l22 = s_i64_2;
     s_i32_2 = 16i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_2, host);
     vm.exit_call();
@@ -28390,7 +28386,7 @@ impl ChunkFns {
             s_i32_0 = __t34;
             l47 = s_i32_0;
             s_i32_0 = l47;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l47;
             s_i32_2 = 16i32;
             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
@@ -28447,7 +28443,7 @@ impl ChunkFns {
     s_i64_1 = 0i64;
     s_i64_2 = 1114112i64;
     l48 = s_i64_2;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i64_2 = 0i64;
     l49 = s_i64_2;
     s_i32_2 = 16i32;
@@ -28844,7 +28840,7 @@ impl ChunkFns {
                             l93 = s_i32_0;
                             s_i32_0 = l93;
                             s_i32_1 = l89;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                             s_i32_0 = l93;
                             s_i32_1 = l91;
@@ -28918,7 +28914,7 @@ impl ChunkFns {
                             s_i32_0 = l103;
                             l104 = s_i32_0;
                             s_i32_0 = 8i32;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             vm.enter_call()?;
                             let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_0, host);
                             vm.exit_call();
@@ -28936,7 +28932,7 @@ impl ChunkFns {
                     }
                     l106 = s_i32_0;
                     s_i32_0 = l106;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                     'blk_22: {
                         if s_i32_0 != 0 {
@@ -29202,7 +29198,7 @@ impl ChunkFns {
                             ops::i64_store(vm, 0, s_i32_0, 56u32, s_i64_1)?;
                             s_i32_0 = l122;
                             s_i64_1 = 7887319652481655620i64;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             ops::i64_store(vm, 0, s_i32_0, 64u32, s_i64_1)?;
                             s_i32_0 = l122;
                             s_i32_1 = 101i32;
@@ -29262,7 +29258,7 @@ impl ChunkFns {
                             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
                             s_i32_0 = l128;
                             s_i32_1 = l127;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
                             s_i32_0 = l128;
                             l129 = s_i32_0;
@@ -29435,7 +29431,7 @@ impl ChunkFns {
                     let __t83 = __call_res?;
                     s_i32_0 = __t83;
                     l140 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l140;
                     s_i32_1 = l140;
                     s_i32_2 = 16i32;
@@ -29483,7 +29479,7 @@ impl ChunkFns {
             s_i32_0 = l138;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
             l146 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = 16i32;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_0, host);
@@ -29552,7 +29548,7 @@ impl ChunkFns {
             l151 = s_i32_0;
             s_i32_0 = l151;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l1 = s_i32_0;
             s_i32_0 = l151;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
@@ -29755,7 +29751,7 @@ impl ChunkFns {
     s_i32_0 = l171;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
     l1 = s_i32_0;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l171;
     s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
     s_i32_0 = ops::i32_eqz(s_i32_0);
@@ -30089,7 +30085,7 @@ impl ChunkFns {
     vm.exit_call();
     let __t113 = __call_res?;
     s_i32_0 = __t113;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l203 = s_i32_0;
     s_i32_0 = l203;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
@@ -30411,7 +30407,7 @@ impl ChunkFns {
         } else {
         }
     }
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l46;
     l231 = s_i32_0;
     s_i32_0 = l210;
@@ -30426,7 +30422,7 @@ impl ChunkFns {
     l235 = s_i32_0;
     'blk_46: {
         'blk_47: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l235;
             s_i32_1 = l234;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -30898,7 +30894,7 @@ impl ChunkFns {
                         l281 = s_i32_0;
                         'blk_60: {
                             'blk_61: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l281;
                                 s_i32_1 = l280;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -31036,7 +31032,7 @@ impl ChunkFns {
                                                 ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
                                                 s_i32_0 = l285;
                                                 l286 = s_i32_0;
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i32_0 = l283;
                                                 s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 12u32)?;
                                                 l287 = s_i32_0;
@@ -31081,7 +31077,7 @@ impl ChunkFns {
                                 l293 = s_i32_0;
                                 'blk_70: {
                                     'blk_71: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l293;
                                         s_i32_1 = l292;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -31247,7 +31243,7 @@ impl ChunkFns {
                                 s_i32_0 = __t160;
                                 l302 = s_i32_0;
                                 s_i32_0 = l302;
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_1 = l302;
                                 s_i32_2 = 16i32;
                                 s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
@@ -31302,7 +31298,7 @@ impl ChunkFns {
                         let __t162 = __call_res?;
                         s_i32_0 = __t162;
                         l303 = s_i32_0;
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l1;
                         s_i32_1 = l303;
                         s_i32_2 = 0i32;
@@ -31926,8 +31922,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_636ae95456c2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_636ae95456c2(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -31950,7 +31945,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -31963,7 +31958,7 @@ impl ChunkFns {
     l2 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l2;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -32024,7 +32019,7 @@ impl ChunkFns {
                     l2 = s_i64_0;
                     'blk_6: {
                         'blk_7: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l2;
                             s_i64_1 = l1;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -32078,7 +32073,7 @@ impl ChunkFns {
                     l2 = s_i64_0;
                     'blk_10: {
                         'blk_11: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l2;
                             s_i64_1 = l1;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -32132,7 +32127,7 @@ impl ChunkFns {
                     l2 = s_i64_0;
                     'blk_14: {
                         'blk_15: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l2;
                             s_i64_1 = l1;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -32332,7 +32327,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_567c2527c953(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_567c2527c953(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -32407,7 +32402,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -32922,8 +32917,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_aafc19d7928f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_aafc19d7928f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -32956,7 +32950,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -32983,7 +32977,7 @@ impl ChunkFns {
     l5 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l5;
             s_i32_1 = l4;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -33203,7 +33197,7 @@ impl ChunkFns {
     return Ok(s_i64_0);
     }
 
-    pub(crate) fn f_4bc7fa725679(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_4bc7fa725679(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -33217,7 +33211,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -33272,7 +33266,7 @@ impl ChunkFns {
     return Ok(s_i64_0);
     }
 
-    pub(crate) fn f_83f2cd4c9f77(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_83f2cd4c9f77(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = 0i32;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -33283,7 +33277,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -33322,7 +33316,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = 64i64;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -33355,8 +33349,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_d86c679958c9(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_d86c679958c9(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -33377,7 +33370,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -33506,8 +33499,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_i32_ret_i32(vm, c_map, 4usize, __t6, __t7, host);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_7a16f73439fd(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_7a16f73439fd(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -33543,7 +33535,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -33803,7 +33795,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_fba1bfc868b8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_fba1bfc868b8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -33814,7 +33806,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -33922,7 +33914,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_24ebf50f1ba1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_24ebf50f1ba1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -33935,7 +33927,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -33952,7 +33944,7 @@ impl ChunkFns {
     l5 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l5;
             s_i32_1 = l4;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -34009,7 +34001,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_338fda353f63(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_338fda353f63(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -34141,7 +34133,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -34169,7 +34161,7 @@ impl ChunkFns {
     l6 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l6;
             s_i32_1 = l5;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -34203,7 +34195,7 @@ impl ChunkFns {
                 l12 = s_i32_0;
                 'blk_4: {
                     'blk_5: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l12;
                         s_i32_1 = l11;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -34268,7 +34260,7 @@ impl ChunkFns {
     l16 = s_i64_0;
     'blk_7: {
         'blk_8: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l16;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -34599,7 +34591,7 @@ impl ChunkFns {
                     s_i32_0 = l51;
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l52 = s_i32_0;
             s_i32_0 = l52;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
@@ -34720,7 +34712,7 @@ impl ChunkFns {
             l68 = s_i64_0;
             'blk_13: {
                 'blk_14: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l68;
                     s_i64_1 = l1;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -35050,7 +35042,7 @@ impl ChunkFns {
                                     s_i32_0 = l103;
                                     s_i32_1 = l74;
                                     ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l103;
                                     s_i32_1 = l102;
                                     ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
@@ -35273,7 +35265,7 @@ impl ChunkFns {
                                     l123 = s_i32_0;
                                     'blk_29: {
                                         'blk_30: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l123;
                                             s_i32_1 = l122;
                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -35383,7 +35375,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_c144f3e8be87(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_c144f3e8be87(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -35446,7 +35438,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -35524,7 +35516,7 @@ impl ChunkFns {
     l10 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l10;
             s_i32_1 = l9;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -35592,7 +35584,7 @@ impl ChunkFns {
     l17 = s_i32_0;
     'blk_4: {
         'blk_5: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l17;
             s_i32_1 = l16;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -35639,7 +35631,7 @@ impl ChunkFns {
     l23 = s_i32_0;
     'blk_7: {
         'blk_8: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l23;
             s_i32_1 = l22;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -35683,7 +35675,7 @@ impl ChunkFns {
                 l28 = s_i32_0;
                 'blk_11: {
                     'blk_12: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l28;
                         s_i32_1 = l27;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -35735,7 +35727,7 @@ impl ChunkFns {
                 l33 = s_i32_0;
                 'blk_14: {
                     'blk_15: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l33;
                         s_i32_1 = l32;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -35799,7 +35791,7 @@ impl ChunkFns {
                 l38 = s_i32_0;
                 'blk_18: {
                     'blk_19: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l38;
                         s_i32_1 = l37;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -35996,8 +35988,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_f9c88727993d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f9c88727993d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -36014,7 +36005,7 @@ impl ChunkFns {
     let mut s_i64_0: i64 = 0i64;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -36045,7 +36036,7 @@ impl ChunkFns {
     l7 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l7;
             s_i32_1 = l6;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -36129,13 +36120,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_ef0263fa8fe1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_ef0263fa8fe1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -36184,7 +36175,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_ret_i32(vm, c_map, 4usize, __t3, host);
     }
 
-    pub(crate) fn f_9c0d878b1a6c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_9c0d878b1a6c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -36197,7 +36188,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -36214,7 +36205,7 @@ impl ChunkFns {
     l4 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l4;
             s_i32_1 = l3;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -36280,8 +36271,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_ff97087835e5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_ff97087835e5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -36313,7 +36303,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -36328,7 +36318,7 @@ impl ChunkFns {
     l3 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l2;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -36434,7 +36424,7 @@ impl ChunkFns {
                     l2 = s_i64_0;
                     'blk_10: {
                         'blk_11: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l2;
                             s_i64_1 = l1;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -36673,7 +36663,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_4a70a74ff968(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_4a70a74ff968(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -36849,7 +36839,7 @@ impl ChunkFns {
     let mut s_i32_4: i32 = 0i32;
     let mut s_i32_5: i32 = 0i32;
     let mut s_i32_6: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -36959,7 +36949,7 @@ impl ChunkFns {
     l18 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l18;
             s_i32_1 = l17;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -36994,7 +36984,7 @@ impl ChunkFns {
                 l24 = s_i32_0;
                 'blk_5: {
                     'blk_6: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l24;
                         s_i32_1 = l23;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -37154,7 +37144,7 @@ impl ChunkFns {
                             l45 = s_i32_0;
                             'blk_9: {
                                 'blk_10: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l45;
                                     s_i32_1 = l44;
                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -37302,7 +37292,7 @@ impl ChunkFns {
                                         l61 = s_i32_0;
                                         'blk_14: {
                                             'blk_15: loop {
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i32_0 = l61;
                                                 s_i32_1 = l60;
                                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -37684,7 +37674,7 @@ impl ChunkFns {
                                                                     ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
                                                                     s_i32_0 = l93;
                                                                     s_i32_1 = l92;
-                                                                    vm.deduct(host, 1)?;
+                                                                    vm.deduct_1(host)?;
                                                                     ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
                                                                     s_i32_0 = l93;
                                                                     l94 = s_i32_0;
@@ -37741,7 +37731,7 @@ impl ChunkFns {
                                                             s_i32_2 = 1i32;
                                                             ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
                                                             s_i32_1 = l103;
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             l104 = s_i32_1;
                                                             s_i32_1 = 16i32;
                                                             vm.enter_call()?;
@@ -37965,7 +37955,7 @@ impl ChunkFns {
             l121 = s_i32_0;
             'blk_30: {
                 'blk_31: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l121;
                     s_i32_1 = l120;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -38114,7 +38104,7 @@ impl ChunkFns {
     l137 = s_i32_0;
     'blk_34: {
         'blk_35: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l137;
             s_i32_1 = l136;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -38382,8 +38372,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_269b93405638(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_269b93405638(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = p2;
@@ -38413,7 +38402,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -38422,7 +38411,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -38640,7 +38629,7 @@ impl ChunkFns {
                     l3 = s_i64_0;
                     'blk_13: {
                         'blk_14: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l3;
                             s_i64_1 = l2;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -38697,8 +38686,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_e56b6c35b49b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_e56b6c35b49b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -38738,7 +38726,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -39043,7 +39031,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_dd0b7dccfa24(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_dd0b7dccfa24(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -39144,7 +39132,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -39528,7 +39516,7 @@ impl ChunkFns {
     s_i32_2 = 4i32;
     ops::i32_store(vm, 0, s_i32_1, 8u32, s_i32_2)?;
     s_i32_1 = l38;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_2 = 1i32;
     ops::i32_store(vm, 0, s_i32_1, 12u32, s_i32_2)?;
     s_i32_1 = l38;
@@ -39882,7 +39870,7 @@ impl ChunkFns {
                     l69 = s_i32_0;
                     s_i32_0 = 2i32;
                     l70 = s_i32_0;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = 16i32;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 2usize, s_i32_0, host);
@@ -40058,7 +40046,7 @@ impl ChunkFns {
             ops::i64_store(vm, 0, s_i32_0, 24u32, s_i64_1)?;
             s_i32_0 = l82;
             s_i64_1 = 8223684401619148857i64;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             ops::i64_store(vm, 0, s_i32_0, 32u32, s_i64_1)?;
             s_i32_0 = l82;
             s_i64_1 = 8102931695413780837i64;
@@ -40163,8 +40151,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_df10f54c504f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_df10f54c504f(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -40192,7 +40179,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -40405,7 +40392,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_77c82835b3ea(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_77c82835b3ea(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -40471,7 +40458,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -40833,7 +40820,7 @@ impl ChunkFns {
                             let __t15 = __call_res?;
                             s_i32_0 = __t15;
                             l32 = s_i32_0;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l32;
                             s_i32_1 = l27;
                             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -40890,7 +40877,7 @@ impl ChunkFns {
                     s_i32_0 = l38;
                     s_i32_1 = l38;
                     s_i32_2 = 16i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
                     ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                     s_i32_0 = l38;
@@ -40998,7 +40985,7 @@ impl ChunkFns {
             l47 = s_i32_0;
             s_i32_0 = l47;
             s_i32_1 = l47;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_2 = 16i32;
             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -41095,7 +41082,7 @@ impl ChunkFns {
     vm.exit_call();
     let __t26 = __call_res?;
     s_i32_0 = __t26;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l56 = s_i32_0;
     s_i32_0 = l56;
     s_i32_1 = l51;
@@ -41115,8 +41102,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_6434cc0b492a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_6434cc0b492a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -41139,7 +41125,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -41306,8 +41292,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_51dd3c1c9f55(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_51dd3c1c9f55(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -41324,7 +41309,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -41437,8 +41422,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_i32_ret_i32(vm, c_map, 7usize, __t6, __t7, host);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_0cdf8809564c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_0cdf8809564c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -41456,7 +41440,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -41569,7 +41553,7 @@ impl ChunkFns {
     return dispatch.call_p_i32_i32_i32_ret_i32(vm, c_map, 5usize, __t5, __t6, __t7, host);
     }
 
-    pub(crate) fn f_c83374c783a1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_c83374c783a1(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -41584,7 +41568,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -41611,7 +41595,7 @@ impl ChunkFns {
     l4 = s_i64_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l4;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -41663,7 +41647,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_38535251f258(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_38535251f258(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -41673,7 +41657,7 @@ impl ChunkFns {
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -41733,8 +41717,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_ce4a4f4eaaf0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_ce4a4f4eaaf0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = 0i32;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -41749,7 +41732,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -41788,7 +41771,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = 64i64;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -41843,8 +41826,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_c7ad525e5a02(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_c7ad525e5a02(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i32 = p2;
@@ -41885,7 +41867,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -42038,7 +42020,7 @@ impl ChunkFns {
     l24 = s_i32_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l24;
             s_i32_1 = l23;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -42151,8 +42133,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_c3c4818e5a41(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_c3c4818e5a41(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, p2: i32, p3: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i32 = p2;
@@ -42195,7 +42176,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -42461,7 +42442,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_58ab7ae56665(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_58ab7ae56665(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -43798,7 +43779,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i32_4: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -43946,7 +43927,7 @@ impl ChunkFns {
     l24 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l24;
             s_i32_1 = l23;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -43974,7 +43955,7 @@ impl ChunkFns {
                 l29 = s_i32_0;
                 'blk_5: {
                     'blk_6: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l29;
                         s_i32_1 = l28;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -44027,7 +44008,7 @@ impl ChunkFns {
                 l34 = s_i32_0;
                 'blk_8: {
                     'blk_9: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l34;
                         s_i32_1 = l33;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -44091,7 +44072,7 @@ impl ChunkFns {
                 l39 = s_i32_0;
                 'blk_12: {
                     'blk_13: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l39;
                         s_i32_1 = l38;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -44157,7 +44138,7 @@ impl ChunkFns {
     l42 = s_i64_0;
     'blk_16: {
         'blk_17: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l41;
             s_i32_1 = l16;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -44180,7 +44161,7 @@ impl ChunkFns {
             }
             'blk_19: {
                 'blk_20: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l41;
                     s_i32_1 = l16;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -44371,7 +44352,7 @@ impl ChunkFns {
                     l64 = s_i32_0;
                     'blk_25: {
                         'blk_26: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l64;
                             s_i32_1 = l63;
                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -44405,7 +44386,7 @@ impl ChunkFns {
                                 l69 = s_i32_0;
                                 'blk_28: {
                                     'blk_29: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l69;
                                         s_i32_1 = l68;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -44450,7 +44431,7 @@ impl ChunkFns {
                                 l74 = s_i32_0;
                                 'blk_31: {
                                     'blk_32: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l74;
                                         s_i32_1 = l73;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -44514,7 +44495,7 @@ impl ChunkFns {
                                 l79 = s_i32_0;
                                 'blk_35: {
                                     'blk_36: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l79;
                                         s_i32_1 = l78;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -44900,7 +44881,7 @@ impl ChunkFns {
                     l115 = s_i32_0;
                     'blk_49: {
                         'blk_50: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l115;
                             s_i32_1 = l114;
                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -45176,7 +45157,7 @@ impl ChunkFns {
                                 l145 = s_i32_0;
                                 'blk_54: {
                                     'blk_55: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l145;
                                         s_i32_1 = l144;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -45221,7 +45202,7 @@ impl ChunkFns {
                                 l150 = s_i32_0;
                                 'blk_57: {
                                     'blk_58: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l150;
                                         s_i32_1 = l149;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -45285,7 +45266,7 @@ impl ChunkFns {
                                 l155 = s_i32_0;
                                 'blk_61: {
                                     'blk_62: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l155;
                                         s_i32_1 = l154;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -45431,7 +45412,7 @@ impl ChunkFns {
     l170 = s_i32_0;
     'blk_66: {
         'blk_67: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l170;
             s_i32_1 = l169;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -45459,7 +45440,7 @@ impl ChunkFns {
                 l175 = s_i32_0;
                 'blk_69: {
                     'blk_70: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l175;
                         s_i32_1 = l174;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -45488,7 +45469,7 @@ impl ChunkFns {
                                     l177 = s_i64_0;
                                     'blk_73: {
                                         'blk_74: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i64_0 = l177;
                                             s_i64_1 = l158;
                                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -45819,7 +45800,7 @@ impl ChunkFns {
                                                     s_i32_0 = l212;
                                                 }
                                             }
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             l213 = s_i32_0;
                                             s_i32_0 = l213;
                                             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
@@ -46037,7 +46018,7 @@ impl ChunkFns {
     l236 = s_i64_0;
     'blk_84: {
         'blk_85: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l236;
             s_i32_1 = l166;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -46216,7 +46197,7 @@ impl ChunkFns {
                     l261 = s_i32_0;
                     'blk_90: {
                         'blk_91: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l261;
                             s_i32_1 = l260;
                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -46545,7 +46526,7 @@ impl ChunkFns {
                                         let __t104 = __call_res?;
                                         s_i32_0 = __t104;
                                         l297 = s_i32_0;
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l297;
                                         s_i32_1 = l268;
                                         ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -46763,7 +46744,7 @@ impl ChunkFns {
     l323 = s_i64_0;
     'blk_101: {
         'blk_102: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l323;
             s_i64_1 = l158;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -47094,7 +47075,7 @@ impl ChunkFns {
                     s_i32_0 = l358;
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l359 = s_i32_0;
             s_i32_0 = l359;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
@@ -47225,7 +47206,7 @@ impl ChunkFns {
                             l378 = s_i32_0;
                             'blk_108: {
                                 'blk_109: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l378;
                                     s_i32_1 = l377;
                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -47554,7 +47535,7 @@ impl ChunkFns {
                                                 let __t143 = __call_res?;
                                                 s_i32_0 = __t143;
                                                 l414 = s_i32_0;
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i32_0 = l414;
                                                 s_i32_1 = l385;
                                                 ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -47752,7 +47733,7 @@ impl ChunkFns {
                     l438 = s_i64_0;
                     'blk_119: {
                         'blk_120: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l438;
                             s_i32_1 = l363;
                             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -48145,7 +48126,7 @@ impl ChunkFns {
                                     l493 = s_i32_0;
                                     'blk_132: {
                                         'blk_133: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l493;
                                             s_i32_1 = l492;
                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -48474,7 +48455,7 @@ impl ChunkFns {
                                                         let __t175 = __call_res?;
                                                         s_i32_0 = __t175;
                                                         l529 = s_i32_0;
-                                                        vm.deduct(host, 1)?;
+                                                        vm.deduct_1(host)?;
                                                         s_i32_0 = l529;
                                                         s_i32_1 = l500;
                                                         ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -48703,7 +48684,7 @@ impl ChunkFns {
     l555 = s_i64_0;
     'blk_143: {
         'blk_144: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l555;
             s_i64_1 = l158;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -49034,7 +49015,7 @@ impl ChunkFns {
                     s_i32_0 = l590;
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l591 = s_i32_0;
             s_i32_0 = l591;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
@@ -49467,7 +49448,7 @@ impl ChunkFns {
                             s_i32_1 = 1i32;
                             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
                             s_i32_0 = l648;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             l649 = s_i32_0;
                             s_i32_0 = 16i32;
                             vm.enter_call()?;
@@ -49790,7 +49771,7 @@ impl ChunkFns {
     l683 = s_i64_0;
     'blk_164: {
         'blk_165: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l683;
             s_i64_1 = l158;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -50151,7 +50132,7 @@ impl ChunkFns {
                             s_i32_0 = l726;
                             s_i32_1 = l709;
                             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l726;
                             s_i32_1 = l711;
                             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
@@ -50219,7 +50200,7 @@ impl ChunkFns {
                     l733 = s_i64_0;
                     'blk_171: {
                         'blk_172: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l733;
                             s_i64_1 = l158;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -50580,7 +50561,7 @@ impl ChunkFns {
                                             ops::i32_store8(vm, 0, s_i32_0, 5u32, s_i32_1)?;
                                             s_i32_0 = l776;
                                             s_i32_1 = l759;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
                                             s_i32_0 = l776;
                                             s_i32_1 = l761;
@@ -50725,7 +50706,7 @@ impl ChunkFns {
     l785 = s_i64_0;
     'blk_179: {
         'blk_180: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l785;
             s_i64_1 = l782;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -50826,7 +50807,7 @@ impl ChunkFns {
             l798 = s_i64_0;
             'blk_183: {
                 'blk_184: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l798;
                     s_i32_1 = l797;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -51005,7 +50986,7 @@ impl ChunkFns {
                             l823 = s_i32_0;
                             'blk_189: {
                                 'blk_190: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l823;
                                     s_i32_1 = l822;
                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -51230,7 +51211,7 @@ impl ChunkFns {
     l848 = s_i64_0;
     'blk_197: {
         'blk_198: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l848;
             s_i64_1 = l782;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -51433,7 +51414,7 @@ impl ChunkFns {
                     l873 = s_i64_0;
                     'blk_204: {
                         'blk_205: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l873;
                             s_i64_1 = l782;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -52067,7 +52048,7 @@ impl ChunkFns {
                                     vm.exit_call();
                                     let __t315 = __call_res?;
                                     s_i32_0 = __t315;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     l956 = s_i32_0;
                                     s_i32_0 = l956;
                                     s_i32_1 = l956;
@@ -52237,7 +52218,7 @@ impl ChunkFns {
                             l973 = s_i32_0;
                             'blk_222: {
                                 'blk_223: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l973;
                                     s_i32_1 = l972;
                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -52566,7 +52547,7 @@ impl ChunkFns {
                                                 let __t332 = __call_res?;
                                                 s_i32_0 = __t332;
                                                 l1009 = s_i32_0;
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i32_0 = l1009;
                                                 s_i32_1 = l980;
                                                 ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -52652,7 +52633,7 @@ impl ChunkFns {
                                     l1015 = s_i32_0;
                                     'blk_232: {
                                         'blk_233: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l1015;
                                             s_i32_1 = l1014;
                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -52981,7 +52962,7 @@ impl ChunkFns {
                                                         let __t345 = __call_res?;
                                                         s_i32_0 = __t345;
                                                         l1051 = s_i32_0;
-                                                        vm.deduct(host, 1)?;
+                                                        vm.deduct_1(host)?;
                                                         s_i32_0 = l1051;
                                                         s_i32_1 = l1022;
                                                         ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -53188,7 +53169,7 @@ impl ChunkFns {
                                             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
                                             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                                             s_i32_0 = l1076;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_1 = 0i32;
                                             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
                                             s_i32_0 = l1076;
@@ -53390,7 +53371,7 @@ impl ChunkFns {
                                             l1095 = s_i32_0;
                                             'blk_241: {
                                                 'blk_242: loop {
-                                                    vm.deduct(host, 1)?;
+                                                    vm.deduct_1(host)?;
                                                     s_i32_0 = l1095;
                                                     s_i32_1 = l1094;
                                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -53716,7 +53697,7 @@ impl ChunkFns {
                                                                         s_i32_1 = l1128;
                                                                         ops::i32_store(vm, 0, s_i32_0, 40u32, s_i32_1)?;
                                                                         s_i32_0 = l1129;
-                                                                        vm.deduct(host, 1)?;
+                                                                        vm.deduct_1(host)?;
                                                                         l1130 = s_i32_0;
                                                                         s_i32_0 = 8i32;
                                                                         vm.enter_call()?;
@@ -53823,7 +53804,7 @@ impl ChunkFns {
     l1139 = s_i32_0;
     'blk_247: {
         'blk_248: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1139;
             s_i32_1 = l1138;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -53851,7 +53832,7 @@ impl ChunkFns {
                 l1144 = s_i32_0;
                 'blk_250: {
                     'blk_251: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l1144;
                         s_i32_1 = l1143;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -53918,7 +53899,7 @@ impl ChunkFns {
     l1149 = s_i32_0;
     'blk_254: {
         'blk_255: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1149;
             s_i32_1 = l1148;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -53946,7 +53927,7 @@ impl ChunkFns {
                 l1154 = s_i32_0;
                 'blk_257: {
                     'blk_258: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l1154;
                         s_i32_1 = l1153;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -54016,14 +53997,14 @@ impl ChunkFns {
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
     l1158 = s_i32_0;
     s_i32_0 = l1157;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
     l1159 = s_i32_0;
     s_i32_0 = 0i32;
     l1160 = s_i32_0;
     'blk_261: {
         'blk_262: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1160;
             s_i32_1 = l1159;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -54162,7 +54143,7 @@ impl ChunkFns {
     l1176 = s_i64_0;
     'blk_264: {
         'blk_265: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l1176;
             s_i64_1 = l1172;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -54176,7 +54157,7 @@ impl ChunkFns {
             l1178 = s_i64_0;
             'blk_266: {
                 'blk_267: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l1178;
                     s_i64_1 = l1172;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -54355,7 +54336,7 @@ impl ChunkFns {
                                     l1204 = s_i32_0;
                                     'blk_273: {
                                         'blk_274: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l1204;
                                             s_i32_1 = l1203;
                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -54489,7 +54470,7 @@ impl ChunkFns {
                     l1216 = s_i64_0;
                     'blk_281: {
                         'blk_282: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l1216;
                             s_i64_1 = l1172;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -54850,7 +54831,7 @@ impl ChunkFns {
                                             s_i32_0 = l1259;
                                             s_i32_1 = l1242;
                                             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l1259;
                                             s_i32_1 = l1244;
                                             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
@@ -54938,7 +54919,7 @@ impl ChunkFns {
                             l1265 = s_i64_0;
                             'blk_290: {
                                 'blk_291: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l1265;
                                     s_i64_1 = l1172;
                                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -55369,7 +55350,7 @@ impl ChunkFns {
                     s_i32_0 = l1316;
                     l1317 = s_i32_0;
                     s_i32_0 = 44i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 2usize, s_i32_0, host);
                     vm.exit_call();
@@ -55504,13 +55485,13 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_4d009124fde0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_4d009124fde0(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i64_0: i64 = 0i64;
     let mut s_i64_1: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -55529,7 +55510,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_30d3ae4a1ba8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_30d3ae4a1ba8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -55768,7 +55749,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -55811,7 +55792,7 @@ impl ChunkFns {
     l5 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l5;
             s_i64_1 = 64i64;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -55837,7 +55818,7 @@ impl ChunkFns {
     l6 = s_i64_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l6;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -56168,7 +56149,7 @@ impl ChunkFns {
                     s_i32_0 = l41;
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l42 = s_i32_0;
             s_i32_0 = l42;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
@@ -56196,7 +56177,7 @@ impl ChunkFns {
             l48 = s_i32_0;
             'blk_7: {
                 'blk_8: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l48;
                     s_i32_1 = l47;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -56476,7 +56457,7 @@ impl ChunkFns {
     l79 = s_i64_0;
     'blk_14: {
         'blk_15: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l79;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -56807,7 +56788,7 @@ impl ChunkFns {
                     s_i32_0 = l114;
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l115 = s_i32_0;
             s_i32_0 = l115;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
@@ -56857,7 +56838,7 @@ impl ChunkFns {
                     l120 = s_i64_0;
                     'blk_20: {
                         'blk_21: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l120;
                             s_i64_1 = l1;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -57187,7 +57168,7 @@ impl ChunkFns {
                                             s_i32_0 = l155;
                                             s_i32_1 = l126;
                                             ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l155;
                                             s_i32_1 = l154;
                                             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
@@ -57480,7 +57461,7 @@ impl ChunkFns {
             l183 = s_i32_0;
             'blk_39: {
                 'blk_40: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l183;
                     s_i32_1 = l182;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -57628,7 +57609,7 @@ impl ChunkFns {
                         l203 = s_i32_0;
                         'blk_44: {
                             'blk_45: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l203;
                                 s_i32_1 = l202;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -57697,7 +57678,7 @@ impl ChunkFns {
                         l208 = s_i32_0;
                         'blk_50: {
                             'blk_51: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l208;
                                 s_i32_1 = l207;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -57926,7 +57907,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_884c4d3d5fd9(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
+    pub(crate) fn f_884c4d3d5fd9(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], host: &mut dyn WasmSubstituteHost) -> std::result::Result<(), WasmTrap> {
     let mut l0: i64 = 0i64;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -57991,7 +57972,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = vm.get_i32(*g_map.get(0usize).ok_or(WasmTrap::Unreachable)?)?;
     'blk_1: {
         if s_i32_0 != 0 {
@@ -58307,7 +58288,7 @@ impl ChunkFns {
     s_i32_0 = -1i32;
     vm.set_i32(*g_map.get(23usize).ok_or(WasmTrap::Unreachable)?, s_i32_0)?;
     s_i32_0 = -1i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.set_i32(*g_map.get(24usize).ok_or(WasmTrap::Unreachable)?, s_i32_0)?;
     s_i64_0 = 1114112i64;
     l38 = s_i64_0;
@@ -58445,8 +58426,7 @@ impl ChunkFns {
     return Ok(());
     }
 
-    #[inline(never)]
-    pub(crate) fn f_59180185d65b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_59180185d65b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -58458,7 +58438,7 @@ impl ChunkFns {
     let mut l8: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -58772,7 +58752,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_92e33a06770e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_92e33a06770e(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = 0i64;
@@ -58819,7 +58799,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i32_3: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -59182,7 +59162,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_a0f57f7f1e87(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a0f57f7f1e87(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -59428,7 +59408,7 @@ impl ChunkFns {
     let mut s_i32_5: i32 = 0i32;
     let mut s_i64_5: i64 = 0i64;
     let mut s_i32_6: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -59683,7 +59663,7 @@ impl ChunkFns {
     l30 = s_i32_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l30;
             s_i32_1 = l29;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -59827,7 +59807,7 @@ impl ChunkFns {
                 l49 = s_i32_0;
                 'blk_7: {
                     'blk_8: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l49;
                         s_i32_1 = l48;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -60216,7 +60196,7 @@ impl ChunkFns {
                             s_i32_0 = __t42;
                             l86 = s_i32_0;
                             s_i32_0 = l86;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                             'blk_18: {
                                 if s_i32_0 != 0 {
@@ -60233,7 +60213,7 @@ impl ChunkFns {
                                     l90 = s_i32_0;
                                     'blk_19: {
                                         'blk_20: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l90;
                                             s_i32_1 = l89;
                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -60527,7 +60507,7 @@ impl ChunkFns {
                                             l121 = s_i32_0;
                                             'blk_29: {
                                                 'blk_30: loop {
-                                                    vm.deduct(host, 1)?;
+                                                    vm.deduct_1(host)?;
                                                     s_i32_0 = l121;
                                                     s_i32_1 = l120;
                                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -60894,7 +60874,7 @@ impl ChunkFns {
             l159 = s_i32_0;
             'blk_38: {
                 'blk_39: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l159;
                     s_i32_1 = l158;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -60922,7 +60902,7 @@ impl ChunkFns {
                         l164 = s_i32_0;
                         'blk_41: {
                             'blk_42: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l164;
                                 s_i32_1 = l163;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -61013,7 +60993,7 @@ impl ChunkFns {
             l168 = s_i32_1;
             s_i32_1 = 1i32;
             l169 = s_i32_1;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l155;
             l170 = s_i32_1;
             s_i32_1 = 1i32;
@@ -61223,7 +61203,7 @@ impl ChunkFns {
             l197 = s_i32_0;
             'blk_46: {
                 'blk_47: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l197;
                     s_i32_1 = l196;
                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -61251,7 +61231,7 @@ impl ChunkFns {
                         l202 = s_i32_0;
                         'blk_49: {
                             'blk_50: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l202;
                                 s_i32_1 = l201;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -61328,7 +61308,7 @@ impl ChunkFns {
             vm.exit_call();
             let __t88 = __call_res?;
             s_i32_0 = __t88;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l4;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 26usize, s_i32_0, s_i32_1, host);
@@ -61530,13 +61510,13 @@ impl ChunkFns {
     ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
     s_i32_0 = l230;
     l231 = s_i32_0;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l231;
     return Ok(s_i32_0);
     }
 
     #[inline(never)]
-    pub(crate) fn f_a8ec9a0032f5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a8ec9a0032f5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -63252,7 +63232,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i32_4: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -63469,7 +63449,7 @@ impl ChunkFns {
     l27 = s_i32_0;
     'blk_2: {
         'blk_3: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l27;
             s_i32_1 = l26;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -63497,7 +63477,7 @@ impl ChunkFns {
                 l32 = s_i32_0;
                 'blk_5: {
                     'blk_6: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l32;
                         s_i32_1 = l31;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -63979,7 +63959,7 @@ impl ChunkFns {
                 l84 = s_i32_0;
                 'blk_18: {
                     'blk_19: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l84;
                         s_i32_1 = l83;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -64043,7 +64023,7 @@ impl ChunkFns {
                 l89 = s_i32_0;
                 'blk_22: {
                     'blk_23: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l89;
                         s_i32_1 = l88;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -64321,7 +64301,7 @@ impl ChunkFns {
     l117 = s_i64_0;
     'blk_30: {
         'blk_31: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l116;
             s_i32_1 = l16;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -64344,7 +64324,7 @@ impl ChunkFns {
             }
             'blk_33: {
                 'blk_34: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l116;
                     s_i32_1 = l16;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -64535,7 +64515,7 @@ impl ChunkFns {
                     l139 = s_i32_0;
                     'blk_39: {
                         'blk_40: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l139;
                             s_i32_1 = l138;
                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -64569,7 +64549,7 @@ impl ChunkFns {
                                 l144 = s_i32_0;
                                 'blk_42: {
                                     'blk_43: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l144;
                                         s_i32_1 = l143;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -64832,7 +64812,7 @@ impl ChunkFns {
                                 l173 = s_i32_0;
                                 'blk_50: {
                                     'blk_51: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l173;
                                         s_i32_1 = l172;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -64896,7 +64876,7 @@ impl ChunkFns {
                                 l178 = s_i32_0;
                                 'blk_54: {
                                     'blk_55: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l178;
                                         s_i32_1 = l177;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -65583,7 +65563,7 @@ impl ChunkFns {
                     s_i32_0 = l246;
                     s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
                     s_i32_0 = ops::i32_eqz(s_i32_0);
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     'blk_73: {
                         if s_i32_0 != 0 {
                             continue 'blk_31;
@@ -65603,7 +65583,7 @@ impl ChunkFns {
                     l250 = s_i32_0;
                     'blk_74: {
                         'blk_75: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l250;
                             s_i32_1 = l249;
                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -65879,7 +65859,7 @@ impl ChunkFns {
                                 l280 = s_i32_0;
                                 'blk_79: {
                                     'blk_80: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l280;
                                         s_i32_1 = l279;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -66142,7 +66122,7 @@ impl ChunkFns {
                                 l309 = s_i32_0;
                                 'blk_87: {
                                     'blk_88: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l309;
                                         s_i32_1 = l308;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -66206,7 +66186,7 @@ impl ChunkFns {
                                 l314 = s_i32_0;
                                 'blk_91: {
                                     'blk_92: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l314;
                                         s_i32_1 = l313;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -66557,7 +66537,7 @@ impl ChunkFns {
     l353 = s_i32_0;
     'blk_100: {
         'blk_101: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l353;
             s_i32_1 = l352;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -66585,7 +66565,7 @@ impl ChunkFns {
                 l358 = s_i32_0;
                 'blk_103: {
                     'blk_104: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l358;
                         s_i32_1 = l357;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -66614,7 +66594,7 @@ impl ChunkFns {
                                     l360 = s_i64_0;
                                     'blk_107: {
                                         'blk_108: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i64_0 = l360;
                                             s_i64_1 = l341;
                                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -66945,7 +66925,7 @@ impl ChunkFns {
                                                     s_i32_0 = l395;
                                                 }
                                             }
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             l396 = s_i32_0;
                                             s_i32_0 = l396;
                                             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
@@ -67163,7 +67143,7 @@ impl ChunkFns {
     l419 = s_i64_0;
     'blk_118: {
         'blk_119: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l419;
             s_i32_1 = l349;
             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -67342,7 +67322,7 @@ impl ChunkFns {
                     l444 = s_i32_0;
                     'blk_124: {
                         'blk_125: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l444;
                             s_i32_1 = l443;
                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -67671,7 +67651,7 @@ impl ChunkFns {
                                         let __t180 = __call_res?;
                                         s_i32_0 = __t180;
                                         l480 = s_i32_0;
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l480;
                                         s_i32_1 = l451;
                                         ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -67889,7 +67869,7 @@ impl ChunkFns {
     l506 = s_i64_0;
     'blk_135: {
         'blk_136: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l506;
             s_i64_1 = l341;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -68220,7 +68200,7 @@ impl ChunkFns {
                     s_i32_0 = l541;
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l542 = s_i32_0;
             s_i32_0 = l542;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
@@ -68351,7 +68331,7 @@ impl ChunkFns {
                             l561 = s_i32_0;
                             'blk_142: {
                                 'blk_143: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l561;
                                     s_i32_1 = l560;
                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -68680,7 +68660,7 @@ impl ChunkFns {
                                                 let __t219 = __call_res?;
                                                 s_i32_0 = __t219;
                                                 l597 = s_i32_0;
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i32_0 = l597;
                                                 s_i32_1 = l568;
                                                 ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -68878,7 +68858,7 @@ impl ChunkFns {
                     l621 = s_i64_0;
                     'blk_153: {
                         'blk_154: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l621;
                             s_i32_1 = l546;
                             s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -69271,7 +69251,7 @@ impl ChunkFns {
                                     l676 = s_i32_0;
                                     'blk_166: {
                                         'blk_167: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l676;
                                             s_i32_1 = l675;
                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -69600,7 +69580,7 @@ impl ChunkFns {
                                                         let __t251 = __call_res?;
                                                         s_i32_0 = __t251;
                                                         l712 = s_i32_0;
-                                                        vm.deduct(host, 1)?;
+                                                        vm.deduct_1(host)?;
                                                         s_i32_0 = l712;
                                                         s_i32_1 = l683;
                                                         ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -69829,7 +69809,7 @@ impl ChunkFns {
     l738 = s_i64_0;
     'blk_177: {
         'blk_178: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l738;
             s_i64_1 = l341;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -70160,7 +70140,7 @@ impl ChunkFns {
                     s_i32_0 = l773;
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l774 = s_i32_0;
             s_i32_0 = l774;
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
@@ -70593,7 +70573,7 @@ impl ChunkFns {
                             s_i32_1 = 1i32;
                             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
                             s_i32_0 = l831;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             l832 = s_i32_0;
                             s_i32_0 = 16i32;
                             vm.enter_call()?;
@@ -70916,7 +70896,7 @@ impl ChunkFns {
     l866 = s_i64_0;
     'blk_198: {
         'blk_199: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l866;
             s_i64_1 = l341;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -71277,7 +71257,7 @@ impl ChunkFns {
                             s_i32_0 = l909;
                             s_i32_1 = l892;
                             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l909;
                             s_i32_1 = l894;
                             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
@@ -71345,7 +71325,7 @@ impl ChunkFns {
                     l916 = s_i64_0;
                     'blk_205: {
                         'blk_206: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l916;
                             s_i64_1 = l341;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -71706,7 +71686,7 @@ impl ChunkFns {
                                             ops::i32_store8(vm, 0, s_i32_0, 5u32, s_i32_1)?;
                                             s_i32_0 = l959;
                                             s_i32_1 = l942;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
                                             s_i32_0 = l959;
                                             s_i32_1 = l944;
@@ -71833,7 +71813,7 @@ impl ChunkFns {
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
     s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
     l965 = s_i64_0;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l964;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 26usize, s_i32_0, host);
@@ -71852,7 +71832,7 @@ impl ChunkFns {
     l968 = s_i64_0;
     'blk_213: {
         'blk_214: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l968;
             s_i64_1 = l965;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -71953,7 +71933,7 @@ impl ChunkFns {
             l981 = s_i64_0;
             'blk_217: {
                 'blk_218: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l981;
                     s_i32_1 = l980;
                     s_i32_1 = ops::i32_load(vm, 0, s_i32_1, 4u32)?;
@@ -72132,7 +72112,7 @@ impl ChunkFns {
                             l1006 = s_i32_0;
                             'blk_223: {
                                 'blk_224: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l1006;
                                     s_i32_1 = l1005;
                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -72357,7 +72337,7 @@ impl ChunkFns {
     l1031 = s_i64_0;
     'blk_231: {
         'blk_232: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l1031;
             s_i64_1 = l965;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -72560,7 +72540,7 @@ impl ChunkFns {
                     l1056 = s_i64_0;
                     'blk_238: {
                         'blk_239: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l1056;
                             s_i64_1 = l965;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -73194,7 +73174,7 @@ impl ChunkFns {
                                     vm.exit_call();
                                     let __t391 = __call_res?;
                                     s_i32_0 = __t391;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     l1139 = s_i32_0;
                                     s_i32_0 = l1139;
                                     s_i32_1 = l1139;
@@ -73364,7 +73344,7 @@ impl ChunkFns {
                             l1156 = s_i32_0;
                             'blk_256: {
                                 'blk_257: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l1156;
                                     s_i32_1 = l1155;
                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -73693,7 +73673,7 @@ impl ChunkFns {
                                                 let __t408 = __call_res?;
                                                 s_i32_0 = __t408;
                                                 l1192 = s_i32_0;
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i32_0 = l1192;
                                                 s_i32_1 = l1163;
                                                 ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -73779,7 +73759,7 @@ impl ChunkFns {
                                     l1198 = s_i32_0;
                                     'blk_266: {
                                         'blk_267: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l1198;
                                             s_i32_1 = l1197;
                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -74108,7 +74088,7 @@ impl ChunkFns {
                                                         let __t421 = __call_res?;
                                                         s_i32_0 = __t421;
                                                         l1234 = s_i32_0;
-                                                        vm.deduct(host, 1)?;
+                                                        vm.deduct_1(host)?;
                                                         s_i32_0 = l1234;
                                                         s_i32_1 = l1205;
                                                         ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
@@ -74315,7 +74295,7 @@ impl ChunkFns {
                                             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
                                             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                                             s_i32_0 = l1259;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_1 = 0i32;
                                             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
                                             s_i32_0 = l1259;
@@ -74517,7 +74497,7 @@ impl ChunkFns {
                                             l1278 = s_i32_0;
                                             'blk_275: {
                                                 'blk_276: loop {
-                                                    vm.deduct(host, 1)?;
+                                                    vm.deduct_1(host)?;
                                                     s_i32_0 = l1278;
                                                     s_i32_1 = l1277;
                                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -74843,7 +74823,7 @@ impl ChunkFns {
                                                                         s_i32_1 = l1311;
                                                                         ops::i32_store(vm, 0, s_i32_0, 40u32, s_i32_1)?;
                                                                         s_i32_0 = l1312;
-                                                                        vm.deduct(host, 1)?;
+                                                                        vm.deduct_1(host)?;
                                                                         l1313 = s_i32_0;
                                                                         s_i32_0 = 8i32;
                                                                         vm.enter_call()?;
@@ -74973,7 +74953,7 @@ impl ChunkFns {
     l1323 = s_i32_0;
     'blk_281: {
         'blk_282: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1323;
             s_i32_1 = l1322;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -75039,7 +75019,7 @@ impl ChunkFns {
                         l1331 = s_i32_0;
                         'blk_285: {
                             'blk_286: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l1331;
                                 s_i32_1 = l1330;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -75302,7 +75282,7 @@ impl ChunkFns {
                         l1360 = s_i32_0;
                         'blk_293: {
                             'blk_294: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l1360;
                                 s_i32_1 = l1359;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -75694,7 +75674,7 @@ impl ChunkFns {
                         l1401 = s_i32_0;
                         'blk_304: {
                             'blk_305: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l1401;
                                 s_i32_1 = l1400;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -75980,7 +75960,7 @@ impl ChunkFns {
     l1430 = s_i32_0;
     'blk_313: {
         'blk_314: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1430;
             s_i32_1 = l1429;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -76046,7 +76026,7 @@ impl ChunkFns {
                         l1438 = s_i32_0;
                         'blk_317: {
                             'blk_318: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l1438;
                                 s_i32_1 = l1437;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -76309,7 +76289,7 @@ impl ChunkFns {
                         l1467 = s_i32_0;
                         'blk_325: {
                             'blk_326: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l1467;
                                 s_i32_1 = l1466;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -76701,7 +76681,7 @@ impl ChunkFns {
                         l1508 = s_i32_0;
                         'blk_336: {
                             'blk_337: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l1508;
                                 s_i32_1 = l1507;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -77003,7 +76983,7 @@ impl ChunkFns {
     l1539 = s_i32_0;
     'blk_345: {
         'blk_346: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l1539;
             s_i32_1 = l1538;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -77142,7 +77122,7 @@ impl ChunkFns {
     l1555 = s_i64_0;
     'blk_348: {
         'blk_349: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l1555;
             s_i64_1 = l1551;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -77156,7 +77136,7 @@ impl ChunkFns {
             l1557 = s_i64_0;
             'blk_350: {
                 'blk_351: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l1557;
                     s_i64_1 = l1551;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -77335,7 +77315,7 @@ impl ChunkFns {
                                     l1583 = s_i32_0;
                                     'blk_357: {
                                         'blk_358: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l1583;
                                             s_i32_1 = l1582;
                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -77469,7 +77449,7 @@ impl ChunkFns {
                     l1595 = s_i64_0;
                     'blk_365: {
                         'blk_366: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l1595;
                             s_i64_1 = l1551;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -77830,7 +77810,7 @@ impl ChunkFns {
                                             s_i32_0 = l1638;
                                             s_i32_1 = l1621;
                                             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l1638;
                                             s_i32_1 = l1623;
                                             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
@@ -77918,7 +77898,7 @@ impl ChunkFns {
                             l1644 = s_i64_0;
                             'blk_374: {
                                 'blk_375: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i64_0 = l1644;
                                     s_i64_1 = l1551;
                                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -78349,7 +78329,7 @@ impl ChunkFns {
                     s_i32_0 = l1695;
                     l1696 = s_i32_0;
                     s_i32_0 = 44i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 2usize, s_i32_0, host);
                     vm.exit_call();
@@ -78485,7 +78465,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_fd7bec7f0343(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_fd7bec7f0343(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = 0i32;
@@ -78735,7 +78715,7 @@ impl ChunkFns {
     let mut s_i32_6: i32 = 0i32;
     let mut s_i64_6: i64 = 0i64;
     let mut s_i64_7: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -78860,7 +78840,7 @@ impl ChunkFns {
     l21 = s_i32_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l21;
             s_i32_1 = l20;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -79601,7 +79581,7 @@ impl ChunkFns {
     l119 = s_i32_0;
     'blk_25: {
         'blk_26: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l119;
             s_i32_1 = l118;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -79635,7 +79615,7 @@ impl ChunkFns {
                 l125 = s_i32_0;
                 'blk_28: {
                     'blk_29: loop {
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l125;
                         s_i32_1 = l124;
                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -79710,7 +79690,7 @@ impl ChunkFns {
                             l136 = s_i32_0;
                             'blk_32: {
                                 'blk_33: loop {
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = l136;
                                     s_i32_1 = l135;
                                     s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -80085,7 +80065,7 @@ impl ChunkFns {
                                         l175 = s_i32_0;
                                         'blk_43: {
                                             'blk_44: loop {
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i32_0 = l175;
                                                 s_i32_1 = l174;
                                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -80249,7 +80229,7 @@ impl ChunkFns {
                                                     l190 = s_i64_0;
                                                     'blk_49: {
                                                         'blk_50: loop {
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             s_i64_0 = l190;
                                                             s_i64_1 = l189;
                                                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -80469,7 +80449,7 @@ impl ChunkFns {
                                                     l214 = s_i32_0;
                                                     'blk_55: {
                                                         'blk_56: loop {
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             s_i32_0 = l214;
                                                             s_i32_1 = l213;
                                                             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -80695,7 +80675,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    pub(crate) fn f_7b2b3771f8f7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_7b2b3771f8f7(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -80709,7 +80689,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -80736,7 +80716,7 @@ impl ChunkFns {
     l5 = s_i32_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l5;
             s_i32_1 = l4;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -80782,13 +80762,13 @@ impl ChunkFns {
     return Ok(s_i64_0);
     }
 
-    pub(crate) fn f_6da45e6623e3(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_6da45e6623e3(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -80850,7 +80830,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_16c57c4376f5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_16c57c4376f5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -80903,7 +80883,7 @@ impl ChunkFns {
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -80990,7 +80970,7 @@ impl ChunkFns {
     l19 = s_i64_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l19;
             s_i64_1 = l8;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -81518,7 +81498,7 @@ impl ChunkFns {
                                                     __call_res?;
                                                     s_i32_0 = vm.get_i32(*g_map.get(0usize).ok_or(WasmTrap::Unreachable)?)?;
                                                     l17 = s_i32_0;
-                                                    vm.deduct(host, 1)?;
+                                                    vm.deduct_1(host)?;
                                                     s_i32_0 = 1i32;
                                                     l18 = s_i32_0;
                                                     s_i64_0 = l19;
@@ -81546,7 +81526,7 @@ impl ChunkFns {
                     s_i32_0 = l21;
                     l17 = s_i32_0;
                     s_i32_0 = 1i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l18 = s_i32_0;
                     s_i64_0 = l19;
                     s_i64_1 = 1i64;
@@ -81777,7 +81757,7 @@ impl ChunkFns {
                                                                 if s_i32_0 != 0 {
                                                                     s_i32_0 = l38;
                                                                     l39 = s_i32_0;
-                                                                    vm.deduct(host, 1)?;
+                                                                    vm.deduct_1(host)?;
                                                                     s_i32_0 = l39;
                                                                     return Ok(s_i32_0);
                                                                 } else {
@@ -81785,7 +81765,7 @@ impl ChunkFns {
                                                             }
                                                             s_i32_0 = l38;
                                                             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             s_i32_1 = 1i32;
                                                             vm.enter_call()?;
                                                             let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 11usize, s_i32_0, s_i32_1, host);
@@ -81927,8 +81907,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_cec45d7b411d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_cec45d7b411d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -81945,7 +81924,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -82034,7 +82013,7 @@ impl ChunkFns {
     l6 = s_i64_0;
     'blk_7: {
         'blk_8: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l6;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -82110,8 +82089,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_ea528067816b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_ea528067816b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i32 = 0i32;
@@ -82127,7 +82105,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -82176,7 +82154,7 @@ impl ChunkFns {
     l4 = s_i64_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l4;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -82264,8 +82242,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_f6caa6e6fc2a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f6caa6e6fc2a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -82276,7 +82253,7 @@ impl ChunkFns {
     let mut l7: i32 = 0i32;
     let mut s_i32_0: i32 = 0i32;
     let mut s_i32_1: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -82541,8 +82518,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_112be49a4c6a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
+    pub(crate) fn f_112be49a4c6a(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i64, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -82560,7 +82536,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -82573,7 +82549,7 @@ impl ChunkFns {
     l3 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l3;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -82647,7 +82623,7 @@ impl ChunkFns {
             l7 = s_i32_0;
             'blk_7: {
                 'blk_8: loop {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = l3;
                     s_i64_1 = l2;
                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -82787,7 +82763,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_94f57c3a085c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_94f57c3a085c(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -82937,7 +82913,7 @@ impl ChunkFns {
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -83270,7 +83246,7 @@ impl ChunkFns {
             l33 = s_i64_1;
             s_i64_1 = 0i64;
             l34 = s_i64_1;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = 16i32;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_1, host);
@@ -83326,7 +83302,7 @@ impl ChunkFns {
                     l39 = s_i32_1;
                     s_i32_1 = l39;
                     s_i64_2 = l37;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     ops::i64_store(vm, 0, s_i32_1, 0u32, s_i64_2)?;
                     s_i32_1 = l39;
                     s_i64_2 = l38;
@@ -83355,7 +83331,7 @@ impl ChunkFns {
                     s_i32_1 = l41;
                     s_i32_2 = 16i32;
                     s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                     s_i32_0 = l41;
                     s_i32_1 = 0i32;
@@ -83463,7 +83439,7 @@ impl ChunkFns {
             s_i64_0 = ops::i64_load(vm, 0, s_i32_0, 16u32)?;
             l52 = s_i64_0;
             s_i32_0 = 16i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
             vm.exit_call();
@@ -83537,7 +83513,7 @@ impl ChunkFns {
     l61 = s_i32_0;
     'blk_7: {
         'blk_8: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l60;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -83875,7 +83851,7 @@ impl ChunkFns {
                                     s_i32_0 = l95;
                                     l96 = s_i32_0;
                                     s_i32_0 = 72i32;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     vm.enter_call()?;
                                     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
                                     vm.exit_call();
@@ -84213,7 +84189,7 @@ impl ChunkFns {
             s_i32_0 = l122;
             s_i32_1 = l122;
             s_i32_2 = 16i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
             s_i32_0 = l122;
@@ -84325,7 +84301,7 @@ impl ChunkFns {
     s_i64_0 = l60;
     l133 = s_i64_0;
     s_i32_0 = 16i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 1usize, s_i32_0, host);
     vm.exit_call();
@@ -84386,7 +84362,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_f2d9b324c003(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_f2d9b324c003(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -84510,7 +84486,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -84847,7 +84823,7 @@ impl ChunkFns {
             s_i32_0 = __t16;
             l44 = s_i32_0;
             s_i32_0 = l44;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = l34;
             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
             s_i32_0 = l44;
@@ -84972,7 +84948,7 @@ impl ChunkFns {
             s_i64_1 = 1i64;
             s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
             l61 = s_i64_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l61;
             s_i64_1 = l2;
             s_i32_0 = ops::i64_ge_u(s_i64_0, s_i64_1);
@@ -85146,7 +85122,7 @@ impl ChunkFns {
             s_i64_1 = 1114315i64;
             l77 = s_i64_1;
             s_i64_1 = 0i64;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l78 = s_i64_1;
             s_i32_1 = 16i32;
             vm.enter_call()?;
@@ -85490,7 +85466,7 @@ impl ChunkFns {
     s_i32_1 = l112;
     s_i32_2 = 16i32;
     s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
     s_i32_0 = l112;
     s_i32_1 = 0i32;
@@ -85525,8 +85501,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_20ed2f71bb81(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_20ed2f71bb81(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -85555,7 +85530,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i64_2: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -85774,7 +85749,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_5ec036ffae9b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_5ec036ffae9b(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i64, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = p1;
     let mut l2: i64 = 0i64;
@@ -85840,7 +85815,7 @@ impl ChunkFns {
     let mut s_i32_2: i32 = 0i32;
     let mut s_i64_2: i64 = 0i64;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -86203,7 +86178,7 @@ impl ChunkFns {
             s_i32_0 = l51;
             s_i32_1 = l49;
             ops::i32_store8(vm, 0, s_i32_0, 4u32, s_i32_1)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l51;
             s_i64_1 = l50;
             ops::i64_store(vm, 0, s_i32_0, 8u32, s_i64_1)?;
@@ -86245,7 +86220,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_a77ca85b67bd(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_a77ca85b67bd(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i32 = p2;
@@ -86364,7 +86339,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i64_3: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -86455,7 +86430,7 @@ impl ChunkFns {
     l21 = s_i64_0;
     'blk_3: {
         'blk_4: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l21;
             s_i64_1 = l8;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -86982,7 +86957,7 @@ impl ChunkFns {
                                                 }
                                             }
                                             l36 = s_i32_0;
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i32_0 = l36;
                                             'blk_47: {
                                                 if s_i32_0 != 0 {
@@ -87015,7 +86990,7 @@ impl ChunkFns {
                                                             l40 = s_i64_0;
                                                             'blk_49: {
                                                                 'blk_50: loop {
-                                                                    vm.deduct(host, 1)?;
+                                                                    vm.deduct_1(host)?;
                                                                     s_i64_0 = l40;
                                                                     s_i64_1 = l32;
                                                                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -87332,7 +87307,7 @@ impl ChunkFns {
                                                     l62 = s_i64_0;
                                                     'blk_62: {
                                                         'blk_63: loop {
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             s_i64_0 = l62;
                                                             s_i64_1 = l61;
                                                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -87769,7 +87744,7 @@ impl ChunkFns {
                                     l79 = s_i64_0;
                                     'blk_83: {
                                         'blk_84: loop {
-                                            vm.deduct(host, 1)?;
+                                            vm.deduct_1(host)?;
                                             s_i64_0 = l79;
                                             s_i64_1 = l8;
                                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -87897,7 +87872,7 @@ impl ChunkFns {
                                                             l84 = s_i64_0;
                                                             'blk_91: {
                                                                 'blk_92: loop {
-                                                                    vm.deduct(host, 1)?;
+                                                                    vm.deduct_1(host)?;
                                                                     s_i64_0 = l83;
                                                                     s_i64_1 = l78;
                                                                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -87995,7 +87970,7 @@ impl ChunkFns {
                                                                     l86 = s_i64_0;
                                                                     'blk_99: {
                                                                         'blk_100: loop {
-                                                                            vm.deduct(host, 1)?;
+                                                                            vm.deduct_1(host)?;
                                                                             s_i64_0 = l86;
                                                                             s_i64_1 = l84;
                                                                             s_i32_0 = ops::i64_le_u(s_i64_0, s_i64_1);
@@ -88028,7 +88003,7 @@ impl ChunkFns {
                                                                     l15 = s_i32_0;
                                                                     s_i32_0 = 263i32;
                                                                     l19 = s_i32_0;
-                                                                    vm.deduct(host, 1)?;
+                                                                    vm.deduct_1(host)?;
                                                                     s_i32_0 = 1i32;
                                                                     l20 = s_i32_0;
                                                                     s_i64_0 = l84;
@@ -88170,7 +88145,7 @@ impl ChunkFns {
                                                         if s_i32_0 != 0 {
                                                             s_i32_0 = l87;
                                                             s_i32_1 = 262i32;
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             s_i32_0 = ops::i32_eq(s_i32_0, s_i32_1);
                                                         } else {
                                                             s_i32_0 = 0i32;
@@ -88178,7 +88153,7 @@ impl ChunkFns {
                                                     }
                                                     'blk_109: {
                                                         if s_i32_0 != 0 {
-                                                            vm.deduct(host, 1)?;
+                                                            vm.deduct_1(host)?;
                                                             s_i64_0 = l8;
                                                             l90 = s_i64_0;
                                                             s_i64_0 = l21;
@@ -88187,7 +88162,7 @@ impl ChunkFns {
                                                             l91 = s_i64_0;
                                                             'blk_110: {
                                                                 'blk_111: loop {
-                                                                    vm.deduct(host, 1)?;
+                                                                    vm.deduct_1(host)?;
                                                                     s_i64_0 = l91;
                                                                     s_i64_1 = l8;
                                                                     s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -88255,7 +88230,7 @@ impl ChunkFns {
                                                                     l95 = s_i64_0;
                                                                     'blk_115: {
                                                                         'blk_116: loop {
-                                                                            vm.deduct(host, 1)?;
+                                                                            vm.deduct_1(host)?;
                                                                             s_i64_0 = l94;
                                                                             s_i64_1 = l90;
                                                                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -88351,7 +88326,7 @@ impl ChunkFns {
                                                                             l97 = s_i64_0;
                                                                             'blk_123: {
                                                                                 'blk_124: loop {
-                                                                                    vm.deduct(host, 1)?;
+                                                                                    vm.deduct_1(host)?;
                                                                                     s_i64_0 = l97;
                                                                                     s_i64_1 = l95;
                                                                                     s_i32_0 = ops::i64_le_u(s_i64_0, s_i64_1);
@@ -88551,7 +88526,7 @@ impl ChunkFns {
                                                                             }
                                                                         }
                                                                     }
-                                                                    vm.deduct(host, 1)?;
+                                                                    vm.deduct_1(host)?;
                                                                     'blk_136: {
                                                                         if s_i32_0 != 0 {
                                                                             s_i32_0 = l11;
@@ -88631,7 +88606,7 @@ impl ChunkFns {
                     }
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l23;
             l19 = s_i32_0;
             s_i32_0 = 1i32;
@@ -88678,7 +88653,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_320f8f4bc0d8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, p1: i32, p2: i64, p3: i32, p4: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_320f8f4bc0d8(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, p1: i32, p2: i64, p3: i32, p4: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = p1;
     let mut l2: i64 = p2;
@@ -88815,7 +88790,7 @@ impl ChunkFns {
     let mut s_i64_2: i64 = 0i64;
     let mut s_i32_3: i32 = 0i32;
     let mut s_i32_4: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -88841,7 +88816,7 @@ impl ChunkFns {
     l9 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l9;
             s_i64_1 = l8;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -88937,7 +88912,7 @@ impl ChunkFns {
                     l9 = s_i64_0;
                     'blk_7: {
                         'blk_8: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l9;
                             s_i64_1 = l8;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -89003,7 +88978,7 @@ impl ChunkFns {
                     l9 = s_i64_0;
                     'blk_11: {
                         'blk_12: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l9;
                             s_i64_1 = l8;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -89069,7 +89044,7 @@ impl ChunkFns {
                     l9 = s_i64_0;
                     'blk_15: {
                         'blk_16: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l9;
                             s_i64_1 = l8;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -89446,7 +89421,7 @@ impl ChunkFns {
                                 if s_i32_0 != 0 {
                                     s_i64_0 = l6;
                                     s_i64_1 = 0i64;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_0 = ops::i64_gt_u(s_i64_0, s_i64_1);
                                     'blk_31: {
                                         if s_i32_0 != 0 {
@@ -89464,7 +89439,7 @@ impl ChunkFns {
                     }
                     s_i32_0 = l7;
                     s_i32_1 = l10;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     vm.enter_call()?;
                     let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 4usize, s_i32_0, s_i32_1, host);
                     vm.exit_call();
@@ -89741,7 +89716,7 @@ impl ChunkFns {
             let __t40 = __call_res?;
             s_i32_0 = __t40;
             l53 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l53;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 18usize, s_i32_0, host);
@@ -90103,7 +90078,7 @@ impl ChunkFns {
                                     s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
                                     ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                                     s_i32_0 = l80;
-                                    vm.deduct(host, 1)?;
+                                    vm.deduct_1(host)?;
                                     s_i32_1 = 43i32;
                                     ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
                                     s_i32_0 = l80;
@@ -90191,7 +90166,7 @@ impl ChunkFns {
                             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
                             l5 = s_i32_0;
                             s_i32_0 = l84;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 4u32)?;
                             s_i32_1 = 2i32;
                             vm.enter_call()?;
@@ -90351,7 +90326,7 @@ impl ChunkFns {
                             ops::i32_store(vm, 0, s_i32_2, 4u32, s_i32_3)?;
                             s_i32_2 = l97;
                             s_i32_3 = 1i32;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             ops::i32_store(vm, 0, s_i32_2, 8u32, s_i32_3)?;
                             s_i32_2 = l97;
                             s_i32_3 = 1i32;
@@ -90646,7 +90621,7 @@ impl ChunkFns {
                             vm.exit_call();
                             let __t89 = __call_res?;
                             s_i32_0 = __t89;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             l119 = s_i32_0;
                             s_i32_0 = l113;
                             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
@@ -90707,7 +90682,7 @@ impl ChunkFns {
             let __call_res = dispatch.call_p_i32_i32_ret_void(vm, c_map, 4usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
             __call_res?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l9;
             s_i64_1 = 1i64;
             s_i64_0 = ops::i64_add(s_i64_0, s_i64_1);
@@ -90750,7 +90725,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_7c4db0be04a5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_7c4db0be04a5(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i32 = 0i32;
@@ -91138,7 +91113,7 @@ impl ChunkFns {
     let mut s_i64_3: i64 = 0i64;
     let mut s_i32_4: i32 = 0i32;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -91480,7 +91455,7 @@ impl ChunkFns {
             s_i32_0 = l27;
             s_i64_1 = 2338621054691339372i64;
             ops::i64_store(vm, 0, s_i32_0, 40u32, s_i64_1)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l27;
             s_i64_1 = 7599578554797876578i64;
             ops::i64_store(vm, 0, s_i32_0, 48u32, s_i64_1)?;
@@ -91537,7 +91512,7 @@ impl ChunkFns {
             s_i32_0 = l28;
             s_i32_1 = 1i32;
             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l28;
             s_i64_1 = 4932693271981748035i64;
             ops::i64_store(vm, 0, s_i32_0, 16u32, s_i64_1)?;
@@ -91589,7 +91564,7 @@ impl ChunkFns {
     s_i32_2 = l32;
     s_i64_3 = l31;
     ops::i64_store(vm, 0, s_i32_2, 8u32, s_i64_3)?;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_2 = l32;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_i32_i64_i32_ret_i32(vm, c_map, 8usize, s_i32_0, s_i64_1, s_i32_2, host);
@@ -91952,7 +91927,7 @@ impl ChunkFns {
             ops::i32_store(vm, 0, s_i32_2, 8u32, s_i32_3)?;
             s_i32_2 = l55;
             s_i32_3 = 1i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             ops::i32_store(vm, 0, s_i32_2, 12u32, s_i32_3)?;
             s_i32_2 = l55;
             vm.enter_call()?;
@@ -92058,7 +92033,7 @@ impl ChunkFns {
             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
             s_i32_0 = l64;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_1 = 67i32;
             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
             s_i32_0 = l64;
@@ -92119,7 +92094,7 @@ impl ChunkFns {
     let __t48 = __call_res?;
     s_i32_2 = __t48;
     l67 = s_i32_2;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_2 = l67;
     s_i64_3 = l65;
     ops::i64_store(vm, 0, s_i32_2, 0u32, s_i64_3)?;
@@ -92512,7 +92487,7 @@ impl ChunkFns {
                             s_i32_1 = l108;
                             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
                             s_i32_0 = l110;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_1 = l109;
                             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
                             s_i32_0 = l110;
@@ -92590,7 +92565,7 @@ impl ChunkFns {
                             s_i32_0 = l122;
                             s_i32_1 = l117;
                             ops::i32_store8(vm, 0, s_i32_0, 0u32, s_i32_1)?;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l122;
                             s_i32_1 = l121;
                             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
@@ -92605,7 +92580,7 @@ impl ChunkFns {
                             s_i32_0 = l123;
                             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
                             l124 = s_i32_0;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_0 = l104;
                             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
                             s_i32_1 = l124;
@@ -92688,7 +92663,7 @@ impl ChunkFns {
                     s_i32_0 = l63;
                     l126 = s_i32_0;
                     s_i32_0 = l104;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i64_0 = ops::i64_load(vm, 0, s_i32_0, 8u32)?;
                     l127 = s_i64_0;
                     s_i32_0 = l63;
@@ -92871,7 +92846,7 @@ impl ChunkFns {
                             s_i32_1 = 101i32;
                             ops::i32_store8(vm, 0, s_i32_0, 72u32, s_i32_1)?;
                             s_i32_0 = l139;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_1 = 110i32;
                             ops::i32_store8(vm, 0, s_i32_0, 73u32, s_i32_1)?;
                             s_i32_0 = l139;
@@ -92933,7 +92908,7 @@ impl ChunkFns {
                             return Ok(s_i32_0);
                         }
                     }
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     return Err(WasmTrap::Unreachable);
                 }
             }
@@ -93185,7 +93160,7 @@ impl ChunkFns {
             s_i32_0 = l166;
             s_i32_1 = l165;
             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l166;
             l167 = s_i32_0;
             s_i32_0 = l167;
@@ -93316,7 +93291,7 @@ impl ChunkFns {
                             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
                             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                             s_i32_0 = l177;
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i32_1 = 0i32;
                             ops::i32_store(vm, 0, s_i32_0, 4u32, s_i32_1)?;
                             s_i32_0 = l177;
@@ -93368,7 +93343,7 @@ impl ChunkFns {
                     s_i32_0 = l184;
                     s_i32_1 = l184;
                     s_i32_2 = 16i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
                     ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
                     s_i32_0 = l184;
@@ -93437,7 +93412,7 @@ impl ChunkFns {
             s_i32_1 = l190;
             s_i32_2 = 16i32;
             s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             ops::i32_store(vm, 0, s_i32_0, 0u32, s_i32_1)?;
             s_i32_0 = l190;
             s_i32_1 = 0i32;
@@ -93490,7 +93465,7 @@ impl ChunkFns {
         if s_i32_0 != 0 {
             s_i32_0 = l1;
             s_i32_1 = l63;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_i32_ret_i32(vm, c_map, 25usize, s_i32_0, s_i32_1, host);
             vm.exit_call();
@@ -93610,7 +93585,7 @@ impl ChunkFns {
     vm.exit_call();
     let __t119 = __call_res?;
     s_i32_0 = __t119;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     l209 = s_i32_0;
     s_i32_0 = l209;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
@@ -93933,7 +93908,7 @@ impl ChunkFns {
             l239 = s_i32_3;
             s_i32_3 = l239;
             s_i64_4 = l237;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             ops::i64_store(vm, 0, s_i32_3, 0u32, s_i64_4)?;
             s_i32_3 = l239;
             s_i64_4 = l238;
@@ -94084,7 +94059,7 @@ impl ChunkFns {
     s_i32_0 = l249;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 0u32)?;
     l250 = s_i32_0;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = l249;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
     l251 = s_i32_0;
@@ -94092,7 +94067,7 @@ impl ChunkFns {
     l252 = s_i32_0;
     'blk_50: {
         'blk_51: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l252;
             s_i32_1 = l251;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -94564,7 +94539,7 @@ impl ChunkFns {
                         l298 = s_i32_0;
                         'blk_64: {
                             'blk_65: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l298;
                                 s_i32_1 = l297;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -94702,7 +94677,7 @@ impl ChunkFns {
                                                 ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
                                                 s_i32_0 = l302;
                                                 l303 = s_i32_0;
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i32_0 = l300;
                                                 s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 12u32)?;
                                                 l304 = s_i32_0;
@@ -94747,7 +94722,7 @@ impl ChunkFns {
                                 l310 = s_i32_0;
                                 'blk_74: {
                                     'blk_75: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l310;
                                         s_i32_1 = l309;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -94913,7 +94888,7 @@ impl ChunkFns {
                                 s_i32_0 = __t172;
                                 l319 = s_i32_0;
                                 s_i32_0 = l319;
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_1 = l319;
                                 s_i32_2 = 16i32;
                                 s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
@@ -94968,7 +94943,7 @@ impl ChunkFns {
                         let __t174 = __call_res?;
                         s_i32_0 = __t174;
                         l320 = s_i32_0;
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l1;
                         s_i32_1 = l320;
                         s_i32_2 = 0i32;
@@ -95592,8 +95567,7 @@ impl ChunkFns {
     return Ok(s_i32_0);
     }
 
-    #[inline(never)]
-    pub(crate) fn f_7b1c8449507d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_7b1c8449507d(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i64 = 0i64;
     let mut l2: i64 = 0i64;
@@ -95616,7 +95590,7 @@ impl ChunkFns {
     let mut s_i32_1: i32 = 0i32;
     let mut s_i64_1: i64 = 0i64;
     let mut s_i32_2: i32 = 0i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -95629,7 +95603,7 @@ impl ChunkFns {
     l2 = s_i64_0;
     'blk_1: {
         'blk_2: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_0 = l2;
             s_i64_1 = l1;
             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -95699,7 +95673,7 @@ impl ChunkFns {
                     l2 = s_i64_0;
                     'blk_7: {
                         'blk_8: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l2;
                             s_i64_1 = l1;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -95753,7 +95727,7 @@ impl ChunkFns {
                     l2 = s_i64_0;
                     'blk_11: {
                         'blk_12: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l2;
                             s_i64_1 = l1;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -95807,7 +95781,7 @@ impl ChunkFns {
                     l2 = s_i64_0;
                     'blk_15: {
                         'blk_16: loop {
-                            vm.deduct(host, 1)?;
+                            vm.deduct_1(host)?;
                             s_i64_0 = l2;
                             s_i64_1 = l1;
                             s_i32_0 = ops::i64_lt_u(s_i64_0, s_i64_1);
@@ -96016,7 +95990,7 @@ impl ChunkFns {
     }
 
     #[inline(never)]
-    pub(crate) fn f_132b0ec860df(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [u32], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
+    pub(crate) fn f_132b0ec860df(vm: &mut SubstituteVm, dispatch: &'static crate::ModuleDispatch, g_map: &'static [usize], c_map: &'static [usize], p0: i32, host: &mut dyn WasmSubstituteHost) -> std::result::Result<i32, WasmTrap> {
     let mut l0: i32 = p0;
     let mut l1: i32 = 0i32;
     let mut l2: i64 = 0i64;
@@ -96425,7 +96399,7 @@ impl ChunkFns {
     let mut s_i64_3: i64 = 0i64;
     let mut s_i32_4: i32 = 0i32;
     let mut s_i64_4: i64 = 0i64;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_unit_ret_void(vm, c_map, 0usize, host);
     vm.exit_call();
@@ -96752,7 +96726,7 @@ impl ChunkFns {
     s_i64_2 = 0i64;
     l22 = s_i64_2;
     s_i32_2 = 16i32;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     vm.enter_call()?;
     let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_2, host);
     vm.exit_call();
@@ -97159,7 +97133,7 @@ impl ChunkFns {
                     ops::i64_store(vm, 0, s_i32_0, 32u32, s_i64_1)?;
                     s_i32_0 = l57;
                     s_i64_1 = 7310579615589884272i64;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     ops::i64_store(vm, 0, s_i32_0, 40u32, s_i64_1)?;
                     s_i32_0 = l57;
                     s_i64_1 = 7593478464387358834i64;
@@ -97231,7 +97205,7 @@ impl ChunkFns {
             ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
             s_i32_0 = l58;
             s_i32_1 = 1i32;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
             s_i32_0 = l58;
             s_i64_1 = 8386658464824651349i64;
@@ -97287,7 +97261,7 @@ impl ChunkFns {
             s_i32_2 = __t44;
             l61 = s_i32_2;
             s_i32_2 = l61;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_3 = l59;
             ops::i64_store(vm, 0, s_i32_2, 0u32, s_i64_3)?;
             s_i32_2 = l61;
@@ -97322,7 +97296,7 @@ impl ChunkFns {
             vm.exit_call();
             let __t47 = __call_res?;
             s_i32_2 = __t47;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l64 = s_i32_2;
             s_i32_2 = l64;
             s_i64_3 = l62;
@@ -97555,7 +97529,7 @@ impl ChunkFns {
             let __t59 = __call_res?;
             s_i32_2 = __t59;
             l76 = s_i32_2;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_2 = l76;
             s_i32_3 = l76;
             s_i32_4 = 16i32;
@@ -97656,7 +97630,7 @@ impl ChunkFns {
     l84 = s_i32_0;
     s_i32_0 = l84;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
     s_i64_1 = 0i64;
     s_i32_0 = ops::i64_eq(s_i64_0, s_i64_1);
@@ -98034,7 +98008,7 @@ impl ChunkFns {
             s_i32_0 = ops::i32_load8_u(vm, 0, s_i32_0, 0u32)?;
             'blk_38: {
                 if s_i32_0 != 0 {
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l121;
                     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
                     l122 = s_i32_0;
@@ -98047,7 +98021,7 @@ impl ChunkFns {
                 } else {
                 }
             }
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l107;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 25usize, s_i32_0, host);
@@ -98563,7 +98537,7 @@ impl ChunkFns {
                     s_i32_0 = __t106;
                     l168 = s_i32_0;
                     s_i32_0 = l168;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_1 = l168;
                     s_i32_2 = 16i32;
                     s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
@@ -98629,7 +98603,7 @@ impl ChunkFns {
     s_i64_1 = 0i64;
     s_i64_2 = 1114112i64;
     l169 = s_i64_2;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i64_2 = 0i64;
     l170 = s_i64_2;
     s_i32_2 = 16i32;
@@ -98989,7 +98963,7 @@ impl ChunkFns {
                     ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
                     s_i32_0 = l205;
                     s_i32_1 = 1i32;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
                     s_i32_0 = l205;
                     l206 = s_i32_0;
@@ -99119,7 +99093,7 @@ impl ChunkFns {
                     vm.exit_call();
                     let __t134 = __call_res?;
                     s_i32_0 = __t134;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     l219 = s_i32_0;
                     s_i32_0 = l219;
                     s_i32_1 = l219;
@@ -99167,7 +99141,7 @@ impl ChunkFns {
             l224 = s_i32_0;
             s_i32_0 = l217;
             s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             l225 = s_i32_0;
             s_i32_0 = 16i32;
             vm.enter_call()?;
@@ -99232,7 +99206,7 @@ impl ChunkFns {
         if s_i32_0 != 0 {
             s_i32_0 = 1i32;
             l231 = s_i32_0;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = 16i32;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_0, host);
@@ -99284,7 +99258,7 @@ impl ChunkFns {
     }
     s_i32_0 = l230;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 8u32)?;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 4u32)?;
     s_i64_0 = ops::i64_extend_i32_u(s_i32_0);
     s_i64_1 = 0i64;
@@ -99608,7 +99582,7 @@ impl ChunkFns {
                     s_i32_0 = l266;
                     s_i32_1 = l265;
                     ops::i32_store(vm, 0, s_i32_0, 8u32, s_i32_1)?;
-                    vm.deduct(host, 1)?;
+                    vm.deduct_1(host)?;
                     s_i32_0 = l266;
                     l267 = s_i32_0;
                     s_i32_0 = l267;
@@ -99660,7 +99634,7 @@ impl ChunkFns {
             s_i64_1 = 8391736016636110196i64;
             ops::i64_store(vm, 0, s_i32_0, 32u32, s_i64_1)?;
             s_i32_0 = l268;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i64_1 = 7142834830620061289i64;
             ops::i64_store(vm, 0, s_i32_0, 40u32, s_i64_1)?;
             s_i32_0 = l268;
@@ -99704,7 +99678,7 @@ impl ChunkFns {
     l273 = s_i32_0;
     'blk_66: {
         'blk_67: loop {
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_0 = l273;
             s_i32_1 = l272;
             s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -100176,7 +100150,7 @@ impl ChunkFns {
                         l319 = s_i32_0;
                         'blk_80: {
                             'blk_81: loop {
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_0 = l319;
                                 s_i32_1 = l318;
                                 s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -100314,7 +100288,7 @@ impl ChunkFns {
                                                 ops::i32_store(vm, 0, s_i32_0, 12u32, s_i32_1)?;
                                                 s_i32_0 = l323;
                                                 l324 = s_i32_0;
-                                                vm.deduct(host, 1)?;
+                                                vm.deduct_1(host)?;
                                                 s_i32_0 = l321;
                                                 s_i32_0 = ops::i32_load(vm, 0, s_i32_0, 12u32)?;
                                                 l325 = s_i32_0;
@@ -100359,7 +100333,7 @@ impl ChunkFns {
                                 l331 = s_i32_0;
                                 'blk_90: {
                                     'blk_91: loop {
-                                        vm.deduct(host, 1)?;
+                                        vm.deduct_1(host)?;
                                         s_i32_0 = l331;
                                         s_i32_1 = l330;
                                         s_i32_0 = ops::i32_ge_u(s_i32_0, s_i32_1);
@@ -100525,7 +100499,7 @@ impl ChunkFns {
                                 s_i32_0 = __t191;
                                 l340 = s_i32_0;
                                 s_i32_0 = l340;
-                                vm.deduct(host, 1)?;
+                                vm.deduct_1(host)?;
                                 s_i32_1 = l340;
                                 s_i32_2 = 16i32;
                                 s_i32_1 = ops::i32_add(s_i32_1, s_i32_2);
@@ -100580,7 +100554,7 @@ impl ChunkFns {
                         let __t193 = __call_res?;
                         s_i32_0 = __t193;
                         l341 = s_i32_0;
-                        vm.deduct(host, 1)?;
+                        vm.deduct_1(host)?;
                         s_i32_0 = l1;
                         s_i32_1 = l341;
                         s_i32_2 = 0i32;
@@ -100899,7 +100873,7 @@ impl ChunkFns {
             l371 = s_i64_2;
             s_i64_2 = 0i64;
             l372 = s_i64_2;
-            vm.deduct(host, 1)?;
+            vm.deduct_1(host)?;
             s_i32_2 = 16i32;
             vm.enter_call()?;
             let __call_res = dispatch.call_p_i32_ret_i32(vm, c_map, 3usize, s_i32_2, host);
@@ -101016,7 +100990,7 @@ impl ChunkFns {
     }
     l383 = s_i32_0;
     s_i32_0 = l383;
-    vm.deduct(host, 1)?;
+    vm.deduct_1(host)?;
     s_i32_0 = ops::i32_eqz(s_i32_0);
     'blk_106: {
         if s_i32_0 != 0 {
@@ -101247,473 +101221,473 @@ use crate::utilities::*;
 use super::*;
 
 const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize, 24usize, 25usize, 26usize, 27usize, 28usize, 29usize, 30usize, 31usize, 32usize];
-const FN_0_CALLEES: &[u32] = &[145u32];
-const FN_1_CALLEES: &[u32] = &[0u32, 24u32];
-const FN_2_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_3_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_4_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_5_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_0_CALLEES: &[usize] = &[145usize];
+const FN_1_CALLEES: &[usize] = &[0usize, 24usize];
+const FN_2_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_3_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_4_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_5_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_6_CALLEES: &[usize] = &[0usize, 34usize, 10usize];
 const FN_7_GLOBALS: &[usize] = &[14usize];
-const FN_7_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_8_CALLEES: &[u32] = &[0u32, 0u32];
-const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
-const FN_10_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_11_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_12_CALLEES: &[u32] = &[0u32, 25u32];
-const FN_13_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_14_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_15_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_16_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_17_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_19_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_20_CALLEES: &[u32] = &[0u32];
-const FN_21_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_22_CALLEES: &[u32] = &[0u32, 27u32];
-const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 1u32, 1u32, 145u32];
-const FN_24_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_25_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_26_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_27_CALLEES: &[u32] = &[0u32, 32u32, 142u32, 33u32, 2u32];
-const FN_28_CALLEES: &[u32] = &[0u32, 33u32, 142u32, 32u32, 2u32];
-const FN_29_CALLEES: &[u32] = &[0u32, 28u32];
-const FN_30_CALLEES: &[u32] = &[0u32, 29u32];
-const FN_31_CALLEES: &[u32] = &[0u32, 30u32];
-const FN_32_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_7_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_8_CALLEES: &[usize] = &[0usize, 0usize];
+const FN_9_CALLEES: &[usize] = &[0usize, 10usize];
+const FN_10_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_11_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_12_CALLEES: &[usize] = &[0usize, 25usize];
+const FN_13_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_14_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_15_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_16_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_17_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_18_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_19_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_20_CALLEES: &[usize] = &[0usize];
+const FN_21_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_22_CALLEES: &[usize] = &[0usize, 27usize];
+const FN_23_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 1usize, 1usize, 145usize];
+const FN_24_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_25_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_26_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_27_CALLEES: &[usize] = &[0usize, 32usize, 142usize, 33usize, 2usize];
+const FN_28_CALLEES: &[usize] = &[0usize, 33usize, 142usize, 32usize, 2usize];
+const FN_29_CALLEES: &[usize] = &[0usize, 28usize];
+const FN_30_CALLEES: &[usize] = &[0usize, 29usize];
+const FN_31_CALLEES: &[usize] = &[0usize, 30usize];
+const FN_32_CALLEES: &[usize] = &[0usize, 26usize];
 const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 145u32];
-const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 145u32];
+const FN_33_CALLEES: &[usize] = &[0usize, 34usize, 10usize, 145usize];
+const FN_34_CALLEES: &[usize] = &[0usize, 31usize, 145usize];
 const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_35_CALLEES: &[u32] = &[0u32, 4u32, 145u32];
+const FN_35_CALLEES: &[usize] = &[0usize, 4usize, 145usize];
 const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_36_CALLEES: &[u32] = &[0u32, 0u32, 145u32];
-const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 145u32];
+const FN_36_CALLEES: &[usize] = &[0usize, 0usize, 145usize];
+const FN_37_CALLEES: &[usize] = &[0usize, 31usize, 145usize];
 const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 145u32];
+const FN_38_CALLEES: &[usize] = &[0usize, 6usize, 35usize, 145usize];
 const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_39_CALLEES: &[u32] = &[0u32, 145u32, 32u32];
+const FN_39_CALLEES: &[usize] = &[0usize, 145usize, 32usize];
 const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_40_CALLEES: &[u32] = &[0u32, 145u32, 33u32];
+const FN_40_CALLEES: &[usize] = &[0usize, 145usize, 33usize];
 const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 145u32];
+const FN_41_CALLEES: &[usize] = &[0usize, 10usize, 36usize, 145usize];
 const FN_42_GLOBALS: &[usize] = &[9usize];
-const FN_42_CALLEES: &[u32] = &[0u32, 8u32, 145u32];
+const FN_42_CALLEES: &[usize] = &[0usize, 8usize, 145usize];
 const FN_43_GLOBALS: &[usize] = &[9usize];
-const FN_43_CALLEES: &[u32] = &[0u32, 1u32, 145u32];
+const FN_43_CALLEES: &[usize] = &[0usize, 1usize, 145usize];
 const FN_44_GLOBALS: &[usize] = &[9usize];
-const FN_44_CALLEES: &[u32] = &[0u32, 9u32, 145u32];
+const FN_44_CALLEES: &[usize] = &[0usize, 9usize, 145usize];
 const FN_45_GLOBALS: &[usize] = &[9usize];
-const FN_45_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_45_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_46_GLOBALS: &[usize] = &[9usize];
-const FN_46_CALLEES: &[u32] = &[0u32, 10u32, 145u32];
+const FN_46_CALLEES: &[usize] = &[0usize, 10usize, 145usize];
 const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
-const FN_47_CALLEES: &[u32] = &[0u32, 140u32, 145u32, 13u32, 146u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 143u32];
-const FN_48_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_49_CALLEES: &[u32] = &[0u32, 1u32, 142u32, 0u32, 145u32];
-const FN_50_CALLEES: &[u32] = &[0u32, 0u32, 142u32, 1u32, 145u32];
-const FN_51_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_52_CALLEES: &[u32] = &[0u32, 0u32, 145u32];
-const FN_53_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_54_CALLEES: &[u32] = &[0u32, 0u32, 142u32];
-const FN_55_CALLEES: &[u32] = &[0u32, 1u32, 145u32, 142u32];
+const FN_47_CALLEES: &[usize] = &[0usize, 140usize, 145usize, 13usize, 146usize, 0usize, 32usize, 2usize, 10usize, 36usize, 37usize, 143usize];
+const FN_48_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_49_CALLEES: &[usize] = &[0usize, 1usize, 142usize, 0usize, 145usize];
+const FN_50_CALLEES: &[usize] = &[0usize, 0usize, 142usize, 1usize, 145usize];
+const FN_51_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_52_CALLEES: &[usize] = &[0usize, 0usize, 145usize];
+const FN_53_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_54_CALLEES: &[usize] = &[0usize, 0usize, 142usize];
+const FN_55_CALLEES: &[usize] = &[0usize, 1usize, 145usize, 142usize];
 const FN_56_GLOBALS: &[usize] = &[14usize];
-const FN_56_CALLEES: &[u32] = &[0u32, 21u32, 24u32, 36u32];
-const FN_57_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_58_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_59_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_60_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_61_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_62_CALLEES: &[u32] = &[0u32, 68u32];
+const FN_56_CALLEES: &[usize] = &[0usize, 21usize, 24usize, 36usize];
+const FN_57_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_58_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_59_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_60_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_61_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_62_CALLEES: &[usize] = &[0usize, 68usize];
 const FN_63_GLOBALS: &[usize] = &[19usize, 16usize, 17usize];
-const FN_63_CALLEES: &[u32] = &[0u32, 144u32];
+const FN_63_CALLEES: &[usize] = &[0usize, 144usize];
 const FN_64_GLOBALS: &[usize] = &[19usize];
-const FN_64_CALLEES: &[u32] = &[0u32, 144u32, 12u32, 6u32, 35u32, 21u32, 1u32, 12u32];
+const FN_64_CALLEES: &[usize] = &[0usize, 144usize, 12usize, 6usize, 35usize, 21usize, 1usize, 12usize];
 const FN_65_GLOBALS: &[usize] = &[16usize];
-const FN_65_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_66_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_67_CALLEES: &[u32] = &[0u32, 24u32, 1u32];
-const FN_68_CALLEES: &[u32] = &[0u32, 24u32, 2u32];
-const FN_69_CALLEES: &[u32] = &[0u32, 61u32];
-const FN_70_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_71_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_72_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_73_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_74_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_75_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_76_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_77_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_78_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_79_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_80_CALLEES: &[u32] = &[0u32];
-const FN_81_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_82_CALLEES: &[u32] = &[0u32];
-const FN_83_CALLEES: &[u32] = &[0u32, 62u32];
-const FN_84_CALLEES: &[u32] = &[0u32, 63u32];
-const FN_85_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_86_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_87_CALLEES: &[u32] = &[0u32, 24u32, 5u32];
-const FN_88_CALLEES: &[u32] = &[0u32, 43u32, 67u32];
-const FN_89_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_90_CALLEES: &[u32] = &[0u32, 65u32];
-const FN_91_CALLEES: &[u32] = &[0u32, 66u32];
-const FN_92_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_93_CALLEES: &[u32] = &[0u32, 67u32];
+const FN_65_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_66_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_67_CALLEES: &[usize] = &[0usize, 24usize, 1usize];
+const FN_68_CALLEES: &[usize] = &[0usize, 24usize, 2usize];
+const FN_69_CALLEES: &[usize] = &[0usize, 61usize];
+const FN_70_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_71_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_72_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_73_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_74_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_75_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_76_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_77_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_78_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_79_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_80_CALLEES: &[usize] = &[0usize];
+const FN_81_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_82_CALLEES: &[usize] = &[0usize];
+const FN_83_CALLEES: &[usize] = &[0usize, 62usize];
+const FN_84_CALLEES: &[usize] = &[0usize, 63usize];
+const FN_85_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_86_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_87_CALLEES: &[usize] = &[0usize, 24usize, 5usize];
+const FN_88_CALLEES: &[usize] = &[0usize, 43usize, 67usize];
+const FN_89_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_90_CALLEES: &[usize] = &[0usize, 65usize];
+const FN_91_CALLEES: &[usize] = &[0usize, 66usize];
+const FN_92_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_93_CALLEES: &[usize] = &[0usize, 67usize];
 const FN_94_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_94_CALLEES: &[u32] = &[0u32, 42u32, 68u32, 145u32];
+const FN_94_CALLEES: &[usize] = &[0usize, 42usize, 68usize, 145usize];
 const FN_95_GLOBALS: &[usize] = &[19usize, 1usize, 16usize, 17usize, 9usize];
-const FN_95_CALLEES: &[u32] = &[0u32, 144u32, 145u32, 12u32, 31u32, 20u32, 21u32, 33u32];
+const FN_95_CALLEES: &[usize] = &[0usize, 144usize, 145usize, 12usize, 31usize, 20usize, 21usize, 33usize];
 const FN_96_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_96_CALLEES: &[u32] = &[0u32, 20u32, 145u32];
-const FN_97_CALLEES: &[u32] = &[0u32, 67u32, 21u32, 145u32, 68u32, 70u32];
+const FN_96_CALLEES: &[usize] = &[0usize, 20usize, 145usize];
+const FN_97_CALLEES: &[usize] = &[0usize, 67usize, 21usize, 145usize, 68usize, 70usize];
 const FN_98_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_98_CALLEES: &[u32] = &[0u32, 44u32, 69u32, 145u32];
+const FN_98_CALLEES: &[usize] = &[0usize, 44usize, 69usize, 145usize];
 const FN_99_GLOBALS: &[usize] = &[16usize, 19usize, 9usize];
-const FN_99_CALLEES: &[u32] = &[0u32, 144u32, 145u32, 33u32];
+const FN_99_CALLEES: &[usize] = &[0usize, 144usize, 145usize, 33usize];
 const FN_100_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_100_CALLEES: &[u32] = &[0u32, 145u32, 24u32, 32u32, 20u32];
+const FN_100_CALLEES: &[usize] = &[0usize, 145usize, 24usize, 32usize, 20usize];
 const FN_101_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_101_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 142u32, 1u32, 2u32];
+const FN_101_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 142usize, 1usize, 2usize];
 const FN_102_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_102_CALLEES: &[u32] = &[0u32, 45u32, 70u32, 145u32];
+const FN_102_CALLEES: &[usize] = &[0usize, 45usize, 70usize, 145usize];
 const FN_103_GLOBALS: &[usize] = &[9usize];
-const FN_103_CALLEES: &[u32] = &[0u32, 28u32, 145u32, 11u32];
+const FN_103_CALLEES: &[usize] = &[0usize, 28usize, 145usize, 11usize];
 const FN_104_GLOBALS: &[usize] = &[9usize];
-const FN_104_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_104_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_105_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_105_CALLEES: &[u32] = &[0u32, 21u32, 145u32, 24u32];
+const FN_105_CALLEES: &[usize] = &[0usize, 21usize, 145usize, 24usize];
 const FN_106_GLOBALS: &[usize] = &[9usize];
-const FN_106_CALLEES: &[u32] = &[0u32, 9u32, 145u32];
+const FN_106_CALLEES: &[usize] = &[0usize, 9usize, 145usize];
 const FN_107_GLOBALS: &[usize] = &[9usize];
-const FN_107_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_107_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_108_GLOBALS: &[usize] = &[9usize];
-const FN_108_CALLEES: &[u32] = &[0u32, 10u32, 145u32];
+const FN_108_CALLEES: &[usize] = &[0usize, 10usize, 145usize];
 const FN_109_GLOBALS: &[usize] = &[19usize, 1usize, 16usize, 17usize];
-const FN_109_CALLEES: &[u32] = &[0u32, 144u32, 145u32, 12u32, 31u32, 20u32, 21u32, 33u32];
-const FN_110_CALLEES: &[u32] = &[0u32, 24u32, 34u32, 20u32];
-const FN_111_CALLEES: &[u32] = &[0u32, 24u32, 35u32, 20u32];
+const FN_109_CALLEES: &[usize] = &[0usize, 144usize, 145usize, 12usize, 31usize, 20usize, 21usize, 33usize];
+const FN_110_CALLEES: &[usize] = &[0usize, 24usize, 34usize, 20usize];
+const FN_111_CALLEES: &[usize] = &[0usize, 24usize, 35usize, 20usize];
 const FN_112_GLOBALS: &[usize] = &[19usize];
-const FN_112_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_113_CALLEES: &[u32] = &[0u32, 24u32, 36u32, 20u32];
-const FN_114_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_112_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_113_CALLEES: &[usize] = &[0usize, 24usize, 36usize, 20usize];
+const FN_114_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_115_GLOBALS: &[usize] = &[22usize];
-const FN_115_CALLEES: &[u32] = &[0u32, 96u32, 85u32, 95u32, 97u32];
-const FN_116_CALLEES: &[u32] = &[0u32];
-const FN_117_CALLEES: &[u32] = &[0u32, 41u32];
-const FN_118_CALLEES: &[u32] = &[0u32];
-const FN_119_CALLEES: &[u32] = &[0u32];
-const FN_120_CALLEES: &[u32] = &[0u32];
-const FN_121_CALLEES: &[u32] = &[0u32, 95u32, 147u32];
-const FN_122_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_123_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_115_CALLEES: &[usize] = &[0usize, 96usize, 85usize, 95usize, 97usize];
+const FN_116_CALLEES: &[usize] = &[0usize];
+const FN_117_CALLEES: &[usize] = &[0usize, 41usize];
+const FN_118_CALLEES: &[usize] = &[0usize];
+const FN_119_CALLEES: &[usize] = &[0usize];
+const FN_120_CALLEES: &[usize] = &[0usize];
+const FN_121_CALLEES: &[usize] = &[0usize, 95usize, 147usize];
+const FN_122_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_123_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_124_GLOBALS: &[usize] = &[22usize];
-const FN_124_CALLEES: &[u32] = &[0u32, 9u32, 0u32, 145u32];
+const FN_124_CALLEES: &[usize] = &[0usize, 9usize, 0usize, 145usize];
 const FN_125_GLOBALS: &[usize] = &[22usize];
-const FN_125_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_126_CALLEES: &[u32] = &[0u32, 36u32];
-const FN_127_CALLEES: &[u32] = &[0u32, 9u32, 0u32, 145u32, 85u32];
-const FN_128_CALLEES: &[u32] = &[0u32, 12u32, 38u32, 21u32, 85u32];
-const FN_129_CALLEES: &[u32] = &[0u32, 4u32, 85u32, 0u32];
-const FN_130_CALLEES: &[u32] = &[0u32, 5u32];
-const FN_131_CALLEES: &[u32] = &[0u32, 100u32, 85u32];
-const FN_132_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_133_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_134_CALLEES: &[u32] = &[0u32, 1u32, 12u32, 19u32, 1u32, 9u32, 0u32, 0u32, 1u32, 148u32, 85u32];
-const FN_135_CALLEES: &[u32] = &[0u32];
-const FN_136_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_137_CALLEES: &[u32] = &[0u32, 76u32];
+const FN_125_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_126_CALLEES: &[usize] = &[0usize, 36usize];
+const FN_127_CALLEES: &[usize] = &[0usize, 9usize, 0usize, 145usize, 85usize];
+const FN_128_CALLEES: &[usize] = &[0usize, 12usize, 38usize, 21usize, 85usize];
+const FN_129_CALLEES: &[usize] = &[0usize, 4usize, 85usize, 0usize];
+const FN_130_CALLEES: &[usize] = &[0usize, 5usize];
+const FN_131_CALLEES: &[usize] = &[0usize, 100usize, 85usize];
+const FN_132_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_133_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_134_CALLEES: &[usize] = &[0usize, 1usize, 12usize, 19usize, 1usize, 9usize, 0usize, 0usize, 1usize, 148usize, 85usize];
+const FN_135_CALLEES: &[usize] = &[0usize];
+const FN_136_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_137_CALLEES: &[usize] = &[0usize, 76usize];
 const FN_138_GLOBALS: &[usize] = &[22usize];
-const FN_138_CALLEES: &[u32] = &[0u32, 50u32, 145u32];
-const FN_139_CALLEES: &[u32] = &[0u32, 93u32];
-const FN_140_CALLEES: &[u32] = &[0u32, 98u32, 85u32];
-const FN_141_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_138_CALLEES: &[usize] = &[0usize, 50usize, 145usize];
+const FN_139_CALLEES: &[usize] = &[0usize, 93usize];
+const FN_140_CALLEES: &[usize] = &[0usize, 98usize, 85usize];
+const FN_141_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_142_GLOBALS: &[usize] = &[22usize];
-const FN_142_CALLEES: &[u32] = &[0u32, 41u32, 145u32];
-const FN_143_CALLEES: &[u32] = &[0u32, 94u32];
-const FN_144_CALLEES: &[u32] = &[0u32, 42u32, 71u32];
-const FN_145_CALLEES: &[u32] = &[0u32, 94u32];
+const FN_142_CALLEES: &[usize] = &[0usize, 41usize, 145usize];
+const FN_143_CALLEES: &[usize] = &[0usize, 94usize];
+const FN_144_CALLEES: &[usize] = &[0usize, 42usize, 71usize];
+const FN_145_CALLEES: &[usize] = &[0usize, 94usize];
 const FN_146_GLOBALS: &[usize] = &[22usize, 1usize];
-const FN_146_CALLEES: &[u32] = &[0u32, 41u32, 145u32, 100u32, 85u32];
-const FN_147_CALLEES: &[u32] = &[0u32, 94u32, 34u32, 71u32, 145u32];
+const FN_146_CALLEES: &[usize] = &[0usize, 41usize, 145usize, 100usize, 85usize];
+const FN_147_CALLEES: &[usize] = &[0usize, 94usize, 34usize, 71usize, 145usize];
 const FN_148_GLOBALS: &[usize] = &[19usize, 9usize, 16usize];
-const FN_148_CALLEES: &[u32] = &[0u32, 51u32, 145u32, 1u32, 140u32, 25u32, 26u32];
+const FN_148_CALLEES: &[usize] = &[0usize, 51usize, 145usize, 1usize, 140usize, 25usize, 26usize];
 const FN_149_GLOBALS: &[usize] = &[9usize];
-const FN_149_CALLEES: &[u32] = &[0u32, 43u32, 145u32, 27u32];
+const FN_149_CALLEES: &[usize] = &[0usize, 43usize, 145usize, 27usize];
 const FN_150_GLOBALS: &[usize] = &[9usize];
-const FN_150_CALLEES: &[u32] = &[0u32, 43u32, 145u32, 28u32];
+const FN_150_CALLEES: &[usize] = &[0usize, 43usize, 145usize, 28usize];
 const FN_151_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_151_CALLEES: &[u32] = &[0u32, 145u32, 51u32];
+const FN_151_CALLEES: &[usize] = &[0usize, 145usize, 51usize];
 const FN_152_GLOBALS: &[usize] = &[9usize];
-const FN_152_CALLEES: &[u32] = &[0u32, 46u32, 145u32, 9u32];
+const FN_152_CALLEES: &[usize] = &[0usize, 46usize, 145usize, 9usize];
 const FN_153_GLOBALS: &[usize] = &[9usize];
-const FN_153_CALLEES: &[u32] = &[0u32, 46u32, 145u32, 10u32];
+const FN_153_CALLEES: &[usize] = &[0usize, 46usize, 145usize, 10usize];
 const FN_154_GLOBALS: &[usize] = &[9usize];
-const FN_154_CALLEES: &[u32] = &[0u32, 46u32, 145u32, 11u32];
+const FN_154_CALLEES: &[usize] = &[0usize, 46usize, 145usize, 11usize];
 const FN_155_GLOBALS: &[usize] = &[22usize, 1usize];
-const FN_155_CALLEES: &[u32] = &[0u32, 41u32, 145u32, 100u32, 85u32];
-const FN_156_CALLEES: &[u32] = &[0u32, 2u32, 20u32, 6u32];
+const FN_155_CALLEES: &[usize] = &[0usize, 41usize, 145usize, 100usize, 85usize];
+const FN_156_CALLEES: &[usize] = &[0usize, 2usize, 20usize, 6usize];
 const FN_157_GLOBALS: &[usize] = &[14usize];
-const FN_157_CALLEES: &[u32] = &[0u32, 145u32, 20u32, 1u32, 1u32];
-const FN_158_CALLEES: &[u32] = &[0u32, 2u32, 20u32];
-const FN_159_CALLEES: &[u32] = &[0u32, 1u32, 12u32, 20u32, 9u32, 1u32, 0u32, 148u32];
-const FN_160_CALLEES: &[u32] = &[0u32, 12u32, 20u32, 1u32, 2u32, 9u32, 1u32, 148u32, 50u32];
-const FN_161_CALLEES: &[u32] = &[0u32, 145u32, 1u32, 21u32, 20u32, 19u32, 0u32, 9u32, 0u32, 0u32, 148u32, 50u32];
-const FN_162_CALLEES: &[u32] = &[0u32, 19u32, 2u32, 20u32];
-const FN_163_CALLEES: &[u32] = &[0u32, 95u32, 145u32, 20u32, 21u32, 2u32, 1u32, 9u32, 0u32, 148u32, 50u32, 1u32, 142u32, 0u32, 0u32, 147u32, 19u32, 148u32, 99u32];
-const FN_164_CALLEES: &[u32] = &[0u32, 58u32];
-const FN_165_CALLEES: &[u32] = &[0u32, 1u32, 145u32];
+const FN_157_CALLEES: &[usize] = &[0usize, 145usize, 20usize, 1usize, 1usize];
+const FN_158_CALLEES: &[usize] = &[0usize, 2usize, 20usize];
+const FN_159_CALLEES: &[usize] = &[0usize, 1usize, 12usize, 20usize, 9usize, 1usize, 0usize, 148usize];
+const FN_160_CALLEES: &[usize] = &[0usize, 12usize, 20usize, 1usize, 2usize, 9usize, 1usize, 148usize, 50usize];
+const FN_161_CALLEES: &[usize] = &[0usize, 145usize, 1usize, 21usize, 20usize, 19usize, 0usize, 9usize, 0usize, 0usize, 148usize, 50usize];
+const FN_162_CALLEES: &[usize] = &[0usize, 19usize, 2usize, 20usize];
+const FN_163_CALLEES: &[usize] = &[0usize, 95usize, 145usize, 20usize, 21usize, 2usize, 1usize, 9usize, 0usize, 148usize, 50usize, 1usize, 142usize, 0usize, 0usize, 147usize, 19usize, 148usize, 99usize];
+const FN_164_CALLEES: &[usize] = &[0usize, 58usize];
+const FN_165_CALLEES: &[usize] = &[0usize, 1usize, 145usize];
 const FN_166_GLOBALS: &[usize] = &[23usize];
-const FN_166_CALLEES: &[u32] = &[0u32, 56u32, 2u32, 9u32];
-const FN_167_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_168_CALLEES: &[u32] = &[0u32];
-const FN_169_CALLEES: &[u32] = &[0u32];
-const FN_170_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_171_CALLEES: &[u32] = &[0u32, 1u32, 145u32];
+const FN_166_CALLEES: &[usize] = &[0usize, 56usize, 2usize, 9usize];
+const FN_167_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_168_CALLEES: &[usize] = &[0usize];
+const FN_169_CALLEES: &[usize] = &[0usize];
+const FN_170_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_171_CALLEES: &[usize] = &[0usize, 1usize, 145usize];
 const FN_172_GLOBALS: &[usize] = &[23usize];
-const FN_172_CALLEES: &[u32] = &[0u32, 57u32, 2u32, 9u32];
-const FN_173_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_174_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_175_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 22u32, 149u32, 145u32, 2u32, 150u32, 151u32, 152u32, 1u32, 0u32, 148u32];
-const FN_176_CALLEES: &[u32] = &[0u32, 3u32, 145u32, 22u32, 149u32, 1u32, 153u32, 152u32, 154u32, 0u32, 32u32, 2u32, 155u32, 141u32, 13u32, 55u32, 1u32];
+const FN_172_CALLEES: &[usize] = &[0usize, 57usize, 2usize, 9usize];
+const FN_173_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_174_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_175_CALLEES: &[usize] = &[0usize, 0usize, 13usize, 22usize, 149usize, 145usize, 2usize, 150usize, 151usize, 152usize, 1usize, 0usize, 148usize];
+const FN_176_CALLEES: &[usize] = &[0usize, 3usize, 145usize, 22usize, 149usize, 1usize, 153usize, 152usize, 154usize, 0usize, 32usize, 2usize, 155usize, 141usize, 13usize, 55usize, 1usize];
 const FN_177_GLOBALS: &[usize] = &[14usize];
-const FN_177_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 145u32, 32u32, 0u32, 2u32];
-const FN_178_CALLEES: &[u32] = &[0u32, 7u32, 10u32, 3u32, 0u32, 0u32, 148u32];
-const FN_179_CALLEES: &[u32] = &[0u32, 0u32, 7u32, 0u32, 148u32];
-const FN_180_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_181_CALLEES: &[u32] = &[0u32, 60u32, 1u32, 142u32, 141u32, 1u32];
-const FN_182_CALLEES: &[u32] = &[0u32, 3u32, 145u32, 23u32, 59u32, 1u32];
-const FN_183_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 145u32, 1u32, 5u32, 63u32, 7u32, 148u32, 142u32, 149u32, 156u32, 154u32, 3u32];
-const FN_184_CALLEES: &[u32] = &[0u32, 1u32, 3u32, 145u32, 23u32, 59u32, 13u32, 148u32, 2u32];
-const FN_185_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 145u32, 7u32, 1u32, 148u32, 10u32, 3u32];
-const FN_186_CALLEES: &[u32] = &[0u32, 1u32, 145u32, 23u32, 59u32, 56u32, 54u32, 7u32, 148u32, 142u32, 149u32, 3u32];
-const FN_187_CALLEES: &[u32] = &[0u32, 23u32, 66u32, 1u32];
-const FN_188_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 1u32];
-const FN_189_CALLEES: &[u32] = &[0u32, 59u32, 58u32, 145u32];
-const FN_190_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 13u32, 58u32, 2u32, 6u32, 4u32, 22u32, 154u32, 141u32, 156u32, 2u32, 148u32];
-const FN_191_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_192_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 58u32, 2u32, 59u32, 148u32];
-const FN_193_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 58u32, 2u32, 22u32, 61u32, 59u32, 56u32, 148u32];
-const FN_194_CALLEES: &[u32] = &[0u32, 67u32, 58u32, 145u32];
+const FN_177_CALLEES: &[usize] = &[0usize, 1usize, 10usize, 145usize, 32usize, 0usize, 2usize];
+const FN_178_CALLEES: &[usize] = &[0usize, 7usize, 10usize, 3usize, 0usize, 0usize, 148usize];
+const FN_179_CALLEES: &[usize] = &[0usize, 0usize, 7usize, 0usize, 148usize];
+const FN_180_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_181_CALLEES: &[usize] = &[0usize, 60usize, 1usize, 142usize, 141usize, 1usize];
+const FN_182_CALLEES: &[usize] = &[0usize, 3usize, 145usize, 23usize, 59usize, 1usize];
+const FN_183_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 145usize, 1usize, 5usize, 63usize, 7usize, 148usize, 142usize, 149usize, 156usize, 154usize, 3usize];
+const FN_184_CALLEES: &[usize] = &[0usize, 1usize, 3usize, 145usize, 23usize, 59usize, 13usize, 148usize, 2usize];
+const FN_185_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 145usize, 7usize, 1usize, 148usize, 10usize, 3usize];
+const FN_186_CALLEES: &[usize] = &[0usize, 1usize, 145usize, 23usize, 59usize, 56usize, 54usize, 7usize, 148usize, 142usize, 149usize, 3usize];
+const FN_187_CALLEES: &[usize] = &[0usize, 23usize, 66usize, 1usize];
+const FN_188_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 1usize];
+const FN_189_CALLEES: &[usize] = &[0usize, 59usize, 58usize, 145usize];
+const FN_190_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 13usize, 58usize, 2usize, 6usize, 4usize, 22usize, 154usize, 141usize, 156usize, 2usize, 148usize];
+const FN_191_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_192_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 58usize, 2usize, 59usize, 148usize];
+const FN_193_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 58usize, 2usize, 22usize, 61usize, 59usize, 56usize, 148usize];
+const FN_194_CALLEES: &[usize] = &[0usize, 67usize, 58usize, 145usize];
 const FN_195_GLOBALS: &[usize] = &[14usize];
-const FN_195_CALLEES: &[u32] = &[0u32, 140u32, 58u32, 53u32, 145u32, 13u32, 2u32, 12u32, 9u32, 141u32, 1u32, 33u32, 2u32, 19u32, 148u32];
-const FN_196_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_197_CALLEES: &[u32] = &[0u32, 145u32, 7u32, 157u32, 7u32, 22u32, 5u32, 0u32, 148u32];
-const FN_198_CALLEES: &[u32] = &[0u32, 10u32, 3u32, 155u32, 0u32, 142u32, 141u32, 60u32, 1u32, 33u32, 149u32, 156u32];
-const FN_199_CALLEES: &[u32] = &[0u32, 22u32, 149u32, 153u32, 152u32, 154u32];
-const FN_200_CALLEES: &[u32] = &[0u32, 55u32];
-const FN_201_CALLEES: &[u32] = &[0u32, 145u32, 13u32, 23u32, 2u32, 1u32, 148u32, 2u32, 8u32, 158u32];
-const FN_202_CALLEES: &[u32] = &[0u32, 145u32, 2u32, 0u32, 1u32, 13u32, 4u32, 23u32, 148u32];
-const FN_203_CALLEES: &[u32] = &[0u32, 23u32, 145u32, 3u32];
-const FN_204_CALLEES: &[u32] = &[0u32, 8u32, 145u32];
-const FN_205_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_206_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 1u32, 0u32, 8u32];
-const FN_207_CALLEES: &[u32] = &[0u32, 77u32];
-const FN_208_CALLEES: &[u32] = &[0u32, 79u32, 13u32, 2u32, 1u32, 2u32, 148u32, 1u32, 8u32, 160u32, 145u32];
-const FN_209_CALLEES: &[u32] = &[0u32, 104u32];
-const FN_210_CALLEES: &[u32] = &[0u32, 150u32];
+const FN_195_CALLEES: &[usize] = &[0usize, 140usize, 58usize, 53usize, 145usize, 13usize, 2usize, 12usize, 9usize, 141usize, 1usize, 33usize, 2usize, 19usize, 148usize];
+const FN_196_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_197_CALLEES: &[usize] = &[0usize, 145usize, 7usize, 157usize, 7usize, 22usize, 5usize, 0usize, 148usize];
+const FN_198_CALLEES: &[usize] = &[0usize, 10usize, 3usize, 155usize, 0usize, 142usize, 141usize, 60usize, 1usize, 33usize, 149usize, 156usize];
+const FN_199_CALLEES: &[usize] = &[0usize, 22usize, 149usize, 153usize, 152usize, 154usize];
+const FN_200_CALLEES: &[usize] = &[0usize, 55usize];
+const FN_201_CALLEES: &[usize] = &[0usize, 145usize, 13usize, 23usize, 2usize, 1usize, 148usize, 2usize, 8usize, 158usize];
+const FN_202_CALLEES: &[usize] = &[0usize, 145usize, 2usize, 0usize, 1usize, 13usize, 4usize, 23usize, 148usize];
+const FN_203_CALLEES: &[usize] = &[0usize, 23usize, 145usize, 3usize];
+const FN_204_CALLEES: &[usize] = &[0usize, 8usize, 145usize];
+const FN_205_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_206_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 1usize, 0usize, 8usize];
+const FN_207_CALLEES: &[usize] = &[0usize, 77usize];
+const FN_208_CALLEES: &[usize] = &[0usize, 79usize, 13usize, 2usize, 1usize, 2usize, 148usize, 1usize, 8usize, 160usize, 145usize];
+const FN_209_CALLEES: &[usize] = &[0usize, 104usize];
+const FN_210_CALLEES: &[usize] = &[0usize, 150usize];
 const FN_211_GLOBALS: &[usize] = &[3usize];
-const FN_211_CALLEES: &[u32] = &[0u32, 64u32, 150u32, 62u32, 145u32];
-const FN_212_CALLEES: &[u32] = &[0u32, 13u32, 59u32, 58u32, 2u32, 148u32];
+const FN_211_CALLEES: &[usize] = &[0usize, 64usize, 150usize, 62usize, 145usize];
+const FN_212_CALLEES: &[usize] = &[0usize, 13usize, 59usize, 58usize, 2usize, 148usize];
 const FN_213_GLOBALS: &[usize] = &[3usize];
-const FN_213_CALLEES: &[u32] = &[0u32, 13u32, 23u32, 59u32, 1u32, 145u32, 2u32, 148u32];
-const FN_214_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_215_CALLEES: &[u32] = &[0u32, 1u32, 23u32, 59u32, 78u32, 2u32, 0u32, 0u32, 0u32, 145u32];
-const FN_216_CALLEES: &[u32] = &[0u32, 13u32, 23u32, 59u32, 1u32, 8u32, 2u32, 8u32, 145u32, 148u32];
-const FN_217_CALLEES: &[u32] = &[0u32, 23u32, 1u32, 13u32, 4u32, 148u32];
-const FN_218_CALLEES: &[u32] = &[0u32, 72u32, 145u32, 12u32, 9u32, 30u32];
-const FN_219_CALLEES: &[u32] = &[0u32, 80u32, 145u32];
-const FN_220_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 24u32, 71u32];
-const FN_221_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 145u32];
-const FN_222_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 24u32, 71u32];
-const FN_223_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 71u32];
-const FN_224_CALLEES: &[u32] = &[0u32, 72u32, 145u32, 12u32];
-const FN_225_CALLEES: &[u32] = &[0u32, 80u32, 145u32];
-const FN_226_CALLEES: &[u32] = &[0u32, 80u32, 145u32];
-const FN_227_CALLEES: &[u32] = &[0u32, 80u32, 145u32];
-const FN_228_CALLEES: &[u32] = &[0u32];
-const FN_229_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_230_CALLEES: &[u32] = &[0u32];
-const FN_231_CALLEES: &[u32] = &[0u32, 62u32, 145u32];
-const FN_232_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_233_CALLEES: &[u32] = &[0u32, 80u32, 145u32, 101u32, 161u32, 3u32, 100u32, 76u32];
-const FN_234_CALLEES: &[u32] = &[0u32, 77u32, 145u32, 102u32];
-const FN_235_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 100u32, 161u32, 76u32];
-const FN_236_CALLEES: &[u32] = &[0u32, 77u32, 145u32, 103u32];
-const FN_237_CALLEES: &[u32] = &[0u32, 145u32, 7u32, 72u32, 13u32, 11u32, 30u32, 27u32, 24u32];
-const FN_238_CALLEES: &[u32] = &[0u32, 145u32, 7u32, 72u32, 10u32, 12u32, 30u32, 9u32, 0u32, 9u32];
-const FN_239_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 23u32, 71u32, 2u32, 148u32];
-const FN_240_CALLEES: &[u32] = &[0u32, 145u32, 140u32, 71u32, 13u32, 11u32, 26u32, 24u32, 2u32, 25u32, 148u32, 99u32];
-const FN_241_CALLEES: &[u32] = &[0u32, 145u32, 71u32, 13u32, 3u32, 2u32, 148u32, 99u32];
-const FN_242_CALLEES: &[u32] = &[0u32, 7u32, 145u32, 72u32, 140u32, 9u32, 11u32, 9u32];
-const FN_243_CALLEES: &[u32] = &[0u32, 7u32, 145u32, 72u32, 140u32, 9u32, 11u32, 24u32, 71u32, 10u32, 3u32];
-const FN_244_CALLEES: &[u32] = &[0u32, 150u32, 151u32, 153u32];
-const FN_245_CALLEES: &[u32] = &[0u32];
-const FN_246_CALLEES: &[u32] = &[0u32];
-const FN_247_CALLEES: &[u32] = &[0u32];
-const FN_248_CALLEES: &[u32] = &[0u32];
-const FN_249_CALLEES: &[u32] = &[0u32];
-const FN_250_CALLEES: &[u32] = &[0u32];
-const FN_251_CALLEES: &[u32] = &[0u32, 92u32, 134u32, 90u32];
+const FN_213_CALLEES: &[usize] = &[0usize, 13usize, 23usize, 59usize, 1usize, 145usize, 2usize, 148usize];
+const FN_214_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_215_CALLEES: &[usize] = &[0usize, 1usize, 23usize, 59usize, 78usize, 2usize, 0usize, 0usize, 0usize, 145usize];
+const FN_216_CALLEES: &[usize] = &[0usize, 13usize, 23usize, 59usize, 1usize, 8usize, 2usize, 8usize, 145usize, 148usize];
+const FN_217_CALLEES: &[usize] = &[0usize, 23usize, 1usize, 13usize, 4usize, 148usize];
+const FN_218_CALLEES: &[usize] = &[0usize, 72usize, 145usize, 12usize, 9usize, 30usize];
+const FN_219_CALLEES: &[usize] = &[0usize, 80usize, 145usize];
+const FN_220_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 24usize, 71usize];
+const FN_221_CALLEES: &[usize] = &[0usize, 46usize, 71usize, 145usize];
+const FN_222_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 24usize, 71usize];
+const FN_223_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 71usize];
+const FN_224_CALLEES: &[usize] = &[0usize, 72usize, 145usize, 12usize];
+const FN_225_CALLEES: &[usize] = &[0usize, 80usize, 145usize];
+const FN_226_CALLEES: &[usize] = &[0usize, 80usize, 145usize];
+const FN_227_CALLEES: &[usize] = &[0usize, 80usize, 145usize];
+const FN_228_CALLEES: &[usize] = &[0usize];
+const FN_229_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_230_CALLEES: &[usize] = &[0usize];
+const FN_231_CALLEES: &[usize] = &[0usize, 62usize, 145usize];
+const FN_232_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_233_CALLEES: &[usize] = &[0usize, 80usize, 145usize, 101usize, 161usize, 3usize, 100usize, 76usize];
+const FN_234_CALLEES: &[usize] = &[0usize, 77usize, 145usize, 102usize];
+const FN_235_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 100usize, 161usize, 76usize];
+const FN_236_CALLEES: &[usize] = &[0usize, 77usize, 145usize, 103usize];
+const FN_237_CALLEES: &[usize] = &[0usize, 145usize, 7usize, 72usize, 13usize, 11usize, 30usize, 27usize, 24usize];
+const FN_238_CALLEES: &[usize] = &[0usize, 145usize, 7usize, 72usize, 10usize, 12usize, 30usize, 9usize, 0usize, 9usize];
+const FN_239_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 23usize, 71usize, 2usize, 148usize];
+const FN_240_CALLEES: &[usize] = &[0usize, 145usize, 140usize, 71usize, 13usize, 11usize, 26usize, 24usize, 2usize, 25usize, 148usize, 99usize];
+const FN_241_CALLEES: &[usize] = &[0usize, 145usize, 71usize, 13usize, 3usize, 2usize, 148usize, 99usize];
+const FN_242_CALLEES: &[usize] = &[0usize, 7usize, 145usize, 72usize, 140usize, 9usize, 11usize, 9usize];
+const FN_243_CALLEES: &[usize] = &[0usize, 7usize, 145usize, 72usize, 140usize, 9usize, 11usize, 24usize, 71usize, 10usize, 3usize];
+const FN_244_CALLEES: &[usize] = &[0usize, 150usize, 151usize, 153usize];
+const FN_245_CALLEES: &[usize] = &[0usize];
+const FN_246_CALLEES: &[usize] = &[0usize];
+const FN_247_CALLEES: &[usize] = &[0usize];
+const FN_248_CALLEES: &[usize] = &[0usize];
+const FN_249_CALLEES: &[usize] = &[0usize];
+const FN_250_CALLEES: &[usize] = &[0usize];
+const FN_251_CALLEES: &[usize] = &[0usize, 92usize, 134usize, 90usize];
 const FN_252_GLOBALS: &[usize] = &[26usize];
-const FN_252_CALLEES: &[u32] = &[0u32, 145u32, 13u32, 2u32, 148u32];
-const FN_253_CALLEES: &[u32] = &[0u32, 23u32, 145u32];
-const FN_254_CALLEES: &[u32] = &[0u32, 22u32, 145u32];
-const FN_255_CALLEES: &[u32] = &[0u32, 13u32, 85u32, 2u32, 148u32];
-const FN_256_CALLEES: &[u32] = &[0u32, 109u32, 13u32, 145u32, 2u32, 159u32, 148u32];
-const FN_257_CALLEES: &[u32] = &[0u32, 145u32, 110u32];
-const FN_258_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32];
-const FN_259_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32];
-const FN_260_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_261_CALLEES: &[u32] = &[0u32, 111u32, 13u32, 4u32, 2u32, 148u32];
+const FN_252_CALLEES: &[usize] = &[0usize, 145usize, 13usize, 2usize, 148usize];
+const FN_253_CALLEES: &[usize] = &[0usize, 23usize, 145usize];
+const FN_254_CALLEES: &[usize] = &[0usize, 22usize, 145usize];
+const FN_255_CALLEES: &[usize] = &[0usize, 13usize, 85usize, 2usize, 148usize];
+const FN_256_CALLEES: &[usize] = &[0usize, 109usize, 13usize, 145usize, 2usize, 159usize, 148usize];
+const FN_257_CALLEES: &[usize] = &[0usize, 145usize, 110usize];
+const FN_258_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize];
+const FN_259_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize];
+const FN_260_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_261_CALLEES: &[usize] = &[0usize, 111usize, 13usize, 4usize, 2usize, 148usize];
 const FN_262_GLOBALS: &[usize] = &[27usize, 28usize];
-const FN_262_CALLEES: &[u32] = &[0u32, 10u32, 12u32];
+const FN_262_CALLEES: &[usize] = &[0usize, 10usize, 12usize];
 const FN_263_GLOBALS: &[usize] = &[25usize];
-const FN_263_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_264_CALLEES: &[u32] = &[0u32, 2u32, 8u32, 145u32];
-const FN_265_CALLEES: &[u32] = &[0u32, 7u32, 72u32, 145u32, 11u32, 11u32, 3u32, 148u32, 1u32, 153u32, 7u32, 137u32, 107u32];
-const FN_266_CALLEES: &[u32] = &[0u32, 145u32, 110u32, 0u32, 159u32, 3u32, 13u32, 2u32, 148u32];
+const FN_263_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_264_CALLEES: &[usize] = &[0usize, 2usize, 8usize, 145usize];
+const FN_265_CALLEES: &[usize] = &[0usize, 7usize, 72usize, 145usize, 11usize, 11usize, 3usize, 148usize, 1usize, 153usize, 7usize, 137usize, 107usize];
+const FN_266_CALLEES: &[usize] = &[0usize, 145usize, 110usize, 0usize, 159usize, 3usize, 13usize, 2usize, 148usize];
 const FN_267_GLOBALS: &[usize] = &[25usize];
-const FN_267_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
+const FN_267_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
 const FN_268_GLOBALS: &[usize] = &[24usize, 30usize];
-const FN_268_CALLEES: &[u32] = &[0u32, 59u32, 54u32, 72u32, 10u32];
+const FN_268_CALLEES: &[usize] = &[0usize, 59usize, 54usize, 72usize, 10usize];
 const FN_269_GLOBALS: &[usize] = &[25usize];
-const FN_269_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_270_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 110u32, 72u32, 113u32];
-const FN_271_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 145u32, 159u32, 2u32, 148u32];
-const FN_272_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32];
-const FN_273_CALLEES: &[u32] = &[0u32, 23u32, 145u32, 110u32];
-const FN_274_CALLEES: &[u32] = &[0u32, 23u32, 145u32, 13u32, 4u32, 2u32, 148u32, 1u32];
-const FN_275_CALLEES: &[u32] = &[0u32, 2u32, 2u32, 145u32, 90u32, 75u32, 110u32, 92u32, 112u32, 0u32];
-const FN_276_CALLEES: &[u32] = &[0u32, 145u32, 113u32, 0u32, 159u32, 110u32, 72u32];
-const FN_277_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 71u32, 159u32, 148u32, 113u32, 0u32, 3u32, 110u32];
+const FN_269_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_270_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 110usize, 72usize, 113usize];
+const FN_271_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 145usize, 159usize, 2usize, 148usize];
+const FN_272_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize];
+const FN_273_CALLEES: &[usize] = &[0usize, 23usize, 145usize, 110usize];
+const FN_274_CALLEES: &[usize] = &[0usize, 23usize, 145usize, 13usize, 4usize, 2usize, 148usize, 1usize];
+const FN_275_CALLEES: &[usize] = &[0usize, 2usize, 2usize, 145usize, 90usize, 75usize, 110usize, 92usize, 112usize, 0usize];
+const FN_276_CALLEES: &[usize] = &[0usize, 145usize, 113usize, 0usize, 159usize, 110usize, 72usize];
+const FN_277_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 71usize, 159usize, 148usize, 113usize, 0usize, 3usize, 110usize];
 const FN_278_GLOBALS: &[usize] = &[24usize, 25usize];
-const FN_278_CALLEES: &[u32] = &[0u32, 139u32, 145u32, 13u32, 0u32, 59u32, 2u32, 138u32, 72u32, 111u32, 114u32, 153u32, 117u32, 4u32, 104u32, 116u32, 148u32];
-const FN_279_CALLEES: &[u32] = &[0u32, 114u32, 152u32, 145u32, 2u32];
-const FN_280_CALLEES: &[u32] = &[0u32, 145u32, 13u32, 2u32, 4u32, 148u32, 113u32, 0u32, 159u32, 110u32, 72u32];
-const FN_281_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 1u32, 4u32, 148u32, 113u32, 0u32, 159u32, 110u32, 72u32, 13u32];
-const FN_282_CALLEES: &[u32] = &[0u32, 145u32, 71u32, 0u32];
-const FN_283_CALLEES: &[u32] = &[0u32, 0u32, 145u32];
-const FN_284_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 13u32, 71u32, 2u32, 148u32];
-const FN_285_CALLEES: &[u32] = &[0u32, 113u32, 114u32, 153u32, 145u32, 0u32, 159u32, 71u32, 0u32, 0u32];
-const FN_286_CALLEES: &[u32] = &[0u32, 159u32, 145u32, 72u32, 13u32, 2u32, 24u32, 71u32, 0u32, 140u32, 3u32, 117u32, 113u32, 115u32, 153u32, 0u32, 116u32];
-const FN_287_CALLEES: &[u32] = &[0u32, 13u32, 72u32, 2u32, 24u32, 145u32, 71u32, 0u32, 140u32, 3u32, 117u32, 113u32, 115u32, 153u32, 0u32, 116u32, 159u32, 148u32];
+const FN_278_CALLEES: &[usize] = &[0usize, 139usize, 145usize, 13usize, 0usize, 59usize, 2usize, 138usize, 72usize, 111usize, 114usize, 153usize, 117usize, 4usize, 104usize, 116usize, 148usize];
+const FN_279_CALLEES: &[usize] = &[0usize, 114usize, 152usize, 145usize, 2usize];
+const FN_280_CALLEES: &[usize] = &[0usize, 145usize, 13usize, 2usize, 4usize, 148usize, 113usize, 0usize, 159usize, 110usize, 72usize];
+const FN_281_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 1usize, 4usize, 148usize, 113usize, 0usize, 159usize, 110usize, 72usize, 13usize];
+const FN_282_CALLEES: &[usize] = &[0usize, 145usize, 71usize, 0usize];
+const FN_283_CALLEES: &[usize] = &[0usize, 0usize, 145usize];
+const FN_284_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 13usize, 71usize, 2usize, 148usize];
+const FN_285_CALLEES: &[usize] = &[0usize, 113usize, 114usize, 153usize, 145usize, 0usize, 159usize, 71usize, 0usize, 0usize];
+const FN_286_CALLEES: &[usize] = &[0usize, 159usize, 145usize, 72usize, 13usize, 2usize, 24usize, 71usize, 0usize, 140usize, 3usize, 117usize, 113usize, 115usize, 153usize, 0usize, 116usize];
+const FN_287_CALLEES: &[usize] = &[0usize, 13usize, 72usize, 2usize, 24usize, 145usize, 71usize, 0usize, 140usize, 3usize, 117usize, 113usize, 115usize, 153usize, 0usize, 116usize, 159usize, 148usize];
 const FN_288_GLOBALS: &[usize] = &[25usize];
-const FN_288_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 118u32];
+const FN_288_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 118usize];
 const FN_289_GLOBALS: &[usize] = &[25usize];
-const FN_289_CALLEES: &[u32] = &[0u32, 114u32, 0u32, 59u32];
+const FN_289_CALLEES: &[usize] = &[0usize, 114usize, 0usize, 59usize];
 const FN_290_GLOBALS: &[usize] = &[24usize];
-const FN_290_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_291_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 117u32, 72u32, 113u32, 114u32, 153u32, 140u32, 2u32, 121u32];
-const FN_292_CALLEES: &[u32] = &[0u32, 72u32, 111u32, 145u32, 112u32, 3u32, 117u32, 113u32, 135u32, 153u32, 141u32, 62u32, 110u32, 136u32, 2u32, 121u32, 120u32, 122u32, 0u32, 159u32];
-const FN_293_CALLEES: &[u32] = &[0u32, 145u32, 6u32];
+const FN_290_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_291_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 117usize, 72usize, 113usize, 114usize, 153usize, 140usize, 2usize, 121usize];
+const FN_292_CALLEES: &[usize] = &[0usize, 72usize, 111usize, 145usize, 112usize, 3usize, 117usize, 113usize, 135usize, 153usize, 141usize, 62usize, 110usize, 136usize, 2usize, 121usize, 120usize, 122usize, 0usize, 159usize];
+const FN_293_CALLEES: &[usize] = &[0usize, 145usize, 6usize];
 const FN_294_GLOBALS: &[usize] = &[25usize];
-const FN_294_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 8u32, 145u32];
+const FN_294_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 8usize, 145usize];
 const FN_295_GLOBALS: &[usize] = &[25usize, 24usize, 31usize, 27usize];
-const FN_295_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 105u32, 72u32, 111u32, 145u32, 110u32, 119u32, 142u32, 153u32, 112u32, 14u32, 4u32, 54u32, 106u32, 113u32, 114u32, 152u32, 2u32, 10u32, 13u32, 148u32];
-const FN_296_CALLEES: &[u32] = &[0u32, 135u32, 145u32, 0u32];
-const FN_297_CALLEES: &[u32] = &[0u32, 72u32, 145u32, 13u32, 11u32, 0u32, 113u32, 115u32, 153u32, 115u32, 3u32, 0u32, 159u32, 11u32];
-const FN_298_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 3u32, 123u32];
-const FN_299_CALLEES: &[u32] = &[0u32, 145u32, 71u32, 0u32];
-const FN_300_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 24u32, 145u32, 13u32, 1u32, 148u32];
-const FN_301_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 13u32, 72u32, 24u32, 140u32, 2u32, 71u32, 23u32, 113u32, 114u32, 153u32, 152u32, 0u32, 159u32, 148u32];
-const FN_302_CALLEES: &[u32] = &[0u32, 145u32, 118u32, 13u32, 14u32, 2u32, 0u32, 24u32, 140u32, 72u32, 148u32, 1u32, 121u32, 122u32, 123u32, 129u32, 153u32, 111u32, 4u32, 23u32];
-const FN_303_CALLEES: &[u32] = &[0u32, 7u32, 3u32, 23u32, 145u32, 5u32, 148u32];
-const FN_304_CALLEES: &[u32] = &[0u32, 13u32, 1u32, 153u32, 7u32, 145u32, 2u32, 148u32];
-const FN_305_CALLEES: &[u32] = &[0u32, 2u32, 145u32, 0u32, 159u32, 13u32, 3u32, 7u32, 72u32, 11u32, 3u32, 148u32, 2u32];
-const FN_306_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 149u32, 153u32, 23u32, 11u32, 71u32, 109u32, 101u32, 4u32, 148u32];
-const FN_307_CALLEES: &[u32] = &[0u32, 13u32, 109u32, 145u32, 101u32, 116u32, 23u32, 2u32, 148u32, 3u32, 24u32, 140u32];
-const FN_308_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 72u32];
-const FN_309_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 16u32];
+const FN_295_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 105usize, 72usize, 111usize, 145usize, 110usize, 119usize, 142usize, 153usize, 112usize, 14usize, 4usize, 54usize, 106usize, 113usize, 114usize, 152usize, 2usize, 10usize, 13usize, 148usize];
+const FN_296_CALLEES: &[usize] = &[0usize, 135usize, 145usize, 0usize];
+const FN_297_CALLEES: &[usize] = &[0usize, 72usize, 145usize, 13usize, 11usize, 0usize, 113usize, 115usize, 153usize, 115usize, 3usize, 0usize, 159usize, 11usize];
+const FN_298_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 3usize, 123usize];
+const FN_299_CALLEES: &[usize] = &[0usize, 145usize, 71usize, 0usize];
+const FN_300_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 24usize, 145usize, 13usize, 1usize, 148usize];
+const FN_301_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 13usize, 72usize, 24usize, 140usize, 2usize, 71usize, 23usize, 113usize, 114usize, 153usize, 152usize, 0usize, 159usize, 148usize];
+const FN_302_CALLEES: &[usize] = &[0usize, 145usize, 118usize, 13usize, 14usize, 2usize, 0usize, 24usize, 140usize, 72usize, 148usize, 1usize, 121usize, 122usize, 123usize, 129usize, 153usize, 111usize, 4usize, 23usize];
+const FN_303_CALLEES: &[usize] = &[0usize, 7usize, 3usize, 23usize, 145usize, 5usize, 148usize];
+const FN_304_CALLEES: &[usize] = &[0usize, 13usize, 1usize, 153usize, 7usize, 145usize, 2usize, 148usize];
+const FN_305_CALLEES: &[usize] = &[0usize, 2usize, 145usize, 0usize, 159usize, 13usize, 3usize, 7usize, 72usize, 11usize, 3usize, 148usize, 2usize];
+const FN_306_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 149usize, 153usize, 23usize, 11usize, 71usize, 109usize, 101usize, 4usize, 148usize];
+const FN_307_CALLEES: &[usize] = &[0usize, 13usize, 109usize, 145usize, 101usize, 116usize, 23usize, 2usize, 148usize, 3usize, 24usize, 140usize];
+const FN_308_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 72usize];
+const FN_309_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 16usize];
 const FN_310_GLOBALS: &[usize] = &[24usize, 25usize];
-const FN_310_CALLEES: &[u32] = &[0u32, 59u32, 0u32, 159u32];
+const FN_310_CALLEES: &[usize] = &[0usize, 59usize, 0usize, 159usize];
 const FN_311_GLOBALS: &[usize] = &[25usize];
-const FN_311_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 145u32, 0u32, 4u32, 16u32];
+const FN_311_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 145usize, 0usize, 4usize, 16usize];
 const FN_312_GLOBALS: &[usize] = &[25usize];
-const FN_312_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 145u32, 0u32, 16u32, 2u32, 3u32, 4u32, 148u32];
-const FN_313_CALLEES: &[u32] = &[0u32, 2u32, 145u32, 0u32, 159u32, 17u32, 3u32, 4u32];
+const FN_312_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 145usize, 0usize, 16usize, 2usize, 3usize, 4usize, 148usize];
+const FN_313_CALLEES: &[usize] = &[0usize, 2usize, 145usize, 0usize, 159usize, 17usize, 3usize, 4usize];
 const FN_314_GLOBALS: &[usize] = &[25usize];
-const FN_314_CALLEES: &[u32] = &[0u32, 2u32, 0u32, 59u32, 145u32, 0u32, 17u32, 3u32, 5u32, 4u32];
+const FN_314_CALLEES: &[usize] = &[0usize, 2usize, 0usize, 59usize, 145usize, 0usize, 17usize, 3usize, 5usize, 4usize];
 const FN_315_GLOBALS: &[usize] = &[25usize, 24usize];
-const FN_315_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 145u32, 0u32, 108u32, 16u32, 2u32, 54u32, 109u32, 148u32];
-const FN_316_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 17u32, 3u32, 4u32, 2u32, 0u32, 13u32, 8u32, 4u32, 148u32];
-const FN_317_CALLEES: &[u32] = &[0u32, 2u32, 145u32, 0u32, 159u32, 0u32, 8u32, 15u32, 125u32, 13u32, 2u32, 4u32, 16u32, 4u32, 2u32, 3u32, 148u32];
-const FN_318_CALLEES: &[u32] = &[0u32, 13u32, 2u32, 1u32, 145u32, 2u32, 148u32];
-const FN_319_CALLEES: &[u32] = &[0u32, 114u32, 145u32, 0u32, 159u32, 1u32, 2u32, 15u32, 0u32, 8u32, 127u32, 18u32, 4u32, 111u32, 112u32, 3u32, 2u32];
-const FN_320_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 13u32, 2u32, 8u32, 4u32, 148u32];
-const FN_321_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 3u32, 4u32, 148u32];
-const FN_322_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 24u32, 145u32, 149u32, 153u32, 13u32, 1u32, 148u32];
-const FN_323_CALLEES: &[u32] = &[0u32, 13u32, 2u32, 145u32, 0u32, 159u32, 0u32, 8u32, 15u32, 125u32, 137u32, 24u32, 110u32, 2u32, 4u32, 148u32];
-const FN_324_CALLEES: &[u32] = &[0u32, 125u32, 124u32, 145u32, 13u32, 1u32, 71u32, 0u32, 72u32, 113u32, 114u32, 153u32, 152u32, 0u32, 159u32, 5u32, 0u32, 130u32, 131u32, 2u32, 148u32, 130u32, 139u32, 4u32, 125u32];
-const FN_325_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 71u32, 0u32, 72u32, 113u32, 115u32, 153u32, 15u32];
-const FN_326_CALLEES: &[u32] = &[0u32, 145u32, 140u32, 7u32, 11u32, 26u32, 11u32, 3u32, 25u32, 148u32, 1u32];
-const FN_327_CALLEES: &[u32] = &[0u32, 72u32, 145u32, 10u32, 7u32, 3u32, 131u32, 5u32, 148u32, 36u32];
-const FN_328_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_329_CALLEES: &[u32] = &[0u32, 128u32, 145u32, 13u32, 1u32, 131u32, 138u32, 139u32, 2u32, 130u32, 24u32, 126u32, 7u32, 71u32, 126u32, 125u32, 5u32, 153u32, 152u32, 0u32, 7u32, 5u32, 132u32, 148u32, 137u32, 25u32, 14u32, 23u32, 127u32, 26u32, 2u32, 0u32, 4u32, 4u32, 0u32, 133u32, 27u32, 111u32, 125u32, 134u32, 1u32, 137u32, 132u32, 4u32];
+const FN_315_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 145usize, 0usize, 108usize, 16usize, 2usize, 54usize, 109usize, 148usize];
+const FN_316_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 17usize, 3usize, 4usize, 2usize, 0usize, 13usize, 8usize, 4usize, 148usize];
+const FN_317_CALLEES: &[usize] = &[0usize, 2usize, 145usize, 0usize, 159usize, 0usize, 8usize, 15usize, 125usize, 13usize, 2usize, 4usize, 16usize, 4usize, 2usize, 3usize, 148usize];
+const FN_318_CALLEES: &[usize] = &[0usize, 13usize, 2usize, 1usize, 145usize, 2usize, 148usize];
+const FN_319_CALLEES: &[usize] = &[0usize, 114usize, 145usize, 0usize, 159usize, 1usize, 2usize, 15usize, 0usize, 8usize, 127usize, 18usize, 4usize, 111usize, 112usize, 3usize, 2usize];
+const FN_320_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 13usize, 2usize, 8usize, 4usize, 148usize];
+const FN_321_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 3usize, 4usize, 148usize];
+const FN_322_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 24usize, 145usize, 149usize, 153usize, 13usize, 1usize, 148usize];
+const FN_323_CALLEES: &[usize] = &[0usize, 13usize, 2usize, 145usize, 0usize, 159usize, 0usize, 8usize, 15usize, 125usize, 137usize, 24usize, 110usize, 2usize, 4usize, 148usize];
+const FN_324_CALLEES: &[usize] = &[0usize, 125usize, 124usize, 145usize, 13usize, 1usize, 71usize, 0usize, 72usize, 113usize, 114usize, 153usize, 152usize, 0usize, 159usize, 5usize, 0usize, 130usize, 131usize, 2usize, 148usize, 130usize, 139usize, 4usize, 125usize];
+const FN_325_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 71usize, 0usize, 72usize, 113usize, 115usize, 153usize, 15usize];
+const FN_326_CALLEES: &[usize] = &[0usize, 145usize, 140usize, 7usize, 11usize, 26usize, 11usize, 3usize, 25usize, 148usize, 1usize];
+const FN_327_CALLEES: &[usize] = &[0usize, 72usize, 145usize, 10usize, 7usize, 3usize, 131usize, 5usize, 148usize, 36usize];
+const FN_328_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_329_CALLEES: &[usize] = &[0usize, 128usize, 145usize, 13usize, 1usize, 131usize, 138usize, 139usize, 2usize, 130usize, 24usize, 126usize, 7usize, 71usize, 126usize, 125usize, 5usize, 153usize, 152usize, 0usize, 7usize, 5usize, 132usize, 148usize, 137usize, 25usize, 14usize, 23usize, 127usize, 26usize, 2usize, 0usize, 4usize, 4usize, 0usize, 133usize, 27usize, 111usize, 125usize, 134usize, 1usize, 137usize, 132usize, 4usize];
 const FN_330_GLOBALS: &[usize] = &[24usize];
-const FN_330_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 59u32, 107u32, 24u32, 148u32, 3u32, 72u32, 113u32, 71u32, 0u32, 115u32, 153u32, 152u32, 120u32, 122u32, 0u32, 159u32, 4u32, 114u32, 110u32];
-const FN_331_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 109u32, 4u32, 159u32, 148u32];
-const FN_332_CALLEES: &[u32] = &[0u32, 13u32, 143u32];
+const FN_330_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 59usize, 107usize, 24usize, 148usize, 3usize, 72usize, 113usize, 71usize, 0usize, 115usize, 153usize, 152usize, 120usize, 122usize, 0usize, 159usize, 4usize, 114usize, 110usize];
+const FN_331_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 109usize, 4usize, 159usize, 148usize];
+const FN_332_CALLEES: &[usize] = &[0usize, 13usize, 143usize];
 const FN_333_GLOBALS: &[usize] = &[32usize, 25usize];
-const FN_333_CALLEES: &[u32] = &[0u32, 0u32, 2u32, 145u32, 111u32, 0u32, 4u32, 159u32, 11u32, 114u32, 72u32, 13u32, 13u32, 2u32, 8u32, 4u32, 148u32, 12u32, 119u32, 23u32, 11u32, 118u32, 120u32, 119u32, 142u32, 153u32, 118u32, 111u32, 10u32, 124u32, 2u32, 59u32, 8u32, 128u32, 11u32, 9u32, 133u32, 12u32, 13u32];
+const FN_333_CALLEES: &[usize] = &[0usize, 0usize, 2usize, 145usize, 111usize, 0usize, 4usize, 159usize, 11usize, 114usize, 72usize, 13usize, 13usize, 2usize, 8usize, 4usize, 148usize, 12usize, 119usize, 23usize, 11usize, 118usize, 120usize, 119usize, 142usize, 153usize, 118usize, 111usize, 10usize, 124usize, 2usize, 59usize, 8usize, 128usize, 11usize, 9usize, 133usize, 12usize, 13usize];
 const FN_334_GLOBALS: &[usize] = &[25usize, 24usize, 31usize, 27usize];
-const FN_334_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 105u32, 54u32, 106u32, 72u32, 113u32, 10u32, 13u32];
-const FN_335_CALLEES: &[u32] = &[0u32, 145u32, 119u32, 153u32, 5u32];
+const FN_334_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 105usize, 54usize, 106usize, 72usize, 113usize, 10usize, 13usize];
+const FN_335_CALLEES: &[usize] = &[0usize, 145usize, 119usize, 153usize, 5usize];
 const FN_336_GLOBALS: &[usize] = &[24usize, 29usize, 26usize];
-const FN_336_CALLEES: &[u32] = &[0u32, 59u32, 54u32, 72u32, 12u32, 10u32, 1u32, 29u32];
-const FN_337_CALLEES: &[u32] = &[0u32, 145u32, 1u32, 10u32];
-const FN_338_CALLEES: &[u32] = &[0u32, 145u32, 13u32, 2u32, 148u32];
-const FN_339_CALLEES: &[u32] = &[0u32, 3u32, 23u32, 145u32, 111u32];
-const FN_340_CALLEES: &[u32] = &[0u32, 3u32, 23u32, 145u32, 111u32, 13u32, 4u32, 2u32, 148u32, 1u32];
+const FN_336_CALLEES: &[usize] = &[0usize, 59usize, 54usize, 72usize, 12usize, 10usize, 1usize, 29usize];
+const FN_337_CALLEES: &[usize] = &[0usize, 145usize, 1usize, 10usize];
+const FN_338_CALLEES: &[usize] = &[0usize, 145usize, 13usize, 2usize, 148usize];
+const FN_339_CALLEES: &[usize] = &[0usize, 3usize, 23usize, 145usize, 111usize];
+const FN_340_CALLEES: &[usize] = &[0usize, 3usize, 23usize, 145usize, 111usize, 13usize, 4usize, 2usize, 148usize, 1usize];
 const FN_341_GLOBALS: &[usize] = &[25usize];
-const FN_341_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_342_CALLEES: &[u32] = &[0u32, 137u32];
-const FN_343_CALLEES: &[u32] = &[0u32, 13u32, 1u32, 131u32, 2u32, 148u32, 23u32, 145u32, 14u32, 137u32, 138u32, 132u32, 130u32, 0u32];
-const FN_344_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 1u32, 131u32, 139u32, 130u32, 2u32, 148u32, 145u32];
-const FN_345_CALLEES: &[u32] = &[0u32, 130u32, 13u32, 130u32, 129u32, 4u32, 148u32];
+const FN_341_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_342_CALLEES: &[usize] = &[0usize, 137usize];
+const FN_343_CALLEES: &[usize] = &[0usize, 13usize, 1usize, 131usize, 2usize, 148usize, 23usize, 145usize, 14usize, 137usize, 138usize, 132usize, 130usize, 0usize];
+const FN_344_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 1usize, 131usize, 139usize, 130usize, 2usize, 148usize, 145usize];
+const FN_345_CALLEES: &[usize] = &[0usize, 130usize, 13usize, 130usize, 129usize, 4usize, 148usize];
 const FN_346_GLOBALS: &[usize] = &[24usize];
-const FN_346_CALLEES: &[u32] = &[0u32, 59u32, 54u32, 72u32, 113u32];
+const FN_346_CALLEES: &[usize] = &[0usize, 59usize, 54usize, 72usize, 113usize];
 const FN_347_GLOBALS: &[usize] = &[27usize, 28usize];
-const FN_347_CALLEES: &[u32] = &[0u32, 72u32, 10u32, 12u32];
+const FN_347_CALLEES: &[usize] = &[0usize, 72usize, 10usize, 12usize];
 const FN_348_GLOBALS: &[usize] = &[25usize, 24usize];
-const FN_348_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 2u32, 145u32, 0u32, 108u32, 54u32, 109u32];
+const FN_348_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 2usize, 145usize, 0usize, 108usize, 54usize, 109usize];
 const FN_349_GLOBALS: &[usize] = &[25usize];
-const FN_349_CALLEES: &[u32] = &[0u32, 118u32, 145u32, 1u32, 13u32, 71u32, 116u32, 130u32, 131u32, 0u32, 72u32, 113u32, 114u32, 153u32, 152u32, 0u32, 59u32, 1u32, 121u32, 2u32, 148u32, 122u32, 123u32, 129u32];
+const FN_349_CALLEES: &[usize] = &[0usize, 118usize, 145usize, 1usize, 13usize, 71usize, 116usize, 130usize, 131usize, 0usize, 72usize, 113usize, 114usize, 153usize, 152usize, 0usize, 59usize, 1usize, 121usize, 2usize, 148usize, 122usize, 123usize, 129usize];
 const FN_350_GLOBALS: &[usize] = &[25usize];
-const FN_350_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 2u32, 145u32, 0u32];
-const FN_351_CALLEES: &[u32] = &[0u32, 7u32, 145u32, 162u32];
-const FN_352_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 71u32, 159u32, 148u32, 64u32, 74u32, 162u32, 110u32, 7u32, 62u32, 70u32];
-const FN_353_CALLEES: &[u32] = &[0u32, 152u32, 145u32, 62u32, 110u32];
-const FN_354_CALLEES: &[u32] = &[0u32, 12u32, 143u32];
-const FN_355_CALLEES: &[u32] = &[0u32, 74u32, 145u32, 162u32, 110u32, 7u32, 62u32, 70u32];
-const FN_356_CALLEES: &[u32] = &[0u32, 145u32, 62u32, 110u32];
-const FN_357_CALLEES: &[u32] = &[0u32, 145u32, 101u32, 64u32, 7u32, 5u32, 148u32, 136u32];
-const FN_358_CALLEES: &[u32] = &[0u32, 136u32, 120u32, 145u32, 64u32, 12u32];
-const FN_359_CALLEES: &[u32] = &[0u32, 1u32, 152u32];
-const FN_360_CALLEES: &[u32] = &[0u32, 137u32];
-const FN_361_CALLEES: &[u32] = &[0u32, 138u32, 13u32, 4u32, 2u32, 148u32];
-const FN_362_CALLEES: &[u32] = &[0u32, 93u32, 108u32, 94u32, 145u32];
-const FN_363_CALLEES: &[u32] = &[145u32];
-const FN_384_CALLEES: &[u32] = &[146u32];
-const FN_386_CALLEES: &[u32] = &[145u32];
-const FN_389_CALLEES: &[u32] = &[145u32];
-const FN_393_CALLEES: &[u32] = &[145u32];
-const FN_394_CALLEES: &[u32] = &[145u32];
-const FN_397_CALLEES: &[u32] = &[145u32];
-const FN_400_CALLEES: &[u32] = &[145u32];
-const FN_407_CALLEES: &[u32] = &[145u32];
-const FN_411_CALLEES: &[u32] = &[145u32];
-const FN_412_CALLEES: &[u32] = &[145u32];
-const FN_414_CALLEES: &[u32] = &[145u32];
-const FN_415_CALLEES: &[u32] = &[145u32];
-const FN_416_CALLEES: &[u32] = &[159u32];
-const FN_418_CALLEES: &[u32] = &[158u32];
-const FN_419_CALLEES: &[u32] = &[145u32];
-const FN_421_CALLEES: &[u32] = &[145u32];
-const FN_424_CALLEES: &[u32] = &[145u32];
-const FN_425_CALLEES: &[u32] = &[145u32];
-const FN_427_CALLEES: &[u32] = &[145u32];
-const FN_430_CALLEES: &[u32] = &[145u32];
-const FN_434_CALLEES: &[u32] = &[0u32, 145u32, 144u32];
+const FN_350_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 2usize, 145usize, 0usize];
+const FN_351_CALLEES: &[usize] = &[0usize, 7usize, 145usize, 162usize];
+const FN_352_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 71usize, 159usize, 148usize, 64usize, 74usize, 162usize, 110usize, 7usize, 62usize, 70usize];
+const FN_353_CALLEES: &[usize] = &[0usize, 152usize, 145usize, 62usize, 110usize];
+const FN_354_CALLEES: &[usize] = &[0usize, 12usize, 143usize];
+const FN_355_CALLEES: &[usize] = &[0usize, 74usize, 145usize, 162usize, 110usize, 7usize, 62usize, 70usize];
+const FN_356_CALLEES: &[usize] = &[0usize, 145usize, 62usize, 110usize];
+const FN_357_CALLEES: &[usize] = &[0usize, 145usize, 101usize, 64usize, 7usize, 5usize, 148usize, 136usize];
+const FN_358_CALLEES: &[usize] = &[0usize, 136usize, 120usize, 145usize, 64usize, 12usize];
+const FN_359_CALLEES: &[usize] = &[0usize, 1usize, 152usize];
+const FN_360_CALLEES: &[usize] = &[0usize, 137usize];
+const FN_361_CALLEES: &[usize] = &[0usize, 138usize, 13usize, 4usize, 2usize, 148usize];
+const FN_362_CALLEES: &[usize] = &[0usize, 93usize, 108usize, 94usize, 145usize];
+const FN_363_CALLEES: &[usize] = &[145usize];
+const FN_384_CALLEES: &[usize] = &[146usize];
+const FN_386_CALLEES: &[usize] = &[145usize];
+const FN_389_CALLEES: &[usize] = &[145usize];
+const FN_393_CALLEES: &[usize] = &[145usize];
+const FN_394_CALLEES: &[usize] = &[145usize];
+const FN_397_CALLEES: &[usize] = &[145usize];
+const FN_400_CALLEES: &[usize] = &[145usize];
+const FN_407_CALLEES: &[usize] = &[145usize];
+const FN_411_CALLEES: &[usize] = &[145usize];
+const FN_412_CALLEES: &[usize] = &[145usize];
+const FN_414_CALLEES: &[usize] = &[145usize];
+const FN_415_CALLEES: &[usize] = &[145usize];
+const FN_416_CALLEES: &[usize] = &[159usize];
+const FN_418_CALLEES: &[usize] = &[158usize];
+const FN_419_CALLEES: &[usize] = &[145usize];
+const FN_421_CALLEES: &[usize] = &[145usize];
+const FN_424_CALLEES: &[usize] = &[145usize];
+const FN_425_CALLEES: &[usize] = &[145usize];
+const FN_427_CALLEES: &[usize] = &[145usize];
+const FN_430_CALLEES: &[usize] = &[145usize];
+const FN_434_CALLEES: &[usize] = &[0usize, 145usize, 144usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -102985,6 +102959,10 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (1116720u128, [0xe3, 0xbf, 0x7a, 0x09, 0x0b, 0x01, 0x11, 0x42, 0xc4, 0xc1, 0xf4, 0x51, 0xe4, 0xb9, 0x9c, 0x18, 0xc8, 0x0f, 0xc9, 0x49, 0x1d, 0xfe, 0x4d, 0x69, 0x93, 0xf8, 0xe7, 0x5c, 0x11, 0x28, 0x2c, 0xb1]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_92792/2608@l8589994023",
     accounting_version: 2u32,
@@ -102996,6 +102974,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -103174,7 +103153,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 2usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }
@@ -103228,474 +103209,474 @@ use crate::utilities::*;
 use super::*;
 
 const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize, 24usize, 25usize, 26usize, 27usize, 28usize, 29usize, 30usize, 31usize, 32usize];
-const FN_0_CALLEES: &[u32] = &[145u32];
-const FN_1_CALLEES: &[u32] = &[0u32, 24u32];
-const FN_2_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_3_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_4_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_5_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_0_CALLEES: &[usize] = &[145usize];
+const FN_1_CALLEES: &[usize] = &[0usize, 24usize];
+const FN_2_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_3_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_4_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_5_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_6_CALLEES: &[usize] = &[0usize, 34usize, 10usize];
 const FN_7_GLOBALS: &[usize] = &[14usize];
-const FN_7_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_8_CALLEES: &[u32] = &[0u32, 0u32];
-const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
-const FN_10_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_11_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_12_CALLEES: &[u32] = &[0u32, 25u32];
-const FN_13_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_14_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_15_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_16_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_17_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_19_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_20_CALLEES: &[u32] = &[0u32];
-const FN_21_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_22_CALLEES: &[u32] = &[0u32, 27u32];
-const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 1u32, 1u32, 145u32];
-const FN_24_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_25_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_26_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_27_CALLEES: &[u32] = &[0u32, 32u32, 142u32, 33u32, 2u32];
-const FN_28_CALLEES: &[u32] = &[0u32, 33u32, 142u32, 32u32, 2u32];
-const FN_29_CALLEES: &[u32] = &[0u32, 28u32];
-const FN_30_CALLEES: &[u32] = &[0u32, 29u32];
-const FN_31_CALLEES: &[u32] = &[0u32, 30u32];
-const FN_32_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_7_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_8_CALLEES: &[usize] = &[0usize, 0usize];
+const FN_9_CALLEES: &[usize] = &[0usize, 10usize];
+const FN_10_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_11_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_12_CALLEES: &[usize] = &[0usize, 25usize];
+const FN_13_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_14_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_15_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_16_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_17_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_18_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_19_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_20_CALLEES: &[usize] = &[0usize];
+const FN_21_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_22_CALLEES: &[usize] = &[0usize, 27usize];
+const FN_23_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 1usize, 1usize, 145usize];
+const FN_24_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_25_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_26_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_27_CALLEES: &[usize] = &[0usize, 32usize, 142usize, 33usize, 2usize];
+const FN_28_CALLEES: &[usize] = &[0usize, 33usize, 142usize, 32usize, 2usize];
+const FN_29_CALLEES: &[usize] = &[0usize, 28usize];
+const FN_30_CALLEES: &[usize] = &[0usize, 29usize];
+const FN_31_CALLEES: &[usize] = &[0usize, 30usize];
+const FN_32_CALLEES: &[usize] = &[0usize, 26usize];
 const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 145u32];
-const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 145u32];
+const FN_33_CALLEES: &[usize] = &[0usize, 34usize, 10usize, 145usize];
+const FN_34_CALLEES: &[usize] = &[0usize, 31usize, 145usize];
 const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_35_CALLEES: &[u32] = &[0u32, 5u32, 145u32];
+const FN_35_CALLEES: &[usize] = &[0usize, 5usize, 145usize];
 const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_36_CALLEES: &[u32] = &[0u32, 0u32, 145u32];
-const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 145u32];
+const FN_36_CALLEES: &[usize] = &[0usize, 0usize, 145usize];
+const FN_37_CALLEES: &[usize] = &[0usize, 31usize, 145usize];
 const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 145u32];
+const FN_38_CALLEES: &[usize] = &[0usize, 6usize, 35usize, 145usize];
 const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_39_CALLEES: &[u32] = &[0u32, 145u32, 32u32];
+const FN_39_CALLEES: &[usize] = &[0usize, 145usize, 32usize];
 const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_40_CALLEES: &[u32] = &[0u32, 145u32, 33u32];
+const FN_40_CALLEES: &[usize] = &[0usize, 145usize, 33usize];
 const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 145u32];
+const FN_41_CALLEES: &[usize] = &[0usize, 10usize, 36usize, 145usize];
 const FN_42_GLOBALS: &[usize] = &[9usize];
-const FN_42_CALLEES: &[u32] = &[0u32, 8u32, 145u32];
+const FN_42_CALLEES: &[usize] = &[0usize, 8usize, 145usize];
 const FN_43_GLOBALS: &[usize] = &[9usize];
-const FN_43_CALLEES: &[u32] = &[0u32, 1u32, 145u32];
+const FN_43_CALLEES: &[usize] = &[0usize, 1usize, 145usize];
 const FN_44_GLOBALS: &[usize] = &[9usize];
-const FN_44_CALLEES: &[u32] = &[0u32, 9u32, 145u32];
+const FN_44_CALLEES: &[usize] = &[0usize, 9usize, 145usize];
 const FN_45_GLOBALS: &[usize] = &[9usize];
-const FN_45_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_45_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_46_GLOBALS: &[usize] = &[9usize];
-const FN_46_CALLEES: &[u32] = &[0u32, 10u32, 145u32];
+const FN_46_CALLEES: &[usize] = &[0usize, 10usize, 145usize];
 const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
-const FN_47_CALLEES: &[u32] = &[0u32, 140u32, 145u32, 13u32, 146u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 143u32];
-const FN_48_CALLEES: &[u32] = &[0u32];
-const FN_49_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_50_CALLEES: &[u32] = &[0u32, 1u32, 142u32, 0u32, 145u32];
-const FN_51_CALLEES: &[u32] = &[0u32, 0u32, 142u32, 1u32, 145u32];
-const FN_52_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_53_CALLEES: &[u32] = &[0u32, 0u32, 145u32];
-const FN_54_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_55_CALLEES: &[u32] = &[0u32, 0u32, 142u32];
-const FN_56_CALLEES: &[u32] = &[0u32, 1u32, 145u32, 142u32];
+const FN_47_CALLEES: &[usize] = &[0usize, 140usize, 145usize, 13usize, 146usize, 0usize, 32usize, 2usize, 10usize, 36usize, 37usize, 143usize];
+const FN_48_CALLEES: &[usize] = &[0usize];
+const FN_49_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_50_CALLEES: &[usize] = &[0usize, 1usize, 142usize, 0usize, 145usize];
+const FN_51_CALLEES: &[usize] = &[0usize, 0usize, 142usize, 1usize, 145usize];
+const FN_52_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_53_CALLEES: &[usize] = &[0usize, 0usize, 145usize];
+const FN_54_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_55_CALLEES: &[usize] = &[0usize, 0usize, 142usize];
+const FN_56_CALLEES: &[usize] = &[0usize, 1usize, 145usize, 142usize];
 const FN_57_GLOBALS: &[usize] = &[14usize];
-const FN_57_CALLEES: &[u32] = &[0u32, 21u32, 24u32, 36u32];
-const FN_58_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_59_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_60_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_61_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_62_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_63_CALLEES: &[u32] = &[0u32, 68u32];
+const FN_57_CALLEES: &[usize] = &[0usize, 21usize, 24usize, 36usize];
+const FN_58_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_59_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_60_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_61_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_62_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_63_CALLEES: &[usize] = &[0usize, 68usize];
 const FN_64_GLOBALS: &[usize] = &[19usize, 16usize, 17usize];
-const FN_64_CALLEES: &[u32] = &[0u32, 144u32];
+const FN_64_CALLEES: &[usize] = &[0usize, 144usize];
 const FN_65_GLOBALS: &[usize] = &[19usize];
-const FN_65_CALLEES: &[u32] = &[0u32, 144u32, 12u32, 6u32, 35u32, 21u32, 1u32, 12u32];
+const FN_65_CALLEES: &[usize] = &[0usize, 144usize, 12usize, 6usize, 35usize, 21usize, 1usize, 12usize];
 const FN_66_GLOBALS: &[usize] = &[16usize];
-const FN_66_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_67_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_68_CALLEES: &[u32] = &[0u32, 24u32, 1u32];
-const FN_69_CALLEES: &[u32] = &[0u32, 24u32, 2u32];
-const FN_70_CALLEES: &[u32] = &[0u32, 61u32];
-const FN_71_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_72_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_73_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_74_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_75_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_76_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_77_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_78_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_79_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_80_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_81_CALLEES: &[u32] = &[0u32];
-const FN_82_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_83_CALLEES: &[u32] = &[0u32];
-const FN_84_CALLEES: &[u32] = &[0u32, 62u32];
-const FN_85_CALLEES: &[u32] = &[0u32, 63u32];
-const FN_86_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_87_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_88_CALLEES: &[u32] = &[0u32, 24u32, 5u32];
-const FN_89_CALLEES: &[u32] = &[0u32, 43u32, 67u32];
-const FN_90_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_91_CALLEES: &[u32] = &[0u32, 65u32];
-const FN_92_CALLEES: &[u32] = &[0u32, 66u32];
-const FN_93_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_94_CALLEES: &[u32] = &[0u32, 67u32];
+const FN_66_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_67_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_68_CALLEES: &[usize] = &[0usize, 24usize, 1usize];
+const FN_69_CALLEES: &[usize] = &[0usize, 24usize, 2usize];
+const FN_70_CALLEES: &[usize] = &[0usize, 61usize];
+const FN_71_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_72_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_73_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_74_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_75_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_76_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_77_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_78_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_79_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_80_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_81_CALLEES: &[usize] = &[0usize];
+const FN_82_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_83_CALLEES: &[usize] = &[0usize];
+const FN_84_CALLEES: &[usize] = &[0usize, 62usize];
+const FN_85_CALLEES: &[usize] = &[0usize, 63usize];
+const FN_86_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_87_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_88_CALLEES: &[usize] = &[0usize, 24usize, 5usize];
+const FN_89_CALLEES: &[usize] = &[0usize, 43usize, 67usize];
+const FN_90_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_91_CALLEES: &[usize] = &[0usize, 65usize];
+const FN_92_CALLEES: &[usize] = &[0usize, 66usize];
+const FN_93_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_94_CALLEES: &[usize] = &[0usize, 67usize];
 const FN_95_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_95_CALLEES: &[u32] = &[0u32, 42u32, 68u32, 145u32];
+const FN_95_CALLEES: &[usize] = &[0usize, 42usize, 68usize, 145usize];
 const FN_96_GLOBALS: &[usize] = &[19usize, 1usize, 16usize, 17usize, 9usize];
-const FN_96_CALLEES: &[u32] = &[0u32, 144u32, 145u32, 12u32, 31u32, 20u32, 21u32, 33u32];
+const FN_96_CALLEES: &[usize] = &[0usize, 144usize, 145usize, 12usize, 31usize, 20usize, 21usize, 33usize];
 const FN_97_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_97_CALLEES: &[u32] = &[0u32, 20u32, 145u32];
-const FN_98_CALLEES: &[u32] = &[0u32, 67u32, 21u32, 145u32, 68u32, 70u32];
+const FN_97_CALLEES: &[usize] = &[0usize, 20usize, 145usize];
+const FN_98_CALLEES: &[usize] = &[0usize, 67usize, 21usize, 145usize, 68usize, 70usize];
 const FN_99_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_99_CALLEES: &[u32] = &[0u32, 44u32, 69u32, 145u32];
+const FN_99_CALLEES: &[usize] = &[0usize, 44usize, 69usize, 145usize];
 const FN_100_GLOBALS: &[usize] = &[16usize, 19usize, 9usize];
-const FN_100_CALLEES: &[u32] = &[0u32, 144u32, 145u32, 33u32];
+const FN_100_CALLEES: &[usize] = &[0usize, 144usize, 145usize, 33usize];
 const FN_101_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_101_CALLEES: &[u32] = &[0u32, 145u32, 24u32, 32u32, 20u32];
+const FN_101_CALLEES: &[usize] = &[0usize, 145usize, 24usize, 32usize, 20usize];
 const FN_102_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_102_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 142u32, 1u32, 2u32];
+const FN_102_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 142usize, 1usize, 2usize];
 const FN_103_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_103_CALLEES: &[u32] = &[0u32, 45u32, 70u32, 145u32];
+const FN_103_CALLEES: &[usize] = &[0usize, 45usize, 70usize, 145usize];
 const FN_104_GLOBALS: &[usize] = &[9usize];
-const FN_104_CALLEES: &[u32] = &[0u32, 28u32, 145u32, 11u32];
+const FN_104_CALLEES: &[usize] = &[0usize, 28usize, 145usize, 11usize];
 const FN_105_GLOBALS: &[usize] = &[9usize];
-const FN_105_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_105_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_106_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_106_CALLEES: &[u32] = &[0u32, 21u32, 145u32, 24u32];
+const FN_106_CALLEES: &[usize] = &[0usize, 21usize, 145usize, 24usize];
 const FN_107_GLOBALS: &[usize] = &[9usize];
-const FN_107_CALLEES: &[u32] = &[0u32, 9u32, 145u32];
+const FN_107_CALLEES: &[usize] = &[0usize, 9usize, 145usize];
 const FN_108_GLOBALS: &[usize] = &[9usize];
-const FN_108_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_108_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_109_GLOBALS: &[usize] = &[9usize];
-const FN_109_CALLEES: &[u32] = &[0u32, 10u32, 145u32];
+const FN_109_CALLEES: &[usize] = &[0usize, 10usize, 145usize];
 const FN_110_GLOBALS: &[usize] = &[19usize, 1usize, 16usize, 17usize];
-const FN_110_CALLEES: &[u32] = &[0u32, 144u32, 145u32, 12u32, 31u32, 20u32, 21u32, 33u32];
-const FN_111_CALLEES: &[u32] = &[0u32, 24u32, 34u32, 20u32];
-const FN_112_CALLEES: &[u32] = &[0u32, 24u32, 35u32, 20u32];
+const FN_110_CALLEES: &[usize] = &[0usize, 144usize, 145usize, 12usize, 31usize, 20usize, 21usize, 33usize];
+const FN_111_CALLEES: &[usize] = &[0usize, 24usize, 34usize, 20usize];
+const FN_112_CALLEES: &[usize] = &[0usize, 24usize, 35usize, 20usize];
 const FN_113_GLOBALS: &[usize] = &[19usize];
-const FN_113_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_114_CALLEES: &[u32] = &[0u32, 24u32, 36u32, 20u32];
-const FN_115_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_113_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_114_CALLEES: &[usize] = &[0usize, 24usize, 36usize, 20usize];
+const FN_115_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_116_GLOBALS: &[usize] = &[22usize];
-const FN_116_CALLEES: &[u32] = &[0u32, 96u32, 85u32, 95u32, 97u32];
-const FN_117_CALLEES: &[u32] = &[0u32];
-const FN_118_CALLEES: &[u32] = &[0u32, 41u32];
-const FN_119_CALLEES: &[u32] = &[0u32];
-const FN_120_CALLEES: &[u32] = &[0u32];
-const FN_121_CALLEES: &[u32] = &[0u32];
-const FN_122_CALLEES: &[u32] = &[0u32, 95u32, 147u32];
-const FN_123_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_124_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_116_CALLEES: &[usize] = &[0usize, 96usize, 85usize, 95usize, 97usize];
+const FN_117_CALLEES: &[usize] = &[0usize];
+const FN_118_CALLEES: &[usize] = &[0usize, 41usize];
+const FN_119_CALLEES: &[usize] = &[0usize];
+const FN_120_CALLEES: &[usize] = &[0usize];
+const FN_121_CALLEES: &[usize] = &[0usize];
+const FN_122_CALLEES: &[usize] = &[0usize, 95usize, 147usize];
+const FN_123_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_124_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_125_GLOBALS: &[usize] = &[22usize];
-const FN_125_CALLEES: &[u32] = &[0u32, 9u32, 0u32, 145u32];
+const FN_125_CALLEES: &[usize] = &[0usize, 9usize, 0usize, 145usize];
 const FN_126_GLOBALS: &[usize] = &[22usize];
-const FN_126_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_127_CALLEES: &[u32] = &[0u32, 36u32];
-const FN_128_CALLEES: &[u32] = &[0u32, 9u32, 0u32, 145u32, 85u32];
-const FN_129_CALLEES: &[u32] = &[0u32, 12u32, 38u32, 21u32, 85u32];
-const FN_130_CALLEES: &[u32] = &[0u32, 4u32, 85u32, 0u32];
-const FN_131_CALLEES: &[u32] = &[0u32, 5u32];
-const FN_132_CALLEES: &[u32] = &[0u32, 100u32, 85u32];
-const FN_133_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_134_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_135_CALLEES: &[u32] = &[0u32, 1u32, 12u32, 19u32, 1u32, 9u32, 0u32, 0u32, 1u32, 148u32, 85u32];
-const FN_136_CALLEES: &[u32] = &[0u32];
-const FN_137_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_138_CALLEES: &[u32] = &[0u32, 76u32];
+const FN_126_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_127_CALLEES: &[usize] = &[0usize, 36usize];
+const FN_128_CALLEES: &[usize] = &[0usize, 9usize, 0usize, 145usize, 85usize];
+const FN_129_CALLEES: &[usize] = &[0usize, 12usize, 38usize, 21usize, 85usize];
+const FN_130_CALLEES: &[usize] = &[0usize, 4usize, 85usize, 0usize];
+const FN_131_CALLEES: &[usize] = &[0usize, 5usize];
+const FN_132_CALLEES: &[usize] = &[0usize, 100usize, 85usize];
+const FN_133_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_134_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_135_CALLEES: &[usize] = &[0usize, 1usize, 12usize, 19usize, 1usize, 9usize, 0usize, 0usize, 1usize, 148usize, 85usize];
+const FN_136_CALLEES: &[usize] = &[0usize];
+const FN_137_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_138_CALLEES: &[usize] = &[0usize, 76usize];
 const FN_139_GLOBALS: &[usize] = &[22usize];
-const FN_139_CALLEES: &[u32] = &[0u32, 50u32, 145u32];
-const FN_140_CALLEES: &[u32] = &[0u32, 93u32];
-const FN_141_CALLEES: &[u32] = &[0u32, 98u32, 85u32];
-const FN_142_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_139_CALLEES: &[usize] = &[0usize, 50usize, 145usize];
+const FN_140_CALLEES: &[usize] = &[0usize, 93usize];
+const FN_141_CALLEES: &[usize] = &[0usize, 98usize, 85usize];
+const FN_142_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_143_GLOBALS: &[usize] = &[22usize];
-const FN_143_CALLEES: &[u32] = &[0u32, 41u32, 145u32];
-const FN_144_CALLEES: &[u32] = &[0u32, 94u32];
-const FN_145_CALLEES: &[u32] = &[0u32, 42u32, 71u32];
-const FN_146_CALLEES: &[u32] = &[0u32, 94u32];
+const FN_143_CALLEES: &[usize] = &[0usize, 41usize, 145usize];
+const FN_144_CALLEES: &[usize] = &[0usize, 94usize];
+const FN_145_CALLEES: &[usize] = &[0usize, 42usize, 71usize];
+const FN_146_CALLEES: &[usize] = &[0usize, 94usize];
 const FN_147_GLOBALS: &[usize] = &[22usize, 1usize];
-const FN_147_CALLEES: &[u32] = &[0u32, 41u32, 145u32, 100u32, 85u32];
-const FN_148_CALLEES: &[u32] = &[0u32, 94u32, 34u32, 71u32, 145u32];
+const FN_147_CALLEES: &[usize] = &[0usize, 41usize, 145usize, 100usize, 85usize];
+const FN_148_CALLEES: &[usize] = &[0usize, 94usize, 34usize, 71usize, 145usize];
 const FN_149_GLOBALS: &[usize] = &[19usize, 9usize, 16usize];
-const FN_149_CALLEES: &[u32] = &[0u32, 51u32, 145u32, 1u32, 140u32, 25u32, 26u32];
+const FN_149_CALLEES: &[usize] = &[0usize, 51usize, 145usize, 1usize, 140usize, 25usize, 26usize];
 const FN_150_GLOBALS: &[usize] = &[9usize];
-const FN_150_CALLEES: &[u32] = &[0u32, 43u32, 145u32, 27u32];
+const FN_150_CALLEES: &[usize] = &[0usize, 43usize, 145usize, 27usize];
 const FN_151_GLOBALS: &[usize] = &[9usize];
-const FN_151_CALLEES: &[u32] = &[0u32, 43u32, 145u32, 28u32];
+const FN_151_CALLEES: &[usize] = &[0usize, 43usize, 145usize, 28usize];
 const FN_152_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_152_CALLEES: &[u32] = &[0u32, 145u32, 51u32];
+const FN_152_CALLEES: &[usize] = &[0usize, 145usize, 51usize];
 const FN_153_GLOBALS: &[usize] = &[9usize];
-const FN_153_CALLEES: &[u32] = &[0u32, 46u32, 145u32, 9u32];
+const FN_153_CALLEES: &[usize] = &[0usize, 46usize, 145usize, 9usize];
 const FN_154_GLOBALS: &[usize] = &[9usize];
-const FN_154_CALLEES: &[u32] = &[0u32, 46u32, 145u32, 10u32];
+const FN_154_CALLEES: &[usize] = &[0usize, 46usize, 145usize, 10usize];
 const FN_155_GLOBALS: &[usize] = &[9usize];
-const FN_155_CALLEES: &[u32] = &[0u32, 46u32, 145u32, 11u32];
+const FN_155_CALLEES: &[usize] = &[0usize, 46usize, 145usize, 11usize];
 const FN_156_GLOBALS: &[usize] = &[22usize, 1usize];
-const FN_156_CALLEES: &[u32] = &[0u32, 41u32, 145u32, 100u32, 85u32];
-const FN_157_CALLEES: &[u32] = &[0u32, 2u32, 20u32, 6u32];
+const FN_156_CALLEES: &[usize] = &[0usize, 41usize, 145usize, 100usize, 85usize];
+const FN_157_CALLEES: &[usize] = &[0usize, 2usize, 20usize, 6usize];
 const FN_158_GLOBALS: &[usize] = &[14usize];
-const FN_158_CALLEES: &[u32] = &[0u32, 145u32, 20u32, 1u32, 1u32];
-const FN_159_CALLEES: &[u32] = &[0u32, 2u32, 20u32];
-const FN_160_CALLEES: &[u32] = &[0u32, 1u32, 12u32, 20u32, 9u32, 1u32, 0u32, 148u32];
-const FN_161_CALLEES: &[u32] = &[0u32, 12u32, 20u32, 1u32, 2u32, 9u32, 1u32, 148u32, 50u32];
-const FN_162_CALLEES: &[u32] = &[0u32, 145u32, 1u32, 21u32, 20u32, 19u32, 0u32, 9u32, 0u32, 0u32, 148u32, 50u32];
-const FN_163_CALLEES: &[u32] = &[0u32, 19u32, 2u32, 20u32];
-const FN_164_CALLEES: &[u32] = &[0u32, 95u32, 145u32, 20u32, 21u32, 2u32, 1u32, 9u32, 0u32, 148u32, 50u32, 1u32, 142u32, 0u32, 0u32, 147u32, 19u32, 148u32, 99u32];
-const FN_165_CALLEES: &[u32] = &[0u32, 58u32];
-const FN_166_CALLEES: &[u32] = &[0u32, 1u32, 145u32];
+const FN_158_CALLEES: &[usize] = &[0usize, 145usize, 20usize, 1usize, 1usize];
+const FN_159_CALLEES: &[usize] = &[0usize, 2usize, 20usize];
+const FN_160_CALLEES: &[usize] = &[0usize, 1usize, 12usize, 20usize, 9usize, 1usize, 0usize, 148usize];
+const FN_161_CALLEES: &[usize] = &[0usize, 12usize, 20usize, 1usize, 2usize, 9usize, 1usize, 148usize, 50usize];
+const FN_162_CALLEES: &[usize] = &[0usize, 145usize, 1usize, 21usize, 20usize, 19usize, 0usize, 9usize, 0usize, 0usize, 148usize, 50usize];
+const FN_163_CALLEES: &[usize] = &[0usize, 19usize, 2usize, 20usize];
+const FN_164_CALLEES: &[usize] = &[0usize, 95usize, 145usize, 20usize, 21usize, 2usize, 1usize, 9usize, 0usize, 148usize, 50usize, 1usize, 142usize, 0usize, 0usize, 147usize, 19usize, 148usize, 99usize];
+const FN_165_CALLEES: &[usize] = &[0usize, 58usize];
+const FN_166_CALLEES: &[usize] = &[0usize, 1usize, 145usize];
 const FN_167_GLOBALS: &[usize] = &[23usize];
-const FN_167_CALLEES: &[u32] = &[0u32, 56u32, 2u32, 9u32];
-const FN_168_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_169_CALLEES: &[u32] = &[0u32];
-const FN_170_CALLEES: &[u32] = &[0u32];
-const FN_171_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_172_CALLEES: &[u32] = &[0u32, 1u32, 145u32];
+const FN_167_CALLEES: &[usize] = &[0usize, 56usize, 2usize, 9usize];
+const FN_168_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_169_CALLEES: &[usize] = &[0usize];
+const FN_170_CALLEES: &[usize] = &[0usize];
+const FN_171_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_172_CALLEES: &[usize] = &[0usize, 1usize, 145usize];
 const FN_173_GLOBALS: &[usize] = &[23usize];
-const FN_173_CALLEES: &[u32] = &[0u32, 57u32, 2u32, 9u32];
-const FN_174_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_175_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_176_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 22u32, 149u32, 145u32, 2u32, 150u32, 151u32, 152u32, 1u32, 0u32, 148u32];
-const FN_177_CALLEES: &[u32] = &[0u32, 3u32, 145u32, 22u32, 149u32, 1u32, 153u32, 152u32, 154u32, 0u32, 32u32, 2u32, 155u32, 141u32, 13u32, 55u32, 1u32];
+const FN_173_CALLEES: &[usize] = &[0usize, 57usize, 2usize, 9usize];
+const FN_174_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_175_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_176_CALLEES: &[usize] = &[0usize, 0usize, 13usize, 22usize, 149usize, 145usize, 2usize, 150usize, 151usize, 152usize, 1usize, 0usize, 148usize];
+const FN_177_CALLEES: &[usize] = &[0usize, 3usize, 145usize, 22usize, 149usize, 1usize, 153usize, 152usize, 154usize, 0usize, 32usize, 2usize, 155usize, 141usize, 13usize, 55usize, 1usize];
 const FN_178_GLOBALS: &[usize] = &[14usize];
-const FN_178_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 145u32, 32u32, 0u32, 2u32];
-const FN_179_CALLEES: &[u32] = &[0u32, 7u32, 10u32, 3u32, 0u32, 0u32, 148u32];
-const FN_180_CALLEES: &[u32] = &[0u32, 1u32, 7u32, 0u32, 148u32];
-const FN_181_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_182_CALLEES: &[u32] = &[0u32, 60u32, 1u32, 142u32, 141u32, 1u32];
-const FN_183_CALLEES: &[u32] = &[0u32, 3u32, 145u32, 23u32, 59u32, 1u32];
-const FN_184_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 145u32, 1u32, 5u32, 63u32, 7u32, 148u32, 142u32, 149u32, 156u32, 154u32, 3u32];
-const FN_185_CALLEES: &[u32] = &[0u32, 1u32, 3u32, 145u32, 23u32, 59u32, 13u32, 148u32, 2u32];
-const FN_186_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 145u32, 7u32, 1u32, 148u32, 10u32, 3u32];
-const FN_187_CALLEES: &[u32] = &[0u32, 1u32, 145u32, 23u32, 59u32, 56u32, 54u32, 7u32, 148u32, 142u32, 149u32, 3u32];
-const FN_188_CALLEES: &[u32] = &[0u32, 23u32, 66u32, 1u32];
-const FN_189_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 1u32];
-const FN_190_CALLEES: &[u32] = &[0u32, 59u32, 58u32, 145u32];
-const FN_191_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 13u32, 58u32, 2u32, 6u32, 4u32, 22u32, 154u32, 141u32, 156u32, 2u32, 148u32];
-const FN_192_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_193_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 58u32, 2u32, 59u32, 148u32];
-const FN_194_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 58u32, 2u32, 22u32, 61u32, 59u32, 56u32, 148u32];
-const FN_195_CALLEES: &[u32] = &[0u32, 67u32, 58u32, 145u32];
+const FN_178_CALLEES: &[usize] = &[0usize, 1usize, 10usize, 145usize, 32usize, 0usize, 2usize];
+const FN_179_CALLEES: &[usize] = &[0usize, 7usize, 10usize, 3usize, 0usize, 0usize, 148usize];
+const FN_180_CALLEES: &[usize] = &[0usize, 1usize, 7usize, 0usize, 148usize];
+const FN_181_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_182_CALLEES: &[usize] = &[0usize, 60usize, 1usize, 142usize, 141usize, 1usize];
+const FN_183_CALLEES: &[usize] = &[0usize, 3usize, 145usize, 23usize, 59usize, 1usize];
+const FN_184_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 145usize, 1usize, 5usize, 63usize, 7usize, 148usize, 142usize, 149usize, 156usize, 154usize, 3usize];
+const FN_185_CALLEES: &[usize] = &[0usize, 1usize, 3usize, 145usize, 23usize, 59usize, 13usize, 148usize, 2usize];
+const FN_186_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 145usize, 7usize, 1usize, 148usize, 10usize, 3usize];
+const FN_187_CALLEES: &[usize] = &[0usize, 1usize, 145usize, 23usize, 59usize, 56usize, 54usize, 7usize, 148usize, 142usize, 149usize, 3usize];
+const FN_188_CALLEES: &[usize] = &[0usize, 23usize, 66usize, 1usize];
+const FN_189_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 1usize];
+const FN_190_CALLEES: &[usize] = &[0usize, 59usize, 58usize, 145usize];
+const FN_191_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 13usize, 58usize, 2usize, 6usize, 4usize, 22usize, 154usize, 141usize, 156usize, 2usize, 148usize];
+const FN_192_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_193_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 58usize, 2usize, 59usize, 148usize];
+const FN_194_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 58usize, 2usize, 22usize, 61usize, 59usize, 56usize, 148usize];
+const FN_195_CALLEES: &[usize] = &[0usize, 67usize, 58usize, 145usize];
 const FN_196_GLOBALS: &[usize] = &[14usize];
-const FN_196_CALLEES: &[u32] = &[0u32, 140u32, 58u32, 53u32, 145u32, 13u32, 2u32, 12u32, 9u32, 141u32, 1u32, 33u32, 2u32, 19u32, 148u32];
-const FN_197_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_198_CALLEES: &[u32] = &[0u32, 145u32, 7u32, 157u32, 7u32, 22u32, 5u32, 0u32, 148u32];
-const FN_199_CALLEES: &[u32] = &[0u32, 10u32, 3u32, 155u32, 0u32, 142u32, 141u32, 60u32, 1u32, 33u32, 149u32, 156u32];
-const FN_200_CALLEES: &[u32] = &[0u32, 22u32, 149u32, 153u32, 152u32, 154u32];
-const FN_201_CALLEES: &[u32] = &[0u32, 55u32];
-const FN_202_CALLEES: &[u32] = &[0u32, 145u32, 13u32, 23u32, 2u32, 1u32, 148u32, 2u32, 8u32, 158u32];
-const FN_203_CALLEES: &[u32] = &[0u32, 145u32, 2u32, 0u32, 1u32, 13u32, 4u32, 23u32, 148u32];
-const FN_204_CALLEES: &[u32] = &[0u32, 23u32, 145u32, 3u32];
-const FN_205_CALLEES: &[u32] = &[0u32, 8u32, 145u32];
-const FN_206_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_207_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 1u32, 1u32, 8u32];
-const FN_208_CALLEES: &[u32] = &[0u32, 77u32];
-const FN_209_CALLEES: &[u32] = &[0u32, 79u32, 13u32, 2u32, 1u32, 2u32, 148u32, 1u32, 8u32, 160u32, 145u32];
-const FN_210_CALLEES: &[u32] = &[0u32, 104u32];
-const FN_211_CALLEES: &[u32] = &[0u32, 150u32];
+const FN_196_CALLEES: &[usize] = &[0usize, 140usize, 58usize, 53usize, 145usize, 13usize, 2usize, 12usize, 9usize, 141usize, 1usize, 33usize, 2usize, 19usize, 148usize];
+const FN_197_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_198_CALLEES: &[usize] = &[0usize, 145usize, 7usize, 157usize, 7usize, 22usize, 5usize, 0usize, 148usize];
+const FN_199_CALLEES: &[usize] = &[0usize, 10usize, 3usize, 155usize, 0usize, 142usize, 141usize, 60usize, 1usize, 33usize, 149usize, 156usize];
+const FN_200_CALLEES: &[usize] = &[0usize, 22usize, 149usize, 153usize, 152usize, 154usize];
+const FN_201_CALLEES: &[usize] = &[0usize, 55usize];
+const FN_202_CALLEES: &[usize] = &[0usize, 145usize, 13usize, 23usize, 2usize, 1usize, 148usize, 2usize, 8usize, 158usize];
+const FN_203_CALLEES: &[usize] = &[0usize, 145usize, 2usize, 0usize, 1usize, 13usize, 4usize, 23usize, 148usize];
+const FN_204_CALLEES: &[usize] = &[0usize, 23usize, 145usize, 3usize];
+const FN_205_CALLEES: &[usize] = &[0usize, 8usize, 145usize];
+const FN_206_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_207_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 1usize, 1usize, 8usize];
+const FN_208_CALLEES: &[usize] = &[0usize, 77usize];
+const FN_209_CALLEES: &[usize] = &[0usize, 79usize, 13usize, 2usize, 1usize, 2usize, 148usize, 1usize, 8usize, 160usize, 145usize];
+const FN_210_CALLEES: &[usize] = &[0usize, 104usize];
+const FN_211_CALLEES: &[usize] = &[0usize, 150usize];
 const FN_212_GLOBALS: &[usize] = &[3usize];
-const FN_212_CALLEES: &[u32] = &[0u32, 64u32, 150u32, 62u32, 145u32];
-const FN_213_CALLEES: &[u32] = &[0u32, 13u32, 59u32, 58u32, 2u32, 148u32];
+const FN_212_CALLEES: &[usize] = &[0usize, 64usize, 150usize, 62usize, 145usize];
+const FN_213_CALLEES: &[usize] = &[0usize, 13usize, 59usize, 58usize, 2usize, 148usize];
 const FN_214_GLOBALS: &[usize] = &[3usize];
-const FN_214_CALLEES: &[u32] = &[0u32, 13u32, 23u32, 59u32, 1u32, 145u32, 2u32, 148u32];
-const FN_215_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_216_CALLEES: &[u32] = &[0u32, 1u32, 23u32, 59u32, 78u32, 2u32, 0u32, 0u32, 1u32, 145u32];
-const FN_217_CALLEES: &[u32] = &[0u32, 13u32, 23u32, 59u32, 1u32, 8u32, 2u32, 8u32, 145u32, 148u32];
-const FN_218_CALLEES: &[u32] = &[0u32, 23u32, 1u32, 13u32, 4u32, 148u32];
-const FN_219_CALLEES: &[u32] = &[0u32, 72u32, 145u32, 12u32, 9u32, 30u32];
-const FN_220_CALLEES: &[u32] = &[0u32, 80u32, 145u32];
-const FN_221_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 24u32, 71u32];
-const FN_222_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 145u32];
-const FN_223_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 24u32, 71u32];
-const FN_224_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 71u32];
-const FN_225_CALLEES: &[u32] = &[0u32, 72u32, 145u32, 12u32];
-const FN_226_CALLEES: &[u32] = &[0u32, 80u32, 145u32];
-const FN_227_CALLEES: &[u32] = &[0u32, 80u32, 145u32];
-const FN_228_CALLEES: &[u32] = &[0u32, 80u32, 145u32];
-const FN_229_CALLEES: &[u32] = &[0u32];
-const FN_230_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_231_CALLEES: &[u32] = &[0u32];
-const FN_232_CALLEES: &[u32] = &[0u32, 62u32, 145u32];
-const FN_233_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_234_CALLEES: &[u32] = &[0u32, 80u32, 145u32, 101u32, 161u32, 3u32, 100u32, 76u32];
-const FN_235_CALLEES: &[u32] = &[0u32, 77u32, 145u32, 102u32];
-const FN_236_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 100u32, 161u32, 76u32];
-const FN_237_CALLEES: &[u32] = &[0u32, 77u32, 145u32, 103u32];
-const FN_238_CALLEES: &[u32] = &[0u32, 145u32, 7u32, 72u32, 13u32, 11u32, 30u32, 27u32, 24u32];
-const FN_239_CALLEES: &[u32] = &[0u32, 145u32, 7u32, 72u32, 10u32, 12u32, 30u32, 9u32, 0u32, 9u32];
-const FN_240_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 23u32, 71u32, 2u32, 148u32];
-const FN_241_CALLEES: &[u32] = &[0u32, 145u32, 140u32, 71u32, 13u32, 11u32, 26u32, 24u32, 2u32, 25u32, 148u32, 99u32];
-const FN_242_CALLEES: &[u32] = &[0u32, 145u32, 71u32, 13u32, 3u32, 2u32, 148u32, 99u32];
-const FN_243_CALLEES: &[u32] = &[0u32, 7u32, 145u32, 72u32, 140u32, 9u32, 11u32, 9u32];
-const FN_244_CALLEES: &[u32] = &[0u32, 7u32, 145u32, 72u32, 140u32, 9u32, 11u32, 24u32, 71u32, 10u32, 3u32];
-const FN_245_CALLEES: &[u32] = &[0u32, 150u32, 151u32, 153u32];
-const FN_246_CALLEES: &[u32] = &[0u32];
-const FN_247_CALLEES: &[u32] = &[0u32];
-const FN_248_CALLEES: &[u32] = &[0u32];
-const FN_249_CALLEES: &[u32] = &[0u32];
-const FN_250_CALLEES: &[u32] = &[0u32];
-const FN_251_CALLEES: &[u32] = &[0u32];
-const FN_252_CALLEES: &[u32] = &[0u32, 92u32, 134u32, 90u32];
+const FN_214_CALLEES: &[usize] = &[0usize, 13usize, 23usize, 59usize, 1usize, 145usize, 2usize, 148usize];
+const FN_215_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_216_CALLEES: &[usize] = &[0usize, 1usize, 23usize, 59usize, 78usize, 2usize, 0usize, 0usize, 1usize, 145usize];
+const FN_217_CALLEES: &[usize] = &[0usize, 13usize, 23usize, 59usize, 1usize, 8usize, 2usize, 8usize, 145usize, 148usize];
+const FN_218_CALLEES: &[usize] = &[0usize, 23usize, 1usize, 13usize, 4usize, 148usize];
+const FN_219_CALLEES: &[usize] = &[0usize, 72usize, 145usize, 12usize, 9usize, 30usize];
+const FN_220_CALLEES: &[usize] = &[0usize, 80usize, 145usize];
+const FN_221_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 24usize, 71usize];
+const FN_222_CALLEES: &[usize] = &[0usize, 46usize, 71usize, 145usize];
+const FN_223_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 24usize, 71usize];
+const FN_224_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 71usize];
+const FN_225_CALLEES: &[usize] = &[0usize, 72usize, 145usize, 12usize];
+const FN_226_CALLEES: &[usize] = &[0usize, 80usize, 145usize];
+const FN_227_CALLEES: &[usize] = &[0usize, 80usize, 145usize];
+const FN_228_CALLEES: &[usize] = &[0usize, 80usize, 145usize];
+const FN_229_CALLEES: &[usize] = &[0usize];
+const FN_230_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_231_CALLEES: &[usize] = &[0usize];
+const FN_232_CALLEES: &[usize] = &[0usize, 62usize, 145usize];
+const FN_233_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_234_CALLEES: &[usize] = &[0usize, 80usize, 145usize, 101usize, 161usize, 3usize, 100usize, 76usize];
+const FN_235_CALLEES: &[usize] = &[0usize, 77usize, 145usize, 102usize];
+const FN_236_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 100usize, 161usize, 76usize];
+const FN_237_CALLEES: &[usize] = &[0usize, 77usize, 145usize, 103usize];
+const FN_238_CALLEES: &[usize] = &[0usize, 145usize, 7usize, 72usize, 13usize, 11usize, 30usize, 27usize, 24usize];
+const FN_239_CALLEES: &[usize] = &[0usize, 145usize, 7usize, 72usize, 10usize, 12usize, 30usize, 9usize, 0usize, 9usize];
+const FN_240_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 23usize, 71usize, 2usize, 148usize];
+const FN_241_CALLEES: &[usize] = &[0usize, 145usize, 140usize, 71usize, 13usize, 11usize, 26usize, 24usize, 2usize, 25usize, 148usize, 99usize];
+const FN_242_CALLEES: &[usize] = &[0usize, 145usize, 71usize, 13usize, 3usize, 2usize, 148usize, 99usize];
+const FN_243_CALLEES: &[usize] = &[0usize, 7usize, 145usize, 72usize, 140usize, 9usize, 11usize, 9usize];
+const FN_244_CALLEES: &[usize] = &[0usize, 7usize, 145usize, 72usize, 140usize, 9usize, 11usize, 24usize, 71usize, 10usize, 3usize];
+const FN_245_CALLEES: &[usize] = &[0usize, 150usize, 151usize, 153usize];
+const FN_246_CALLEES: &[usize] = &[0usize];
+const FN_247_CALLEES: &[usize] = &[0usize];
+const FN_248_CALLEES: &[usize] = &[0usize];
+const FN_249_CALLEES: &[usize] = &[0usize];
+const FN_250_CALLEES: &[usize] = &[0usize];
+const FN_251_CALLEES: &[usize] = &[0usize];
+const FN_252_CALLEES: &[usize] = &[0usize, 92usize, 134usize, 90usize];
 const FN_253_GLOBALS: &[usize] = &[26usize];
-const FN_253_CALLEES: &[u32] = &[0u32, 145u32, 13u32, 2u32, 148u32];
-const FN_254_CALLEES: &[u32] = &[0u32, 23u32, 145u32];
-const FN_255_CALLEES: &[u32] = &[0u32, 22u32, 145u32];
-const FN_256_CALLEES: &[u32] = &[0u32, 13u32, 85u32, 2u32, 148u32];
-const FN_257_CALLEES: &[u32] = &[0u32, 109u32, 13u32, 145u32, 2u32, 159u32, 148u32];
-const FN_258_CALLEES: &[u32] = &[0u32, 145u32, 110u32];
-const FN_259_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32];
-const FN_260_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32];
-const FN_261_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_262_CALLEES: &[u32] = &[0u32, 111u32, 13u32, 4u32, 2u32, 148u32];
+const FN_253_CALLEES: &[usize] = &[0usize, 145usize, 13usize, 2usize, 148usize];
+const FN_254_CALLEES: &[usize] = &[0usize, 23usize, 145usize];
+const FN_255_CALLEES: &[usize] = &[0usize, 22usize, 145usize];
+const FN_256_CALLEES: &[usize] = &[0usize, 13usize, 85usize, 2usize, 148usize];
+const FN_257_CALLEES: &[usize] = &[0usize, 109usize, 13usize, 145usize, 2usize, 159usize, 148usize];
+const FN_258_CALLEES: &[usize] = &[0usize, 145usize, 110usize];
+const FN_259_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize];
+const FN_260_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize];
+const FN_261_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_262_CALLEES: &[usize] = &[0usize, 111usize, 13usize, 4usize, 2usize, 148usize];
 const FN_263_GLOBALS: &[usize] = &[27usize, 28usize];
-const FN_263_CALLEES: &[u32] = &[0u32, 10u32, 12u32];
+const FN_263_CALLEES: &[usize] = &[0usize, 10usize, 12usize];
 const FN_264_GLOBALS: &[usize] = &[25usize];
-const FN_264_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_265_CALLEES: &[u32] = &[0u32, 2u32, 8u32, 145u32];
-const FN_266_CALLEES: &[u32] = &[0u32, 7u32, 72u32, 145u32, 11u32, 11u32, 3u32, 148u32, 1u32, 153u32, 7u32, 137u32, 107u32];
-const FN_267_CALLEES: &[u32] = &[0u32, 145u32, 110u32, 0u32, 159u32, 3u32, 13u32, 2u32, 148u32];
+const FN_264_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_265_CALLEES: &[usize] = &[0usize, 2usize, 8usize, 145usize];
+const FN_266_CALLEES: &[usize] = &[0usize, 7usize, 72usize, 145usize, 11usize, 11usize, 3usize, 148usize, 1usize, 153usize, 7usize, 137usize, 107usize];
+const FN_267_CALLEES: &[usize] = &[0usize, 145usize, 110usize, 0usize, 159usize, 3usize, 13usize, 2usize, 148usize];
 const FN_268_GLOBALS: &[usize] = &[25usize];
-const FN_268_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
+const FN_268_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
 const FN_269_GLOBALS: &[usize] = &[24usize, 30usize];
-const FN_269_CALLEES: &[u32] = &[0u32, 59u32, 54u32, 72u32, 10u32];
+const FN_269_CALLEES: &[usize] = &[0usize, 59usize, 54usize, 72usize, 10usize];
 const FN_270_GLOBALS: &[usize] = &[25usize];
-const FN_270_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_271_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 110u32, 72u32, 113u32];
-const FN_272_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 145u32, 159u32, 2u32, 148u32];
-const FN_273_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32];
-const FN_274_CALLEES: &[u32] = &[0u32, 23u32, 145u32, 110u32];
-const FN_275_CALLEES: &[u32] = &[0u32, 23u32, 145u32, 13u32, 4u32, 2u32, 148u32, 1u32];
-const FN_276_CALLEES: &[u32] = &[0u32, 3u32, 2u32, 145u32, 90u32, 75u32, 110u32, 92u32, 112u32, 0u32];
-const FN_277_CALLEES: &[u32] = &[0u32, 145u32, 113u32, 0u32, 159u32, 110u32, 72u32];
-const FN_278_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 71u32, 159u32, 148u32, 113u32, 0u32, 3u32, 110u32];
+const FN_270_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_271_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 110usize, 72usize, 113usize];
+const FN_272_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 145usize, 159usize, 2usize, 148usize];
+const FN_273_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize];
+const FN_274_CALLEES: &[usize] = &[0usize, 23usize, 145usize, 110usize];
+const FN_275_CALLEES: &[usize] = &[0usize, 23usize, 145usize, 13usize, 4usize, 2usize, 148usize, 1usize];
+const FN_276_CALLEES: &[usize] = &[0usize, 3usize, 2usize, 145usize, 90usize, 75usize, 110usize, 92usize, 112usize, 0usize];
+const FN_277_CALLEES: &[usize] = &[0usize, 145usize, 113usize, 0usize, 159usize, 110usize, 72usize];
+const FN_278_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 71usize, 159usize, 148usize, 113usize, 0usize, 3usize, 110usize];
 const FN_279_GLOBALS: &[usize] = &[24usize, 25usize];
-const FN_279_CALLEES: &[u32] = &[0u32, 139u32, 145u32, 13u32, 0u32, 59u32, 2u32, 138u32, 72u32, 111u32, 114u32, 153u32, 117u32, 4u32, 104u32, 116u32, 148u32];
-const FN_280_CALLEES: &[u32] = &[0u32, 114u32, 152u32, 145u32, 2u32];
-const FN_281_CALLEES: &[u32] = &[0u32, 145u32, 13u32, 2u32, 4u32, 148u32, 113u32, 0u32, 159u32, 110u32, 72u32];
-const FN_282_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 1u32, 4u32, 148u32, 113u32, 0u32, 159u32, 110u32, 72u32, 13u32];
-const FN_283_CALLEES: &[u32] = &[0u32, 145u32, 71u32, 0u32];
-const FN_284_CALLEES: &[u32] = &[0u32, 0u32, 145u32];
-const FN_285_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 13u32, 71u32, 2u32, 148u32];
-const FN_286_CALLEES: &[u32] = &[0u32, 113u32, 114u32, 153u32, 145u32, 0u32, 159u32, 71u32, 0u32, 0u32];
-const FN_287_CALLEES: &[u32] = &[0u32, 159u32, 145u32, 72u32, 13u32, 2u32, 24u32, 71u32, 0u32, 140u32, 3u32, 117u32, 113u32, 115u32, 153u32, 0u32, 116u32];
-const FN_288_CALLEES: &[u32] = &[0u32, 13u32, 72u32, 2u32, 24u32, 145u32, 71u32, 0u32, 140u32, 3u32, 117u32, 113u32, 115u32, 153u32, 0u32, 116u32, 159u32, 148u32];
+const FN_279_CALLEES: &[usize] = &[0usize, 139usize, 145usize, 13usize, 0usize, 59usize, 2usize, 138usize, 72usize, 111usize, 114usize, 153usize, 117usize, 4usize, 104usize, 116usize, 148usize];
+const FN_280_CALLEES: &[usize] = &[0usize, 114usize, 152usize, 145usize, 2usize];
+const FN_281_CALLEES: &[usize] = &[0usize, 145usize, 13usize, 2usize, 4usize, 148usize, 113usize, 0usize, 159usize, 110usize, 72usize];
+const FN_282_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 1usize, 4usize, 148usize, 113usize, 0usize, 159usize, 110usize, 72usize, 13usize];
+const FN_283_CALLEES: &[usize] = &[0usize, 145usize, 71usize, 0usize];
+const FN_284_CALLEES: &[usize] = &[0usize, 0usize, 145usize];
+const FN_285_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 13usize, 71usize, 2usize, 148usize];
+const FN_286_CALLEES: &[usize] = &[0usize, 113usize, 114usize, 153usize, 145usize, 0usize, 159usize, 71usize, 0usize, 0usize];
+const FN_287_CALLEES: &[usize] = &[0usize, 159usize, 145usize, 72usize, 13usize, 2usize, 24usize, 71usize, 0usize, 140usize, 3usize, 117usize, 113usize, 115usize, 153usize, 0usize, 116usize];
+const FN_288_CALLEES: &[usize] = &[0usize, 13usize, 72usize, 2usize, 24usize, 145usize, 71usize, 0usize, 140usize, 3usize, 117usize, 113usize, 115usize, 153usize, 0usize, 116usize, 159usize, 148usize];
 const FN_289_GLOBALS: &[usize] = &[25usize];
-const FN_289_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 118u32];
+const FN_289_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 118usize];
 const FN_290_GLOBALS: &[usize] = &[25usize];
-const FN_290_CALLEES: &[u32] = &[0u32, 114u32, 0u32, 59u32];
+const FN_290_CALLEES: &[usize] = &[0usize, 114usize, 0usize, 59usize];
 const FN_291_GLOBALS: &[usize] = &[24usize];
-const FN_291_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_292_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 117u32, 72u32, 113u32, 114u32, 153u32, 140u32, 2u32, 121u32];
-const FN_293_CALLEES: &[u32] = &[0u32, 72u32, 111u32, 145u32, 112u32, 3u32, 117u32, 113u32, 135u32, 153u32, 141u32, 62u32, 110u32, 136u32, 2u32, 121u32, 120u32, 122u32, 0u32, 159u32];
-const FN_294_CALLEES: &[u32] = &[0u32, 145u32, 6u32];
+const FN_291_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_292_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 117usize, 72usize, 113usize, 114usize, 153usize, 140usize, 2usize, 121usize];
+const FN_293_CALLEES: &[usize] = &[0usize, 72usize, 111usize, 145usize, 112usize, 3usize, 117usize, 113usize, 135usize, 153usize, 141usize, 62usize, 110usize, 136usize, 2usize, 121usize, 120usize, 122usize, 0usize, 159usize];
+const FN_294_CALLEES: &[usize] = &[0usize, 145usize, 6usize];
 const FN_295_GLOBALS: &[usize] = &[25usize];
-const FN_295_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 8u32, 145u32];
+const FN_295_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 8usize, 145usize];
 const FN_296_GLOBALS: &[usize] = &[25usize, 24usize, 31usize, 27usize];
-const FN_296_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 105u32, 72u32, 111u32, 145u32, 110u32, 119u32, 142u32, 153u32, 112u32, 14u32, 4u32, 54u32, 106u32, 113u32, 114u32, 152u32, 2u32, 10u32, 13u32, 148u32];
-const FN_297_CALLEES: &[u32] = &[0u32, 135u32, 145u32, 0u32];
-const FN_298_CALLEES: &[u32] = &[0u32, 72u32, 145u32, 13u32, 11u32, 0u32, 113u32, 115u32, 153u32, 115u32, 3u32, 0u32, 159u32, 11u32];
-const FN_299_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 3u32, 123u32];
-const FN_300_CALLEES: &[u32] = &[0u32, 145u32, 71u32, 0u32];
-const FN_301_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 24u32, 145u32, 13u32, 1u32, 148u32];
-const FN_302_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 13u32, 72u32, 24u32, 140u32, 2u32, 71u32, 23u32, 113u32, 114u32, 153u32, 152u32, 0u32, 159u32, 148u32];
-const FN_303_CALLEES: &[u32] = &[0u32, 145u32, 118u32, 13u32, 14u32, 2u32, 0u32, 24u32, 140u32, 72u32, 148u32, 1u32, 121u32, 122u32, 123u32, 129u32, 153u32, 111u32, 4u32, 23u32];
-const FN_304_CALLEES: &[u32] = &[0u32, 7u32, 3u32, 23u32, 145u32, 5u32, 148u32];
-const FN_305_CALLEES: &[u32] = &[0u32, 13u32, 1u32, 153u32, 7u32, 145u32, 2u32, 148u32];
-const FN_306_CALLEES: &[u32] = &[0u32, 2u32, 145u32, 0u32, 159u32, 13u32, 3u32, 7u32, 72u32, 11u32, 3u32, 148u32, 2u32];
-const FN_307_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 149u32, 153u32, 23u32, 11u32, 71u32, 109u32, 101u32, 4u32, 148u32];
-const FN_308_CALLEES: &[u32] = &[0u32, 13u32, 109u32, 145u32, 101u32, 116u32, 23u32, 2u32, 148u32, 3u32, 24u32, 140u32];
-const FN_309_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 72u32];
-const FN_310_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 16u32];
+const FN_296_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 105usize, 72usize, 111usize, 145usize, 110usize, 119usize, 142usize, 153usize, 112usize, 14usize, 4usize, 54usize, 106usize, 113usize, 114usize, 152usize, 2usize, 10usize, 13usize, 148usize];
+const FN_297_CALLEES: &[usize] = &[0usize, 135usize, 145usize, 0usize];
+const FN_298_CALLEES: &[usize] = &[0usize, 72usize, 145usize, 13usize, 11usize, 0usize, 113usize, 115usize, 153usize, 115usize, 3usize, 0usize, 159usize, 11usize];
+const FN_299_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 3usize, 123usize];
+const FN_300_CALLEES: &[usize] = &[0usize, 145usize, 71usize, 0usize];
+const FN_301_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 24usize, 145usize, 13usize, 1usize, 148usize];
+const FN_302_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 13usize, 72usize, 24usize, 140usize, 2usize, 71usize, 23usize, 113usize, 114usize, 153usize, 152usize, 0usize, 159usize, 148usize];
+const FN_303_CALLEES: &[usize] = &[0usize, 145usize, 118usize, 13usize, 14usize, 2usize, 0usize, 24usize, 140usize, 72usize, 148usize, 1usize, 121usize, 122usize, 123usize, 129usize, 153usize, 111usize, 4usize, 23usize];
+const FN_304_CALLEES: &[usize] = &[0usize, 7usize, 3usize, 23usize, 145usize, 5usize, 148usize];
+const FN_305_CALLEES: &[usize] = &[0usize, 13usize, 1usize, 153usize, 7usize, 145usize, 2usize, 148usize];
+const FN_306_CALLEES: &[usize] = &[0usize, 2usize, 145usize, 0usize, 159usize, 13usize, 3usize, 7usize, 72usize, 11usize, 3usize, 148usize, 2usize];
+const FN_307_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 149usize, 153usize, 23usize, 11usize, 71usize, 109usize, 101usize, 4usize, 148usize];
+const FN_308_CALLEES: &[usize] = &[0usize, 13usize, 109usize, 145usize, 101usize, 116usize, 23usize, 2usize, 148usize, 3usize, 24usize, 140usize];
+const FN_309_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 72usize];
+const FN_310_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 16usize];
 const FN_311_GLOBALS: &[usize] = &[24usize, 25usize];
-const FN_311_CALLEES: &[u32] = &[0u32, 59u32, 0u32, 159u32];
+const FN_311_CALLEES: &[usize] = &[0usize, 59usize, 0usize, 159usize];
 const FN_312_GLOBALS: &[usize] = &[25usize];
-const FN_312_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 145u32, 0u32, 4u32, 16u32];
+const FN_312_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 145usize, 0usize, 4usize, 16usize];
 const FN_313_GLOBALS: &[usize] = &[25usize];
-const FN_313_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 145u32, 0u32, 16u32, 2u32, 3u32, 4u32, 148u32];
-const FN_314_CALLEES: &[u32] = &[0u32, 2u32, 145u32, 0u32, 159u32, 17u32, 3u32, 4u32];
+const FN_313_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 145usize, 0usize, 16usize, 2usize, 3usize, 4usize, 148usize];
+const FN_314_CALLEES: &[usize] = &[0usize, 2usize, 145usize, 0usize, 159usize, 17usize, 3usize, 4usize];
 const FN_315_GLOBALS: &[usize] = &[25usize];
-const FN_315_CALLEES: &[u32] = &[0u32, 2u32, 0u32, 59u32, 145u32, 0u32, 17u32, 3u32, 5u32, 4u32];
+const FN_315_CALLEES: &[usize] = &[0usize, 2usize, 0usize, 59usize, 145usize, 0usize, 17usize, 3usize, 5usize, 4usize];
 const FN_316_GLOBALS: &[usize] = &[25usize, 24usize];
-const FN_316_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 145u32, 0u32, 108u32, 16u32, 2u32, 54u32, 109u32, 148u32];
-const FN_317_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 17u32, 3u32, 4u32, 2u32, 0u32, 13u32, 8u32, 4u32, 148u32];
-const FN_318_CALLEES: &[u32] = &[0u32, 2u32, 145u32, 0u32, 159u32, 0u32, 8u32, 15u32, 125u32, 13u32, 2u32, 4u32, 16u32, 4u32, 2u32, 3u32, 148u32];
-const FN_319_CALLEES: &[u32] = &[0u32, 13u32, 2u32, 1u32, 145u32, 2u32, 148u32];
-const FN_320_CALLEES: &[u32] = &[0u32, 114u32, 145u32, 0u32, 159u32, 1u32, 2u32, 15u32, 0u32, 8u32, 127u32, 18u32, 4u32, 111u32, 112u32, 3u32, 2u32];
-const FN_321_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 13u32, 2u32, 8u32, 4u32, 148u32];
-const FN_322_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 3u32, 4u32, 148u32];
-const FN_323_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 24u32, 145u32, 149u32, 153u32, 13u32, 1u32, 148u32];
-const FN_324_CALLEES: &[u32] = &[0u32, 13u32, 2u32, 145u32, 0u32, 159u32, 0u32, 8u32, 15u32, 125u32, 137u32, 24u32, 110u32, 2u32, 4u32, 148u32];
-const FN_325_CALLEES: &[u32] = &[0u32, 125u32, 124u32, 145u32, 13u32, 1u32, 71u32, 0u32, 72u32, 113u32, 114u32, 153u32, 152u32, 0u32, 159u32, 5u32, 0u32, 130u32, 131u32, 2u32, 148u32, 130u32, 139u32, 4u32, 125u32];
-const FN_326_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 71u32, 0u32, 72u32, 113u32, 115u32, 153u32, 15u32];
-const FN_327_CALLEES: &[u32] = &[0u32, 145u32, 140u32, 7u32, 11u32, 26u32, 11u32, 3u32, 25u32, 148u32, 1u32];
-const FN_328_CALLEES: &[u32] = &[0u32, 72u32, 145u32, 10u32, 7u32, 3u32, 131u32, 5u32, 148u32, 36u32];
-const FN_329_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_330_CALLEES: &[u32] = &[0u32, 128u32, 145u32, 13u32, 1u32, 131u32, 138u32, 139u32, 2u32, 130u32, 24u32, 126u32, 7u32, 71u32, 126u32, 125u32, 5u32, 153u32, 152u32, 0u32, 7u32, 5u32, 132u32, 148u32, 137u32, 25u32, 14u32, 23u32, 127u32, 26u32, 2u32, 0u32, 4u32, 4u32, 0u32, 133u32, 27u32, 111u32, 125u32, 134u32, 1u32, 4u32];
+const FN_316_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 145usize, 0usize, 108usize, 16usize, 2usize, 54usize, 109usize, 148usize];
+const FN_317_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 17usize, 3usize, 4usize, 2usize, 0usize, 13usize, 8usize, 4usize, 148usize];
+const FN_318_CALLEES: &[usize] = &[0usize, 2usize, 145usize, 0usize, 159usize, 0usize, 8usize, 15usize, 125usize, 13usize, 2usize, 4usize, 16usize, 4usize, 2usize, 3usize, 148usize];
+const FN_319_CALLEES: &[usize] = &[0usize, 13usize, 2usize, 1usize, 145usize, 2usize, 148usize];
+const FN_320_CALLEES: &[usize] = &[0usize, 114usize, 145usize, 0usize, 159usize, 1usize, 2usize, 15usize, 0usize, 8usize, 127usize, 18usize, 4usize, 111usize, 112usize, 3usize, 2usize];
+const FN_321_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 13usize, 2usize, 8usize, 4usize, 148usize];
+const FN_322_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 3usize, 4usize, 148usize];
+const FN_323_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 24usize, 145usize, 149usize, 153usize, 13usize, 1usize, 148usize];
+const FN_324_CALLEES: &[usize] = &[0usize, 13usize, 2usize, 145usize, 0usize, 159usize, 0usize, 8usize, 15usize, 125usize, 137usize, 24usize, 110usize, 2usize, 4usize, 148usize];
+const FN_325_CALLEES: &[usize] = &[0usize, 125usize, 124usize, 145usize, 13usize, 1usize, 71usize, 0usize, 72usize, 113usize, 114usize, 153usize, 152usize, 0usize, 159usize, 5usize, 0usize, 130usize, 131usize, 2usize, 148usize, 130usize, 139usize, 4usize, 125usize];
+const FN_326_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 71usize, 0usize, 72usize, 113usize, 115usize, 153usize, 15usize];
+const FN_327_CALLEES: &[usize] = &[0usize, 145usize, 140usize, 7usize, 11usize, 26usize, 11usize, 3usize, 25usize, 148usize, 1usize];
+const FN_328_CALLEES: &[usize] = &[0usize, 72usize, 145usize, 10usize, 7usize, 3usize, 131usize, 5usize, 148usize, 36usize];
+const FN_329_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_330_CALLEES: &[usize] = &[0usize, 128usize, 145usize, 13usize, 1usize, 131usize, 138usize, 139usize, 2usize, 130usize, 24usize, 126usize, 7usize, 71usize, 126usize, 125usize, 5usize, 153usize, 152usize, 0usize, 7usize, 5usize, 132usize, 148usize, 137usize, 25usize, 14usize, 23usize, 127usize, 26usize, 2usize, 0usize, 4usize, 4usize, 0usize, 133usize, 27usize, 111usize, 125usize, 134usize, 1usize, 4usize];
 const FN_331_GLOBALS: &[usize] = &[24usize];
-const FN_331_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 59u32, 107u32, 24u32, 148u32, 3u32, 72u32, 113u32, 71u32, 0u32, 115u32, 153u32, 152u32, 120u32, 122u32, 0u32, 159u32, 4u32, 114u32, 110u32];
-const FN_332_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 109u32, 4u32, 159u32, 148u32];
-const FN_333_CALLEES: &[u32] = &[0u32, 13u32, 143u32];
+const FN_331_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 59usize, 107usize, 24usize, 148usize, 3usize, 72usize, 113usize, 71usize, 0usize, 115usize, 153usize, 152usize, 120usize, 122usize, 0usize, 159usize, 4usize, 114usize, 110usize];
+const FN_332_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 109usize, 4usize, 159usize, 148usize];
+const FN_333_CALLEES: &[usize] = &[0usize, 13usize, 143usize];
 const FN_334_GLOBALS: &[usize] = &[32usize, 25usize];
-const FN_334_CALLEES: &[u32] = &[0u32, 0u32, 2u32, 145u32, 111u32, 0u32, 4u32, 159u32, 11u32, 114u32, 72u32, 13u32, 13u32, 2u32, 8u32, 4u32, 148u32, 12u32, 119u32, 23u32, 11u32, 118u32, 120u32, 119u32, 142u32, 153u32, 118u32, 111u32, 10u32, 124u32, 2u32, 59u32, 8u32, 128u32, 11u32, 9u32, 133u32, 12u32, 13u32];
+const FN_334_CALLEES: &[usize] = &[0usize, 0usize, 2usize, 145usize, 111usize, 0usize, 4usize, 159usize, 11usize, 114usize, 72usize, 13usize, 13usize, 2usize, 8usize, 4usize, 148usize, 12usize, 119usize, 23usize, 11usize, 118usize, 120usize, 119usize, 142usize, 153usize, 118usize, 111usize, 10usize, 124usize, 2usize, 59usize, 8usize, 128usize, 11usize, 9usize, 133usize, 12usize, 13usize];
 const FN_335_GLOBALS: &[usize] = &[25usize, 24usize, 31usize, 27usize];
-const FN_335_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 105u32, 54u32, 106u32, 72u32, 113u32, 10u32, 13u32];
-const FN_336_CALLEES: &[u32] = &[0u32, 145u32, 119u32, 153u32, 5u32];
+const FN_335_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 105usize, 54usize, 106usize, 72usize, 113usize, 10usize, 13usize];
+const FN_336_CALLEES: &[usize] = &[0usize, 145usize, 119usize, 153usize, 5usize];
 const FN_337_GLOBALS: &[usize] = &[24usize, 29usize, 26usize];
-const FN_337_CALLEES: &[u32] = &[0u32, 59u32, 54u32, 72u32, 12u32, 10u32, 1u32, 29u32];
-const FN_338_CALLEES: &[u32] = &[0u32, 0u32];
-const FN_339_CALLEES: &[u32] = &[0u32, 145u32, 13u32, 2u32, 148u32];
-const FN_340_CALLEES: &[u32] = &[0u32, 4u32, 23u32, 145u32, 111u32];
-const FN_341_CALLEES: &[u32] = &[0u32, 4u32, 23u32, 145u32, 111u32, 13u32, 4u32, 2u32, 148u32, 1u32];
+const FN_337_CALLEES: &[usize] = &[0usize, 59usize, 54usize, 72usize, 12usize, 10usize, 1usize, 29usize];
+const FN_338_CALLEES: &[usize] = &[0usize, 0usize];
+const FN_339_CALLEES: &[usize] = &[0usize, 145usize, 13usize, 2usize, 148usize];
+const FN_340_CALLEES: &[usize] = &[0usize, 4usize, 23usize, 145usize, 111usize];
+const FN_341_CALLEES: &[usize] = &[0usize, 4usize, 23usize, 145usize, 111usize, 13usize, 4usize, 2usize, 148usize, 1usize];
 const FN_342_GLOBALS: &[usize] = &[25usize];
-const FN_342_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_343_CALLEES: &[u32] = &[0u32, 137u32];
-const FN_344_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 23u32, 4u32, 24u32, 4u32, 148u32, 1u32, 25u32, 14u32, 137u32, 138u32, 132u32, 26u32, 2u32, 0u32, 140u32];
-const FN_345_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 1u32, 131u32, 139u32, 130u32, 2u32, 148u32, 145u32];
-const FN_346_CALLEES: &[u32] = &[0u32, 130u32, 13u32, 130u32, 129u32, 4u32, 148u32];
+const FN_342_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_343_CALLEES: &[usize] = &[0usize, 137usize];
+const FN_344_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 23usize, 4usize, 24usize, 4usize, 148usize, 1usize, 25usize, 14usize, 137usize, 138usize, 132usize, 26usize, 2usize, 0usize, 140usize];
+const FN_345_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 1usize, 131usize, 139usize, 130usize, 2usize, 148usize, 145usize];
+const FN_346_CALLEES: &[usize] = &[0usize, 130usize, 13usize, 130usize, 129usize, 4usize, 148usize];
 const FN_347_GLOBALS: &[usize] = &[24usize];
-const FN_347_CALLEES: &[u32] = &[0u32, 59u32, 54u32, 72u32, 113u32];
+const FN_347_CALLEES: &[usize] = &[0usize, 59usize, 54usize, 72usize, 113usize];
 const FN_348_GLOBALS: &[usize] = &[27usize, 28usize];
-const FN_348_CALLEES: &[u32] = &[0u32, 72u32, 10u32, 12u32];
+const FN_348_CALLEES: &[usize] = &[0usize, 72usize, 10usize, 12usize];
 const FN_349_GLOBALS: &[usize] = &[25usize, 24usize];
-const FN_349_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 2u32, 145u32, 0u32, 108u32, 54u32, 109u32];
+const FN_349_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 2usize, 145usize, 0usize, 108usize, 54usize, 109usize];
 const FN_350_GLOBALS: &[usize] = &[25usize];
-const FN_350_CALLEES: &[u32] = &[0u32, 118u32, 145u32, 1u32, 13u32, 71u32, 116u32, 130u32, 131u32, 0u32, 72u32, 113u32, 114u32, 153u32, 152u32, 0u32, 59u32, 1u32, 121u32, 2u32, 148u32, 122u32, 123u32, 129u32];
+const FN_350_CALLEES: &[usize] = &[0usize, 118usize, 145usize, 1usize, 13usize, 71usize, 116usize, 130usize, 131usize, 0usize, 72usize, 113usize, 114usize, 153usize, 152usize, 0usize, 59usize, 1usize, 121usize, 2usize, 148usize, 122usize, 123usize, 129usize];
 const FN_351_GLOBALS: &[usize] = &[25usize];
-const FN_351_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 2u32, 145u32, 0u32];
-const FN_352_CALLEES: &[u32] = &[0u32, 7u32, 145u32, 162u32];
-const FN_353_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 71u32, 159u32, 148u32, 64u32, 74u32, 162u32, 110u32, 7u32, 62u32, 70u32];
-const FN_354_CALLEES: &[u32] = &[0u32, 152u32, 145u32, 62u32, 110u32];
-const FN_355_CALLEES: &[u32] = &[0u32, 12u32, 143u32];
-const FN_356_CALLEES: &[u32] = &[0u32, 74u32, 145u32, 162u32, 110u32, 7u32, 62u32, 70u32];
-const FN_357_CALLEES: &[u32] = &[0u32, 145u32, 62u32, 110u32];
-const FN_358_CALLEES: &[u32] = &[0u32, 145u32, 101u32, 64u32, 7u32, 5u32, 148u32, 136u32];
-const FN_359_CALLEES: &[u32] = &[0u32, 136u32, 120u32, 145u32, 64u32, 12u32];
-const FN_360_CALLEES: &[u32] = &[0u32, 1u32, 152u32];
-const FN_361_CALLEES: &[u32] = &[0u32, 137u32];
-const FN_362_CALLEES: &[u32] = &[0u32, 138u32, 13u32, 4u32, 2u32, 148u32];
-const FN_363_CALLEES: &[u32] = &[0u32, 93u32, 108u32, 94u32, 145u32];
-const FN_364_CALLEES: &[u32] = &[145u32];
-const FN_385_CALLEES: &[u32] = &[146u32];
-const FN_387_CALLEES: &[u32] = &[145u32];
-const FN_390_CALLEES: &[u32] = &[145u32];
-const FN_394_CALLEES: &[u32] = &[145u32];
-const FN_395_CALLEES: &[u32] = &[145u32];
-const FN_398_CALLEES: &[u32] = &[145u32];
-const FN_401_CALLEES: &[u32] = &[145u32];
-const FN_408_CALLEES: &[u32] = &[145u32];
-const FN_412_CALLEES: &[u32] = &[145u32];
-const FN_413_CALLEES: &[u32] = &[145u32];
-const FN_415_CALLEES: &[u32] = &[145u32];
-const FN_416_CALLEES: &[u32] = &[145u32];
-const FN_417_CALLEES: &[u32] = &[159u32];
-const FN_419_CALLEES: &[u32] = &[158u32];
-const FN_420_CALLEES: &[u32] = &[145u32];
-const FN_422_CALLEES: &[u32] = &[145u32];
-const FN_425_CALLEES: &[u32] = &[145u32];
-const FN_426_CALLEES: &[u32] = &[145u32];
-const FN_428_CALLEES: &[u32] = &[145u32];
-const FN_431_CALLEES: &[u32] = &[145u32];
-const FN_435_CALLEES: &[u32] = &[0u32, 145u32, 144u32];
+const FN_351_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 2usize, 145usize, 0usize];
+const FN_352_CALLEES: &[usize] = &[0usize, 7usize, 145usize, 162usize];
+const FN_353_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 71usize, 159usize, 148usize, 64usize, 74usize, 162usize, 110usize, 7usize, 62usize, 70usize];
+const FN_354_CALLEES: &[usize] = &[0usize, 152usize, 145usize, 62usize, 110usize];
+const FN_355_CALLEES: &[usize] = &[0usize, 12usize, 143usize];
+const FN_356_CALLEES: &[usize] = &[0usize, 74usize, 145usize, 162usize, 110usize, 7usize, 62usize, 70usize];
+const FN_357_CALLEES: &[usize] = &[0usize, 145usize, 62usize, 110usize];
+const FN_358_CALLEES: &[usize] = &[0usize, 145usize, 101usize, 64usize, 7usize, 5usize, 148usize, 136usize];
+const FN_359_CALLEES: &[usize] = &[0usize, 136usize, 120usize, 145usize, 64usize, 12usize];
+const FN_360_CALLEES: &[usize] = &[0usize, 1usize, 152usize];
+const FN_361_CALLEES: &[usize] = &[0usize, 137usize];
+const FN_362_CALLEES: &[usize] = &[0usize, 138usize, 13usize, 4usize, 2usize, 148usize];
+const FN_363_CALLEES: &[usize] = &[0usize, 93usize, 108usize, 94usize, 145usize];
+const FN_364_CALLEES: &[usize] = &[145usize];
+const FN_385_CALLEES: &[usize] = &[146usize];
+const FN_387_CALLEES: &[usize] = &[145usize];
+const FN_390_CALLEES: &[usize] = &[145usize];
+const FN_394_CALLEES: &[usize] = &[145usize];
+const FN_395_CALLEES: &[usize] = &[145usize];
+const FN_398_CALLEES: &[usize] = &[145usize];
+const FN_401_CALLEES: &[usize] = &[145usize];
+const FN_408_CALLEES: &[usize] = &[145usize];
+const FN_412_CALLEES: &[usize] = &[145usize];
+const FN_413_CALLEES: &[usize] = &[145usize];
+const FN_415_CALLEES: &[usize] = &[145usize];
+const FN_416_CALLEES: &[usize] = &[145usize];
+const FN_417_CALLEES: &[usize] = &[159usize];
+const FN_419_CALLEES: &[usize] = &[158usize];
+const FN_420_CALLEES: &[usize] = &[145usize];
+const FN_422_CALLEES: &[usize] = &[145usize];
+const FN_425_CALLEES: &[usize] = &[145usize];
+const FN_426_CALLEES: &[usize] = &[145usize];
+const FN_428_CALLEES: &[usize] = &[145usize];
+const FN_431_CALLEES: &[usize] = &[145usize];
+const FN_435_CALLEES: &[usize] = &[0usize, 145usize, 144usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -104968,6 +104949,10 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (1116720u128, [0xd2, 0x1f, 0x74, 0xdb, 0xbb, 0x40, 0x84, 0x91, 0x5f, 0x1a, 0x08, 0xd8, 0x99, 0xf7, 0x20, 0xca, 0x43, 0xd0, 0xe5, 0xc7, 0x52, 0xb7, 0x62, 0xda, 0xfd, 0x16, 0x16, 0xf2, 0x37, 0x02, 0x91, 0x8d]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_92792/2608@l8589994064",
     accounting_version: 2u32,
@@ -104979,6 +104964,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -105157,7 +105143,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 2usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }
@@ -105211,474 +105199,474 @@ use crate::utilities::*;
 use super::*;
 
 const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize, 24usize, 25usize, 26usize, 27usize, 28usize, 29usize, 30usize, 31usize];
-const FN_0_CALLEES: &[u32] = &[145u32];
-const FN_1_CALLEES: &[u32] = &[0u32, 24u32];
-const FN_2_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_3_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_4_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_5_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_0_CALLEES: &[usize] = &[145usize];
+const FN_1_CALLEES: &[usize] = &[0usize, 24usize];
+const FN_2_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_3_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_4_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_5_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_6_CALLEES: &[usize] = &[0usize, 34usize, 10usize];
 const FN_7_GLOBALS: &[usize] = &[14usize];
-const FN_7_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_8_CALLEES: &[u32] = &[0u32, 0u32];
-const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
-const FN_10_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_11_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_12_CALLEES: &[u32] = &[0u32, 25u32];
-const FN_13_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_14_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_15_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_16_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_17_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_19_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_20_CALLEES: &[u32] = &[0u32];
-const FN_21_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_22_CALLEES: &[u32] = &[0u32, 27u32];
-const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 1u32, 1u32, 145u32];
-const FN_24_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_25_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_26_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_27_CALLEES: &[u32] = &[0u32, 32u32, 142u32, 33u32, 2u32];
-const FN_28_CALLEES: &[u32] = &[0u32, 33u32, 142u32, 32u32, 2u32];
-const FN_29_CALLEES: &[u32] = &[0u32, 28u32];
-const FN_30_CALLEES: &[u32] = &[0u32, 29u32];
-const FN_31_CALLEES: &[u32] = &[0u32, 30u32];
-const FN_32_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_7_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_8_CALLEES: &[usize] = &[0usize, 0usize];
+const FN_9_CALLEES: &[usize] = &[0usize, 10usize];
+const FN_10_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_11_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_12_CALLEES: &[usize] = &[0usize, 25usize];
+const FN_13_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_14_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_15_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_16_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_17_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_18_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_19_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_20_CALLEES: &[usize] = &[0usize];
+const FN_21_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_22_CALLEES: &[usize] = &[0usize, 27usize];
+const FN_23_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 1usize, 1usize, 145usize];
+const FN_24_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_25_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_26_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_27_CALLEES: &[usize] = &[0usize, 32usize, 142usize, 33usize, 2usize];
+const FN_28_CALLEES: &[usize] = &[0usize, 33usize, 142usize, 32usize, 2usize];
+const FN_29_CALLEES: &[usize] = &[0usize, 28usize];
+const FN_30_CALLEES: &[usize] = &[0usize, 29usize];
+const FN_31_CALLEES: &[usize] = &[0usize, 30usize];
+const FN_32_CALLEES: &[usize] = &[0usize, 26usize];
 const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 145u32];
-const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 145u32];
+const FN_33_CALLEES: &[usize] = &[0usize, 34usize, 10usize, 145usize];
+const FN_34_CALLEES: &[usize] = &[0usize, 31usize, 145usize];
 const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_35_CALLEES: &[u32] = &[0u32, 5u32, 145u32];
+const FN_35_CALLEES: &[usize] = &[0usize, 5usize, 145usize];
 const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_36_CALLEES: &[u32] = &[0u32, 0u32, 145u32];
-const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 145u32];
+const FN_36_CALLEES: &[usize] = &[0usize, 0usize, 145usize];
+const FN_37_CALLEES: &[usize] = &[0usize, 31usize, 145usize];
 const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 145u32];
+const FN_38_CALLEES: &[usize] = &[0usize, 6usize, 35usize, 145usize];
 const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_39_CALLEES: &[u32] = &[0u32, 145u32, 32u32];
+const FN_39_CALLEES: &[usize] = &[0usize, 145usize, 32usize];
 const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_40_CALLEES: &[u32] = &[0u32, 145u32, 33u32];
+const FN_40_CALLEES: &[usize] = &[0usize, 145usize, 33usize];
 const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 145u32];
+const FN_41_CALLEES: &[usize] = &[0usize, 10usize, 36usize, 145usize];
 const FN_42_GLOBALS: &[usize] = &[9usize];
-const FN_42_CALLEES: &[u32] = &[0u32, 8u32, 145u32];
+const FN_42_CALLEES: &[usize] = &[0usize, 8usize, 145usize];
 const FN_43_GLOBALS: &[usize] = &[9usize];
-const FN_43_CALLEES: &[u32] = &[0u32, 1u32, 145u32];
+const FN_43_CALLEES: &[usize] = &[0usize, 1usize, 145usize];
 const FN_44_GLOBALS: &[usize] = &[9usize];
-const FN_44_CALLEES: &[u32] = &[0u32, 9u32, 145u32];
+const FN_44_CALLEES: &[usize] = &[0usize, 9usize, 145usize];
 const FN_45_GLOBALS: &[usize] = &[9usize];
-const FN_45_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_45_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_46_GLOBALS: &[usize] = &[9usize];
-const FN_46_CALLEES: &[u32] = &[0u32, 10u32, 145u32];
+const FN_46_CALLEES: &[usize] = &[0usize, 10usize, 145usize];
 const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
-const FN_47_CALLEES: &[u32] = &[0u32, 140u32, 145u32, 13u32, 146u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 143u32];
-const FN_48_CALLEES: &[u32] = &[0u32];
-const FN_49_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_50_CALLEES: &[u32] = &[0u32, 1u32, 142u32, 0u32, 145u32];
-const FN_51_CALLEES: &[u32] = &[0u32, 0u32, 142u32, 1u32, 145u32];
-const FN_52_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_53_CALLEES: &[u32] = &[0u32, 0u32, 145u32];
-const FN_54_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_55_CALLEES: &[u32] = &[0u32, 0u32, 142u32];
-const FN_56_CALLEES: &[u32] = &[0u32, 1u32, 145u32, 142u32];
+const FN_47_CALLEES: &[usize] = &[0usize, 140usize, 145usize, 13usize, 146usize, 0usize, 32usize, 2usize, 10usize, 36usize, 37usize, 143usize];
+const FN_48_CALLEES: &[usize] = &[0usize];
+const FN_49_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_50_CALLEES: &[usize] = &[0usize, 1usize, 142usize, 0usize, 145usize];
+const FN_51_CALLEES: &[usize] = &[0usize, 0usize, 142usize, 1usize, 145usize];
+const FN_52_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_53_CALLEES: &[usize] = &[0usize, 0usize, 145usize];
+const FN_54_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_55_CALLEES: &[usize] = &[0usize, 0usize, 142usize];
+const FN_56_CALLEES: &[usize] = &[0usize, 1usize, 145usize, 142usize];
 const FN_57_GLOBALS: &[usize] = &[14usize];
-const FN_57_CALLEES: &[u32] = &[0u32, 21u32, 24u32, 36u32];
-const FN_58_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_59_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_60_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_61_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_62_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_63_CALLEES: &[u32] = &[0u32, 68u32];
+const FN_57_CALLEES: &[usize] = &[0usize, 21usize, 24usize, 36usize];
+const FN_58_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_59_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_60_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_61_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_62_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_63_CALLEES: &[usize] = &[0usize, 68usize];
 const FN_64_GLOBALS: &[usize] = &[19usize, 16usize, 17usize];
-const FN_64_CALLEES: &[u32] = &[0u32, 144u32];
+const FN_64_CALLEES: &[usize] = &[0usize, 144usize];
 const FN_65_GLOBALS: &[usize] = &[19usize];
-const FN_65_CALLEES: &[u32] = &[0u32, 144u32, 12u32, 6u32, 35u32, 21u32, 1u32, 12u32];
+const FN_65_CALLEES: &[usize] = &[0usize, 144usize, 12usize, 6usize, 35usize, 21usize, 1usize, 12usize];
 const FN_66_GLOBALS: &[usize] = &[16usize];
-const FN_66_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_67_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_68_CALLEES: &[u32] = &[0u32, 24u32, 1u32];
-const FN_69_CALLEES: &[u32] = &[0u32, 24u32, 2u32];
-const FN_70_CALLEES: &[u32] = &[0u32, 61u32];
-const FN_71_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_72_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_73_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_74_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_75_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_76_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_77_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_78_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_79_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_80_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_81_CALLEES: &[u32] = &[0u32];
-const FN_82_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_83_CALLEES: &[u32] = &[0u32];
-const FN_84_CALLEES: &[u32] = &[0u32, 62u32];
-const FN_85_CALLEES: &[u32] = &[0u32, 63u32];
-const FN_86_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_87_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_88_CALLEES: &[u32] = &[0u32, 24u32, 5u32];
-const FN_89_CALLEES: &[u32] = &[0u32, 43u32, 67u32];
-const FN_90_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_91_CALLEES: &[u32] = &[0u32, 65u32];
-const FN_92_CALLEES: &[u32] = &[0u32, 66u32];
-const FN_93_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_94_CALLEES: &[u32] = &[0u32, 67u32];
+const FN_66_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_67_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_68_CALLEES: &[usize] = &[0usize, 24usize, 1usize];
+const FN_69_CALLEES: &[usize] = &[0usize, 24usize, 2usize];
+const FN_70_CALLEES: &[usize] = &[0usize, 61usize];
+const FN_71_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_72_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_73_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_74_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_75_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_76_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_77_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_78_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_79_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_80_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_81_CALLEES: &[usize] = &[0usize];
+const FN_82_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_83_CALLEES: &[usize] = &[0usize];
+const FN_84_CALLEES: &[usize] = &[0usize, 62usize];
+const FN_85_CALLEES: &[usize] = &[0usize, 63usize];
+const FN_86_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_87_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_88_CALLEES: &[usize] = &[0usize, 24usize, 5usize];
+const FN_89_CALLEES: &[usize] = &[0usize, 43usize, 67usize];
+const FN_90_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_91_CALLEES: &[usize] = &[0usize, 65usize];
+const FN_92_CALLEES: &[usize] = &[0usize, 66usize];
+const FN_93_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_94_CALLEES: &[usize] = &[0usize, 67usize];
 const FN_95_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_95_CALLEES: &[u32] = &[0u32, 42u32, 68u32, 145u32];
+const FN_95_CALLEES: &[usize] = &[0usize, 42usize, 68usize, 145usize];
 const FN_96_GLOBALS: &[usize] = &[19usize, 1usize, 16usize, 17usize, 9usize];
-const FN_96_CALLEES: &[u32] = &[0u32, 144u32, 145u32, 12u32, 31u32, 20u32, 21u32, 33u32];
+const FN_96_CALLEES: &[usize] = &[0usize, 144usize, 145usize, 12usize, 31usize, 20usize, 21usize, 33usize];
 const FN_97_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_97_CALLEES: &[u32] = &[0u32, 20u32, 145u32];
-const FN_98_CALLEES: &[u32] = &[0u32, 67u32, 21u32, 145u32, 68u32, 70u32];
+const FN_97_CALLEES: &[usize] = &[0usize, 20usize, 145usize];
+const FN_98_CALLEES: &[usize] = &[0usize, 67usize, 21usize, 145usize, 68usize, 70usize];
 const FN_99_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_99_CALLEES: &[u32] = &[0u32, 44u32, 69u32, 145u32];
+const FN_99_CALLEES: &[usize] = &[0usize, 44usize, 69usize, 145usize];
 const FN_100_GLOBALS: &[usize] = &[16usize, 19usize, 9usize];
-const FN_100_CALLEES: &[u32] = &[0u32, 144u32, 145u32, 33u32];
+const FN_100_CALLEES: &[usize] = &[0usize, 144usize, 145usize, 33usize];
 const FN_101_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_101_CALLEES: &[u32] = &[0u32, 145u32, 24u32, 32u32, 20u32];
+const FN_101_CALLEES: &[usize] = &[0usize, 145usize, 24usize, 32usize, 20usize];
 const FN_102_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_102_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 142u32, 1u32, 2u32];
+const FN_102_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 142usize, 1usize, 2usize];
 const FN_103_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_103_CALLEES: &[u32] = &[0u32, 45u32, 70u32, 145u32];
+const FN_103_CALLEES: &[usize] = &[0usize, 45usize, 70usize, 145usize];
 const FN_104_GLOBALS: &[usize] = &[9usize];
-const FN_104_CALLEES: &[u32] = &[0u32, 28u32, 145u32, 11u32];
+const FN_104_CALLEES: &[usize] = &[0usize, 28usize, 145usize, 11usize];
 const FN_105_GLOBALS: &[usize] = &[9usize];
-const FN_105_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_105_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_106_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_106_CALLEES: &[u32] = &[0u32, 21u32, 145u32, 24u32];
+const FN_106_CALLEES: &[usize] = &[0usize, 21usize, 145usize, 24usize];
 const FN_107_GLOBALS: &[usize] = &[9usize];
-const FN_107_CALLEES: &[u32] = &[0u32, 9u32, 145u32];
+const FN_107_CALLEES: &[usize] = &[0usize, 9usize, 145usize];
 const FN_108_GLOBALS: &[usize] = &[9usize];
-const FN_108_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_108_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_109_GLOBALS: &[usize] = &[9usize];
-const FN_109_CALLEES: &[u32] = &[0u32, 10u32, 145u32];
+const FN_109_CALLEES: &[usize] = &[0usize, 10usize, 145usize];
 const FN_110_GLOBALS: &[usize] = &[19usize, 1usize, 16usize, 17usize];
-const FN_110_CALLEES: &[u32] = &[0u32, 144u32, 145u32, 12u32, 31u32, 20u32, 21u32, 33u32];
-const FN_111_CALLEES: &[u32] = &[0u32, 24u32, 34u32, 20u32];
-const FN_112_CALLEES: &[u32] = &[0u32, 24u32, 35u32, 20u32];
+const FN_110_CALLEES: &[usize] = &[0usize, 144usize, 145usize, 12usize, 31usize, 20usize, 21usize, 33usize];
+const FN_111_CALLEES: &[usize] = &[0usize, 24usize, 34usize, 20usize];
+const FN_112_CALLEES: &[usize] = &[0usize, 24usize, 35usize, 20usize];
 const FN_113_GLOBALS: &[usize] = &[19usize];
-const FN_113_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_114_CALLEES: &[u32] = &[0u32, 24u32, 36u32, 20u32];
-const FN_115_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_113_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_114_CALLEES: &[usize] = &[0usize, 24usize, 36usize, 20usize];
+const FN_115_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_116_GLOBALS: &[usize] = &[22usize];
-const FN_116_CALLEES: &[u32] = &[0u32, 96u32, 85u32, 95u32, 97u32];
-const FN_117_CALLEES: &[u32] = &[0u32];
-const FN_118_CALLEES: &[u32] = &[0u32, 41u32];
-const FN_119_CALLEES: &[u32] = &[0u32];
-const FN_120_CALLEES: &[u32] = &[0u32];
-const FN_121_CALLEES: &[u32] = &[0u32];
-const FN_122_CALLEES: &[u32] = &[0u32, 95u32, 147u32];
-const FN_123_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_124_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_116_CALLEES: &[usize] = &[0usize, 96usize, 85usize, 95usize, 97usize];
+const FN_117_CALLEES: &[usize] = &[0usize];
+const FN_118_CALLEES: &[usize] = &[0usize, 41usize];
+const FN_119_CALLEES: &[usize] = &[0usize];
+const FN_120_CALLEES: &[usize] = &[0usize];
+const FN_121_CALLEES: &[usize] = &[0usize];
+const FN_122_CALLEES: &[usize] = &[0usize, 95usize, 147usize];
+const FN_123_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_124_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_125_GLOBALS: &[usize] = &[22usize];
-const FN_125_CALLEES: &[u32] = &[0u32, 9u32, 0u32, 145u32];
+const FN_125_CALLEES: &[usize] = &[0usize, 9usize, 0usize, 145usize];
 const FN_126_GLOBALS: &[usize] = &[22usize];
-const FN_126_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_127_CALLEES: &[u32] = &[0u32, 36u32];
-const FN_128_CALLEES: &[u32] = &[0u32, 9u32, 0u32, 145u32, 85u32];
-const FN_129_CALLEES: &[u32] = &[0u32, 12u32, 38u32, 21u32, 85u32];
-const FN_130_CALLEES: &[u32] = &[0u32, 4u32, 85u32, 0u32];
-const FN_131_CALLEES: &[u32] = &[0u32, 5u32];
-const FN_132_CALLEES: &[u32] = &[0u32, 100u32, 85u32];
-const FN_133_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_134_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_135_CALLEES: &[u32] = &[0u32, 1u32, 12u32, 19u32, 1u32, 9u32, 0u32, 0u32, 1u32, 148u32, 85u32];
-const FN_136_CALLEES: &[u32] = &[0u32];
-const FN_137_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_138_CALLEES: &[u32] = &[0u32, 76u32];
+const FN_126_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_127_CALLEES: &[usize] = &[0usize, 36usize];
+const FN_128_CALLEES: &[usize] = &[0usize, 9usize, 0usize, 145usize, 85usize];
+const FN_129_CALLEES: &[usize] = &[0usize, 12usize, 38usize, 21usize, 85usize];
+const FN_130_CALLEES: &[usize] = &[0usize, 4usize, 85usize, 0usize];
+const FN_131_CALLEES: &[usize] = &[0usize, 5usize];
+const FN_132_CALLEES: &[usize] = &[0usize, 100usize, 85usize];
+const FN_133_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_134_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_135_CALLEES: &[usize] = &[0usize, 1usize, 12usize, 19usize, 1usize, 9usize, 0usize, 0usize, 1usize, 148usize, 85usize];
+const FN_136_CALLEES: &[usize] = &[0usize];
+const FN_137_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_138_CALLEES: &[usize] = &[0usize, 76usize];
 const FN_139_GLOBALS: &[usize] = &[22usize];
-const FN_139_CALLEES: &[u32] = &[0u32, 50u32, 145u32];
-const FN_140_CALLEES: &[u32] = &[0u32, 93u32];
-const FN_141_CALLEES: &[u32] = &[0u32, 98u32, 85u32];
-const FN_142_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_139_CALLEES: &[usize] = &[0usize, 50usize, 145usize];
+const FN_140_CALLEES: &[usize] = &[0usize, 93usize];
+const FN_141_CALLEES: &[usize] = &[0usize, 98usize, 85usize];
+const FN_142_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_143_GLOBALS: &[usize] = &[22usize];
-const FN_143_CALLEES: &[u32] = &[0u32, 41u32, 145u32];
-const FN_144_CALLEES: &[u32] = &[0u32, 94u32];
-const FN_145_CALLEES: &[u32] = &[0u32, 42u32, 71u32];
-const FN_146_CALLEES: &[u32] = &[0u32, 94u32];
+const FN_143_CALLEES: &[usize] = &[0usize, 41usize, 145usize];
+const FN_144_CALLEES: &[usize] = &[0usize, 94usize];
+const FN_145_CALLEES: &[usize] = &[0usize, 42usize, 71usize];
+const FN_146_CALLEES: &[usize] = &[0usize, 94usize];
 const FN_147_GLOBALS: &[usize] = &[22usize, 1usize];
-const FN_147_CALLEES: &[u32] = &[0u32, 41u32, 145u32, 100u32, 85u32];
-const FN_148_CALLEES: &[u32] = &[0u32, 94u32, 34u32, 71u32, 145u32];
+const FN_147_CALLEES: &[usize] = &[0usize, 41usize, 145usize, 100usize, 85usize];
+const FN_148_CALLEES: &[usize] = &[0usize, 94usize, 34usize, 71usize, 145usize];
 const FN_149_GLOBALS: &[usize] = &[19usize, 9usize, 16usize];
-const FN_149_CALLEES: &[u32] = &[0u32, 51u32, 145u32, 1u32, 140u32, 25u32, 26u32];
+const FN_149_CALLEES: &[usize] = &[0usize, 51usize, 145usize, 1usize, 140usize, 25usize, 26usize];
 const FN_150_GLOBALS: &[usize] = &[9usize];
-const FN_150_CALLEES: &[u32] = &[0u32, 43u32, 145u32, 27u32];
+const FN_150_CALLEES: &[usize] = &[0usize, 43usize, 145usize, 27usize];
 const FN_151_GLOBALS: &[usize] = &[9usize];
-const FN_151_CALLEES: &[u32] = &[0u32, 43u32, 145u32, 28u32];
+const FN_151_CALLEES: &[usize] = &[0usize, 43usize, 145usize, 28usize];
 const FN_152_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_152_CALLEES: &[u32] = &[0u32, 145u32, 51u32];
+const FN_152_CALLEES: &[usize] = &[0usize, 145usize, 51usize];
 const FN_153_GLOBALS: &[usize] = &[9usize];
-const FN_153_CALLEES: &[u32] = &[0u32, 46u32, 145u32, 9u32];
+const FN_153_CALLEES: &[usize] = &[0usize, 46usize, 145usize, 9usize];
 const FN_154_GLOBALS: &[usize] = &[9usize];
-const FN_154_CALLEES: &[u32] = &[0u32, 46u32, 145u32, 10u32];
+const FN_154_CALLEES: &[usize] = &[0usize, 46usize, 145usize, 10usize];
 const FN_155_GLOBALS: &[usize] = &[9usize];
-const FN_155_CALLEES: &[u32] = &[0u32, 46u32, 145u32, 11u32];
+const FN_155_CALLEES: &[usize] = &[0usize, 46usize, 145usize, 11usize];
 const FN_156_GLOBALS: &[usize] = &[22usize, 1usize];
-const FN_156_CALLEES: &[u32] = &[0u32, 41u32, 145u32, 100u32, 85u32];
-const FN_157_CALLEES: &[u32] = &[0u32, 2u32, 20u32, 6u32];
+const FN_156_CALLEES: &[usize] = &[0usize, 41usize, 145usize, 100usize, 85usize];
+const FN_157_CALLEES: &[usize] = &[0usize, 2usize, 20usize, 6usize];
 const FN_158_GLOBALS: &[usize] = &[14usize];
-const FN_158_CALLEES: &[u32] = &[0u32, 145u32, 20u32, 1u32, 1u32];
-const FN_159_CALLEES: &[u32] = &[0u32, 2u32, 20u32];
-const FN_160_CALLEES: &[u32] = &[0u32, 1u32, 12u32, 20u32, 9u32, 1u32, 0u32, 148u32];
-const FN_161_CALLEES: &[u32] = &[0u32, 12u32, 20u32, 1u32, 2u32, 9u32, 1u32, 148u32, 50u32];
-const FN_162_CALLEES: &[u32] = &[0u32, 145u32, 1u32, 21u32, 20u32, 19u32, 0u32, 9u32, 0u32, 0u32, 148u32, 50u32];
-const FN_163_CALLEES: &[u32] = &[0u32, 19u32, 2u32, 20u32];
-const FN_164_CALLEES: &[u32] = &[0u32, 95u32, 145u32, 20u32, 21u32, 2u32, 1u32, 9u32, 0u32, 148u32, 50u32, 1u32, 142u32, 0u32, 0u32, 147u32, 19u32, 148u32, 99u32];
-const FN_165_CALLEES: &[u32] = &[0u32, 58u32];
-const FN_166_CALLEES: &[u32] = &[0u32, 1u32, 145u32];
+const FN_158_CALLEES: &[usize] = &[0usize, 145usize, 20usize, 1usize, 1usize];
+const FN_159_CALLEES: &[usize] = &[0usize, 2usize, 20usize];
+const FN_160_CALLEES: &[usize] = &[0usize, 1usize, 12usize, 20usize, 9usize, 1usize, 0usize, 148usize];
+const FN_161_CALLEES: &[usize] = &[0usize, 12usize, 20usize, 1usize, 2usize, 9usize, 1usize, 148usize, 50usize];
+const FN_162_CALLEES: &[usize] = &[0usize, 145usize, 1usize, 21usize, 20usize, 19usize, 0usize, 9usize, 0usize, 0usize, 148usize, 50usize];
+const FN_163_CALLEES: &[usize] = &[0usize, 19usize, 2usize, 20usize];
+const FN_164_CALLEES: &[usize] = &[0usize, 95usize, 145usize, 20usize, 21usize, 2usize, 1usize, 9usize, 0usize, 148usize, 50usize, 1usize, 142usize, 0usize, 0usize, 147usize, 19usize, 148usize, 99usize];
+const FN_165_CALLEES: &[usize] = &[0usize, 58usize];
+const FN_166_CALLEES: &[usize] = &[0usize, 1usize, 145usize];
 const FN_167_GLOBALS: &[usize] = &[23usize];
-const FN_167_CALLEES: &[u32] = &[0u32, 56u32, 2u32, 9u32];
-const FN_168_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_169_CALLEES: &[u32] = &[0u32];
-const FN_170_CALLEES: &[u32] = &[0u32];
-const FN_171_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_172_CALLEES: &[u32] = &[0u32, 1u32, 145u32];
+const FN_167_CALLEES: &[usize] = &[0usize, 56usize, 2usize, 9usize];
+const FN_168_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_169_CALLEES: &[usize] = &[0usize];
+const FN_170_CALLEES: &[usize] = &[0usize];
+const FN_171_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_172_CALLEES: &[usize] = &[0usize, 1usize, 145usize];
 const FN_173_GLOBALS: &[usize] = &[23usize];
-const FN_173_CALLEES: &[u32] = &[0u32, 57u32, 2u32, 9u32];
-const FN_174_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_175_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_176_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 22u32, 149u32, 145u32, 2u32, 150u32, 151u32, 152u32, 1u32, 0u32, 148u32];
-const FN_177_CALLEES: &[u32] = &[0u32, 3u32, 145u32, 22u32, 149u32, 1u32, 153u32, 152u32, 154u32, 0u32, 32u32, 2u32, 155u32, 141u32, 13u32, 55u32, 1u32];
+const FN_173_CALLEES: &[usize] = &[0usize, 57usize, 2usize, 9usize];
+const FN_174_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_175_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_176_CALLEES: &[usize] = &[0usize, 0usize, 13usize, 22usize, 149usize, 145usize, 2usize, 150usize, 151usize, 152usize, 1usize, 0usize, 148usize];
+const FN_177_CALLEES: &[usize] = &[0usize, 3usize, 145usize, 22usize, 149usize, 1usize, 153usize, 152usize, 154usize, 0usize, 32usize, 2usize, 155usize, 141usize, 13usize, 55usize, 1usize];
 const FN_178_GLOBALS: &[usize] = &[14usize];
-const FN_178_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 145u32, 32u32, 0u32, 2u32];
-const FN_179_CALLEES: &[u32] = &[0u32, 7u32, 10u32, 3u32, 0u32, 0u32, 148u32];
-const FN_180_CALLEES: &[u32] = &[0u32, 1u32, 7u32, 0u32, 148u32];
-const FN_181_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_182_CALLEES: &[u32] = &[0u32, 60u32, 1u32, 142u32, 141u32, 1u32];
-const FN_183_CALLEES: &[u32] = &[0u32, 3u32, 145u32, 23u32, 59u32, 1u32];
-const FN_184_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 145u32, 1u32, 5u32, 63u32, 7u32, 148u32, 142u32, 149u32, 156u32, 154u32, 3u32];
-const FN_185_CALLEES: &[u32] = &[0u32, 1u32, 3u32, 145u32, 23u32, 59u32, 13u32, 148u32, 2u32];
-const FN_186_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 145u32, 7u32, 1u32, 148u32, 10u32, 3u32];
-const FN_187_CALLEES: &[u32] = &[0u32, 1u32, 145u32, 23u32, 59u32, 56u32, 54u32, 7u32, 148u32, 142u32, 149u32, 3u32];
-const FN_188_CALLEES: &[u32] = &[0u32, 23u32, 66u32, 1u32];
-const FN_189_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 1u32];
-const FN_190_CALLEES: &[u32] = &[0u32, 59u32, 58u32, 145u32];
-const FN_191_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 13u32, 58u32, 2u32, 6u32, 4u32, 22u32, 154u32, 141u32, 156u32, 2u32, 148u32];
-const FN_192_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_193_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 58u32, 2u32, 59u32, 148u32];
-const FN_194_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 58u32, 2u32, 22u32, 61u32, 59u32, 56u32, 148u32];
-const FN_195_CALLEES: &[u32] = &[0u32, 67u32, 58u32, 145u32];
+const FN_178_CALLEES: &[usize] = &[0usize, 1usize, 10usize, 145usize, 32usize, 0usize, 2usize];
+const FN_179_CALLEES: &[usize] = &[0usize, 7usize, 10usize, 3usize, 0usize, 0usize, 148usize];
+const FN_180_CALLEES: &[usize] = &[0usize, 1usize, 7usize, 0usize, 148usize];
+const FN_181_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_182_CALLEES: &[usize] = &[0usize, 60usize, 1usize, 142usize, 141usize, 1usize];
+const FN_183_CALLEES: &[usize] = &[0usize, 3usize, 145usize, 23usize, 59usize, 1usize];
+const FN_184_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 145usize, 1usize, 5usize, 63usize, 7usize, 148usize, 142usize, 149usize, 156usize, 154usize, 3usize];
+const FN_185_CALLEES: &[usize] = &[0usize, 1usize, 3usize, 145usize, 23usize, 59usize, 13usize, 148usize, 2usize];
+const FN_186_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 145usize, 7usize, 1usize, 148usize, 10usize, 3usize];
+const FN_187_CALLEES: &[usize] = &[0usize, 1usize, 145usize, 23usize, 59usize, 56usize, 54usize, 7usize, 148usize, 142usize, 149usize, 3usize];
+const FN_188_CALLEES: &[usize] = &[0usize, 23usize, 66usize, 1usize];
+const FN_189_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 1usize];
+const FN_190_CALLEES: &[usize] = &[0usize, 59usize, 58usize, 145usize];
+const FN_191_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 13usize, 58usize, 2usize, 6usize, 4usize, 22usize, 154usize, 141usize, 156usize, 2usize, 148usize];
+const FN_192_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_193_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 58usize, 2usize, 59usize, 148usize];
+const FN_194_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 58usize, 2usize, 22usize, 61usize, 59usize, 56usize, 148usize];
+const FN_195_CALLEES: &[usize] = &[0usize, 67usize, 58usize, 145usize];
 const FN_196_GLOBALS: &[usize] = &[14usize];
-const FN_196_CALLEES: &[u32] = &[0u32, 140u32, 58u32, 53u32, 145u32, 13u32, 2u32, 12u32, 9u32, 141u32, 1u32, 33u32, 2u32, 19u32, 148u32];
-const FN_197_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_198_CALLEES: &[u32] = &[0u32, 145u32, 7u32, 157u32, 7u32, 22u32, 5u32, 0u32, 148u32];
-const FN_199_CALLEES: &[u32] = &[0u32, 10u32, 3u32, 155u32, 0u32, 142u32, 141u32, 60u32, 1u32, 33u32, 149u32, 156u32];
-const FN_200_CALLEES: &[u32] = &[0u32, 22u32, 149u32, 153u32, 152u32, 154u32];
-const FN_201_CALLEES: &[u32] = &[0u32, 55u32];
-const FN_202_CALLEES: &[u32] = &[0u32, 145u32, 13u32, 23u32, 2u32, 1u32, 148u32, 2u32, 8u32, 158u32];
-const FN_203_CALLEES: &[u32] = &[0u32, 145u32, 2u32, 0u32, 1u32, 13u32, 4u32, 23u32, 148u32];
-const FN_204_CALLEES: &[u32] = &[0u32, 23u32, 145u32, 3u32];
-const FN_205_CALLEES: &[u32] = &[0u32, 8u32, 145u32];
-const FN_206_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_207_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 1u32, 1u32, 8u32];
-const FN_208_CALLEES: &[u32] = &[0u32, 77u32];
-const FN_209_CALLEES: &[u32] = &[0u32, 79u32, 13u32, 2u32, 1u32, 2u32, 148u32, 1u32, 8u32, 160u32, 145u32];
-const FN_210_CALLEES: &[u32] = &[0u32, 104u32];
-const FN_211_CALLEES: &[u32] = &[0u32, 150u32];
+const FN_196_CALLEES: &[usize] = &[0usize, 140usize, 58usize, 53usize, 145usize, 13usize, 2usize, 12usize, 9usize, 141usize, 1usize, 33usize, 2usize, 19usize, 148usize];
+const FN_197_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_198_CALLEES: &[usize] = &[0usize, 145usize, 7usize, 157usize, 7usize, 22usize, 5usize, 0usize, 148usize];
+const FN_199_CALLEES: &[usize] = &[0usize, 10usize, 3usize, 155usize, 0usize, 142usize, 141usize, 60usize, 1usize, 33usize, 149usize, 156usize];
+const FN_200_CALLEES: &[usize] = &[0usize, 22usize, 149usize, 153usize, 152usize, 154usize];
+const FN_201_CALLEES: &[usize] = &[0usize, 55usize];
+const FN_202_CALLEES: &[usize] = &[0usize, 145usize, 13usize, 23usize, 2usize, 1usize, 148usize, 2usize, 8usize, 158usize];
+const FN_203_CALLEES: &[usize] = &[0usize, 145usize, 2usize, 0usize, 1usize, 13usize, 4usize, 23usize, 148usize];
+const FN_204_CALLEES: &[usize] = &[0usize, 23usize, 145usize, 3usize];
+const FN_205_CALLEES: &[usize] = &[0usize, 8usize, 145usize];
+const FN_206_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_207_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 1usize, 1usize, 8usize];
+const FN_208_CALLEES: &[usize] = &[0usize, 77usize];
+const FN_209_CALLEES: &[usize] = &[0usize, 79usize, 13usize, 2usize, 1usize, 2usize, 148usize, 1usize, 8usize, 160usize, 145usize];
+const FN_210_CALLEES: &[usize] = &[0usize, 104usize];
+const FN_211_CALLEES: &[usize] = &[0usize, 150usize];
 const FN_212_GLOBALS: &[usize] = &[3usize];
-const FN_212_CALLEES: &[u32] = &[0u32, 64u32, 150u32, 62u32, 145u32];
-const FN_213_CALLEES: &[u32] = &[0u32, 13u32, 59u32, 58u32, 2u32, 148u32];
+const FN_212_CALLEES: &[usize] = &[0usize, 64usize, 150usize, 62usize, 145usize];
+const FN_213_CALLEES: &[usize] = &[0usize, 13usize, 59usize, 58usize, 2usize, 148usize];
 const FN_214_GLOBALS: &[usize] = &[3usize];
-const FN_214_CALLEES: &[u32] = &[0u32, 13u32, 23u32, 59u32, 1u32, 145u32, 2u32, 148u32];
-const FN_215_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_216_CALLEES: &[u32] = &[0u32, 1u32, 23u32, 59u32, 78u32, 2u32, 0u32, 0u32, 1u32, 145u32];
-const FN_217_CALLEES: &[u32] = &[0u32, 13u32, 23u32, 59u32, 1u32, 8u32, 2u32, 8u32, 145u32, 148u32];
-const FN_218_CALLEES: &[u32] = &[0u32, 23u32, 1u32, 13u32, 4u32, 148u32];
-const FN_219_CALLEES: &[u32] = &[0u32, 72u32, 145u32, 12u32, 9u32, 30u32];
-const FN_220_CALLEES: &[u32] = &[0u32, 80u32, 145u32];
-const FN_221_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 24u32, 71u32];
-const FN_222_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 145u32];
-const FN_223_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 24u32, 71u32];
-const FN_224_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 71u32];
-const FN_225_CALLEES: &[u32] = &[0u32, 72u32, 145u32, 12u32];
-const FN_226_CALLEES: &[u32] = &[0u32, 80u32, 145u32];
-const FN_227_CALLEES: &[u32] = &[0u32, 80u32, 145u32];
-const FN_228_CALLEES: &[u32] = &[0u32, 80u32, 145u32];
-const FN_229_CALLEES: &[u32] = &[0u32];
-const FN_230_CALLEES: &[u32] = &[0u32, 145u32];
-const FN_231_CALLEES: &[u32] = &[0u32];
-const FN_232_CALLEES: &[u32] = &[0u32, 62u32, 145u32];
-const FN_233_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_234_CALLEES: &[u32] = &[0u32, 80u32, 145u32, 101u32, 161u32, 3u32, 100u32, 76u32];
-const FN_235_CALLEES: &[u32] = &[0u32, 77u32, 145u32, 102u32];
-const FN_236_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 100u32, 161u32, 76u32];
-const FN_237_CALLEES: &[u32] = &[0u32, 77u32, 145u32, 103u32];
-const FN_238_CALLEES: &[u32] = &[0u32, 145u32, 7u32, 72u32, 13u32, 11u32, 30u32, 27u32, 24u32];
-const FN_239_CALLEES: &[u32] = &[0u32, 145u32, 7u32, 72u32, 10u32, 12u32, 30u32, 9u32, 0u32, 9u32];
-const FN_240_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 23u32, 71u32, 2u32, 148u32];
-const FN_241_CALLEES: &[u32] = &[0u32, 145u32, 140u32, 71u32, 13u32, 11u32, 26u32, 24u32, 2u32, 25u32, 148u32, 99u32];
-const FN_242_CALLEES: &[u32] = &[0u32, 145u32, 71u32, 13u32, 3u32, 2u32, 148u32, 99u32];
-const FN_243_CALLEES: &[u32] = &[0u32, 7u32, 145u32, 72u32, 140u32, 9u32, 11u32, 9u32];
-const FN_244_CALLEES: &[u32] = &[0u32, 7u32, 145u32, 72u32, 140u32, 9u32, 11u32, 24u32, 71u32, 10u32, 3u32];
-const FN_245_CALLEES: &[u32] = &[0u32, 150u32, 151u32, 153u32];
-const FN_246_CALLEES: &[u32] = &[0u32];
-const FN_247_CALLEES: &[u32] = &[0u32];
-const FN_248_CALLEES: &[u32] = &[0u32];
-const FN_249_CALLEES: &[u32] = &[0u32];
-const FN_250_CALLEES: &[u32] = &[0u32];
-const FN_251_CALLEES: &[u32] = &[0u32];
-const FN_252_CALLEES: &[u32] = &[0u32, 92u32, 134u32, 90u32];
+const FN_214_CALLEES: &[usize] = &[0usize, 13usize, 23usize, 59usize, 1usize, 145usize, 2usize, 148usize];
+const FN_215_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_216_CALLEES: &[usize] = &[0usize, 1usize, 23usize, 59usize, 78usize, 2usize, 0usize, 0usize, 1usize, 145usize];
+const FN_217_CALLEES: &[usize] = &[0usize, 13usize, 23usize, 59usize, 1usize, 8usize, 2usize, 8usize, 145usize, 148usize];
+const FN_218_CALLEES: &[usize] = &[0usize, 23usize, 1usize, 13usize, 4usize, 148usize];
+const FN_219_CALLEES: &[usize] = &[0usize, 72usize, 145usize, 12usize, 9usize, 30usize];
+const FN_220_CALLEES: &[usize] = &[0usize, 80usize, 145usize];
+const FN_221_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 24usize, 71usize];
+const FN_222_CALLEES: &[usize] = &[0usize, 46usize, 71usize, 145usize];
+const FN_223_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 24usize, 71usize];
+const FN_224_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 71usize];
+const FN_225_CALLEES: &[usize] = &[0usize, 72usize, 145usize, 12usize];
+const FN_226_CALLEES: &[usize] = &[0usize, 80usize, 145usize];
+const FN_227_CALLEES: &[usize] = &[0usize, 80usize, 145usize];
+const FN_228_CALLEES: &[usize] = &[0usize, 80usize, 145usize];
+const FN_229_CALLEES: &[usize] = &[0usize];
+const FN_230_CALLEES: &[usize] = &[0usize, 145usize];
+const FN_231_CALLEES: &[usize] = &[0usize];
+const FN_232_CALLEES: &[usize] = &[0usize, 62usize, 145usize];
+const FN_233_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_234_CALLEES: &[usize] = &[0usize, 80usize, 145usize, 101usize, 161usize, 3usize, 100usize, 76usize];
+const FN_235_CALLEES: &[usize] = &[0usize, 77usize, 145usize, 102usize];
+const FN_236_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 100usize, 161usize, 76usize];
+const FN_237_CALLEES: &[usize] = &[0usize, 77usize, 145usize, 103usize];
+const FN_238_CALLEES: &[usize] = &[0usize, 145usize, 7usize, 72usize, 13usize, 11usize, 30usize, 27usize, 24usize];
+const FN_239_CALLEES: &[usize] = &[0usize, 145usize, 7usize, 72usize, 10usize, 12usize, 30usize, 9usize, 0usize, 9usize];
+const FN_240_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 23usize, 71usize, 2usize, 148usize];
+const FN_241_CALLEES: &[usize] = &[0usize, 145usize, 140usize, 71usize, 13usize, 11usize, 26usize, 24usize, 2usize, 25usize, 148usize, 99usize];
+const FN_242_CALLEES: &[usize] = &[0usize, 145usize, 71usize, 13usize, 3usize, 2usize, 148usize, 99usize];
+const FN_243_CALLEES: &[usize] = &[0usize, 7usize, 145usize, 72usize, 140usize, 9usize, 11usize, 9usize];
+const FN_244_CALLEES: &[usize] = &[0usize, 7usize, 145usize, 72usize, 140usize, 9usize, 11usize, 24usize, 71usize, 10usize, 3usize];
+const FN_245_CALLEES: &[usize] = &[0usize, 150usize, 151usize, 153usize];
+const FN_246_CALLEES: &[usize] = &[0usize];
+const FN_247_CALLEES: &[usize] = &[0usize];
+const FN_248_CALLEES: &[usize] = &[0usize];
+const FN_249_CALLEES: &[usize] = &[0usize];
+const FN_250_CALLEES: &[usize] = &[0usize];
+const FN_251_CALLEES: &[usize] = &[0usize];
+const FN_252_CALLEES: &[usize] = &[0usize, 92usize, 134usize, 90usize];
 const FN_253_GLOBALS: &[usize] = &[26usize];
-const FN_253_CALLEES: &[u32] = &[0u32, 145u32, 13u32, 2u32, 148u32];
-const FN_254_CALLEES: &[u32] = &[0u32, 23u32, 145u32];
-const FN_255_CALLEES: &[u32] = &[0u32, 22u32, 145u32];
-const FN_256_CALLEES: &[u32] = &[0u32, 13u32, 85u32, 2u32, 148u32];
-const FN_257_CALLEES: &[u32] = &[0u32, 109u32, 13u32, 145u32, 2u32, 159u32, 148u32];
-const FN_258_CALLEES: &[u32] = &[0u32, 145u32, 110u32];
-const FN_259_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32];
-const FN_260_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32];
-const FN_261_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_262_CALLEES: &[u32] = &[0u32, 111u32, 13u32, 4u32, 2u32, 148u32];
+const FN_253_CALLEES: &[usize] = &[0usize, 145usize, 13usize, 2usize, 148usize];
+const FN_254_CALLEES: &[usize] = &[0usize, 23usize, 145usize];
+const FN_255_CALLEES: &[usize] = &[0usize, 22usize, 145usize];
+const FN_256_CALLEES: &[usize] = &[0usize, 13usize, 85usize, 2usize, 148usize];
+const FN_257_CALLEES: &[usize] = &[0usize, 109usize, 13usize, 145usize, 2usize, 159usize, 148usize];
+const FN_258_CALLEES: &[usize] = &[0usize, 145usize, 110usize];
+const FN_259_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize];
+const FN_260_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize];
+const FN_261_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_262_CALLEES: &[usize] = &[0usize, 111usize, 13usize, 4usize, 2usize, 148usize];
 const FN_263_GLOBALS: &[usize] = &[27usize, 28usize];
-const FN_263_CALLEES: &[u32] = &[0u32, 10u32, 12u32];
+const FN_263_CALLEES: &[usize] = &[0usize, 10usize, 12usize];
 const FN_264_GLOBALS: &[usize] = &[25usize];
-const FN_264_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_265_CALLEES: &[u32] = &[0u32, 2u32, 8u32, 145u32];
-const FN_266_CALLEES: &[u32] = &[0u32, 7u32, 72u32, 145u32, 11u32, 11u32, 3u32, 148u32, 1u32, 153u32, 7u32, 137u32, 107u32];
-const FN_267_CALLEES: &[u32] = &[0u32, 145u32, 110u32, 0u32, 159u32, 3u32, 13u32, 2u32, 148u32];
+const FN_264_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_265_CALLEES: &[usize] = &[0usize, 2usize, 8usize, 145usize];
+const FN_266_CALLEES: &[usize] = &[0usize, 7usize, 72usize, 145usize, 11usize, 11usize, 3usize, 148usize, 1usize, 153usize, 7usize, 137usize, 107usize];
+const FN_267_CALLEES: &[usize] = &[0usize, 145usize, 110usize, 0usize, 159usize, 3usize, 13usize, 2usize, 148usize];
 const FN_268_GLOBALS: &[usize] = &[25usize];
-const FN_268_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
+const FN_268_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
 const FN_269_GLOBALS: &[usize] = &[24usize, 29usize];
-const FN_269_CALLEES: &[u32] = &[0u32, 59u32, 54u32, 72u32, 10u32];
+const FN_269_CALLEES: &[usize] = &[0usize, 59usize, 54usize, 72usize, 10usize];
 const FN_270_GLOBALS: &[usize] = &[25usize];
-const FN_270_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_271_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 110u32, 72u32, 113u32];
-const FN_272_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 145u32, 159u32, 2u32, 148u32];
-const FN_273_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32];
-const FN_274_CALLEES: &[u32] = &[0u32, 23u32, 145u32, 110u32];
-const FN_275_CALLEES: &[u32] = &[0u32, 23u32, 145u32, 13u32, 4u32, 2u32, 148u32, 1u32];
-const FN_276_CALLEES: &[u32] = &[0u32, 3u32, 2u32, 145u32, 64u32, 74u32, 162u32, 110u32, 62u32, 112u32, 0u32];
-const FN_277_CALLEES: &[u32] = &[0u32, 145u32, 113u32, 0u32, 159u32, 110u32, 72u32];
-const FN_278_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 71u32, 159u32, 148u32, 113u32, 0u32, 3u32, 110u32];
+const FN_270_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_271_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 110usize, 72usize, 113usize];
+const FN_272_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 145usize, 159usize, 2usize, 148usize];
+const FN_273_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize];
+const FN_274_CALLEES: &[usize] = &[0usize, 23usize, 145usize, 110usize];
+const FN_275_CALLEES: &[usize] = &[0usize, 23usize, 145usize, 13usize, 4usize, 2usize, 148usize, 1usize];
+const FN_276_CALLEES: &[usize] = &[0usize, 3usize, 2usize, 145usize, 64usize, 74usize, 162usize, 110usize, 62usize, 112usize, 0usize];
+const FN_277_CALLEES: &[usize] = &[0usize, 145usize, 113usize, 0usize, 159usize, 110usize, 72usize];
+const FN_278_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 71usize, 159usize, 148usize, 113usize, 0usize, 3usize, 110usize];
 const FN_279_GLOBALS: &[usize] = &[24usize, 25usize];
-const FN_279_CALLEES: &[u32] = &[0u32, 139u32, 145u32, 13u32, 0u32, 59u32, 2u32, 138u32, 72u32, 111u32, 114u32, 153u32, 117u32, 4u32, 104u32, 116u32, 148u32];
-const FN_280_CALLEES: &[u32] = &[0u32, 114u32, 152u32, 145u32, 2u32];
-const FN_281_CALLEES: &[u32] = &[0u32, 145u32, 13u32, 2u32, 4u32, 148u32, 113u32, 0u32, 159u32, 110u32, 72u32];
-const FN_282_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 1u32, 4u32, 148u32, 113u32, 0u32, 159u32, 110u32, 72u32, 13u32];
-const FN_283_CALLEES: &[u32] = &[0u32, 145u32, 71u32, 0u32];
-const FN_284_CALLEES: &[u32] = &[0u32, 0u32, 145u32];
-const FN_285_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 13u32, 71u32, 2u32, 148u32];
-const FN_286_CALLEES: &[u32] = &[0u32, 113u32, 114u32, 153u32, 145u32, 0u32, 159u32, 71u32, 0u32, 0u32];
-const FN_287_CALLEES: &[u32] = &[0u32, 159u32, 145u32, 72u32, 13u32, 2u32, 24u32, 71u32, 0u32, 140u32, 3u32, 117u32, 113u32, 115u32, 153u32, 0u32, 116u32];
-const FN_288_CALLEES: &[u32] = &[0u32, 13u32, 72u32, 2u32, 24u32, 145u32, 71u32, 0u32, 140u32, 3u32, 117u32, 113u32, 115u32, 153u32, 0u32, 116u32, 159u32, 148u32];
+const FN_279_CALLEES: &[usize] = &[0usize, 139usize, 145usize, 13usize, 0usize, 59usize, 2usize, 138usize, 72usize, 111usize, 114usize, 153usize, 117usize, 4usize, 104usize, 116usize, 148usize];
+const FN_280_CALLEES: &[usize] = &[0usize, 114usize, 152usize, 145usize, 2usize];
+const FN_281_CALLEES: &[usize] = &[0usize, 145usize, 13usize, 2usize, 4usize, 148usize, 113usize, 0usize, 159usize, 110usize, 72usize];
+const FN_282_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 1usize, 4usize, 148usize, 113usize, 0usize, 159usize, 110usize, 72usize, 13usize];
+const FN_283_CALLEES: &[usize] = &[0usize, 145usize, 71usize, 0usize];
+const FN_284_CALLEES: &[usize] = &[0usize, 0usize, 145usize];
+const FN_285_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 13usize, 71usize, 2usize, 148usize];
+const FN_286_CALLEES: &[usize] = &[0usize, 113usize, 114usize, 153usize, 145usize, 0usize, 159usize, 71usize, 0usize, 0usize];
+const FN_287_CALLEES: &[usize] = &[0usize, 159usize, 145usize, 72usize, 13usize, 2usize, 24usize, 71usize, 0usize, 140usize, 3usize, 117usize, 113usize, 115usize, 153usize, 0usize, 116usize];
+const FN_288_CALLEES: &[usize] = &[0usize, 13usize, 72usize, 2usize, 24usize, 145usize, 71usize, 0usize, 140usize, 3usize, 117usize, 113usize, 115usize, 153usize, 0usize, 116usize, 159usize, 148usize];
 const FN_289_GLOBALS: &[usize] = &[25usize];
-const FN_289_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 118u32];
+const FN_289_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 118usize];
 const FN_290_GLOBALS: &[usize] = &[25usize];
-const FN_290_CALLEES: &[u32] = &[0u32, 114u32, 0u32, 59u32];
+const FN_290_CALLEES: &[usize] = &[0usize, 114usize, 0usize, 59usize];
 const FN_291_GLOBALS: &[usize] = &[24usize];
-const FN_291_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_292_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 117u32, 72u32, 113u32, 114u32, 153u32, 140u32, 2u32, 121u32];
-const FN_293_CALLEES: &[u32] = &[0u32, 72u32, 111u32, 145u32, 112u32, 3u32, 117u32, 113u32, 135u32, 153u32, 141u32, 62u32, 110u32, 136u32, 2u32, 121u32, 120u32, 122u32, 0u32, 159u32];
-const FN_294_CALLEES: &[u32] = &[0u32, 145u32, 6u32];
+const FN_291_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_292_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 117usize, 72usize, 113usize, 114usize, 153usize, 140usize, 2usize, 121usize];
+const FN_293_CALLEES: &[usize] = &[0usize, 72usize, 111usize, 145usize, 112usize, 3usize, 117usize, 113usize, 135usize, 153usize, 141usize, 62usize, 110usize, 136usize, 2usize, 121usize, 120usize, 122usize, 0usize, 159usize];
+const FN_294_CALLEES: &[usize] = &[0usize, 145usize, 6usize];
 const FN_295_GLOBALS: &[usize] = &[25usize];
-const FN_295_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 8u32, 145u32];
+const FN_295_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 8usize, 145usize];
 const FN_296_GLOBALS: &[usize] = &[25usize, 24usize, 30usize, 27usize];
-const FN_296_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 105u32, 72u32, 111u32, 145u32, 110u32, 119u32, 142u32, 153u32, 112u32, 14u32, 4u32, 54u32, 106u32, 113u32, 114u32, 152u32, 2u32, 10u32, 13u32, 148u32];
-const FN_297_CALLEES: &[u32] = &[0u32, 135u32, 145u32, 0u32];
-const FN_298_CALLEES: &[u32] = &[0u32, 72u32, 145u32, 13u32, 11u32, 0u32, 113u32, 115u32, 153u32, 115u32, 3u32, 0u32, 159u32, 11u32];
-const FN_299_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 3u32, 123u32];
-const FN_300_CALLEES: &[u32] = &[0u32, 145u32, 71u32, 0u32];
-const FN_301_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 24u32, 145u32, 13u32, 1u32, 148u32];
-const FN_302_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 13u32, 72u32, 24u32, 140u32, 2u32, 71u32, 23u32, 113u32, 114u32, 153u32, 152u32, 0u32, 159u32, 148u32];
-const FN_303_CALLEES: &[u32] = &[0u32, 145u32, 118u32, 13u32, 14u32, 2u32, 0u32, 24u32, 140u32, 72u32, 148u32, 1u32, 121u32, 122u32, 123u32, 129u32, 153u32, 111u32, 4u32, 23u32];
-const FN_304_CALLEES: &[u32] = &[0u32, 7u32, 3u32, 23u32, 145u32, 5u32, 148u32];
-const FN_305_CALLEES: &[u32] = &[0u32, 13u32, 1u32, 153u32, 7u32, 145u32, 2u32, 148u32];
-const FN_306_CALLEES: &[u32] = &[0u32, 2u32, 145u32, 0u32, 159u32, 13u32, 3u32, 7u32, 72u32, 11u32, 3u32, 148u32, 2u32];
-const FN_307_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 149u32, 153u32, 23u32, 11u32, 71u32, 109u32, 101u32, 4u32, 148u32];
-const FN_308_CALLEES: &[u32] = &[0u32, 13u32, 109u32, 145u32, 101u32, 116u32, 23u32, 2u32, 148u32, 3u32, 24u32, 140u32];
-const FN_309_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 72u32];
-const FN_310_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 16u32];
+const FN_296_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 105usize, 72usize, 111usize, 145usize, 110usize, 119usize, 142usize, 153usize, 112usize, 14usize, 4usize, 54usize, 106usize, 113usize, 114usize, 152usize, 2usize, 10usize, 13usize, 148usize];
+const FN_297_CALLEES: &[usize] = &[0usize, 135usize, 145usize, 0usize];
+const FN_298_CALLEES: &[usize] = &[0usize, 72usize, 145usize, 13usize, 11usize, 0usize, 113usize, 115usize, 153usize, 115usize, 3usize, 0usize, 159usize, 11usize];
+const FN_299_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 3usize, 123usize];
+const FN_300_CALLEES: &[usize] = &[0usize, 145usize, 71usize, 0usize];
+const FN_301_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 24usize, 145usize, 13usize, 1usize, 148usize];
+const FN_302_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 13usize, 72usize, 24usize, 140usize, 2usize, 71usize, 23usize, 113usize, 114usize, 153usize, 152usize, 0usize, 159usize, 148usize];
+const FN_303_CALLEES: &[usize] = &[0usize, 145usize, 118usize, 13usize, 14usize, 2usize, 0usize, 24usize, 140usize, 72usize, 148usize, 1usize, 121usize, 122usize, 123usize, 129usize, 153usize, 111usize, 4usize, 23usize];
+const FN_304_CALLEES: &[usize] = &[0usize, 7usize, 3usize, 23usize, 145usize, 5usize, 148usize];
+const FN_305_CALLEES: &[usize] = &[0usize, 13usize, 1usize, 153usize, 7usize, 145usize, 2usize, 148usize];
+const FN_306_CALLEES: &[usize] = &[0usize, 2usize, 145usize, 0usize, 159usize, 13usize, 3usize, 7usize, 72usize, 11usize, 3usize, 148usize, 2usize];
+const FN_307_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 149usize, 153usize, 23usize, 11usize, 71usize, 109usize, 101usize, 4usize, 148usize];
+const FN_308_CALLEES: &[usize] = &[0usize, 13usize, 109usize, 145usize, 101usize, 116usize, 23usize, 2usize, 148usize, 3usize, 24usize, 140usize];
+const FN_309_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 72usize];
+const FN_310_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 16usize];
 const FN_311_GLOBALS: &[usize] = &[24usize, 25usize];
-const FN_311_CALLEES: &[u32] = &[0u32, 59u32, 0u32, 159u32];
+const FN_311_CALLEES: &[usize] = &[0usize, 59usize, 0usize, 159usize];
 const FN_312_GLOBALS: &[usize] = &[25usize];
-const FN_312_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 145u32, 0u32, 4u32, 16u32];
+const FN_312_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 145usize, 0usize, 4usize, 16usize];
 const FN_313_GLOBALS: &[usize] = &[25usize];
-const FN_313_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 145u32, 0u32, 16u32, 2u32, 3u32, 4u32, 148u32];
-const FN_314_CALLEES: &[u32] = &[0u32, 2u32, 145u32, 0u32, 159u32, 17u32, 3u32, 4u32];
+const FN_313_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 145usize, 0usize, 16usize, 2usize, 3usize, 4usize, 148usize];
+const FN_314_CALLEES: &[usize] = &[0usize, 2usize, 145usize, 0usize, 159usize, 17usize, 3usize, 4usize];
 const FN_315_GLOBALS: &[usize] = &[25usize];
-const FN_315_CALLEES: &[u32] = &[0u32, 2u32, 0u32, 59u32, 145u32, 0u32, 17u32, 3u32, 5u32, 4u32];
+const FN_315_CALLEES: &[usize] = &[0usize, 2usize, 0usize, 59usize, 145usize, 0usize, 17usize, 3usize, 5usize, 4usize];
 const FN_316_GLOBALS: &[usize] = &[25usize, 24usize];
-const FN_316_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 145u32, 0u32, 108u32, 16u32, 2u32, 54u32, 109u32, 148u32];
-const FN_317_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 17u32, 3u32, 4u32, 2u32, 0u32, 13u32, 8u32, 4u32, 148u32];
-const FN_318_CALLEES: &[u32] = &[0u32, 2u32, 145u32, 0u32, 159u32, 0u32, 8u32, 15u32, 125u32, 13u32, 2u32, 4u32, 16u32, 4u32, 2u32, 3u32, 148u32];
-const FN_319_CALLEES: &[u32] = &[0u32, 13u32, 2u32, 1u32, 145u32, 2u32, 148u32];
-const FN_320_CALLEES: &[u32] = &[0u32, 114u32, 145u32, 0u32, 159u32, 1u32, 2u32, 15u32, 0u32, 8u32, 127u32, 18u32, 4u32, 111u32, 112u32, 3u32, 2u32];
-const FN_321_CALLEES: &[u32] = &[0u32, 145u32, 0u32, 159u32, 13u32, 2u32, 8u32, 4u32, 148u32];
-const FN_322_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 3u32, 4u32, 148u32];
-const FN_323_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 24u32, 145u32, 149u32, 153u32, 13u32, 1u32, 148u32];
-const FN_324_CALLEES: &[u32] = &[0u32, 13u32, 2u32, 145u32, 0u32, 159u32, 0u32, 8u32, 15u32, 125u32, 137u32, 24u32, 110u32, 2u32, 4u32, 148u32];
-const FN_325_CALLEES: &[u32] = &[0u32, 125u32, 124u32, 145u32, 13u32, 25u32, 71u32, 0u32, 72u32, 113u32, 114u32, 153u32, 152u32, 0u32, 159u32, 5u32, 0u32, 4u32, 24u32, 111u32, 4u32, 2u32, 148u32, 1u32, 130u32, 139u32, 125u32];
-const FN_326_CALLEES: &[u32] = &[0u32, 145u32, 3u32, 71u32, 0u32, 72u32, 113u32, 115u32, 153u32, 15u32];
-const FN_327_CALLEES: &[u32] = &[0u32, 145u32, 140u32, 7u32, 11u32, 26u32, 11u32, 3u32, 25u32, 148u32, 1u32];
-const FN_328_CALLEES: &[u32] = &[0u32, 72u32, 145u32, 10u32, 7u32, 3u32, 131u32, 5u32, 148u32, 36u32];
-const FN_329_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_330_CALLEES: &[u32] = &[0u32, 128u32, 145u32, 13u32, 25u32, 4u32, 24u32, 111u32, 4u32, 2u32, 148u32, 1u32, 138u32, 139u32, 126u32, 7u32, 71u32, 126u32, 125u32, 5u32, 153u32, 152u32, 0u32, 7u32, 5u32, 132u32, 137u32, 26u32, 14u32, 130u32, 23u32, 127u32, 27u32, 2u32, 0u32, 4u32, 4u32, 0u32, 133u32, 28u32, 125u32, 134u32, 1u32];
+const FN_316_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 145usize, 0usize, 108usize, 16usize, 2usize, 54usize, 109usize, 148usize];
+const FN_317_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 17usize, 3usize, 4usize, 2usize, 0usize, 13usize, 8usize, 4usize, 148usize];
+const FN_318_CALLEES: &[usize] = &[0usize, 2usize, 145usize, 0usize, 159usize, 0usize, 8usize, 15usize, 125usize, 13usize, 2usize, 4usize, 16usize, 4usize, 2usize, 3usize, 148usize];
+const FN_319_CALLEES: &[usize] = &[0usize, 13usize, 2usize, 1usize, 145usize, 2usize, 148usize];
+const FN_320_CALLEES: &[usize] = &[0usize, 114usize, 145usize, 0usize, 159usize, 1usize, 2usize, 15usize, 0usize, 8usize, 127usize, 18usize, 4usize, 111usize, 112usize, 3usize, 2usize];
+const FN_321_CALLEES: &[usize] = &[0usize, 145usize, 0usize, 159usize, 13usize, 2usize, 8usize, 4usize, 148usize];
+const FN_322_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 3usize, 4usize, 148usize];
+const FN_323_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 24usize, 145usize, 149usize, 153usize, 13usize, 1usize, 148usize];
+const FN_324_CALLEES: &[usize] = &[0usize, 13usize, 2usize, 145usize, 0usize, 159usize, 0usize, 8usize, 15usize, 125usize, 137usize, 24usize, 110usize, 2usize, 4usize, 148usize];
+const FN_325_CALLEES: &[usize] = &[0usize, 125usize, 124usize, 145usize, 13usize, 25usize, 71usize, 0usize, 72usize, 113usize, 114usize, 153usize, 152usize, 0usize, 159usize, 5usize, 0usize, 4usize, 24usize, 111usize, 4usize, 2usize, 148usize, 1usize, 130usize, 139usize, 125usize];
+const FN_326_CALLEES: &[usize] = &[0usize, 145usize, 3usize, 71usize, 0usize, 72usize, 113usize, 115usize, 153usize, 15usize];
+const FN_327_CALLEES: &[usize] = &[0usize, 145usize, 140usize, 7usize, 11usize, 26usize, 11usize, 3usize, 25usize, 148usize, 1usize];
+const FN_328_CALLEES: &[usize] = &[0usize, 72usize, 145usize, 10usize, 7usize, 3usize, 131usize, 5usize, 148usize, 36usize];
+const FN_329_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_330_CALLEES: &[usize] = &[0usize, 128usize, 145usize, 13usize, 25usize, 4usize, 24usize, 111usize, 4usize, 2usize, 148usize, 1usize, 138usize, 139usize, 126usize, 7usize, 71usize, 126usize, 125usize, 5usize, 153usize, 152usize, 0usize, 7usize, 5usize, 132usize, 137usize, 26usize, 14usize, 130usize, 23usize, 127usize, 27usize, 2usize, 0usize, 4usize, 4usize, 0usize, 133usize, 28usize, 125usize, 134usize, 1usize];
 const FN_331_GLOBALS: &[usize] = &[24usize];
-const FN_331_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 26u32, 2u32, 59u32, 107u32, 27u32, 148u32, 3u32, 72u32, 113u32, 71u32, 0u32, 115u32, 153u32, 152u32, 120u32, 122u32, 0u32, 159u32, 4u32, 114u32, 24u32, 110u32];
-const FN_332_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 109u32, 4u32, 159u32, 148u32];
-const FN_333_CALLEES: &[u32] = &[0u32, 13u32, 143u32];
+const FN_331_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 26usize, 2usize, 59usize, 107usize, 27usize, 148usize, 3usize, 72usize, 113usize, 71usize, 0usize, 115usize, 153usize, 152usize, 120usize, 122usize, 0usize, 159usize, 4usize, 114usize, 24usize, 110usize];
+const FN_332_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 109usize, 4usize, 159usize, 148usize];
+const FN_333_CALLEES: &[usize] = &[0usize, 13usize, 143usize];
 const FN_334_GLOBALS: &[usize] = &[31usize, 25usize];
-const FN_334_CALLEES: &[u32] = &[0u32, 0u32, 2u32, 145u32, 111u32, 0u32, 4u32, 159u32, 11u32, 114u32, 72u32, 13u32, 13u32, 2u32, 8u32, 4u32, 148u32, 12u32, 119u32, 23u32, 11u32, 118u32, 120u32, 119u32, 142u32, 153u32, 118u32, 111u32, 10u32, 124u32, 2u32, 59u32, 8u32, 128u32, 11u32, 9u32, 133u32, 12u32, 13u32];
+const FN_334_CALLEES: &[usize] = &[0usize, 0usize, 2usize, 145usize, 111usize, 0usize, 4usize, 159usize, 11usize, 114usize, 72usize, 13usize, 13usize, 2usize, 8usize, 4usize, 148usize, 12usize, 119usize, 23usize, 11usize, 118usize, 120usize, 119usize, 142usize, 153usize, 118usize, 111usize, 10usize, 124usize, 2usize, 59usize, 8usize, 128usize, 11usize, 9usize, 133usize, 12usize, 13usize];
 const FN_335_GLOBALS: &[usize] = &[25usize, 24usize, 30usize, 27usize];
-const FN_335_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 105u32, 54u32, 106u32, 72u32, 113u32, 10u32, 13u32];
-const FN_336_CALLEES: &[u32] = &[0u32, 145u32, 119u32, 153u32, 5u32];
-const FN_337_CALLEES: &[u32] = &[0u32, 72u32, 0u32];
-const FN_338_CALLEES: &[u32] = &[0u32, 0u32];
-const FN_339_CALLEES: &[u32] = &[0u32, 145u32, 13u32, 2u32, 148u32];
-const FN_340_CALLEES: &[u32] = &[0u32, 4u32, 23u32, 145u32, 111u32];
-const FN_341_CALLEES: &[u32] = &[0u32, 4u32, 23u32, 145u32, 111u32, 13u32, 4u32, 2u32, 148u32, 1u32];
+const FN_335_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 105usize, 54usize, 106usize, 72usize, 113usize, 10usize, 13usize];
+const FN_336_CALLEES: &[usize] = &[0usize, 145usize, 119usize, 153usize, 5usize];
+const FN_337_CALLEES: &[usize] = &[0usize, 72usize, 0usize];
+const FN_338_CALLEES: &[usize] = &[0usize, 0usize];
+const FN_339_CALLEES: &[usize] = &[0usize, 145usize, 13usize, 2usize, 148usize];
+const FN_340_CALLEES: &[usize] = &[0usize, 4usize, 23usize, 145usize, 111usize];
+const FN_341_CALLEES: &[usize] = &[0usize, 4usize, 23usize, 145usize, 111usize, 13usize, 4usize, 2usize, 148usize, 1usize];
 const FN_342_GLOBALS: &[usize] = &[25usize];
-const FN_342_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_343_CALLEES: &[u32] = &[0u32, 137u32];
-const FN_344_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 23u32, 4u32, 24u32, 4u32, 148u32, 1u32, 26u32, 14u32, 137u32, 138u32, 132u32, 27u32, 2u32, 0u32, 140u32];
-const FN_345_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 1u32, 131u32, 139u32, 130u32, 2u32, 148u32, 145u32];
-const FN_346_CALLEES: &[u32] = &[0u32, 130u32, 13u32, 130u32, 129u32, 4u32, 148u32];
+const FN_342_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_343_CALLEES: &[usize] = &[0usize, 137usize];
+const FN_344_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 23usize, 4usize, 24usize, 4usize, 148usize, 1usize, 26usize, 14usize, 137usize, 138usize, 132usize, 27usize, 2usize, 0usize, 140usize];
+const FN_345_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 1usize, 131usize, 139usize, 130usize, 2usize, 148usize, 145usize];
+const FN_346_CALLEES: &[usize] = &[0usize, 130usize, 13usize, 130usize, 129usize, 4usize, 148usize];
 const FN_347_GLOBALS: &[usize] = &[24usize];
-const FN_347_CALLEES: &[u32] = &[0u32, 59u32, 54u32, 72u32, 113u32];
+const FN_347_CALLEES: &[usize] = &[0usize, 59usize, 54usize, 72usize, 113usize];
 const FN_348_GLOBALS: &[usize] = &[27usize, 28usize];
-const FN_348_CALLEES: &[u32] = &[0u32, 72u32, 10u32, 12u32];
+const FN_348_CALLEES: &[usize] = &[0usize, 72usize, 10usize, 12usize];
 const FN_349_GLOBALS: &[usize] = &[25usize, 24usize];
-const FN_349_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 2u32, 145u32, 0u32, 108u32, 54u32, 109u32];
+const FN_349_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 2usize, 145usize, 0usize, 108usize, 54usize, 109usize];
 const FN_350_GLOBALS: &[usize] = &[25usize];
-const FN_350_CALLEES: &[u32] = &[0u32, 118u32, 145u32, 1u32, 13u32, 71u32, 116u32, 130u32, 131u32, 0u32, 72u32, 113u32, 114u32, 153u32, 152u32, 0u32, 59u32, 1u32, 121u32, 2u32, 148u32, 122u32, 123u32, 129u32];
+const FN_350_CALLEES: &[usize] = &[0usize, 118usize, 145usize, 1usize, 13usize, 71usize, 116usize, 130usize, 131usize, 0usize, 72usize, 113usize, 114usize, 153usize, 152usize, 0usize, 59usize, 1usize, 121usize, 2usize, 148usize, 122usize, 123usize, 129usize];
 const FN_351_GLOBALS: &[usize] = &[25usize];
-const FN_351_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 2u32, 145u32, 0u32];
-const FN_352_CALLEES: &[u32] = &[0u32, 7u32, 145u32, 162u32];
-const FN_353_CALLEES: &[u32] = &[0u32, 13u32, 145u32, 2u32, 71u32, 159u32, 148u32, 64u32, 74u32, 162u32, 110u32, 7u32, 62u32, 70u32];
-const FN_354_CALLEES: &[u32] = &[0u32, 152u32, 145u32, 62u32, 110u32];
-const FN_355_CALLEES: &[u32] = &[0u32, 12u32, 143u32];
-const FN_356_CALLEES: &[u32] = &[0u32, 74u32, 145u32, 162u32, 110u32, 7u32, 62u32, 70u32];
-const FN_357_CALLEES: &[u32] = &[0u32, 145u32, 62u32, 110u32];
-const FN_358_CALLEES: &[u32] = &[0u32, 145u32, 101u32, 64u32, 7u32, 5u32, 148u32, 136u32];
-const FN_359_CALLEES: &[u32] = &[0u32, 136u32, 120u32, 145u32, 64u32, 12u32];
-const FN_360_CALLEES: &[u32] = &[0u32, 1u32, 152u32];
-const FN_361_CALLEES: &[u32] = &[0u32, 137u32];
-const FN_362_CALLEES: &[u32] = &[0u32, 138u32, 13u32, 4u32, 2u32, 148u32];
-const FN_363_CALLEES: &[u32] = &[0u32, 93u32, 108u32, 94u32, 145u32];
-const FN_364_CALLEES: &[u32] = &[145u32];
-const FN_385_CALLEES: &[u32] = &[146u32];
-const FN_387_CALLEES: &[u32] = &[145u32];
-const FN_390_CALLEES: &[u32] = &[145u32];
-const FN_394_CALLEES: &[u32] = &[145u32];
-const FN_395_CALLEES: &[u32] = &[145u32];
-const FN_398_CALLEES: &[u32] = &[145u32];
-const FN_401_CALLEES: &[u32] = &[145u32];
-const FN_408_CALLEES: &[u32] = &[145u32];
-const FN_412_CALLEES: &[u32] = &[145u32];
-const FN_413_CALLEES: &[u32] = &[145u32];
-const FN_415_CALLEES: &[u32] = &[145u32];
-const FN_416_CALLEES: &[u32] = &[145u32];
-const FN_417_CALLEES: &[u32] = &[159u32];
-const FN_419_CALLEES: &[u32] = &[158u32];
-const FN_420_CALLEES: &[u32] = &[145u32];
-const FN_422_CALLEES: &[u32] = &[145u32];
-const FN_426_CALLEES: &[u32] = &[145u32];
-const FN_427_CALLEES: &[u32] = &[145u32];
-const FN_429_CALLEES: &[u32] = &[145u32];
-const FN_430_CALLEES: &[u32] = &[145u32];
-const FN_433_CALLEES: &[u32] = &[145u32];
-const FN_436_CALLEES: &[u32] = &[0u32, 145u32, 144u32];
+const FN_351_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 2usize, 145usize, 0usize];
+const FN_352_CALLEES: &[usize] = &[0usize, 7usize, 145usize, 162usize];
+const FN_353_CALLEES: &[usize] = &[0usize, 13usize, 145usize, 2usize, 71usize, 159usize, 148usize, 64usize, 74usize, 162usize, 110usize, 7usize, 62usize, 70usize];
+const FN_354_CALLEES: &[usize] = &[0usize, 152usize, 145usize, 62usize, 110usize];
+const FN_355_CALLEES: &[usize] = &[0usize, 12usize, 143usize];
+const FN_356_CALLEES: &[usize] = &[0usize, 74usize, 145usize, 162usize, 110usize, 7usize, 62usize, 70usize];
+const FN_357_CALLEES: &[usize] = &[0usize, 145usize, 62usize, 110usize];
+const FN_358_CALLEES: &[usize] = &[0usize, 145usize, 101usize, 64usize, 7usize, 5usize, 148usize, 136usize];
+const FN_359_CALLEES: &[usize] = &[0usize, 136usize, 120usize, 145usize, 64usize, 12usize];
+const FN_360_CALLEES: &[usize] = &[0usize, 1usize, 152usize];
+const FN_361_CALLEES: &[usize] = &[0usize, 137usize];
+const FN_362_CALLEES: &[usize] = &[0usize, 138usize, 13usize, 4usize, 2usize, 148usize];
+const FN_363_CALLEES: &[usize] = &[0usize, 93usize, 108usize, 94usize, 145usize];
+const FN_364_CALLEES: &[usize] = &[145usize];
+const FN_385_CALLEES: &[usize] = &[146usize];
+const FN_387_CALLEES: &[usize] = &[145usize];
+const FN_390_CALLEES: &[usize] = &[145usize];
+const FN_394_CALLEES: &[usize] = &[145usize];
+const FN_395_CALLEES: &[usize] = &[145usize];
+const FN_398_CALLEES: &[usize] = &[145usize];
+const FN_401_CALLEES: &[usize] = &[145usize];
+const FN_408_CALLEES: &[usize] = &[145usize];
+const FN_412_CALLEES: &[usize] = &[145usize];
+const FN_413_CALLEES: &[usize] = &[145usize];
+const FN_415_CALLEES: &[usize] = &[145usize];
+const FN_416_CALLEES: &[usize] = &[145usize];
+const FN_417_CALLEES: &[usize] = &[159usize];
+const FN_419_CALLEES: &[usize] = &[158usize];
+const FN_420_CALLEES: &[usize] = &[145usize];
+const FN_422_CALLEES: &[usize] = &[145usize];
+const FN_426_CALLEES: &[usize] = &[145usize];
+const FN_427_CALLEES: &[usize] = &[145usize];
+const FN_429_CALLEES: &[usize] = &[145usize];
+const FN_430_CALLEES: &[usize] = &[145usize];
+const FN_433_CALLEES: &[usize] = &[145usize];
+const FN_436_CALLEES: &[usize] = &[0usize, 145usize, 144usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -106952,6 +106940,10 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (1116720u128, [0xf9, 0xce, 0x25, 0x17, 0x3b, 0x9f, 0x04, 0x0c, 0x20, 0x51, 0x0e, 0xde, 0x21, 0xe4, 0x49, 0x80, 0xd9, 0x1d, 0x6c, 0xb7, 0xc3, 0x4b, 0x1a, 0x04, 0x5a, 0x33, 0x2e, 0xb5, 0xba, 0xeb, 0xc9, 0xc6]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_92792/2608@l8589994087",
     accounting_version: 2u32,
@@ -106963,6 +106955,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -107139,7 +107132,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 2usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }
@@ -107193,478 +107188,478 @@ use crate::utilities::*;
 use super::*;
 
 const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize, 24usize, 25usize, 26usize, 27usize, 28usize, 29usize, 30usize, 31usize];
-const FN_0_CALLEES: &[u32] = &[147u32];
-const FN_1_CALLEES: &[u32] = &[0u32, 24u32];
-const FN_2_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_3_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_4_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_5_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_0_CALLEES: &[usize] = &[147usize];
+const FN_1_CALLEES: &[usize] = &[0usize, 24usize];
+const FN_2_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_3_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_4_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_5_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_6_CALLEES: &[usize] = &[0usize, 34usize, 10usize];
 const FN_7_GLOBALS: &[usize] = &[14usize];
-const FN_7_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_8_CALLEES: &[u32] = &[0u32, 0u32];
-const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
-const FN_10_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_11_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_12_CALLEES: &[u32] = &[0u32, 25u32];
-const FN_13_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_14_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_15_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_16_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_17_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_19_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_20_CALLEES: &[u32] = &[0u32];
-const FN_21_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_22_CALLEES: &[u32] = &[0u32, 27u32];
-const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 1u32, 1u32, 147u32];
-const FN_24_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_25_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_26_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_27_CALLEES: &[u32] = &[0u32, 32u32, 142u32, 33u32, 2u32];
-const FN_28_CALLEES: &[u32] = &[0u32, 33u32, 142u32, 32u32, 2u32];
-const FN_29_CALLEES: &[u32] = &[0u32, 28u32];
-const FN_30_CALLEES: &[u32] = &[0u32, 29u32];
-const FN_31_CALLEES: &[u32] = &[0u32, 30u32];
-const FN_32_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_7_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_8_CALLEES: &[usize] = &[0usize, 0usize];
+const FN_9_CALLEES: &[usize] = &[0usize, 10usize];
+const FN_10_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_11_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_12_CALLEES: &[usize] = &[0usize, 25usize];
+const FN_13_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_14_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_15_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_16_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_17_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_18_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_19_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_20_CALLEES: &[usize] = &[0usize];
+const FN_21_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_22_CALLEES: &[usize] = &[0usize, 27usize];
+const FN_23_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 1usize, 1usize, 147usize];
+const FN_24_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_25_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_26_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_27_CALLEES: &[usize] = &[0usize, 32usize, 142usize, 33usize, 2usize];
+const FN_28_CALLEES: &[usize] = &[0usize, 33usize, 142usize, 32usize, 2usize];
+const FN_29_CALLEES: &[usize] = &[0usize, 28usize];
+const FN_30_CALLEES: &[usize] = &[0usize, 29usize];
+const FN_31_CALLEES: &[usize] = &[0usize, 30usize];
+const FN_32_CALLEES: &[usize] = &[0usize, 26usize];
 const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 147u32];
-const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 147u32];
+const FN_33_CALLEES: &[usize] = &[0usize, 34usize, 10usize, 147usize];
+const FN_34_CALLEES: &[usize] = &[0usize, 31usize, 147usize];
 const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_35_CALLEES: &[u32] = &[0u32, 5u32, 147u32];
+const FN_35_CALLEES: &[usize] = &[0usize, 5usize, 147usize];
 const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_36_CALLEES: &[u32] = &[0u32, 0u32, 147u32];
-const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 147u32];
+const FN_36_CALLEES: &[usize] = &[0usize, 0usize, 147usize];
+const FN_37_CALLEES: &[usize] = &[0usize, 31usize, 147usize];
 const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 147u32];
+const FN_38_CALLEES: &[usize] = &[0usize, 6usize, 35usize, 147usize];
 const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_39_CALLEES: &[u32] = &[0u32, 147u32, 32u32];
+const FN_39_CALLEES: &[usize] = &[0usize, 147usize, 32usize];
 const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_40_CALLEES: &[u32] = &[0u32, 147u32, 33u32];
+const FN_40_CALLEES: &[usize] = &[0usize, 147usize, 33usize];
 const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 147u32];
+const FN_41_CALLEES: &[usize] = &[0usize, 10usize, 36usize, 147usize];
 const FN_42_GLOBALS: &[usize] = &[9usize];
-const FN_42_CALLEES: &[u32] = &[0u32, 8u32, 147u32];
+const FN_42_CALLEES: &[usize] = &[0usize, 8usize, 147usize];
 const FN_43_GLOBALS: &[usize] = &[9usize];
-const FN_43_CALLEES: &[u32] = &[0u32, 1u32, 147u32];
+const FN_43_CALLEES: &[usize] = &[0usize, 1usize, 147usize];
 const FN_44_GLOBALS: &[usize] = &[9usize];
-const FN_44_CALLEES: &[u32] = &[0u32, 9u32, 147u32];
+const FN_44_CALLEES: &[usize] = &[0usize, 9usize, 147usize];
 const FN_45_GLOBALS: &[usize] = &[9usize];
-const FN_45_CALLEES: &[u32] = &[0u32, 147u32];
+const FN_45_CALLEES: &[usize] = &[0usize, 147usize];
 const FN_46_GLOBALS: &[usize] = &[9usize];
-const FN_46_CALLEES: &[u32] = &[0u32, 10u32, 147u32];
+const FN_46_CALLEES: &[usize] = &[0usize, 10usize, 147usize];
 const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
-const FN_47_CALLEES: &[u32] = &[0u32, 140u32, 147u32, 13u32, 148u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 143u32];
-const FN_48_CALLEES: &[u32] = &[0u32];
-const FN_49_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_50_CALLEES: &[u32] = &[0u32, 1u32, 142u32, 0u32, 147u32];
-const FN_51_CALLEES: &[u32] = &[0u32, 0u32, 142u32, 1u32, 147u32];
-const FN_52_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_53_CALLEES: &[u32] = &[0u32, 0u32, 147u32];
-const FN_54_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_55_CALLEES: &[u32] = &[0u32, 0u32, 142u32];
-const FN_56_CALLEES: &[u32] = &[0u32, 1u32, 147u32, 142u32];
+const FN_47_CALLEES: &[usize] = &[0usize, 140usize, 147usize, 13usize, 148usize, 0usize, 32usize, 2usize, 10usize, 36usize, 37usize, 143usize];
+const FN_48_CALLEES: &[usize] = &[0usize];
+const FN_49_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_50_CALLEES: &[usize] = &[0usize, 1usize, 142usize, 0usize, 147usize];
+const FN_51_CALLEES: &[usize] = &[0usize, 0usize, 142usize, 1usize, 147usize];
+const FN_52_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_53_CALLEES: &[usize] = &[0usize, 0usize, 147usize];
+const FN_54_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_55_CALLEES: &[usize] = &[0usize, 0usize, 142usize];
+const FN_56_CALLEES: &[usize] = &[0usize, 1usize, 147usize, 142usize];
 const FN_57_GLOBALS: &[usize] = &[14usize];
-const FN_57_CALLEES: &[u32] = &[0u32, 21u32, 24u32, 36u32];
-const FN_58_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_59_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_60_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_61_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_62_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_63_CALLEES: &[u32] = &[0u32, 68u32];
+const FN_57_CALLEES: &[usize] = &[0usize, 21usize, 24usize, 36usize];
+const FN_58_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_59_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_60_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_61_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_62_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_63_CALLEES: &[usize] = &[0usize, 68usize];
 const FN_64_GLOBALS: &[usize] = &[19usize, 16usize, 17usize];
-const FN_64_CALLEES: &[u32] = &[0u32, 144u32];
+const FN_64_CALLEES: &[usize] = &[0usize, 144usize];
 const FN_65_GLOBALS: &[usize] = &[19usize];
-const FN_65_CALLEES: &[u32] = &[0u32, 144u32, 12u32, 6u32, 35u32, 21u32, 1u32, 12u32];
+const FN_65_CALLEES: &[usize] = &[0usize, 144usize, 12usize, 6usize, 35usize, 21usize, 1usize, 12usize];
 const FN_66_GLOBALS: &[usize] = &[16usize];
-const FN_66_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_67_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_68_CALLEES: &[u32] = &[0u32, 24u32, 1u32];
-const FN_69_CALLEES: &[u32] = &[0u32, 24u32, 2u32];
-const FN_70_CALLEES: &[u32] = &[0u32, 61u32];
-const FN_71_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_72_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_73_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_74_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_75_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_76_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_77_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_78_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_79_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_80_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_81_CALLEES: &[u32] = &[0u32];
-const FN_82_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_83_CALLEES: &[u32] = &[0u32];
-const FN_84_CALLEES: &[u32] = &[0u32, 62u32];
-const FN_85_CALLEES: &[u32] = &[0u32, 63u32];
-const FN_86_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_87_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_88_CALLEES: &[u32] = &[0u32, 24u32, 5u32];
-const FN_89_CALLEES: &[u32] = &[0u32, 43u32, 67u32];
-const FN_90_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_91_CALLEES: &[u32] = &[0u32, 65u32];
-const FN_92_CALLEES: &[u32] = &[0u32, 66u32];
-const FN_93_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_94_CALLEES: &[u32] = &[0u32, 67u32];
+const FN_66_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_67_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_68_CALLEES: &[usize] = &[0usize, 24usize, 1usize];
+const FN_69_CALLEES: &[usize] = &[0usize, 24usize, 2usize];
+const FN_70_CALLEES: &[usize] = &[0usize, 61usize];
+const FN_71_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_72_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_73_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_74_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_75_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_76_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_77_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_78_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_79_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_80_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_81_CALLEES: &[usize] = &[0usize];
+const FN_82_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_83_CALLEES: &[usize] = &[0usize];
+const FN_84_CALLEES: &[usize] = &[0usize, 62usize];
+const FN_85_CALLEES: &[usize] = &[0usize, 63usize];
+const FN_86_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_87_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_88_CALLEES: &[usize] = &[0usize, 24usize, 5usize];
+const FN_89_CALLEES: &[usize] = &[0usize, 43usize, 67usize];
+const FN_90_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_91_CALLEES: &[usize] = &[0usize, 65usize];
+const FN_92_CALLEES: &[usize] = &[0usize, 66usize];
+const FN_93_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_94_CALLEES: &[usize] = &[0usize, 67usize];
 const FN_95_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_95_CALLEES: &[u32] = &[0u32, 42u32, 68u32, 147u32];
+const FN_95_CALLEES: &[usize] = &[0usize, 42usize, 68usize, 147usize];
 const FN_96_GLOBALS: &[usize] = &[19usize, 1usize, 16usize, 17usize, 9usize];
-const FN_96_CALLEES: &[u32] = &[0u32, 144u32, 147u32, 12u32, 31u32, 20u32, 21u32, 33u32];
+const FN_96_CALLEES: &[usize] = &[0usize, 144usize, 147usize, 12usize, 31usize, 20usize, 21usize, 33usize];
 const FN_97_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_97_CALLEES: &[u32] = &[0u32, 20u32, 147u32];
-const FN_98_CALLEES: &[u32] = &[0u32, 67u32, 21u32, 147u32, 68u32, 70u32];
+const FN_97_CALLEES: &[usize] = &[0usize, 20usize, 147usize];
+const FN_98_CALLEES: &[usize] = &[0usize, 67usize, 21usize, 147usize, 68usize, 70usize];
 const FN_99_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_99_CALLEES: &[u32] = &[0u32, 44u32, 69u32, 147u32];
+const FN_99_CALLEES: &[usize] = &[0usize, 44usize, 69usize, 147usize];
 const FN_100_GLOBALS: &[usize] = &[16usize, 19usize, 9usize];
-const FN_100_CALLEES: &[u32] = &[0u32, 144u32, 147u32, 33u32];
+const FN_100_CALLEES: &[usize] = &[0usize, 144usize, 147usize, 33usize];
 const FN_101_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_101_CALLEES: &[u32] = &[0u32, 147u32, 24u32, 32u32, 20u32];
+const FN_101_CALLEES: &[usize] = &[0usize, 147usize, 24usize, 32usize, 20usize];
 const FN_102_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_102_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 142u32, 1u32, 2u32];
+const FN_102_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 142usize, 1usize, 2usize];
 const FN_103_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_103_CALLEES: &[u32] = &[0u32, 45u32, 70u32, 147u32];
+const FN_103_CALLEES: &[usize] = &[0usize, 45usize, 70usize, 147usize];
 const FN_104_GLOBALS: &[usize] = &[9usize];
-const FN_104_CALLEES: &[u32] = &[0u32, 28u32, 147u32, 11u32];
+const FN_104_CALLEES: &[usize] = &[0usize, 28usize, 147usize, 11usize];
 const FN_105_GLOBALS: &[usize] = &[9usize];
-const FN_105_CALLEES: &[u32] = &[0u32, 147u32];
+const FN_105_CALLEES: &[usize] = &[0usize, 147usize];
 const FN_106_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_106_CALLEES: &[u32] = &[0u32, 21u32, 147u32, 24u32];
+const FN_106_CALLEES: &[usize] = &[0usize, 21usize, 147usize, 24usize];
 const FN_107_GLOBALS: &[usize] = &[9usize];
-const FN_107_CALLEES: &[u32] = &[0u32, 9u32, 147u32];
+const FN_107_CALLEES: &[usize] = &[0usize, 9usize, 147usize];
 const FN_108_GLOBALS: &[usize] = &[9usize];
-const FN_108_CALLEES: &[u32] = &[0u32, 147u32];
+const FN_108_CALLEES: &[usize] = &[0usize, 147usize];
 const FN_109_GLOBALS: &[usize] = &[9usize];
-const FN_109_CALLEES: &[u32] = &[0u32, 10u32, 147u32];
+const FN_109_CALLEES: &[usize] = &[0usize, 10usize, 147usize];
 const FN_110_GLOBALS: &[usize] = &[19usize, 1usize, 16usize, 17usize];
-const FN_110_CALLEES: &[u32] = &[0u32, 144u32, 147u32, 12u32, 31u32, 20u32, 21u32, 33u32];
-const FN_111_CALLEES: &[u32] = &[0u32, 24u32, 34u32, 20u32];
-const FN_112_CALLEES: &[u32] = &[0u32, 24u32, 35u32, 20u32];
+const FN_110_CALLEES: &[usize] = &[0usize, 144usize, 147usize, 12usize, 31usize, 20usize, 21usize, 33usize];
+const FN_111_CALLEES: &[usize] = &[0usize, 24usize, 34usize, 20usize];
+const FN_112_CALLEES: &[usize] = &[0usize, 24usize, 35usize, 20usize];
 const FN_113_GLOBALS: &[usize] = &[19usize];
-const FN_113_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_114_CALLEES: &[u32] = &[0u32, 24u32, 36u32, 20u32];
-const FN_115_CALLEES: &[u32] = &[0u32, 147u32];
+const FN_113_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_114_CALLEES: &[usize] = &[0usize, 24usize, 36usize, 20usize];
+const FN_115_CALLEES: &[usize] = &[0usize, 147usize];
 const FN_116_GLOBALS: &[usize] = &[22usize];
-const FN_116_CALLEES: &[u32] = &[0u32, 96u32, 85u32, 95u32, 97u32];
-const FN_117_CALLEES: &[u32] = &[0u32];
-const FN_118_CALLEES: &[u32] = &[0u32, 41u32];
-const FN_119_CALLEES: &[u32] = &[0u32];
-const FN_120_CALLEES: &[u32] = &[0u32];
-const FN_121_CALLEES: &[u32] = &[0u32];
-const FN_122_CALLEES: &[u32] = &[0u32, 95u32, 149u32];
-const FN_123_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_124_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_116_CALLEES: &[usize] = &[0usize, 96usize, 85usize, 95usize, 97usize];
+const FN_117_CALLEES: &[usize] = &[0usize];
+const FN_118_CALLEES: &[usize] = &[0usize, 41usize];
+const FN_119_CALLEES: &[usize] = &[0usize];
+const FN_120_CALLEES: &[usize] = &[0usize];
+const FN_121_CALLEES: &[usize] = &[0usize];
+const FN_122_CALLEES: &[usize] = &[0usize, 95usize, 149usize];
+const FN_123_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_124_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_125_GLOBALS: &[usize] = &[22usize];
-const FN_125_CALLEES: &[u32] = &[0u32, 9u32, 0u32, 147u32];
+const FN_125_CALLEES: &[usize] = &[0usize, 9usize, 0usize, 147usize];
 const FN_126_GLOBALS: &[usize] = &[22usize];
-const FN_126_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_127_CALLEES: &[u32] = &[0u32, 36u32];
-const FN_128_CALLEES: &[u32] = &[0u32, 9u32, 0u32, 147u32, 85u32];
-const FN_129_CALLEES: &[u32] = &[0u32, 12u32, 38u32, 21u32, 85u32];
-const FN_130_CALLEES: &[u32] = &[0u32, 4u32, 85u32, 0u32];
-const FN_131_CALLEES: &[u32] = &[0u32, 5u32];
-const FN_132_CALLEES: &[u32] = &[0u32, 100u32, 85u32];
-const FN_133_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_134_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_135_CALLEES: &[u32] = &[0u32, 1u32, 12u32, 19u32, 1u32, 9u32, 0u32, 0u32, 1u32, 150u32, 85u32];
-const FN_136_CALLEES: &[u32] = &[0u32];
-const FN_137_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_138_CALLEES: &[u32] = &[0u32, 76u32];
+const FN_126_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_127_CALLEES: &[usize] = &[0usize, 36usize];
+const FN_128_CALLEES: &[usize] = &[0usize, 9usize, 0usize, 147usize, 85usize];
+const FN_129_CALLEES: &[usize] = &[0usize, 12usize, 38usize, 21usize, 85usize];
+const FN_130_CALLEES: &[usize] = &[0usize, 4usize, 85usize, 0usize];
+const FN_131_CALLEES: &[usize] = &[0usize, 5usize];
+const FN_132_CALLEES: &[usize] = &[0usize, 100usize, 85usize];
+const FN_133_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_134_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_135_CALLEES: &[usize] = &[0usize, 1usize, 12usize, 19usize, 1usize, 9usize, 0usize, 0usize, 1usize, 150usize, 85usize];
+const FN_136_CALLEES: &[usize] = &[0usize];
+const FN_137_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_138_CALLEES: &[usize] = &[0usize, 76usize];
 const FN_139_GLOBALS: &[usize] = &[22usize];
-const FN_139_CALLEES: &[u32] = &[0u32, 50u32, 147u32];
-const FN_140_CALLEES: &[u32] = &[0u32, 93u32];
-const FN_141_CALLEES: &[u32] = &[0u32, 98u32, 85u32];
-const FN_142_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_139_CALLEES: &[usize] = &[0usize, 50usize, 147usize];
+const FN_140_CALLEES: &[usize] = &[0usize, 93usize];
+const FN_141_CALLEES: &[usize] = &[0usize, 98usize, 85usize];
+const FN_142_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_143_GLOBALS: &[usize] = &[22usize];
-const FN_143_CALLEES: &[u32] = &[0u32, 41u32, 147u32];
-const FN_144_CALLEES: &[u32] = &[0u32, 94u32];
-const FN_145_CALLEES: &[u32] = &[0u32, 42u32, 71u32];
-const FN_146_CALLEES: &[u32] = &[0u32, 94u32];
+const FN_143_CALLEES: &[usize] = &[0usize, 41usize, 147usize];
+const FN_144_CALLEES: &[usize] = &[0usize, 94usize];
+const FN_145_CALLEES: &[usize] = &[0usize, 42usize, 71usize];
+const FN_146_CALLEES: &[usize] = &[0usize, 94usize];
 const FN_147_GLOBALS: &[usize] = &[22usize, 1usize];
-const FN_147_CALLEES: &[u32] = &[0u32, 41u32, 147u32, 100u32, 85u32];
-const FN_148_CALLEES: &[u32] = &[0u32, 94u32, 34u32, 71u32, 147u32];
+const FN_147_CALLEES: &[usize] = &[0usize, 41usize, 147usize, 100usize, 85usize];
+const FN_148_CALLEES: &[usize] = &[0usize, 94usize, 34usize, 71usize, 147usize];
 const FN_149_GLOBALS: &[usize] = &[19usize, 9usize, 16usize];
-const FN_149_CALLEES: &[u32] = &[0u32, 51u32, 147u32, 1u32, 140u32, 25u32, 26u32];
+const FN_149_CALLEES: &[usize] = &[0usize, 51usize, 147usize, 1usize, 140usize, 25usize, 26usize];
 const FN_150_GLOBALS: &[usize] = &[9usize];
-const FN_150_CALLEES: &[u32] = &[0u32, 43u32, 147u32, 27u32];
+const FN_150_CALLEES: &[usize] = &[0usize, 43usize, 147usize, 27usize];
 const FN_151_GLOBALS: &[usize] = &[9usize];
-const FN_151_CALLEES: &[u32] = &[0u32, 43u32, 147u32, 28u32];
+const FN_151_CALLEES: &[usize] = &[0usize, 43usize, 147usize, 28usize];
 const FN_152_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_152_CALLEES: &[u32] = &[0u32, 147u32, 51u32];
+const FN_152_CALLEES: &[usize] = &[0usize, 147usize, 51usize];
 const FN_153_GLOBALS: &[usize] = &[9usize];
-const FN_153_CALLEES: &[u32] = &[0u32, 46u32, 147u32, 9u32];
+const FN_153_CALLEES: &[usize] = &[0usize, 46usize, 147usize, 9usize];
 const FN_154_GLOBALS: &[usize] = &[9usize];
-const FN_154_CALLEES: &[u32] = &[0u32, 46u32, 147u32, 10u32];
+const FN_154_CALLEES: &[usize] = &[0usize, 46usize, 147usize, 10usize];
 const FN_155_GLOBALS: &[usize] = &[9usize];
-const FN_155_CALLEES: &[u32] = &[0u32, 46u32, 147u32, 11u32];
+const FN_155_CALLEES: &[usize] = &[0usize, 46usize, 147usize, 11usize];
 const FN_156_GLOBALS: &[usize] = &[22usize, 1usize];
-const FN_156_CALLEES: &[u32] = &[0u32, 41u32, 147u32, 100u32, 85u32];
-const FN_157_CALLEES: &[u32] = &[0u32, 2u32, 20u32, 6u32];
+const FN_156_CALLEES: &[usize] = &[0usize, 41usize, 147usize, 100usize, 85usize];
+const FN_157_CALLEES: &[usize] = &[0usize, 2usize, 20usize, 6usize];
 const FN_158_GLOBALS: &[usize] = &[14usize];
-const FN_158_CALLEES: &[u32] = &[0u32, 147u32, 20u32, 1u32, 1u32];
-const FN_159_CALLEES: &[u32] = &[0u32, 2u32, 20u32];
-const FN_160_CALLEES: &[u32] = &[0u32, 1u32, 12u32, 20u32, 9u32, 1u32, 0u32, 150u32];
-const FN_161_CALLEES: &[u32] = &[0u32, 12u32, 20u32, 1u32, 2u32, 9u32, 1u32, 150u32, 50u32];
-const FN_162_CALLEES: &[u32] = &[0u32, 147u32, 1u32, 21u32, 20u32, 19u32, 0u32, 9u32, 0u32, 0u32, 150u32, 50u32];
-const FN_163_CALLEES: &[u32] = &[0u32, 19u32, 2u32, 20u32];
-const FN_164_CALLEES: &[u32] = &[0u32, 95u32, 147u32, 20u32, 21u32, 2u32, 1u32, 9u32, 0u32, 150u32, 50u32, 1u32, 142u32, 0u32, 0u32, 147u32, 19u32, 148u32, 99u32];
-const FN_165_CALLEES: &[u32] = &[0u32, 58u32];
-const FN_166_CALLEES: &[u32] = &[0u32, 1u32, 147u32];
+const FN_158_CALLEES: &[usize] = &[0usize, 147usize, 20usize, 1usize, 1usize];
+const FN_159_CALLEES: &[usize] = &[0usize, 2usize, 20usize];
+const FN_160_CALLEES: &[usize] = &[0usize, 1usize, 12usize, 20usize, 9usize, 1usize, 0usize, 150usize];
+const FN_161_CALLEES: &[usize] = &[0usize, 12usize, 20usize, 1usize, 2usize, 9usize, 1usize, 150usize, 50usize];
+const FN_162_CALLEES: &[usize] = &[0usize, 147usize, 1usize, 21usize, 20usize, 19usize, 0usize, 9usize, 0usize, 0usize, 150usize, 50usize];
+const FN_163_CALLEES: &[usize] = &[0usize, 19usize, 2usize, 20usize];
+const FN_164_CALLEES: &[usize] = &[0usize, 95usize, 147usize, 20usize, 21usize, 2usize, 1usize, 9usize, 0usize, 150usize, 50usize, 1usize, 142usize, 0usize, 0usize, 147usize, 19usize, 148usize, 99usize];
+const FN_165_CALLEES: &[usize] = &[0usize, 58usize];
+const FN_166_CALLEES: &[usize] = &[0usize, 1usize, 147usize];
 const FN_167_GLOBALS: &[usize] = &[23usize];
-const FN_167_CALLEES: &[u32] = &[0u32, 56u32, 2u32, 9u32];
-const FN_168_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_169_CALLEES: &[u32] = &[0u32];
-const FN_170_CALLEES: &[u32] = &[0u32];
-const FN_171_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_172_CALLEES: &[u32] = &[0u32, 1u32, 147u32];
+const FN_167_CALLEES: &[usize] = &[0usize, 56usize, 2usize, 9usize];
+const FN_168_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_169_CALLEES: &[usize] = &[0usize];
+const FN_170_CALLEES: &[usize] = &[0usize];
+const FN_171_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_172_CALLEES: &[usize] = &[0usize, 1usize, 147usize];
 const FN_173_GLOBALS: &[usize] = &[23usize];
-const FN_173_CALLEES: &[u32] = &[0u32, 57u32, 2u32, 9u32];
-const FN_174_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_175_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_176_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 22u32, 149u32, 147u32, 2u32, 150u32, 151u32, 152u32, 1u32, 0u32, 150u32];
-const FN_177_CALLEES: &[u32] = &[0u32, 3u32, 147u32, 22u32, 149u32, 1u32, 153u32, 152u32, 154u32, 0u32, 32u32, 2u32, 155u32, 141u32, 13u32, 55u32, 1u32];
+const FN_173_CALLEES: &[usize] = &[0usize, 57usize, 2usize, 9usize];
+const FN_174_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_175_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_176_CALLEES: &[usize] = &[0usize, 0usize, 13usize, 22usize, 149usize, 147usize, 2usize, 150usize, 151usize, 152usize, 1usize, 0usize, 150usize];
+const FN_177_CALLEES: &[usize] = &[0usize, 3usize, 147usize, 22usize, 149usize, 1usize, 153usize, 152usize, 154usize, 0usize, 32usize, 2usize, 155usize, 141usize, 13usize, 55usize, 1usize];
 const FN_178_GLOBALS: &[usize] = &[14usize];
-const FN_178_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 147u32, 32u32, 0u32, 2u32];
-const FN_179_CALLEES: &[u32] = &[0u32, 7u32, 10u32, 3u32, 0u32, 0u32, 150u32];
-const FN_180_CALLEES: &[u32] = &[0u32, 1u32, 7u32, 0u32, 150u32];
-const FN_181_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_182_CALLEES: &[u32] = &[0u32, 60u32, 1u32, 142u32, 141u32, 1u32];
-const FN_183_CALLEES: &[u32] = &[0u32, 3u32, 147u32, 23u32, 59u32, 1u32];
-const FN_184_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 147u32, 1u32, 5u32, 63u32, 7u32, 150u32, 142u32, 151u32, 156u32, 154u32, 3u32];
-const FN_185_CALLEES: &[u32] = &[0u32, 1u32, 3u32, 147u32, 23u32, 59u32, 13u32, 150u32, 2u32];
-const FN_186_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 147u32, 7u32, 1u32, 150u32, 10u32, 3u32];
-const FN_187_CALLEES: &[u32] = &[0u32, 1u32, 147u32, 23u32, 59u32, 56u32, 54u32, 7u32, 150u32, 142u32, 151u32, 3u32];
-const FN_188_CALLEES: &[u32] = &[0u32, 23u32, 66u32, 1u32];
-const FN_189_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 1u32];
-const FN_190_CALLEES: &[u32] = &[0u32, 59u32, 58u32, 147u32];
-const FN_191_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 13u32, 58u32, 2u32, 6u32, 4u32, 22u32, 154u32, 141u32, 156u32, 2u32, 150u32];
-const FN_192_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_193_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 58u32, 2u32, 59u32, 150u32];
-const FN_194_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 58u32, 2u32, 22u32, 61u32, 59u32, 56u32, 150u32];
-const FN_195_CALLEES: &[u32] = &[0u32, 67u32, 58u32, 147u32];
+const FN_178_CALLEES: &[usize] = &[0usize, 1usize, 10usize, 147usize, 32usize, 0usize, 2usize];
+const FN_179_CALLEES: &[usize] = &[0usize, 7usize, 10usize, 3usize, 0usize, 0usize, 150usize];
+const FN_180_CALLEES: &[usize] = &[0usize, 1usize, 7usize, 0usize, 150usize];
+const FN_181_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_182_CALLEES: &[usize] = &[0usize, 60usize, 1usize, 142usize, 141usize, 1usize];
+const FN_183_CALLEES: &[usize] = &[0usize, 3usize, 147usize, 23usize, 59usize, 1usize];
+const FN_184_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 147usize, 1usize, 5usize, 63usize, 7usize, 150usize, 142usize, 151usize, 156usize, 154usize, 3usize];
+const FN_185_CALLEES: &[usize] = &[0usize, 1usize, 3usize, 147usize, 23usize, 59usize, 13usize, 150usize, 2usize];
+const FN_186_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 147usize, 7usize, 1usize, 150usize, 10usize, 3usize];
+const FN_187_CALLEES: &[usize] = &[0usize, 1usize, 147usize, 23usize, 59usize, 56usize, 54usize, 7usize, 150usize, 142usize, 151usize, 3usize];
+const FN_188_CALLEES: &[usize] = &[0usize, 23usize, 66usize, 1usize];
+const FN_189_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 1usize];
+const FN_190_CALLEES: &[usize] = &[0usize, 59usize, 58usize, 147usize];
+const FN_191_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 13usize, 58usize, 2usize, 6usize, 4usize, 22usize, 154usize, 141usize, 156usize, 2usize, 150usize];
+const FN_192_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_193_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 58usize, 2usize, 59usize, 150usize];
+const FN_194_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 58usize, 2usize, 22usize, 61usize, 59usize, 56usize, 150usize];
+const FN_195_CALLEES: &[usize] = &[0usize, 67usize, 58usize, 147usize];
 const FN_196_GLOBALS: &[usize] = &[14usize];
-const FN_196_CALLEES: &[u32] = &[0u32, 140u32, 58u32, 53u32, 147u32, 13u32, 2u32, 12u32, 9u32, 141u32, 1u32, 33u32, 2u32, 19u32, 150u32];
-const FN_197_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_198_CALLEES: &[u32] = &[0u32, 147u32, 7u32, 157u32, 7u32, 22u32, 5u32, 0u32, 150u32];
-const FN_199_CALLEES: &[u32] = &[0u32, 10u32, 3u32, 155u32, 0u32, 142u32, 141u32, 60u32, 1u32, 33u32, 151u32, 156u32];
-const FN_200_CALLEES: &[u32] = &[0u32, 22u32, 149u32, 153u32, 152u32, 154u32];
-const FN_201_CALLEES: &[u32] = &[0u32, 55u32];
-const FN_202_CALLEES: &[u32] = &[0u32, 147u32, 13u32, 23u32, 2u32, 1u32, 150u32, 2u32, 8u32, 158u32];
-const FN_203_CALLEES: &[u32] = &[0u32, 147u32, 2u32, 0u32, 1u32, 13u32, 4u32, 23u32, 150u32];
-const FN_204_CALLEES: &[u32] = &[0u32, 23u32, 147u32, 3u32];
-const FN_205_CALLEES: &[u32] = &[0u32, 8u32, 147u32];
-const FN_206_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_207_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 1u32, 1u32, 8u32];
-const FN_208_CALLEES: &[u32] = &[0u32, 77u32];
-const FN_209_CALLEES: &[u32] = &[0u32, 79u32, 13u32, 2u32, 1u32, 2u32, 150u32, 1u32, 8u32, 160u32, 147u32];
-const FN_210_CALLEES: &[u32] = &[0u32, 104u32];
-const FN_211_CALLEES: &[u32] = &[0u32, 152u32];
+const FN_196_CALLEES: &[usize] = &[0usize, 140usize, 58usize, 53usize, 147usize, 13usize, 2usize, 12usize, 9usize, 141usize, 1usize, 33usize, 2usize, 19usize, 150usize];
+const FN_197_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_198_CALLEES: &[usize] = &[0usize, 147usize, 7usize, 157usize, 7usize, 22usize, 5usize, 0usize, 150usize];
+const FN_199_CALLEES: &[usize] = &[0usize, 10usize, 3usize, 155usize, 0usize, 142usize, 141usize, 60usize, 1usize, 33usize, 151usize, 156usize];
+const FN_200_CALLEES: &[usize] = &[0usize, 22usize, 149usize, 153usize, 152usize, 154usize];
+const FN_201_CALLEES: &[usize] = &[0usize, 55usize];
+const FN_202_CALLEES: &[usize] = &[0usize, 147usize, 13usize, 23usize, 2usize, 1usize, 150usize, 2usize, 8usize, 158usize];
+const FN_203_CALLEES: &[usize] = &[0usize, 147usize, 2usize, 0usize, 1usize, 13usize, 4usize, 23usize, 150usize];
+const FN_204_CALLEES: &[usize] = &[0usize, 23usize, 147usize, 3usize];
+const FN_205_CALLEES: &[usize] = &[0usize, 8usize, 147usize];
+const FN_206_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_207_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 1usize, 1usize, 8usize];
+const FN_208_CALLEES: &[usize] = &[0usize, 77usize];
+const FN_209_CALLEES: &[usize] = &[0usize, 79usize, 13usize, 2usize, 1usize, 2usize, 150usize, 1usize, 8usize, 160usize, 147usize];
+const FN_210_CALLEES: &[usize] = &[0usize, 104usize];
+const FN_211_CALLEES: &[usize] = &[0usize, 152usize];
 const FN_212_GLOBALS: &[usize] = &[3usize];
-const FN_212_CALLEES: &[u32] = &[0u32, 64u32, 152u32, 62u32, 147u32];
-const FN_213_CALLEES: &[u32] = &[0u32, 13u32, 59u32, 58u32, 2u32, 150u32];
+const FN_212_CALLEES: &[usize] = &[0usize, 64usize, 152usize, 62usize, 147usize];
+const FN_213_CALLEES: &[usize] = &[0usize, 13usize, 59usize, 58usize, 2usize, 150usize];
 const FN_214_GLOBALS: &[usize] = &[3usize];
-const FN_214_CALLEES: &[u32] = &[0u32, 13u32, 23u32, 59u32, 1u32, 147u32, 2u32, 150u32];
-const FN_215_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_216_CALLEES: &[u32] = &[0u32, 1u32, 23u32, 59u32, 78u32, 2u32, 0u32, 0u32, 1u32, 147u32];
-const FN_217_CALLEES: &[u32] = &[0u32, 13u32, 23u32, 59u32, 1u32, 8u32, 2u32, 8u32, 147u32, 150u32];
-const FN_218_CALLEES: &[u32] = &[0u32, 23u32, 1u32, 13u32, 4u32, 150u32];
-const FN_219_CALLEES: &[u32] = &[0u32, 72u32, 147u32, 12u32, 9u32, 30u32];
-const FN_220_CALLEES: &[u32] = &[0u32, 80u32, 147u32];
-const FN_221_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 24u32, 71u32];
-const FN_222_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 147u32];
-const FN_223_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 24u32, 71u32];
-const FN_224_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 71u32];
-const FN_225_CALLEES: &[u32] = &[0u32, 72u32, 147u32, 12u32];
-const FN_226_CALLEES: &[u32] = &[0u32, 80u32, 147u32];
-const FN_227_CALLEES: &[u32] = &[0u32, 80u32, 147u32];
-const FN_228_CALLEES: &[u32] = &[0u32, 80u32, 147u32];
-const FN_229_CALLEES: &[u32] = &[0u32];
-const FN_230_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_231_CALLEES: &[u32] = &[0u32];
-const FN_232_CALLEES: &[u32] = &[0u32, 62u32, 147u32];
-const FN_233_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_234_CALLEES: &[u32] = &[0u32, 80u32, 147u32, 101u32, 161u32, 3u32, 100u32, 76u32];
-const FN_235_CALLEES: &[u32] = &[0u32, 77u32, 147u32, 102u32];
-const FN_236_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 100u32, 161u32, 76u32];
-const FN_237_CALLEES: &[u32] = &[0u32, 77u32, 147u32, 103u32];
-const FN_238_CALLEES: &[u32] = &[0u32, 147u32, 7u32, 72u32, 13u32, 11u32, 30u32, 27u32, 24u32];
-const FN_239_CALLEES: &[u32] = &[0u32, 147u32, 7u32, 72u32, 10u32, 12u32, 30u32, 9u32, 0u32, 9u32];
-const FN_240_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 23u32, 71u32, 2u32, 150u32];
-const FN_241_CALLEES: &[u32] = &[0u32, 147u32, 140u32, 71u32, 13u32, 11u32, 26u32, 24u32, 2u32, 25u32, 150u32, 99u32];
-const FN_242_CALLEES: &[u32] = &[0u32, 147u32, 71u32, 13u32, 3u32, 2u32, 150u32, 99u32];
-const FN_243_CALLEES: &[u32] = &[0u32, 7u32, 147u32, 72u32, 140u32, 9u32, 11u32, 9u32];
-const FN_244_CALLEES: &[u32] = &[0u32, 7u32, 147u32, 72u32, 140u32, 9u32, 11u32, 24u32, 71u32, 10u32, 3u32];
-const FN_245_CALLEES: &[u32] = &[0u32, 150u32, 151u32, 153u32];
-const FN_246_CALLEES: &[u32] = &[0u32];
-const FN_247_CALLEES: &[u32] = &[0u32];
-const FN_248_CALLEES: &[u32] = &[0u32];
-const FN_249_CALLEES: &[u32] = &[0u32];
-const FN_250_CALLEES: &[u32] = &[0u32];
-const FN_251_CALLEES: &[u32] = &[0u32];
-const FN_252_CALLEES: &[u32] = &[0u32, 92u32, 134u32, 90u32];
+const FN_214_CALLEES: &[usize] = &[0usize, 13usize, 23usize, 59usize, 1usize, 147usize, 2usize, 150usize];
+const FN_215_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_216_CALLEES: &[usize] = &[0usize, 1usize, 23usize, 59usize, 78usize, 2usize, 0usize, 0usize, 1usize, 147usize];
+const FN_217_CALLEES: &[usize] = &[0usize, 13usize, 23usize, 59usize, 1usize, 8usize, 2usize, 8usize, 147usize, 150usize];
+const FN_218_CALLEES: &[usize] = &[0usize, 23usize, 1usize, 13usize, 4usize, 150usize];
+const FN_219_CALLEES: &[usize] = &[0usize, 72usize, 147usize, 12usize, 9usize, 30usize];
+const FN_220_CALLEES: &[usize] = &[0usize, 80usize, 147usize];
+const FN_221_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 24usize, 71usize];
+const FN_222_CALLEES: &[usize] = &[0usize, 46usize, 71usize, 147usize];
+const FN_223_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 24usize, 71usize];
+const FN_224_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 71usize];
+const FN_225_CALLEES: &[usize] = &[0usize, 72usize, 147usize, 12usize];
+const FN_226_CALLEES: &[usize] = &[0usize, 80usize, 147usize];
+const FN_227_CALLEES: &[usize] = &[0usize, 80usize, 147usize];
+const FN_228_CALLEES: &[usize] = &[0usize, 80usize, 147usize];
+const FN_229_CALLEES: &[usize] = &[0usize];
+const FN_230_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_231_CALLEES: &[usize] = &[0usize];
+const FN_232_CALLEES: &[usize] = &[0usize, 62usize, 147usize];
+const FN_233_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_234_CALLEES: &[usize] = &[0usize, 80usize, 147usize, 101usize, 161usize, 3usize, 100usize, 76usize];
+const FN_235_CALLEES: &[usize] = &[0usize, 77usize, 147usize, 102usize];
+const FN_236_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 100usize, 161usize, 76usize];
+const FN_237_CALLEES: &[usize] = &[0usize, 77usize, 147usize, 103usize];
+const FN_238_CALLEES: &[usize] = &[0usize, 147usize, 7usize, 72usize, 13usize, 11usize, 30usize, 27usize, 24usize];
+const FN_239_CALLEES: &[usize] = &[0usize, 147usize, 7usize, 72usize, 10usize, 12usize, 30usize, 9usize, 0usize, 9usize];
+const FN_240_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 23usize, 71usize, 2usize, 150usize];
+const FN_241_CALLEES: &[usize] = &[0usize, 147usize, 140usize, 71usize, 13usize, 11usize, 26usize, 24usize, 2usize, 25usize, 150usize, 99usize];
+const FN_242_CALLEES: &[usize] = &[0usize, 147usize, 71usize, 13usize, 3usize, 2usize, 150usize, 99usize];
+const FN_243_CALLEES: &[usize] = &[0usize, 7usize, 147usize, 72usize, 140usize, 9usize, 11usize, 9usize];
+const FN_244_CALLEES: &[usize] = &[0usize, 7usize, 147usize, 72usize, 140usize, 9usize, 11usize, 24usize, 71usize, 10usize, 3usize];
+const FN_245_CALLEES: &[usize] = &[0usize, 150usize, 151usize, 153usize];
+const FN_246_CALLEES: &[usize] = &[0usize];
+const FN_247_CALLEES: &[usize] = &[0usize];
+const FN_248_CALLEES: &[usize] = &[0usize];
+const FN_249_CALLEES: &[usize] = &[0usize];
+const FN_250_CALLEES: &[usize] = &[0usize];
+const FN_251_CALLEES: &[usize] = &[0usize];
+const FN_252_CALLEES: &[usize] = &[0usize, 92usize, 134usize, 90usize];
 const FN_253_GLOBALS: &[usize] = &[26usize];
-const FN_253_CALLEES: &[u32] = &[0u32, 147u32, 13u32, 2u32, 150u32];
-const FN_254_CALLEES: &[u32] = &[0u32, 23u32, 147u32];
-const FN_255_CALLEES: &[u32] = &[0u32, 22u32, 147u32];
-const FN_256_CALLEES: &[u32] = &[0u32, 13u32, 85u32, 2u32, 150u32];
-const FN_257_CALLEES: &[u32] = &[0u32, 109u32, 13u32, 147u32, 2u32, 159u32, 150u32];
-const FN_258_CALLEES: &[u32] = &[0u32, 147u32, 110u32];
-const FN_259_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32];
-const FN_260_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32];
-const FN_261_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_262_CALLEES: &[u32] = &[0u32, 111u32, 13u32, 4u32, 2u32, 150u32];
+const FN_253_CALLEES: &[usize] = &[0usize, 147usize, 13usize, 2usize, 150usize];
+const FN_254_CALLEES: &[usize] = &[0usize, 23usize, 147usize];
+const FN_255_CALLEES: &[usize] = &[0usize, 22usize, 147usize];
+const FN_256_CALLEES: &[usize] = &[0usize, 13usize, 85usize, 2usize, 150usize];
+const FN_257_CALLEES: &[usize] = &[0usize, 109usize, 13usize, 147usize, 2usize, 159usize, 150usize];
+const FN_258_CALLEES: &[usize] = &[0usize, 147usize, 110usize];
+const FN_259_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize];
+const FN_260_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize];
+const FN_261_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_262_CALLEES: &[usize] = &[0usize, 111usize, 13usize, 4usize, 2usize, 150usize];
 const FN_263_GLOBALS: &[usize] = &[27usize, 28usize];
-const FN_263_CALLEES: &[u32] = &[0u32, 10u32, 12u32];
+const FN_263_CALLEES: &[usize] = &[0usize, 10usize, 12usize];
 const FN_264_GLOBALS: &[usize] = &[25usize];
-const FN_264_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_265_CALLEES: &[u32] = &[0u32, 2u32, 8u32, 147u32];
-const FN_266_CALLEES: &[u32] = &[0u32, 7u32, 72u32, 147u32, 11u32, 11u32, 3u32, 150u32, 1u32, 153u32, 7u32, 137u32, 107u32];
-const FN_267_CALLEES: &[u32] = &[0u32, 147u32, 110u32, 0u32, 159u32, 3u32, 13u32, 2u32, 150u32];
+const FN_264_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_265_CALLEES: &[usize] = &[0usize, 2usize, 8usize, 147usize];
+const FN_266_CALLEES: &[usize] = &[0usize, 7usize, 72usize, 147usize, 11usize, 11usize, 3usize, 150usize, 1usize, 153usize, 7usize, 137usize, 107usize];
+const FN_267_CALLEES: &[usize] = &[0usize, 147usize, 110usize, 0usize, 159usize, 3usize, 13usize, 2usize, 150usize];
 const FN_268_GLOBALS: &[usize] = &[25usize];
-const FN_268_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
+const FN_268_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
 const FN_269_GLOBALS: &[usize] = &[24usize, 29usize];
-const FN_269_CALLEES: &[u32] = &[0u32, 59u32, 54u32, 72u32, 10u32];
+const FN_269_CALLEES: &[usize] = &[0usize, 59usize, 54usize, 72usize, 10usize];
 const FN_270_GLOBALS: &[usize] = &[25usize];
-const FN_270_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_271_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 110u32, 72u32, 113u32];
-const FN_272_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 147u32, 159u32, 2u32, 150u32];
-const FN_273_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32];
-const FN_274_CALLEES: &[u32] = &[0u32, 23u32, 147u32, 110u32];
-const FN_275_CALLEES: &[u32] = &[0u32, 23u32, 147u32, 13u32, 4u32, 2u32, 150u32, 1u32];
-const FN_276_CALLEES: &[u32] = &[0u32, 3u32, 2u32, 147u32, 64u32, 74u32, 162u32, 110u32, 62u32, 112u32, 0u32];
-const FN_277_CALLEES: &[u32] = &[0u32, 147u32, 113u32, 0u32, 159u32, 110u32, 72u32];
-const FN_278_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 71u32, 159u32, 150u32, 113u32, 0u32, 3u32, 110u32];
+const FN_270_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_271_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 110usize, 72usize, 113usize];
+const FN_272_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 147usize, 159usize, 2usize, 150usize];
+const FN_273_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize];
+const FN_274_CALLEES: &[usize] = &[0usize, 23usize, 147usize, 110usize];
+const FN_275_CALLEES: &[usize] = &[0usize, 23usize, 147usize, 13usize, 4usize, 2usize, 150usize, 1usize];
+const FN_276_CALLEES: &[usize] = &[0usize, 3usize, 2usize, 147usize, 64usize, 74usize, 162usize, 110usize, 62usize, 112usize, 0usize];
+const FN_277_CALLEES: &[usize] = &[0usize, 147usize, 113usize, 0usize, 159usize, 110usize, 72usize];
+const FN_278_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 71usize, 159usize, 150usize, 113usize, 0usize, 3usize, 110usize];
 const FN_279_GLOBALS: &[usize] = &[24usize, 25usize];
-const FN_279_CALLEES: &[u32] = &[0u32, 139u32, 147u32, 13u32, 0u32, 59u32, 2u32, 138u32, 72u32, 111u32, 114u32, 153u32, 117u32, 4u32, 104u32, 116u32, 144u32, 145u32, 150u32];
-const FN_280_CALLEES: &[u32] = &[0u32, 114u32, 152u32, 147u32, 2u32];
-const FN_281_CALLEES: &[u32] = &[0u32, 147u32, 13u32, 2u32, 4u32, 150u32, 113u32, 0u32, 159u32, 110u32, 72u32];
-const FN_282_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 1u32, 4u32, 150u32, 113u32, 0u32, 159u32, 110u32, 72u32, 13u32];
-const FN_283_CALLEES: &[u32] = &[0u32, 147u32, 71u32, 0u32];
-const FN_284_CALLEES: &[u32] = &[0u32, 0u32, 147u32];
-const FN_285_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 13u32, 71u32, 2u32, 150u32];
-const FN_286_CALLEES: &[u32] = &[0u32, 113u32, 114u32, 153u32, 147u32, 0u32, 159u32, 71u32, 0u32, 0u32];
-const FN_287_CALLEES: &[u32] = &[0u32, 159u32, 147u32, 72u32, 13u32, 2u32, 24u32, 71u32, 0u32, 140u32, 3u32, 117u32, 113u32, 115u32, 153u32, 0u32, 116u32];
-const FN_288_CALLEES: &[u32] = &[0u32, 13u32, 72u32, 2u32, 24u32, 147u32, 71u32, 0u32, 140u32, 3u32, 117u32, 113u32, 115u32, 153u32, 0u32, 116u32, 159u32, 150u32];
+const FN_279_CALLEES: &[usize] = &[0usize, 139usize, 147usize, 13usize, 0usize, 59usize, 2usize, 138usize, 72usize, 111usize, 114usize, 153usize, 117usize, 4usize, 104usize, 116usize, 144usize, 145usize, 150usize];
+const FN_280_CALLEES: &[usize] = &[0usize, 114usize, 152usize, 147usize, 2usize];
+const FN_281_CALLEES: &[usize] = &[0usize, 147usize, 13usize, 2usize, 4usize, 150usize, 113usize, 0usize, 159usize, 110usize, 72usize];
+const FN_282_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 1usize, 4usize, 150usize, 113usize, 0usize, 159usize, 110usize, 72usize, 13usize];
+const FN_283_CALLEES: &[usize] = &[0usize, 147usize, 71usize, 0usize];
+const FN_284_CALLEES: &[usize] = &[0usize, 0usize, 147usize];
+const FN_285_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 13usize, 71usize, 2usize, 150usize];
+const FN_286_CALLEES: &[usize] = &[0usize, 113usize, 114usize, 153usize, 147usize, 0usize, 159usize, 71usize, 0usize, 0usize];
+const FN_287_CALLEES: &[usize] = &[0usize, 159usize, 147usize, 72usize, 13usize, 2usize, 24usize, 71usize, 0usize, 140usize, 3usize, 117usize, 113usize, 115usize, 153usize, 0usize, 116usize];
+const FN_288_CALLEES: &[usize] = &[0usize, 13usize, 72usize, 2usize, 24usize, 147usize, 71usize, 0usize, 140usize, 3usize, 117usize, 113usize, 115usize, 153usize, 0usize, 116usize, 159usize, 150usize];
 const FN_289_GLOBALS: &[usize] = &[25usize];
-const FN_289_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 118u32];
+const FN_289_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 118usize];
 const FN_290_GLOBALS: &[usize] = &[25usize];
-const FN_290_CALLEES: &[u32] = &[0u32, 114u32, 0u32, 59u32];
+const FN_290_CALLEES: &[usize] = &[0usize, 114usize, 0usize, 59usize];
 const FN_291_GLOBALS: &[usize] = &[24usize];
-const FN_291_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_292_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 117u32, 72u32, 113u32, 114u32, 153u32, 140u32, 2u32, 121u32];
-const FN_293_CALLEES: &[u32] = &[0u32, 72u32, 111u32, 147u32, 112u32, 3u32, 117u32, 113u32, 135u32, 153u32, 141u32, 62u32, 110u32, 136u32, 2u32, 121u32, 120u32, 122u32, 0u32, 159u32];
-const FN_294_CALLEES: &[u32] = &[0u32, 147u32, 6u32];
+const FN_291_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_292_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 117usize, 72usize, 113usize, 114usize, 153usize, 140usize, 2usize, 121usize];
+const FN_293_CALLEES: &[usize] = &[0usize, 72usize, 111usize, 147usize, 112usize, 3usize, 117usize, 113usize, 135usize, 153usize, 141usize, 62usize, 110usize, 136usize, 2usize, 121usize, 120usize, 122usize, 0usize, 159usize];
+const FN_294_CALLEES: &[usize] = &[0usize, 147usize, 6usize];
 const FN_295_GLOBALS: &[usize] = &[25usize];
-const FN_295_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 8u32, 147u32];
+const FN_295_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 8usize, 147usize];
 const FN_296_GLOBALS: &[usize] = &[25usize, 24usize, 30usize, 27usize];
-const FN_296_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 105u32, 72u32, 111u32, 147u32, 110u32, 119u32, 142u32, 153u32, 112u32, 14u32, 4u32, 54u32, 106u32, 113u32, 114u32, 152u32, 2u32, 10u32, 13u32, 150u32];
-const FN_297_CALLEES: &[u32] = &[0u32, 135u32, 147u32, 0u32];
-const FN_298_CALLEES: &[u32] = &[0u32, 72u32, 147u32, 13u32, 11u32, 0u32, 113u32, 115u32, 153u32, 115u32, 3u32, 0u32, 159u32, 11u32];
-const FN_299_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 3u32, 123u32];
-const FN_300_CALLEES: &[u32] = &[0u32, 147u32, 71u32, 0u32];
-const FN_301_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 24u32, 147u32, 13u32, 1u32, 150u32];
-const FN_302_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 13u32, 72u32, 24u32, 140u32, 2u32, 71u32, 23u32, 113u32, 114u32, 153u32, 152u32, 0u32, 159u32, 150u32];
-const FN_303_CALLEES: &[u32] = &[0u32, 147u32, 118u32, 13u32, 14u32, 2u32, 0u32, 24u32, 140u32, 72u32, 150u32, 1u32, 121u32, 122u32, 123u32, 129u32, 153u32, 111u32, 4u32, 23u32];
-const FN_304_CALLEES: &[u32] = &[0u32, 7u32, 3u32, 23u32, 147u32, 5u32, 150u32];
-const FN_305_CALLEES: &[u32] = &[0u32, 13u32, 1u32, 153u32, 7u32, 147u32, 2u32, 150u32];
-const FN_306_CALLEES: &[u32] = &[0u32, 2u32, 147u32, 0u32, 159u32, 13u32, 3u32, 7u32, 72u32, 11u32, 3u32, 150u32, 2u32];
-const FN_307_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 149u32, 153u32, 23u32, 11u32, 71u32, 109u32, 101u32, 4u32, 150u32];
-const FN_308_CALLEES: &[u32] = &[0u32, 13u32, 109u32, 147u32, 101u32, 116u32, 23u32, 2u32, 150u32, 3u32, 24u32, 140u32];
-const FN_309_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 72u32];
-const FN_310_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 16u32];
+const FN_296_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 105usize, 72usize, 111usize, 147usize, 110usize, 119usize, 142usize, 153usize, 112usize, 14usize, 4usize, 54usize, 106usize, 113usize, 114usize, 152usize, 2usize, 10usize, 13usize, 150usize];
+const FN_297_CALLEES: &[usize] = &[0usize, 135usize, 147usize, 0usize];
+const FN_298_CALLEES: &[usize] = &[0usize, 72usize, 147usize, 13usize, 11usize, 0usize, 113usize, 115usize, 153usize, 115usize, 3usize, 0usize, 159usize, 11usize];
+const FN_299_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 3usize, 123usize];
+const FN_300_CALLEES: &[usize] = &[0usize, 147usize, 71usize, 0usize];
+const FN_301_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 24usize, 147usize, 13usize, 1usize, 150usize];
+const FN_302_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 13usize, 72usize, 24usize, 140usize, 2usize, 71usize, 23usize, 113usize, 114usize, 153usize, 152usize, 0usize, 159usize, 150usize];
+const FN_303_CALLEES: &[usize] = &[0usize, 147usize, 118usize, 13usize, 14usize, 2usize, 0usize, 24usize, 140usize, 72usize, 150usize, 1usize, 121usize, 122usize, 123usize, 129usize, 153usize, 111usize, 4usize, 23usize];
+const FN_304_CALLEES: &[usize] = &[0usize, 7usize, 3usize, 23usize, 147usize, 5usize, 150usize];
+const FN_305_CALLEES: &[usize] = &[0usize, 13usize, 1usize, 153usize, 7usize, 147usize, 2usize, 150usize];
+const FN_306_CALLEES: &[usize] = &[0usize, 2usize, 147usize, 0usize, 159usize, 13usize, 3usize, 7usize, 72usize, 11usize, 3usize, 150usize, 2usize];
+const FN_307_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 149usize, 153usize, 23usize, 11usize, 71usize, 109usize, 101usize, 4usize, 150usize];
+const FN_308_CALLEES: &[usize] = &[0usize, 13usize, 109usize, 147usize, 101usize, 116usize, 23usize, 2usize, 150usize, 3usize, 24usize, 140usize];
+const FN_309_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 72usize];
+const FN_310_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 16usize];
 const FN_311_GLOBALS: &[usize] = &[24usize, 25usize];
-const FN_311_CALLEES: &[u32] = &[0u32, 59u32, 0u32, 159u32];
+const FN_311_CALLEES: &[usize] = &[0usize, 59usize, 0usize, 159usize];
 const FN_312_GLOBALS: &[usize] = &[25usize];
-const FN_312_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 147u32, 0u32, 4u32, 16u32];
+const FN_312_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 147usize, 0usize, 4usize, 16usize];
 const FN_313_GLOBALS: &[usize] = &[25usize];
-const FN_313_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 147u32, 0u32, 16u32, 2u32, 3u32, 4u32, 150u32];
-const FN_314_CALLEES: &[u32] = &[0u32, 2u32, 147u32, 0u32, 159u32, 17u32, 3u32, 4u32];
+const FN_313_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 147usize, 0usize, 16usize, 2usize, 3usize, 4usize, 150usize];
+const FN_314_CALLEES: &[usize] = &[0usize, 2usize, 147usize, 0usize, 159usize, 17usize, 3usize, 4usize];
 const FN_315_GLOBALS: &[usize] = &[25usize];
-const FN_315_CALLEES: &[u32] = &[0u32, 2u32, 0u32, 59u32, 147u32, 0u32, 17u32, 3u32, 5u32, 4u32];
+const FN_315_CALLEES: &[usize] = &[0usize, 2usize, 0usize, 59usize, 147usize, 0usize, 17usize, 3usize, 5usize, 4usize];
 const FN_316_GLOBALS: &[usize] = &[25usize, 24usize];
-const FN_316_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 147u32, 0u32, 108u32, 16u32, 2u32, 54u32, 109u32, 150u32];
-const FN_317_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 17u32, 3u32, 4u32, 2u32, 0u32, 13u32, 8u32, 4u32, 150u32];
-const FN_318_CALLEES: &[u32] = &[0u32, 2u32, 147u32, 0u32, 159u32, 0u32, 8u32, 15u32, 125u32, 13u32, 2u32, 4u32, 16u32, 4u32, 2u32, 3u32, 150u32];
-const FN_319_CALLEES: &[u32] = &[0u32, 13u32, 2u32, 1u32, 147u32, 2u32, 150u32];
-const FN_320_CALLEES: &[u32] = &[0u32, 114u32, 147u32, 0u32, 159u32, 1u32, 2u32, 15u32, 0u32, 8u32, 127u32, 18u32, 4u32, 111u32, 112u32, 3u32, 2u32];
-const FN_321_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 13u32, 2u32, 8u32, 4u32, 150u32];
-const FN_322_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 3u32, 4u32, 150u32];
-const FN_323_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 24u32, 147u32, 149u32, 153u32, 13u32, 1u32, 150u32];
-const FN_324_CALLEES: &[u32] = &[0u32, 13u32, 2u32, 147u32, 0u32, 159u32, 0u32, 8u32, 15u32, 125u32, 137u32, 24u32, 110u32, 2u32, 4u32, 150u32];
-const FN_325_CALLEES: &[u32] = &[0u32, 125u32, 124u32, 147u32, 13u32, 25u32, 71u32, 0u32, 72u32, 113u32, 114u32, 153u32, 152u32, 0u32, 159u32, 5u32, 0u32, 4u32, 24u32, 111u32, 4u32, 2u32, 150u32, 1u32, 130u32, 139u32, 125u32];
-const FN_326_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 71u32, 0u32, 72u32, 113u32, 115u32, 153u32, 15u32];
-const FN_327_CALLEES: &[u32] = &[0u32, 147u32, 140u32, 7u32, 11u32, 26u32, 11u32, 3u32, 25u32, 150u32, 1u32];
-const FN_328_CALLEES: &[u32] = &[0u32, 72u32, 147u32, 10u32, 7u32, 3u32, 131u32, 5u32, 150u32, 36u32];
-const FN_329_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_330_CALLEES: &[u32] = &[0u32, 128u32, 147u32, 13u32, 25u32, 4u32, 24u32, 111u32, 4u32, 2u32, 150u32, 1u32, 138u32, 139u32, 126u32, 7u32, 71u32, 126u32, 125u32, 5u32, 153u32, 152u32, 0u32, 7u32, 5u32, 132u32, 137u32, 26u32, 14u32, 130u32, 23u32, 127u32, 27u32, 2u32, 0u32, 4u32, 4u32, 0u32, 133u32, 28u32, 125u32, 134u32, 1u32];
+const FN_316_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 147usize, 0usize, 108usize, 16usize, 2usize, 54usize, 109usize, 150usize];
+const FN_317_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 17usize, 3usize, 4usize, 2usize, 0usize, 13usize, 8usize, 4usize, 150usize];
+const FN_318_CALLEES: &[usize] = &[0usize, 2usize, 147usize, 0usize, 159usize, 0usize, 8usize, 15usize, 125usize, 13usize, 2usize, 4usize, 16usize, 4usize, 2usize, 3usize, 150usize];
+const FN_319_CALLEES: &[usize] = &[0usize, 13usize, 2usize, 1usize, 147usize, 2usize, 150usize];
+const FN_320_CALLEES: &[usize] = &[0usize, 114usize, 147usize, 0usize, 159usize, 1usize, 2usize, 15usize, 0usize, 8usize, 127usize, 18usize, 4usize, 111usize, 112usize, 3usize, 2usize];
+const FN_321_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 13usize, 2usize, 8usize, 4usize, 150usize];
+const FN_322_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 3usize, 4usize, 150usize];
+const FN_323_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 24usize, 147usize, 149usize, 153usize, 13usize, 1usize, 150usize];
+const FN_324_CALLEES: &[usize] = &[0usize, 13usize, 2usize, 147usize, 0usize, 159usize, 0usize, 8usize, 15usize, 125usize, 137usize, 24usize, 110usize, 2usize, 4usize, 150usize];
+const FN_325_CALLEES: &[usize] = &[0usize, 125usize, 124usize, 147usize, 13usize, 25usize, 71usize, 0usize, 72usize, 113usize, 114usize, 153usize, 152usize, 0usize, 159usize, 5usize, 0usize, 4usize, 24usize, 111usize, 4usize, 2usize, 150usize, 1usize, 130usize, 139usize, 125usize];
+const FN_326_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 71usize, 0usize, 72usize, 113usize, 115usize, 153usize, 15usize];
+const FN_327_CALLEES: &[usize] = &[0usize, 147usize, 140usize, 7usize, 11usize, 26usize, 11usize, 3usize, 25usize, 150usize, 1usize];
+const FN_328_CALLEES: &[usize] = &[0usize, 72usize, 147usize, 10usize, 7usize, 3usize, 131usize, 5usize, 150usize, 36usize];
+const FN_329_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_330_CALLEES: &[usize] = &[0usize, 128usize, 147usize, 13usize, 25usize, 4usize, 24usize, 111usize, 4usize, 2usize, 150usize, 1usize, 138usize, 139usize, 126usize, 7usize, 71usize, 126usize, 125usize, 5usize, 153usize, 152usize, 0usize, 7usize, 5usize, 132usize, 137usize, 26usize, 14usize, 130usize, 23usize, 127usize, 27usize, 2usize, 0usize, 4usize, 4usize, 0usize, 133usize, 28usize, 125usize, 134usize, 1usize];
 const FN_331_GLOBALS: &[usize] = &[24usize];
-const FN_331_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 26u32, 2u32, 59u32, 107u32, 27u32, 150u32, 3u32, 72u32, 113u32, 71u32, 0u32, 115u32, 153u32, 152u32, 120u32, 122u32, 0u32, 159u32, 4u32, 114u32, 24u32, 110u32];
-const FN_332_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 109u32, 4u32, 159u32, 150u32];
-const FN_333_CALLEES: &[u32] = &[0u32, 13u32, 143u32];
+const FN_331_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 26usize, 2usize, 59usize, 107usize, 27usize, 150usize, 3usize, 72usize, 113usize, 71usize, 0usize, 115usize, 153usize, 152usize, 120usize, 122usize, 0usize, 159usize, 4usize, 114usize, 24usize, 110usize];
+const FN_332_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 109usize, 4usize, 159usize, 150usize];
+const FN_333_CALLEES: &[usize] = &[0usize, 13usize, 143usize];
 const FN_334_GLOBALS: &[usize] = &[31usize, 25usize];
-const FN_334_CALLEES: &[u32] = &[0u32, 0u32, 2u32, 147u32, 111u32, 0u32, 4u32, 159u32, 11u32, 114u32, 72u32, 13u32, 13u32, 2u32, 8u32, 4u32, 150u32, 12u32, 119u32, 23u32, 11u32, 118u32, 120u32, 119u32, 142u32, 153u32, 118u32, 111u32, 10u32, 124u32, 2u32, 59u32, 8u32, 128u32, 11u32, 9u32, 133u32, 12u32, 13u32];
+const FN_334_CALLEES: &[usize] = &[0usize, 0usize, 2usize, 147usize, 111usize, 0usize, 4usize, 159usize, 11usize, 114usize, 72usize, 13usize, 13usize, 2usize, 8usize, 4usize, 150usize, 12usize, 119usize, 23usize, 11usize, 118usize, 120usize, 119usize, 142usize, 153usize, 118usize, 111usize, 10usize, 124usize, 2usize, 59usize, 8usize, 128usize, 11usize, 9usize, 133usize, 12usize, 13usize];
 const FN_335_GLOBALS: &[usize] = &[25usize, 24usize, 30usize, 27usize];
-const FN_335_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 105u32, 54u32, 106u32, 72u32, 113u32, 10u32, 13u32];
-const FN_336_CALLEES: &[u32] = &[0u32, 147u32, 119u32, 153u32, 5u32];
-const FN_337_CALLEES: &[u32] = &[0u32, 72u32, 0u32];
-const FN_338_CALLEES: &[u32] = &[0u32, 0u32];
-const FN_339_CALLEES: &[u32] = &[0u32, 147u32, 13u32, 2u32, 150u32];
-const FN_340_CALLEES: &[u32] = &[0u32, 4u32, 23u32, 147u32, 111u32];
-const FN_341_CALLEES: &[u32] = &[0u32, 4u32, 23u32, 147u32, 111u32, 13u32, 4u32, 2u32, 150u32, 1u32];
+const FN_335_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 105usize, 54usize, 106usize, 72usize, 113usize, 10usize, 13usize];
+const FN_336_CALLEES: &[usize] = &[0usize, 147usize, 119usize, 153usize, 5usize];
+const FN_337_CALLEES: &[usize] = &[0usize, 72usize, 0usize];
+const FN_338_CALLEES: &[usize] = &[0usize, 0usize];
+const FN_339_CALLEES: &[usize] = &[0usize, 147usize, 13usize, 2usize, 150usize];
+const FN_340_CALLEES: &[usize] = &[0usize, 4usize, 23usize, 147usize, 111usize];
+const FN_341_CALLEES: &[usize] = &[0usize, 4usize, 23usize, 147usize, 111usize, 13usize, 4usize, 2usize, 150usize, 1usize];
 const FN_342_GLOBALS: &[usize] = &[25usize];
-const FN_342_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_343_CALLEES: &[u32] = &[0u32, 137u32];
-const FN_344_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 23u32, 4u32, 24u32, 4u32, 150u32, 1u32, 26u32, 14u32, 137u32, 138u32, 132u32, 27u32, 2u32, 0u32, 140u32];
-const FN_345_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 1u32, 131u32, 139u32, 130u32, 2u32, 150u32, 147u32];
-const FN_346_CALLEES: &[u32] = &[0u32, 130u32, 13u32, 130u32, 129u32, 4u32, 150u32];
+const FN_342_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_343_CALLEES: &[usize] = &[0usize, 137usize];
+const FN_344_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 23usize, 4usize, 24usize, 4usize, 150usize, 1usize, 26usize, 14usize, 137usize, 138usize, 132usize, 27usize, 2usize, 0usize, 140usize];
+const FN_345_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 1usize, 131usize, 139usize, 130usize, 2usize, 150usize, 147usize];
+const FN_346_CALLEES: &[usize] = &[0usize, 130usize, 13usize, 130usize, 129usize, 4usize, 150usize];
 const FN_347_GLOBALS: &[usize] = &[24usize];
-const FN_347_CALLEES: &[u32] = &[0u32, 59u32, 54u32, 72u32, 113u32];
+const FN_347_CALLEES: &[usize] = &[0usize, 59usize, 54usize, 72usize, 113usize];
 const FN_348_GLOBALS: &[usize] = &[27usize, 28usize];
-const FN_348_CALLEES: &[u32] = &[0u32, 72u32, 10u32, 12u32];
+const FN_348_CALLEES: &[usize] = &[0usize, 72usize, 10usize, 12usize];
 const FN_349_GLOBALS: &[usize] = &[25usize, 24usize];
-const FN_349_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 2u32, 147u32, 0u32, 108u32, 54u32, 109u32];
+const FN_349_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 2usize, 147usize, 0usize, 108usize, 54usize, 109usize];
 const FN_350_GLOBALS: &[usize] = &[25usize];
-const FN_350_CALLEES: &[u32] = &[0u32, 118u32, 147u32, 1u32, 13u32, 71u32, 116u32, 130u32, 131u32, 0u32, 72u32, 113u32, 114u32, 153u32, 152u32, 0u32, 59u32, 1u32, 121u32, 2u32, 150u32, 122u32, 123u32, 129u32];
+const FN_350_CALLEES: &[usize] = &[0usize, 118usize, 147usize, 1usize, 13usize, 71usize, 116usize, 130usize, 131usize, 0usize, 72usize, 113usize, 114usize, 153usize, 152usize, 0usize, 59usize, 1usize, 121usize, 2usize, 150usize, 122usize, 123usize, 129usize];
 const FN_351_GLOBALS: &[usize] = &[25usize];
-const FN_351_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 2u32, 147u32, 0u32];
-const FN_352_CALLEES: &[u32] = &[0u32, 7u32, 147u32, 162u32];
-const FN_353_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 71u32, 159u32, 150u32, 64u32, 74u32, 162u32, 110u32, 7u32, 62u32, 70u32];
-const FN_354_CALLEES: &[u32] = &[0u32, 152u32, 147u32, 62u32, 110u32];
-const FN_355_CALLEES: &[u32] = &[0u32, 12u32, 143u32];
-const FN_356_CALLEES: &[u32] = &[0u32, 74u32, 147u32, 162u32, 110u32, 7u32, 62u32, 70u32];
-const FN_357_CALLEES: &[u32] = &[0u32, 147u32, 62u32, 110u32];
-const FN_358_CALLEES: &[u32] = &[0u32, 147u32, 101u32, 64u32, 7u32, 5u32, 150u32, 136u32];
-const FN_359_CALLEES: &[u32] = &[0u32, 136u32, 120u32, 147u32, 64u32, 12u32];
+const FN_351_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 2usize, 147usize, 0usize];
+const FN_352_CALLEES: &[usize] = &[0usize, 7usize, 147usize, 162usize];
+const FN_353_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 71usize, 159usize, 150usize, 64usize, 74usize, 162usize, 110usize, 7usize, 62usize, 70usize];
+const FN_354_CALLEES: &[usize] = &[0usize, 152usize, 147usize, 62usize, 110usize];
+const FN_355_CALLEES: &[usize] = &[0usize, 12usize, 143usize];
+const FN_356_CALLEES: &[usize] = &[0usize, 74usize, 147usize, 162usize, 110usize, 7usize, 62usize, 70usize];
+const FN_357_CALLEES: &[usize] = &[0usize, 147usize, 62usize, 110usize];
+const FN_358_CALLEES: &[usize] = &[0usize, 147usize, 101usize, 64usize, 7usize, 5usize, 150usize, 136usize];
+const FN_359_CALLEES: &[usize] = &[0usize, 136usize, 120usize, 147usize, 64usize, 12usize];
 const FN_360_GLOBALS: &[usize] = &[25usize];
-const FN_360_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
+const FN_360_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
 const FN_361_GLOBALS: &[usize] = &[25usize];
-const FN_361_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_362_CALLEES: &[u32] = &[0u32, 1u32, 152u32];
-const FN_363_CALLEES: &[u32] = &[0u32, 137u32];
-const FN_364_CALLEES: &[u32] = &[0u32, 138u32, 13u32, 4u32, 2u32, 150u32];
-const FN_365_CALLEES: &[u32] = &[0u32, 93u32, 108u32, 94u32, 147u32];
-const FN_366_CALLEES: &[u32] = &[147u32];
-const FN_387_CALLEES: &[u32] = &[146u32];
-const FN_389_CALLEES: &[u32] = &[147u32];
-const FN_392_CALLEES: &[u32] = &[147u32];
-const FN_396_CALLEES: &[u32] = &[147u32];
-const FN_397_CALLEES: &[u32] = &[147u32];
-const FN_400_CALLEES: &[u32] = &[147u32];
-const FN_403_CALLEES: &[u32] = &[147u32];
-const FN_410_CALLEES: &[u32] = &[147u32];
-const FN_414_CALLEES: &[u32] = &[147u32];
-const FN_415_CALLEES: &[u32] = &[147u32];
-const FN_417_CALLEES: &[u32] = &[147u32];
-const FN_418_CALLEES: &[u32] = &[147u32];
-const FN_419_CALLEES: &[u32] = &[159u32];
-const FN_421_CALLEES: &[u32] = &[158u32];
-const FN_422_CALLEES: &[u32] = &[147u32];
-const FN_424_CALLEES: &[u32] = &[147u32];
-const FN_428_CALLEES: &[u32] = &[147u32];
-const FN_429_CALLEES: &[u32] = &[147u32];
-const FN_431_CALLEES: &[u32] = &[147u32];
-const FN_432_CALLEES: &[u32] = &[147u32];
-const FN_435_CALLEES: &[u32] = &[147u32];
-const FN_438_CALLEES: &[u32] = &[0u32, 147u32, 146u32];
+const FN_361_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_362_CALLEES: &[usize] = &[0usize, 1usize, 152usize];
+const FN_363_CALLEES: &[usize] = &[0usize, 137usize];
+const FN_364_CALLEES: &[usize] = &[0usize, 138usize, 13usize, 4usize, 2usize, 150usize];
+const FN_365_CALLEES: &[usize] = &[0usize, 93usize, 108usize, 94usize, 147usize];
+const FN_366_CALLEES: &[usize] = &[147usize];
+const FN_387_CALLEES: &[usize] = &[146usize];
+const FN_389_CALLEES: &[usize] = &[147usize];
+const FN_392_CALLEES: &[usize] = &[147usize];
+const FN_396_CALLEES: &[usize] = &[147usize];
+const FN_397_CALLEES: &[usize] = &[147usize];
+const FN_400_CALLEES: &[usize] = &[147usize];
+const FN_403_CALLEES: &[usize] = &[147usize];
+const FN_410_CALLEES: &[usize] = &[147usize];
+const FN_414_CALLEES: &[usize] = &[147usize];
+const FN_415_CALLEES: &[usize] = &[147usize];
+const FN_417_CALLEES: &[usize] = &[147usize];
+const FN_418_CALLEES: &[usize] = &[147usize];
+const FN_419_CALLEES: &[usize] = &[159usize];
+const FN_421_CALLEES: &[usize] = &[158usize];
+const FN_422_CALLEES: &[usize] = &[147usize];
+const FN_424_CALLEES: &[usize] = &[147usize];
+const FN_428_CALLEES: &[usize] = &[147usize];
+const FN_429_CALLEES: &[usize] = &[147usize];
+const FN_431_CALLEES: &[usize] = &[147usize];
+const FN_432_CALLEES: &[usize] = &[147usize];
+const FN_435_CALLEES: &[usize] = &[147usize];
+const FN_438_CALLEES: &[usize] = &[0usize, 147usize, 146usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -108940,6 +108935,11 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (1116720u128, [0xe4, 0x4b, 0xbb, 0x0d, 0xee, 0x82, 0x41, 0xbc, 0x2f, 0x2e, 0x66, 0xf5, 0xae, 0x68, 0x5e, 0x3a, 0xc9, 0xa4, 0xea, 0xd6, 0x4e, 0xe1, 0x55, 0x56, 0xfa, 0xf3, 0xdd, 0xa7, 0xf3, 0x42, 0x4c, 0xfb]),
+    (1116720u128, [0x47, 0xc0, 0x26, 0x12, 0xf0, 0x06, 0x5d, 0xd4, 0x27, 0xbd, 0xda, 0xb2, 0x52, 0xd0, 0x50, 0x39, 0xdd, 0xfc, 0x2c, 0x64, 0x44, 0xcc, 0x81, 0x85, 0x67, 0x27, 0x30, 0xc7, 0xf3, 0xda, 0x3b, 0x93]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_92792/2608@l8589997484",
     accounting_version: 2u32,
@@ -108951,6 +108951,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -109127,7 +109128,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 2usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }
@@ -109181,478 +109184,478 @@ use crate::utilities::*;
 use super::*;
 
 const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize, 24usize, 25usize, 26usize, 27usize, 28usize, 29usize, 30usize, 31usize];
-const FN_0_CALLEES: &[u32] = &[147u32];
-const FN_1_CALLEES: &[u32] = &[0u32, 24u32];
-const FN_2_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_3_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_4_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_5_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_0_CALLEES: &[usize] = &[147usize];
+const FN_1_CALLEES: &[usize] = &[0usize, 24usize];
+const FN_2_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_3_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_4_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_5_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_6_CALLEES: &[usize] = &[0usize, 34usize, 10usize];
 const FN_7_GLOBALS: &[usize] = &[14usize];
-const FN_7_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_8_CALLEES: &[u32] = &[0u32, 0u32];
-const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
-const FN_10_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_11_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_12_CALLEES: &[u32] = &[0u32, 25u32];
-const FN_13_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_14_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_15_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_16_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_17_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_19_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_20_CALLEES: &[u32] = &[0u32];
-const FN_21_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_22_CALLEES: &[u32] = &[0u32, 27u32];
-const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 1u32, 1u32, 147u32];
-const FN_24_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_25_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_26_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_27_CALLEES: &[u32] = &[0u32, 32u32, 142u32, 33u32, 2u32];
-const FN_28_CALLEES: &[u32] = &[0u32, 33u32, 142u32, 32u32, 2u32];
-const FN_29_CALLEES: &[u32] = &[0u32, 28u32];
-const FN_30_CALLEES: &[u32] = &[0u32, 29u32];
-const FN_31_CALLEES: &[u32] = &[0u32, 30u32];
-const FN_32_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_7_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_8_CALLEES: &[usize] = &[0usize, 0usize];
+const FN_9_CALLEES: &[usize] = &[0usize, 10usize];
+const FN_10_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_11_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_12_CALLEES: &[usize] = &[0usize, 25usize];
+const FN_13_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_14_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_15_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_16_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_17_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_18_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_19_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_20_CALLEES: &[usize] = &[0usize];
+const FN_21_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_22_CALLEES: &[usize] = &[0usize, 27usize];
+const FN_23_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 1usize, 1usize, 147usize];
+const FN_24_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_25_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_26_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_27_CALLEES: &[usize] = &[0usize, 32usize, 142usize, 33usize, 2usize];
+const FN_28_CALLEES: &[usize] = &[0usize, 33usize, 142usize, 32usize, 2usize];
+const FN_29_CALLEES: &[usize] = &[0usize, 28usize];
+const FN_30_CALLEES: &[usize] = &[0usize, 29usize];
+const FN_31_CALLEES: &[usize] = &[0usize, 30usize];
+const FN_32_CALLEES: &[usize] = &[0usize, 26usize];
 const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 147u32];
-const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 147u32];
+const FN_33_CALLEES: &[usize] = &[0usize, 34usize, 10usize, 147usize];
+const FN_34_CALLEES: &[usize] = &[0usize, 31usize, 147usize];
 const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_35_CALLEES: &[u32] = &[0u32, 5u32, 147u32];
+const FN_35_CALLEES: &[usize] = &[0usize, 5usize, 147usize];
 const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_36_CALLEES: &[u32] = &[0u32, 0u32, 147u32];
-const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 147u32];
+const FN_36_CALLEES: &[usize] = &[0usize, 0usize, 147usize];
+const FN_37_CALLEES: &[usize] = &[0usize, 31usize, 147usize];
 const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 147u32];
+const FN_38_CALLEES: &[usize] = &[0usize, 6usize, 35usize, 147usize];
 const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_39_CALLEES: &[u32] = &[0u32, 147u32, 32u32];
+const FN_39_CALLEES: &[usize] = &[0usize, 147usize, 32usize];
 const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_40_CALLEES: &[u32] = &[0u32, 147u32, 33u32];
+const FN_40_CALLEES: &[usize] = &[0usize, 147usize, 33usize];
 const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 147u32];
+const FN_41_CALLEES: &[usize] = &[0usize, 10usize, 36usize, 147usize];
 const FN_42_GLOBALS: &[usize] = &[9usize];
-const FN_42_CALLEES: &[u32] = &[0u32, 8u32, 147u32];
+const FN_42_CALLEES: &[usize] = &[0usize, 8usize, 147usize];
 const FN_43_GLOBALS: &[usize] = &[9usize];
-const FN_43_CALLEES: &[u32] = &[0u32, 1u32, 147u32];
+const FN_43_CALLEES: &[usize] = &[0usize, 1usize, 147usize];
 const FN_44_GLOBALS: &[usize] = &[9usize];
-const FN_44_CALLEES: &[u32] = &[0u32, 9u32, 147u32];
+const FN_44_CALLEES: &[usize] = &[0usize, 9usize, 147usize];
 const FN_45_GLOBALS: &[usize] = &[9usize];
-const FN_45_CALLEES: &[u32] = &[0u32, 147u32];
+const FN_45_CALLEES: &[usize] = &[0usize, 147usize];
 const FN_46_GLOBALS: &[usize] = &[9usize];
-const FN_46_CALLEES: &[u32] = &[0u32, 10u32, 147u32];
+const FN_46_CALLEES: &[usize] = &[0usize, 10usize, 147usize];
 const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
-const FN_47_CALLEES: &[u32] = &[0u32, 140u32, 147u32, 13u32, 148u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 143u32];
-const FN_48_CALLEES: &[u32] = &[0u32];
-const FN_49_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_50_CALLEES: &[u32] = &[0u32, 1u32, 142u32, 0u32, 147u32];
-const FN_51_CALLEES: &[u32] = &[0u32, 0u32, 142u32, 1u32, 147u32];
-const FN_52_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_53_CALLEES: &[u32] = &[0u32, 0u32, 147u32];
-const FN_54_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_55_CALLEES: &[u32] = &[0u32, 0u32, 142u32];
-const FN_56_CALLEES: &[u32] = &[0u32, 1u32, 147u32, 142u32];
+const FN_47_CALLEES: &[usize] = &[0usize, 140usize, 147usize, 13usize, 148usize, 0usize, 32usize, 2usize, 10usize, 36usize, 37usize, 143usize];
+const FN_48_CALLEES: &[usize] = &[0usize];
+const FN_49_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_50_CALLEES: &[usize] = &[0usize, 1usize, 142usize, 0usize, 147usize];
+const FN_51_CALLEES: &[usize] = &[0usize, 0usize, 142usize, 1usize, 147usize];
+const FN_52_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_53_CALLEES: &[usize] = &[0usize, 0usize, 147usize];
+const FN_54_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_55_CALLEES: &[usize] = &[0usize, 0usize, 142usize];
+const FN_56_CALLEES: &[usize] = &[0usize, 1usize, 147usize, 142usize];
 const FN_57_GLOBALS: &[usize] = &[14usize];
-const FN_57_CALLEES: &[u32] = &[0u32, 21u32, 24u32, 36u32];
-const FN_58_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_59_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_60_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_61_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_62_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_63_CALLEES: &[u32] = &[0u32, 68u32];
+const FN_57_CALLEES: &[usize] = &[0usize, 21usize, 24usize, 36usize];
+const FN_58_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_59_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_60_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_61_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_62_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_63_CALLEES: &[usize] = &[0usize, 68usize];
 const FN_64_GLOBALS: &[usize] = &[19usize, 16usize, 17usize];
-const FN_64_CALLEES: &[u32] = &[0u32, 144u32];
+const FN_64_CALLEES: &[usize] = &[0usize, 144usize];
 const FN_65_GLOBALS: &[usize] = &[19usize];
-const FN_65_CALLEES: &[u32] = &[0u32, 144u32, 12u32, 6u32, 35u32, 21u32, 1u32, 12u32];
+const FN_65_CALLEES: &[usize] = &[0usize, 144usize, 12usize, 6usize, 35usize, 21usize, 1usize, 12usize];
 const FN_66_GLOBALS: &[usize] = &[16usize];
-const FN_66_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_67_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_68_CALLEES: &[u32] = &[0u32, 24u32, 1u32];
-const FN_69_CALLEES: &[u32] = &[0u32, 24u32, 2u32];
-const FN_70_CALLEES: &[u32] = &[0u32, 61u32];
-const FN_71_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_72_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_73_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_74_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_75_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_76_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_77_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_78_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_79_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_80_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_81_CALLEES: &[u32] = &[0u32];
-const FN_82_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_83_CALLEES: &[u32] = &[0u32];
-const FN_84_CALLEES: &[u32] = &[0u32, 62u32];
-const FN_85_CALLEES: &[u32] = &[0u32, 63u32];
-const FN_86_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_87_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_88_CALLEES: &[u32] = &[0u32, 24u32, 5u32];
-const FN_89_CALLEES: &[u32] = &[0u32, 43u32, 67u32];
-const FN_90_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_91_CALLEES: &[u32] = &[0u32, 65u32];
-const FN_92_CALLEES: &[u32] = &[0u32, 66u32];
-const FN_93_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_94_CALLEES: &[u32] = &[0u32, 67u32];
+const FN_66_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_67_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_68_CALLEES: &[usize] = &[0usize, 24usize, 1usize];
+const FN_69_CALLEES: &[usize] = &[0usize, 24usize, 2usize];
+const FN_70_CALLEES: &[usize] = &[0usize, 61usize];
+const FN_71_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_72_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_73_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_74_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_75_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_76_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_77_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_78_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_79_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_80_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_81_CALLEES: &[usize] = &[0usize];
+const FN_82_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_83_CALLEES: &[usize] = &[0usize];
+const FN_84_CALLEES: &[usize] = &[0usize, 62usize];
+const FN_85_CALLEES: &[usize] = &[0usize, 63usize];
+const FN_86_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_87_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_88_CALLEES: &[usize] = &[0usize, 24usize, 5usize];
+const FN_89_CALLEES: &[usize] = &[0usize, 43usize, 67usize];
+const FN_90_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_91_CALLEES: &[usize] = &[0usize, 65usize];
+const FN_92_CALLEES: &[usize] = &[0usize, 66usize];
+const FN_93_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_94_CALLEES: &[usize] = &[0usize, 67usize];
 const FN_95_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_95_CALLEES: &[u32] = &[0u32, 42u32, 68u32, 147u32];
+const FN_95_CALLEES: &[usize] = &[0usize, 42usize, 68usize, 147usize];
 const FN_96_GLOBALS: &[usize] = &[19usize, 1usize, 16usize, 17usize, 9usize];
-const FN_96_CALLEES: &[u32] = &[0u32, 144u32, 147u32, 12u32, 31u32, 20u32, 21u32, 33u32];
+const FN_96_CALLEES: &[usize] = &[0usize, 144usize, 147usize, 12usize, 31usize, 20usize, 21usize, 33usize];
 const FN_97_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_97_CALLEES: &[u32] = &[0u32, 20u32, 147u32];
-const FN_98_CALLEES: &[u32] = &[0u32, 67u32, 21u32, 147u32, 68u32, 70u32];
+const FN_97_CALLEES: &[usize] = &[0usize, 20usize, 147usize];
+const FN_98_CALLEES: &[usize] = &[0usize, 67usize, 21usize, 147usize, 68usize, 70usize];
 const FN_99_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_99_CALLEES: &[u32] = &[0u32, 44u32, 69u32, 147u32];
+const FN_99_CALLEES: &[usize] = &[0usize, 44usize, 69usize, 147usize];
 const FN_100_GLOBALS: &[usize] = &[16usize, 19usize, 9usize];
-const FN_100_CALLEES: &[u32] = &[0u32, 144u32, 147u32, 33u32];
+const FN_100_CALLEES: &[usize] = &[0usize, 144usize, 147usize, 33usize];
 const FN_101_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_101_CALLEES: &[u32] = &[0u32, 147u32, 24u32, 32u32, 20u32];
+const FN_101_CALLEES: &[usize] = &[0usize, 147usize, 24usize, 32usize, 20usize];
 const FN_102_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_102_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 142u32, 1u32, 2u32];
+const FN_102_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 142usize, 1usize, 2usize];
 const FN_103_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_103_CALLEES: &[u32] = &[0u32, 45u32, 70u32, 147u32];
+const FN_103_CALLEES: &[usize] = &[0usize, 45usize, 70usize, 147usize];
 const FN_104_GLOBALS: &[usize] = &[9usize];
-const FN_104_CALLEES: &[u32] = &[0u32, 28u32, 147u32, 11u32];
+const FN_104_CALLEES: &[usize] = &[0usize, 28usize, 147usize, 11usize];
 const FN_105_GLOBALS: &[usize] = &[9usize];
-const FN_105_CALLEES: &[u32] = &[0u32, 147u32];
+const FN_105_CALLEES: &[usize] = &[0usize, 147usize];
 const FN_106_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_106_CALLEES: &[u32] = &[0u32, 21u32, 147u32, 24u32];
+const FN_106_CALLEES: &[usize] = &[0usize, 21usize, 147usize, 24usize];
 const FN_107_GLOBALS: &[usize] = &[9usize];
-const FN_107_CALLEES: &[u32] = &[0u32, 9u32, 147u32];
+const FN_107_CALLEES: &[usize] = &[0usize, 9usize, 147usize];
 const FN_108_GLOBALS: &[usize] = &[9usize];
-const FN_108_CALLEES: &[u32] = &[0u32, 147u32];
+const FN_108_CALLEES: &[usize] = &[0usize, 147usize];
 const FN_109_GLOBALS: &[usize] = &[9usize];
-const FN_109_CALLEES: &[u32] = &[0u32, 10u32, 147u32];
+const FN_109_CALLEES: &[usize] = &[0usize, 10usize, 147usize];
 const FN_110_GLOBALS: &[usize] = &[19usize, 1usize, 16usize, 17usize];
-const FN_110_CALLEES: &[u32] = &[0u32, 144u32, 147u32, 12u32, 31u32, 20u32, 21u32, 33u32];
-const FN_111_CALLEES: &[u32] = &[0u32, 24u32, 34u32, 20u32];
-const FN_112_CALLEES: &[u32] = &[0u32, 24u32, 35u32, 20u32];
+const FN_110_CALLEES: &[usize] = &[0usize, 144usize, 147usize, 12usize, 31usize, 20usize, 21usize, 33usize];
+const FN_111_CALLEES: &[usize] = &[0usize, 24usize, 34usize, 20usize];
+const FN_112_CALLEES: &[usize] = &[0usize, 24usize, 35usize, 20usize];
 const FN_113_GLOBALS: &[usize] = &[19usize];
-const FN_113_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_114_CALLEES: &[u32] = &[0u32, 24u32, 36u32, 20u32];
-const FN_115_CALLEES: &[u32] = &[0u32, 147u32];
+const FN_113_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_114_CALLEES: &[usize] = &[0usize, 24usize, 36usize, 20usize];
+const FN_115_CALLEES: &[usize] = &[0usize, 147usize];
 const FN_116_GLOBALS: &[usize] = &[22usize];
-const FN_116_CALLEES: &[u32] = &[0u32, 96u32, 85u32, 95u32, 97u32];
-const FN_117_CALLEES: &[u32] = &[0u32];
-const FN_118_CALLEES: &[u32] = &[0u32, 41u32];
-const FN_119_CALLEES: &[u32] = &[0u32];
-const FN_120_CALLEES: &[u32] = &[0u32];
-const FN_121_CALLEES: &[u32] = &[0u32];
-const FN_122_CALLEES: &[u32] = &[0u32, 95u32, 149u32];
-const FN_123_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_124_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_116_CALLEES: &[usize] = &[0usize, 96usize, 85usize, 95usize, 97usize];
+const FN_117_CALLEES: &[usize] = &[0usize];
+const FN_118_CALLEES: &[usize] = &[0usize, 41usize];
+const FN_119_CALLEES: &[usize] = &[0usize];
+const FN_120_CALLEES: &[usize] = &[0usize];
+const FN_121_CALLEES: &[usize] = &[0usize];
+const FN_122_CALLEES: &[usize] = &[0usize, 95usize, 149usize];
+const FN_123_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_124_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_125_GLOBALS: &[usize] = &[22usize];
-const FN_125_CALLEES: &[u32] = &[0u32, 9u32, 0u32, 147u32];
+const FN_125_CALLEES: &[usize] = &[0usize, 9usize, 0usize, 147usize];
 const FN_126_GLOBALS: &[usize] = &[22usize];
-const FN_126_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_127_CALLEES: &[u32] = &[0u32, 36u32];
-const FN_128_CALLEES: &[u32] = &[0u32, 9u32, 0u32, 147u32, 85u32];
-const FN_129_CALLEES: &[u32] = &[0u32, 12u32, 38u32, 21u32, 85u32];
-const FN_130_CALLEES: &[u32] = &[0u32, 4u32, 85u32, 0u32];
-const FN_131_CALLEES: &[u32] = &[0u32, 5u32];
-const FN_132_CALLEES: &[u32] = &[0u32, 100u32, 85u32];
-const FN_133_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_134_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_135_CALLEES: &[u32] = &[0u32, 1u32, 12u32, 19u32, 1u32, 9u32, 0u32, 0u32, 1u32, 150u32, 85u32];
-const FN_136_CALLEES: &[u32] = &[0u32];
-const FN_137_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_138_CALLEES: &[u32] = &[0u32, 76u32];
+const FN_126_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_127_CALLEES: &[usize] = &[0usize, 36usize];
+const FN_128_CALLEES: &[usize] = &[0usize, 9usize, 0usize, 147usize, 85usize];
+const FN_129_CALLEES: &[usize] = &[0usize, 12usize, 38usize, 21usize, 85usize];
+const FN_130_CALLEES: &[usize] = &[0usize, 4usize, 85usize, 0usize];
+const FN_131_CALLEES: &[usize] = &[0usize, 5usize];
+const FN_132_CALLEES: &[usize] = &[0usize, 100usize, 85usize];
+const FN_133_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_134_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_135_CALLEES: &[usize] = &[0usize, 1usize, 12usize, 19usize, 1usize, 9usize, 0usize, 0usize, 1usize, 150usize, 85usize];
+const FN_136_CALLEES: &[usize] = &[0usize];
+const FN_137_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_138_CALLEES: &[usize] = &[0usize, 76usize];
 const FN_139_GLOBALS: &[usize] = &[22usize];
-const FN_139_CALLEES: &[u32] = &[0u32, 50u32, 147u32];
-const FN_140_CALLEES: &[u32] = &[0u32, 93u32];
-const FN_141_CALLEES: &[u32] = &[0u32, 98u32, 85u32];
-const FN_142_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_139_CALLEES: &[usize] = &[0usize, 50usize, 147usize];
+const FN_140_CALLEES: &[usize] = &[0usize, 93usize];
+const FN_141_CALLEES: &[usize] = &[0usize, 98usize, 85usize];
+const FN_142_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_143_GLOBALS: &[usize] = &[22usize];
-const FN_143_CALLEES: &[u32] = &[0u32, 41u32, 147u32];
-const FN_144_CALLEES: &[u32] = &[0u32, 94u32];
-const FN_145_CALLEES: &[u32] = &[0u32, 42u32, 71u32];
-const FN_146_CALLEES: &[u32] = &[0u32, 94u32];
+const FN_143_CALLEES: &[usize] = &[0usize, 41usize, 147usize];
+const FN_144_CALLEES: &[usize] = &[0usize, 94usize];
+const FN_145_CALLEES: &[usize] = &[0usize, 42usize, 71usize];
+const FN_146_CALLEES: &[usize] = &[0usize, 94usize];
 const FN_147_GLOBALS: &[usize] = &[22usize, 1usize];
-const FN_147_CALLEES: &[u32] = &[0u32, 41u32, 147u32, 100u32, 85u32];
-const FN_148_CALLEES: &[u32] = &[0u32, 94u32, 34u32, 71u32, 147u32];
+const FN_147_CALLEES: &[usize] = &[0usize, 41usize, 147usize, 100usize, 85usize];
+const FN_148_CALLEES: &[usize] = &[0usize, 94usize, 34usize, 71usize, 147usize];
 const FN_149_GLOBALS: &[usize] = &[19usize, 9usize, 16usize];
-const FN_149_CALLEES: &[u32] = &[0u32, 51u32, 147u32, 1u32, 140u32, 25u32, 26u32];
+const FN_149_CALLEES: &[usize] = &[0usize, 51usize, 147usize, 1usize, 140usize, 25usize, 26usize];
 const FN_150_GLOBALS: &[usize] = &[9usize];
-const FN_150_CALLEES: &[u32] = &[0u32, 43u32, 147u32, 27u32];
+const FN_150_CALLEES: &[usize] = &[0usize, 43usize, 147usize, 27usize];
 const FN_151_GLOBALS: &[usize] = &[9usize];
-const FN_151_CALLEES: &[u32] = &[0u32, 43u32, 147u32, 28u32];
+const FN_151_CALLEES: &[usize] = &[0usize, 43usize, 147usize, 28usize];
 const FN_152_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_152_CALLEES: &[u32] = &[0u32, 147u32, 51u32];
+const FN_152_CALLEES: &[usize] = &[0usize, 147usize, 51usize];
 const FN_153_GLOBALS: &[usize] = &[9usize];
-const FN_153_CALLEES: &[u32] = &[0u32, 46u32, 147u32, 9u32];
+const FN_153_CALLEES: &[usize] = &[0usize, 46usize, 147usize, 9usize];
 const FN_154_GLOBALS: &[usize] = &[9usize];
-const FN_154_CALLEES: &[u32] = &[0u32, 46u32, 147u32, 10u32];
+const FN_154_CALLEES: &[usize] = &[0usize, 46usize, 147usize, 10usize];
 const FN_155_GLOBALS: &[usize] = &[9usize];
-const FN_155_CALLEES: &[u32] = &[0u32, 46u32, 147u32, 11u32];
+const FN_155_CALLEES: &[usize] = &[0usize, 46usize, 147usize, 11usize];
 const FN_156_GLOBALS: &[usize] = &[22usize, 1usize];
-const FN_156_CALLEES: &[u32] = &[0u32, 41u32, 147u32, 100u32, 85u32];
-const FN_157_CALLEES: &[u32] = &[0u32, 2u32, 20u32, 6u32];
+const FN_156_CALLEES: &[usize] = &[0usize, 41usize, 147usize, 100usize, 85usize];
+const FN_157_CALLEES: &[usize] = &[0usize, 2usize, 20usize, 6usize];
 const FN_158_GLOBALS: &[usize] = &[14usize];
-const FN_158_CALLEES: &[u32] = &[0u32, 147u32, 20u32, 1u32, 1u32];
-const FN_159_CALLEES: &[u32] = &[0u32, 2u32, 20u32];
-const FN_160_CALLEES: &[u32] = &[0u32, 1u32, 12u32, 20u32, 9u32, 1u32, 0u32, 150u32];
-const FN_161_CALLEES: &[u32] = &[0u32, 12u32, 20u32, 1u32, 2u32, 9u32, 1u32, 150u32, 50u32];
-const FN_162_CALLEES: &[u32] = &[0u32, 147u32, 1u32, 21u32, 20u32, 19u32, 0u32, 9u32, 0u32, 0u32, 150u32, 50u32];
-const FN_163_CALLEES: &[u32] = &[0u32, 19u32, 2u32, 20u32];
-const FN_164_CALLEES: &[u32] = &[0u32, 95u32, 147u32, 20u32, 21u32, 2u32, 1u32, 9u32, 0u32, 150u32, 50u32, 1u32, 142u32, 0u32, 0u32, 147u32, 19u32, 148u32, 99u32];
-const FN_165_CALLEES: &[u32] = &[0u32, 58u32];
-const FN_166_CALLEES: &[u32] = &[0u32, 1u32, 147u32];
+const FN_158_CALLEES: &[usize] = &[0usize, 147usize, 20usize, 1usize, 1usize];
+const FN_159_CALLEES: &[usize] = &[0usize, 2usize, 20usize];
+const FN_160_CALLEES: &[usize] = &[0usize, 1usize, 12usize, 20usize, 9usize, 1usize, 0usize, 150usize];
+const FN_161_CALLEES: &[usize] = &[0usize, 12usize, 20usize, 1usize, 2usize, 9usize, 1usize, 150usize, 50usize];
+const FN_162_CALLEES: &[usize] = &[0usize, 147usize, 1usize, 21usize, 20usize, 19usize, 0usize, 9usize, 0usize, 0usize, 150usize, 50usize];
+const FN_163_CALLEES: &[usize] = &[0usize, 19usize, 2usize, 20usize];
+const FN_164_CALLEES: &[usize] = &[0usize, 95usize, 147usize, 20usize, 21usize, 2usize, 1usize, 9usize, 0usize, 150usize, 50usize, 1usize, 142usize, 0usize, 0usize, 147usize, 19usize, 148usize, 99usize];
+const FN_165_CALLEES: &[usize] = &[0usize, 58usize];
+const FN_166_CALLEES: &[usize] = &[0usize, 1usize, 147usize];
 const FN_167_GLOBALS: &[usize] = &[23usize];
-const FN_167_CALLEES: &[u32] = &[0u32, 56u32, 2u32, 9u32];
-const FN_168_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_169_CALLEES: &[u32] = &[0u32];
-const FN_170_CALLEES: &[u32] = &[0u32];
-const FN_171_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_172_CALLEES: &[u32] = &[0u32, 1u32, 147u32];
+const FN_167_CALLEES: &[usize] = &[0usize, 56usize, 2usize, 9usize];
+const FN_168_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_169_CALLEES: &[usize] = &[0usize];
+const FN_170_CALLEES: &[usize] = &[0usize];
+const FN_171_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_172_CALLEES: &[usize] = &[0usize, 1usize, 147usize];
 const FN_173_GLOBALS: &[usize] = &[23usize];
-const FN_173_CALLEES: &[u32] = &[0u32, 57u32, 2u32, 9u32];
-const FN_174_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_175_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_176_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 22u32, 149u32, 147u32, 2u32, 150u32, 151u32, 152u32, 1u32, 0u32, 150u32];
-const FN_177_CALLEES: &[u32] = &[0u32, 3u32, 147u32, 22u32, 149u32, 1u32, 153u32, 152u32, 154u32, 0u32, 32u32, 2u32, 155u32, 141u32, 13u32, 55u32, 1u32];
+const FN_173_CALLEES: &[usize] = &[0usize, 57usize, 2usize, 9usize];
+const FN_174_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_175_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_176_CALLEES: &[usize] = &[0usize, 0usize, 13usize, 22usize, 149usize, 147usize, 2usize, 150usize, 151usize, 152usize, 1usize, 0usize, 150usize];
+const FN_177_CALLEES: &[usize] = &[0usize, 3usize, 147usize, 22usize, 149usize, 1usize, 153usize, 152usize, 154usize, 0usize, 32usize, 2usize, 155usize, 141usize, 13usize, 55usize, 1usize];
 const FN_178_GLOBALS: &[usize] = &[14usize];
-const FN_178_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 147u32, 32u32, 0u32, 2u32];
-const FN_179_CALLEES: &[u32] = &[0u32, 7u32, 10u32, 3u32, 0u32, 0u32, 150u32];
-const FN_180_CALLEES: &[u32] = &[0u32, 1u32, 7u32, 0u32, 150u32];
-const FN_181_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_182_CALLEES: &[u32] = &[0u32, 60u32, 1u32, 142u32, 141u32, 1u32];
-const FN_183_CALLEES: &[u32] = &[0u32, 3u32, 147u32, 23u32, 59u32, 1u32];
-const FN_184_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 147u32, 1u32, 5u32, 63u32, 7u32, 150u32, 142u32, 151u32, 156u32, 154u32, 3u32];
-const FN_185_CALLEES: &[u32] = &[0u32, 1u32, 3u32, 147u32, 23u32, 59u32, 13u32, 150u32, 2u32];
-const FN_186_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 147u32, 7u32, 1u32, 150u32, 10u32, 3u32];
-const FN_187_CALLEES: &[u32] = &[0u32, 1u32, 147u32, 23u32, 59u32, 56u32, 54u32, 7u32, 150u32, 142u32, 151u32, 3u32];
-const FN_188_CALLEES: &[u32] = &[0u32, 23u32, 66u32, 1u32];
-const FN_189_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 1u32];
-const FN_190_CALLEES: &[u32] = &[0u32, 59u32, 58u32, 147u32];
-const FN_191_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 13u32, 58u32, 2u32, 6u32, 4u32, 22u32, 154u32, 141u32, 156u32, 2u32, 150u32];
-const FN_192_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_193_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 58u32, 2u32, 59u32, 150u32];
-const FN_194_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 58u32, 2u32, 22u32, 61u32, 59u32, 56u32, 150u32];
-const FN_195_CALLEES: &[u32] = &[0u32, 67u32, 58u32, 147u32];
+const FN_178_CALLEES: &[usize] = &[0usize, 1usize, 10usize, 147usize, 32usize, 0usize, 2usize];
+const FN_179_CALLEES: &[usize] = &[0usize, 7usize, 10usize, 3usize, 0usize, 0usize, 150usize];
+const FN_180_CALLEES: &[usize] = &[0usize, 1usize, 7usize, 0usize, 150usize];
+const FN_181_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_182_CALLEES: &[usize] = &[0usize, 60usize, 1usize, 142usize, 141usize, 1usize];
+const FN_183_CALLEES: &[usize] = &[0usize, 3usize, 147usize, 23usize, 59usize, 1usize];
+const FN_184_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 147usize, 1usize, 5usize, 63usize, 7usize, 150usize, 142usize, 151usize, 156usize, 154usize, 3usize];
+const FN_185_CALLEES: &[usize] = &[0usize, 1usize, 3usize, 147usize, 23usize, 59usize, 13usize, 150usize, 2usize];
+const FN_186_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 147usize, 7usize, 1usize, 150usize, 10usize, 3usize];
+const FN_187_CALLEES: &[usize] = &[0usize, 1usize, 147usize, 23usize, 59usize, 56usize, 54usize, 7usize, 150usize, 142usize, 151usize, 3usize];
+const FN_188_CALLEES: &[usize] = &[0usize, 23usize, 66usize, 1usize];
+const FN_189_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 1usize];
+const FN_190_CALLEES: &[usize] = &[0usize, 59usize, 58usize, 147usize];
+const FN_191_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 13usize, 58usize, 2usize, 6usize, 4usize, 22usize, 154usize, 141usize, 156usize, 2usize, 150usize];
+const FN_192_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_193_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 58usize, 2usize, 59usize, 150usize];
+const FN_194_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 58usize, 2usize, 22usize, 61usize, 59usize, 56usize, 150usize];
+const FN_195_CALLEES: &[usize] = &[0usize, 67usize, 58usize, 147usize];
 const FN_196_GLOBALS: &[usize] = &[14usize];
-const FN_196_CALLEES: &[u32] = &[0u32, 140u32, 58u32, 53u32, 147u32, 13u32, 2u32, 12u32, 9u32, 141u32, 1u32, 33u32, 2u32, 19u32, 150u32];
-const FN_197_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_198_CALLEES: &[u32] = &[0u32, 147u32, 7u32, 157u32, 7u32, 22u32, 5u32, 0u32, 150u32];
-const FN_199_CALLEES: &[u32] = &[0u32, 10u32, 3u32, 155u32, 0u32, 142u32, 141u32, 60u32, 1u32, 33u32, 151u32, 156u32];
-const FN_200_CALLEES: &[u32] = &[0u32, 22u32, 149u32, 153u32, 152u32, 154u32];
-const FN_201_CALLEES: &[u32] = &[0u32, 55u32];
-const FN_202_CALLEES: &[u32] = &[0u32, 147u32, 13u32, 23u32, 2u32, 1u32, 150u32, 2u32, 8u32, 158u32];
-const FN_203_CALLEES: &[u32] = &[0u32, 147u32, 2u32, 0u32, 1u32, 13u32, 4u32, 23u32, 150u32];
-const FN_204_CALLEES: &[u32] = &[0u32, 23u32, 147u32, 3u32];
-const FN_205_CALLEES: &[u32] = &[0u32, 8u32, 147u32];
-const FN_206_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_207_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 1u32, 1u32, 8u32];
-const FN_208_CALLEES: &[u32] = &[0u32, 77u32];
-const FN_209_CALLEES: &[u32] = &[0u32, 79u32, 13u32, 2u32, 1u32, 2u32, 150u32, 1u32, 8u32, 160u32, 147u32];
-const FN_210_CALLEES: &[u32] = &[0u32, 104u32];
-const FN_211_CALLEES: &[u32] = &[0u32, 152u32];
+const FN_196_CALLEES: &[usize] = &[0usize, 140usize, 58usize, 53usize, 147usize, 13usize, 2usize, 12usize, 9usize, 141usize, 1usize, 33usize, 2usize, 19usize, 150usize];
+const FN_197_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_198_CALLEES: &[usize] = &[0usize, 147usize, 7usize, 157usize, 7usize, 22usize, 5usize, 0usize, 150usize];
+const FN_199_CALLEES: &[usize] = &[0usize, 10usize, 3usize, 155usize, 0usize, 142usize, 141usize, 60usize, 1usize, 33usize, 151usize, 156usize];
+const FN_200_CALLEES: &[usize] = &[0usize, 22usize, 149usize, 153usize, 152usize, 154usize];
+const FN_201_CALLEES: &[usize] = &[0usize, 55usize];
+const FN_202_CALLEES: &[usize] = &[0usize, 147usize, 13usize, 23usize, 2usize, 1usize, 150usize, 2usize, 8usize, 158usize];
+const FN_203_CALLEES: &[usize] = &[0usize, 147usize, 2usize, 0usize, 1usize, 13usize, 4usize, 23usize, 150usize];
+const FN_204_CALLEES: &[usize] = &[0usize, 23usize, 147usize, 3usize];
+const FN_205_CALLEES: &[usize] = &[0usize, 8usize, 147usize];
+const FN_206_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_207_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 1usize, 1usize, 8usize];
+const FN_208_CALLEES: &[usize] = &[0usize, 77usize];
+const FN_209_CALLEES: &[usize] = &[0usize, 79usize, 13usize, 2usize, 1usize, 2usize, 150usize, 1usize, 8usize, 160usize, 147usize];
+const FN_210_CALLEES: &[usize] = &[0usize, 104usize];
+const FN_211_CALLEES: &[usize] = &[0usize, 152usize];
 const FN_212_GLOBALS: &[usize] = &[3usize];
-const FN_212_CALLEES: &[u32] = &[0u32, 64u32, 152u32, 62u32, 147u32];
-const FN_213_CALLEES: &[u32] = &[0u32, 13u32, 59u32, 58u32, 2u32, 150u32];
+const FN_212_CALLEES: &[usize] = &[0usize, 64usize, 152usize, 62usize, 147usize];
+const FN_213_CALLEES: &[usize] = &[0usize, 13usize, 59usize, 58usize, 2usize, 150usize];
 const FN_214_GLOBALS: &[usize] = &[3usize];
-const FN_214_CALLEES: &[u32] = &[0u32, 13u32, 23u32, 59u32, 1u32, 147u32, 2u32, 150u32];
-const FN_215_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_216_CALLEES: &[u32] = &[0u32, 1u32, 23u32, 59u32, 78u32, 2u32, 0u32, 0u32, 1u32, 147u32];
-const FN_217_CALLEES: &[u32] = &[0u32, 13u32, 23u32, 59u32, 1u32, 8u32, 2u32, 8u32, 147u32, 150u32];
-const FN_218_CALLEES: &[u32] = &[0u32, 23u32, 1u32, 13u32, 4u32, 150u32];
-const FN_219_CALLEES: &[u32] = &[0u32, 72u32, 147u32, 12u32, 9u32, 30u32];
-const FN_220_CALLEES: &[u32] = &[0u32, 80u32, 147u32];
-const FN_221_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 24u32, 71u32];
-const FN_222_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 147u32];
-const FN_223_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 24u32, 71u32];
-const FN_224_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 71u32];
-const FN_225_CALLEES: &[u32] = &[0u32, 72u32, 147u32, 12u32];
-const FN_226_CALLEES: &[u32] = &[0u32, 80u32, 147u32];
-const FN_227_CALLEES: &[u32] = &[0u32, 80u32, 147u32];
-const FN_228_CALLEES: &[u32] = &[0u32, 80u32, 147u32];
-const FN_229_CALLEES: &[u32] = &[0u32];
-const FN_230_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_231_CALLEES: &[u32] = &[0u32];
-const FN_232_CALLEES: &[u32] = &[0u32, 62u32, 147u32];
-const FN_233_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_234_CALLEES: &[u32] = &[0u32, 80u32, 147u32, 101u32, 161u32, 3u32, 100u32, 76u32];
-const FN_235_CALLEES: &[u32] = &[0u32, 77u32, 147u32, 102u32];
-const FN_236_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 100u32, 161u32, 76u32];
-const FN_237_CALLEES: &[u32] = &[0u32, 77u32, 147u32, 103u32];
-const FN_238_CALLEES: &[u32] = &[0u32, 147u32, 7u32, 72u32, 13u32, 11u32, 30u32, 27u32, 24u32];
-const FN_239_CALLEES: &[u32] = &[0u32, 147u32, 7u32, 72u32, 10u32, 12u32, 30u32, 9u32, 0u32, 9u32];
-const FN_240_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 23u32, 71u32, 2u32, 150u32];
-const FN_241_CALLEES: &[u32] = &[0u32, 147u32, 140u32, 71u32, 13u32, 11u32, 26u32, 24u32, 2u32, 25u32, 150u32, 99u32];
-const FN_242_CALLEES: &[u32] = &[0u32, 147u32, 71u32, 13u32, 3u32, 2u32, 150u32, 99u32];
-const FN_243_CALLEES: &[u32] = &[0u32, 7u32, 147u32, 72u32, 140u32, 9u32, 11u32, 9u32];
-const FN_244_CALLEES: &[u32] = &[0u32, 7u32, 147u32, 72u32, 140u32, 9u32, 11u32, 24u32, 71u32, 10u32, 3u32];
-const FN_245_CALLEES: &[u32] = &[0u32, 150u32, 151u32, 153u32];
-const FN_246_CALLEES: &[u32] = &[0u32];
-const FN_247_CALLEES: &[u32] = &[0u32];
-const FN_248_CALLEES: &[u32] = &[0u32];
-const FN_249_CALLEES: &[u32] = &[0u32];
-const FN_250_CALLEES: &[u32] = &[0u32];
-const FN_251_CALLEES: &[u32] = &[0u32];
-const FN_252_CALLEES: &[u32] = &[0u32, 92u32, 134u32, 90u32];
+const FN_214_CALLEES: &[usize] = &[0usize, 13usize, 23usize, 59usize, 1usize, 147usize, 2usize, 150usize];
+const FN_215_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_216_CALLEES: &[usize] = &[0usize, 1usize, 23usize, 59usize, 78usize, 2usize, 0usize, 0usize, 1usize, 147usize];
+const FN_217_CALLEES: &[usize] = &[0usize, 13usize, 23usize, 59usize, 1usize, 8usize, 2usize, 8usize, 147usize, 150usize];
+const FN_218_CALLEES: &[usize] = &[0usize, 23usize, 1usize, 13usize, 4usize, 150usize];
+const FN_219_CALLEES: &[usize] = &[0usize, 72usize, 147usize, 12usize, 9usize, 30usize];
+const FN_220_CALLEES: &[usize] = &[0usize, 80usize, 147usize];
+const FN_221_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 24usize, 71usize];
+const FN_222_CALLEES: &[usize] = &[0usize, 46usize, 71usize, 147usize];
+const FN_223_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 24usize, 71usize];
+const FN_224_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 71usize];
+const FN_225_CALLEES: &[usize] = &[0usize, 72usize, 147usize, 12usize];
+const FN_226_CALLEES: &[usize] = &[0usize, 80usize, 147usize];
+const FN_227_CALLEES: &[usize] = &[0usize, 80usize, 147usize];
+const FN_228_CALLEES: &[usize] = &[0usize, 80usize, 147usize];
+const FN_229_CALLEES: &[usize] = &[0usize];
+const FN_230_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_231_CALLEES: &[usize] = &[0usize];
+const FN_232_CALLEES: &[usize] = &[0usize, 62usize, 147usize];
+const FN_233_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_234_CALLEES: &[usize] = &[0usize, 80usize, 147usize, 101usize, 161usize, 3usize, 100usize, 76usize];
+const FN_235_CALLEES: &[usize] = &[0usize, 77usize, 147usize, 102usize];
+const FN_236_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 100usize, 161usize, 76usize];
+const FN_237_CALLEES: &[usize] = &[0usize, 77usize, 147usize, 103usize];
+const FN_238_CALLEES: &[usize] = &[0usize, 147usize, 7usize, 72usize, 13usize, 11usize, 30usize, 27usize, 24usize];
+const FN_239_CALLEES: &[usize] = &[0usize, 147usize, 7usize, 72usize, 10usize, 12usize, 30usize, 9usize, 0usize, 9usize];
+const FN_240_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 23usize, 71usize, 2usize, 150usize];
+const FN_241_CALLEES: &[usize] = &[0usize, 147usize, 140usize, 71usize, 13usize, 11usize, 26usize, 24usize, 2usize, 25usize, 150usize, 99usize];
+const FN_242_CALLEES: &[usize] = &[0usize, 147usize, 71usize, 13usize, 3usize, 2usize, 150usize, 99usize];
+const FN_243_CALLEES: &[usize] = &[0usize, 7usize, 147usize, 72usize, 140usize, 9usize, 11usize, 9usize];
+const FN_244_CALLEES: &[usize] = &[0usize, 7usize, 147usize, 72usize, 140usize, 9usize, 11usize, 24usize, 71usize, 10usize, 3usize];
+const FN_245_CALLEES: &[usize] = &[0usize, 150usize, 151usize, 153usize];
+const FN_246_CALLEES: &[usize] = &[0usize];
+const FN_247_CALLEES: &[usize] = &[0usize];
+const FN_248_CALLEES: &[usize] = &[0usize];
+const FN_249_CALLEES: &[usize] = &[0usize];
+const FN_250_CALLEES: &[usize] = &[0usize];
+const FN_251_CALLEES: &[usize] = &[0usize];
+const FN_252_CALLEES: &[usize] = &[0usize, 92usize, 134usize, 90usize];
 const FN_253_GLOBALS: &[usize] = &[26usize];
-const FN_253_CALLEES: &[u32] = &[0u32, 147u32, 13u32, 2u32, 150u32];
-const FN_254_CALLEES: &[u32] = &[0u32, 23u32, 147u32];
-const FN_255_CALLEES: &[u32] = &[0u32, 22u32, 147u32];
-const FN_256_CALLEES: &[u32] = &[0u32, 13u32, 85u32, 2u32, 150u32];
-const FN_257_CALLEES: &[u32] = &[0u32, 109u32, 13u32, 147u32, 2u32, 159u32, 150u32];
-const FN_258_CALLEES: &[u32] = &[0u32, 147u32, 110u32];
-const FN_259_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32];
-const FN_260_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32];
-const FN_261_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_262_CALLEES: &[u32] = &[0u32, 111u32, 13u32, 4u32, 2u32, 150u32];
+const FN_253_CALLEES: &[usize] = &[0usize, 147usize, 13usize, 2usize, 150usize];
+const FN_254_CALLEES: &[usize] = &[0usize, 23usize, 147usize];
+const FN_255_CALLEES: &[usize] = &[0usize, 22usize, 147usize];
+const FN_256_CALLEES: &[usize] = &[0usize, 13usize, 85usize, 2usize, 150usize];
+const FN_257_CALLEES: &[usize] = &[0usize, 109usize, 13usize, 147usize, 2usize, 159usize, 150usize];
+const FN_258_CALLEES: &[usize] = &[0usize, 147usize, 110usize];
+const FN_259_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize];
+const FN_260_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize];
+const FN_261_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_262_CALLEES: &[usize] = &[0usize, 111usize, 13usize, 4usize, 2usize, 150usize];
 const FN_263_GLOBALS: &[usize] = &[27usize, 28usize];
-const FN_263_CALLEES: &[u32] = &[0u32, 10u32, 12u32];
+const FN_263_CALLEES: &[usize] = &[0usize, 10usize, 12usize];
 const FN_264_GLOBALS: &[usize] = &[25usize];
-const FN_264_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_265_CALLEES: &[u32] = &[0u32, 2u32, 8u32, 147u32];
-const FN_266_CALLEES: &[u32] = &[0u32, 7u32, 72u32, 147u32, 11u32, 11u32, 3u32, 150u32, 1u32, 153u32, 7u32, 137u32, 107u32];
-const FN_267_CALLEES: &[u32] = &[0u32, 147u32, 110u32, 0u32, 159u32, 3u32, 13u32, 2u32, 150u32];
+const FN_264_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_265_CALLEES: &[usize] = &[0usize, 2usize, 8usize, 147usize];
+const FN_266_CALLEES: &[usize] = &[0usize, 7usize, 72usize, 147usize, 11usize, 11usize, 3usize, 150usize, 1usize, 153usize, 7usize, 137usize, 107usize];
+const FN_267_CALLEES: &[usize] = &[0usize, 147usize, 110usize, 0usize, 159usize, 3usize, 13usize, 2usize, 150usize];
 const FN_268_GLOBALS: &[usize] = &[25usize];
-const FN_268_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
+const FN_268_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
 const FN_269_GLOBALS: &[usize] = &[24usize, 29usize];
-const FN_269_CALLEES: &[u32] = &[0u32, 59u32, 54u32, 72u32, 10u32];
+const FN_269_CALLEES: &[usize] = &[0usize, 59usize, 54usize, 72usize, 10usize];
 const FN_270_GLOBALS: &[usize] = &[25usize];
-const FN_270_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_271_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 110u32, 72u32, 113u32];
-const FN_272_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 147u32, 159u32, 2u32, 150u32];
-const FN_273_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32];
-const FN_274_CALLEES: &[u32] = &[0u32, 23u32, 147u32, 110u32];
-const FN_275_CALLEES: &[u32] = &[0u32, 23u32, 147u32, 13u32, 4u32, 2u32, 150u32, 1u32];
-const FN_276_CALLEES: &[u32] = &[0u32, 3u32, 2u32, 147u32, 64u32, 74u32, 162u32, 110u32, 62u32, 112u32, 0u32];
-const FN_277_CALLEES: &[u32] = &[0u32, 147u32, 113u32, 0u32, 159u32, 110u32, 72u32];
-const FN_278_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 71u32, 159u32, 150u32, 113u32, 0u32, 3u32, 110u32];
+const FN_270_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_271_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 110usize, 72usize, 113usize];
+const FN_272_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 147usize, 159usize, 2usize, 150usize];
+const FN_273_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize];
+const FN_274_CALLEES: &[usize] = &[0usize, 23usize, 147usize, 110usize];
+const FN_275_CALLEES: &[usize] = &[0usize, 23usize, 147usize, 13usize, 4usize, 2usize, 150usize, 1usize];
+const FN_276_CALLEES: &[usize] = &[0usize, 3usize, 2usize, 147usize, 64usize, 74usize, 162usize, 110usize, 62usize, 112usize, 0usize];
+const FN_277_CALLEES: &[usize] = &[0usize, 147usize, 113usize, 0usize, 159usize, 110usize, 72usize];
+const FN_278_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 71usize, 159usize, 150usize, 113usize, 0usize, 3usize, 110usize];
 const FN_279_GLOBALS: &[usize] = &[24usize, 25usize];
-const FN_279_CALLEES: &[u32] = &[0u32, 139u32, 147u32, 13u32, 0u32, 59u32, 2u32, 138u32, 72u32, 111u32, 114u32, 153u32, 120u32, 116u32, 144u32, 145u32, 112u32, 11u32, 4u32, 150u32, 54u32, 104u32, 117u32];
-const FN_280_CALLEES: &[u32] = &[0u32, 114u32, 152u32, 147u32, 2u32];
-const FN_281_CALLEES: &[u32] = &[0u32, 147u32, 13u32, 2u32, 4u32, 150u32, 113u32, 0u32, 159u32, 110u32, 72u32];
-const FN_282_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 1u32, 4u32, 150u32, 113u32, 0u32, 159u32, 110u32, 72u32, 13u32];
-const FN_283_CALLEES: &[u32] = &[0u32, 147u32, 71u32, 0u32];
-const FN_284_CALLEES: &[u32] = &[0u32, 0u32, 147u32];
-const FN_285_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 13u32, 71u32, 2u32, 150u32];
-const FN_286_CALLEES: &[u32] = &[0u32, 113u32, 114u32, 153u32, 147u32, 0u32, 159u32, 71u32, 0u32, 0u32];
-const FN_287_CALLEES: &[u32] = &[0u32, 159u32, 147u32, 72u32, 13u32, 2u32, 24u32, 71u32, 0u32, 140u32, 3u32, 117u32, 113u32, 115u32, 153u32, 0u32, 116u32];
-const FN_288_CALLEES: &[u32] = &[0u32, 13u32, 72u32, 2u32, 24u32, 147u32, 71u32, 0u32, 140u32, 3u32, 117u32, 113u32, 115u32, 153u32, 0u32, 116u32, 159u32, 150u32];
+const FN_279_CALLEES: &[usize] = &[0usize, 139usize, 147usize, 13usize, 0usize, 59usize, 2usize, 138usize, 72usize, 111usize, 114usize, 153usize, 120usize, 116usize, 144usize, 145usize, 112usize, 11usize, 4usize, 150usize, 54usize, 104usize, 117usize];
+const FN_280_CALLEES: &[usize] = &[0usize, 114usize, 152usize, 147usize, 2usize];
+const FN_281_CALLEES: &[usize] = &[0usize, 147usize, 13usize, 2usize, 4usize, 150usize, 113usize, 0usize, 159usize, 110usize, 72usize];
+const FN_282_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 1usize, 4usize, 150usize, 113usize, 0usize, 159usize, 110usize, 72usize, 13usize];
+const FN_283_CALLEES: &[usize] = &[0usize, 147usize, 71usize, 0usize];
+const FN_284_CALLEES: &[usize] = &[0usize, 0usize, 147usize];
+const FN_285_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 13usize, 71usize, 2usize, 150usize];
+const FN_286_CALLEES: &[usize] = &[0usize, 113usize, 114usize, 153usize, 147usize, 0usize, 159usize, 71usize, 0usize, 0usize];
+const FN_287_CALLEES: &[usize] = &[0usize, 159usize, 147usize, 72usize, 13usize, 2usize, 24usize, 71usize, 0usize, 140usize, 3usize, 117usize, 113usize, 115usize, 153usize, 0usize, 116usize];
+const FN_288_CALLEES: &[usize] = &[0usize, 13usize, 72usize, 2usize, 24usize, 147usize, 71usize, 0usize, 140usize, 3usize, 117usize, 113usize, 115usize, 153usize, 0usize, 116usize, 159usize, 150usize];
 const FN_289_GLOBALS: &[usize] = &[25usize];
-const FN_289_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 118u32];
+const FN_289_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 118usize];
 const FN_290_GLOBALS: &[usize] = &[25usize];
-const FN_290_CALLEES: &[u32] = &[0u32, 114u32, 0u32, 59u32];
+const FN_290_CALLEES: &[usize] = &[0usize, 114usize, 0usize, 59usize];
 const FN_291_GLOBALS: &[usize] = &[24usize];
-const FN_291_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_292_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 117u32, 72u32, 113u32, 114u32, 153u32, 140u32, 2u32, 121u32];
-const FN_293_CALLEES: &[u32] = &[0u32, 72u32, 111u32, 147u32, 112u32, 3u32, 117u32, 113u32, 135u32, 153u32, 141u32, 62u32, 110u32, 136u32, 2u32, 121u32, 120u32, 122u32, 0u32, 159u32];
-const FN_294_CALLEES: &[u32] = &[0u32, 147u32, 6u32];
+const FN_291_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_292_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 117usize, 72usize, 113usize, 114usize, 153usize, 140usize, 2usize, 121usize];
+const FN_293_CALLEES: &[usize] = &[0usize, 72usize, 111usize, 147usize, 112usize, 3usize, 117usize, 113usize, 135usize, 153usize, 141usize, 62usize, 110usize, 136usize, 2usize, 121usize, 120usize, 122usize, 0usize, 159usize];
+const FN_294_CALLEES: &[usize] = &[0usize, 147usize, 6usize];
 const FN_295_GLOBALS: &[usize] = &[25usize];
-const FN_295_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 8u32, 147u32];
+const FN_295_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 8usize, 147usize];
 const FN_296_GLOBALS: &[usize] = &[25usize, 24usize, 30usize, 27usize];
-const FN_296_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 105u32, 72u32, 111u32, 147u32, 110u32, 119u32, 142u32, 153u32, 112u32, 14u32, 4u32, 54u32, 106u32, 113u32, 114u32, 152u32, 2u32, 10u32, 13u32, 150u32];
-const FN_297_CALLEES: &[u32] = &[0u32, 135u32, 147u32, 0u32];
-const FN_298_CALLEES: &[u32] = &[0u32, 72u32, 147u32, 13u32, 11u32, 0u32, 113u32, 115u32, 153u32, 115u32, 3u32, 0u32, 159u32, 11u32];
-const FN_299_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 3u32, 123u32];
-const FN_300_CALLEES: &[u32] = &[0u32, 147u32, 71u32, 0u32];
-const FN_301_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 24u32, 147u32, 13u32, 1u32, 150u32];
-const FN_302_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 13u32, 72u32, 24u32, 140u32, 2u32, 71u32, 23u32, 113u32, 114u32, 153u32, 152u32, 0u32, 159u32, 150u32];
-const FN_303_CALLEES: &[u32] = &[0u32, 147u32, 118u32, 13u32, 14u32, 2u32, 0u32, 24u32, 140u32, 72u32, 150u32, 1u32, 121u32, 122u32, 123u32, 129u32, 153u32, 111u32, 4u32, 23u32];
-const FN_304_CALLEES: &[u32] = &[0u32, 7u32, 3u32, 23u32, 147u32, 5u32, 150u32];
-const FN_305_CALLEES: &[u32] = &[0u32, 13u32, 1u32, 153u32, 7u32, 147u32, 2u32, 150u32];
-const FN_306_CALLEES: &[u32] = &[0u32, 2u32, 147u32, 0u32, 159u32, 13u32, 3u32, 7u32, 72u32, 11u32, 3u32, 150u32, 2u32];
-const FN_307_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 149u32, 153u32, 23u32, 11u32, 71u32, 109u32, 101u32, 4u32, 150u32];
-const FN_308_CALLEES: &[u32] = &[0u32, 13u32, 109u32, 147u32, 101u32, 116u32, 23u32, 2u32, 150u32, 3u32, 24u32, 140u32];
-const FN_309_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 72u32];
-const FN_310_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 16u32];
+const FN_296_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 105usize, 72usize, 111usize, 147usize, 110usize, 119usize, 142usize, 153usize, 112usize, 14usize, 4usize, 54usize, 106usize, 113usize, 114usize, 152usize, 2usize, 10usize, 13usize, 150usize];
+const FN_297_CALLEES: &[usize] = &[0usize, 135usize, 147usize, 0usize];
+const FN_298_CALLEES: &[usize] = &[0usize, 72usize, 147usize, 13usize, 11usize, 0usize, 113usize, 115usize, 153usize, 115usize, 3usize, 0usize, 159usize, 11usize];
+const FN_299_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 3usize, 123usize];
+const FN_300_CALLEES: &[usize] = &[0usize, 147usize, 71usize, 0usize];
+const FN_301_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 24usize, 147usize, 13usize, 1usize, 150usize];
+const FN_302_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 13usize, 72usize, 24usize, 140usize, 2usize, 71usize, 23usize, 113usize, 114usize, 153usize, 152usize, 0usize, 159usize, 150usize];
+const FN_303_CALLEES: &[usize] = &[0usize, 147usize, 118usize, 13usize, 14usize, 2usize, 0usize, 24usize, 140usize, 72usize, 150usize, 1usize, 121usize, 122usize, 123usize, 129usize, 153usize, 111usize, 4usize, 23usize];
+const FN_304_CALLEES: &[usize] = &[0usize, 7usize, 3usize, 23usize, 147usize, 5usize, 150usize];
+const FN_305_CALLEES: &[usize] = &[0usize, 13usize, 1usize, 153usize, 7usize, 147usize, 2usize, 150usize];
+const FN_306_CALLEES: &[usize] = &[0usize, 2usize, 147usize, 0usize, 159usize, 13usize, 3usize, 7usize, 72usize, 11usize, 3usize, 150usize, 2usize];
+const FN_307_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 149usize, 153usize, 23usize, 11usize, 71usize, 109usize, 101usize, 4usize, 150usize];
+const FN_308_CALLEES: &[usize] = &[0usize, 13usize, 109usize, 147usize, 101usize, 116usize, 23usize, 2usize, 150usize, 3usize, 24usize, 140usize];
+const FN_309_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 72usize];
+const FN_310_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 16usize];
 const FN_311_GLOBALS: &[usize] = &[24usize, 25usize];
-const FN_311_CALLEES: &[u32] = &[0u32, 59u32, 0u32, 159u32];
+const FN_311_CALLEES: &[usize] = &[0usize, 59usize, 0usize, 159usize];
 const FN_312_GLOBALS: &[usize] = &[25usize];
-const FN_312_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 147u32, 0u32, 4u32, 16u32];
+const FN_312_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 147usize, 0usize, 4usize, 16usize];
 const FN_313_GLOBALS: &[usize] = &[25usize];
-const FN_313_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 147u32, 0u32, 16u32, 2u32, 3u32, 4u32, 150u32];
-const FN_314_CALLEES: &[u32] = &[0u32, 2u32, 147u32, 0u32, 159u32, 17u32, 3u32, 4u32];
+const FN_313_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 147usize, 0usize, 16usize, 2usize, 3usize, 4usize, 150usize];
+const FN_314_CALLEES: &[usize] = &[0usize, 2usize, 147usize, 0usize, 159usize, 17usize, 3usize, 4usize];
 const FN_315_GLOBALS: &[usize] = &[25usize];
-const FN_315_CALLEES: &[u32] = &[0u32, 2u32, 0u32, 59u32, 147u32, 0u32, 17u32, 3u32, 5u32, 4u32];
+const FN_315_CALLEES: &[usize] = &[0usize, 2usize, 0usize, 59usize, 147usize, 0usize, 17usize, 3usize, 5usize, 4usize];
 const FN_316_GLOBALS: &[usize] = &[25usize, 24usize];
-const FN_316_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 147u32, 0u32, 108u32, 16u32, 2u32, 54u32, 109u32, 150u32];
-const FN_317_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 17u32, 3u32, 4u32, 2u32, 0u32, 13u32, 8u32, 4u32, 150u32];
-const FN_318_CALLEES: &[u32] = &[0u32, 2u32, 147u32, 0u32, 159u32, 0u32, 8u32, 15u32, 125u32, 13u32, 2u32, 4u32, 16u32, 4u32, 2u32, 3u32, 150u32];
-const FN_319_CALLEES: &[u32] = &[0u32, 13u32, 2u32, 1u32, 147u32, 2u32, 150u32];
-const FN_320_CALLEES: &[u32] = &[0u32, 114u32, 147u32, 0u32, 159u32, 1u32, 2u32, 15u32, 0u32, 8u32, 127u32, 18u32, 4u32, 111u32, 112u32, 3u32, 2u32];
-const FN_321_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 13u32, 2u32, 8u32, 4u32, 150u32];
-const FN_322_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 3u32, 4u32, 150u32];
-const FN_323_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 24u32, 147u32, 149u32, 153u32, 13u32, 1u32, 150u32];
-const FN_324_CALLEES: &[u32] = &[0u32, 13u32, 2u32, 147u32, 0u32, 159u32, 0u32, 8u32, 15u32, 125u32, 137u32, 24u32, 110u32, 2u32, 4u32, 150u32];
-const FN_325_CALLEES: &[u32] = &[0u32, 125u32, 124u32, 147u32, 13u32, 25u32, 71u32, 0u32, 72u32, 113u32, 114u32, 153u32, 152u32, 0u32, 159u32, 5u32, 0u32, 4u32, 24u32, 111u32, 4u32, 2u32, 150u32, 1u32, 130u32, 139u32, 125u32];
-const FN_326_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 71u32, 0u32, 72u32, 113u32, 115u32, 153u32, 15u32];
-const FN_327_CALLEES: &[u32] = &[0u32, 147u32, 140u32, 7u32, 11u32, 26u32, 11u32, 3u32, 25u32, 150u32, 1u32];
-const FN_328_CALLEES: &[u32] = &[0u32, 72u32, 147u32, 10u32, 7u32, 3u32, 131u32, 5u32, 150u32, 36u32];
-const FN_329_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_330_CALLEES: &[u32] = &[0u32, 128u32, 147u32, 13u32, 25u32, 4u32, 24u32, 111u32, 4u32, 2u32, 150u32, 1u32, 138u32, 139u32, 126u32, 7u32, 71u32, 126u32, 125u32, 5u32, 153u32, 152u32, 0u32, 7u32, 5u32, 132u32, 137u32, 26u32, 14u32, 130u32, 23u32, 127u32, 27u32, 2u32, 0u32, 4u32, 4u32, 0u32, 133u32, 28u32, 125u32, 134u32, 1u32];
+const FN_316_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 147usize, 0usize, 108usize, 16usize, 2usize, 54usize, 109usize, 150usize];
+const FN_317_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 17usize, 3usize, 4usize, 2usize, 0usize, 13usize, 8usize, 4usize, 150usize];
+const FN_318_CALLEES: &[usize] = &[0usize, 2usize, 147usize, 0usize, 159usize, 0usize, 8usize, 15usize, 125usize, 13usize, 2usize, 4usize, 16usize, 4usize, 2usize, 3usize, 150usize];
+const FN_319_CALLEES: &[usize] = &[0usize, 13usize, 2usize, 1usize, 147usize, 2usize, 150usize];
+const FN_320_CALLEES: &[usize] = &[0usize, 114usize, 147usize, 0usize, 159usize, 1usize, 2usize, 15usize, 0usize, 8usize, 127usize, 18usize, 4usize, 111usize, 112usize, 3usize, 2usize];
+const FN_321_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 13usize, 2usize, 8usize, 4usize, 150usize];
+const FN_322_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 3usize, 4usize, 150usize];
+const FN_323_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 24usize, 147usize, 149usize, 153usize, 13usize, 1usize, 150usize];
+const FN_324_CALLEES: &[usize] = &[0usize, 13usize, 2usize, 147usize, 0usize, 159usize, 0usize, 8usize, 15usize, 125usize, 137usize, 24usize, 110usize, 2usize, 4usize, 150usize];
+const FN_325_CALLEES: &[usize] = &[0usize, 125usize, 124usize, 147usize, 13usize, 25usize, 71usize, 0usize, 72usize, 113usize, 114usize, 153usize, 152usize, 0usize, 159usize, 5usize, 0usize, 4usize, 24usize, 111usize, 4usize, 2usize, 150usize, 1usize, 130usize, 139usize, 125usize];
+const FN_326_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 71usize, 0usize, 72usize, 113usize, 115usize, 153usize, 15usize];
+const FN_327_CALLEES: &[usize] = &[0usize, 147usize, 140usize, 7usize, 11usize, 26usize, 11usize, 3usize, 25usize, 150usize, 1usize];
+const FN_328_CALLEES: &[usize] = &[0usize, 72usize, 147usize, 10usize, 7usize, 3usize, 131usize, 5usize, 150usize, 36usize];
+const FN_329_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_330_CALLEES: &[usize] = &[0usize, 128usize, 147usize, 13usize, 25usize, 4usize, 24usize, 111usize, 4usize, 2usize, 150usize, 1usize, 138usize, 139usize, 126usize, 7usize, 71usize, 126usize, 125usize, 5usize, 153usize, 152usize, 0usize, 7usize, 5usize, 132usize, 137usize, 26usize, 14usize, 130usize, 23usize, 127usize, 27usize, 2usize, 0usize, 4usize, 4usize, 0usize, 133usize, 28usize, 125usize, 134usize, 1usize];
 const FN_331_GLOBALS: &[usize] = &[24usize];
-const FN_331_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 26u32, 2u32, 59u32, 107u32, 27u32, 150u32, 3u32, 72u32, 113u32, 71u32, 0u32, 115u32, 153u32, 152u32, 120u32, 122u32, 0u32, 159u32, 4u32, 114u32, 24u32, 110u32];
-const FN_332_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 109u32, 4u32, 159u32, 150u32];
-const FN_333_CALLEES: &[u32] = &[0u32, 13u32, 143u32];
+const FN_331_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 26usize, 2usize, 59usize, 107usize, 27usize, 150usize, 3usize, 72usize, 113usize, 71usize, 0usize, 115usize, 153usize, 152usize, 120usize, 122usize, 0usize, 159usize, 4usize, 114usize, 24usize, 110usize];
+const FN_332_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 109usize, 4usize, 159usize, 150usize];
+const FN_333_CALLEES: &[usize] = &[0usize, 13usize, 143usize];
 const FN_334_GLOBALS: &[usize] = &[31usize, 25usize];
-const FN_334_CALLEES: &[u32] = &[0u32, 0u32, 139u32, 147u32, 2u32, 153u32, 2u32, 111u32, 0u32, 4u32, 159u32, 11u32, 114u32, 72u32, 13u32, 13u32, 2u32, 8u32, 4u32, 150u32, 12u32, 119u32, 23u32, 11u32, 118u32, 120u32, 119u32, 142u32, 118u32, 111u32, 10u32, 124u32, 2u32, 59u32, 8u32, 128u32, 11u32, 9u32, 133u32, 12u32, 13u32];
+const FN_334_CALLEES: &[usize] = &[0usize, 0usize, 139usize, 147usize, 2usize, 153usize, 2usize, 111usize, 0usize, 4usize, 159usize, 11usize, 114usize, 72usize, 13usize, 13usize, 2usize, 8usize, 4usize, 150usize, 12usize, 119usize, 23usize, 11usize, 118usize, 120usize, 119usize, 142usize, 118usize, 111usize, 10usize, 124usize, 2usize, 59usize, 8usize, 128usize, 11usize, 9usize, 133usize, 12usize, 13usize];
 const FN_335_GLOBALS: &[usize] = &[25usize, 24usize, 30usize, 27usize];
-const FN_335_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 105u32, 54u32, 106u32, 72u32, 113u32, 10u32, 13u32];
-const FN_336_CALLEES: &[u32] = &[0u32, 147u32, 119u32, 153u32, 5u32];
-const FN_337_CALLEES: &[u32] = &[0u32, 72u32, 0u32];
-const FN_338_CALLEES: &[u32] = &[0u32, 0u32];
-const FN_339_CALLEES: &[u32] = &[0u32, 147u32, 13u32, 2u32, 150u32];
-const FN_340_CALLEES: &[u32] = &[0u32, 4u32, 23u32, 147u32, 111u32];
-const FN_341_CALLEES: &[u32] = &[0u32, 4u32, 23u32, 147u32, 111u32, 13u32, 4u32, 2u32, 150u32, 1u32];
+const FN_335_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 105usize, 54usize, 106usize, 72usize, 113usize, 10usize, 13usize];
+const FN_336_CALLEES: &[usize] = &[0usize, 147usize, 119usize, 153usize, 5usize];
+const FN_337_CALLEES: &[usize] = &[0usize, 72usize, 0usize];
+const FN_338_CALLEES: &[usize] = &[0usize, 0usize];
+const FN_339_CALLEES: &[usize] = &[0usize, 147usize, 13usize, 2usize, 150usize];
+const FN_340_CALLEES: &[usize] = &[0usize, 4usize, 23usize, 147usize, 111usize];
+const FN_341_CALLEES: &[usize] = &[0usize, 4usize, 23usize, 147usize, 111usize, 13usize, 4usize, 2usize, 150usize, 1usize];
 const FN_342_GLOBALS: &[usize] = &[25usize];
-const FN_342_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_343_CALLEES: &[u32] = &[0u32, 137u32];
-const FN_344_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 23u32, 4u32, 24u32, 4u32, 150u32, 1u32, 26u32, 14u32, 137u32, 138u32, 132u32, 27u32, 2u32, 0u32, 140u32];
-const FN_345_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 1u32, 131u32, 139u32, 130u32, 2u32, 150u32, 147u32];
-const FN_346_CALLEES: &[u32] = &[0u32, 130u32, 13u32, 130u32, 129u32, 4u32, 150u32];
+const FN_342_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_343_CALLEES: &[usize] = &[0usize, 137usize];
+const FN_344_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 23usize, 4usize, 24usize, 4usize, 150usize, 1usize, 26usize, 14usize, 137usize, 138usize, 132usize, 27usize, 2usize, 0usize, 140usize];
+const FN_345_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 1usize, 131usize, 139usize, 130usize, 2usize, 150usize, 147usize];
+const FN_346_CALLEES: &[usize] = &[0usize, 130usize, 13usize, 130usize, 129usize, 4usize, 150usize];
 const FN_347_GLOBALS: &[usize] = &[24usize];
-const FN_347_CALLEES: &[u32] = &[0u32, 59u32, 54u32, 72u32, 113u32];
+const FN_347_CALLEES: &[usize] = &[0usize, 59usize, 54usize, 72usize, 113usize];
 const FN_348_GLOBALS: &[usize] = &[27usize, 28usize];
-const FN_348_CALLEES: &[u32] = &[0u32, 72u32, 10u32, 12u32];
+const FN_348_CALLEES: &[usize] = &[0usize, 72usize, 10usize, 12usize];
 const FN_349_GLOBALS: &[usize] = &[25usize, 24usize];
-const FN_349_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 2u32, 147u32, 0u32, 108u32, 54u32, 109u32];
+const FN_349_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 2usize, 147usize, 0usize, 108usize, 54usize, 109usize];
 const FN_350_GLOBALS: &[usize] = &[25usize];
-const FN_350_CALLEES: &[u32] = &[0u32, 118u32, 147u32, 1u32, 13u32, 71u32, 116u32, 130u32, 131u32, 0u32, 72u32, 113u32, 114u32, 153u32, 152u32, 0u32, 59u32, 1u32, 121u32, 2u32, 150u32, 122u32, 123u32, 129u32];
+const FN_350_CALLEES: &[usize] = &[0usize, 118usize, 147usize, 1usize, 13usize, 71usize, 116usize, 130usize, 131usize, 0usize, 72usize, 113usize, 114usize, 153usize, 152usize, 0usize, 59usize, 1usize, 121usize, 2usize, 150usize, 122usize, 123usize, 129usize];
 const FN_351_GLOBALS: &[usize] = &[25usize];
-const FN_351_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 2u32, 147u32, 0u32];
-const FN_352_CALLEES: &[u32] = &[0u32, 7u32, 147u32, 162u32];
-const FN_353_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 71u32, 159u32, 150u32, 64u32, 74u32, 162u32, 110u32, 7u32, 62u32, 70u32];
-const FN_354_CALLEES: &[u32] = &[0u32, 152u32, 147u32, 62u32, 110u32];
-const FN_355_CALLEES: &[u32] = &[0u32, 12u32, 143u32];
-const FN_356_CALLEES: &[u32] = &[0u32, 74u32, 147u32, 162u32, 110u32, 7u32, 62u32, 70u32];
-const FN_357_CALLEES: &[u32] = &[0u32, 147u32, 62u32, 110u32];
-const FN_358_CALLEES: &[u32] = &[0u32, 147u32, 101u32, 64u32, 7u32, 5u32, 150u32, 136u32];
-const FN_359_CALLEES: &[u32] = &[0u32, 136u32, 120u32, 147u32, 64u32, 12u32];
+const FN_351_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 2usize, 147usize, 0usize];
+const FN_352_CALLEES: &[usize] = &[0usize, 7usize, 147usize, 162usize];
+const FN_353_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 71usize, 159usize, 150usize, 64usize, 74usize, 162usize, 110usize, 7usize, 62usize, 70usize];
+const FN_354_CALLEES: &[usize] = &[0usize, 152usize, 147usize, 62usize, 110usize];
+const FN_355_CALLEES: &[usize] = &[0usize, 12usize, 143usize];
+const FN_356_CALLEES: &[usize] = &[0usize, 74usize, 147usize, 162usize, 110usize, 7usize, 62usize, 70usize];
+const FN_357_CALLEES: &[usize] = &[0usize, 147usize, 62usize, 110usize];
+const FN_358_CALLEES: &[usize] = &[0usize, 147usize, 101usize, 64usize, 7usize, 5usize, 150usize, 136usize];
+const FN_359_CALLEES: &[usize] = &[0usize, 136usize, 120usize, 147usize, 64usize, 12usize];
 const FN_360_GLOBALS: &[usize] = &[25usize];
-const FN_360_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
+const FN_360_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
 const FN_361_GLOBALS: &[usize] = &[25usize];
-const FN_361_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_362_CALLEES: &[u32] = &[0u32, 1u32, 152u32];
-const FN_363_CALLEES: &[u32] = &[0u32, 137u32];
-const FN_364_CALLEES: &[u32] = &[0u32, 138u32, 13u32, 4u32, 2u32, 150u32];
-const FN_365_CALLEES: &[u32] = &[0u32, 93u32, 108u32, 94u32, 147u32];
-const FN_366_CALLEES: &[u32] = &[147u32];
-const FN_387_CALLEES: &[u32] = &[146u32];
-const FN_389_CALLEES: &[u32] = &[147u32];
-const FN_392_CALLEES: &[u32] = &[147u32];
-const FN_396_CALLEES: &[u32] = &[147u32];
-const FN_397_CALLEES: &[u32] = &[147u32];
-const FN_400_CALLEES: &[u32] = &[147u32];
-const FN_403_CALLEES: &[u32] = &[147u32];
-const FN_410_CALLEES: &[u32] = &[147u32];
-const FN_414_CALLEES: &[u32] = &[147u32];
-const FN_415_CALLEES: &[u32] = &[147u32];
-const FN_417_CALLEES: &[u32] = &[147u32];
-const FN_418_CALLEES: &[u32] = &[147u32];
-const FN_419_CALLEES: &[u32] = &[159u32];
-const FN_421_CALLEES: &[u32] = &[158u32];
-const FN_422_CALLEES: &[u32] = &[147u32];
-const FN_424_CALLEES: &[u32] = &[147u32];
-const FN_428_CALLEES: &[u32] = &[147u32];
-const FN_429_CALLEES: &[u32] = &[147u32];
-const FN_431_CALLEES: &[u32] = &[147u32];
-const FN_432_CALLEES: &[u32] = &[147u32];
-const FN_435_CALLEES: &[u32] = &[147u32];
-const FN_438_CALLEES: &[u32] = &[0u32, 147u32, 146u32];
+const FN_361_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_362_CALLEES: &[usize] = &[0usize, 1usize, 152usize];
+const FN_363_CALLEES: &[usize] = &[0usize, 137usize];
+const FN_364_CALLEES: &[usize] = &[0usize, 138usize, 13usize, 4usize, 2usize, 150usize];
+const FN_365_CALLEES: &[usize] = &[0usize, 93usize, 108usize, 94usize, 147usize];
+const FN_366_CALLEES: &[usize] = &[147usize];
+const FN_387_CALLEES: &[usize] = &[146usize];
+const FN_389_CALLEES: &[usize] = &[147usize];
+const FN_392_CALLEES: &[usize] = &[147usize];
+const FN_396_CALLEES: &[usize] = &[147usize];
+const FN_397_CALLEES: &[usize] = &[147usize];
+const FN_400_CALLEES: &[usize] = &[147usize];
+const FN_403_CALLEES: &[usize] = &[147usize];
+const FN_410_CALLEES: &[usize] = &[147usize];
+const FN_414_CALLEES: &[usize] = &[147usize];
+const FN_415_CALLEES: &[usize] = &[147usize];
+const FN_417_CALLEES: &[usize] = &[147usize];
+const FN_418_CALLEES: &[usize] = &[147usize];
+const FN_419_CALLEES: &[usize] = &[159usize];
+const FN_421_CALLEES: &[usize] = &[158usize];
+const FN_422_CALLEES: &[usize] = &[147usize];
+const FN_424_CALLEES: &[usize] = &[147usize];
+const FN_428_CALLEES: &[usize] = &[147usize];
+const FN_429_CALLEES: &[usize] = &[147usize];
+const FN_431_CALLEES: &[usize] = &[147usize];
+const FN_432_CALLEES: &[usize] = &[147usize];
+const FN_435_CALLEES: &[usize] = &[147usize];
+const FN_438_CALLEES: &[usize] = &[0usize, 147usize, 146usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -110928,6 +110931,10 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (1116720u128, [0xd0, 0x22, 0xb1, 0x16, 0xf7, 0x8d, 0xff, 0xef, 0x78, 0x51, 0xc7, 0x9f, 0x74, 0x54, 0xfd, 0xa0, 0x53, 0x5e, 0xf5, 0x7c, 0x33, 0x5b, 0xd4, 0xe2, 0x8f, 0x2d, 0x5f, 0x88, 0x35, 0x75, 0x40, 0xf2]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_92792/2608@l8589998096",
     accounting_version: 2u32,
@@ -110939,6 +110946,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -111115,7 +111123,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 2usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }
@@ -111169,478 +111179,478 @@ use crate::utilities::*;
 use super::*;
 
 const FN_0_GLOBALS: &[usize] = &[0usize, 1usize, 2usize, 3usize, 4usize, 5usize, 6usize, 7usize, 8usize, 9usize, 10usize, 11usize, 12usize, 13usize, 14usize, 15usize, 16usize, 17usize, 18usize, 19usize, 20usize, 21usize, 22usize, 23usize, 24usize, 25usize, 26usize, 27usize, 28usize, 29usize, 30usize, 31usize];
-const FN_0_CALLEES: &[u32] = &[147u32];
-const FN_1_CALLEES: &[u32] = &[0u32, 24u32];
-const FN_2_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_3_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_4_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_5_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_6_CALLEES: &[u32] = &[0u32, 34u32, 10u32];
+const FN_0_CALLEES: &[usize] = &[147usize];
+const FN_1_CALLEES: &[usize] = &[0usize, 24usize];
+const FN_2_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_3_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_4_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_5_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_6_CALLEES: &[usize] = &[0usize, 34usize, 10usize];
 const FN_7_GLOBALS: &[usize] = &[14usize];
-const FN_7_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_8_CALLEES: &[u32] = &[0u32, 0u32];
-const FN_9_CALLEES: &[u32] = &[0u32, 10u32];
-const FN_10_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_11_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_12_CALLEES: &[u32] = &[0u32, 25u32];
-const FN_13_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_14_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_15_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_16_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_17_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_18_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_19_CALLEES: &[u32] = &[0u32, 13u32];
-const FN_20_CALLEES: &[u32] = &[0u32];
-const FN_21_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_22_CALLEES: &[u32] = &[0u32, 27u32];
-const FN_23_CALLEES: &[u32] = &[0u32, 0u32, 0u32, 1u32, 1u32, 147u32];
-const FN_24_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_25_CALLEES: &[u32] = &[0u32, 141u32];
-const FN_26_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_27_CALLEES: &[u32] = &[0u32, 32u32, 142u32, 33u32, 2u32];
-const FN_28_CALLEES: &[u32] = &[0u32, 33u32, 142u32, 32u32, 2u32];
-const FN_29_CALLEES: &[u32] = &[0u32, 28u32];
-const FN_30_CALLEES: &[u32] = &[0u32, 29u32];
-const FN_31_CALLEES: &[u32] = &[0u32, 30u32];
-const FN_32_CALLEES: &[u32] = &[0u32, 26u32];
+const FN_7_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_8_CALLEES: &[usize] = &[0usize, 0usize];
+const FN_9_CALLEES: &[usize] = &[0usize, 10usize];
+const FN_10_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_11_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_12_CALLEES: &[usize] = &[0usize, 25usize];
+const FN_13_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_14_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_15_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_16_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_17_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_18_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_19_CALLEES: &[usize] = &[0usize, 13usize];
+const FN_20_CALLEES: &[usize] = &[0usize];
+const FN_21_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_22_CALLEES: &[usize] = &[0usize, 27usize];
+const FN_23_CALLEES: &[usize] = &[0usize, 0usize, 0usize, 1usize, 1usize, 147usize];
+const FN_24_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_25_CALLEES: &[usize] = &[0usize, 141usize];
+const FN_26_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_27_CALLEES: &[usize] = &[0usize, 32usize, 142usize, 33usize, 2usize];
+const FN_28_CALLEES: &[usize] = &[0usize, 33usize, 142usize, 32usize, 2usize];
+const FN_29_CALLEES: &[usize] = &[0usize, 28usize];
+const FN_30_CALLEES: &[usize] = &[0usize, 29usize];
+const FN_31_CALLEES: &[usize] = &[0usize, 30usize];
+const FN_32_CALLEES: &[usize] = &[0usize, 26usize];
 const FN_33_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_33_CALLEES: &[u32] = &[0u32, 34u32, 10u32, 147u32];
-const FN_34_CALLEES: &[u32] = &[0u32, 31u32, 147u32];
+const FN_33_CALLEES: &[usize] = &[0usize, 34usize, 10usize, 147usize];
+const FN_34_CALLEES: &[usize] = &[0usize, 31usize, 147usize];
 const FN_35_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_35_CALLEES: &[u32] = &[0u32, 5u32, 147u32];
+const FN_35_CALLEES: &[usize] = &[0usize, 5usize, 147usize];
 const FN_36_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_36_CALLEES: &[u32] = &[0u32, 0u32, 147u32];
-const FN_37_CALLEES: &[u32] = &[0u32, 31u32, 147u32];
+const FN_36_CALLEES: &[usize] = &[0usize, 0usize, 147usize];
+const FN_37_CALLEES: &[usize] = &[0usize, 31usize, 147usize];
 const FN_38_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_38_CALLEES: &[u32] = &[0u32, 6u32, 35u32, 147u32];
+const FN_38_CALLEES: &[usize] = &[0usize, 6usize, 35usize, 147usize];
 const FN_39_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_39_CALLEES: &[u32] = &[0u32, 147u32, 32u32];
+const FN_39_CALLEES: &[usize] = &[0usize, 147usize, 32usize];
 const FN_40_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_40_CALLEES: &[u32] = &[0u32, 147u32, 33u32];
+const FN_40_CALLEES: &[usize] = &[0usize, 147usize, 33usize];
 const FN_41_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_41_CALLEES: &[u32] = &[0u32, 10u32, 36u32, 147u32];
+const FN_41_CALLEES: &[usize] = &[0usize, 10usize, 36usize, 147usize];
 const FN_42_GLOBALS: &[usize] = &[9usize];
-const FN_42_CALLEES: &[u32] = &[0u32, 8u32, 147u32];
+const FN_42_CALLEES: &[usize] = &[0usize, 8usize, 147usize];
 const FN_43_GLOBALS: &[usize] = &[9usize];
-const FN_43_CALLEES: &[u32] = &[0u32, 1u32, 147u32];
+const FN_43_CALLEES: &[usize] = &[0usize, 1usize, 147usize];
 const FN_44_GLOBALS: &[usize] = &[9usize];
-const FN_44_CALLEES: &[u32] = &[0u32, 9u32, 147u32];
+const FN_44_CALLEES: &[usize] = &[0usize, 9usize, 147usize];
 const FN_45_GLOBALS: &[usize] = &[9usize];
-const FN_45_CALLEES: &[u32] = &[0u32, 147u32];
+const FN_45_CALLEES: &[usize] = &[0usize, 147usize];
 const FN_46_GLOBALS: &[usize] = &[9usize];
-const FN_46_CALLEES: &[u32] = &[0u32, 10u32, 147u32];
+const FN_46_CALLEES: &[usize] = &[0usize, 10usize, 147usize];
 const FN_47_GLOBALS: &[usize] = &[14usize, 1usize];
-const FN_47_CALLEES: &[u32] = &[0u32, 140u32, 147u32, 13u32, 148u32, 0u32, 32u32, 2u32, 10u32, 36u32, 37u32, 143u32];
-const FN_48_CALLEES: &[u32] = &[0u32];
-const FN_49_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_50_CALLEES: &[u32] = &[0u32, 1u32, 142u32, 0u32, 147u32];
-const FN_51_CALLEES: &[u32] = &[0u32, 0u32, 142u32, 1u32, 147u32];
-const FN_52_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_53_CALLEES: &[u32] = &[0u32, 0u32, 147u32];
-const FN_54_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_55_CALLEES: &[u32] = &[0u32, 0u32, 142u32];
-const FN_56_CALLEES: &[u32] = &[0u32, 1u32, 147u32, 142u32];
+const FN_47_CALLEES: &[usize] = &[0usize, 140usize, 147usize, 13usize, 148usize, 0usize, 32usize, 2usize, 10usize, 36usize, 37usize, 143usize];
+const FN_48_CALLEES: &[usize] = &[0usize];
+const FN_49_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_50_CALLEES: &[usize] = &[0usize, 1usize, 142usize, 0usize, 147usize];
+const FN_51_CALLEES: &[usize] = &[0usize, 0usize, 142usize, 1usize, 147usize];
+const FN_52_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_53_CALLEES: &[usize] = &[0usize, 0usize, 147usize];
+const FN_54_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_55_CALLEES: &[usize] = &[0usize, 0usize, 142usize];
+const FN_56_CALLEES: &[usize] = &[0usize, 1usize, 147usize, 142usize];
 const FN_57_GLOBALS: &[usize] = &[14usize];
-const FN_57_CALLEES: &[u32] = &[0u32, 21u32, 24u32, 36u32];
-const FN_58_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_59_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_60_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_61_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_62_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_63_CALLEES: &[u32] = &[0u32, 68u32];
+const FN_57_CALLEES: &[usize] = &[0usize, 21usize, 24usize, 36usize];
+const FN_58_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_59_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_60_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_61_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_62_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_63_CALLEES: &[usize] = &[0usize, 68usize];
 const FN_64_GLOBALS: &[usize] = &[19usize, 16usize, 17usize];
-const FN_64_CALLEES: &[u32] = &[0u32, 144u32];
+const FN_64_CALLEES: &[usize] = &[0usize, 144usize];
 const FN_65_GLOBALS: &[usize] = &[19usize];
-const FN_65_CALLEES: &[u32] = &[0u32, 144u32, 12u32, 6u32, 35u32, 21u32, 1u32, 12u32];
+const FN_65_CALLEES: &[usize] = &[0usize, 144usize, 12usize, 6usize, 35usize, 21usize, 1usize, 12usize];
 const FN_66_GLOBALS: &[usize] = &[16usize];
-const FN_66_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_67_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_68_CALLEES: &[u32] = &[0u32, 24u32, 1u32];
-const FN_69_CALLEES: &[u32] = &[0u32, 24u32, 2u32];
-const FN_70_CALLEES: &[u32] = &[0u32, 61u32];
-const FN_71_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_72_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_73_CALLEES: &[u32] = &[0u32, 2u32];
-const FN_74_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_75_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_76_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_77_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_78_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_79_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_80_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_81_CALLEES: &[u32] = &[0u32];
-const FN_82_CALLEES: &[u32] = &[0u32, 51u32];
-const FN_83_CALLEES: &[u32] = &[0u32];
-const FN_84_CALLEES: &[u32] = &[0u32, 62u32];
-const FN_85_CALLEES: &[u32] = &[0u32, 63u32];
-const FN_86_CALLEES: &[u32] = &[0u32, 144u32];
-const FN_87_CALLEES: &[u32] = &[0u32, 26u32];
-const FN_88_CALLEES: &[u32] = &[0u32, 24u32, 5u32];
-const FN_89_CALLEES: &[u32] = &[0u32, 43u32, 67u32];
-const FN_90_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_91_CALLEES: &[u32] = &[0u32, 65u32];
-const FN_92_CALLEES: &[u32] = &[0u32, 66u32];
-const FN_93_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_94_CALLEES: &[u32] = &[0u32, 67u32];
+const FN_66_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_67_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_68_CALLEES: &[usize] = &[0usize, 24usize, 1usize];
+const FN_69_CALLEES: &[usize] = &[0usize, 24usize, 2usize];
+const FN_70_CALLEES: &[usize] = &[0usize, 61usize];
+const FN_71_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_72_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_73_CALLEES: &[usize] = &[0usize, 2usize];
+const FN_74_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_75_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_76_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_77_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_78_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_79_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_80_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_81_CALLEES: &[usize] = &[0usize];
+const FN_82_CALLEES: &[usize] = &[0usize, 51usize];
+const FN_83_CALLEES: &[usize] = &[0usize];
+const FN_84_CALLEES: &[usize] = &[0usize, 62usize];
+const FN_85_CALLEES: &[usize] = &[0usize, 63usize];
+const FN_86_CALLEES: &[usize] = &[0usize, 144usize];
+const FN_87_CALLEES: &[usize] = &[0usize, 26usize];
+const FN_88_CALLEES: &[usize] = &[0usize, 24usize, 5usize];
+const FN_89_CALLEES: &[usize] = &[0usize, 43usize, 67usize];
+const FN_90_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_91_CALLEES: &[usize] = &[0usize, 65usize];
+const FN_92_CALLEES: &[usize] = &[0usize, 66usize];
+const FN_93_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_94_CALLEES: &[usize] = &[0usize, 67usize];
 const FN_95_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_95_CALLEES: &[u32] = &[0u32, 42u32, 68u32, 147u32];
+const FN_95_CALLEES: &[usize] = &[0usize, 42usize, 68usize, 147usize];
 const FN_96_GLOBALS: &[usize] = &[19usize, 1usize, 16usize, 17usize, 9usize];
-const FN_96_CALLEES: &[u32] = &[0u32, 144u32, 147u32, 12u32, 31u32, 20u32, 21u32, 33u32];
+const FN_96_CALLEES: &[usize] = &[0usize, 144usize, 147usize, 12usize, 31usize, 20usize, 21usize, 33usize];
 const FN_97_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_97_CALLEES: &[u32] = &[0u32, 20u32, 147u32];
-const FN_98_CALLEES: &[u32] = &[0u32, 67u32, 21u32, 147u32, 68u32, 70u32];
+const FN_97_CALLEES: &[usize] = &[0usize, 20usize, 147usize];
+const FN_98_CALLEES: &[usize] = &[0usize, 67usize, 21usize, 147usize, 68usize, 70usize];
 const FN_99_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_99_CALLEES: &[u32] = &[0u32, 44u32, 69u32, 147u32];
+const FN_99_CALLEES: &[usize] = &[0usize, 44usize, 69usize, 147usize];
 const FN_100_GLOBALS: &[usize] = &[16usize, 19usize, 9usize];
-const FN_100_CALLEES: &[u32] = &[0u32, 144u32, 147u32, 33u32];
+const FN_100_CALLEES: &[usize] = &[0usize, 144usize, 147usize, 33usize];
 const FN_101_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_101_CALLEES: &[u32] = &[0u32, 147u32, 24u32, 32u32, 20u32];
+const FN_101_CALLEES: &[usize] = &[0usize, 147usize, 24usize, 32usize, 20usize];
 const FN_102_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_102_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 142u32, 1u32, 2u32];
+const FN_102_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 142usize, 1usize, 2usize];
 const FN_103_GLOBALS: &[usize] = &[19usize, 9usize];
-const FN_103_CALLEES: &[u32] = &[0u32, 45u32, 70u32, 147u32];
+const FN_103_CALLEES: &[usize] = &[0usize, 45usize, 70usize, 147usize];
 const FN_104_GLOBALS: &[usize] = &[9usize];
-const FN_104_CALLEES: &[u32] = &[0u32, 28u32, 147u32, 11u32];
+const FN_104_CALLEES: &[usize] = &[0usize, 28usize, 147usize, 11usize];
 const FN_105_GLOBALS: &[usize] = &[9usize];
-const FN_105_CALLEES: &[u32] = &[0u32, 147u32];
+const FN_105_CALLEES: &[usize] = &[0usize, 147usize];
 const FN_106_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_106_CALLEES: &[u32] = &[0u32, 21u32, 147u32, 24u32];
+const FN_106_CALLEES: &[usize] = &[0usize, 21usize, 147usize, 24usize];
 const FN_107_GLOBALS: &[usize] = &[9usize];
-const FN_107_CALLEES: &[u32] = &[0u32, 9u32, 147u32];
+const FN_107_CALLEES: &[usize] = &[0usize, 9usize, 147usize];
 const FN_108_GLOBALS: &[usize] = &[9usize];
-const FN_108_CALLEES: &[u32] = &[0u32, 147u32];
+const FN_108_CALLEES: &[usize] = &[0usize, 147usize];
 const FN_109_GLOBALS: &[usize] = &[9usize];
-const FN_109_CALLEES: &[u32] = &[0u32, 10u32, 147u32];
+const FN_109_CALLEES: &[usize] = &[0usize, 10usize, 147usize];
 const FN_110_GLOBALS: &[usize] = &[19usize, 1usize, 16usize, 17usize];
-const FN_110_CALLEES: &[u32] = &[0u32, 144u32, 147u32, 12u32, 31u32, 20u32, 21u32, 33u32];
-const FN_111_CALLEES: &[u32] = &[0u32, 24u32, 34u32, 20u32];
-const FN_112_CALLEES: &[u32] = &[0u32, 24u32, 35u32, 20u32];
+const FN_110_CALLEES: &[usize] = &[0usize, 144usize, 147usize, 12usize, 31usize, 20usize, 21usize, 33usize];
+const FN_111_CALLEES: &[usize] = &[0usize, 24usize, 34usize, 20usize];
+const FN_112_CALLEES: &[usize] = &[0usize, 24usize, 35usize, 20usize];
 const FN_113_GLOBALS: &[usize] = &[19usize];
-const FN_113_CALLEES: &[u32] = &[0u32, 70u32];
-const FN_114_CALLEES: &[u32] = &[0u32, 24u32, 36u32, 20u32];
-const FN_115_CALLEES: &[u32] = &[0u32, 147u32];
+const FN_113_CALLEES: &[usize] = &[0usize, 70usize];
+const FN_114_CALLEES: &[usize] = &[0usize, 24usize, 36usize, 20usize];
+const FN_115_CALLEES: &[usize] = &[0usize, 147usize];
 const FN_116_GLOBALS: &[usize] = &[22usize];
-const FN_116_CALLEES: &[u32] = &[0u32, 96u32, 85u32, 95u32, 97u32];
-const FN_117_CALLEES: &[u32] = &[0u32];
-const FN_118_CALLEES: &[u32] = &[0u32, 41u32];
-const FN_119_CALLEES: &[u32] = &[0u32];
-const FN_120_CALLEES: &[u32] = &[0u32];
-const FN_121_CALLEES: &[u32] = &[0u32];
-const FN_122_CALLEES: &[u32] = &[0u32, 95u32, 149u32];
-const FN_123_CALLEES: &[u32] = &[0u32, 92u32];
-const FN_124_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_116_CALLEES: &[usize] = &[0usize, 96usize, 85usize, 95usize, 97usize];
+const FN_117_CALLEES: &[usize] = &[0usize];
+const FN_118_CALLEES: &[usize] = &[0usize, 41usize];
+const FN_119_CALLEES: &[usize] = &[0usize];
+const FN_120_CALLEES: &[usize] = &[0usize];
+const FN_121_CALLEES: &[usize] = &[0usize];
+const FN_122_CALLEES: &[usize] = &[0usize, 95usize, 149usize];
+const FN_123_CALLEES: &[usize] = &[0usize, 92usize];
+const FN_124_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_125_GLOBALS: &[usize] = &[22usize];
-const FN_125_CALLEES: &[u32] = &[0u32, 9u32, 0u32, 147u32];
+const FN_125_CALLEES: &[usize] = &[0usize, 9usize, 0usize, 147usize];
 const FN_126_GLOBALS: &[usize] = &[22usize];
-const FN_126_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_127_CALLEES: &[u32] = &[0u32, 36u32];
-const FN_128_CALLEES: &[u32] = &[0u32, 9u32, 0u32, 147u32, 85u32];
-const FN_129_CALLEES: &[u32] = &[0u32, 12u32, 38u32, 21u32, 85u32];
-const FN_130_CALLEES: &[u32] = &[0u32, 4u32, 85u32, 0u32];
-const FN_131_CALLEES: &[u32] = &[0u32, 5u32];
-const FN_132_CALLEES: &[u32] = &[0u32, 100u32, 85u32];
-const FN_133_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_134_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_135_CALLEES: &[u32] = &[0u32, 1u32, 12u32, 19u32, 1u32, 9u32, 0u32, 0u32, 1u32, 150u32, 85u32];
-const FN_136_CALLEES: &[u32] = &[0u32];
-const FN_137_CALLEES: &[u32] = &[0u32, 76u32];
-const FN_138_CALLEES: &[u32] = &[0u32, 76u32];
+const FN_126_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_127_CALLEES: &[usize] = &[0usize, 36usize];
+const FN_128_CALLEES: &[usize] = &[0usize, 9usize, 0usize, 147usize, 85usize];
+const FN_129_CALLEES: &[usize] = &[0usize, 12usize, 38usize, 21usize, 85usize];
+const FN_130_CALLEES: &[usize] = &[0usize, 4usize, 85usize, 0usize];
+const FN_131_CALLEES: &[usize] = &[0usize, 5usize];
+const FN_132_CALLEES: &[usize] = &[0usize, 100usize, 85usize];
+const FN_133_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_134_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_135_CALLEES: &[usize] = &[0usize, 1usize, 12usize, 19usize, 1usize, 9usize, 0usize, 0usize, 1usize, 150usize, 85usize];
+const FN_136_CALLEES: &[usize] = &[0usize];
+const FN_137_CALLEES: &[usize] = &[0usize, 76usize];
+const FN_138_CALLEES: &[usize] = &[0usize, 76usize];
 const FN_139_GLOBALS: &[usize] = &[22usize];
-const FN_139_CALLEES: &[u32] = &[0u32, 50u32, 147u32];
-const FN_140_CALLEES: &[u32] = &[0u32, 93u32];
-const FN_141_CALLEES: &[u32] = &[0u32, 98u32, 85u32];
-const FN_142_CALLEES: &[u32] = &[0u32, 145u32];
+const FN_139_CALLEES: &[usize] = &[0usize, 50usize, 147usize];
+const FN_140_CALLEES: &[usize] = &[0usize, 93usize];
+const FN_141_CALLEES: &[usize] = &[0usize, 98usize, 85usize];
+const FN_142_CALLEES: &[usize] = &[0usize, 145usize];
 const FN_143_GLOBALS: &[usize] = &[22usize];
-const FN_143_CALLEES: &[u32] = &[0u32, 41u32, 147u32];
-const FN_144_CALLEES: &[u32] = &[0u32, 94u32];
-const FN_145_CALLEES: &[u32] = &[0u32, 42u32, 71u32];
-const FN_146_CALLEES: &[u32] = &[0u32, 94u32];
+const FN_143_CALLEES: &[usize] = &[0usize, 41usize, 147usize];
+const FN_144_CALLEES: &[usize] = &[0usize, 94usize];
+const FN_145_CALLEES: &[usize] = &[0usize, 42usize, 71usize];
+const FN_146_CALLEES: &[usize] = &[0usize, 94usize];
 const FN_147_GLOBALS: &[usize] = &[22usize, 1usize];
-const FN_147_CALLEES: &[u32] = &[0u32, 41u32, 147u32, 100u32, 85u32];
-const FN_148_CALLEES: &[u32] = &[0u32, 94u32, 34u32, 71u32, 147u32];
+const FN_147_CALLEES: &[usize] = &[0usize, 41usize, 147usize, 100usize, 85usize];
+const FN_148_CALLEES: &[usize] = &[0usize, 94usize, 34usize, 71usize, 147usize];
 const FN_149_GLOBALS: &[usize] = &[19usize, 9usize, 16usize];
-const FN_149_CALLEES: &[u32] = &[0u32, 51u32, 147u32, 1u32, 140u32, 25u32, 26u32];
+const FN_149_CALLEES: &[usize] = &[0usize, 51usize, 147usize, 1usize, 140usize, 25usize, 26usize];
 const FN_150_GLOBALS: &[usize] = &[9usize];
-const FN_150_CALLEES: &[u32] = &[0u32, 43u32, 147u32, 27u32];
+const FN_150_CALLEES: &[usize] = &[0usize, 43usize, 147usize, 27usize];
 const FN_151_GLOBALS: &[usize] = &[9usize];
-const FN_151_CALLEES: &[u32] = &[0u32, 43u32, 147u32, 28u32];
+const FN_151_CALLEES: &[usize] = &[0usize, 43usize, 147usize, 28usize];
 const FN_152_GLOBALS: &[usize] = &[14usize, 9usize];
-const FN_152_CALLEES: &[u32] = &[0u32, 147u32, 51u32];
+const FN_152_CALLEES: &[usize] = &[0usize, 147usize, 51usize];
 const FN_153_GLOBALS: &[usize] = &[9usize];
-const FN_153_CALLEES: &[u32] = &[0u32, 46u32, 147u32, 9u32];
+const FN_153_CALLEES: &[usize] = &[0usize, 46usize, 147usize, 9usize];
 const FN_154_GLOBALS: &[usize] = &[9usize];
-const FN_154_CALLEES: &[u32] = &[0u32, 46u32, 147u32, 10u32];
+const FN_154_CALLEES: &[usize] = &[0usize, 46usize, 147usize, 10usize];
 const FN_155_GLOBALS: &[usize] = &[9usize];
-const FN_155_CALLEES: &[u32] = &[0u32, 46u32, 147u32, 11u32];
+const FN_155_CALLEES: &[usize] = &[0usize, 46usize, 147usize, 11usize];
 const FN_156_GLOBALS: &[usize] = &[22usize, 1usize];
-const FN_156_CALLEES: &[u32] = &[0u32, 41u32, 147u32, 100u32, 85u32];
-const FN_157_CALLEES: &[u32] = &[0u32, 2u32, 20u32, 6u32];
+const FN_156_CALLEES: &[usize] = &[0usize, 41usize, 147usize, 100usize, 85usize];
+const FN_157_CALLEES: &[usize] = &[0usize, 2usize, 20usize, 6usize];
 const FN_158_GLOBALS: &[usize] = &[14usize];
-const FN_158_CALLEES: &[u32] = &[0u32, 147u32, 20u32, 1u32, 1u32];
-const FN_159_CALLEES: &[u32] = &[0u32, 2u32, 20u32];
-const FN_160_CALLEES: &[u32] = &[0u32, 1u32, 12u32, 20u32, 9u32, 1u32, 0u32, 150u32];
-const FN_161_CALLEES: &[u32] = &[0u32, 12u32, 20u32, 1u32, 2u32, 9u32, 1u32, 150u32, 50u32];
-const FN_162_CALLEES: &[u32] = &[0u32, 147u32, 1u32, 21u32, 20u32, 19u32, 0u32, 9u32, 0u32, 0u32, 150u32, 50u32];
-const FN_163_CALLEES: &[u32] = &[0u32, 19u32, 2u32, 20u32];
-const FN_164_CALLEES: &[u32] = &[0u32, 95u32, 147u32, 20u32, 21u32, 2u32, 1u32, 9u32, 0u32, 150u32, 50u32, 1u32, 142u32, 0u32, 0u32, 147u32, 19u32, 148u32, 99u32];
-const FN_165_CALLEES: &[u32] = &[0u32, 58u32];
-const FN_166_CALLEES: &[u32] = &[0u32, 1u32, 147u32];
+const FN_158_CALLEES: &[usize] = &[0usize, 147usize, 20usize, 1usize, 1usize];
+const FN_159_CALLEES: &[usize] = &[0usize, 2usize, 20usize];
+const FN_160_CALLEES: &[usize] = &[0usize, 1usize, 12usize, 20usize, 9usize, 1usize, 0usize, 150usize];
+const FN_161_CALLEES: &[usize] = &[0usize, 12usize, 20usize, 1usize, 2usize, 9usize, 1usize, 150usize, 50usize];
+const FN_162_CALLEES: &[usize] = &[0usize, 147usize, 1usize, 21usize, 20usize, 19usize, 0usize, 9usize, 0usize, 0usize, 150usize, 50usize];
+const FN_163_CALLEES: &[usize] = &[0usize, 19usize, 2usize, 20usize];
+const FN_164_CALLEES: &[usize] = &[0usize, 95usize, 147usize, 20usize, 21usize, 2usize, 1usize, 9usize, 0usize, 150usize, 50usize, 1usize, 142usize, 0usize, 0usize, 147usize, 19usize, 148usize, 99usize];
+const FN_165_CALLEES: &[usize] = &[0usize, 58usize];
+const FN_166_CALLEES: &[usize] = &[0usize, 1usize, 147usize];
 const FN_167_GLOBALS: &[usize] = &[23usize];
-const FN_167_CALLEES: &[u32] = &[0u32, 56u32, 2u32, 9u32];
-const FN_168_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_169_CALLEES: &[u32] = &[0u32];
-const FN_170_CALLEES: &[u32] = &[0u32];
-const FN_171_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_172_CALLEES: &[u32] = &[0u32, 1u32, 147u32];
+const FN_167_CALLEES: &[usize] = &[0usize, 56usize, 2usize, 9usize];
+const FN_168_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_169_CALLEES: &[usize] = &[0usize];
+const FN_170_CALLEES: &[usize] = &[0usize];
+const FN_171_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_172_CALLEES: &[usize] = &[0usize, 1usize, 147usize];
 const FN_173_GLOBALS: &[usize] = &[23usize];
-const FN_173_CALLEES: &[u32] = &[0u32, 57u32, 2u32, 9u32];
-const FN_174_CALLEES: &[u32] = &[0u32, 1u32];
-const FN_175_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_176_CALLEES: &[u32] = &[0u32, 0u32, 13u32, 22u32, 149u32, 147u32, 2u32, 150u32, 151u32, 152u32, 1u32, 0u32, 150u32];
-const FN_177_CALLEES: &[u32] = &[0u32, 3u32, 147u32, 22u32, 149u32, 1u32, 153u32, 152u32, 154u32, 0u32, 32u32, 2u32, 155u32, 141u32, 13u32, 55u32, 1u32];
+const FN_173_CALLEES: &[usize] = &[0usize, 57usize, 2usize, 9usize];
+const FN_174_CALLEES: &[usize] = &[0usize, 1usize];
+const FN_175_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_176_CALLEES: &[usize] = &[0usize, 0usize, 13usize, 22usize, 149usize, 147usize, 2usize, 150usize, 151usize, 152usize, 1usize, 0usize, 150usize];
+const FN_177_CALLEES: &[usize] = &[0usize, 3usize, 147usize, 22usize, 149usize, 1usize, 153usize, 152usize, 154usize, 0usize, 32usize, 2usize, 155usize, 141usize, 13usize, 55usize, 1usize];
 const FN_178_GLOBALS: &[usize] = &[14usize];
-const FN_178_CALLEES: &[u32] = &[0u32, 1u32, 10u32, 147u32, 32u32, 0u32, 2u32];
-const FN_179_CALLEES: &[u32] = &[0u32, 7u32, 10u32, 3u32, 0u32, 0u32, 150u32];
-const FN_180_CALLEES: &[u32] = &[0u32, 1u32, 7u32, 0u32, 150u32];
-const FN_181_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_182_CALLEES: &[u32] = &[0u32, 60u32, 1u32, 142u32, 141u32, 1u32];
-const FN_183_CALLEES: &[u32] = &[0u32, 3u32, 147u32, 23u32, 59u32, 1u32];
-const FN_184_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 147u32, 1u32, 5u32, 63u32, 7u32, 150u32, 142u32, 151u32, 156u32, 154u32, 3u32];
-const FN_185_CALLEES: &[u32] = &[0u32, 1u32, 3u32, 147u32, 23u32, 59u32, 13u32, 150u32, 2u32];
-const FN_186_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 147u32, 7u32, 1u32, 150u32, 10u32, 3u32];
-const FN_187_CALLEES: &[u32] = &[0u32, 1u32, 147u32, 23u32, 59u32, 56u32, 54u32, 7u32, 150u32, 142u32, 151u32, 3u32];
-const FN_188_CALLEES: &[u32] = &[0u32, 23u32, 66u32, 1u32];
-const FN_189_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 1u32];
-const FN_190_CALLEES: &[u32] = &[0u32, 59u32, 58u32, 147u32];
-const FN_191_CALLEES: &[u32] = &[0u32, 1u32, 0u32, 13u32, 58u32, 2u32, 6u32, 4u32, 22u32, 154u32, 141u32, 156u32, 2u32, 150u32];
-const FN_192_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_193_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 58u32, 2u32, 59u32, 150u32];
-const FN_194_CALLEES: &[u32] = &[0u32, 1u32, 13u32, 58u32, 2u32, 22u32, 61u32, 59u32, 56u32, 150u32];
-const FN_195_CALLEES: &[u32] = &[0u32, 67u32, 58u32, 147u32];
+const FN_178_CALLEES: &[usize] = &[0usize, 1usize, 10usize, 147usize, 32usize, 0usize, 2usize];
+const FN_179_CALLEES: &[usize] = &[0usize, 7usize, 10usize, 3usize, 0usize, 0usize, 150usize];
+const FN_180_CALLEES: &[usize] = &[0usize, 1usize, 7usize, 0usize, 150usize];
+const FN_181_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_182_CALLEES: &[usize] = &[0usize, 60usize, 1usize, 142usize, 141usize, 1usize];
+const FN_183_CALLEES: &[usize] = &[0usize, 3usize, 147usize, 23usize, 59usize, 1usize];
+const FN_184_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 147usize, 1usize, 5usize, 63usize, 7usize, 150usize, 142usize, 151usize, 156usize, 154usize, 3usize];
+const FN_185_CALLEES: &[usize] = &[0usize, 1usize, 3usize, 147usize, 23usize, 59usize, 13usize, 150usize, 2usize];
+const FN_186_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 147usize, 7usize, 1usize, 150usize, 10usize, 3usize];
+const FN_187_CALLEES: &[usize] = &[0usize, 1usize, 147usize, 23usize, 59usize, 56usize, 54usize, 7usize, 150usize, 142usize, 151usize, 3usize];
+const FN_188_CALLEES: &[usize] = &[0usize, 23usize, 66usize, 1usize];
+const FN_189_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 1usize];
+const FN_190_CALLEES: &[usize] = &[0usize, 59usize, 58usize, 147usize];
+const FN_191_CALLEES: &[usize] = &[0usize, 1usize, 0usize, 13usize, 58usize, 2usize, 6usize, 4usize, 22usize, 154usize, 141usize, 156usize, 2usize, 150usize];
+const FN_192_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_193_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 58usize, 2usize, 59usize, 150usize];
+const FN_194_CALLEES: &[usize] = &[0usize, 1usize, 13usize, 58usize, 2usize, 22usize, 61usize, 59usize, 56usize, 150usize];
+const FN_195_CALLEES: &[usize] = &[0usize, 67usize, 58usize, 147usize];
 const FN_196_GLOBALS: &[usize] = &[14usize];
-const FN_196_CALLEES: &[u32] = &[0u32, 140u32, 58u32, 53u32, 147u32, 13u32, 2u32, 12u32, 9u32, 141u32, 1u32, 33u32, 2u32, 19u32, 150u32];
-const FN_197_CALLEES: &[u32] = &[0u32, 0u32, 0u32];
-const FN_198_CALLEES: &[u32] = &[0u32, 147u32, 7u32, 157u32, 7u32, 22u32, 5u32, 0u32, 150u32];
-const FN_199_CALLEES: &[u32] = &[0u32, 10u32, 3u32, 155u32, 0u32, 142u32, 141u32, 60u32, 1u32, 33u32, 151u32, 156u32];
-const FN_200_CALLEES: &[u32] = &[0u32, 22u32, 149u32, 153u32, 152u32, 154u32];
-const FN_201_CALLEES: &[u32] = &[0u32, 55u32];
-const FN_202_CALLEES: &[u32] = &[0u32, 147u32, 13u32, 23u32, 2u32, 1u32, 150u32, 2u32, 8u32, 158u32];
-const FN_203_CALLEES: &[u32] = &[0u32, 147u32, 2u32, 0u32, 1u32, 13u32, 4u32, 23u32, 150u32];
-const FN_204_CALLEES: &[u32] = &[0u32, 23u32, 147u32, 3u32];
-const FN_205_CALLEES: &[u32] = &[0u32, 8u32, 147u32];
-const FN_206_CALLEES: &[u32] = &[0u32, 60u32];
-const FN_207_CALLEES: &[u32] = &[0u32, 23u32, 59u32, 1u32, 1u32, 8u32];
-const FN_208_CALLEES: &[u32] = &[0u32, 77u32];
-const FN_209_CALLEES: &[u32] = &[0u32, 79u32, 13u32, 2u32, 1u32, 2u32, 150u32, 1u32, 8u32, 160u32, 147u32];
-const FN_210_CALLEES: &[u32] = &[0u32, 104u32];
-const FN_211_CALLEES: &[u32] = &[0u32, 152u32];
+const FN_196_CALLEES: &[usize] = &[0usize, 140usize, 58usize, 53usize, 147usize, 13usize, 2usize, 12usize, 9usize, 141usize, 1usize, 33usize, 2usize, 19usize, 150usize];
+const FN_197_CALLEES: &[usize] = &[0usize, 0usize, 0usize];
+const FN_198_CALLEES: &[usize] = &[0usize, 147usize, 7usize, 157usize, 7usize, 22usize, 5usize, 0usize, 150usize];
+const FN_199_CALLEES: &[usize] = &[0usize, 10usize, 3usize, 155usize, 0usize, 142usize, 141usize, 60usize, 1usize, 33usize, 151usize, 156usize];
+const FN_200_CALLEES: &[usize] = &[0usize, 22usize, 149usize, 153usize, 152usize, 154usize];
+const FN_201_CALLEES: &[usize] = &[0usize, 55usize];
+const FN_202_CALLEES: &[usize] = &[0usize, 147usize, 13usize, 23usize, 2usize, 1usize, 150usize, 2usize, 8usize, 158usize];
+const FN_203_CALLEES: &[usize] = &[0usize, 147usize, 2usize, 0usize, 1usize, 13usize, 4usize, 23usize, 150usize];
+const FN_204_CALLEES: &[usize] = &[0usize, 23usize, 147usize, 3usize];
+const FN_205_CALLEES: &[usize] = &[0usize, 8usize, 147usize];
+const FN_206_CALLEES: &[usize] = &[0usize, 60usize];
+const FN_207_CALLEES: &[usize] = &[0usize, 23usize, 59usize, 1usize, 1usize, 8usize];
+const FN_208_CALLEES: &[usize] = &[0usize, 77usize];
+const FN_209_CALLEES: &[usize] = &[0usize, 79usize, 13usize, 2usize, 1usize, 2usize, 150usize, 1usize, 8usize, 160usize, 147usize];
+const FN_210_CALLEES: &[usize] = &[0usize, 104usize];
+const FN_211_CALLEES: &[usize] = &[0usize, 152usize];
 const FN_212_GLOBALS: &[usize] = &[3usize];
-const FN_212_CALLEES: &[u32] = &[0u32, 64u32, 152u32, 62u32, 147u32];
-const FN_213_CALLEES: &[u32] = &[0u32, 13u32, 59u32, 58u32, 2u32, 150u32];
+const FN_212_CALLEES: &[usize] = &[0usize, 64usize, 152usize, 62usize, 147usize];
+const FN_213_CALLEES: &[usize] = &[0usize, 13usize, 59usize, 58usize, 2usize, 150usize];
 const FN_214_GLOBALS: &[usize] = &[3usize];
-const FN_214_CALLEES: &[u32] = &[0u32, 13u32, 23u32, 59u32, 1u32, 147u32, 2u32, 150u32];
-const FN_215_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_216_CALLEES: &[u32] = &[0u32, 1u32, 23u32, 59u32, 78u32, 2u32, 0u32, 0u32, 1u32, 147u32];
-const FN_217_CALLEES: &[u32] = &[0u32, 13u32, 23u32, 59u32, 1u32, 8u32, 2u32, 8u32, 147u32, 150u32];
-const FN_218_CALLEES: &[u32] = &[0u32, 23u32, 1u32, 13u32, 4u32, 150u32];
-const FN_219_CALLEES: &[u32] = &[0u32, 72u32, 147u32, 12u32, 9u32, 30u32];
-const FN_220_CALLEES: &[u32] = &[0u32, 80u32, 147u32];
-const FN_221_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 24u32, 71u32];
-const FN_222_CALLEES: &[u32] = &[0u32, 46u32, 71u32, 147u32];
-const FN_223_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 24u32, 71u32];
-const FN_224_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 71u32];
-const FN_225_CALLEES: &[u32] = &[0u32, 72u32, 147u32, 12u32];
-const FN_226_CALLEES: &[u32] = &[0u32, 80u32, 147u32];
-const FN_227_CALLEES: &[u32] = &[0u32, 80u32, 147u32];
-const FN_228_CALLEES: &[u32] = &[0u32, 80u32, 147u32];
-const FN_229_CALLEES: &[u32] = &[0u32];
-const FN_230_CALLEES: &[u32] = &[0u32, 147u32];
-const FN_231_CALLEES: &[u32] = &[0u32];
-const FN_232_CALLEES: &[u32] = &[0u32, 62u32, 147u32];
-const FN_233_CALLEES: &[u32] = &[0u32, 64u32];
-const FN_234_CALLEES: &[u32] = &[0u32, 80u32, 147u32, 101u32, 161u32, 3u32, 100u32, 76u32];
-const FN_235_CALLEES: &[u32] = &[0u32, 77u32, 147u32, 102u32];
-const FN_236_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 100u32, 161u32, 76u32];
-const FN_237_CALLEES: &[u32] = &[0u32, 77u32, 147u32, 103u32];
-const FN_238_CALLEES: &[u32] = &[0u32, 147u32, 7u32, 72u32, 13u32, 11u32, 30u32, 27u32, 24u32];
-const FN_239_CALLEES: &[u32] = &[0u32, 147u32, 7u32, 72u32, 10u32, 12u32, 30u32, 9u32, 0u32, 9u32];
-const FN_240_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 23u32, 71u32, 2u32, 150u32];
-const FN_241_CALLEES: &[u32] = &[0u32, 147u32, 140u32, 71u32, 13u32, 11u32, 26u32, 24u32, 2u32, 25u32, 150u32, 99u32];
-const FN_242_CALLEES: &[u32] = &[0u32, 147u32, 71u32, 13u32, 3u32, 2u32, 150u32, 99u32];
-const FN_243_CALLEES: &[u32] = &[0u32, 7u32, 147u32, 72u32, 140u32, 9u32, 11u32, 9u32];
-const FN_244_CALLEES: &[u32] = &[0u32, 7u32, 147u32, 72u32, 140u32, 9u32, 11u32, 24u32, 71u32, 10u32, 3u32];
-const FN_245_CALLEES: &[u32] = &[0u32, 150u32, 151u32, 153u32];
-const FN_246_CALLEES: &[u32] = &[0u32];
-const FN_247_CALLEES: &[u32] = &[0u32];
-const FN_248_CALLEES: &[u32] = &[0u32];
-const FN_249_CALLEES: &[u32] = &[0u32];
-const FN_250_CALLEES: &[u32] = &[0u32];
-const FN_251_CALLEES: &[u32] = &[0u32];
-const FN_252_CALLEES: &[u32] = &[0u32, 92u32, 134u32, 90u32];
+const FN_214_CALLEES: &[usize] = &[0usize, 13usize, 23usize, 59usize, 1usize, 147usize, 2usize, 150usize];
+const FN_215_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_216_CALLEES: &[usize] = &[0usize, 1usize, 23usize, 59usize, 78usize, 2usize, 0usize, 0usize, 1usize, 147usize];
+const FN_217_CALLEES: &[usize] = &[0usize, 13usize, 23usize, 59usize, 1usize, 8usize, 2usize, 8usize, 147usize, 150usize];
+const FN_218_CALLEES: &[usize] = &[0usize, 23usize, 1usize, 13usize, 4usize, 150usize];
+const FN_219_CALLEES: &[usize] = &[0usize, 72usize, 147usize, 12usize, 9usize, 30usize];
+const FN_220_CALLEES: &[usize] = &[0usize, 80usize, 147usize];
+const FN_221_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 24usize, 71usize];
+const FN_222_CALLEES: &[usize] = &[0usize, 46usize, 71usize, 147usize];
+const FN_223_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 24usize, 71usize];
+const FN_224_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 71usize];
+const FN_225_CALLEES: &[usize] = &[0usize, 72usize, 147usize, 12usize];
+const FN_226_CALLEES: &[usize] = &[0usize, 80usize, 147usize];
+const FN_227_CALLEES: &[usize] = &[0usize, 80usize, 147usize];
+const FN_228_CALLEES: &[usize] = &[0usize, 80usize, 147usize];
+const FN_229_CALLEES: &[usize] = &[0usize];
+const FN_230_CALLEES: &[usize] = &[0usize, 147usize];
+const FN_231_CALLEES: &[usize] = &[0usize];
+const FN_232_CALLEES: &[usize] = &[0usize, 62usize, 147usize];
+const FN_233_CALLEES: &[usize] = &[0usize, 64usize];
+const FN_234_CALLEES: &[usize] = &[0usize, 80usize, 147usize, 101usize, 161usize, 3usize, 100usize, 76usize];
+const FN_235_CALLEES: &[usize] = &[0usize, 77usize, 147usize, 102usize];
+const FN_236_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 100usize, 161usize, 76usize];
+const FN_237_CALLEES: &[usize] = &[0usize, 77usize, 147usize, 103usize];
+const FN_238_CALLEES: &[usize] = &[0usize, 147usize, 7usize, 72usize, 13usize, 11usize, 30usize, 27usize, 24usize];
+const FN_239_CALLEES: &[usize] = &[0usize, 147usize, 7usize, 72usize, 10usize, 12usize, 30usize, 9usize, 0usize, 9usize];
+const FN_240_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 23usize, 71usize, 2usize, 150usize];
+const FN_241_CALLEES: &[usize] = &[0usize, 147usize, 140usize, 71usize, 13usize, 11usize, 26usize, 24usize, 2usize, 25usize, 150usize, 99usize];
+const FN_242_CALLEES: &[usize] = &[0usize, 147usize, 71usize, 13usize, 3usize, 2usize, 150usize, 99usize];
+const FN_243_CALLEES: &[usize] = &[0usize, 7usize, 147usize, 72usize, 140usize, 9usize, 11usize, 9usize];
+const FN_244_CALLEES: &[usize] = &[0usize, 7usize, 147usize, 72usize, 140usize, 9usize, 11usize, 24usize, 71usize, 10usize, 3usize];
+const FN_245_CALLEES: &[usize] = &[0usize, 150usize, 151usize, 153usize];
+const FN_246_CALLEES: &[usize] = &[0usize];
+const FN_247_CALLEES: &[usize] = &[0usize];
+const FN_248_CALLEES: &[usize] = &[0usize];
+const FN_249_CALLEES: &[usize] = &[0usize];
+const FN_250_CALLEES: &[usize] = &[0usize];
+const FN_251_CALLEES: &[usize] = &[0usize];
+const FN_252_CALLEES: &[usize] = &[0usize, 92usize, 134usize, 90usize];
 const FN_253_GLOBALS: &[usize] = &[26usize];
-const FN_253_CALLEES: &[u32] = &[0u32, 147u32, 13u32, 2u32, 150u32];
-const FN_254_CALLEES: &[u32] = &[0u32, 23u32, 147u32];
-const FN_255_CALLEES: &[u32] = &[0u32, 22u32, 147u32];
-const FN_256_CALLEES: &[u32] = &[0u32, 13u32, 85u32, 2u32, 150u32];
-const FN_257_CALLEES: &[u32] = &[0u32, 109u32, 13u32, 147u32, 2u32, 159u32, 150u32];
-const FN_258_CALLEES: &[u32] = &[0u32, 147u32, 110u32];
-const FN_259_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32];
-const FN_260_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32];
-const FN_261_CALLEES: &[u32] = &[0u32, 140u32];
-const FN_262_CALLEES: &[u32] = &[0u32, 111u32, 13u32, 4u32, 2u32, 150u32];
+const FN_253_CALLEES: &[usize] = &[0usize, 147usize, 13usize, 2usize, 150usize];
+const FN_254_CALLEES: &[usize] = &[0usize, 23usize, 147usize];
+const FN_255_CALLEES: &[usize] = &[0usize, 22usize, 147usize];
+const FN_256_CALLEES: &[usize] = &[0usize, 13usize, 85usize, 2usize, 150usize];
+const FN_257_CALLEES: &[usize] = &[0usize, 109usize, 13usize, 147usize, 2usize, 159usize, 150usize];
+const FN_258_CALLEES: &[usize] = &[0usize, 147usize, 110usize];
+const FN_259_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize];
+const FN_260_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize];
+const FN_261_CALLEES: &[usize] = &[0usize, 140usize];
+const FN_262_CALLEES: &[usize] = &[0usize, 111usize, 13usize, 4usize, 2usize, 150usize];
 const FN_263_GLOBALS: &[usize] = &[27usize, 28usize];
-const FN_263_CALLEES: &[u32] = &[0u32, 10u32, 12u32];
+const FN_263_CALLEES: &[usize] = &[0usize, 10usize, 12usize];
 const FN_264_GLOBALS: &[usize] = &[25usize];
-const FN_264_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_265_CALLEES: &[u32] = &[0u32, 2u32, 8u32, 147u32];
-const FN_266_CALLEES: &[u32] = &[0u32, 7u32, 72u32, 147u32, 11u32, 11u32, 3u32, 150u32, 1u32, 153u32, 7u32, 137u32, 107u32];
-const FN_267_CALLEES: &[u32] = &[0u32, 147u32, 110u32, 0u32, 159u32, 3u32, 13u32, 2u32, 150u32];
+const FN_264_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_265_CALLEES: &[usize] = &[0usize, 2usize, 8usize, 147usize];
+const FN_266_CALLEES: &[usize] = &[0usize, 7usize, 72usize, 147usize, 11usize, 11usize, 3usize, 150usize, 1usize, 153usize, 7usize, 137usize, 107usize];
+const FN_267_CALLEES: &[usize] = &[0usize, 147usize, 110usize, 0usize, 159usize, 3usize, 13usize, 2usize, 150usize];
 const FN_268_GLOBALS: &[usize] = &[25usize];
-const FN_268_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
+const FN_268_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
 const FN_269_GLOBALS: &[usize] = &[24usize, 29usize];
-const FN_269_CALLEES: &[u32] = &[0u32, 59u32, 54u32, 72u32, 10u32];
+const FN_269_CALLEES: &[usize] = &[0usize, 59usize, 54usize, 72usize, 10usize];
 const FN_270_GLOBALS: &[usize] = &[25usize];
-const FN_270_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_271_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 110u32, 72u32, 113u32];
-const FN_272_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 147u32, 159u32, 2u32, 150u32];
-const FN_273_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32];
-const FN_274_CALLEES: &[u32] = &[0u32, 23u32, 147u32, 110u32];
-const FN_275_CALLEES: &[u32] = &[0u32, 23u32, 147u32, 13u32, 4u32, 2u32, 150u32, 1u32];
-const FN_276_CALLEES: &[u32] = &[0u32, 3u32, 2u32, 147u32, 64u32, 74u32, 162u32, 110u32, 62u32, 112u32, 0u32];
-const FN_277_CALLEES: &[u32] = &[0u32, 147u32, 113u32, 0u32, 159u32, 110u32, 72u32];
-const FN_278_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 71u32, 159u32, 150u32, 113u32, 0u32, 3u32, 110u32];
+const FN_270_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_271_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 110usize, 72usize, 113usize];
+const FN_272_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 147usize, 159usize, 2usize, 150usize];
+const FN_273_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize];
+const FN_274_CALLEES: &[usize] = &[0usize, 23usize, 147usize, 110usize];
+const FN_275_CALLEES: &[usize] = &[0usize, 23usize, 147usize, 13usize, 4usize, 2usize, 150usize, 1usize];
+const FN_276_CALLEES: &[usize] = &[0usize, 3usize, 2usize, 147usize, 64usize, 74usize, 162usize, 110usize, 62usize, 112usize, 0usize];
+const FN_277_CALLEES: &[usize] = &[0usize, 147usize, 113usize, 0usize, 159usize, 110usize, 72usize];
+const FN_278_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 71usize, 159usize, 150usize, 113usize, 0usize, 3usize, 110usize];
 const FN_279_GLOBALS: &[usize] = &[24usize, 25usize];
-const FN_279_CALLEES: &[u32] = &[0u32, 139u32, 147u32, 13u32, 0u32, 59u32, 2u32, 138u32, 72u32, 111u32, 114u32, 153u32, 120u32, 116u32, 144u32, 145u32, 112u32, 11u32, 4u32, 150u32, 54u32, 104u32, 117u32];
-const FN_280_CALLEES: &[u32] = &[0u32, 114u32, 152u32, 147u32, 2u32];
-const FN_281_CALLEES: &[u32] = &[0u32, 147u32, 13u32, 2u32, 4u32, 150u32, 113u32, 0u32, 159u32, 110u32, 72u32];
-const FN_282_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 1u32, 4u32, 150u32, 113u32, 0u32, 159u32, 110u32, 72u32, 13u32];
-const FN_283_CALLEES: &[u32] = &[0u32, 147u32, 71u32, 0u32];
-const FN_284_CALLEES: &[u32] = &[0u32, 0u32, 147u32];
-const FN_285_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 13u32, 71u32, 2u32, 150u32];
-const FN_286_CALLEES: &[u32] = &[0u32, 113u32, 114u32, 153u32, 147u32, 0u32, 159u32, 71u32, 0u32, 0u32];
-const FN_287_CALLEES: &[u32] = &[0u32, 159u32, 147u32, 72u32, 13u32, 2u32, 24u32, 71u32, 0u32, 140u32, 3u32, 117u32, 113u32, 115u32, 153u32, 0u32, 116u32];
-const FN_288_CALLEES: &[u32] = &[0u32, 13u32, 72u32, 2u32, 24u32, 147u32, 71u32, 0u32, 140u32, 3u32, 117u32, 113u32, 115u32, 153u32, 0u32, 116u32, 159u32, 150u32];
+const FN_279_CALLEES: &[usize] = &[0usize, 139usize, 147usize, 13usize, 0usize, 59usize, 2usize, 138usize, 72usize, 111usize, 114usize, 153usize, 120usize, 116usize, 144usize, 145usize, 112usize, 11usize, 4usize, 150usize, 54usize, 104usize, 117usize];
+const FN_280_CALLEES: &[usize] = &[0usize, 114usize, 152usize, 147usize, 2usize];
+const FN_281_CALLEES: &[usize] = &[0usize, 147usize, 13usize, 2usize, 4usize, 150usize, 113usize, 0usize, 159usize, 110usize, 72usize];
+const FN_282_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 1usize, 4usize, 150usize, 113usize, 0usize, 159usize, 110usize, 72usize, 13usize];
+const FN_283_CALLEES: &[usize] = &[0usize, 147usize, 71usize, 0usize];
+const FN_284_CALLEES: &[usize] = &[0usize, 0usize, 147usize];
+const FN_285_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 13usize, 71usize, 2usize, 150usize];
+const FN_286_CALLEES: &[usize] = &[0usize, 113usize, 114usize, 153usize, 147usize, 0usize, 159usize, 71usize, 0usize, 0usize];
+const FN_287_CALLEES: &[usize] = &[0usize, 159usize, 147usize, 72usize, 13usize, 2usize, 24usize, 71usize, 0usize, 140usize, 3usize, 117usize, 113usize, 115usize, 153usize, 0usize, 116usize];
+const FN_288_CALLEES: &[usize] = &[0usize, 13usize, 72usize, 2usize, 24usize, 147usize, 71usize, 0usize, 140usize, 3usize, 117usize, 113usize, 115usize, 153usize, 0usize, 116usize, 159usize, 150usize];
 const FN_289_GLOBALS: &[usize] = &[25usize];
-const FN_289_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 118u32];
+const FN_289_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 118usize];
 const FN_290_GLOBALS: &[usize] = &[25usize];
-const FN_290_CALLEES: &[u32] = &[0u32, 114u32, 0u32, 59u32];
+const FN_290_CALLEES: &[usize] = &[0usize, 114usize, 0usize, 59usize];
 const FN_291_GLOBALS: &[usize] = &[24usize];
-const FN_291_CALLEES: &[u32] = &[0u32, 59u32];
-const FN_292_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 117u32, 72u32, 113u32, 114u32, 153u32, 140u32, 2u32, 121u32];
-const FN_293_CALLEES: &[u32] = &[0u32, 72u32, 111u32, 147u32, 112u32, 3u32, 117u32, 113u32, 135u32, 153u32, 141u32, 62u32, 110u32, 136u32, 2u32, 121u32, 120u32, 122u32, 0u32, 159u32];
-const FN_294_CALLEES: &[u32] = &[0u32, 147u32, 6u32];
+const FN_291_CALLEES: &[usize] = &[0usize, 59usize];
+const FN_292_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 117usize, 72usize, 113usize, 114usize, 153usize, 140usize, 2usize, 121usize];
+const FN_293_CALLEES: &[usize] = &[0usize, 72usize, 111usize, 147usize, 112usize, 3usize, 117usize, 113usize, 135usize, 153usize, 141usize, 62usize, 110usize, 136usize, 2usize, 121usize, 120usize, 122usize, 0usize, 159usize];
+const FN_294_CALLEES: &[usize] = &[0usize, 147usize, 6usize];
 const FN_295_GLOBALS: &[usize] = &[25usize];
-const FN_295_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 8u32, 147u32];
+const FN_295_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 8usize, 147usize];
 const FN_296_GLOBALS: &[usize] = &[25usize, 24usize, 30usize, 27usize];
-const FN_296_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 105u32, 72u32, 111u32, 147u32, 110u32, 119u32, 142u32, 153u32, 112u32, 14u32, 4u32, 54u32, 106u32, 113u32, 114u32, 152u32, 2u32, 10u32, 13u32, 150u32];
-const FN_297_CALLEES: &[u32] = &[0u32, 135u32, 147u32, 0u32];
-const FN_298_CALLEES: &[u32] = &[0u32, 72u32, 147u32, 13u32, 11u32, 0u32, 113u32, 115u32, 153u32, 115u32, 3u32, 0u32, 159u32, 11u32];
-const FN_299_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 3u32, 123u32];
-const FN_300_CALLEES: &[u32] = &[0u32, 147u32, 71u32, 0u32];
-const FN_301_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 24u32, 147u32, 13u32, 1u32, 150u32];
-const FN_302_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 13u32, 72u32, 24u32, 140u32, 2u32, 71u32, 23u32, 113u32, 114u32, 153u32, 152u32, 0u32, 159u32, 150u32];
-const FN_303_CALLEES: &[u32] = &[0u32, 147u32, 118u32, 13u32, 14u32, 2u32, 0u32, 24u32, 140u32, 72u32, 150u32, 1u32, 121u32, 122u32, 123u32, 129u32, 153u32, 111u32, 4u32, 23u32];
-const FN_304_CALLEES: &[u32] = &[0u32, 7u32, 3u32, 23u32, 147u32, 5u32, 150u32];
-const FN_305_CALLEES: &[u32] = &[0u32, 13u32, 1u32, 153u32, 7u32, 147u32, 2u32, 150u32];
-const FN_306_CALLEES: &[u32] = &[0u32, 2u32, 147u32, 0u32, 159u32, 13u32, 3u32, 7u32, 72u32, 11u32, 3u32, 150u32, 2u32];
-const FN_307_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 149u32, 153u32, 23u32, 11u32, 71u32, 109u32, 101u32, 4u32, 150u32];
-const FN_308_CALLEES: &[u32] = &[0u32, 13u32, 109u32, 147u32, 101u32, 116u32, 23u32, 2u32, 150u32, 3u32, 24u32, 140u32];
-const FN_309_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 72u32];
-const FN_310_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 16u32];
+const FN_296_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 105usize, 72usize, 111usize, 147usize, 110usize, 119usize, 142usize, 153usize, 112usize, 14usize, 4usize, 54usize, 106usize, 113usize, 114usize, 152usize, 2usize, 10usize, 13usize, 150usize];
+const FN_297_CALLEES: &[usize] = &[0usize, 135usize, 147usize, 0usize];
+const FN_298_CALLEES: &[usize] = &[0usize, 72usize, 147usize, 13usize, 11usize, 0usize, 113usize, 115usize, 153usize, 115usize, 3usize, 0usize, 159usize, 11usize];
+const FN_299_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 3usize, 123usize];
+const FN_300_CALLEES: &[usize] = &[0usize, 147usize, 71usize, 0usize];
+const FN_301_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 24usize, 147usize, 13usize, 1usize, 150usize];
+const FN_302_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 13usize, 72usize, 24usize, 140usize, 2usize, 71usize, 23usize, 113usize, 114usize, 153usize, 152usize, 0usize, 159usize, 150usize];
+const FN_303_CALLEES: &[usize] = &[0usize, 147usize, 118usize, 13usize, 14usize, 2usize, 0usize, 24usize, 140usize, 72usize, 150usize, 1usize, 121usize, 122usize, 123usize, 129usize, 153usize, 111usize, 4usize, 23usize];
+const FN_304_CALLEES: &[usize] = &[0usize, 7usize, 3usize, 23usize, 147usize, 5usize, 150usize];
+const FN_305_CALLEES: &[usize] = &[0usize, 13usize, 1usize, 153usize, 7usize, 147usize, 2usize, 150usize];
+const FN_306_CALLEES: &[usize] = &[0usize, 2usize, 147usize, 0usize, 159usize, 13usize, 3usize, 7usize, 72usize, 11usize, 3usize, 150usize, 2usize];
+const FN_307_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 149usize, 153usize, 23usize, 11usize, 71usize, 109usize, 101usize, 4usize, 150usize];
+const FN_308_CALLEES: &[usize] = &[0usize, 13usize, 109usize, 147usize, 101usize, 116usize, 23usize, 2usize, 150usize, 3usize, 24usize, 140usize];
+const FN_309_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 72usize];
+const FN_310_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 16usize];
 const FN_311_GLOBALS: &[usize] = &[24usize, 25usize];
-const FN_311_CALLEES: &[u32] = &[0u32, 59u32, 0u32, 159u32];
+const FN_311_CALLEES: &[usize] = &[0usize, 59usize, 0usize, 159usize];
 const FN_312_GLOBALS: &[usize] = &[25usize];
-const FN_312_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 147u32, 0u32, 4u32, 16u32];
+const FN_312_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 147usize, 0usize, 4usize, 16usize];
 const FN_313_GLOBALS: &[usize] = &[25usize];
-const FN_313_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 147u32, 0u32, 16u32, 2u32, 3u32, 4u32, 150u32];
-const FN_314_CALLEES: &[u32] = &[0u32, 2u32, 147u32, 0u32, 159u32, 17u32, 3u32, 4u32];
+const FN_313_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 147usize, 0usize, 16usize, 2usize, 3usize, 4usize, 150usize];
+const FN_314_CALLEES: &[usize] = &[0usize, 2usize, 147usize, 0usize, 159usize, 17usize, 3usize, 4usize];
 const FN_315_GLOBALS: &[usize] = &[25usize];
-const FN_315_CALLEES: &[u32] = &[0u32, 2u32, 0u32, 59u32, 147u32, 0u32, 17u32, 3u32, 5u32, 4u32];
+const FN_315_CALLEES: &[usize] = &[0usize, 2usize, 0usize, 59usize, 147usize, 0usize, 17usize, 3usize, 5usize, 4usize];
 const FN_316_GLOBALS: &[usize] = &[25usize, 24usize];
-const FN_316_CALLEES: &[u32] = &[0u32, 13u32, 0u32, 59u32, 2u32, 147u32, 0u32, 108u32, 16u32, 2u32, 54u32, 109u32, 150u32];
-const FN_317_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 17u32, 3u32, 4u32, 2u32, 0u32, 13u32, 8u32, 4u32, 150u32];
-const FN_318_CALLEES: &[u32] = &[0u32, 2u32, 147u32, 0u32, 159u32, 0u32, 8u32, 15u32, 125u32, 13u32, 2u32, 4u32, 16u32, 4u32, 2u32, 3u32, 150u32];
-const FN_319_CALLEES: &[u32] = &[0u32, 13u32, 2u32, 1u32, 147u32, 2u32, 150u32];
-const FN_320_CALLEES: &[u32] = &[0u32, 114u32, 147u32, 0u32, 159u32, 1u32, 2u32, 15u32, 0u32, 8u32, 127u32, 18u32, 4u32, 111u32, 112u32, 3u32, 2u32];
-const FN_321_CALLEES: &[u32] = &[0u32, 147u32, 0u32, 159u32, 13u32, 2u32, 8u32, 4u32, 150u32];
-const FN_322_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 3u32, 4u32, 150u32];
-const FN_323_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 24u32, 147u32, 149u32, 153u32, 13u32, 1u32, 150u32];
-const FN_324_CALLEES: &[u32] = &[0u32, 13u32, 2u32, 147u32, 0u32, 159u32, 0u32, 8u32, 15u32, 125u32, 137u32, 24u32, 110u32, 2u32, 4u32, 150u32];
-const FN_325_CALLEES: &[u32] = &[0u32, 125u32, 124u32, 147u32, 13u32, 25u32, 71u32, 0u32, 72u32, 113u32, 114u32, 153u32, 152u32, 0u32, 159u32, 5u32, 0u32, 4u32, 24u32, 111u32, 4u32, 2u32, 150u32, 1u32, 130u32, 139u32, 125u32];
-const FN_326_CALLEES: &[u32] = &[0u32, 147u32, 3u32, 71u32, 0u32, 72u32, 113u32, 115u32, 153u32, 15u32];
-const FN_327_CALLEES: &[u32] = &[0u32, 147u32, 140u32, 7u32, 11u32, 26u32, 11u32, 3u32, 25u32, 150u32, 1u32];
-const FN_328_CALLEES: &[u32] = &[0u32, 72u32, 147u32, 10u32, 7u32, 3u32, 131u32, 5u32, 150u32, 36u32];
-const FN_329_CALLEES: &[u32] = &[0u32, 111u32];
-const FN_330_CALLEES: &[u32] = &[0u32, 128u32, 147u32, 13u32, 25u32, 4u32, 24u32, 111u32, 4u32, 2u32, 150u32, 1u32, 138u32, 139u32, 126u32, 7u32, 71u32, 126u32, 125u32, 5u32, 153u32, 152u32, 0u32, 7u32, 5u32, 132u32, 137u32, 26u32, 14u32, 130u32, 23u32, 127u32, 27u32, 2u32, 0u32, 4u32, 4u32, 0u32, 133u32, 28u32, 125u32, 134u32, 1u32];
+const FN_316_CALLEES: &[usize] = &[0usize, 13usize, 0usize, 59usize, 2usize, 147usize, 0usize, 108usize, 16usize, 2usize, 54usize, 109usize, 150usize];
+const FN_317_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 17usize, 3usize, 4usize, 2usize, 0usize, 13usize, 8usize, 4usize, 150usize];
+const FN_318_CALLEES: &[usize] = &[0usize, 2usize, 147usize, 0usize, 159usize, 0usize, 8usize, 15usize, 125usize, 13usize, 2usize, 4usize, 16usize, 4usize, 2usize, 3usize, 150usize];
+const FN_319_CALLEES: &[usize] = &[0usize, 13usize, 2usize, 1usize, 147usize, 2usize, 150usize];
+const FN_320_CALLEES: &[usize] = &[0usize, 114usize, 147usize, 0usize, 159usize, 1usize, 2usize, 15usize, 0usize, 8usize, 127usize, 18usize, 4usize, 111usize, 112usize, 3usize, 2usize];
+const FN_321_CALLEES: &[usize] = &[0usize, 147usize, 0usize, 159usize, 13usize, 2usize, 8usize, 4usize, 150usize];
+const FN_322_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 3usize, 4usize, 150usize];
+const FN_323_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 24usize, 147usize, 149usize, 153usize, 13usize, 1usize, 150usize];
+const FN_324_CALLEES: &[usize] = &[0usize, 13usize, 2usize, 147usize, 0usize, 159usize, 0usize, 8usize, 15usize, 125usize, 137usize, 24usize, 110usize, 2usize, 4usize, 150usize];
+const FN_325_CALLEES: &[usize] = &[0usize, 125usize, 124usize, 147usize, 13usize, 25usize, 71usize, 0usize, 72usize, 113usize, 114usize, 153usize, 152usize, 0usize, 159usize, 5usize, 0usize, 4usize, 24usize, 111usize, 4usize, 2usize, 150usize, 1usize, 130usize, 139usize, 125usize];
+const FN_326_CALLEES: &[usize] = &[0usize, 147usize, 3usize, 71usize, 0usize, 72usize, 113usize, 115usize, 153usize, 15usize];
+const FN_327_CALLEES: &[usize] = &[0usize, 147usize, 140usize, 7usize, 11usize, 26usize, 11usize, 3usize, 25usize, 150usize, 1usize];
+const FN_328_CALLEES: &[usize] = &[0usize, 72usize, 147usize, 10usize, 7usize, 3usize, 131usize, 5usize, 150usize, 36usize];
+const FN_329_CALLEES: &[usize] = &[0usize, 111usize];
+const FN_330_CALLEES: &[usize] = &[0usize, 128usize, 147usize, 13usize, 25usize, 4usize, 24usize, 111usize, 4usize, 2usize, 150usize, 1usize, 138usize, 139usize, 126usize, 7usize, 71usize, 126usize, 125usize, 5usize, 153usize, 152usize, 0usize, 7usize, 5usize, 132usize, 137usize, 26usize, 14usize, 130usize, 23usize, 127usize, 27usize, 2usize, 0usize, 4usize, 4usize, 0usize, 133usize, 28usize, 125usize, 134usize, 1usize];
 const FN_331_GLOBALS: &[usize] = &[24usize];
-const FN_331_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 26u32, 2u32, 59u32, 107u32, 27u32, 150u32, 3u32, 72u32, 113u32, 71u32, 0u32, 115u32, 153u32, 152u32, 120u32, 122u32, 0u32, 159u32, 4u32, 114u32, 24u32, 110u32];
-const FN_332_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 109u32, 4u32, 159u32, 150u32];
-const FN_333_CALLEES: &[u32] = &[0u32, 13u32, 143u32];
+const FN_331_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 26usize, 2usize, 59usize, 107usize, 27usize, 150usize, 3usize, 72usize, 113usize, 71usize, 0usize, 115usize, 153usize, 152usize, 120usize, 122usize, 0usize, 159usize, 4usize, 114usize, 24usize, 110usize];
+const FN_332_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 109usize, 4usize, 159usize, 150usize];
+const FN_333_CALLEES: &[usize] = &[0usize, 13usize, 143usize];
 const FN_334_GLOBALS: &[usize] = &[25usize, 31usize];
-const FN_334_CALLEES: &[u32] = &[0u32, 0u32, 2u32, 147u32, 111u32, 0u32, 4u32, 159u32, 138u32, 72u32, 115u32, 153u32, 116u32, 11u32, 114u32, 59u32, 120u32, 139u32, 2u32, 114u32, 13u32, 13u32, 2u32, 8u32, 4u32, 150u32, 12u32, 119u32, 23u32, 11u32, 118u32, 120u32, 119u32, 142u32, 118u32, 111u32, 10u32, 124u32, 2u32, 8u32, 128u32, 11u32, 9u32, 133u32, 12u32, 13u32];
+const FN_334_CALLEES: &[usize] = &[0usize, 0usize, 2usize, 147usize, 111usize, 0usize, 4usize, 159usize, 138usize, 72usize, 115usize, 153usize, 116usize, 11usize, 114usize, 59usize, 120usize, 139usize, 2usize, 114usize, 13usize, 13usize, 2usize, 8usize, 4usize, 150usize, 12usize, 119usize, 23usize, 11usize, 118usize, 120usize, 119usize, 142usize, 118usize, 111usize, 10usize, 124usize, 2usize, 8usize, 128usize, 11usize, 9usize, 133usize, 12usize, 13usize];
 const FN_335_GLOBALS: &[usize] = &[25usize, 24usize, 30usize, 27usize];
-const FN_335_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 105u32, 54u32, 106u32, 72u32, 113u32, 10u32, 13u32];
-const FN_336_CALLEES: &[u32] = &[0u32, 147u32, 119u32, 153u32, 5u32];
-const FN_337_CALLEES: &[u32] = &[0u32, 72u32, 0u32];
-const FN_338_CALLEES: &[u32] = &[0u32, 0u32];
-const FN_339_CALLEES: &[u32] = &[0u32, 147u32, 13u32, 2u32, 150u32];
-const FN_340_CALLEES: &[u32] = &[0u32, 4u32, 23u32, 147u32, 111u32];
-const FN_341_CALLEES: &[u32] = &[0u32, 4u32, 23u32, 147u32, 111u32, 13u32, 4u32, 2u32, 150u32, 1u32];
+const FN_335_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 105usize, 54usize, 106usize, 72usize, 113usize, 10usize, 13usize];
+const FN_336_CALLEES: &[usize] = &[0usize, 147usize, 119usize, 153usize, 5usize];
+const FN_337_CALLEES: &[usize] = &[0usize, 72usize, 0usize];
+const FN_338_CALLEES: &[usize] = &[0usize, 0usize];
+const FN_339_CALLEES: &[usize] = &[0usize, 147usize, 13usize, 2usize, 150usize];
+const FN_340_CALLEES: &[usize] = &[0usize, 4usize, 23usize, 147usize, 111usize];
+const FN_341_CALLEES: &[usize] = &[0usize, 4usize, 23usize, 147usize, 111usize, 13usize, 4usize, 2usize, 150usize, 1usize];
 const FN_342_GLOBALS: &[usize] = &[25usize];
-const FN_342_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_343_CALLEES: &[u32] = &[0u32, 137u32];
-const FN_344_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 23u32, 4u32, 24u32, 4u32, 150u32, 1u32, 26u32, 14u32, 137u32, 138u32, 132u32, 27u32, 2u32, 0u32, 140u32];
-const FN_345_CALLEES: &[u32] = &[0u32, 13u32, 4u32, 1u32, 131u32, 139u32, 130u32, 2u32, 150u32, 147u32];
-const FN_346_CALLEES: &[u32] = &[0u32, 130u32, 13u32, 130u32, 129u32, 4u32, 150u32];
+const FN_342_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_343_CALLEES: &[usize] = &[0usize, 137usize];
+const FN_344_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 23usize, 4usize, 24usize, 4usize, 150usize, 1usize, 26usize, 14usize, 137usize, 138usize, 132usize, 27usize, 2usize, 0usize, 140usize];
+const FN_345_CALLEES: &[usize] = &[0usize, 13usize, 4usize, 1usize, 131usize, 139usize, 130usize, 2usize, 150usize, 147usize];
+const FN_346_CALLEES: &[usize] = &[0usize, 130usize, 13usize, 130usize, 129usize, 4usize, 150usize];
 const FN_347_GLOBALS: &[usize] = &[24usize];
-const FN_347_CALLEES: &[u32] = &[0u32, 59u32, 54u32, 72u32, 113u32];
+const FN_347_CALLEES: &[usize] = &[0usize, 59usize, 54usize, 72usize, 113usize];
 const FN_348_GLOBALS: &[usize] = &[27usize, 28usize];
-const FN_348_CALLEES: &[u32] = &[0u32, 72u32, 10u32, 12u32];
+const FN_348_CALLEES: &[usize] = &[0usize, 72usize, 10usize, 12usize];
 const FN_349_GLOBALS: &[usize] = &[25usize, 24usize];
-const FN_349_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 2u32, 147u32, 0u32, 108u32, 54u32, 109u32];
+const FN_349_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 2usize, 147usize, 0usize, 108usize, 54usize, 109usize];
 const FN_350_GLOBALS: &[usize] = &[25usize];
-const FN_350_CALLEES: &[u32] = &[0u32, 118u32, 147u32, 1u32, 13u32, 71u32, 116u32, 130u32, 131u32, 0u32, 72u32, 113u32, 114u32, 153u32, 152u32, 0u32, 59u32, 1u32, 121u32, 2u32, 150u32, 122u32, 123u32, 129u32];
+const FN_350_CALLEES: &[usize] = &[0usize, 118usize, 147usize, 1usize, 13usize, 71usize, 116usize, 130usize, 131usize, 0usize, 72usize, 113usize, 114usize, 153usize, 152usize, 0usize, 59usize, 1usize, 121usize, 2usize, 150usize, 122usize, 123usize, 129usize];
 const FN_351_GLOBALS: &[usize] = &[25usize];
-const FN_351_CALLEES: &[u32] = &[0u32, 0u32, 59u32, 2u32, 147u32, 0u32];
-const FN_352_CALLEES: &[u32] = &[0u32, 7u32, 147u32, 162u32];
-const FN_353_CALLEES: &[u32] = &[0u32, 13u32, 147u32, 2u32, 71u32, 159u32, 150u32, 64u32, 74u32, 162u32, 110u32, 7u32, 62u32, 70u32];
-const FN_354_CALLEES: &[u32] = &[0u32, 152u32, 147u32, 62u32, 110u32];
-const FN_355_CALLEES: &[u32] = &[0u32, 12u32, 143u32];
-const FN_356_CALLEES: &[u32] = &[0u32, 74u32, 147u32, 162u32, 110u32, 7u32, 62u32, 70u32];
-const FN_357_CALLEES: &[u32] = &[0u32, 147u32, 62u32, 110u32];
-const FN_358_CALLEES: &[u32] = &[0u32, 147u32, 101u32, 64u32, 7u32, 5u32, 150u32, 136u32];
-const FN_359_CALLEES: &[u32] = &[0u32, 136u32, 120u32, 147u32, 64u32, 12u32];
+const FN_351_CALLEES: &[usize] = &[0usize, 0usize, 59usize, 2usize, 147usize, 0usize];
+const FN_352_CALLEES: &[usize] = &[0usize, 7usize, 147usize, 162usize];
+const FN_353_CALLEES: &[usize] = &[0usize, 13usize, 147usize, 2usize, 71usize, 159usize, 150usize, 64usize, 74usize, 162usize, 110usize, 7usize, 62usize, 70usize];
+const FN_354_CALLEES: &[usize] = &[0usize, 152usize, 147usize, 62usize, 110usize];
+const FN_355_CALLEES: &[usize] = &[0usize, 12usize, 143usize];
+const FN_356_CALLEES: &[usize] = &[0usize, 74usize, 147usize, 162usize, 110usize, 7usize, 62usize, 70usize];
+const FN_357_CALLEES: &[usize] = &[0usize, 147usize, 62usize, 110usize];
+const FN_358_CALLEES: &[usize] = &[0usize, 147usize, 101usize, 64usize, 7usize, 5usize, 150usize, 136usize];
+const FN_359_CALLEES: &[usize] = &[0usize, 136usize, 120usize, 147usize, 64usize, 12usize];
 const FN_360_GLOBALS: &[usize] = &[25usize];
-const FN_360_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
+const FN_360_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
 const FN_361_GLOBALS: &[usize] = &[25usize];
-const FN_361_CALLEES: &[u32] = &[0u32, 0u32, 59u32];
-const FN_362_CALLEES: &[u32] = &[0u32, 1u32, 152u32];
-const FN_363_CALLEES: &[u32] = &[0u32, 137u32];
-const FN_364_CALLEES: &[u32] = &[0u32, 138u32, 13u32, 4u32, 2u32, 150u32];
-const FN_365_CALLEES: &[u32] = &[0u32, 93u32, 108u32, 94u32, 147u32];
-const FN_366_CALLEES: &[u32] = &[147u32];
-const FN_387_CALLEES: &[u32] = &[146u32];
-const FN_389_CALLEES: &[u32] = &[147u32];
-const FN_392_CALLEES: &[u32] = &[147u32];
-const FN_396_CALLEES: &[u32] = &[147u32];
-const FN_397_CALLEES: &[u32] = &[147u32];
-const FN_400_CALLEES: &[u32] = &[147u32];
-const FN_403_CALLEES: &[u32] = &[147u32];
-const FN_410_CALLEES: &[u32] = &[147u32];
-const FN_414_CALLEES: &[u32] = &[147u32];
-const FN_415_CALLEES: &[u32] = &[147u32];
-const FN_417_CALLEES: &[u32] = &[147u32];
-const FN_418_CALLEES: &[u32] = &[147u32];
-const FN_419_CALLEES: &[u32] = &[159u32];
-const FN_421_CALLEES: &[u32] = &[158u32];
-const FN_422_CALLEES: &[u32] = &[147u32];
-const FN_424_CALLEES: &[u32] = &[147u32];
-const FN_428_CALLEES: &[u32] = &[147u32];
-const FN_429_CALLEES: &[u32] = &[147u32];
-const FN_431_CALLEES: &[u32] = &[147u32];
-const FN_432_CALLEES: &[u32] = &[147u32];
-const FN_435_CALLEES: &[u32] = &[147u32];
-const FN_438_CALLEES: &[u32] = &[0u32, 147u32, 146u32];
+const FN_361_CALLEES: &[usize] = &[0usize, 0usize, 59usize];
+const FN_362_CALLEES: &[usize] = &[0usize, 1usize, 152usize];
+const FN_363_CALLEES: &[usize] = &[0usize, 137usize];
+const FN_364_CALLEES: &[usize] = &[0usize, 138usize, 13usize, 4usize, 2usize, 150usize];
+const FN_365_CALLEES: &[usize] = &[0usize, 93usize, 108usize, 94usize, 147usize];
+const FN_366_CALLEES: &[usize] = &[147usize];
+const FN_387_CALLEES: &[usize] = &[146usize];
+const FN_389_CALLEES: &[usize] = &[147usize];
+const FN_392_CALLEES: &[usize] = &[147usize];
+const FN_396_CALLEES: &[usize] = &[147usize];
+const FN_397_CALLEES: &[usize] = &[147usize];
+const FN_400_CALLEES: &[usize] = &[147usize];
+const FN_403_CALLEES: &[usize] = &[147usize];
+const FN_410_CALLEES: &[usize] = &[147usize];
+const FN_414_CALLEES: &[usize] = &[147usize];
+const FN_415_CALLEES: &[usize] = &[147usize];
+const FN_417_CALLEES: &[usize] = &[147usize];
+const FN_418_CALLEES: &[usize] = &[147usize];
+const FN_419_CALLEES: &[usize] = &[159usize];
+const FN_421_CALLEES: &[usize] = &[158usize];
+const FN_422_CALLEES: &[usize] = &[147usize];
+const FN_424_CALLEES: &[usize] = &[147usize];
+const FN_428_CALLEES: &[usize] = &[147usize];
+const FN_429_CALLEES: &[usize] = &[147usize];
+const FN_431_CALLEES: &[usize] = &[147usize];
+const FN_432_CALLEES: &[usize] = &[147usize];
+const FN_435_CALLEES: &[usize] = &[147usize];
+const FN_438_CALLEES: &[usize] = &[0usize, 147usize, 146usize];
 #[allow(
 dead_code,
 non_camel_case_types,
@@ -112916,6 +112926,10 @@ struct SubstituteInstance {
     vm: SubstituteVm,
 }
 
+const GRAPH_TARGETS: &[(u128, [u8; 32])] = &[
+    (1116720u128, [0x5c, 0xdf, 0x8c, 0x8c, 0xd8, 0x20, 0x32, 0xb2, 0xb1, 0xae, 0xe2, 0xed, 0xfd, 0xd4, 0x17, 0xc0, 0x44, 0xb5, 0x00, 0x41, 0xac, 0x54, 0x86, 0x21, 0xcb, 0x3d, 0x78, 0x0f, 0x63, 0xa8, 0x85, 0xd5]),
+];
+
 const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     name: "85899_92792/2608@l8589998125",
     accounting_version: 2u32,
@@ -112927,6 +112941,7 @@ const MODULE_META: SubstituteModuleMeta = SubstituteModuleMeta {
     static_data_end: 0usize,
     num_memories: 1usize,
     num_tables: 0usize,
+    graph_targets: GRAPH_TARGETS,
 };
 
 
@@ -113103,7 +113118,9 @@ impl WasmSubstituteInstance for SubstituteInstance {
         let _ = (in_ptr, in_len);
         let vm = &mut self.vm;
         vm.enter_call()?;
+        vm.begin_fast_epoch();
         let res = DISPATCH.call_direct_p_unit_ret_i32(vm, 2usize, host);
+        vm.end_fast_epoch();
         vm.exit_call();
         res
     }

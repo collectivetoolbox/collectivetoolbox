@@ -34,7 +34,8 @@ pub mod vm;
 use std::fmt;
 
 pub use registry::{
-    WasmSubstituteDescriptor, lookup_substitute, register_substitute,
+    WasmSubstituteDescriptor, lookup_substitute,
+    lookup_substitute_by_graph_revision, register_substitute,
 };
 pub use vm::{
     InitFnPtr, MAX_CALL_DEPTH, SubstituteVm, WASM_PAGE_BYTES, WasmLinearMemory,
@@ -119,6 +120,8 @@ pub struct SubstituteModuleMeta {
     pub num_memories: usize,
     /// Number of tables declared by the module.
     pub num_tables: usize,
+    /// Graph `(target_global_id, revision_sha256)` closure keys compiling to this module.
+    pub graph_targets: &'static [(u128, [u8; 32])],
 }
 
 /// Host suspension callbacks invoked by native substitutes on V2 quota exhaustion

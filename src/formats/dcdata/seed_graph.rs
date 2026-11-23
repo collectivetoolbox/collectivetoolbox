@@ -69,13 +69,15 @@ use crate::dc::{
     DC_TYPE_ATOM_DC, DC_TYPE_CONVERSION, DC_TYPE_ROUTINE, DC_UNICODE_SCRIPT,
     DcChar,
 };
+use crate::sha2::{Digest, Sha256};
+
 use crate::graph_ledger::{
     LedgerNode, MAX_NODES_PER_CHUNK, SeedEntityKey, chunk_filename_for_node_id,
     decode_ctbnbdl_bundle, decode_ctbnbdl_bundle_resilient,
     decode_integer_value_tokens, decode_string_value_tokens,
     find_closed_delimited_span, format_chunk_bundle_filename,
     format_chunk_filename, parse_chunk_bundle_filename_start_id,
-    parse_for_each_statement_tokens, parse_statement_tokens, sha256_bytes_hex,
+    parse_for_each_statement_tokens, parse_statement_tokens,
     single_valued_property_set,
 };
 pub use crate::support::seed_graph_reconstruct::ReconstructedNamedType;
@@ -264,6 +266,8 @@ pub struct StagelRoutineGraphMeta {
 /// Runtime index over the System-block seed graph (`8589934592..=12884901887`).
 #[derive(Debug, Clone)]
 pub struct SeedGraphIndex {
+    /// Monotonic process-unique identifier for fast per-snapshot memoization keys.
+    pub(crate) instance_id: u64,
     /// All loaded `LedgerNode`s in ascending ID order.
     pub(crate) nodes: Vec<LedgerNode>,
     /// Maps node ID (`u128`) to its index in `nodes`.
@@ -485,6 +489,12 @@ pub fn current_system_block_most_recent_node_id() -> Result<u128> {
 }
 
 impl SeedGraphIndex {
+    /// Returns the process-unique identifier assigned to this `SeedGraphIndex` instance.
+    #[must_use]
+    pub const fn instance_id(&self) -> u64 {
+        self.instance_id
+    }
+
     /// Returns the lazily loaded process-wide `SeedGraphIndex` from the runtime asset bundle.
     pub fn shared() -> Result<&'static Arc<Self>> {
         let res = SHARED_SEED_GRAPH.get_or_init(|| {
@@ -1941,8 +1951,13 @@ impl SeedGraphIndex {
         }
 
         let system_block_most_recent_node_id = nodes.iter().map(|n| n.id).max();
+        static NEXT_SEED_GRAPH_INSTANCE_ID: std::sync::atomic::AtomicU64 =
+            std::sync::atomic::AtomicU64::new(1);
+        let instance_id = NEXT_SEED_GRAPH_INSTANCE_ID
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
         Self {
+            instance_id,
             nodes,
             node_index_by_id,
             superseded_by,
@@ -5307,10 +5322,16 @@ impl SeedGraphIndex {
         Ok(targets)
     }
 
-    fn compute_substitute_target_revision_hex(
+    /// Computes the deterministic SHA-256 closure digest (`[u8; 32]`) of a
+    /// [`SystemWasmSubstituteTarget`] across its active source and compiler dependencies
+    /// in this [`SeedGraphIndex`] snapshot.
+    ///
+    /// # Errors
+    /// Returns an error if `target`'s active decomposition or converter chain is missing.
+    pub fn compute_substitute_target_revision_sha256(
         &self,
         target: &SystemWasmSubstituteTarget,
-    ) -> Result<String> {
+    ) -> Result<[u8; 32]> {
         fn push_sh_bytes(buf: &mut Vec<u8>, tok: DcShorthand) -> Result<()> {
             buf.extend_from_slice(&tok.to_global_id()?.to_le_bytes());
             Ok(())
@@ -5496,7 +5517,20 @@ impl SeedGraphIndex {
                 }
             }
         }
-        Ok(sha256_bytes_hex(&buf))
+        Ok(Sha256::digest(&buf).into())
+    }
+
+    fn compute_substitute_target_revision_hex(
+        &self,
+        target: &SystemWasmSubstituteTarget,
+    ) -> Result<String> {
+        let digest = self.compute_substitute_target_revision_sha256(target)?;
+        let mut hex = String::with_capacity(64);
+        for b in digest {
+            use std::fmt::Write as _;
+            let _ = write!(hex, "{b:02x}");
+        }
+        Ok(hex)
     }
 }
 
