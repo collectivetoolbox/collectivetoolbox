@@ -372,16 +372,16 @@ vm_package_fixtures() {
         echo "Packaging runtime resource bundle (built/ctoolbox.rsrc)..."
         mkdir -p "$exchange_dir/built" "$exchange_dir/tests"
         cp "$repo_root/built/ctoolbox.rsrc" "$exchange_dir/built/ctoolbox.rsrc"
-        cp "$repo_root/built/ctoolbox.rsrc" "$exchange_dir/tests/ctoolbox.rsrc"
-        cp "$repo_root/built/ctoolbox.rsrc" "$exchange_dir/ctoolbox.rsrc"
+        ln "$exchange_dir/built/ctoolbox.rsrc" "$exchange_dir/tests/ctoolbox.rsrc"
+        ln "$exchange_dir/built/ctoolbox.rsrc" "$exchange_dir/ctoolbox.rsrc"
     fi
 
     if [[ -f "$repo_root/built/system_graph_history.rsrc" ]]; then
         echo "Packaging historical graph bundle (built/system_graph_history.rsrc)..."
         mkdir -p "$exchange_dir/built" "$exchange_dir/tests"
         cp "$repo_root/built/system_graph_history.rsrc" "$exchange_dir/built/system_graph_history.rsrc"
-        cp "$repo_root/built/system_graph_history.rsrc" "$exchange_dir/tests/system_graph_history.rsrc"
-        cp "$repo_root/built/system_graph_history.rsrc" "$exchange_dir/system_graph_history.rsrc"
+        ln "$exchange_dir/built/system_graph_history.rsrc" "$exchange_dir/tests/system_graph_history.rsrc"
+        ln "$exchange_dir/built/system_graph_history.rsrc" "$exchange_dir/system_graph_history.rsrc"
     fi
 
     if [[ -f "$repo_root/vendor/v86_images/guix/guix-fs.json" ]]; then
