@@ -36,7 +36,7 @@ use crate::path_resolution::ResolvedCopyTask;
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::link_path::LinkPath;
 use ctb_io::file::materializer::{
-    MaterializeOptions, apply_entity_metadata, materialize_entity,
+    MaterializeOptions, apply_entity_metadata_ext, materialize_entity,
 };
 use ctb_io::file::path_policy::{PathTraversalPolicy, SymlinkValidationPolicy};
 use ctb_io::file::payload::{Extent, PayloadSource};
@@ -1087,13 +1087,14 @@ pub fn execute_copy_pipeline(
                     &mut fixup.dir_entity,
                     stream_warnings,
                 )?;
-                let warnings = match apply_entity_metadata(
+                let warnings = match apply_entity_metadata_ext(
                     &fixup.dest_path,
                     None,
                     &fixup.dir_entity.metadata,
                     false,
                     true,
                     strict_lossless,
+                    options.check_ctime,
                     options.check_birthtime,
                 ) {
                     Ok(warnings) => warnings,

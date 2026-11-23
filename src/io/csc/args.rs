@@ -317,7 +317,9 @@ impl CscArgs {
     /// Resolves whether metadata change time checking is active in post-copy verification.
     #[must_use]
     pub fn should_check_ctime(&self) -> bool {
-        self.strict || self.check_ctime || cfg!(windows)
+        self.strict
+            || self.check_ctime
+            || (cfg!(windows) && !ctb_utilities::environment::is_wine())
     }
 
     /// Whether birth-time fidelity is required on the destination.

@@ -438,7 +438,9 @@ pub(crate) fn run_archive_with_stdout(
             let options = MaterializeOptions {
                 strict_lossless: *strict || !best_effort_metadata,
                 check_atime: *strict || *check_atime,
-                check_ctime: *strict || *check_ctime || cfg!(windows),
+                check_ctime: *strict
+                    || *check_ctime
+                    || (cfg!(windows) && !ctb_utilities::environment::is_wine()),
                 check_birthtime: *strict || *check_birthtime || cfg!(windows),
                 existing_entry_policy: if *overwrite {
                     ctb_io::file::ExistingEntryPolicy::Replace
@@ -720,6 +722,53 @@ fn clone_stdout_file() -> Result<Option<File>> {
     }
 }
 
+fn metadata_is_symlink_or_reparse(metadata: &std::fs::Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
+        metadata.file_type().is_symlink()
+            || (metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT) != 0
+    }
+    #[cfg(not(windows))]
+    {
+        metadata.file_type().is_symlink()
+    }
+}
+
+fn try_query_followed_file_identity(
+    path: &Path,
+) -> Result<Option<ctb_io::file::InodeKey>> {
+    #[cfg(unix)]
+    {
+        match std::fs::metadata(path) {
+            Ok(meta) => {
+                ctb_io::file::extract_file_identity(path, &meta).map(Some)
+            }
+            Err(_) => Ok(None),
+        }
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_READ_ATTRIBUTES: u32 = 0x0080;
+        const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
+        let Ok(file) = OpenOptions::new()
+            .access_mode(FILE_READ_ATTRIBUTES)
+            .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
+            .open(path)
+        else {
+            return Ok(None);
+        };
+        ctb_io::file::try_query_open_file_identity(&file)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = path;
+        Ok(None)
+    }
+}
+
 fn ensure_path_not_same_output(
     path: &Path,
     output_key: &ctb_io::file::InodeKey,
@@ -737,7 +786,14 @@ fn ensure_path_not_same_output(
         "Archive output is included in the source tree: {}",
         path.display()
     );
-    if metadata.file_type().is_symlink() {
+    if metadata_is_symlink_or_reparse(&metadata) {
+        if let Some(followed_key) = try_query_followed_file_identity(path)? {
+            ensure!(
+                &followed_key != output_key,
+                "Archive output is included in the source tree: {}",
+                path.display()
+            );
+        }
         if let Ok(resolved_target) = std::fs::canonicalize(path) {
             if let Ok(target_key) =
                 ctb_io::file::query_file_identity(&resolved_target)
@@ -748,6 +804,33 @@ fn ensure_path_not_same_output(
                     path.display()
                 );
             }
+        }
+        let mut current = path.to_path_buf();
+        for _ in 0_u8..64_u8 {
+            let Ok(link_target) = std::fs::read_link(&current) else {
+                break;
+            };
+            let next = if link_target.is_absolute() {
+                link_target
+            } else if let Some(parent) = current.parent() {
+                parent.join(link_target)
+            } else {
+                link_target
+            };
+            let Ok(next_meta) = std::fs::symlink_metadata(&next) else {
+                break;
+            };
+            let next_key =
+                ctb_io::file::extract_file_identity(&next, &next_meta)?;
+            ensure!(
+                &next_key != output_key,
+                "Archive output is included in the source tree: {}",
+                path.display()
+            );
+            if !metadata_is_symlink_or_reparse(&next_meta) {
+                break;
+            }
+            current = next;
         }
     }
     Ok(())
@@ -1721,13 +1804,17 @@ fn extract_archive(
                         "Extraction destination already exists; use --overwrite: {}",
                         path.display()
                     );
+                    let existing_is_symlink =
+                        metadata_is_symlink_or_reparse(&metadata);
                     ensure!(
-                        (metadata.is_file()
-                            && matches!(
-                                member.entity.kind,
-                                FileEntityKind::Regular { .. }
-                            ))
-                            || (metadata.is_dir() && member.entity.is_dir()),
+                        !existing_is_symlink
+                            && ((metadata.is_file()
+                                && matches!(
+                                    member.entity.kind,
+                                    FileEntityKind::Regular { .. }
+                                ))
+                                || (metadata.is_dir()
+                                    && member.entity.is_dir())),
                         "Cannot overwrite this entry type: {}",
                         path.display()
                     );
@@ -1935,13 +2022,14 @@ fn extract_archive(
                 }
                 Err(error) => return Err(error),
             }
-            match ctb_io::file::apply_entity_metadata(
+            match ctb_io::file::apply_entity_metadata_ext(
                 destination,
                 None,
                 &member.entity.metadata,
                 false,
                 true,
                 options.strict_lossless,
+                options.check_ctime,
                 options.check_birthtime,
             ) {
                 Ok(warnings) => {
@@ -2716,6 +2804,16 @@ mod tests {
             &symlink_target_out,
             &symlink_source,
         )?;
+        let symlink_created = std::fs::symlink_metadata(&symlink_source).is_ok();
+        #[cfg(windows)]
+        if !symlink_created {
+            assert!(
+                ctb_io_environment::is_wine(),
+                "Expected symlink_file to create symlink on native Windows"
+            );
+        }
+        #[cfg(not(windows))]
+        assert!(symlink_created);
 
         for continue_on_error in [false, true] {
             // 1. Redirected stdout is the source file itself (opened without truncation here to
@@ -2788,7 +2886,7 @@ mod tests {
 
             // 4. Source is a symlink pointing to the redirected stdout file.
             #[cfg(any(unix, windows))]
-            {
+            if symlink_created {
                 let out_handle =
                     OpenOptions::new().write(true).open(&symlink_target_out)?;
                 ensure!(
@@ -3880,13 +3978,22 @@ mod tests {
         {
             let outside = temporary.path().join("outside");
             std::fs::create_dir(&outside)?;
+            let link_dest = destination.join("source");
             #[cfg(unix)]
-            std::os::unix::fs::symlink(&outside, destination.join("source"))?;
+            std::os::unix::fs::symlink(&outside, &link_dest)?;
             #[cfg(windows)]
-            std::os::windows::fs::symlink_dir(
-                &outside,
-                destination.join("source"),
-            )?;
+            std::os::windows::fs::symlink_dir(&outside, &link_dest)?;
+            let symlink_created = std::fs::symlink_metadata(&link_dest).is_ok();
+            #[cfg(windows)]
+            if !symlink_created {
+                assert!(
+                    ctb_io_environment::is_wine(),
+                    "Expected symlink_dir to create symlink on native Windows"
+                );
+                return Ok(());
+            }
+            #[cfg(not(windows))]
+            assert!(symlink_created);
             ensure!(
                 extract_archive(
                     &reader,
@@ -3961,7 +4068,17 @@ mod tests {
             let byte = u8::try_from(index)?
                 .checked_add(41)
                 .context("Fixture byte overflow")?;
-            let mut output = File::create(path)?;
+            let mut output = match File::create(&path) {
+                Ok(file) => file,
+                Err(err) if err.raw_os_error() == Some(2) => {
+                    assert!(
+                        ctb_io_environment::is_wine(),
+                        "Unexpected NTFS ADS creation failure on native Windows: {err}"
+                    );
+                    return Ok(());
+                }
+                Err(err) => return Err(err.into()),
+            };
             ensure!(
                 std::io::copy(
                     &mut std::io::Read::take(std::io::repeat(byte), size),
@@ -4075,7 +4192,20 @@ mod tests {
         native
             .values
             .insert("reparse.data".into(), NativeMetadataValue::Bytes(buffer));
-        windows::apply_windows_reparse_metadata(&junction, &native, true)?;
+        if let Err(err) =
+            windows::apply_windows_reparse_metadata(&junction, &native, true)
+        {
+            assert!(
+                ctb_io_environment::is_wine(),
+                "Unexpected junction reparse point failure on native Windows: {err:#}"
+            );
+            assert_eq!(
+                err.downcast_ref::<std::io::Error>()
+                    .and_then(std::io::Error::raw_os_error),
+                Some(50)
+            );
+            return Ok(());
+        }
         let mut expected = Vec::new();
         for name in ["file-link", "dir-link", "junction"] {
             let entity = FileEntity::from_filesystem(&source.join(name), None)?;

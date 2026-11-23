@@ -212,7 +212,7 @@ fn test_tier4_strict_v4_journal_lossless_roundtrip() -> Result<()> {
     )?;
 
     // Construct a canonical FileEntity with full metadata
-    let rel_path = PathBuf::from("docs/report.txt");
+    let rel_path = PathBuf::from("docs").join("report.txt");
     let regular_entity = FileEntity {
         identity: FileIdentity {
             origin: FileOrigin::Synthetic,
@@ -256,10 +256,11 @@ fn test_tier4_strict_v4_journal_lossless_roundtrip() -> Result<()> {
     };
 
     // Construct a hardlink pointing to the regular entity
+    let link_rel_path = PathBuf::from("docs").join("hardlink.txt");
     let link_entity = FileEntity {
         identity: FileIdentity {
             origin: FileOrigin::Synthetic,
-            relative_path: Some(PathBuf::from("docs/hardlink.txt")),
+            relative_path: Some(link_rel_path.clone()),
             enclosing_path: Some(src.clone()),
             nlink: 2,
             hardlink_group: None,
@@ -319,7 +320,7 @@ fn test_tier4_strict_v4_journal_lossless_roundtrip() -> Result<()> {
 
     let committed_regular = snapshot
         .committed_entities
-        .get(b"docs/report.txt".as_slice())
+        .get(rel_path.as_os_str().as_encoded_bytes())
         .context("Committed regular entity must be present")?;
     ensure!(
         committed_regular.metadata.mode == Some(0o644),
@@ -336,7 +337,7 @@ fn test_tier4_strict_v4_journal_lossless_roundtrip() -> Result<()> {
 
     let committed_link = snapshot
         .committed_entities
-        .get(b"docs/hardlink.txt".as_slice())
+        .get(link_rel_path.as_os_str().as_encoded_bytes())
         .context("Committed hardlink entity must be present")?;
     ensure!(
         matches!(

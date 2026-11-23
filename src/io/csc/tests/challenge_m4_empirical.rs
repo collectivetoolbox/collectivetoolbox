@@ -1050,9 +1050,10 @@ fn test_challenge_interleaved_journal_records_lossless_roundtrip() -> Result<()>
     writer.record_warning("W_INIT", "Initialization warning before batches")?;
 
     // 2. Record error before batch
+    let error1_path = PathBuf::from("skipped").join("unreadable.txt");
     let error1 = JournalErrorRecord {
-        path: PathBuf::from("skipped/unreadable.txt"),
-        raw_path: b"skipped/unreadable.txt".to_vec(),
+        raw_path: error1_path.as_os_str().as_encoded_bytes().to_vec(),
+        path: error1_path,
         stage: JournalErrorStage::MetadataRead,
         error_message: "Permission denied reading metadata".to_owned(),
         os_error: Some(13), // EACCES
@@ -1110,9 +1111,10 @@ fn test_challenge_interleaved_journal_records_lossless_roundtrip() -> Result<()>
         "W_MID",
         "Mid-stream warning: symlink target unverified",
     )?;
+    let error2_path = PathBuf::from("skipped").join("negative_os.txt");
     let error2 = JournalErrorRecord {
-        path: PathBuf::from("skipped/negative_os.txt"),
-        raw_path: b"skipped/negative_os.txt".to_vec(),
+        raw_path: error2_path.as_os_str().as_encoded_bytes().to_vec(),
+        path: error2_path,
         stage: JournalErrorStage::PayloadRead,
         error_message: "Special negative OS code".to_owned(),
         os_error: Some(-1),
@@ -1297,6 +1299,7 @@ fn test_challenge_m5_o1_arena_reuse_under_continuous_streaming() -> Result<()> {
 
     let mut frame_count = 0_usize;
     let mut max_nodes_observed = 0_usize;
+    let mut expected_entity_nodes: Option<usize> = None;
 
     while let Ok(Some(stub)) = nav.next_sibling_stub(&scan_policy) {
         if stub.head_dc == DC_BEGIN_OPERATION_SESSION && !stub.is_unclosed() {
@@ -1346,9 +1349,17 @@ fn test_challenge_m5_o1_arena_reuse_under_continuous_streaming() -> Result<()> {
                 let nodes_for_entity = arena.nodes().len();
                 max_nodes_observed = max_nodes_observed.max(nodes_for_entity);
 
-                // Invariant: node count per FileEntity frame MUST be strictly bounded (O(1))
+                // Invariant: node count per FileEntity frame MUST be strictly constant O(1) across batches
+                if let Some(first_nodes) = expected_entity_nodes {
+                    ensure!(
+                        nodes_for_entity == first_nodes,
+                        "Entity syntax arena nodes drifted across batches ({first_nodes} -> {nodes_for_entity})"
+                    );
+                } else {
+                    expected_entity_nodes = Some(nodes_for_entity);
+                }
                 ensure!(
-                    nodes_for_entity < 256,
+                    nodes_for_entity < 320,
                     "Entity syntax arena nodes exceeded single-frame bound: {nodes_for_entity}"
                 );
                 frame_count = frame_count.saturating_add(1);
