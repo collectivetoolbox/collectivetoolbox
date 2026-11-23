@@ -451,7 +451,7 @@ mod tests {
             |p| Ok(std::fs::read(p)?),
         )?
         .unwrap();
-        assert_eq!(String::from_utf8(out_emd)?, "Hello, World!");
+        assert_eq!(String::from_utf8(out_emd)?, "Hello, World!\n");
 
         let idiom_emd_path = workspace_fixture_path(
             "src/formats/dct_el/fixtures/examples/example-documents/hello-world/idiomatic-hello-world.emd",
@@ -498,6 +498,7 @@ mod tests {
             "256 258 540 270 u67 u72 u65 u65 u74 271 259 ",
             "542 ",
             "256 258 540 270 u67 u72 u65 u65 u74 271 259 ",
+            "2239 u4f u4b u0a ",
             "236"
         );
         let out = execute_cli_run(
@@ -509,19 +510,19 @@ mod tests {
             |_| Ok(Vec::new()),
         )?
         .unwrap();
-        assert_eq!(String::from_utf8(out)?, "Inner\nOuter\n");
+        assert_eq!(String::from_utf8(out)?, "Inner\nOuter\nOK\n");
         Ok(())
     }
 
     #[crate::ctb_test]
     fn runs_historical_dc_641_pinned_lang_say_document() -> Result<()> {
         // Historical pin l8589958834 (predates StageR 3 Dc 2608 and f19) + Dc 235 .. Dc 256 .. Dc 236
-        // using short Dcs for "Hi!" (57, 90, 19) + escaped Dc 2239 atom quote test.
+        // using short Dcs for "Hi!" (57, 90, 19) + Dc 255 escape test.
         let dcsh = concat!(
             "641 l8589958834 ",
             "235 ",
             "256 258 260 262 264 263 57 90 19 261 259 ",
-            "2239 u4f u4b u0a ",
+            "255 u4f u4b u0a ",
             "236"
         );
         let out = execute_cli_run(

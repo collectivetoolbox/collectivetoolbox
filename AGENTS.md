@@ -170,6 +170,7 @@
 - **Terminology notes**
   - When talking about a compute quota, call it a compute quota, never "fuel" or other confusing metaphors.
   - Only use the word "projection" (of a Dc document) to refer to the operation of deserializing a Dc document onto Rust structs, or if discussing a slideshow. Do not introduce it as more general terminology for other operations.
+  - Talking about "executable" Dc documents as if they're different from some other sort of Dc documents is an error. Display and execution are the same operation.
 
 ## Task continuity
 

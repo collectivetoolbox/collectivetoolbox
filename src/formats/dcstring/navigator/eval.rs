@@ -606,24 +606,7 @@ fn eval_convert_dc_string_to_wasm(
             shared_quota.clone(),
         )?
     } else {
-        let mut lit_mstr = DcMstring::new();
-        for &tok in string_slice {
-            lit_mstr.push_char(tok);
-        }
-        let policy = DcProjectionPolicy::strict();
-        let mut nav = DcDocumentNavigator::from_mstr(&lit_mstr);
-        let mut arena = crate::DcSyntaxArena::new();
-        nav.parse_document_into_arena_with_resolver(
-            &mut arena, &policy, resolver,
-        )?;
-        let root = *arena
-            .roots()
-            .first()
-            .context("Missing ConvertDcStringToWasm string literal")?;
-        let (_, decoded) = arena
-            .decode_literal_with_resolver(root, resolver)
-            .context("ConvertDcStringToWasm argument is not a literal")?;
-        decoded
+        unquote_validated_dc_string_literal(string_slice, resolver)?
     };
 
     let raw_target_chars: Vec<DcChar> =
@@ -785,6 +768,77 @@ fn eval_convert_dc_string_to_wasm(
         &out_shorthands,
         resolver,
     )
+}
+
+fn unquote_validated_dc_string_literal(
+    tokens: &[DcChar],
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<DcMstring> {
+    ensure!(
+        tokens.len() >= 2
+            && tokens
+                .first()
+                .is_some_and(|c| c.fills_role_with(DcRole::BeginLiteral, resolver))
+            && tokens
+                .last()
+                .is_some_and(|c| c.fills_role_with(DcRole::EndLiteral, resolver)),
+        "Invalid Dc 260..Dc 261 string literal slice"
+    );
+    let end = tokens.len().saturating_sub(1);
+    let mut i = 1usize;
+    if tokens
+        .get(i)
+        .is_some_and(|c| c.fills_role_with(DcRole::BeginTypeDef, resolver))
+    {
+        let mut depth = 1usize;
+        i = i.saturating_add(1);
+        while i < end && depth > 0 {
+            let tok = tokens
+                .get(i)
+                .copied()
+                .context("String literal type header out of bounds")?;
+            if tok.fills_role_with(DcRole::Escape, resolver) {
+                i = i.saturating_add(2);
+                continue;
+            }
+            if tok.fills_role_with(DcRole::BeginTypeDef, resolver) {
+                depth = depth.saturating_add(1);
+            } else if tok.fills_role_with(DcRole::EndTypeDef, resolver) {
+                depth = depth.saturating_sub(1);
+            }
+            i = i.saturating_add(1);
+        }
+        ensure!(depth == 0, "Unclosed Dc 262..Dc 263 type header in string literal");
+    } else if tokens
+        .get(i)
+        .is_some_and(|c| c.fills_role_with(DcRole::TypeString, resolver))
+    {
+        i = i.saturating_add(1);
+    }
+
+    let mut out = DcMstring::new();
+    while i < end {
+        let tok = tokens
+            .get(i)
+            .copied()
+            .context("String literal payload index out of bounds")?;
+        if tok.fills_role_with(DcRole::Escape, resolver) {
+            let nx = tokens
+                .get(i.saturating_add(1))
+                .copied()
+                .context("Dangling Dc 255 escape at end of string literal")?;
+            ensure!(
+                i.saturating_add(1) < end,
+                "Unclosed string literal after trailing Dc 255 escape"
+            );
+            out.push_char(nx);
+            i = i.saturating_add(2);
+        } else {
+            out.push_char(tok);
+            i = i.saturating_add(1);
+        }
+    }
+    Ok(out)
 }
 
 fn is_uncompiled_code_token(
