@@ -99,9 +99,10 @@ pub use dc_mixed::{
     validate_and_copy_dcmm_stream_with_options, validate_dcmst,
 };
 pub use dc_mixed_serde::{
-    BinaryPayload, DcMixedDecode, DcMixedEncode, DcMixedFlattened,
-    DcMixedNumber, DcProjectionContext, DcRawValue, LazyBinaryPayload,
-    LosslessWithContext, assert_dc_document_roundtrip, assert_dc_roundtrip,
+    BinaryPayload, DcEpochTimestamp, DcMixedDecode, DcMixedEncode,
+    DcMixedFlattened, DcMixedNumber, DcProjectionContext, DcRawValue,
+    LazyBinaryPayload, LosslessWithContext, assert_dc_document_roundtrip,
+    assert_dc_roundtrip,
 };
 pub use dc_source::{
     DcDiagnostic, DcFieldAnnotation, DcInspection, DcMixedFields, DcSource,

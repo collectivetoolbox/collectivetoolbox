@@ -3726,6 +3726,116 @@ fn decode_temporal_with_preferred_format<T>(
     })
 }
 
+/// Platform-independent Unix epoch timestamp with exact 1-nanosecond
+/// resolution (`sec` signed seconds since `1970-01-01T00:00:00Z` and `nsec`
+/// in `0..1_000_000_000`).
+///
+/// Unlike [`SystemTime`], which on Windows wraps `FILETIME` (`100 ns`
+/// resolution, `>= 1601-01-01`), `DcEpochTimestamp` preserves full nanosecond
+/// precision and arbitrary `i64` epoch seconds across all host platforms when
+/// serializing and deserializing `Dc 390..391` time moments.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct DcEpochTimestamp {
+    pub sec: i64,
+    pub nsec: u32,
+}
+
+impl DcEpochTimestamp {
+    pub const UNIX_EPOCH: Self = Self { sec: 0, nsec: 0 };
+
+    pub fn new(sec: i64, nsec: u32) -> Result<Self> {
+        ensure!(nsec < 1_000_000_000, "Invalid timestamp nanoseconds: {nsec}");
+        Ok(Self { sec, nsec })
+    }
+
+    pub fn to_signed_nanos(self) -> Result<i128> {
+        ensure!(
+            self.nsec < 1_000_000_000,
+            "Invalid timestamp nanoseconds: {}",
+            self.nsec
+        );
+        i128::from(self.sec)
+            .checked_mul(1_000_000_000)
+            .and_then(|base| base.checked_add(i128::from(self.nsec)))
+            .context("Timestamp nanoseconds overflow i128")
+    }
+
+    pub fn from_signed_nanos(nanos: i128) -> Result<Self> {
+        let sec_i128 = nanos
+            .checked_div_euclid(1_000_000_000)
+            .context("Timestamp seconds division overflow")?;
+        let rem_i128 = nanos
+            .checked_rem_euclid(1_000_000_000)
+            .context("Timestamp nanoseconds remainder overflow")?;
+        let sec = i64::try_from(sec_i128)
+            .context("Timestamp seconds out of i64 range")?;
+        let nsec = u32::try_from(rem_i128)
+            .context("Timestamp subsecond nanoseconds out of u32 range")?;
+        Ok(Self { sec, nsec })
+    }
+}
+
+impl DcForgivingDefault for DcEpochTimestamp {
+    fn dc_forgiving_default() -> Self {
+        Self::UNIX_EPOCH
+    }
+}
+
+fn encode_time_moment_signed_nanos(
+    nanos: i128,
+    mst: &mut crate::DcWriter<'_>,
+) -> Result<()> {
+    mst.push_char(DC_BEGIN_TIME_MOMENT)?;
+    mst.push_char(format_dc_char(FormatId::NsSinceEpoch)?)?;
+    nanos.encode_dc_mixed_to(mst)?;
+    mst.push_char(DC_END_TIME_MOMENT)?;
+    Ok(())
+}
+
+fn decode_time_moment_signed_nanos(
+    ctx: &mut DcProjectionContext<'_, '_>,
+    node_id: NodeId,
+    type_name: &str,
+) -> Result<i128> {
+    let label = format!("time moment container (Dc 390..391) for {type_name}");
+    decode_temporal_with_preferred_format(
+        ctx,
+        node_id,
+        &[DcRole::BeginTimeMoment],
+        FormatId::NsSinceEpoch,
+        &label,
+        |ctx, fid, num_id| match fid {
+            FormatId::SecondsSinceEpoch => {
+                i128::from(i64::decode_dc_node(ctx, num_id)?)
+                    .checked_mul(1_000_000_000)
+                    .context("Seconds to nanoseconds overflow")
+            }
+            FormatId::NsSinceEpoch => i128::decode_dc_node(ctx, num_id),
+            _ => bail!("Unsupported {type_name} format: {fid:?}"),
+        },
+    )
+}
+
+impl DcMixedEncode for DcEpochTimestamp {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        encode_time_moment_signed_nanos(self.to_signed_nanos()?, mst)
+    }
+}
+
+impl DcMixedDecode for DcEpochTimestamp {
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
+    ) -> Result<Self> {
+        let nanos = decode_time_moment_signed_nanos(
+            ctx,
+            node_id,
+            "DcEpochTimestamp",
+        )?;
+        Self::from_signed_nanos(nanos)
+    }
+}
+
 impl DcMixedEncode for SystemTime {
     fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
         let nanos: i128 = match self.duration_since(std::time::UNIX_EPOCH) {
@@ -3735,11 +3845,7 @@ impl DcMixedEncode for SystemTime {
                 before.checked_neg().context("Timestamp underflow")?
             }
         };
-        mst.push_char(DC_BEGIN_TIME_MOMENT)?;
-        mst.push_char(format_dc_char(FormatId::NsSinceEpoch)?)?;
-        nanos.encode_dc_mixed_to(mst)?;
-        mst.push_char(DC_END_TIME_MOMENT)?;
-        Ok(())
+        encode_time_moment_signed_nanos(nanos, mst)
     }
 }
 
@@ -3748,27 +3854,9 @@ impl DcMixedDecode for SystemTime {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        decode_temporal_with_preferred_format(
-            ctx,
-            node_id,
-            &[DcRole::BeginTimeMoment],
-            FormatId::NsSinceEpoch,
-            "time moment container (Dc 390..391) for SystemTime",
-            |ctx, fid, num_id| {
-                let nanos = match fid {
-                    FormatId::SecondsSinceEpoch => {
-                        i128::from(i64::decode_dc_node(ctx, num_id)?)
-                            .checked_mul(1_000_000_000)
-                            .context("Seconds to nanoseconds overflow")?
-                    }
-                    FormatId::NsSinceEpoch => {
-                        i128::decode_dc_node(ctx, num_id)?
-                    }
-                    _ => bail!("Unsupported SystemTime format: {fid:?}"),
-                };
-                system_time_from_signed_nanos(nanos)
-            },
-        )
+        let nanos =
+            decode_time_moment_signed_nanos(ctx, node_id, "SystemTime")?;
+        system_time_from_signed_nanos(nanos)
     }
 }
 

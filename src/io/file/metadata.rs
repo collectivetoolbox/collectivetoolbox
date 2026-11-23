@@ -719,13 +719,13 @@ pub struct FileTimestamps {
 #[dc(flatten)]
 pub struct FileTimestampsDc {
     #[dc(short = 330)]
-    pub atime: SystemTime,
+    pub atime: ctb_formats_dcstring::DcEpochTimestamp,
     #[dc(short = 329)]
-    pub mtime: SystemTime,
+    pub mtime: ctb_formats_dcstring::DcEpochTimestamp,
     #[dc(short = 332)]
-    pub ctime: SystemTime,
+    pub ctime: ctb_formats_dcstring::DcEpochTimestamp,
     #[dc(short = 331, omit_default)]
-    pub birthtime: Option<SystemTime>,
+    pub birthtime: Option<ctb_formats_dcstring::DcEpochTimestamp>,
     #[dc(short = 378, omit_default)]
     pub resolution: Option<std::time::Duration>,
 }
@@ -733,58 +733,11 @@ pub struct FileTimestampsDc {
 impl Default for FileTimestampsDc {
     fn default() -> Self {
         Self {
-            atime: SystemTime::UNIX_EPOCH,
-            mtime: SystemTime::UNIX_EPOCH,
-            ctime: SystemTime::UNIX_EPOCH,
+            atime: ctb_formats_dcstring::DcEpochTimestamp::UNIX_EPOCH,
+            mtime: ctb_formats_dcstring::DcEpochTimestamp::UNIX_EPOCH,
+            ctime: ctb_formats_dcstring::DcEpochTimestamp::UNIX_EPOCH,
             birthtime: None,
             resolution: None,
-        }
-    }
-}
-
-fn system_time_from_sec_nsec(sec: i64, nsec: u32) -> Result<SystemTime> {
-    ensure!(nsec < 1_000_000_000, "Invalid timestamp nanoseconds");
-    let dur_secs = std::time::Duration::from_secs(sec.unsigned_abs());
-    let base = if sec < 0 {
-        SystemTime::UNIX_EPOCH
-            .checked_sub(dur_secs)
-            .context("Timestamp is outside system time range")?
-    } else {
-        SystemTime::UNIX_EPOCH
-            .checked_add(dur_secs)
-            .context("Timestamp is outside system time range")?
-    };
-    base.checked_add(std::time::Duration::from_nanos(u64::from(nsec)))
-        .context("Timestamp nanoseconds exceed system time range")
-}
-
-fn sec_nsec_from_system_time(time: SystemTime) -> Result<(i64, u32)> {
-    match time.duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(dur) => {
-            let sec = i64::try_from(dur.as_secs())
-                .context("Timestamp seconds overflow i64")?;
-            let nsec = dur.subsec_nanos();
-            Ok((sec, nsec))
-        }
-        Err(err) => {
-            let dur = err.duration();
-            let subsec = dur.subsec_nanos();
-            let s = i64::try_from(dur.as_secs())
-                .context("Timestamp seconds overflow i64")?;
-            let neg_s = s
-                .checked_neg()
-                .context("Timestamp seconds negation overflow")?;
-            if subsec == 0 {
-                Ok((neg_s, 0))
-            } else {
-                let sec = neg_s
-                    .checked_sub(1)
-                    .context("Timestamp seconds underflow")?;
-                let nsec = 1_000_000_000u32
-                    .checked_sub(subsec)
-                    .context("Nanoseconds underflow")?;
-                Ok((sec, nsec))
-            }
         }
     }
 }
@@ -794,15 +747,21 @@ impl TryFrom<&FileTimestamps> for FileTimestampsDc {
 
     fn try_from(value: &FileTimestamps) -> Result<Self> {
         value.validate()?;
-        let atime =
-            system_time_from_sec_nsec(value.atime_sec, value.atime_nsec)?;
-        let mtime =
-            system_time_from_sec_nsec(value.mtime_sec, value.mtime_nsec)?;
-        let ctime =
-            system_time_from_sec_nsec(value.ctime_sec, value.ctime_nsec)?;
+        let atime = ctb_formats_dcstring::DcEpochTimestamp::new(
+            value.atime_sec,
+            value.atime_nsec,
+        )?;
+        let mtime = ctb_formats_dcstring::DcEpochTimestamp::new(
+            value.mtime_sec,
+            value.mtime_nsec,
+        )?;
+        let ctime = ctb_formats_dcstring::DcEpochTimestamp::new(
+            value.ctime_sec,
+            value.ctime_nsec,
+        )?;
         let birthtime = match (value.birthtime_sec, value.birthtime_nsec) {
             (Some(sec), Some(nsec)) => {
-                Some(system_time_from_sec_nsec(sec, nsec)?)
+                Some(ctb_formats_dcstring::DcEpochTimestamp::new(sec, nsec)?)
             }
             _ => None,
         };
@@ -831,14 +790,8 @@ impl TryFrom<FileTimestampsDc> for FileTimestamps {
     type Error = anyhow::Error;
 
     fn try_from(dc: FileTimestampsDc) -> Result<Self> {
-        let (atime_sec, atime_nsec) = sec_nsec_from_system_time(dc.atime)?;
-        let (mtime_sec, mtime_nsec) = sec_nsec_from_system_time(dc.mtime)?;
-        let (ctime_sec, ctime_nsec) = sec_nsec_from_system_time(dc.ctime)?;
         let (birthtime_sec, birthtime_nsec) = match dc.birthtime {
-            Some(bt) => {
-                let (sec, nsec) = sec_nsec_from_system_time(bt)?;
-                (Some(sec), Some(nsec))
-            }
+            Some(bt) => (Some(bt.sec), Some(bt.nsec)),
             None => (None, None),
         };
         let resolution_nsec = match dc.resolution {
@@ -849,12 +802,12 @@ impl TryFrom<FileTimestampsDc> for FileTimestamps {
             None => None,
         };
         let ts = Self {
-            atime_sec,
-            atime_nsec,
-            mtime_sec,
-            mtime_nsec,
-            ctime_sec,
-            ctime_nsec,
+            atime_sec: dc.atime.sec,
+            atime_nsec: dc.atime.nsec,
+            mtime_sec: dc.mtime.sec,
+            mtime_nsec: dc.mtime.nsec,
+            ctime_sec: dc.ctime.sec,
+            ctime_nsec: dc.ctime.nsec,
             birthtime_sec,
             birthtime_nsec,
             resolution_nsec,
