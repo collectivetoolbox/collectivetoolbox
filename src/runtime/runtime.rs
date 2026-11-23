@@ -2038,11 +2038,18 @@ impl ExecutionContext {
                 resolver
             };
 
+        let wasm_asm_res: &dyn ctb_formats_dcstring::SyntaxRuleResolver =
+            if exec_res.resolve_named_type("wasm_routine").is_some() {
+                exec_res
+            } else {
+                resolver
+            };
+
         let mut session = match DcWasmSession::from_dc_wasm_with_limits(
             &wasm_doc,
             input,
             most_recent_id,
-            exec_res,
+            wasm_asm_res,
             active_limits,
         )
         .and_then(|s| s.with_shared_task_quota(shared_quota))

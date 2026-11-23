@@ -985,10 +985,17 @@ fn build_static_output_dc_wasm_program(
 ) -> Result<DcMstring> {
     use std::fmt::Write as _;
 
+    let wat_res: &dyn SyntaxRuleResolver =
+        if resolver.resolve_named_type("wasm_routine").is_some() {
+            resolver
+        } else {
+            default_syntax_resolver().as_ref()
+        };
+
     if out_chars.is_empty() {
         return crate::converters::wat::wat_to_dcmstring_with_resolver(
             "(module (func (export \"step\") (result i32) (i32.const 0)))",
-            resolver,
+            wat_res,
         );
     }
 
@@ -1011,7 +1018,7 @@ fn build_static_output_dc_wasm_program(
     let wat_src = format!(
         "(module (memory 1) (data (i32.const 32) \"{escaped_wat_bytes}\") (func (export \"step\") (result i32) (i32.store (i32.const 8) (i32.const 32)) (i32.store (i32.const 12) (i32.const {out_len})) (i32.const 0)))"
     );
-    crate::converters::wat::wat_to_dcmstring_with_resolver(&wat_src, resolver)
+    crate::converters::wat::wat_to_dcmstring_with_resolver(&wat_src, wat_res)
 }
 
 /// Applies a System-graph `.Formats:transformation` converter (`format_id`, such as

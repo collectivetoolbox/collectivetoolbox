@@ -679,7 +679,7 @@ pub v/l/u8/step l/u8/input
         doc.push_char(DcChar::from_short(57));
         doc.push_char(DcChar::from_short(90));
         doc.push_char(DcChar::from_short(120));
-        doc.push_binary_chunk(&[0xDE, 0xAD])?;
+        doc.push_binary(&[0xDE, 0xAD]);
         doc.push_char(DcChar::from_short(19));
 
         let (lowered, log) = apply_dc_transformation(
@@ -695,7 +695,11 @@ pub v/l/u8/step l/u8/input
         let prefix_u128s: Vec<u128> =
             prefix.chars().map(DcChar::to_u128).collect();
         assert_eq!(prefix_u128s, vec![0x48, 0x69, 0x0A]);
-        let Some(DcMixedChunk::Binary { data, .. }) = chunks.get(1) else {
+        let Some(
+            DcMixedChunk::Binary { data, .. }
+            | DcMixedChunk::BinaryWithMetadata { data, .. },
+        ) = chunks.get(1)
+        else {
             bail!("expected middle binary chunk");
         };
         assert_eq!(*data, [0xDE, 0xAD]);
