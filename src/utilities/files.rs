@@ -376,6 +376,13 @@ pub fn replace_executable_with_backup(
 /// so this is a no-op. On Windows filesystems that do not support sparse files
 /// (such as FAT32), `ERROR_INVALID_FUNCTION` is ignored so callers can still
 /// fall back to regular allocation when space permits.
+#[cfg_attr(
+    windows,
+    expect(
+        unsafe_code,
+        reason = "DeviceIoControl(FSCTL_SET_SPARSE) requires Win32 FFI with a valid open file handle and null input/output buffers"
+    )
+)]
 pub fn try_set_sparse(file: &std::fs::File) -> std::io::Result<()> {
     #[cfg(windows)]
     {
@@ -399,10 +406,6 @@ pub fn try_set_sparse(file: &std::fs::File) -> std::io::Result<()> {
         }
 
         let mut bytes_returned: u32 = 0;
-        #[expect(
-            unsafe_code,
-            reason = "DeviceIoControl(FSCTL_SET_SPARSE) takes a valid open file handle and null input/output buffers"
-        )]
         // SAFETY: `file` owns a live OS handle for the duration of the call,
         // `bytes_returned` is a valid stack u32, and FSCTL_SET_SPARSE uses null
         // input/output buffers.
