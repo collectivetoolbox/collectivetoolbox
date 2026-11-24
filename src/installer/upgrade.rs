@@ -231,12 +231,13 @@ pub fn start_atomic_upgrade(
         ctb_utilities::spawn_detached(target_path, &args)
     };
     if let Err(spawn_err) = spawn_result {
-        let rollback_status = match fs::rename(&backup_path, target_path) {
-            Ok(()) => "restored original binary from backup".to_owned(),
-            Err(rollback_err) => {
-                format!("rollback also failed: {rollback_err}")
-            }
-        };
+        let rollback_status =
+            match rollback_displaced_binary(&backup_path, target_path) {
+                Ok(()) => "restored original binary from backup".to_owned(),
+                Err(rollback_err) => {
+                    format!("rollback also failed: {rollback_err:#}")
+                }
+            };
         return Err(spawn_err).with_context(|| {
             format!(
                 "Failed to spawn canary process {} ({rollback_status})",
@@ -248,6 +249,95 @@ pub fn start_atomic_upgrade(
     log_fmt!("Spawned canary process; caller should exit now");
 
     Ok(())
+}
+
+/// Rolls back `target_path` from `backup_path` after a failed canary launch.
+#[cfg(unix)]
+fn rollback_displaced_binary(
+    backup_path: &Path,
+    target_path: &Path,
+) -> Result<()> {
+    fs::rename(backup_path, target_path).with_context(|| {
+        format!(
+            "Failed to rename backup {} back to {}",
+            backup_path.display(),
+            target_path.display()
+        )
+    })
+}
+
+#[cfg(not(unix))]
+fn is_transient_windows_lock(err: &std::io::Error) -> bool {
+    err.kind() == std::io::ErrorKind::PermissionDenied
+        || matches!(err.raw_os_error(), Some(5 | 32 | 33))
+}
+
+/// Rolls back `target_path` from `backup_path` after a failed canary launch,
+/// retrying transient Windows sharing/access locks held briefly after a failed
+/// `CreateProcessW` image-mapping attempt.
+#[cfg(not(unix))]
+fn rollback_displaced_binary(
+    backup_path: &Path,
+    target_path: &Path,
+) -> Result<()> {
+    const MAX_ATTEMPTS: usize = 40;
+    const RETRY_DELAY: Duration = Duration::from_millis(25);
+
+    let mut last_err: Option<std::io::Error> = None;
+    for attempt in 0..MAX_ATTEMPTS {
+        if attempt > 0 {
+            std::thread::sleep(RETRY_DELAY);
+        }
+
+        // Remove the broken candidate at `target_path` first so moving an
+        // executing Windows image at `backup_path` enters a vacant directory
+        // entry rather than superseding an existing file that CreateProcessW
+        // may still be closing.
+        match fs::remove_file(target_path) {
+            Ok(()) => {}
+            Err(remove_err)
+                if remove_err.kind() == std::io::ErrorKind::NotFound => {}
+            Err(remove_err) if is_transient_windows_lock(&remove_err) => {
+                last_err = Some(remove_err);
+                continue;
+            }
+            Err(remove_err) => {
+                last_err = Some(remove_err);
+            }
+        }
+
+        match fs::rename(backup_path, target_path) {
+            Ok(()) => return Ok(()),
+            Err(rename_err) if is_transient_windows_lock(&rename_err) => {
+                last_err = Some(rename_err);
+            }
+            Err(rename_err) => {
+                return Err(rename_err).with_context(|| {
+                    format!(
+                        "Failed to rename backup {} back to {}",
+                        backup_path.display(),
+                        target_path.display()
+                    )
+                });
+            }
+        }
+    }
+
+    if let Some(err) = last_err {
+        Err(err).with_context(|| {
+            format!(
+                "Timed out rolling back {} from {}",
+                target_path.display(),
+                backup_path.display()
+            )
+        })
+    } else {
+        bail!(
+            "Failed to roll back {} from {}",
+            target_path.display(),
+            backup_path.display()
+        )
+    }
 }
 
 /// Runs the canary validation process.
@@ -742,9 +832,14 @@ mod tests {
                 None,
             )
             .expect_err("Unexecutable replacement should fail to spawn");
+            let err_msg = format!("{err:#}");
             assert!(
-                !err.to_string().is_empty(),
+                !err_msg.is_empty(),
                 "Error message should describe spawn failure"
+            );
+            assert!(
+                !err_msg.contains("rollback also failed"),
+                "Rollback should succeed cleanly, got: {err_msg}"
             );
             assert!(
                 current_exe.exists(),
@@ -780,7 +875,7 @@ mod tests {
         let bad_bytes: &[u8] = b"MZ\x00\x00corrupt-pe-image";
         fs::write(&bad_new_binary, bad_bytes).unwrap();
 
-        let mut child = ctb_utilities::spawn_with_etxtbsy_retry(|| {
+        let child = ctb_utilities::spawn_with_etxtbsy_retry(|| {
             Command::new(&target_exe)
                 .args([
                     "--exact",
@@ -788,14 +883,22 @@ mod tests {
                     "--nocapture",
                 ])
                 .env(NEW_BIN_ENV, &bad_new_binary)
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
                 .spawn()
         })
         .expect("Failed to spawn copied test executable");
 
-        let status = child.wait().expect("Failed to wait on child test");
-        assert!(status.success(), "Rollback verification child should pass");
+        let output = child
+            .wait_with_output()
+            .expect("Failed to wait on child test");
+        assert!(
+            output.status.success(),
+            "Rollback verification child should pass (status: {:?})\nstdout:\n{}\nstderr:\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
         assert_eq!(
             fs::metadata(&target_exe).unwrap().len(),
             original_len,

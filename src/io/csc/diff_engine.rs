@@ -425,6 +425,24 @@ mod tests {
     use std::fs;
     use tempfile::tempdir;
 
+    /// Synchronizes timestamps (including Windows `CreationTime` / `birthtime`)
+    /// from `src` onto `dst` so independently created test fixtures do not fail
+    /// strict `birthtime` checks when a clock tick separates two `fs::write`s.
+    fn sync_fixture_timestamps(src: &Path, dst: &Path) {
+        let entity =
+            FileEntity::from_filesystem_metadata_only(src, None).unwrap();
+        ctb_io::file::apply_entity_metadata(
+            dst,
+            None,
+            &entity.metadata,
+            false,
+            false,
+            false,
+            cfg!(windows),
+        )
+        .unwrap();
+    }
+
     #[crate::ctb_test]
     fn test_diff_identical_files() {
         let temp = tempdir().unwrap();
@@ -433,10 +451,7 @@ mod tests {
         fs::write(&file_a, b"content 123").unwrap();
         fs::write(&file_b, b"content 123").unwrap();
 
-        // Ensure same mtime
-        let meta = fs::metadata(&file_a).unwrap();
-        let mtime = filetime::FileTime::from_last_modification_time(&meta);
-        filetime::set_file_times(&file_b, mtime, mtime).unwrap();
+        sync_fixture_timestamps(&file_a, &file_b);
 
         let args = default_diff_args(file_a, file_b);
         let report = diff_paths(&args).unwrap();
@@ -476,15 +491,8 @@ mod tests {
         fs::write(dir_a.join("f1.txt"), b"file 1").unwrap();
         fs::write(dir_b.join("f1.txt"), b"file 1").unwrap();
 
-        // Match mtimes
-        let meta = fs::metadata(dir_a.join("f1.txt")).unwrap();
-        let mtime = filetime::FileTime::from_last_modification_time(&meta);
-        filetime::set_file_times(dir_b.join("f1.txt"), mtime, mtime).unwrap();
-
-        let meta_dir = fs::metadata(&dir_a).unwrap();
-        let mtime_dir =
-            filetime::FileTime::from_last_modification_time(&meta_dir);
-        filetime::set_file_times(&dir_b, mtime_dir, mtime_dir).unwrap();
+        sync_fixture_timestamps(&dir_a.join("f1.txt"), &dir_b.join("f1.txt"));
+        sync_fixture_timestamps(&dir_a, &dir_b);
 
         let mut args = default_diff_args(dir_a, dir_b);
         args.criteria.ignore_mtime = true;
@@ -508,6 +516,12 @@ mod tests {
         fs::write(dir_b.join("common.txt"), b"common").unwrap();
         fs::write(dir_a.join("only_in_a.txt"), b"a").unwrap();
         fs::write(dir_b.join("only_in_b.txt"), b"b").unwrap();
+
+        sync_fixture_timestamps(
+            &dir_a.join("common.txt"),
+            &dir_b.join("common.txt"),
+        );
+        sync_fixture_timestamps(&dir_a, &dir_b);
 
         let mut args = default_diff_args(dir_a, dir_b);
         args.criteria.ignore_mtime = true;
@@ -536,6 +550,12 @@ mod tests {
         fs::write(dir_a.join("common.txt"), b"common").unwrap();
         fs::write(dir_b.join("common.txt"), b"common").unwrap();
         fs::write(dir_b.join("extra.txt"), b"extra").unwrap();
+
+        sync_fixture_timestamps(
+            &dir_a.join("common.txt"),
+            &dir_b.join("common.txt"),
+        );
+        sync_fixture_timestamps(&dir_a, &dir_b);
 
         let mut args = default_diff_args(dir_a, dir_b);
         args.criteria.ignore_mtime = true;
@@ -586,6 +606,7 @@ mod tests {
         let f_b = temp.path().join("b.txt");
         fs::write(&f_a, b"match").unwrap();
         fs::write(&f_b, b"match").unwrap();
+        sync_fixture_timestamps(&f_a, &f_b);
 
         let mut args = default_diff_args(f_a.clone(), f_b.clone());
         args.criteria.ignore_mtime = true;

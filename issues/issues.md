@@ -213,6 +213,7 @@ Proposal: temporarily instrument all Dc routine invocations (maybe some special 
 # SL3/SR3/EM3 linters
 
 - Line length lint to limit to 79 chars (SL3/SR3 only, not for EM3)
+- Function length lint to limit to 300? 500? lines
 - Version of the unwrap-or linter (I wish this weren't needed, but I'm not sure how else to prevent agents avoiding implementing correct edge case handling than making them annotate every case and then reviewing them in separate passes - if there's some better way to actually structurally prevent illogical unwrap-or I'd prefer that, but since it's ultimately a type of logic error I'm not sure that's possible since there's not really a clear heuristic for when it's used appropriately or not).
 
 # Runtime and renderer architecture
