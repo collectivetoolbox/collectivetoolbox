@@ -62,6 +62,9 @@ vm_cmd_stop() {
     if [[ "$force" == "true" ]]; then
         echo "Terminating $vm_name (PID $pid)..."
         kill -9 "$pid" 2>/dev/null || true
+        while kill -0 "$pid" 2>/dev/null; do
+            sleep 0.2
+        done
     else
         echo "Sending ACPI shutdown to $vm_name (PID $pid)..."
         vm_cmd_monitor "$monitor_sock" "system_powerdown" >/dev/null 2>&1 || kill -15 "$pid" 2>/dev/null || true
@@ -309,9 +312,19 @@ vm_cmd_snapshot() {
                 echo "Usage: snapshot revert <name>" >&2
                 return 1
             fi
+            if [[ ! -f "$image" ]]; then
+                echo "Error: VM disk image not found at $image" >&2
+                return 1
+            fi
+            if ! qemu-img snapshot -l "$image" 2>/dev/null | awk 'NR>2 {print $2}' | grep -Fxq "$name"; then
+                echo "Error: Snapshot '$name' not found on $image." >&2
+                echo "Available snapshots:" >&2
+                qemu-img snapshot -l "$image" >&2 || true
+                return 1
+            fi
             if vm_is_running "$pid_file"; then
-                echo "Stopping VM before reverting snapshot..."
-                vm_cmd_stop "$pid_file" "$monitor_sock" "" "false" "VM"
+                echo "Force-stopping running VM before reverting snapshot..."
+                vm_cmd_stop "$pid_file" "$monitor_sock" "" "true" "VM"
             fi
             echo "Reverting $image to snapshot '$name'..."
             qemu-img snapshot -a "$name" "$image"
