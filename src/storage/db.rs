@@ -48,9 +48,37 @@ pub struct TableRow {
 }
 
 static DB_POOL: OnceLock<RwLock<HashMap<PathBuf, Database>>> = OnceLock::new();
+static DB_POOL_CLEANUP_REGISTERED: OnceLock<()> = OnceLock::new();
 
 fn db_pool() -> &'static RwLock<HashMap<PathBuf, Database>> {
+    DB_POOL_CLEANUP_REGISTERED.get_or_init(|| {
+        ctb_utilities::testing::register_storage_dir_cleanup_hook(
+            close_databases_under_dir,
+        );
+    });
     DB_POOL.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+/// Evicts and closes cached `Database` instances residing under `dir`, freeing
+/// their page-cache arenas and releasing open OS file handles.
+pub fn close_databases_under_dir(dir: &Path) {
+    let Some(pool_lock) = DB_POOL.get() else {
+        return;
+    };
+    let mut evicted = Vec::new();
+    if let Ok(mut pool) = pool_lock.write() {
+        let matching_keys: Vec<PathBuf> = pool
+            .keys()
+            .filter(|db_path| db_path.starts_with(dir))
+            .cloned()
+            .collect();
+        for key in matching_keys {
+            if let Some(db) = pool.remove(&key) {
+                evicted.push(db);
+            }
+        }
+    }
+    drop(evicted);
 }
 
 #[derive(sea_query::Iden)]

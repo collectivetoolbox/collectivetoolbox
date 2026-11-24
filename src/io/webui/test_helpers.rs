@@ -136,6 +136,14 @@ impl Default for TestApp {
     }
 }
 
+impl Drop for TestApp {
+    fn drop(&mut self) {
+        if let Some(ref temp_dir) = self._temp_dir {
+            ctb_storage::db::close_databases_under_dir(temp_dir.path());
+        }
+    }
+}
+
 impl TestApp {
     pub fn new() -> Self {
         Self::default()

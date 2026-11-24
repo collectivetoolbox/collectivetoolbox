@@ -310,6 +310,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_localized_strings() {
+        let _guard = crate::i18n::locale_test_lock();
         // Test that localized functions return non-empty strings
         set_locale(Locale::EnUs);
         assert!(!app_name().is_empty());
@@ -323,6 +324,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_localized_strings_german() {
+        let _guard = crate::i18n::locale_test_lock();
         set_locale(Locale::De);
         let welcome = welcome_message();
         // German welcome should contain "Willkommen"

@@ -3354,6 +3354,7 @@ mod tests {
             .checked_add(payload_len)
             .context("File length overflow")?;
         let mut file = tempfile::tempfile()?;
+        ctb_utilities::files::try_set_sparse(&file)?;
         file.write_all(&header)?;
         file.set_len(end)?;
         let mut nav = DcDocumentNavigator::from_dcmm_file(file, 0)?;

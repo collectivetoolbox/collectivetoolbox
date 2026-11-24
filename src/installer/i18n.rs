@@ -879,6 +879,19 @@ pub mod msg {
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::expect_used,
+    reason = "Shared unit-test mutex serializing global locale mutations across modules"
+)]
+pub(crate) fn locale_test_lock() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::OnceLock<std::sync::Mutex<()>> =
+        std::sync::OnceLock::new();
+    LOCK.get_or_init(|| std::sync::Mutex::new(()))
+        .lock()
+        .expect("locale test lock should not be poisoned")
+}
+
+#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,
@@ -891,14 +904,6 @@ pub mod msg {
 )]
 mod tests {
     use super::*;
-    use std::sync::{Mutex, OnceLock};
-
-    fn locale_test_lock() -> std::sync::MutexGuard<'static, ()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(()))
-            .lock()
-            .expect("locale test lock should not be poisoned")
-    }
 
     #[crate::ctb_test]
     fn test_locale_codes() {
@@ -945,6 +950,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_t_returns_message() {
+        let _guard = locale_test_lock();
         set_locale(Locale::EnUs);
         let result = t(msg::APP_NAME);
         assert!(!result.is_empty());
@@ -953,6 +959,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_t_fallback() {
+        let _guard = locale_test_lock();
         set_locale(Locale::EnUs);
         let result = t("nonexistent-message-id");
         assert_eq!(result, "nonexistent-message-id");

@@ -28,6 +28,40 @@ pub mod logging_test_subscriber;
 
 static IN_TEST_PROCESS: AtomicBool = AtomicBool::new(false);
 
+type StorageCleanupHook = fn(&std::path::Path);
+
+static STORAGE_CLEANUP_HOOKS: std::sync::OnceLock<
+    std::sync::Mutex<Vec<StorageCleanupHook>>,
+> = std::sync::OnceLock::new();
+
+fn storage_cleanup_hooks() -> &'static std::sync::Mutex<Vec<StorageCleanupHook>>
+{
+    STORAGE_CLEANUP_HOOKS.get_or_init(|| std::sync::Mutex::new(Vec::new()))
+}
+
+/// Registers an idempotent callback invoked before a per-test storage directory
+/// is torn down so subsystems (such as database pools) can release open handles
+/// and cached buffers.
+pub fn register_storage_dir_cleanup_hook(hook: StorageCleanupHook) {
+    if let Ok(mut hooks) = storage_cleanup_hooks().lock() {
+        if !hooks.iter().any(|existing| std::ptr::fn_addr_eq(*existing, hook)) {
+            hooks.push(hook);
+        }
+    }
+}
+
+/// Runs all registered cleanup hooks for `dir`.
+pub fn run_storage_dir_cleanup_hooks(dir: &std::path::Path) {
+    let snapshot: Vec<StorageCleanupHook> =
+        match storage_cleanup_hooks().lock() {
+            Ok(hooks) => hooks.clone(),
+            Err(_) => return,
+        };
+    for hook in snapshot {
+        hook(dir);
+    }
+}
+
 tokio::task_local! {
     static CURRENT_ASYNC_TEST_NAME: String;
     pub static TEST_STORAGE_DIR: PathBuf;
@@ -53,7 +87,12 @@ pub fn set_current_test_name(p: String) {
         .join(format!("collectivetoolbox_ctb_test_{p}_{unique_id}"));
     let _ = std::fs::create_dir_all(&temp_dir);
 
-    TEST_STORAGE_DIR_SYNC.with(|c| *c.borrow_mut() = Some(temp_dir));
+    let previous_dir =
+        TEST_STORAGE_DIR_SYNC.with(|c| c.replace(Some(temp_dir)));
+    if let Some(prev) = previous_dir {
+        run_storage_dir_cleanup_hooks(&prev);
+        let _ = std::fs::remove_dir_all(&prev);
+    }
     CURRENT_TEST_NAME.with(|c| *c.borrow_mut() = Some(p));
 }
 
@@ -89,6 +128,7 @@ where
     struct TempDirGuard(std::path::PathBuf);
     impl Drop for TempDirGuard {
         fn drop(&mut self) {
+            run_storage_dir_cleanup_hooks(&self.0);
             let _ = std::fs::remove_dir_all(&self.0);
         }
     }

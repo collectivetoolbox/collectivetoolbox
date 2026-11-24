@@ -368,6 +368,68 @@ pub fn replace_executable_with_backup(
     Ok(())
 }
 
+/// Marks `file` as sparse on filesystems that require explicit sparse opt-in
+/// (such as Windows NTFS) before calling `File::set_len` to create large zero
+/// regions without reserving physical disk clusters.
+///
+/// On Unix, extending a file via `set_len` (`ftruncate`) is sparse by default,
+/// so this is a no-op. On Windows filesystems that do not support sparse files
+/// (such as FAT32), `ERROR_INVALID_FUNCTION` is ignored so callers can still
+/// fall back to regular allocation when space permits.
+pub fn try_set_sparse(file: &std::fs::File) -> std::io::Result<()> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::io::AsRawHandle;
+
+        const FSCTL_SET_SPARSE: u32 = 0x0009_00C4;
+        const ERROR_INVALID_FUNCTION: i32 = 1;
+
+        #[link(name = "kernel32")]
+        unsafe extern "system" {
+            fn DeviceIoControl(
+                h_device: *mut std::ffi::c_void,
+                dw_io_control_code: u32,
+                lp_in_buffer: *const std::ffi::c_void,
+                n_in_buffer_size: u32,
+                lp_out_buffer: *mut std::ffi::c_void,
+                n_out_buffer_size: u32,
+                lp_bytes_returned: *mut u32,
+                lp_overlapped: *mut std::ffi::c_void,
+            ) -> i32;
+        }
+
+        let mut bytes_returned: u32 = 0;
+        #[expect(
+            unsafe_code,
+            reason = "DeviceIoControl(FSCTL_SET_SPARSE) takes a valid open file handle and null input/output buffers"
+        )]
+        // SAFETY: `file` owns a live OS handle for the duration of the call,
+        // `bytes_returned` is a valid stack u32, and FSCTL_SET_SPARSE uses null
+        // input/output buffers.
+        let ok = unsafe {
+            DeviceIoControl(
+                file.as_raw_handle(),
+                FSCTL_SET_SPARSE,
+                std::ptr::null(),
+                0,
+                std::ptr::null_mut(),
+                0,
+                &mut bytes_returned,
+                std::ptr::null_mut(),
+            )
+        };
+        if ok == 0 {
+            let err = std::io::Error::last_os_error();
+            if err.raw_os_error() != Some(ERROR_INVALID_FUNCTION) {
+                return Err(err);
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    let _ = file;
+    Ok(())
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
