@@ -114,6 +114,57 @@ pub fn get_installed_version() -> Result<semver::Version> {
     Ok(record.ctoolbox_version)
 }
 
+#[cfg(windows)]
+struct WindowsErrorModeGuard {
+    previous: u32,
+}
+
+#[cfg(windows)]
+impl WindowsErrorModeGuard {
+    #[expect(
+        unsafe_code,
+        reason = "SetErrorMode suppresses modal Windows system error dialogs while spawning an untrusted canary binary"
+    )]
+    fn suppress_dialogs() -> Self {
+        const SEM_FAILCRITICALERRORS: u32 = 0x0001;
+        const SEM_NOGPFAULTERRORBOX: u32 = 0x0002;
+        const SEM_NOOPENFILEERRORBOX: u32 = 0x8000;
+        #[link(name = "kernel32")]
+        unsafe extern "system" {
+            fn SetErrorMode(u_mode: u32) -> u32;
+        }
+        // SAFETY: SetErrorMode is thread/process-safe FFI taking a bitmask of SEM_* flags and returning the prior mode.
+        let previous = unsafe {
+            let prev = SetErrorMode(0);
+            let _ = SetErrorMode(
+                prev | SEM_FAILCRITICALERRORS
+                    | SEM_NOGPFAULTERRORBOX
+                    | SEM_NOOPENFILEERRORBOX,
+            );
+            prev
+        };
+        Self { previous }
+    }
+}
+
+#[cfg(windows)]
+impl Drop for WindowsErrorModeGuard {
+    #[expect(
+        unsafe_code,
+        reason = "Restores the process error mode saved by WindowsErrorModeGuard::suppress_dialogs"
+    )]
+    fn drop(&mut self) {
+        #[link(name = "kernel32")]
+        unsafe extern "system" {
+            fn SetErrorMode(u_mode: u32) -> u32;
+        }
+        // SAFETY: Restores the valid bitmask previously returned by SetErrorMode.
+        unsafe {
+            let _ = SetErrorMode(self.previous);
+        }
+    }
+}
+
 /// Performs the atomic upgrade dance.
 ///
 /// This function:
@@ -174,7 +225,12 @@ pub fn start_atomic_upgrade(
         args.push(std::ffi::OsString::from(p.to_string()));
     }
 
-    if let Err(spawn_err) = ctb_utilities::spawn_detached(target_path, &args) {
+    let spawn_result = {
+        #[cfg(windows)]
+        let _err_mode = WindowsErrorModeGuard::suppress_dialogs();
+        ctb_utilities::spawn_detached(target_path, &args)
+    };
+    if let Err(spawn_err) = spawn_result {
         let rollback_status = match fs::rename(&backup_path, target_path) {
             Ok(()) => "restored original binary from backup".to_owned(),
             Err(rollback_err) => {
@@ -715,10 +771,14 @@ mod tests {
 
         let bad_new_binary = temp_dir.path().join("bad-update");
         // Nonexistent shebang interpreter fails with ENOENT on Unix without
-        // triggering execvp's `/bin/sh` fallback, and fails CreateProcessW
-        // (ERROR_BAD_EXE_FORMAT) on Windows.
-        fs::write(&bad_new_binary, b"#!/ctb-nonexistent-interpreter\n")
-            .unwrap();
+        // triggering execvp's `/bin/sh` fallback; truncated MZ header fails
+        // CreateProcessW with ERROR_BAD_EXE_FORMAT on Windows without invoking
+        // the legacy 16-bit DOS NTVDM compatibility dialog on Windows 7.
+        #[cfg(not(windows))]
+        let bad_bytes: &[u8] = b"#!/ctb-nonexistent-interpreter\n";
+        #[cfg(windows)]
+        let bad_bytes: &[u8] = b"MZ\x00\x00corrupt-pe-image";
+        fs::write(&bad_new_binary, bad_bytes).unwrap();
 
         let mut child = ctb_utilities::spawn_with_etxtbsy_retry(|| {
             Command::new(&target_exe)

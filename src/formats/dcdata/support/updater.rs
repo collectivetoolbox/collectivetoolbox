@@ -191,13 +191,17 @@ fn serialize_csv_bytes(
         .with_context(|| format!("Failed to flush CSV for {}", path.display()))
 }
 
-/// Writes a header row and data rows to a CSV file using standard RFC4180 formatting.
+/// Writes a header row and data rows to a CSV file using standard RFC4180 formatting,
+/// skipping the disk write if the file already contains identical bytes.
 pub fn write_csv_file(
     path: &Path,
     header: &[String],
     rows: &[Vec<String>],
 ) -> Result<()> {
     let bytes = serialize_csv_bytes(path, header, rows)?;
+    if fs::read(path).ok().as_deref() == Some(bytes.as_slice()) {
+        return Ok(());
+    }
     fs::write(path, bytes)
         .with_context(|| format!("Failed to save CSV to {}", path.display()))?;
     Ok(())
