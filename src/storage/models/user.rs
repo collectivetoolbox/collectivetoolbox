@@ -477,6 +477,96 @@ impl User {
         Ok(user)
     }
 
+    /// Rotate a user's password while preserving their existing DEK and graphs.
+    ///
+    /// Verifies `old_password`, unwraps the existing `dek` with the old KEK,
+    /// derives a fresh KEK and Argon2 PHC hash from `new_password`, re-wraps
+    /// the same `dek` under the user's persistent UUID AAD, and updates the
+    /// user record in storage.
+    pub fn change_password(
+        name: &str,
+        old_password: &Password,
+        new_password: &Password,
+    ) -> Result<u64> {
+        use zeroize::Zeroize;
+
+        ensure_base_layout().context("Failed to ensure base layout")?;
+
+        let trimmed_name = name.trim();
+        ensure!(!trimmed_name.is_empty(), "Username cannot be empty");
+        ensure!(
+            !new_password.password.is_empty(),
+            "New password cannot be empty"
+        );
+
+        let (_name_lock, id_lock) = lock_by_name(trimmed_name)?;
+        ensure!(id_lock.is_some(), "User '{trimmed_name}' not found");
+
+        let mut dto = ipcb!(storage)
+            .get_user_by_name_b(trimmed_name)?
+            .ok_or_else(|| anyhow!("User '{trimmed_name}' not found"))?;
+        let user_id = dto.id;
+
+        let phc = dto.auth.as_deref().ok_or_else(|| {
+            anyhow!("Auth entry for user_id {user_id} not found")
+        })?;
+        let kek_params = dto
+            .key_encryption_key_params
+            .as_deref()
+            .and_then(|bytes| serde_json::from_slice::<KekParams>(bytes).ok())
+            .ok_or_else(|| {
+                anyhow!("KEK params not found for user_id {user_id}")
+            })?;
+        let wrapped_dek = dto.wrapped_dek.as_deref().ok_or_else(|| {
+            anyhow!("Wrapped DEK not found for user_id {user_id}")
+        })?;
+
+        ensure!(verify(old_password, phc)?, "Invalid password");
+
+        let mut old_kek = auth::derive_kek_with_params(old_password, &kek_params)
+            .context("Failed to derive KEK with params")?;
+        let mut dek = match auth::unwrap_key(&old_kek, wrapped_dek, &dto.uuid) {
+            Ok(dek) => {
+                old_kek.zeroize();
+                dek
+            }
+            Err(err) => {
+                old_kek.zeroize();
+                return Err(err).context("Failed to unwrap DEK");
+            }
+        };
+
+        let (mut new_kek, new_kek_params) = match auth::derive_kek(new_password)
+        {
+            Ok(res) => res,
+            Err(err) => {
+                dek.zeroize();
+                return Err(err);
+            }
+        };
+        let new_phc = match hash(new_password) {
+            Ok(phc) => phc,
+            Err(err) => {
+                new_kek.zeroize();
+                dek.zeroize();
+                return Err(err);
+            }
+        };
+        let new_wrapped_dek = auth::wrap_key(&new_kek, &dek, &dto.uuid);
+        new_kek.zeroize();
+        dek.zeroize();
+        let new_wrapped_dek = new_wrapped_dek?;
+
+        dto.auth = Some(new_phc);
+        dto.key_encryption_key_params =
+            Some(json!(new_kek_params).as_bytes().to_vec());
+        dto.wrapped_dek = Some(new_wrapped_dek);
+
+        ipcb!(storage).update_user_b(dto)?;
+
+        Ok(user_id)
+    }
+
     /// Reconstruct a User struct from `UserPublicInfo` for an already-logged-in session.
     pub fn from_public_info(
         public_info: UserPublicInfo,
@@ -626,6 +716,28 @@ pub async fn login_user_async(
 ) -> Result<String> {
     ipc!(storage)
         .login_user(username, password_bytes, duration_secs)
+        .await
+}
+
+pub fn change_user_password(
+    username: &str,
+    old_password_bytes: Vec<u8>,
+    new_password_bytes: Vec<u8>,
+) -> Result<()> {
+    ipcb!(storage).change_user_password_b(
+        username,
+        old_password_bytes,
+        new_password_bytes,
+    )
+}
+
+pub async fn change_user_password_async(
+    username: &str,
+    old_password_bytes: Vec<u8>,
+    new_password_bytes: Vec<u8>,
+) -> Result<()> {
+    ipc!(storage)
+        .change_user_password(username, old_password_bytes, new_password_bytes)
         .await
 }
 
@@ -1040,6 +1152,96 @@ mod tests {
                 .contains("Username cannot be empty")
         );
 
+        Ok(())
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_change_password_preserves_dek_and_revokes_old_sessions()
+    -> Result<()> {
+        let name = function_name!();
+        User::delete_by_name(name).ok();
+
+        let old_pass_str = "old_compromised_password";
+        let new_pass_str = "new_rotated_secure_password";
+
+        let old_session_token = create_user_and_session_async(
+            name,
+            old_pass_str.as_bytes().to_vec(),
+            3600,
+        )
+        .await?;
+
+        let public_info = bail_if_none!(UserPublicInfo::get_by_name(name)?);
+        let user_id = public_info.local_id;
+        let original_dek = crate::user::session::get_user_dek(user_id)?;
+
+        let graphs_dir = get_storage_dir()?
+            .join("graphs")
+            .join(user_id.to_string());
+        let sentinel_path = graphs_dir.join("preserve_check.bin");
+        fs::write(&sentinel_path, b"graph-data-intact")?;
+
+        // Wrong old password must fail and leave existing session intact
+        let bad_res = change_user_password_async(
+            name,
+            b"wrong_old_password".to_vec(),
+            new_pass_str.as_bytes().to_vec(),
+        )
+        .await;
+        assert!(bad_res.is_err());
+        assert!(
+            bad_res
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid password")
+        );
+        assert_eq!(
+            crate::user::session::validate_session(old_session_token.clone())
+                .await?,
+            Some(user_id)
+        );
+
+        // Rotate password with valid old password
+        change_user_password_async(
+            name,
+            old_pass_str.as_bytes().to_vec(),
+            new_pass_str.as_bytes().to_vec(),
+        )
+        .await?;
+
+        // Old session must be revoked immediately
+        assert_eq!(
+            crate::user::session::validate_session(old_session_token).await?,
+            None
+        );
+
+        // Login with old password must now fail
+        let old_login = login_user_async(
+            name,
+            old_pass_str.as_bytes().to_vec(),
+            3600,
+        )
+        .await;
+        assert!(old_login.is_err());
+
+        // Login with new password must succeed and unwrap the exact same DEK
+        let new_session_token = login_user_async(
+            name,
+            new_pass_str.as_bytes().to_vec(),
+            3600,
+        )
+        .await?;
+        assert_eq!(
+            crate::user::session::validate_session(new_session_token.clone())
+                .await?,
+            Some(user_id)
+        );
+        let rotated_dek = crate::user::session::get_user_dek(user_id)?;
+        assert_eq!(original_dek, rotated_dek);
+        assert_eq!(fs::read(&sentinel_path)?, b"graph-data-intact");
+
+        crate::user::session::invalidate_session(new_session_token).await?;
+        User::delete_by_name(name)?;
         Ok(())
     }
 }

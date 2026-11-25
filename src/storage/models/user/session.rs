@@ -216,6 +216,50 @@ pub async fn create_user_and_session(
     Ok(token)
 }
 
+/// Rotate a user's password while preserving their DEK, and revoke all existing
+/// sessions for that user.
+#[ipc_method]
+pub async fn change_user_password(
+    username: String,
+    mut old_password_bytes: Vec<u8>,
+    mut new_password_bytes: Vec<u8>,
+) -> Result<()> {
+    use zeroize::Zeroize;
+
+    let mut old_password = Password {
+        password: old_password_bytes.clone(),
+    };
+    old_password_bytes.zeroize();
+
+    let mut new_password = Password {
+        password: new_password_bytes.clone(),
+    };
+    new_password_bytes.zeroize();
+
+    let change_res =
+        User::change_password(&username, &old_password, &new_password);
+    old_password.password.zeroize();
+    new_password.password.zeroize();
+    let user_id = change_res?;
+
+    let tokens_to_revoke: Vec<String> = {
+        let sessions = user_sessions()
+            .read()
+            .map_err(|e| anyhow!("Sessions lock poisoned: {e}"))?;
+        sessions
+            .iter()
+            .filter(|(_, s)| s.user_id == user_id)
+            .map(|(token, _)| token.clone())
+            .collect()
+    };
+
+    for token in tokens_to_revoke {
+        invalidate_session_internal(&token).await?;
+    }
+
+    Ok(())
+}
+
 /// Refresh an active session.
 #[ipc_method]
 pub async fn refresh_session(token: String, duration_secs: u64) -> Result<()> {

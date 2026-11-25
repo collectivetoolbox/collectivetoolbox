@@ -36,6 +36,8 @@ use crate::utilities::*;
 #[derive(Deserialize)]
 pub struct SetupGlobalUserRequest {
     pub password: String,
+    #[serde(default)]
+    pub new_password: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -44,15 +46,18 @@ pub struct SetupGlobalUserResponse {
     pub session_token: String,
 }
 
-/// Setup or log in the global graph user.
+/// Setup, log in, or rotate the password of the global graph user.
 ///
-/// Restricted strictly to loopback IP (localhost) to prevent external abuse.
+/// Restricted strictly to loopback IP (localhost) or a single-use `setup_token`
+/// file to prevent external abuse.
 pub async fn post_setup_global_user(
     State(state): State<AppState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
-    Json(payload): Json<SetupGlobalUserRequest>,
+    Json(mut payload): Json<SetupGlobalUserRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    use zeroize::Zeroize;
+
     let ip = addr.ip();
     if !ip.is_loopback() {
         let setup_token_header = headers
@@ -96,6 +101,10 @@ pub async fn post_setup_global_user(
         }
 
         if !authorized {
+            payload.password.zeroize();
+            if let Some(ref mut new_pw) = payload.new_password {
+                new_pw.zeroize();
+            }
             warn_fmt!(
                 "Rejecting setup-global-user request from non-loopback IP: {:?}",
                 ip
@@ -106,29 +115,82 @@ pub async fn post_setup_global_user(
 
     let username = "global".to_string();
     let password_bytes = payload.password.as_bytes().to_vec();
+    payload.password.zeroize();
+    let new_password_bytes = payload.new_password.as_mut().and_then(|s| {
+        if s.is_empty() {
+            None
+        } else {
+            let bytes = s.as_bytes().to_vec();
+            s.zeroize();
+            Some(bytes)
+        }
+    });
 
     // Check if the global user already exists.
     let user_exists = ctb_storage::user::user_exists(&username);
     let duration_secs = 315_360_000; // 10 years
 
     let session_token = if user_exists {
-        match ctb_storage::user::login_user_async(
-            &username,
-            password_bytes,
-            duration_secs,
-        )
-        .await
-        {
-            Ok(token) => token,
-            Err(e) => {
-                error_fmt!("Failed to log in global user: {:?}", e);
-                return Err(StatusCode::UNAUTHORIZED);
+        if let Some(new_pw_bytes) = new_password_bytes {
+            if let Err(e) = ctb_storage::user::change_user_password_async(
+                &username,
+                password_bytes,
+                new_pw_bytes.clone(),
+            )
+            .await
+            {
+                let mut new_pw_bytes = new_pw_bytes;
+                new_pw_bytes.zeroize();
+                error_fmt!("Failed to rotate global user password: {:?}", e);
+                return if e.to_string().contains("Invalid password") {
+                    Err(StatusCode::UNAUTHORIZED)
+                } else {
+                    Err(StatusCode::BAD_REQUEST)
+                };
+            }
+
+            {
+                let mut token_guard = state.global_session_token.lock().await;
+                *token_guard = None;
+            }
+
+            match ctb_storage::user::login_user_async(
+                &username,
+                new_pw_bytes,
+                duration_secs,
+            )
+            .await
+            {
+                Ok(token) => token,
+                Err(e) => {
+                    error_fmt!(
+                        "Failed to log in global user after password rotation: {:?}",
+                        e
+                    );
+                    return Err(StatusCode::UNAUTHORIZED);
+                }
+            }
+        } else {
+            match ctb_storage::user::login_user_async(
+                &username,
+                password_bytes,
+                duration_secs,
+            )
+            .await
+            {
+                Ok(token) => token,
+                Err(e) => {
+                    error_fmt!("Failed to log in global user: {:?}", e);
+                    return Err(StatusCode::UNAUTHORIZED);
+                }
             }
         }
     } else {
+        // Reason for fallback: when creating the global user for the first time, use new_password if supplied, otherwise password
+        let initial_password_bytes = new_password_bytes.unwrap_or(password_bytes);
         match ctb_storage::user::create_user_and_session_async(
             &username,
-            password_bytes,
+            initial_password_bytes,
             duration_secs,
         )
         .await
@@ -136,7 +198,7 @@ pub async fn post_setup_global_user(
             Ok(token) => token,
             Err(e) => {
                 error_fmt!("Failed to create global user: {:?}", e);
-                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                return Err(StatusCode::BAD_REQUEST);
             }
         }
     };
@@ -345,5 +407,113 @@ mod tests {
 
         // Verify the stale token file was deleted automatically
         assert!(!token_file.exists());
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_setup_global_user_rotates_password_and_revokes_old_session() {
+        let app = TestApp::new();
+        let _ = ctb_storage::user::User::delete_by_name("global");
+
+        // 1. Initial creation with old password
+        let init_bytes =
+            serde_json::to_vec(&serde_json::json!({ "password": "old_curl_k_password" }))
+                .unwrap();
+        let mut req_init = Request::builder()
+            .method(Method::POST)
+            .uri("/api/sync/setup-global-user")
+            .header("Content-Type", "application/json")
+            .body(Body::from(init_bytes))
+            .unwrap();
+        req_init
+            .extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 12345))));
+        let resp_init = app.app.clone().oneshot(req_init).await.unwrap();
+        assert_eq!(resp_init.status(), StatusCode::OK);
+
+        let initial_token = app
+            .state
+            .global_session_token
+            .lock()
+            .await
+            .clone()
+            .unwrap();
+        assert!(
+            ctb_storage::user::validate_session(&initial_token)
+                .unwrap()
+                .is_some()
+        );
+
+        // 2. Rotation with wrong current password fails with UNAUTHORIZED
+        let bad_rot_bytes = serde_json::to_vec(&serde_json::json!({
+            "password": "wrong_current_password",
+            "new_password": "new_rotated_password"
+        }))
+        .unwrap();
+        let mut req_bad_rot = Request::builder()
+            .method(Method::POST)
+            .uri("/api/sync/setup-global-user")
+            .header("Content-Type", "application/json")
+            .body(Body::from(bad_rot_bytes))
+            .unwrap();
+        req_bad_rot
+            .extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 12345))));
+        let resp_bad_rot = app.app.clone().oneshot(req_bad_rot).await.unwrap();
+        assert_eq!(resp_bad_rot.status(), StatusCode::UNAUTHORIZED);
+
+        // 3. Rotation with valid current password succeeds, revokes initial_token, and sets new token
+        let rot_bytes = serde_json::to_vec(&serde_json::json!({
+            "password": "old_curl_k_password",
+            "new_password": "new_rotated_password"
+        }))
+        .unwrap();
+        let mut req_rot = Request::builder()
+            .method(Method::POST)
+            .uri("/api/sync/setup-global-user")
+            .header("Content-Type", "application/json")
+            .body(Body::from(rot_bytes))
+            .unwrap();
+        req_rot
+            .extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 12345))));
+        let resp_rot = app.app.clone().oneshot(req_rot).await.unwrap();
+        assert_eq!(resp_rot.status(), StatusCode::OK);
+
+        let rotated_token = app
+            .state
+            .global_session_token
+            .lock()
+            .await
+            .clone()
+            .unwrap();
+        assert_ne!(initial_token, rotated_token);
+        assert!(
+            ctb_storage::user::validate_session(&initial_token)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            ctb_storage::user::validate_session(&rotated_token)
+                .unwrap()
+                .is_some()
+        );
+
+        // 4. Subsequent login with old password fails; new password succeeds
+        assert!(
+            ctb_storage::user::login_user_async(
+                "global",
+                b"old_curl_k_password".to_vec(),
+                3600,
+            )
+            .await
+            .is_err()
+        );
+        ctb_storage::user::login_user_async(
+            "global",
+            b"new_rotated_password".to_vec(),
+            3600,
+        )
+        .await
+        .unwrap();
     }
 }
