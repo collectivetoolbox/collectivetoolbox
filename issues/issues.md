@@ -225,10 +225,6 @@ Proposal: temporarily instrument all Dc routine invocations (maybe some special 
 
 # VM test script excludes various crates from tests by platform, but that seems like the wrong place for it. Also, to the greatest extent possible, all crates should be tested on all platforms (e.g. the exclusion of X11 tests on FreeBSD doesn't seem right, as X11 can run on FreeBSD, though I don't think it's set up - yet - on that particular test VM.) I'd also prefer to use per-platform #[ignore] on the *specific tests* that are impossible to run on a platform (even if in effect it means it runs no tests, I can at least be confident that if one's added later that's not platform-specific, it'll still run), rather than leaving out entire crates in the test script.
 
-# ctb --insecure-skip-crlite-check ia checkeddl
-
-Hung after printing 528 MB / 5.5 GB and ran 6+ hours with 100% of one CPU core in use continually. strace -p 631987 prints nothing, suggesting that it's making no syscalls.
-
 # Only split to live and inactive nodes outside of what's tracked in repo
 
 Make the .ctbnbdl files that are in-repo append-only. Have a separate split/ folder that has the live and historical .ctbnbdl files that are gitignored.

@@ -385,6 +385,7 @@ fn query_ip_endpoint_with_timeout(
             });
             let options = crate::https::ClientOptions {
                 connect_timeout: Some(timeout.min(Duration::from_secs(3))),
+                read_timeout: None,
                 timeout: Some(timeout),
                 user_agent: None,
             };
@@ -2417,8 +2418,9 @@ mod tests {
         let prev = CACHED_SERVER_TIME_OFFSET_NANOS.write().unwrap().take();
 
         maybe_cache_clock_offset(1_000_000_000, 1_000_000_100, 1_000_000_300);
-        let cached = cached_server_system_time_offset_nanos()
-            .expect("cached clock offset should be returned without network query");
+        let cached = cached_server_system_time_offset_nanos().expect(
+            "cached clock offset should be returned without network query",
+        );
         assert_eq!(cached, 200);
 
         *CACHED_SERVER_TIME_OFFSET_NANOS.write().unwrap() = None;

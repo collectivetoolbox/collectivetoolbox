@@ -44,7 +44,10 @@ fn storage_cleanup_hooks() -> &'static std::sync::Mutex<Vec<StorageCleanupHook>>
 /// and cached buffers.
 pub fn register_storage_dir_cleanup_hook(hook: StorageCleanupHook) {
     if let Ok(mut hooks) = storage_cleanup_hooks().lock() {
-        if !hooks.iter().any(|existing| std::ptr::fn_addr_eq(*existing, hook)) {
+        if !hooks
+            .iter()
+            .any(|existing| std::ptr::fn_addr_eq(*existing, hook))
+        {
             hooks.push(hook);
         }
     }
@@ -52,11 +55,11 @@ pub fn register_storage_dir_cleanup_hook(hook: StorageCleanupHook) {
 
 /// Runs all registered cleanup hooks for `dir`.
 pub fn run_storage_dir_cleanup_hooks(dir: &std::path::Path) {
-    let snapshot: Vec<StorageCleanupHook> =
-        match storage_cleanup_hooks().lock() {
-            Ok(hooks) => hooks.clone(),
-            Err(_) => return,
-        };
+    let snapshot: Vec<StorageCleanupHook> = match storage_cleanup_hooks().lock()
+    {
+        Ok(hooks) => hooks.clone(),
+        Err(_) => return,
+    };
     for hook in snapshot {
         hook(dir);
     }
@@ -145,6 +148,26 @@ where
                 .await
         })
         .await
+}
+
+pub(crate) async fn scope_optional_test_context<F>(
+    test_name: Option<String>,
+    test_storage_dir: Option<PathBuf>,
+    future: F,
+) -> F::Output
+where
+    F: std::future::Future,
+{
+    match (test_name, test_storage_dir) {
+        (Some(name), Some(dir)) => {
+            CURRENT_ASYNC_TEST_NAME
+                .scope(name, TEST_STORAGE_DIR.scope(dir, future))
+                .await
+        }
+        (Some(name), None) => CURRENT_ASYNC_TEST_NAME.scope(name, future).await,
+        (None, Some(dir)) => TEST_STORAGE_DIR.scope(dir, future).await,
+        (None, None) => future.await,
+    }
 }
 
 pub fn spawn_blocking_with_current_test_name<F, R>(

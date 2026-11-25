@@ -166,19 +166,29 @@ trait ArchiveClient {
     }
 }
 
-struct LiveArchiveClient;
+struct LiveArchiveClient {
+    http: https::BlockingClient,
+}
+
+impl LiveArchiveClient {
+    fn new() -> Result<Self> {
+        Ok(Self {
+            http: new_ia_http_client()?,
+        })
+    }
+}
 
 impl ArchiveClient for LiveArchiveClient {
     fn fetch_metadata(&self, identifier: &str) -> Result<MetadataResponse> {
-        fetch_live_metadata(identifier)
+        fetch_live_metadata_with_http(&self.http, identifier)
     }
 
     fn fetch_files_xml_bytes(&self, identifier: &str) -> Result<Vec<u8>> {
-        fetch_live_files_xml_bytes(identifier)
+        fetch_live_files_xml_bytes_with_http(&self.http, identifier)
     }
 
     fn fetch_meta_xml_bytes(&self, identifier: &str) -> Result<Vec<u8>> {
-        fetch_live_meta_xml_bytes(identifier)
+        fetch_live_meta_xml_bytes_with_http(&self.http, identifier)
     }
 
     fn fetch_download_bytes(
@@ -186,7 +196,7 @@ impl ArchiveClient for LiveArchiveClient {
         identifier: &str,
         file_name: &str,
     ) -> Result<Vec<u8>> {
-        fetch_download_bytes(identifier, file_name)
+        fetch_download_bytes_with_http(&self.http, identifier, file_name)
     }
 
     fn download_file(
@@ -197,6 +207,7 @@ impl ArchiveClient for LiveArchiveClient {
         progress: Option<&Progress>,
     ) -> Result<u64> {
         download_live_file_chunked_range(
+            &self.http,
             identifier,
             file_name,
             destination,
@@ -335,23 +346,23 @@ pub fn iamd5(
 }
 
 pub fn contains(target: &str, desired_file: &str) -> Result<Vec<u8>> {
-    contains_with_client(&LiveArchiveClient, target, desired_file)
+    contains_with_client(&LiveArchiveClient::new()?, target, desired_file)
 }
 
 pub fn listplain(target: &str) -> Result<Vec<u8>> {
-    listplain_with_client(&LiveArchiveClient, target)
+    listplain_with_client(&LiveArchiveClient::new()?, target)
 }
 
 pub fn metadata(target: &str) -> Result<Vec<u8>> {
-    metadata_with_client(&LiveArchiveClient, target)
+    metadata_with_client(&LiveArchiveClient::new()?, target)
 }
 
 pub fn filesxml(target: &str) -> Result<Vec<u8>> {
-    filesxml_with_client(&LiveArchiveClient, target)
+    filesxml_with_client(&LiveArchiveClient::new()?, target)
 }
 
 pub fn metaxml(target: &str) -> Result<Vec<u8>> {
-    metaxml_with_client(&LiveArchiveClient, target)
+    metaxml_with_client(&LiveArchiveClient::new()?, target)
 }
 
 pub fn download(
@@ -361,7 +372,7 @@ pub fn download(
     progress: Progress,
 ) -> Result<Vec<u8>> {
     download_with_client(
-        &LiveArchiveClient,
+        &LiveArchiveClient::new()?,
         target,
         output_dir,
         original,
@@ -370,7 +381,7 @@ pub fn download(
 }
 
 pub fn download_as_stream(target: &str) -> Result<Vec<u8>> {
-    download_as_stream_with_client(&LiveArchiveClient, target)
+    download_as_stream_with_client(&LiveArchiveClient::new()?, target)
 }
 
 pub fn download_here(
@@ -378,7 +389,12 @@ pub fn download_here(
     output_dir: Option<&Path>,
     progress: Progress,
 ) -> Result<Vec<u8>> {
-    download_here_with_client(&LiveArchiveClient, target, output_dir, progress)
+    download_here_with_client(
+        &LiveArchiveClient::new()?,
+        target,
+        output_dir,
+        progress,
+    )
 }
 
 fn download_with_client(
@@ -472,7 +488,7 @@ pub fn checkeddl(
     progress: Progress,
 ) -> Result<Vec<u8>> {
     checkeddl_with_client(
-        &LiveArchiveClient,
+        &LiveArchiveClient::new()?,
         target,
         output_dir,
         original,
@@ -873,19 +889,34 @@ fn verify_local_file(
     {
         has_mismatch = true;
     }
-    if let Some(expected_sha1) = &mismatch.expected_sha1 {
-        let actual_sha1 = sha1_hex_for_file(local_path)?;
-        if &actual_sha1 != expected_sha1 {
-            mismatch.actual_sha1 = Some(actual_sha1);
-            has_mismatch = true;
+    match (&mismatch.expected_sha1, &mismatch.expected_md5) {
+        (Some(expected_sha1), Some(expected_md5)) => {
+            let (actual_sha1, actual_md5) =
+                sha1_and_md5_hex_for_file(local_path)?;
+            if &actual_sha1 != expected_sha1 {
+                mismatch.actual_sha1 = Some(actual_sha1);
+                has_mismatch = true;
+            }
+            if &actual_md5 != expected_md5 {
+                mismatch.actual_md5 = Some(actual_md5);
+                has_mismatch = true;
+            }
         }
-    }
-    if let Some(expected_md5) = &mismatch.expected_md5 {
-        let actual_md5 = md5_hex_for_file(local_path)?;
-        if &actual_md5 != expected_md5 {
-            mismatch.actual_md5 = Some(actual_md5);
-            has_mismatch = true;
+        (Some(expected_sha1), None) => {
+            let actual_sha1 = sha1_hex_for_file(local_path)?;
+            if &actual_sha1 != expected_sha1 {
+                mismatch.actual_sha1 = Some(actual_sha1);
+                has_mismatch = true;
+            }
         }
+        (None, Some(expected_md5)) => {
+            let actual_md5 = md5_hex_for_file(local_path)?;
+            if &actual_md5 != expected_md5 {
+                mismatch.actual_md5 = Some(actual_md5);
+                has_mismatch = true;
+            }
+        }
+        (None, None) => {}
     }
 
     if has_mismatch {
@@ -947,34 +978,106 @@ fn load_local_files_manifest(
     parse_files_manifest(identifier, &bytes)
 }
 
+const IA_READ_TIMEOUT: std::time::Duration =
+    std::time::Duration::from_secs(120);
+const CHUNK_RETRY_BASE_DELAY_MS: u64 = 500;
+
+fn new_ia_http_client() -> Result<https::BlockingClient> {
+    https::blocking_client(https::ClientOptions {
+        read_timeout: Some(IA_READ_TIMEOUT),
+        ..https::ClientOptions::default()
+    })
+}
+
 fn fetch_live_files_manifest(identifier: &str) -> Result<FilesManifest> {
     let bytes = fetch_live_files_xml_bytes(identifier)?;
     parse_files_manifest(identifier, &bytes)
 }
 
 fn fetch_live_files_xml_bytes(identifier: &str) -> Result<Vec<u8>> {
-    let response = perform_get(&format!(
-        "https://archive.org/download/{identifier}/{identifier}{FILES_XML_SUFFIX}"
-    ))?;
+    let http = new_ia_http_client()?;
+    fetch_live_files_xml_bytes_with_http(&http, identifier)
+}
+
+fn fetch_live_files_xml_bytes_with_http(
+    http: &https::BlockingClient,
+    identifier: &str,
+) -> Result<Vec<u8>> {
+    let response = perform_get_with_http(
+        http,
+        &format!(
+            "https://archive.org/download/{identifier}/{identifier}{FILES_XML_SUFFIX}"
+        ),
+    )?;
     response.bytes().context("Failed to read files XML body")
 }
 
-fn fetch_live_meta_xml_bytes(identifier: &str) -> Result<Vec<u8>> {
-    let response = perform_get(&format!(
-        "https://archive.org/download/{identifier}/{identifier}{META_XML_SUFFIX}"
-    ))?;
+fn fetch_live_meta_xml_bytes_with_http(
+    http: &https::BlockingClient,
+    identifier: &str,
+) -> Result<Vec<u8>> {
+    let response = perform_get_with_http(
+        http,
+        &format!(
+            "https://archive.org/download/{identifier}/{identifier}{META_XML_SUFFIX}"
+        ),
+    )?;
     response.bytes().context("Failed to read meta XML body")
 }
 
-fn fetch_live_metadata(identifier: &str) -> Result<MetadataResponse> {
-    let response =
-        perform_get(&format!("https://archive.org/metadata/{identifier}"))?;
+fn fetch_live_metadata_with_http(
+    http: &https::BlockingClient,
+    identifier: &str,
+) -> Result<MetadataResponse> {
+    let response = perform_get_with_http(
+        http,
+        &format!("https://archive.org/metadata/{identifier}"),
+    )?;
     let body = response.text().context("Failed to read metadata body")?;
     serde_json::from_str(&body)
         .context("Failed to parse Internet Archive metadata JSON")
 }
 
 const DOWNLOAD_CHUNK_SIZE: u64 = 8_388_608; // 8 MiB
+
+trait RangeHttpResponse: Read {
+    fn status(&self) -> reqwest::StatusCode;
+    fn headers(&self) -> &reqwest::header::HeaderMap;
+    fn content_length(&self) -> Option<u64>;
+}
+
+impl RangeHttpResponse for https::BlockingResponse {
+    fn status(&self) -> reqwest::StatusCode {
+        https::BlockingResponse::status(self)
+    }
+
+    fn headers(&self) -> &reqwest::header::HeaderMap {
+        https::BlockingResponse::headers(self)
+    }
+
+    fn content_length(&self) -> Option<u64> {
+        https::BlockingResponse::content_length(self)
+    }
+}
+
+trait RangeHttpClient {
+    fn get_with_headers(
+        &self,
+        url: &str,
+        headers: Option<reqwest::header::HeaderMap>,
+    ) -> Result<Box<dyn RangeHttpResponse>>;
+}
+
+impl RangeHttpClient for https::BlockingClient {
+    fn get_with_headers(
+        &self,
+        url: &str,
+        headers: Option<reqwest::header::HeaderMap>,
+    ) -> Result<Box<dyn RangeHttpResponse>> {
+        let resp = https::BlockingClient::get_with_headers(self, url, headers)?;
+        Ok(Box::new(resp))
+    }
+}
 
 fn parse_content_range(val: &str) -> Option<(u64, u64, Option<u64>)> {
     let s = val.trim();
@@ -989,6 +1092,15 @@ fn parse_content_range(val: &str) -> Option<(u64, u64, Option<u64>)> {
         total_part.trim().parse().ok()
     };
     Some((start, end, total))
+}
+
+fn parse_unsatisfied_content_range_total(val: &str) -> Option<u64> {
+    let s = val.trim().strip_prefix("bytes ")?;
+    let (range_part, total_part) = s.split_once('/')?;
+    if range_part.trim() != "*" {
+        return None;
+    }
+    total_part.trim().parse().ok()
 }
 
 fn create_temp_path(parent_dir: &Path, file_name: &str) -> PathBuf {
@@ -1038,14 +1150,26 @@ fn commit_atomic_file(temp_path: &Path, destination: &Path) -> Result<()> {
     })
 }
 
-fn fetch_download_bytes(identifier: &str, file_name: &str) -> Result<Vec<u8>> {
+fn fetch_download_bytes_with_http(
+    http: &https::BlockingClient,
+    identifier: &str,
+    file_name: &str,
+) -> Result<Vec<u8>> {
     let url = download_url(identifier, file_name)?;
     let mut buffer = Vec::new();
-    download_to_writer_chunked_range(url.as_str(), &mut buffer, None)?;
+    download_to_writer_chunked_range_with_http(
+        http,
+        url.as_str(),
+        &mut buffer,
+        None,
+        DOWNLOAD_CHUNK_SIZE,
+        CHUNK_RETRY_BASE_DELAY_MS,
+    )?;
     Ok(buffer)
 }
 
 fn download_live_file_chunked_range(
+    http: &https::BlockingClient,
     identifier: &str,
     file_name: &str,
     destination: &Path,
@@ -1065,10 +1189,13 @@ fn download_live_file_chunked_range(
     let mut temp_file = fs::File::create(&temp_path).with_context(|| {
         format!("Failed to create temporary file {}", temp_path.display())
     })?;
-    let bytes_written = download_to_writer_chunked_range(
+    let bytes_written = download_to_writer_chunked_range_with_http(
+        http,
         url.as_str(),
         &mut temp_file,
         progress,
+        DOWNLOAD_CHUNK_SIZE,
+        CHUNK_RETRY_BASE_DELAY_MS,
     )?;
     temp_file.sync_all().with_context(|| {
         format!("Failed to sync temporary file {}", temp_path.display())
@@ -1079,126 +1206,264 @@ fn download_live_file_chunked_range(
     Ok(bytes_written)
 }
 
-fn download_to_writer_chunked_range(
+enum InitialChunkOutcome {
+    FullStream(Box<dyn RangeHttpResponse>),
+    EmptyFile,
+    Partial {
+        bytes: Vec<u8>,
+        total_size: Option<u64>,
+    },
+}
+
+fn sleep_chunk_retry(attempt: usize, backoff_base_ms: u64) {
+    if backoff_base_ms == 0 {
+        return;
+    }
+    // Reason for fallback: If attempt count cannot convert to u32, cap exponent to bound exponential backoff.
+    let exponent = u32::try_from(attempt).unwrap_or(4).min(4);
+    // Reason for fallback: power computation overflow safely caps multiplier
+    let multiplier = 2u64.checked_pow(exponent).unwrap_or(16);
+    let delay_ms = backoff_base_ms.saturating_mul(multiplier);
+    std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+}
+
+fn fetch_initial_chunk_with_retry(
+    http: &dyn RangeHttpClient,
+    url: &str,
+    chunk_size: u64,
+    retry_limit: usize,
+    backoff_base_ms: u64,
+) -> Result<InitialChunkOutcome> {
+    let first_end = chunk_size.saturating_sub(1);
+    let range_str = format!("bytes=0-{first_end}");
+    let mut attempt = 0;
+
+    loop {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            reqwest::header::RANGE,
+            reqwest::header::HeaderValue::from_str(&range_str)
+                .context("Failed to format initial Range header")?,
+        );
+
+        let attempt_res: Result<InitialChunkOutcome> = (|| {
+            let mut response = http
+                .get_with_headers(url, Some(headers))
+                .with_context(|| format!("Failed to connect to {url}"))?;
+            let status = response.status();
+            if status == reqwest::StatusCode::OK {
+                return Ok(InitialChunkOutcome::FullStream(response));
+            }
+            if status == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
+                let unsatisfied_total = response
+                    .headers()
+                    .get(reqwest::header::CONTENT_RANGE)
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(parse_unsatisfied_content_range_total);
+                if unsatisfied_total == Some(0) {
+                    return Ok(InitialChunkOutcome::EmptyFile);
+                }
+                let fallback = http
+                    .get_with_headers(url, None)
+                    .with_context(|| format!("Failed to GET {url}"))?;
+                if fallback.status() == reqwest::StatusCode::OK {
+                    return Ok(InitialChunkOutcome::FullStream(fallback));
+                }
+                bail!(
+                    "Unexpected HTTP response status {} after 416 fallback for {url}",
+                    fallback.status()
+                );
+            }
+            if status != reqwest::StatusCode::PARTIAL_CONTENT {
+                bail!("Unexpected HTTP response status {status} for {url}");
+            }
+
+            let parsed_range = response
+                .headers()
+                .get(reqwest::header::CONTENT_RANGE)
+                .and_then(|v| v.to_str().ok())
+                .and_then(parse_content_range);
+            if let Some((range_start, _, _)) = parsed_range {
+                anyhow::ensure!(
+                    range_start == 0,
+                    "Unexpected Content-Range start {range_start} for initial chunk of {url}"
+                );
+            }
+            let mut total_size = parsed_range.and_then(|(_, _, total)| total);
+            if total_size.is_none()
+                && let Some(content_len) = response.content_length()
+                && content_len < chunk_size
+            {
+                total_size = Some(content_len);
+            }
+
+            let mut chunk_buf = Vec::new();
+            response
+                .read_to_end(&mut chunk_buf)
+                .context("Failed to read first chunk body")?;
+            if chunk_buf.is_empty() && total_size != Some(0) {
+                bail!(
+                    "Received empty body for initial byte range 0-{first_end}"
+                );
+            }
+            Ok(InitialChunkOutcome::Partial {
+                bytes: chunk_buf,
+                total_size,
+            })
+        })();
+
+        match attempt_res {
+            Ok(outcome) => return Ok(outcome),
+            Err(err) => {
+                if attempt < retry_limit {
+                    attempt = attempt.saturating_add(1);
+                    warn_fmt!(
+                        "Retrying initial chunk 0-{first_end} for {url} (attempt {attempt}/{retry_limit}): {err}"
+                    );
+                    sleep_chunk_retry(attempt, backoff_base_ms);
+                    continue;
+                }
+                return Err(err);
+            }
+        }
+    }
+}
+
+fn stream_full_response_to_writer(
+    mut response: Box<dyn RangeHttpResponse>,
     url: &str,
     writer: &mut dyn Write,
     progress: Option<&Progress>,
+    chunk_size: u64,
 ) -> Result<u64> {
-    let first_end = DOWNLOAD_CHUNK_SIZE.saturating_sub(1);
-    let mut headers = reqwest::header::HeaderMap::new();
-    let range_str = format!("bytes=0-{first_end}");
-    headers.insert(
-        reqwest::header::RANGE,
-        reqwest::header::HeaderValue::from_str(&range_str)
-            .context("Failed to format initial Range header")?,
-    );
-
-    let mut response =
-        https::blocking_get_response_with_headers(url, Some(headers))
-            .with_context(|| format!("Failed to connect to {url}"))?;
-
-    let status = response.status();
-    if status == reqwest::StatusCode::OK {
-        let mut total_copied = 0_u64;
-        let mut buf = [0_u8; 8 * 1024];
-        loop {
-            let n = response
-                .read(&mut buf)
-                .context("Failed to read HTTP response body")?;
-            if n == 0 {
-                break;
-            }
-            let n_u64 = u64::try_from(n).map_err(|e| {
-                anyhow!("Failed to convert read buffer length: {e}")
-            })?;
-            let slice =
-                buf.get(..n).context("Buffer slice index out of bounds")?;
-            writer
-                .write_all(slice)
-                .context("Failed to write downloaded bytes to stream")?;
-            total_copied = total_copied.saturating_add(n_u64);
+    let expected_len = response.content_length();
+    let mut total_copied = 0_u64;
+    let mut next_progress_at = chunk_size;
+    let mut buf = [0_u8; 64 * 1024];
+    loop {
+        let n = response
+            .read(&mut buf)
+            .context("Failed to read HTTP response body")?;
+        if n == 0 {
+            break;
         }
-        return Ok(total_copied);
-    }
-
-    if status != reqwest::StatusCode::PARTIAL_CONTENT {
-        bail!("Unexpected HTTP response status {status} for {url}");
-    }
-
-    let content_range_str = response
-        .headers()
-        .get(reqwest::header::CONTENT_RANGE)
-        .and_then(|v| v.to_str().ok());
-    let mut total_size = content_range_str
-        .and_then(parse_content_range)
-        .and_then(|(_, _, total)| total);
-
-    if total_size.is_none() {
-        if let Some(content_len) = response.content_length() {
-            if content_len < DOWNLOAD_CHUNK_SIZE {
-                total_size = Some(content_len);
-            }
+        let n_u64 = u64::try_from(n).map_err(|e| {
+            anyhow!("Failed to convert read buffer length: {e}")
+        })?;
+        let slice = buf.get(..n).context("Buffer slice index out of bounds")?;
+        writer
+            .write_all(slice)
+            .context("Failed to write downloaded bytes to stream")?;
+        total_copied = total_copied.saturating_add(n_u64);
+        if let (Some(prog), Some(total)) = (progress, expected_len)
+            && total > chunk_size
+            && total_copied >= next_progress_at
+        {
+            let current_str = format_bytes_decimal(total_copied);
+            let total_str = format_bytes_decimal(total);
+            prog.message(&format!("{current_str} / {total_str}"));
+            next_progress_at = total_copied.saturating_add(chunk_size);
         }
     }
+    if let Some(expected) = expected_len {
+        anyhow::ensure!(
+            total_copied == expected,
+            "Incomplete download for {url}: received {total_copied} of {expected} bytes"
+        );
+    }
+    Ok(total_copied)
+}
 
-    let mut chunk_buf = Vec::new();
-    response
-        .read_to_end(&mut chunk_buf)
-        .context("Failed to read first chunk body")?;
-    let first_chunk_len = u64::try_from(chunk_buf.len())
+fn download_to_writer_chunked_range_with_http(
+    http: &dyn RangeHttpClient,
+    url: &str,
+    writer: &mut dyn Write,
+    progress: Option<&Progress>,
+    chunk_size: u64,
+    backoff_base_ms: u64,
+) -> Result<u64> {
+    anyhow::ensure!(chunk_size > 0, "Download chunk size must be non-zero");
+    let retry_limit = invocation_settings::get_settings()
+        .retry_on_host_error
+        .max(3);
+
+    let (first_chunk, total_size) = match fetch_initial_chunk_with_retry(
+        http,
+        url,
+        chunk_size,
+        retry_limit,
+        backoff_base_ms,
+    )? {
+        InitialChunkOutcome::EmptyFile => return Ok(0),
+        InitialChunkOutcome::FullStream(response) => {
+            return stream_full_response_to_writer(
+                response, url, writer, progress, chunk_size,
+            );
+        }
+        InitialChunkOutcome::Partial { bytes, total_size } => {
+            (bytes, total_size)
+        }
+    };
+
+    let first_chunk_len = u64::try_from(first_chunk.len())
         .map_err(|e| anyhow!("Failed to convert chunk size to u64: {e}"))?;
     writer
-        .write_all(&chunk_buf)
+        .write_all(&first_chunk)
         .context("Failed to write first chunk to destination")?;
 
     let mut current_offset = first_chunk_len;
 
     if let Some(total) = total_size {
         if current_offset >= total {
+            anyhow::ensure!(
+                current_offset == total,
+                "Received {current_offset} bytes exceeding expected size {total} for {url}"
+            );
             return Ok(current_offset);
         }
-    } else if first_chunk_len < DOWNLOAD_CHUNK_SIZE {
+    } else if first_chunk_len < chunk_size {
         return Ok(current_offset);
     }
 
-    let retry_limit = invocation_settings::get_settings()
-        .retry_on_host_error
-        .max(3);
+    if let (Some(prog), Some(total)) = (progress, total_size) {
+        let current_str = format_bytes_decimal(current_offset);
+        let total_str = format_bytes_decimal(total);
+        prog.message(&format!("{current_str} / {total_str}"));
+    }
 
     loop {
-        if let Some(total) = total_size {
-            if current_offset >= total {
-                break;
-            }
+        if let Some(total) = total_size
+            && current_offset >= total
+        {
+            break;
         }
 
         let next_end = if let Some(total) = total_size {
             std::cmp::min(
-                current_offset
-                    .saturating_add(DOWNLOAD_CHUNK_SIZE)
-                    .saturating_sub(1),
+                current_offset.saturating_add(chunk_size).saturating_sub(1),
                 total.saturating_sub(1),
             )
         } else {
-            current_offset
-                .saturating_add(DOWNLOAD_CHUNK_SIZE)
-                .saturating_sub(1)
+            current_offset.saturating_add(chunk_size).saturating_sub(1)
         };
 
         if next_end < current_offset {
             break;
         }
 
-        let chunk_bytes_opt =
-            fetch_chunk_with_retry(url, current_offset, next_end, retry_limit)?;
+        let chunk_bytes_opt = fetch_chunk_with_retry(
+            http,
+            url,
+            current_offset,
+            next_end,
+            total_size,
+            retry_limit,
+            backoff_base_ms,
+        )?;
 
         let Some(chunk_bytes) = chunk_bytes_opt else {
             break;
         };
-
-        if chunk_bytes.is_empty() {
-            break;
-        }
 
         let chunk_len = u64::try_from(chunk_bytes.len()).map_err(|e| {
             anyhow!("Failed to convert chunk bytes length to u64: {e}")
@@ -1210,65 +1475,93 @@ fn download_to_writer_chunked_range(
 
         current_offset = current_offset.saturating_add(chunk_len);
 
-        if let Some(prog) = progress {
-            if let Some(total) = total_size {
-                let current_str = format_bytes_decimal(current_offset);
-                let total_str = format_bytes_decimal(total);
-                prog.message(&format!("{current_str} / {total_str}"));
-            }
+        if let (Some(prog), Some(total)) = (progress, total_size) {
+            let current_str = format_bytes_decimal(current_offset);
+            let total_str = format_bytes_decimal(total);
+            prog.message(&format!("{current_str} / {total_str}"));
         }
 
-        if chunk_len < DOWNLOAD_CHUNK_SIZE && total_size.is_none() {
+        if chunk_len < chunk_size && total_size.is_none() {
             break;
         }
+    }
+
+    if let Some(total) = total_size {
+        anyhow::ensure!(
+            current_offset == total,
+            "Incomplete download for {url}: received {current_offset} of {total} bytes"
+        );
     }
 
     Ok(current_offset)
 }
 
 fn fetch_chunk_with_retry(
+    http: &dyn RangeHttpClient,
     url: &str,
     start: u64,
     end: u64,
+    expected_total: Option<u64>,
     retry_limit: usize,
+    backoff_base_ms: u64,
 ) -> Result<Option<Vec<u8>>> {
+    let range_val = format!("bytes={start}-{end}");
     let mut attempt = 0;
     loop {
         let mut chunk_headers = reqwest::header::HeaderMap::new();
-        let range_val = format!("bytes={start}-{end}");
         chunk_headers.insert(
             reqwest::header::RANGE,
             reqwest::header::HeaderValue::from_str(&range_val)
                 .context("Invalid Range header value")?,
         );
 
-        let req_res =
-            https::blocking_get_response_with_headers(url, Some(chunk_headers));
+        let chunk_read_res: Result<Option<Vec<u8>>> = (|| {
+            let mut chunk_resp =
+                http.get_with_headers(url, Some(chunk_headers))?;
+            let status = chunk_resp.status();
+            if status == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
+                if expected_total.is_none() {
+                    return Ok(None);
+                }
+                bail!(
+                    "Unexpected HTTP 416 Range Not Satisfiable for chunk {start}-{end}"
+                );
+            }
+            if status != reqwest::StatusCode::PARTIAL_CONTENT {
+                bail!(
+                    "Unexpected HTTP status {status} for chunk {start}-{end}"
+                );
+            }
 
-        let chunk_read_res = match req_res {
-            Ok(mut chunk_resp) => {
-                if chunk_resp.status()
-                    == reqwest::StatusCode::RANGE_NOT_SATISFIABLE
+            if let Some((range_start, _, range_total)) = chunk_resp
+                .headers()
+                .get(reqwest::header::CONTENT_RANGE)
+                .and_then(|v| v.to_str().ok())
+                .and_then(parse_content_range)
+            {
+                anyhow::ensure!(
+                    range_start == start,
+                    "Unexpected Content-Range start {range_start} (expected {start}) for {url}"
+                );
+                if let (Some(expected), Some(actual)) =
+                    (expected_total, range_total)
                 {
-                    Ok(None)
-                } else if chunk_resp.status()
-                    != reqwest::StatusCode::PARTIAL_CONTENT
-                    && chunk_resp.status() != reqwest::StatusCode::OK
-                {
-                    Err(anyhow!(
-                        "Unexpected HTTP status {} for chunk {start}-{end}",
-                        chunk_resp.status()
-                    ))
-                } else {
-                    let mut buf = Vec::new();
-                    chunk_resp
-                        .read_to_end(&mut buf)
-                        .context("Failed to read chunk response body")?;
-                    Ok(Some(buf))
+                    anyhow::ensure!(
+                        actual == expected,
+                        "Remote file size changed during download of {url}: expected {expected}, got {actual}"
+                    );
                 }
             }
-            Err(err) => Err(err),
-        };
+
+            let mut buf = Vec::new();
+            chunk_resp
+                .read_to_end(&mut buf)
+                .context("Failed to read chunk response body")?;
+            if buf.is_empty() {
+                bail!("Received empty body for chunk {start}-{end}");
+            }
+            Ok(Some(buf))
+        })();
 
         match chunk_read_res {
             Ok(data) => return Ok(data),
@@ -1278,14 +1571,7 @@ fn fetch_chunk_with_retry(
                     warn_fmt!(
                         "Retrying chunk {start}-{end} for {url} (attempt {attempt}/{retry_limit}): {err}"
                     );
-                    // Reason for fallback: If attempt count cannot convert to u32, cap exponent to bound exponential backoff.
-                    let exponent = u32::try_from(attempt).unwrap_or(4).min(4);
-                    // Reason for fallback: power computation overflow safely caps multiplier
-                    let multiplier = 2u64.checked_pow(exponent).unwrap_or(16);
-                    let delay_ms = 500u64.saturating_mul(multiplier);
-                    std::thread::sleep(std::time::Duration::from_millis(
-                        delay_ms,
-                    ));
+                    sleep_chunk_retry(attempt, backoff_base_ms);
                     continue;
                 }
                 return Err(err.context(format!(
@@ -1296,8 +1582,12 @@ fn fetch_chunk_with_retry(
     }
 }
 
-fn perform_get(url: &str) -> Result<https::BlockingResponse> {
-    let response = https::blocking_get_response(url)
+fn perform_get_with_http(
+    http: &https::BlockingClient,
+    url: &str,
+) -> Result<https::BlockingResponse> {
+    let response = http
+        .get_with_backoff(url, 3)
         .with_context(|| format!("Failed to GET {url}"))?;
     if !response.is_success() {
         bail!(
@@ -1639,11 +1929,38 @@ fn is_probable_identifier(candidate: &str) -> bool {
         })
 }
 
+const FILE_HASH_BUFFER_SIZE: usize = 65536;
+
+fn sha1_and_md5_hex_for_file(path: &Path) -> Result<(String, String)> {
+    let mut file = File::open(path)
+        .with_context(|| format!("Failed to open {}", path.display()))?;
+    let mut sha1_hasher = Sha1::new();
+    let mut md5_hasher = Md5::new();
+    let mut buffer = [0_u8; FILE_HASH_BUFFER_SIZE];
+    loop {
+        let bytes_read = file
+            .read(&mut buffer)
+            .with_context(|| format!("Failed to read {}", path.display()))?;
+        if bytes_read == 0 {
+            break;
+        }
+        let slice = buffer
+            .get(..bytes_read)
+            .context("Invalid bytes read length")?;
+        sha1_hasher.update(slice);
+        md5_hasher.update(slice);
+    }
+    Ok((
+        format!("{:x}", sha1_hasher.finalize()),
+        format!("{:x}", md5_hasher.finalize()),
+    ))
+}
+
 fn sha1_hex_for_file(path: &Path) -> Result<String> {
     let mut file = File::open(path)
         .with_context(|| format!("Failed to open {}", path.display()))?;
     let mut hasher = Sha1::new();
-    let mut buffer = [0_u8; 8192];
+    let mut buffer = [0_u8; FILE_HASH_BUFFER_SIZE];
     loop {
         let bytes_read = file
             .read(&mut buffer)
@@ -1664,7 +1981,7 @@ fn md5_hex_for_file(path: &Path) -> Result<String> {
     let mut file = File::open(path)
         .with_context(|| format!("Failed to open {}", path.display()))?;
     let mut hasher = Md5::new();
-    let mut buffer = [0_u8; 8192];
+    let mut buffer = [0_u8; FILE_HASH_BUFFER_SIZE];
     loop {
         let bytes_read = file
             .read(&mut buffer)
@@ -2367,5 +2684,274 @@ mod tests {
         }
 
         assert!(!temp_path.exists());
+    }
+
+    struct MockRangeResponse {
+        status: reqwest::StatusCode,
+        headers: reqwest::header::HeaderMap,
+        content_length: Option<u64>,
+        body: std::io::Cursor<Vec<u8>>,
+        fail_after_bytes: Option<usize>,
+        read_so_far: usize,
+    }
+
+    impl Read for MockRangeResponse {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            if let Some(limit) = self.fail_after_bytes
+                && self.read_so_far >= limit
+            {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "simulated stalled range stream",
+                ));
+            }
+            let max_len = if let Some(limit) = self.fail_after_bytes {
+                buf.len().min(limit - self.read_so_far)
+            } else {
+                buf.len()
+            };
+            let n = self.body.read(&mut buf[..max_len])?;
+            self.read_so_far += n;
+            Ok(n)
+        }
+    }
+
+    impl RangeHttpResponse for MockRangeResponse {
+        fn status(&self) -> reqwest::StatusCode {
+            self.status
+        }
+
+        fn headers(&self) -> &reqwest::header::HeaderMap {
+            &self.headers
+        }
+
+        fn content_length(&self) -> Option<u64> {
+            self.content_length
+        }
+    }
+
+    struct MockRangeClient<F> {
+        handler: F,
+    }
+
+    impl<F> MockRangeClient<F>
+    where
+        F: Fn(
+            &str,
+            Option<&reqwest::header::HeaderMap>,
+        ) -> Result<MockRangeResponse>,
+    {
+        fn new(handler: F) -> Self {
+            Self { handler }
+        }
+    }
+
+    impl<F> RangeHttpClient for MockRangeClient<F>
+    where
+        F: Fn(
+            &str,
+            Option<&reqwest::header::HeaderMap>,
+        ) -> Result<MockRangeResponse>,
+    {
+        fn get_with_headers(
+            &self,
+            url: &str,
+            headers: Option<reqwest::header::HeaderMap>,
+        ) -> Result<Box<dyn RangeHttpResponse>> {
+            Ok(Box::new((self.handler)(url, headers.as_ref())?))
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_chunked_range_download_many_chunks_and_retries() {
+        let payload: Vec<u8> = (0..2500_u32)
+            .map(|i| u8::try_from(i % 251).unwrap())
+            .collect();
+        let total_len = u64::try_from(payload.len()).unwrap();
+        let attempts = std::sync::atomic::AtomicUsize::new(0);
+
+        let client = MockRangeClient::new(|_url, headers| {
+            let call_idx =
+                attempts.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let range_str = headers
+                .unwrap()
+                .get(reqwest::header::RANGE)
+                .unwrap()
+                .to_str()
+                .unwrap();
+            let (start_s, end_s) = range_str
+                .strip_prefix("bytes=")
+                .unwrap()
+                .split_once('-')
+                .unwrap();
+            let start: usize = start_s.parse().unwrap();
+            let end: usize =
+                end_s.parse::<usize>().unwrap().min(payload.len() - 1);
+
+            // Inject transient connection failure on chunk 0 and mid-read
+            // timeout on a later chunk to test retry recovery.
+            if call_idx == 0 {
+                bail!("simulated transient connection reset on chunk 0");
+            }
+
+            let mut resp_headers = reqwest::header::HeaderMap::new();
+            resp_headers.insert(
+                reqwest::header::CONTENT_RANGE,
+                reqwest::header::HeaderValue::from_str(&format!(
+                    "bytes {start}-{end}/{total_len}"
+                ))
+                .unwrap(),
+            );
+            let slice = payload[start..=end].to_vec();
+            let slice_len = u64::try_from(slice.len()).unwrap();
+            Ok(MockRangeResponse {
+                status: reqwest::StatusCode::PARTIAL_CONTENT,
+                headers: resp_headers,
+                content_length: Some(slice_len),
+                body: std::io::Cursor::new(slice),
+                fail_after_bytes: if call_idx == 70 { Some(4) } else { None },
+                read_so_far: 0,
+            })
+        });
+
+        let mut out = Vec::new();
+        let written = download_to_writer_chunked_range_with_http(
+            &client,
+            "https://archive.org/download/test/big.bin",
+            &mut out,
+            Some(&Progress::new(false)),
+            16,
+            0,
+        )
+        .unwrap();
+
+        assert_eq!(written, total_len);
+        assert_eq!(out, payload);
+        // 2500 / 16 = 157 chunks + 2 retried attempts = 159 requests
+        assert_eq!(attempts.load(std::sync::atomic::Ordering::SeqCst), 159);
+    }
+
+    #[crate::ctb_test]
+    fn test_chunked_range_download_rejects_200_ok_on_nonzero_offset() {
+        let client = MockRangeClient::new(|_url, headers| {
+            let range_str = headers
+                .unwrap()
+                .get(reqwest::header::RANGE)
+                .unwrap()
+                .to_str()
+                .unwrap();
+            if range_str.starts_with("bytes=0-") {
+                let mut resp_headers = reqwest::header::HeaderMap::new();
+                resp_headers.insert(
+                    reqwest::header::CONTENT_RANGE,
+                    reqwest::header::HeaderValue::from_static("bytes 0-3/8"),
+                );
+                Ok(MockRangeResponse {
+                    status: reqwest::StatusCode::PARTIAL_CONTENT,
+                    headers: resp_headers,
+                    content_length: Some(4),
+                    body: std::io::Cursor::new(b"abcd".to_vec()),
+                    fail_after_bytes: None,
+                    read_so_far: 0,
+                })
+            } else {
+                // Misbehaving server ignores Range on second chunk and returns 200 OK
+                Ok(MockRangeResponse {
+                    status: reqwest::StatusCode::OK,
+                    headers: reqwest::header::HeaderMap::new(),
+                    content_length: Some(8),
+                    body: std::io::Cursor::new(b"abcdefgh".to_vec()),
+                    fail_after_bytes: None,
+                    read_so_far: 0,
+                })
+            }
+        });
+
+        let mut out = Vec::new();
+        let err = download_to_writer_chunked_range_with_http(
+            &client,
+            "https://archive.org/download/test/broken.bin",
+            &mut out,
+            None,
+            4,
+            0,
+        )
+        .unwrap_err();
+        assert!(format!("{err:#}").contains("Unexpected HTTP status 200"));
+    }
+
+    #[crate::ctb_test]
+    fn test_chunked_range_download_empty_file_416_and_truncated_error() {
+        let empty_client = MockRangeClient::new(|_url, _headers| {
+            let mut resp_headers = reqwest::header::HeaderMap::new();
+            resp_headers.insert(
+                reqwest::header::CONTENT_RANGE,
+                reqwest::header::HeaderValue::from_static("bytes */0"),
+            );
+            Ok(MockRangeResponse {
+                status: reqwest::StatusCode::RANGE_NOT_SATISFIABLE,
+                headers: resp_headers,
+                content_length: Some(0),
+                body: std::io::Cursor::new(Vec::new()),
+                fail_after_bytes: None,
+                read_so_far: 0,
+            })
+        });
+        let mut empty_out = Vec::new();
+        let written = download_to_writer_chunked_range_with_http(
+            &empty_client,
+            "https://archive.org/download/test/empty.bin",
+            &mut empty_out,
+            None,
+            16,
+            0,
+        )
+        .unwrap();
+        assert_eq!(written, 0);
+        assert!(empty_out.is_empty());
+
+        let truncated_client = MockRangeClient::new(|_url, headers| {
+            let range_str = headers
+                .unwrap()
+                .get(reqwest::header::RANGE)
+                .unwrap()
+                .to_str()
+                .unwrap();
+            if range_str.starts_with("bytes=0-") {
+                let mut resp_headers = reqwest::header::HeaderMap::new();
+                resp_headers.insert(
+                    reqwest::header::CONTENT_RANGE,
+                    reqwest::header::HeaderValue::from_static("bytes 0-3/8"),
+                );
+                Ok(MockRangeResponse {
+                    status: reqwest::StatusCode::PARTIAL_CONTENT,
+                    headers: resp_headers,
+                    content_length: Some(4),
+                    body: std::io::Cursor::new(b"abcd".to_vec()),
+                    fail_after_bytes: None,
+                    read_so_far: 0,
+                })
+            } else {
+                Ok(MockRangeResponse {
+                    status: reqwest::StatusCode::RANGE_NOT_SATISFIABLE,
+                    headers: reqwest::header::HeaderMap::new(),
+                    content_length: Some(0),
+                    body: std::io::Cursor::new(Vec::new()),
+                    fail_after_bytes: None,
+                    read_so_far: 0,
+                })
+            }
+        });
+        let mut trunc_out = Vec::new();
+        let err = download_to_writer_chunked_range_with_http(
+            &truncated_client,
+            "https://archive.org/download/test/trunc.bin",
+            &mut trunc_out,
+            None,
+            4,
+            0,
+        )
+        .unwrap_err();
+        assert!(format!("{err:#}").contains("416"));
     }
 }
