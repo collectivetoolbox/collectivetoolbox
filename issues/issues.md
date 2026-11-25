@@ -229,3 +229,6 @@ Proposal: temporarily instrument all Dc routine invocations (maybe some special 
 
 Hung after printing 528 MB / 5.5 GB and ran 6+ hours with 100% of one CPU core in use continually. strace -p 631987 prints nothing, suggesting that it's making no syscalls.
 
+# Only split to live and inactive nodes outside of what's tracked in repo
+
+Make the .ctbnbdl files that are in-repo append-only. Have a separate split/ folder that has the live and historical .ctbnbdl files that are gitignored.
