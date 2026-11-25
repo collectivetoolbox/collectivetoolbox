@@ -260,28 +260,24 @@ fn assemble_release_file_bytes(
     Ok(bytes)
 }
 
+/// Returns whether `platform` (lowercased) is a supported release target slug.
+pub(crate) fn is_supported_release_platform(platform: &str) -> bool {
+    matches!(
+        platform,
+        "linux-x64"
+            | "linux-x86"
+            | "windows-x64"
+            | "freebsd-x64"
+            | "mac-x64"
+            | "mac-arm64"
+    )
+}
+
 /// Computes the path to a compressed chunk using two-level prefix.
 ///
 /// Format: `{chunks_dir}/{first-2-chars}/{next-2-chars}/{full-hash}.br`
 fn compressed_chunk_file_path(chunks_dir: &StdPath, hash: &str) -> PathBuf {
-    if hash.len() >= 4 {
-        #[expect(
-            clippy::expect_used,
-            reason = "hash.len() >= 4 checked in if condition"
-        )]
-        let prefix1 = hash.get(0..2).expect("hash.len() >= 4");
-        #[expect(
-            clippy::expect_used,
-            reason = "hash.len() >= 4 checked in if condition"
-        )]
-        let prefix2 = hash.get(2..4).expect("hash.len() >= 4");
-        chunks_dir
-            .join(prefix1)
-            .join(prefix2)
-            .join(format!("{hash}.br"))
-    } else {
-        chunks_dir.join(format!("{hash}.br"))
-    }
+    ctb_installer::chunking::compressed_chunk_file_path(chunks_dir, hash)
 }
 
 /// GET /releases/{platform}/latest.json
@@ -296,20 +292,12 @@ pub async fn get_latest_manifest(
 ) -> Response {
     // Validate target
     let platform = platform.to_lowercase();
-    if ![
-        "linux-x64",
-        "linux-x86",
-        "windows-x64",
-        "mac-x64",
-        "mac-arm64",
-    ]
-    .contains(&platform.as_str())
-    {
+    if !is_supported_release_platform(&platform) {
         return error_400(
             &state,
             &req,
             anyhow!(
-                "Invalid platform: {platform}. Use e.g. linux-x64, linux-x86, windows-x64, mac-x64, or mac-arm64."
+                "Invalid platform: {platform}. Use e.g. linux-x64, linux-x86, windows-x64, freebsd-x64, mac-x64, or mac-arm64."
             ),
         );
     }
@@ -336,20 +324,12 @@ pub async fn get_manifest_by_version(
 ) -> Response {
     // Validate target
     let platform = platform.to_lowercase();
-    if ![
-        "linux-x64",
-        "linux-x86",
-        "windows-x64",
-        "mac-x64",
-        "mac-arm64",
-    ]
-    .contains(&platform.as_str())
-    {
+    if !is_supported_release_platform(&platform) {
         return error_400(
             &state,
             &req,
             anyhow!(
-                "Invalid platform: {platform}. Use e.g. linux-x64, linux-x86, windows-x64, mac-x64, or mac-arm64."
+                "Invalid platform: {platform}. Use e.g. linux-x64, linux-x86, windows-x64, freebsd-x64, mac-x64, or mac-arm64."
             ),
         );
     }
@@ -612,10 +592,9 @@ pub async fn get_offline_tarball(
     Path((platform, version)): Path<(String, String)>,
 ) -> Response {
     use crate::controllers::base::SizedStreamBody;
-    use std::io::Write;
-    use tokio::io::{AsyncReadExt, AsyncSeekExt};
+    use futures::SinkExt;
 
-    // Validate and load tarball
+    // Validate and load tarball metadata directly from manifest + bh/ chunks
     let tarball = match load_tarball_for_version(
         state.storage_dir_override.as_ref(),
         &platform,
@@ -639,204 +618,84 @@ pub async fn get_offline_tarball(
         }
     };
 
-    let releases_dir =
-        match get_releases_dir(state.storage_dir_override.as_ref()) {
-            Ok(d) => d,
-            Err(e) => return error_400(&state, &req, e),
-        };
-    let cache_dir = if state.storage_dir_override.is_some() {
-        releases_dir.join("downloads_cache")
-    } else {
-        match ctb_utilities::storage::get_cache_dir() {
-            Ok(d) => d.join("downloads_cache"),
-            Err(e) => return error_400(&state, &req, e),
-        }
-    };
-
     let resolved_version = tarball.version();
     let download_file_name =
         format!("ctoolbox-{platform}-{resolved_version}.tar");
-    let cached_file_path = cache_dir.join(&download_file_name);
-
-    // Coordinate concurrent generation
-    let mut is_generator = false;
-
-    loop {
-        if cached_file_path.exists() {
-            break;
-        }
-
-        let mut generating = state.generating_downloads.lock().await;
-        if cached_file_path.exists() {
-            break;
-        }
-
-        if generating.contains(&download_file_name) {
-            // Someone else is generating it, drop lock and wait
-            drop(generating);
-            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-        } else {
-            // We are the generator!
-            generating.insert(download_file_name.clone());
-            is_generator = true;
-            break;
-        }
-    }
-
-    if is_generator {
-        let cached_file_path_clone = cached_file_path.clone();
-        let tarball_clone = tarball.clone();
-
-        let generate_res =
-            tokio::task::spawn_blocking(move || -> Result<()> {
-                let temp_file_path =
-                    cached_file_path_clone.with_extension("tmp");
-                if let Some(parent) = temp_file_path.parent() {
-                    std::fs::create_dir_all(parent)?;
-                }
-                let mut file = std::fs::File::create(&temp_file_path)?;
-                let mut stream = TarballStream::new(tarball_clone);
-                while let Some(chunk) = stream.next_chunk()? {
-                    file.write_all(&chunk)?;
-                }
-                file.flush()?;
-                std::fs::rename(&temp_file_path, &cached_file_path_clone)?;
-                Ok(())
-            })
-            .await;
-
-        // Clean up from the generating set
-        let mut generating = state.generating_downloads.lock().await;
-        generating.remove(&download_file_name);
-        drop(generating);
-
-        match generate_res {
-            Ok(Ok(())) => {}
-            Ok(Err(error)) => {
-                let fallback_url = format!(
-                    "{}/releases/{platform}/{version}.tar",
-                    default_url()
-                );
-                return if environment::is_official_public_website() {
-                    error_404(&state, &req, error.to_string())
-                } else {
-                    crate::controllers::base::redirect_temporary(
-                        req.is_js_request,
-                        &fallback_url,
-                    )
-                };
-            }
-            Err(error) => return error_400(&state, &req, anyhow!(error)),
-        }
-    }
-
-    // Serve the cached file
-    let file = match tokio::fs::File::open(&cached_file_path).await {
-        Ok(f) => f,
-        Err(e) => {
-            return error_400(
-                &state,
-                &req,
-                anyhow!("Failed to open cached tarball file: {e}"),
-            );
-        }
-    };
-    let metadata = match file.metadata().await {
-        Ok(m) => m,
-        Err(e) => {
-            return error_400(
-                &state,
-                &req,
-                anyhow!("Failed to read cached tarball metadata: {e}"),
-            );
-        }
-    };
-    let total_size = metadata.len();
-
+    let total_size = tarball.total_size();
     let range = parse_range_header(&headers, total_size);
+    // Reason for fallback: full download without Range header streams [0, total_size)
+    let (stream_start, stream_end) = range.unwrap_or((0, total_size));
+    let content_length = stream_end.saturating_sub(stream_start);
 
+    let (mut tx, rx) =
+        futures::channel::mpsc::channel::<std::io::Result<bytes::Bytes>>(4);
+    tokio::task::spawn_blocking(move || {
+        const SLICE_LEN: u64 = 2 * 1024 * 1024;
+        let mut pos = stream_start;
+        while pos < stream_end {
+            let next_pos = pos.saturating_add(SLICE_LEN).min(stream_end);
+            match tarball.generate_range(pos, Some(next_pos)) {
+                Ok(chunk_bytes) => {
+                    if chunk_bytes.is_empty() {
+                        break;
+                    }
+                    pos = next_pos;
+                    if futures::executor::block_on(
+                        tx.send(Ok(bytes::Bytes::from(chunk_bytes))),
+                    )
+                    .is_err()
+                    {
+                        break;
+                    }
+                }
+                Err(err) => {
+                    let _ = futures::executor::block_on(tx.send(Err(
+                        std::io::Error::other(err.to_string()),
+                    )));
+                    break;
+                }
+            }
+        }
+    });
+
+    let body = Body::new(SizedStreamBody {
+        stream: rx,
+        size: content_length,
+    });
+
+    let mut resp = Response::new(body);
     if let Some((start, end)) = range {
-        let mut file = file;
-        if let Err(e) = file.seek(std::io::SeekFrom::Start(start)).await {
-            return error_400(
-                &state,
-                &req,
-                anyhow!("Failed to seek cached file: {e}"),
-            );
-        }
-        let content_length = end.saturating_sub(start);
-        let stream = ReaderStream::new(file.take(content_length));
-        let body = Body::new(SizedStreamBody {
-            stream,
-            size: content_length,
-        });
-
-        let mut resp = Response::new(body);
         *resp.status_mut() = StatusCode::PARTIAL_CONTENT;
-
-        let headers_mut = resp.headers_mut();
-        headers_mut.insert(
-            header::CONTENT_TYPE,
-            HeaderValue::from_static("application/x-tar"),
-        );
-        headers_mut
-            .insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
-
-        if let Ok(len_val) = HeaderValue::from_str(&content_length.to_string())
-        {
-            headers_mut.insert(header::CONTENT_LENGTH, len_val);
-        }
-
         let range_str =
             format!("bytes {start}-{}/{total_size}", end.saturating_sub(1));
         if let Ok(range_val) = HeaderValue::from_str(&range_str) {
-            headers_mut.insert(header::CONTENT_RANGE, range_val);
+            resp.headers_mut().insert(header::CONTENT_RANGE, range_val);
         }
-
-        if let Ok(disposition) = HeaderValue::from_str(&format!(
-            "attachment; filename=\"{download_file_name}\""
-        )) {
-            headers_mut.insert(header::CONTENT_DISPOSITION, disposition);
-        }
-        headers_mut.insert(
-            header::SET_COOKIE,
-            HeaderValue::from_static(
-                "ctb_download_started=1; Path=/; SameSite=Lax",
-            ),
-        );
-        resp
-    } else {
-        let stream = ReaderStream::new(file);
-        let body = Body::new(SizedStreamBody {
-            stream,
-            size: total_size,
-        });
-
-        let mut resp = Response::new(body);
-        let headers_mut = resp.headers_mut();
-        headers_mut.insert(
-            header::CONTENT_TYPE,
-            HeaderValue::from_static("application/x-tar"),
-        );
-        headers_mut
-            .insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
-
-        if let Ok(len_val) = HeaderValue::from_str(&total_size.to_string()) {
-            headers_mut.insert(header::CONTENT_LENGTH, len_val);
-        }
-        if let Ok(disposition) = HeaderValue::from_str(&format!(
-            "attachment; filename=\"{download_file_name}\""
-        )) {
-            headers_mut.insert(header::CONTENT_DISPOSITION, disposition);
-        }
-        headers_mut.insert(
-            header::SET_COOKIE,
-            HeaderValue::from_static(
-                "ctb_download_started=1; Path=/; SameSite=Lax",
-            ),
-        );
-        resp
     }
+
+    let headers_mut = resp.headers_mut();
+    headers_mut.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/x-tar"),
+    );
+    headers_mut
+        .insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+
+    if let Ok(len_val) = HeaderValue::from_str(&content_length.to_string()) {
+        headers_mut.insert(header::CONTENT_LENGTH, len_val);
+    }
+    if let Ok(disposition) = HeaderValue::from_str(&format!(
+        "attachment; filename=\"{download_file_name}\""
+    )) {
+        headers_mut.insert(header::CONTENT_DISPOSITION, disposition);
+    }
+    headers_mut.insert(
+        header::SET_COOKIE,
+        HeaderValue::from_static(
+            "ctb_download_started=1; Path=/; SameSite=Lax",
+        ),
+    );
+    resp
 }
 
 /// Error type for tarball loading.
@@ -852,17 +711,9 @@ fn load_tarball_for_version(
     version: &str,
 ) -> Result<StreamingTarball, TarballLoadError> {
     let platform_lower = platform.to_lowercase();
-    if ![
-        "linux-x86",
-        "linux-x64",
-        "windows-x64",
-        "mac-x64",
-        "mac-arm64",
-    ]
-    .contains(&platform_lower.as_str())
-    {
+    if !is_supported_release_platform(&platform_lower) {
         return Err(TarballLoadError::BadRequest(format!(
-            "Invalid platform: {platform}. Use linux-x86, linux-x64, windows-x64, mac-x64, or mac-arm64."
+            "Invalid platform: {platform}. Use linux-x86, linux-x64, windows-x64, freebsd-x64, mac-x64, or mac-arm64."
         )));
     }
 
@@ -907,7 +758,9 @@ fn load_tarball_for_version(
     let chunks_dir = get_chunks_dir(storage_dir_override)
         .map_err(|e| TarballLoadError::BadRequest(e.to_string()))?;
 
-    let installer_bytes = find_manifest_file(&manifest, "ctoolbox-installer")
+    let expected_installer = manifest.platform.installer_binary_name();
+    let installer_bytes = find_manifest_file(&manifest, expected_installer)
+        .or_else(|_| find_manifest_file(&manifest, "ctoolbox-installer"))
         .and_then(|entry| assemble_release_file_bytes(entry, &chunks_dir))
         .ok();
 
@@ -1045,15 +898,7 @@ pub async fn get_latest_manifest_sig(
     Path(platform): Path<String>,
 ) -> Response {
     let platform = platform.to_lowercase();
-    if ![
-        "linux-x64",
-        "linux-x86",
-        "windows-x64",
-        "mac-x64",
-        "mac-arm64",
-    ]
-    .contains(&platform.as_str())
-    {
+    if !is_supported_release_platform(&platform) {
         return error_400(&state, &req, anyhow!("Invalid platform"));
     }
 
@@ -1146,15 +991,7 @@ pub async fn get_manifest_sig_by_version(
     Path((platform, version)): Path<(String, String)>,
 ) -> Response {
     let platform = platform.to_lowercase();
-    if ![
-        "linux-x64",
-        "linux-x86",
-        "windows-x64",
-        "mac-x64",
-        "mac-arm64",
-    ]
-    .contains(&platform.as_str())
-    {
+    if !is_supported_release_platform(&platform) {
         return error_400(&state, &req, anyhow!("Invalid platform"));
     }
 
@@ -1211,116 +1048,88 @@ pub async fn calculate_download_sizes(
             Err(_) => return sizes,
         };
 
-        // Load x64 manifest
-        let x64_path = releases_dir.join("ctb-linux-x64-latest.json");
-        if let Ok(content) = std::fs::read_to_string(&x64_path) {
-            if let Ok(manifest) =
-                serde_json::from_str::<ReleaseManifest>(&content)
-            {
-                let installer_size = manifest.installer_file_size();
-                if installer_size > 0 {
-                    sizes.insert(
-                        "linux_x64_installer".to_string(),
+        for (platform_slug, key_prefix) in [
+            ("linux-x64", "linux_x64"),
+            ("linux-x86", "linux_x86"),
+            ("windows-x64", "windows_x64"),
+            ("freebsd-x64", "freebsd_x64"),
+        ] {
+            let manifest_path =
+                releases_dir.join(format!("ctb-{platform_slug}-latest.json"));
+            let Ok(content) = std::fs::read_to_string(&manifest_path) else {
+                continue;
+            };
+            let Ok(manifest) = serde_json::from_str::<ReleaseManifest>(&content)
+            else {
+                continue;
+            };
+
+            let installer_size = manifest.installer_file_size();
+            if installer_size > 0 {
+                sizes.insert(
+                    format!("{key_prefix}_installer"),
+                    ctb_utilities::string::bytes::format_bytes_decimal(
+                        installer_size,
+                    ),
+                );
+            }
+            let expected_installer = manifest.platform.installer_binary_name();
+            if let Some(installer_file) = manifest.files.iter().find(|f| {
+                f.path == expected_installer || f.path == "ctoolbox-installer"
+            }) {
+                sizes.insert(
+                    format!("{key_prefix}_installer_checksum"),
+                    installer_file.checksum.clone(),
+                );
+            }
+
+            if let Ok(offline_size) = manifest.estimate_offline_tarball_size() {
+                sizes.insert(
+                    format!("{key_prefix}_offline"),
+                    format!(
+                        "approx. {}",
                         ctb_utilities::string::bytes::format_bytes_decimal(
-                            installer_size,
-                        ),
-                    );
-                }
-                if let Some(installer_file) = manifest
-                    .files
-                    .iter()
-                    .find(|f| f.path == "ctoolbox-installer")
-                {
-                    sizes.insert(
-                        "linux_x64_installer_checksum".to_string(),
-                        installer_file.checksum.clone(),
-                    );
-                }
+                            offline_size
+                        )
+                    ),
+                );
+            }
 
-                if let Ok(offline_size) = manifest.estimate_offline_tarball_size() {
-                    sizes.insert(
-                        "linux_x64_offline".to_string(),
-                        format!(
-                            "approx. {}",
-                            ctb_utilities::string::bytes::format_bytes_decimal(
-                                offline_size
-                            )
-                        ),
-                    );
-                }
-
+            if platform_slug == "linux-x64" {
                 let build_info = ctb_build_info::build_info();
                 let src_name = format!(
                     "ctoolbox-src-{}-{}.tar",
                     manifest.ctoolbox_version, build_info.commit
                 );
-                if let Ok(src_size) = manifest.estimate_gzipped_file_size(&src_name) {
-                    if src_size > 0 {
-                        sizes.insert(
-                            "src_tar_gz".to_string(),
-                            format!(
-                                "approx. {}",
-                                ctb_utilities::string::bytes::format_bytes_decimal(
-                                    src_size
-                                )
-                            ),
-                        );
-                    }
+                if let Ok(src_size) =
+                    manifest.estimate_gzipped_file_size(&src_name)
+                    && src_size > 0
+                {
+                    sizes.insert(
+                        "src_tar_gz".to_string(),
+                        format!(
+                            "approx. {}",
+                            ctb_utilities::string::bytes::format_bytes_decimal(
+                                src_size
+                            )
+                        ),
+                    );
                 }
 
                 let dep_name = format!(
                     "ctoolbox-dependencies-{}-{}.tar",
                     manifest.ctoolbox_version, build_info.commit
                 );
-                if let Ok(dep_size) = manifest.estimate_gzipped_file_size(&dep_name) {
-                    if dep_size > 0 {
-                        sizes.insert(
-                            "dependencies_tar_gz".to_string(),
-                            format!(
-                                "approx. {}",
-                                ctb_utilities::string::bytes::format_bytes_decimal(
-                                    dep_size
-                                )
-                            ),
-                        );
-                    }
-                }
-            }
-        }
-
-        // Load x86 manifest
-        let x86_path = releases_dir.join("ctb-linux-x86-latest.json");
-        if let Ok(content) = std::fs::read_to_string(&x86_path) {
-            if let Ok(manifest) =
-                serde_json::from_str::<ReleaseManifest>(&content)
-            {
-                let installer_size = manifest.installer_file_size();
-                if installer_size > 0 {
-                    sizes.insert(
-                        "linux_x86_installer".to_string(),
-                        ctb_utilities::string::bytes::format_bytes_decimal(
-                            installer_size,
-                        ),
-                    );
-                }
-                if let Some(installer_file) = manifest
-                    .files
-                    .iter()
-                    .find(|f| f.path == "ctoolbox-installer")
+                if let Ok(dep_size) =
+                    manifest.estimate_gzipped_file_size(&dep_name)
+                    && dep_size > 0
                 {
                     sizes.insert(
-                        "linux_x86_installer_checksum".to_string(),
-                        installer_file.checksum.clone(),
-                    );
-                }
-
-                if let Ok(offline_size) = manifest.estimate_offline_tarball_size() {
-                    sizes.insert(
-                        "linux_x86_offline".to_string(),
+                        "dependencies_tar_gz".to_string(),
                         format!(
                             "approx. {}",
                             ctb_utilities::string::bytes::format_bytes_decimal(
-                                offline_size
+                                dep_size
                             )
                         ),
                     );
@@ -1514,7 +1323,7 @@ mod tests {
     }
 
     #[crate::ctb_test("tokio")]
-    async fn test_offline_tarball_caching_and_range_requests() {
+    async fn test_offline_tarball_streaming_and_range_requests() {
         //bypass-tempdir-lint
         use crate::test_helpers::TestApp;
         use axum::http::{HeaderMap, Method, StatusCode};
@@ -1569,18 +1378,13 @@ mod tests {
         let full_body = crate::test_helpers::body_to_bytes(resp).await;
         assert!(full_body.len() > 1024); // Must have at least the directory header, manifest, and 1024 trailing null bytes
 
-        // Check that the cached file was created on disk
+        // Offline tarballs stream directly from bh/ chunks without saving a duplicate .tar file on disk
         let cache_file_path = releases_dir
             .join("downloads_cache")
             .join("ctoolbox-linux-x64-0.1.0.tar");
-        assert!(cache_file_path.exists());
-        let cached_metadata = fs::metadata(&cache_file_path).unwrap();
-        assert_eq!(
-            cached_metadata.len(),
-            u64::try_from(full_body.len()).unwrap()
-        );
+        assert!(!cache_file_path.exists());
 
-        // 2. Request range from cached file
+        // 2. Request range directly from streaming tarball
         let mut headers = HeaderMap::new();
         headers.insert(header::RANGE, "bytes=10-20".parse().unwrap());
 

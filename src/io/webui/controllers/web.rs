@@ -58,42 +58,67 @@ pub async fn get_index(
         .unwrap_or("");
 
     let os = ctb_formats_useragent::detect_os(user_agent);
+    let is_freebsd = user_agent.to_ascii_lowercase().contains("freebsd");
 
-    let (linux_expanded, windows_expanded, macos_expanded);
-    let (linux_class, windows_class, macos_class);
+    let (
+        linux_expanded,
+        windows_expanded,
+        freebsd_expanded,
+        macos_expanded,
+    );
+    let (linux_class, windows_class, freebsd_class, macos_class);
 
-    match os {
-        ctb_formats_useragent::OperatingSystem::Linux => {
-            linux_expanded = "open";
-            windows_expanded = "";
-            macos_expanded = "";
-            linux_class = "order-1";
-            windows_class = "order-2";
-            macos_class = "order-3";
-        }
-        ctb_formats_useragent::OperatingSystem::Windows => {
-            linux_expanded = "";
-            windows_expanded = "open";
-            macos_expanded = "";
-            linux_class = "order-2";
-            windows_class = "order-1";
-            macos_class = "order-3";
-        }
-        ctb_formats_useragent::OperatingSystem::MacOS => {
-            linux_expanded = "";
-            windows_expanded = "";
-            macos_expanded = "open";
-            linux_class = "order-2";
-            windows_class = "order-3";
-            macos_class = "order-1";
-        }
-        ctb_formats_useragent::OperatingSystem::Unknown => {
-            linux_expanded = "";
-            windows_expanded = "";
-            macos_expanded = "";
-            linux_class = "order-1";
-            windows_class = "order-2";
-            macos_class = "order-3";
+    if is_freebsd {
+        linux_expanded = "";
+        windows_expanded = "";
+        freebsd_expanded = "open";
+        macos_expanded = "";
+        freebsd_class = "order-1";
+        linux_class = "order-2";
+        windows_class = "order-3";
+        macos_class = "order-4";
+    } else {
+        match os {
+            ctb_formats_useragent::OperatingSystem::Linux => {
+                linux_expanded = "open";
+                windows_expanded = "";
+                freebsd_expanded = "";
+                macos_expanded = "";
+                linux_class = "order-1";
+                windows_class = "order-2";
+                freebsd_class = "order-3";
+                macos_class = "order-4";
+            }
+            ctb_formats_useragent::OperatingSystem::Windows => {
+                linux_expanded = "";
+                windows_expanded = "open";
+                freebsd_expanded = "";
+                macos_expanded = "";
+                windows_class = "order-1";
+                linux_class = "order-2";
+                freebsd_class = "order-3";
+                macos_class = "order-4";
+            }
+            ctb_formats_useragent::OperatingSystem::MacOS => {
+                linux_expanded = "";
+                windows_expanded = "";
+                freebsd_expanded = "";
+                macos_expanded = "open";
+                macos_class = "order-1";
+                linux_class = "order-2";
+                windows_class = "order-3";
+                freebsd_class = "order-4";
+            }
+            ctb_formats_useragent::OperatingSystem::Unknown => {
+                linux_expanded = "";
+                windows_expanded = "";
+                freebsd_expanded = "";
+                macos_expanded = "";
+                linux_class = "order-1";
+                windows_class = "order-2";
+                freebsd_class = "order-3";
+                macos_class = "order-4";
+            }
         }
     }
 
@@ -114,9 +139,11 @@ pub async fn get_index(
             "sizes" => sizes,
             "linux_expanded" => linux_expanded,
             "windows_expanded" => windows_expanded,
+            "freebsd_expanded" => freebsd_expanded,
             "macos_expanded" => macos_expanded,
             "linux_class" => linux_class,
             "windows_class" => windows_class,
+            "freebsd_class" => freebsd_class,
             "macos_class" => macos_class,
             "release_public_key" => release_public_key,
             "server_url" => server_url,
@@ -439,6 +466,30 @@ mod tests {
         .await;
         assert_eq!(status, 200);
         assert!(body.contains("details class=\"p-4 order-1\" open"));
+
+        // FreeBSD User-Agent prioritizes and expands FreeBSD section
+        let mut headers_freebsd = axum::http::HeaderMap::new();
+        headers_freebsd.insert(
+            axum::http::header::USER_AGENT,
+            "Mozilla/5.0 (X11; FreeBSD amd64; rv:128.0) Gecko/20100101 Firefox/128.0"
+                .parse()
+                .unwrap(),
+        );
+        let (status_bsd, body_bsd) = test_request::<()>(
+            &app,
+            Method::GET,
+            "/",
+            Some(headers_freebsd),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+        assert_eq!(status_bsd, 200);
+        assert!(body_bsd.contains(
+            "<details class=\"p-4 order-1\" open>\n                        <summary class=\"cursor-pointer\">FreeBSD</summary>"
+        ));
     }
 
     #[crate::ctb_test("tokio")]

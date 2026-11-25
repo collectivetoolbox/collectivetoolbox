@@ -181,6 +181,14 @@ pub fn build_routes(state: AppState) -> Router {
         )
         .route("/installer-linux-x64", get(base::get_installer_linux_x64))
         .route("/installer-linux-x86", get(base::get_installer_linux_x86))
+        .route(
+            "/installer-windows-x64",
+            get(base::get_installer_windows_x64),
+        )
+        .route(
+            "/installer-freebsd-x64",
+            get(base::get_installer_freebsd_x64),
+        )
         // static files or 404 page fallback
         .fallback(get(base::static_or_404))
         .with_state(state)

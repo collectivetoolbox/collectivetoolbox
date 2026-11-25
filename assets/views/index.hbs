@@ -207,21 +207,26 @@
                     A hosted demo is planned. The desktop version will generally perform better. The web demo runs the
                     same software inside a VM.
                 </p>
-                <p class="mb-4">
+                <p class="mb-2">
                     System requirements:
-                    <ul>
-                        <li>Approximately 1&nbsp;GB free disk for the app (minimal installation)</li>
-                        <li>10&nbsp;GB+ for your data recommended</li>
-                        <li>Approximately 1&nbsp;GB free RAM (16+ GB recommended)</li>
-                        <li>Linux kernel 3.2 or later OR Windows 10 or later</li>
-                        <li>x86-64 or x86 CPU architecture for Linux, or x86-64 for Windows</li>
-                        <li>If you would like to use a graphical interface, a Wayland, X11, or compatible display server is required. At the moment, an installed Web browser is also required (hope to change that).</li>
-                        <li><code>glibc</code> is <em>not</em> required.</li>
-                        <li><small>I'd love to add support for older CPUs and OSes eventually, but I'm currently not pursuing that: it would be a lot of work (requiring patched dependencies), and there would be security implications that would warrant making it a separate build with an extra-big scary warning.</small></li>
-                    </ul>
                 </p>
+                <ul class="list-disc pl-5 mb-4">
+                    <li>Approximately 1&nbsp;GB free disk for the app (minimal installation); ~13&nbsp;GB additional if installing the optional v86 Linux VM image</li>
+                    <li>10&nbsp;GB+ free disk recommended for your data</li>
+                    <li>Approximately 1&nbsp;GB free RAM (16+ GB recommended)</li>
+                    <li>Supported operating systems and CPU architectures:
+                        <ul class="list-disc pl-5 mt-1">
+                            <li><strong>Linux</strong> (kernel 3.2 or later): <code>x86_64</code> or 32-bit <code>x86</code> (SSE2) &mdash; statically linked with <code>musl</code> (<code>glibc</code> is <em>not</em> required)</li>
+                            <li><strong>Windows</strong> (Windows 7 SP1, Windows 10, Windows 11, or later): <code>x86_64</code></li>
+                            <li><strong>FreeBSD</strong> (FreeBSD 14 or later): <code>x86_64</code></li>
+                            <li><strong>macOS</strong> (<code>x86_64</code> and Apple Silicon <code>arm64</code>): planned</li>
+                        </ul>
+                    </li>
+                    <li>For the graphical interface: native Wayland or X11 display server on Linux and FreeBSD, native desktop support on Windows, or any modern web browser via the local web interface.</li>
+                    <li><small>I'd love to add support for older CPUs and OSes eventually, but I'm currently not pursuing that: it would be a lot of work (requiring patched dependencies), and there would be security implications that would warrant making it a separate build with an extra-big scary warning.</small></li>
+                </ul>
                 <div class="flex flex-col gap-4">
-                    {{! compiled-css-helper: order-first order-1 order-2 order-3 }}
+                    {{! compiled-css-helper: order-first order-1 order-2 order-3 order-4 }}
                     <div class="p-4 order-first">
                         <a href="/login">[Planned] Try online (limited performance)</a>
                     </div>
@@ -229,11 +234,11 @@
                     <details class="p-4 {{linux_class}}" {{linux_expanded}}>
                         <summary class="cursor-pointer">Linux</summary>
                         <p class="mt-3 mb-4">Choose an architecture, then either the small online installer or the self-contained offline bundle.</p>
-                        <p class="mt-3 mb-4"><small>These are static builds using musl. If you prefer glibc, you can build from source; I try to keep it working but it's less tested.</small></p>
+                        <p class="mt-3 mb-4"><small>These are static builds using musl (supporting both Wayland and X11 in a single binary). If you prefer glibc, you can build from source; I try to keep it working but it's less tested.</small></p>
                         <div class="grid md:grid-cols-2 gap-4">
                             <div class="p-4">
                                 <h3 class="mb-2">Linux x86_64</h3>
-                                <p class="mb-3">Recommended for common Linux systems.</p>
+                                <p class="mb-3">Recommended for common 64-bit Linux systems.</p>
                                 <p class="mb-2">
                                      <a href="/installer-linux-x64" class="link-download">Download online installer{{#if sizes.linux_x64_installer}} ({{sizes.linux_x64_installer}}){{/if}}</a>
                                 </p>
@@ -245,7 +250,7 @@
 
                                 {{#if sizes.linux_x64_installer_checksum}}
 {{!-- This includes code tags, so it needs to be un-indented. --}}
-{{> layouts._installer-checksum checksum=sizes.linux_x64_installer_checksum platform="linux-x64" server_url=server_url }}
+{{> layouts._installer-checksum checksum=sizes.linux_x64_installer_checksum platform="linux-x64" installer_filename="ctoolbox-installer-linux-x64.bin" server_url=server_url }}
                                 {{/if}}
                             </div>
                             <div class="p-4">
@@ -262,7 +267,7 @@
 
                                 {{#if sizes.linux_x86_installer_checksum}}
 {{!-- This includes code tags, so it needs to be un-indented. --}}
-{{> layouts._installer-checksum checksum=sizes.linux_x86_installer_checksum platform="linux-x86" server_url=server_url }}
+{{> layouts._installer-checksum checksum=sizes.linux_x86_installer_checksum platform="linux-x86" installer_filename="ctoolbox-installer-linux-x86.bin" server_url=server_url }}
                                 {{/if}}
                             </div>
                         </div>
@@ -276,12 +281,50 @@
 
                     <details class="p-4 {{windows_class}}" {{windows_expanded}}>
                         <summary class="cursor-pointer">Windows</summary>
-                        <p class="mt-3">Planned. Windows installer builds are not yet published on this page.</p>
+                        <div class="p-4 mt-3">
+                            <h3 class="mb-2">Windows x86_64</h3>
+                            <p class="mb-3">For 64-bit Windows 7 SP1, Windows 10, Windows 11, or later.</p>
+                            <p class="mb-2">
+                                <a href="/installer-windows-x64" class="link-download">Download online installer{{#if sizes.windows_x64_installer}} ({{sizes.windows_x64_installer}}){{/if}}</a>
+                            </p>
+                            <small class="block mb-3">Small download. Requires internet access during installation.</small>
+                            <p class="mb-2">
+                                <a href="/releases/windows-x64/latest.tar" class="link-download">Download offline bundle{{#if sizes.windows_x64_offline}} ({{sizes.windows_x64_offline}}){{/if}}</a>
+                            </p>
+                            <small class="block">Self-contained tarball with the installer executable, release manifest, and chunk data. Supports resumable downloads.</small>
+
+                            {{#if sizes.windows_x64_installer_checksum}}
+{{!-- This includes code tags, so it needs to be un-indented. --}}
+{{> layouts._installer-checksum checksum=sizes.windows_x64_installer_checksum platform="windows-x64" installer_filename="ctoolbox-installer-windows-x64.exe" server_url=server_url }}
+                            {{/if}}
+                        </div>
+                    </details>
+
+                    <details class="p-4 {{freebsd_class}}" {{freebsd_expanded}}>
+                        <summary class="cursor-pointer">FreeBSD</summary>
+                        <div class="p-4 mt-3">
+                            <h3 class="mb-2">FreeBSD x86_64</h3>
+                            <p class="mb-3">For 64-bit FreeBSD 14 or later.</p>
+                            <p class="mb-2">
+                                <a href="/installer-freebsd-x64" class="link-download">Download online installer{{#if sizes.freebsd_x64_installer}} ({{sizes.freebsd_x64_installer}}){{/if}}</a>
+                            </p>
+                            <small class="block mb-3">Small download. Requires internet access during installation.</small>
+                            <p class="mb-2">
+                                <a href="/releases/freebsd-x64/latest.tar" class="link-download">Download offline bundle{{#if sizes.freebsd_x64_offline}} ({{sizes.freebsd_x64_offline}}){{/if}}</a>
+                            </p>
+                            <small class="block">Self-contained tarball with the installer binary, release manifest, and chunk data. Supports resumable downloads.</small>
+
+                            {{#if sizes.freebsd_x64_installer_checksum}}
+{{!-- This includes code tags, so it needs to be un-indented. --}}
+{{> layouts._installer-checksum checksum=sizes.freebsd_x64_installer_checksum platform="freebsd-x64" installer_filename="ctoolbox-installer-freebsd-x64.bin" server_url=server_url }}
+                            {{/if}}
+                        </div>
+                        <small class="block mt-2">Run <code>chmod +x /path/to/ctoolbox-installer-freebsd-x64.bin</code> before launching the installer.</small>
                     </details>
 
                     <details class="p-4 {{macos_class}}" {{macos_expanded}}>
                         <summary class="cursor-pointer">macOS</summary>
-                        <p class="mt-3">Planned. macOS installer builds are not yet published on this page.</p>
+                        <p class="mt-3">Planned. macOS installer builds (<code>x86_64</code> and Apple Silicon <code>arm64</code>) are not yet published on this page.</p>
                     </details>
                 </div>
             </div>

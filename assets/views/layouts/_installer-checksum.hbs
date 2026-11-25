@@ -10,16 +10,16 @@
 
             <p><strong>Verify Checksum:</strong>
 
-            The expected checksum for the downloaded installer binary is shown above. To verify it, you can compute the checksum for your downloaded file, and then compare them. The <code>sha256sum</code> command-line utility, which you'd run like <code class="copiable">sha256sum /path/to/your/ctoolbox-installer-{{platform}}.bin</code>, is available on most Linux distributions. If you are using Windows, you can use the <code class="copiable">certUtil -hashfile C:\path\to\your\ctoolbox-installer-{{platform}}.bin SHA256</code> command instead.</code> If you are using macOS, you can use the <code class="copiable">shasum -a 256 /path/to/your/ctoolbox-installer-{{platform}}.bin</code> command instead.</p>
+            The expected checksum for the downloaded installer binary is shown above. To verify it, you can compute the checksum for your downloaded file, and then compare them. On Linux, run <code class="copiable">sha256sum /path/to/your/{{installer_filename}}</code>. On Windows, run <code class="copiable">certUtil -hashfile C:\path\to\your\{{installer_filename}} SHA256</code>. On FreeBSD, run <code class="copiable">sha256 /path/to/your/{{installer_filename}}</code>. On macOS, run <code class="copiable">shasum -a 256 /path/to/your/{{installer_filename}}</code>.</p>
             {{!-- You may run this command in your terminal to verify the integrity of the downloaded installer binary:</p>
-            <code class="block p-1.5 copiable">echo "{{checksum}}  ctoolbox-installer-{{platform}}.bin" | sha256sum --check</code> --}}
+            <code class="block p-1.5 copiable">echo "{{checksum}}  {{installer_filename}}" | sha256sum --check</code> --}}
 
             <p><strong>Verify Manifest Signature:</strong>
 
             You may verify that the release manifest, which includes checksums for the components of the installation, was signed using the developer's key by downloading the public key, manifest, and its detached signature, and verifying them with OpenSSL:</p>
-            <pre><code class="copiable">curl --proto '=https' -sSL {{server_url}}/releases/public-key.pem -o public-key.pem
-curl --proto '=https'--tlsv1.2 -sSLf {{server_url}}/releases/{{platform}}/latest.json -o latest.json
-curl --proto '=https'--tlsv1.2 -sSLf {{server_url}}/releases/{{platform}}/latest.json.sig -o latest.json.sig
+            <pre><code class="copiable">curl --proto '=https' --tlsv1.2 -sSL {{server_url}}/releases/public-key.pem -o public-key.pem
+curl --proto '=https' --tlsv1.2 -sSLf {{server_url}}/releases/{{platform}}/latest.json -o latest.json
+curl --proto '=https' --tlsv1.2 -sSLf {{server_url}}/releases/{{platform}}/latest.json.sig -o latest.json.sig
 openssl pkeyutl -verify -pubin -inkey public-key.pem -rawin -in latest.json -sigfile latest.json.sig</code></pre>
             <p>If you save a copy of the key, then barring the case of the key itself being compromised and/or rotated, you can use your saved copy of the key to re-check newer versions of the software.</p>
 

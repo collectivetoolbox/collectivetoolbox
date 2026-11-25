@@ -766,13 +766,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (link.classList.contains("link-download")) {
             const isLargeDownload =
-                link.pathname === "/installer-linux-x64" ||
-                link.pathname === "/installer-linux-x86" ||
+                link.pathname.startsWith("/installer-") ||
                 link.pathname === "/src.tar.gz" ||
                 link.pathname === "/dependencies.tar.gz" ||
-                link.pathname.startsWith("/releases/linux-x64/") ||
-                link.pathname.startsWith("/releases/linux-x86/") ||
-                link.pathname.startsWith("/releases/src/");
+                link.pathname.startsWith("/releases/");
 
             if (isLargeDownload) {
                 event.preventDefault();
@@ -816,8 +813,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 url.origin === window.location.origin &&
                 (url.pathname.startsWith("/docs/lib") ||
                  url.pathname.startsWith("/docs/rust") ||
-                 url.pathname === "/installer-linux-x64" ||
-                 url.pathname === "/installer-linux-x86" ||
+                 url.pathname.startsWith("/installer-") ||
                  url.pathname === "/src.tar.gz" ||
                  url.pathname === "/dependencies.tar.gz" ||
                  url.pathname.startsWith("/releases/"))

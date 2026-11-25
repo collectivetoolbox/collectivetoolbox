@@ -150,6 +150,22 @@ pub async fn get_installer_linux_x86(
     serve_latest_installer_release(&state, &req, &headers, "linux-x86").await
 }
 
+pub async fn get_installer_windows_x64(
+    State(state): State<AppState>,
+    req: RequestState,
+    headers: HeaderMap,
+) -> Response {
+    serve_latest_installer_release(&state, &req, &headers, "windows-x64").await
+}
+
+pub async fn get_installer_freebsd_x64(
+    State(state): State<AppState>,
+    req: RequestState,
+    headers: HeaderMap,
+) -> Response {
+    serve_latest_installer_release(&state, &req, &headers, "freebsd-x64").await
+}
+
 fn get_releases_dir(storage_dir_override: &Option<PathBuf>) -> Result<PathBuf> {
     let base = if let Some(path) = storage_dir_override {
         path.clone()
@@ -199,71 +215,96 @@ fn find_release_file<'a>(
         })
 }
 
-fn assemble_release_file_bytes(
+fn stream_gzip_release_entry_to_file(
     storage_dir_override: &Option<PathBuf>,
     entry: &FileEntry,
-) -> Result<Vec<u8>> {
-    let total_len = usize::try_from(entry.file_size)
-        .context("Release file size exceeds usize range")?;
-    let mut bytes = vec![0u8; total_len];
+    output_path: &std::path::Path,
+) -> Result<()> {
+    use flate2::Compression;
+    use flate2::GzBuilder;
+    use std::io::{BufWriter, Write};
+
     let chunks_dir = get_release_chunks_dir(storage_dir_override)?;
+    let mut sorted_chunks = entry.chunks.clone();
+    sorted_chunks.sort_by_key(|c| c.offset);
 
-    for info in &entry.chunks {
-        let start = usize::try_from(info.offset)
-            .context("Chunk offset exceeds usize range")?;
-        let length = usize::try_from(info.length)
-            .context("Chunk length exceeds usize range")?;
-        let end = start
-            .checked_add(length)
-            .context("Chunk range overflow while assembling installer")?;
-        if end > bytes.len() {
-            bail!("Chunk range exceeds assembled file size for {}", entry.path);
-        }
+    let file = std::fs::File::create(output_path)?;
+    let mut encoder = GzBuilder::new()
+        .mtime(0)
+        .write(BufWriter::new(file), Compression::best());
+    let mut expected_offset = 0u64;
 
+    for info in &sorted_chunks {
+        ensure!(
+            info.offset == expected_offset,
+            "Non-contiguous chunk offset for {}: expected {expected_offset}, got {}",
+            entry.path,
+            info.offset
+        );
         let chunk = read_chunk_from_directory_compressed(
             &info.hash,
             &chunks_dir,
             info.offset,
         )?;
-        if chunk.data.len() != length {
-            bail!(
-                "Chunk length mismatch for {}: expected {}, got {}",
-                info.hash,
-                info.length,
-                chunk.data.len()
-            );
-        }
-
-        let Some(target) = bytes.get_mut(start..end) else {
-            bail!("Chunk range exceeds assembled file size for {}", entry.path);
-        };
-        target.copy_from_slice(&chunk.data);
-    }
-
-    let assembled_hash = compute_sha256_hex(&bytes);
-    if assembled_hash != entry.checksum {
-        bail!(
-            "Assembled file checksum mismatch for {}: expected {}, got {}",
-            entry.path,
-            entry.checksum,
-            assembled_hash
+        let expected_len = usize::try_from(info.length)
+            .context("Chunk length exceeds usize range")?;
+        ensure!(
+            chunk.data.len() == expected_len,
+            "Chunk length mismatch for {}: expected {}, got {}",
+            info.hash,
+            info.length,
+            chunk.data.len()
         );
+        encoder.write_all(&chunk.data)?;
+        expected_offset = expected_offset
+            .checked_add(info.length)
+            .context("Chunk range overflow while streaming gzip archive")?;
     }
 
-    Ok(bytes)
+    ensure!(
+        expected_offset == entry.file_size,
+        "Assembled size mismatch for {}: expected {}, got {expected_offset}",
+        entry.path,
+        entry.file_size
+    );
+
+    let mut writer = encoder.finish()?;
+    writer.flush()?;
+    Ok(())
 }
 
-fn gzip_compress_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
-    use flate2::Compression;
-    use flate2::GzBuilder;
-    use std::io::Write;
-
-    let mut encoder = GzBuilder::new()
-        .mtime(0)
-        .write(Vec::new(), Compression::best());
-    encoder.write_all(bytes)?;
-    let compressed_bytes = encoder.finish()?;
-    Ok(compressed_bytes)
+fn prune_superseded_source_cache_files(
+    cache_dir: &std::path::Path,
+    active_filename: &str,
+) {
+    let prefix = if active_filename.starts_with("ctoolbox-src-") {
+        Some("ctoolbox-src-")
+    } else if active_filename.starts_with("ctoolbox-dependencies-") {
+        Some("ctoolbox-dependencies-")
+    } else {
+        None
+    };
+    let Some(prefix) = prefix else {
+        return;
+    };
+    let Ok(entries) = std::fs::read_dir(cache_dir) else {
+        return;
+    };
+    for dir_entry in entries.flatten() {
+        let path = dir_entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if name.starts_with(prefix)
+            && name.ends_with(".tar.gz")
+            && name != active_filename
+        {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
 }
 
 async fn serve_manifest_file(
@@ -277,6 +318,7 @@ async fn serve_manifest_file(
     fallback_url: &str,
     archive_gzip: bool,
 ) -> Response {
+    use futures::SinkExt;
     use tokio::io::{AsyncReadExt, AsyncSeekExt};
     use tokio_util::io::ReaderStream;
 
@@ -284,7 +326,164 @@ async fn serve_manifest_file(
     let filename_owned = file_name.to_string();
     let storage_override = state.storage_dir_override.clone();
 
-    // 1. Get cache file path
+    if !archive_gzip {
+        // Stream raw manifest files (such as /installer-*) directly from bh/
+        // chunks without writing duplicate copies into downloads_cache.
+        let lookup_storage = storage_override.clone();
+        let lookup_platform = platform_owned.clone();
+        let lookup_filename = filename_owned.clone();
+
+        let entry_res = tokio::task::spawn_blocking(
+            move || -> Result<(FileEntry, PathBuf)> {
+                let manifest = load_latest_release_manifest(
+                    &lookup_storage,
+                    &lookup_platform,
+                )?;
+                let entry = find_release_file(&manifest, &lookup_filename)
+                    .or_else(|_| {
+                        if lookup_filename == "ctoolbox-installer.exe" {
+                            find_release_file(&manifest, "ctoolbox-installer")
+                        } else {
+                            bail!(
+                                "Release file not found in manifest: {lookup_filename}"
+                            )
+                        }
+                    })?
+                    .clone();
+                let chunks_dir = get_release_chunks_dir(&lookup_storage)?;
+                Ok((entry, chunks_dir))
+            },
+        )
+        .await;
+
+        let (entry, chunks_dir) = match entry_res {
+            Ok(Ok(pair)) => pair,
+            Ok(Err(error)) => {
+                return if environment::is_official_public_website() {
+                    error_404(state, req, error)
+                } else {
+                    redirect_temporary(req.is_js_request, fallback_url)
+                };
+            }
+            Err(error) => return error_400(state, req, anyhow!(error)),
+        };
+
+        let total_size = entry.file_size;
+        let range = crate::controllers::releases::parse_range_header(
+            headers, total_size,
+        );
+        // Reason for fallback: full download without Range header streams [0, total_size)
+        let (stream_start, stream_end) = range.unwrap_or((0, total_size));
+        let content_length = stream_end.saturating_sub(stream_start);
+
+        let (mut tx, rx) =
+            futures::channel::mpsc::channel::<std::io::Result<bytes::Bytes>>(4);
+        tokio::task::spawn_blocking(move || {
+            let mut sorted_chunks = entry.chunks;
+            sorted_chunks.sort_by_key(|c| c.offset);
+
+            for info in &sorted_chunks {
+                let chunk_start = info.offset;
+                let chunk_end = chunk_start.saturating_add(info.length);
+                if chunk_end <= stream_start {
+                    continue;
+                }
+                if chunk_start >= stream_end {
+                    break;
+                }
+
+                match read_chunk_from_directory_compressed(
+                    &info.hash,
+                    &chunks_dir,
+                    info.offset,
+                ) {
+                    Ok(chunk) => {
+                        let rel_start =
+                            stream_start.saturating_sub(chunk_start);
+                        let rel_end = stream_end
+                            .min(chunk_end)
+                            .saturating_sub(chunk_start);
+                        let Ok(s) = usize::try_from(rel_start) else {
+                            let _ = futures::executor::block_on(tx.send(Err(
+                                std::io::Error::other("Chunk slice overflow"),
+                            )));
+                            break;
+                        };
+                        let Ok(e) = usize::try_from(rel_end) else {
+                            let _ = futures::executor::block_on(tx.send(Err(
+                                std::io::Error::other("Chunk slice overflow"),
+                            )));
+                            break;
+                        };
+                        let Some(slice) = chunk.data.get(s..e) else {
+                            let _ = futures::executor::block_on(tx.send(Err(
+                                std::io::Error::other(
+                                    "Chunk data shorter than manifest length",
+                                ),
+                            )));
+                            break;
+                        };
+                        if futures::executor::block_on(
+                            tx.send(Ok(bytes::Bytes::copy_from_slice(slice))),
+                        )
+                        .is_err()
+                        {
+                            break;
+                        }
+                    }
+                    Err(err) => {
+                        let _ = futures::executor::block_on(tx.send(Err(
+                            std::io::Error::other(err.to_string()),
+                        )));
+                        break;
+                    }
+                }
+            }
+        });
+
+        let body = Body::new(SizedStreamBody {
+            stream: rx,
+            size: content_length,
+        });
+        let mut resp = Response::new(body);
+        if let Some((start, end)) = range {
+            *resp.status_mut() = StatusCode::PARTIAL_CONTENT;
+            let range_str =
+                format!("bytes {start}-{}/{total_size}", end.saturating_sub(1));
+            if let Ok(range_val) = HeaderValue::from_str(&range_str) {
+                resp.headers_mut().insert(header::CONTENT_RANGE, range_val);
+            }
+        }
+
+        let headers_mut = resp.headers_mut();
+        headers_mut.insert(
+            header::CONTENT_TYPE,
+            // Reason for fallback: invalid MIME type header string defaults to application/octet-stream
+            HeaderValue::from_str(download_mime_type).unwrap_or_else(|_| {
+                HeaderValue::from_static("application/octet-stream")
+            }),
+        );
+        headers_mut
+            .insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+        if let Ok(len_val) = HeaderValue::from_str(&content_length.to_string())
+        {
+            headers_mut.insert(header::CONTENT_LENGTH, len_val);
+        }
+        if let Ok(disposition) = HeaderValue::from_str(&format!(
+            "attachment; filename=\"{download_file_name}\""
+        )) {
+            headers_mut.insert(header::CONTENT_DISPOSITION, disposition);
+        }
+        headers_mut.insert(
+            header::SET_COOKIE,
+            HeaderValue::from_static(
+                "ctb_download_started=1; Path=/; SameSite=Lax",
+            ),
+        );
+        return resp;
+    }
+
+    // 1. Get cache file path for deterministic .tar.gz source archives
     let releases_dir = match get_releases_dir(&storage_override) {
         Ok(d) => d,
         Err(e) => return error_400(state, req, e),
@@ -330,6 +529,8 @@ async fn serve_manifest_file(
         let platform_owned = platform_owned.clone();
         let filename_owned = filename_owned.clone();
         let cached_file_path_clone = cached_file_path.clone();
+        let active_download_name = filename_string.clone();
+        let cache_dir_clone = cache_dir.clone();
 
         let generate_res =
             tokio::task::spawn_blocking(move || -> Result<()> {
@@ -337,25 +538,24 @@ async fn serve_manifest_file(
                     &storage_override,
                     &platform_owned,
                 )?;
-                let installer = find_release_file(&manifest, &filename_owned)?;
-                let bytes =
-                    assemble_release_file_bytes(&storage_override, installer)?;
+                let archive_entry =
+                    find_release_file(&manifest, &filename_owned)?;
 
-                // If archive_gzip is true, we compress it, otherwise we write the raw bytes
-                let bytes_to_write = if archive_gzip {
-                    gzip_compress_bytes(&bytes)?
-                } else {
-                    bytes
-                };
-
-                // Write to a temporary file and rename atomically
                 let temp_file_path =
                     cached_file_path_clone.with_extension("tmp");
                 if let Some(parent) = temp_file_path.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
-                std::fs::write(&temp_file_path, bytes_to_write)?;
+                stream_gzip_release_entry_to_file(
+                    &storage_override,
+                    archive_entry,
+                    &temp_file_path,
+                )?;
                 std::fs::rename(&temp_file_path, &cached_file_path_clone)?;
+                prune_superseded_source_cache_files(
+                    &cache_dir_clone,
+                    &active_download_name,
+                );
                 Ok(())
             })
             .await;
@@ -542,14 +742,28 @@ async fn serve_latest_installer_release(
     platform: &str,
 ) -> Response {
     let fallback_url = format!("{}/installer-{platform}", default_url());
+    let (manifest_file_name, download_file_name, mime_type) =
+        if platform == "windows-x64" {
+            (
+                "ctoolbox-installer.exe",
+                format!("ctoolbox-installer-{platform}.exe"),
+                "application/vnd.microsoft.portable-executable",
+            )
+        } else {
+            (
+                "ctoolbox-installer",
+                format!("ctoolbox-installer-{platform}.bin"),
+                "application/x-executable",
+            )
+        };
     serve_manifest_file(
         state,
         req,
         headers,
         platform,
-        "ctoolbox-installer",
-        &format!("ctoolbox-installer-{platform}.bin"),
-        "application/x-executable",
+        manifest_file_name,
+        &download_file_name,
+        mime_type,
         fallback_url.as_str(),
         false, // archive_gzip
     )
@@ -1147,5 +1361,8 @@ mod tests {
         );
         let body_range = body_to_text(resp_range).await;
         assert_eq!(body_range, "hello");
+
+        // Ensure serving /installer-* streams directly from bh/ without writing duplicate files to downloads_cache
+        assert!(!storage_dir.join("downloads_cache").exists());
     }
 }
