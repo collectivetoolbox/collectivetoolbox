@@ -17,7 +17,10 @@
 # You should have received a copy of the GNU Affero General Public License along
 # with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import json
+import os
 import pathlib
+import stat
 import subprocess
 import tempfile
 import unittest
@@ -240,6 +243,254 @@ class DeployFlagsTests(unittest.TestCase):
                 check=False,
             )
             self.assertNotEqual(res_bad.returncode, 0)
+
+    def test_backup_server_help_and_flag_validation(self):
+        res = subprocess.run(
+            ["./scripts/backup-server", "--help"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn("--dest", res.stdout)
+        self.assertIn("--exclude-releases", res.stdout)
+        self.assertIn("--stop-service", res.stdout)
+        self.assertIn("/var", res.stdout)
+
+        # Reject destination inside git repository without creating it
+        inside_repo_dest = REPO_ROOT / "tmp_should_not_be_created_backup_dir"
+        with tempfile.TemporaryDirectory() as cfg_dir:
+            cfg = pathlib.Path(cfg_dir)
+            for name, val in (
+                ("username", "deployer"),
+                ("sudoer-username", "sudoer"),
+                ("server-username", "server"),
+                ("ip", "127.0.0.1"),
+                ("port", "2224"),
+            ):
+                (cfg / f"ctb-deploy.{name}").write_text(f"{val}\n", encoding="utf-8")
+            key_path = cfg / "ctb-deploy.key"
+            key_path.write_text("dummy-key\n", encoding="utf-8")
+
+            res_inside = subprocess.run(
+                [
+                    "./scripts/backup-server",
+                    "--target",
+                    cfg_dir,
+                    "--dest",
+                    str(inside_repo_dest),
+                ],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res_inside.returncode, 1)
+            self.assertIn("must be outside the git repository", res_inside.stderr)
+            self.assertFalse(inside_repo_dest.exists())
+
+    def test_backup_server_syncs_home_and_excludes_os_dirs_and_ephemeral_cache(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = pathlib.Path(tmpdir)
+            remote_root = tmp / "mock_remote_fs"
+            # Populate mock remote /home and mock remote /var (which must NEVER be backed up)
+            server_home = remote_root / "home" / "ctb-server"
+            deployer_home = remote_root / "home" / "ctb-deployer"
+            (server_home / ".local" / "share" / "collectivetoolbox" / "graphs" / "1").mkdir(
+                parents=True
+            )
+            (
+                server_home
+                / ".local"
+                / "share"
+                / "collectivetoolbox"
+                / "graphs"
+                / "1"
+                / "node.bin"
+            ).write_bytes(b"important-graph-bytes")
+            (
+                server_home / ".local" / "share" / "collectivetoolbox" / "setup_token"
+            ).write_text("ephemeral-token\n", encoding="utf-8")
+            (
+                server_home / ".local" / "share" / "collectivetoolbox" / "releases" / "bh"
+            ).mkdir(parents=True)
+            (
+                server_home
+                / ".local"
+                / "share"
+                / "collectivetoolbox"
+                / "releases"
+                / "bh"
+                / "chunk.br"
+            ).write_bytes(b"release-chunk")
+            (
+                server_home / ".cache" / "collectivetoolbox" / "downloads_cache"
+            ).mkdir(parents=True)
+            (
+                server_home
+                / ".cache"
+                / "collectivetoolbox"
+                / "downloads_cache"
+                / "stale.tar.gz"
+            ).write_bytes(b"disposable-cache")
+            deployer_home.mkdir(parents=True)
+            (deployer_home / ".bashrc").write_text("# deployer rc\n", encoding="utf-8")
+
+            (remote_root / "var" / "log").mkdir(parents=True)
+            (remote_root / "var" / "log" / "syslog").write_text(
+                "os-log-do-not-backup\n", encoding="utf-8"
+            )
+
+            # Create mock ssh + rsync wrapper bin directory (no network ports used!)
+            bin_dir = tmp / "mock_bin"
+            bin_dir.mkdir()
+            real_rsync = subprocess.check_output(["which", "rsync"], text=True).strip()
+
+            mock_ssh = bin_dir / "ssh"
+            mock_ssh.write_text(
+                f"""#!/usr/bin/env bash
+set -euo pipefail
+# Skip ssh flags to get user@host and command
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -i|-p|-o) shift 2 ;;
+        -*) shift ;;
+        *) break ;;
+    esac
+done
+shift # user@host
+cmd="${{*:-}}"
+if [[ "$cmd" == "sudo -n true" ]]; then
+    exit 0
+fi
+if [[ "$cmd" == sudo\\ -n\\ test\\ -d\\ * ]]; then
+    rel_path="${{cmd#sudo -n test -d }}"
+    rel_path="${{rel_path#\'}}"
+    rel_path="${{rel_path%\'}}"
+    [[ -d "{remote_root}${{rel_path}}" ]]
+    exit $?
+fi
+exit 0
+""",
+                encoding="utf-8",
+            )
+            mock_ssh.chmod(mock_ssh.stat().st_mode | stat.S_IXUSR)
+
+            mock_rsync = bin_dir / "rsync"
+            mock_rsync.write_text(
+                f"""#!/usr/bin/env python3
+import subprocess, sys
+args = []
+i = 1
+while i < len(sys.argv):
+    a = sys.argv[i]
+    if a == "-e":
+        i += 2
+        continue
+    if a.startswith("--rsync-path="):
+        i += 1
+        continue
+    if ":" in a and not a.startswith("-"):
+        _, remote_path = a.split(":", 1)
+        args.append({str(remote_root)!r} + remote_path)
+    else:
+        args.append(a)
+    i += 1
+sys.exit(subprocess.call([{real_rsync!r}] + args))
+""",
+                encoding="utf-8",
+            )
+            mock_rsync.chmod(mock_rsync.stat().st_mode | stat.S_IXUSR)
+
+            cfg = tmp / "cfg"
+            cfg.mkdir()
+            (cfg / "ctb-deploy.username").write_text("ctb-deployer\n", encoding="utf-8")
+            (cfg / "ctb-deploy.sudoer-username").write_text("ctb-sudoer\n", encoding="utf-8")
+            (cfg / "ctb-deploy.server-username").write_text("ctb-server\n", encoding="utf-8")
+            (cfg / "ctb-deploy.ip").write_text("198.51.100.10\n", encoding="utf-8")
+            (cfg / "ctb-deploy.port").write_text("22\n", encoding="utf-8")
+            (cfg / "ctb-deploy.key").write_text("mock-key\n", encoding="utf-8")
+
+            backup_dest = tmp / "backup_out"
+            env = os.environ.copy()
+            env["PATH"] = f"{bin_dir}:{env['PATH']}"
+
+            res = subprocess.run(
+                [
+                    "./scripts/backup-server",
+                    "--target",
+                    str(cfg),
+                    "--exclude-releases",
+                    str(backup_dest),
+                ],
+                cwd=REPO_ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res.returncode, 0, res.stderr)
+
+            # /home accounts & graph data backed up
+            self.assertEqual(
+                (
+                    backup_dest
+                    / "home"
+                    / "ctb-server"
+                    / ".local"
+                    / "share"
+                    / "collectivetoolbox"
+                    / "graphs"
+                    / "1"
+                    / "node.bin"
+                ).read_bytes(),
+                b"important-graph-bytes",
+            )
+            self.assertTrue((backup_dest / "home" / "ctb-deployer" / ".bashrc").is_file())
+
+            # /var and OS folders NEVER backed up
+            self.assertFalse((backup_dest / "var").exists())
+
+            # Ephemeral cache/tokens and --exclude-releases respected
+            self.assertFalse(
+                (
+                    backup_dest
+                    / "home"
+                    / "ctb-server"
+                    / ".cache"
+                    / "collectivetoolbox"
+                    / "downloads_cache"
+                ).exists()
+            )
+            self.assertFalse(
+                (
+                    backup_dest
+                    / "home"
+                    / "ctb-server"
+                    / ".local"
+                    / "share"
+                    / "collectivetoolbox"
+                    / "setup_token"
+                ).exists()
+            )
+            self.assertFalse(
+                (
+                    backup_dest
+                    / "home"
+                    / "ctb-server"
+                    / ".local"
+                    / "share"
+                    / "collectivetoolbox"
+                    / "releases"
+                ).exists()
+            )
+
+            # Metadata manifest recorded
+            meta = json.loads((backup_dest / "backup-metadata.json").read_text(encoding="utf-8"))
+            self.assertEqual(meta["scope"], "/home")
+            self.assertIn("/var", meta["excluded_os_dirs"])
+            self.assertTrue(meta["exclude_releases"])
 
 
 if __name__ == "__main__":

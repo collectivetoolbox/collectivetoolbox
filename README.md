@@ -158,6 +158,17 @@ Deployment script (`./deploy` skips lints and tests during compilation, as CI ru
 If SSH key authentication (`ctb-deploy.key` / `--ssh-key`) is not configured, you will be prompted for SSH passwords for the deployer, server, and sudoer accounts; if `ctb-deploy.global-graph-pass` is not present, you will also be prompted for the global graph user password.
 To prune old release chunks and manifests on the server later, run `ctoolbox ctb-dev-release-expire --older-than <DAYS>`.
 
+Backing up the server locally (`./scripts/backup-server`):
+
+- `./scripts/backup-server [--dest <DIR>]` incrementally backs up the server's `/home` directory tree (including `~/.local/share/collectivetoolbox/` databases, user graphs, `pc_settings.json`, `systemd --user` units, deployed binaries, and release artifacts) to a local folder (`../ctb-server-backup` by default), using the same `~/ctb-deploy.*`, `--config-dir`, `--target <live|vm|DIR>`, and `--ssh-key` configuration as `./deploy`.
+- OS directories (`/var`, `/etc`, `/usr`, `/proc`, `/sys`, `/tmp`, etc.) and disposable server caches (`downloads_cache/`, `setup_token`) are excluded.
+- Useful options:
+  - `--dest <DIR>` (or positional `<DIR>`): destination folder outside the repository.
+  - `--exclude-releases`: skip `.local/share/collectivetoolbox/releases/` for a fast user-data/config backup.
+  - `--stop-service`: briefly stop `ctoolbox.service` during the sync for a cold database snapshot (restarting it automatically on exit); without this flag, a fast second `rsync` pass runs over `users/`, `graphs/`, and `config/` with zero downtime.
+  - `--mirror`: delete local backup files that were removed on the server (`rsync --delete-after`; off by default).
+  - `--dry-run`: preview files that would be transferred without modifying the local destination folder.
+
 ### Platforms
 
 With the caveat that this software is unfinished:

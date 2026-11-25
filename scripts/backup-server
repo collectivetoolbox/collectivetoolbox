@@ -1,0 +1,422 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+# Incrementally back up the remote server's /home directory tree (including
+# application databases, user graphs, configuration, systemd user units, and
+# release artifacts, while excluding /var and all other OS directories) to a
+# local folder over SSH + rsync.
+
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+repository="$(pwd)"
+
+usage() {
+	cat <<'USAGE'
+Usage:
+	./scripts/backup-server [options] [DEST_DIR]
+
+Description:
+	Incrementally backs up the server's /home directory tree to a local folder
+	using SSH + rsync. OS directories (/var, /etc, /usr, /proc, /sys, /tmp, etc.)
+	are never included.
+
+Options:
+	--dest <DIR>            Local destination directory (default: ../ctb-server-backup).
+	--target <live|vm|DIR>  Target environment: 'live' (default), 'vm' (local QEMU Linux VM
+	                        on 127.0.0.1:2224), or a directory containing ctb-deploy.* files.
+	--config-dir <DIR>      Directory containing ctb-deploy.* configuration files.
+	--ssh-key <PATH>        Use explicit SSH private key file instead of password/sshpass.
+	--exclude-releases      Skip .local/share/collectivetoolbox/releases/ (faster user-data-only backup).
+	--stop-service          Temporarily stop ctoolbox.service during the backup for a cold DB snapshot
+	                        (restarts automatically on exit). Without this flag, a fast second rsync pass
+	                        is run over users/ and graphs/ to minimize WAL skew with zero downtime.
+	--mirror                Delete files in DEST_DIR/home that no longer exist on the server
+	                        (rsync --delete-after). Off by default so accidental remote deletions
+	                        do not erase previously backed-up local files.
+	--dry-run               Preview files that would be transferred without modifying DEST_DIR.
+	-h, --help              Show this help message and exit.
+USAGE
+}
+
+read_secret() {
+	local prompt="$1"
+	local secret
+	read -r -s -p "$prompt" secret
+	echo >&2
+	printf '%s' "$secret"
+}
+
+read_config_value() {
+	local file_path="$1"
+	if [[ ! -r "$file_path" ]]; then
+		echo "Error: Required deployment configuration file not found or unreadable: $file_path" >&2
+		exit 1
+	fi
+	local val
+	val="$(<"$file_path")"
+	val="${val%$'\r'}"
+	val="${val%$'\n'}"
+	if [[ -z "$val" ]]; then
+		echo "Error: Deployment configuration file is empty: $file_path" >&2
+		exit 1
+	fi
+	printf '%s' "$val"
+}
+
+dest_dir=""
+target_env="live"
+config_dir=""
+ssh_key=""
+explicit_ssh_key=0
+exclude_releases=0
+stop_service=0
+mirror_delete=0
+dry_run=0
+
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+		"--dest")
+			if [[ $# -lt 2 || -z "${2:-}" ]]; then
+				echo "Error: --dest requires a directory argument." >&2
+				usage >&2
+				exit 1
+			fi
+			shift
+			dest_dir="$1"
+			;;
+		"--target")
+			if [[ $# -lt 2 || -z "${2:-}" ]]; then
+				echo "Error: --target requires an argument (<live|vm|DIR>)." >&2
+				usage >&2
+				exit 1
+			fi
+			shift
+			target_env="$1"
+			;;
+		"--config-dir")
+			if [[ $# -lt 2 || -z "${2:-}" ]]; then
+				echo "Error: --config-dir requires a directory argument." >&2
+				usage >&2
+				exit 1
+			fi
+			shift
+			config_dir="$1"
+			;;
+		"--ssh-key")
+			if [[ $# -lt 2 || -z "${2:-}" ]]; then
+				echo "Error: --ssh-key requires a key file path argument." >&2
+				usage >&2
+				exit 1
+			fi
+			shift
+			ssh_key="$1"
+			explicit_ssh_key=1
+			;;
+		"--exclude-releases")
+			exclude_releases=1
+			;;
+		"--stop-service")
+			stop_service=1
+			;;
+		"--mirror")
+			mirror_delete=1
+			;;
+		"--dry-run")
+			dry_run=1
+			;;
+		"-h"|"--help"|"help")
+			usage
+			exit 0
+			;;
+		--*)
+			echo "Unknown option: $1" >&2
+			usage >&2
+			exit 1
+			;;
+		*)
+			if [[ -n "$dest_dir" ]]; then
+				echo "Error: Multiple destination directories specified ('$dest_dir' and '$1')." >&2
+				usage >&2
+				exit 1
+			fi
+			dest_dir="$1"
+			;;
+	esac
+	shift
+done
+
+if [[ -z "$dest_dir" ]]; then
+	dest_dir="$repository/../ctb-server-backup"
+fi
+
+if ! command -v rsync >/dev/null 2>&1; then
+	echo "Error: rsync is required locally to run scripts/backup-server." >&2
+	exit 1
+fi
+
+if [[ -n "$config_dir" ]]; then
+	if [[ ! -d "$config_dir" ]]; then
+		echo "Error: Configuration directory not found: $config_dir" >&2
+		exit 1
+	fi
+elif [[ "$target_env" != "live" && "$target_env" != "vm" ]]; then
+	if [[ -d "$target_env" ]]; then
+		config_dir="$target_env"
+	else
+		echo "Error: Invalid --target '$target_env'. Expected 'live', 'vm', or an existing configuration directory." >&2
+		exit 1
+	fi
+fi
+
+PASS=""
+SERVER_USER_PASS=""
+SUDOER_USER_PASS=""
+
+if [[ "$target_env" == "vm" ]]; then
+	user="ctb-deployer"
+	sudoer_user="ctb-sudoer"
+	server_user="ctb-server"
+	server="127.0.0.1"
+	port="2224"
+	if [[ -z "$ssh_key" ]]; then
+		ssh_key="$repository/ci-logs/VMs/Linux/id_ed25519"
+	fi
+	if [[ ! -f "$ssh_key" ]]; then
+		echo "Error: VM SSH key not found at $ssh_key." >&2
+		echo "Please run ./scripts/setup-linux-vm-image to provision the VM and key, or pass --ssh-key <path>." >&2
+		exit 1
+	fi
+elif [[ -n "$config_dir" ]]; then
+	user="$(read_config_value "$config_dir/ctb-deploy.username")"
+	sudoer_user="$(read_config_value "$config_dir/ctb-deploy.sudoer-username")"
+	server_user="$(read_config_value "$config_dir/ctb-deploy.server-username")"
+	server="$(read_config_value "$config_dir/ctb-deploy.ip")"
+	port="$(read_config_value "$config_dir/ctb-deploy.port")"
+	if [[ "$explicit_ssh_key" -eq 0 && -f "$config_dir/ctb-deploy.key" ]]; then
+		ssh_key="$config_dir/ctb-deploy.key"
+	fi
+else
+	user="$(read_config_value ~/ctb-deploy.username)"
+	sudoer_user="$(read_config_value ~/ctb-deploy.sudoer-username)"
+	server_user="$(read_config_value ~/ctb-deploy.server-username)"
+	server="$(read_config_value ~/ctb-deploy.ip)"
+	port="$(read_config_value ~/ctb-deploy.port)"
+	if [[ "$explicit_ssh_key" -eq 0 && -f ~/ctb-deploy.key ]]; then
+		ssh_key=~/ctb-deploy.key
+	fi
+fi
+
+if [[ -n "$ssh_key" && ! -f "$ssh_key" ]]; then
+	echo "Error: SSH key specified at $ssh_key not found." >&2
+	exit 1
+fi
+
+# Reject backing up directly into the git repository working tree before creating any directories
+resolved_dest="$(readlink -m "$dest_dir")"
+resolved_repo="$(readlink -f "$repository")"
+if [[ "$resolved_dest" == "$resolved_repo" || "$resolved_dest" == "$resolved_repo/"* ]]; then
+	echo "Error: Destination directory ($resolved_dest) must be outside the git repository ($resolved_repo)." >&2
+	exit 1
+fi
+
+if [[ -z "$ssh_key" ]]; then
+	if ! command -v sshpass >/dev/null 2>&1; then
+		echo "Error: sshpass is required for password-based SSH but not installed. Install sshpass or provide --ssh-key." >&2
+		exit 1
+	fi
+	PASS="${PASS:-$(read_secret "Password for ${user}@${server}: ")}"
+	SERVER_USER_PASS="${SERVER_USER_PASS:-$(read_secret "Password for ${server_user}@${server}: ")}"
+	SUDOER_USER_PASS="${SUDOER_USER_PASS:-$(read_secret "Password for ${sudoer_user}@${server}: ")}"
+fi
+
+password_for_user() {
+	local target_user="$1"
+	if [[ "$target_user" == "$user" ]]; then
+		printf '%s' "$PASS"
+	elif [[ "$target_user" == "$server_user" ]]; then
+		printf '%s' "$SERVER_USER_PASS"
+	elif [[ "$target_user" == "$sudoer_user" ]]; then
+		printf '%s' "$SUDOER_USER_PASS"
+	else
+		echo "Error: Unknown remote user '$target_user' for password lookup." >&2
+		exit 1
+	fi
+}
+
+remote_ssh() {
+	local target_user="$1"
+	shift
+	if [[ -n "${ssh_key:-}" && -f "${ssh_key:-}" ]]; then
+		ssh -i "$ssh_key" -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+			-o BatchMode=yes -o LogLevel=ERROR "${target_user}@${server}" "$@"
+	else
+		local ssh_pass
+		ssh_pass="$(password_for_user "$target_user")"
+		SSHPASS="$ssh_pass" sshpass -e ssh -p "${port}" "${target_user}@${server}" "$@"
+	fi
+}
+
+pull_rsync() {
+	local target_user="$1"
+	local remote_src="$2"
+	local local_dst="$3"
+	shift 3
+	if [[ -n "${ssh_key:-}" && -f "${ssh_key:-}" ]]; then
+		rsync -e "ssh -i $ssh_key -p $port -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR" \
+			"$@" "${target_user}@${server}:${remote_src}" "$local_dst"
+	else
+		local ssh_pass
+		ssh_pass="$(password_for_user "$target_user")"
+		SSHPASS="$ssh_pass" sshpass -e rsync -e "ssh -p ${port}" \
+			"$@" "${target_user}@${server}:${remote_src}" "$local_dst"
+	fi
+}
+
+service_was_stopped=0
+cleanup_on_exit() {
+	unset PASS SERVER_USER_PASS SUDOER_USER_PASS
+	if [[ "$service_was_stopped" -eq 1 ]]; then
+		echo "Restarting ctoolbox.service on ${server}..."
+		remote_ssh "$server_user" "systemctl --user start ctoolbox" || {
+			echo "Warning: Failed to restart ctoolbox.service automatically; check 'systemctl --user status ctoolbox' on ${server}." >&2
+		}
+	fi
+}
+trap cleanup_on_exit EXIT
+
+rsync_common_args=(
+	-rlptDzv
+	--safe-links
+	--chmod=u+rwX
+	--exclude=/.cache/collectivetoolbox/downloads_cache/
+	--exclude=/*/.cache/collectivetoolbox/downloads_cache/
+	--exclude=/.local/share/collectivetoolbox/setup_token
+	--exclude=/*/.local/share/collectivetoolbox/setup_token
+)
+
+if [[ "$exclude_releases" -eq 1 ]]; then
+	rsync_common_args+=(
+		--exclude=/.local/share/collectivetoolbox/releases/
+		--exclude=/*/.local/share/collectivetoolbox/releases/
+	)
+fi
+
+if [[ "$mirror_delete" -eq 1 ]]; then
+	rsync_common_args+=(--delete-after)
+fi
+
+if [[ "$dry_run" -eq 1 ]]; then
+	rsync_common_args+=(--dry-run)
+fi
+
+if [[ "$dry_run" -eq 0 ]]; then
+	mkdir -p "$resolved_dest/home"
+fi
+
+if [[ "$stop_service" -eq 1 && "$dry_run" -eq 0 ]]; then
+	echo "Stopping ctoolbox.service on ${server} for cold snapshot..."
+	remote_ssh "$server_user" bash <<'REMOTE_STOP'
+systemctl --user stop ctoolbox || true
+timeout 30 bash -c 'while systemctl --user is-active --quiet ctoolbox; do sleep 0.5; done' || true
+REMOTE_STOP
+	service_was_stopped=1
+fi
+
+echo "Backing up /home from ${server}:${port} to ${resolved_dest}/home (excluding /var and all other OS directories)..."
+
+if remote_ssh "$sudoer_user" "sudo -n true" >/dev/null 2>&1; then
+	echo "Using passwordless sudo rsync via ${sudoer_user} to back up all /home accounts..."
+	pull_rsync "$sudoer_user" "/home/" "$resolved_dest/home/" \
+		--rsync-path="sudo rsync" "${rsync_common_args[@]}"
+
+	if [[ "$stop_service" -eq 0 ]]; then
+		echo "Running second consistency pass over live storage directories (users/ and graphs/)..."
+		for subdir in users graphs config; do
+			if remote_ssh "$sudoer_user" "sudo -n test -d '/home/${server_user}/.local/share/collectivetoolbox/${subdir}'" >/dev/null 2>&1; then
+				if [[ "$dry_run" -eq 0 ]]; then
+					mkdir -p "$resolved_dest/home/$server_user/.local/share/collectivetoolbox/$subdir"
+				fi
+				pull_rsync "$sudoer_user" \
+					"/home/${server_user}/.local/share/collectivetoolbox/${subdir}/" \
+					"$resolved_dest/home/$server_user/.local/share/collectivetoolbox/$subdir/" \
+					--rsync-path="sudo rsync" "${rsync_common_args[@]}"
+			fi
+		done
+	fi
+else
+	echo "Note: Passwordless sudo is not enabled for ${sudoer_user}; backing up each configured user's /home directory directly..."
+	declare -A synced_users=()
+	for acct in "$server_user" "$user" "$sudoer_user"; do
+		if [[ -n "${synced_users[$acct]:-}" ]]; then
+			continue
+		fi
+		synced_users["$acct"]=1
+		echo "Syncing /home/${acct}..."
+		if [[ "$dry_run" -eq 0 ]]; then
+			mkdir -p "$resolved_dest/home/$acct"
+		fi
+		pull_rsync "$acct" "/home/${acct}/" "$resolved_dest/home/$acct/" "${rsync_common_args[@]}"
+	done
+
+	if [[ "$stop_service" -eq 0 ]]; then
+		echo "Running second consistency pass over live storage directories (users/ and graphs/)..."
+		for subdir in users graphs config; do
+			if remote_ssh "$server_user" "test -d '/home/${server_user}/.local/share/collectivetoolbox/${subdir}'" >/dev/null 2>&1; then
+				if [[ "$dry_run" -eq 0 ]]; then
+					mkdir -p "$resolved_dest/home/$server_user/.local/share/collectivetoolbox/$subdir"
+				fi
+				pull_rsync "$server_user" \
+					"/home/${server_user}/.local/share/collectivetoolbox/${subdir}/" \
+					"$resolved_dest/home/$server_user/.local/share/collectivetoolbox/$subdir/" \
+					"${rsync_common_args[@]}"
+			fi
+		done
+	fi
+fi
+
+if [[ "$dry_run" -eq 0 ]]; then
+	timestamp_utc="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+	if command -v jq >/dev/null 2>&1; then
+		jq -n \
+			--arg timestamp_utc "$timestamp_utc" \
+			--arg target "$target_env" \
+			--arg server "$server" \
+			--arg port "$port" \
+			--arg server_user "$server_user" \
+			--argjson exclude_releases "$exclude_releases" \
+			--argjson stopped_service "$stop_service" \
+			--argjson mirror "$mirror_delete" \
+			'{
+				timestamp_utc: $timestamp_utc,
+				scope: "/home",
+				excluded_os_dirs: ["/var", "/etc", "/usr", "/proc", "/sys", "/dev", "/run", "/tmp", "/boot", "/opt", "/root"],
+				target: $target,
+				server: $server,
+				port: $port,
+				server_user: $server_user,
+				exclude_releases: ($exclude_releases == 1),
+				stopped_service: ($stopped_service == 1),
+				mirror: ($mirror == 1)
+			}' > "$resolved_dest/backup-metadata.json"
+	fi
+	echo "Backup completed successfully at: ${resolved_dest}"
+else
+	echo "[Dry Run] Backup preview completed (no local files modified in ${resolved_dest})."
+fi
