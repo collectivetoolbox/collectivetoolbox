@@ -65,7 +65,7 @@ type TypeKey = (Option<String>, String);
 pub(super) struct LexFrame {
     parent: Option<Rc<LexFrame>>,
     pub(super) vars: HashMap<String, Cell>,
-    nested_verbs: Rc<RefCell<HashMap<String, ClosureVerb>>>,
+    nested_verbs: Option<Rc<RefCell<HashMap<String, ClosureVerb>>>>,
     pub(super) return_ty: Option<StageLType>,
 }
 
@@ -75,7 +75,20 @@ impl LexFrame {
         Self {
             parent,
             vars: HashMap::new(),
-            nested_verbs: Rc::new(RefCell::new(HashMap::new())),
+            nested_verbs: None,
+            return_ty,
+        }
+    }
+
+    fn with_capacity_and_return_ty(
+        parent: Option<Rc<LexFrame>>,
+        vars_cap: usize,
+        return_ty: Option<StageLType>,
+    ) -> Self {
+        Self {
+            parent,
+            vars: HashMap::with_capacity(vars_cap),
+            nested_verbs: None,
             return_ty,
         }
     }
@@ -95,12 +108,16 @@ impl LexFrame {
     }
 
     fn lookup_nested_verb(&self, name: &str) -> Option<ClosureVerb> {
-        if let Some(v) = self.nested_verbs.borrow().get(name) {
+        if let Some(ref map_rc) = self.nested_verbs
+            && let Some(v) = map_rc.borrow().get(name)
+        {
             return Some(v.clone());
         }
         let mut cur = self.parent.as_deref();
         while let Some(fr) = cur {
-            if let Some(v) = fr.nested_verbs.borrow().get(name) {
+            if let Some(ref map_rc) = fr.nested_verbs
+                && let Some(v) = map_rc.borrow().get(name)
+            {
                 return Some(v.clone());
             }
             cur = fr.parent.as_deref();
@@ -111,7 +128,7 @@ impl LexFrame {
 
 #[derive(Debug, Clone)]
 pub(super) struct ClosureVerb {
-    decl: RoutineDecl,
+    decl: Rc<RoutineDecl>,
     module_idx: usize,
     captured_frame: Rc<LexFrame>,
 }
@@ -153,7 +170,7 @@ pub(super) struct ModuleRuntime {
     pub(super) dialect: StageDialect,
     pub(super) constants: HashMap<ValueKey, Value>,
     pub(super) dc_constants: HashMap<DcChar, ValueKey>,
-    pub(super) routines: HashMap<RoutineKey, RoutineDecl>,
+    pub(super) routines: HashMap<RoutineKey, Rc<RoutineDecl>>,
     pub(super) dc_routines: HashMap<DcChar, RoutineKey>,
     pub(super) resolved_values: HashMap<(usize, usize), (usize, ValueKey)>,
     pub(super) resolved_calls: HashMap<(usize, usize), (usize, RoutineKey)>,
@@ -330,7 +347,7 @@ impl StageLWorkspaceVm {
         };
 
         let mut args = Vec::with_capacity(tc.inputs.len());
-        let empty_frame = LexFrame::new(None);
+        let empty_frame = Rc::new(LexFrame::new(None));
         for inp in &tc.inputs {
             let mut quota = self.config.compute_quota;
             match self.eval_expr(mod_idx, inp, &empty_frame, false, 0, &mut quota)?
@@ -502,8 +519,6 @@ impl StageLWorkspaceVm {
                 }
             };
 
-            let mut frame = LexFrame::new(parent_frame);
-            frame.return_ty = Some(decl.return_type.clone());
             ensure!(
                 args.len() == decl.params.len(),
                 "Runtime argument count mismatch calling '{}': expected {}, got {}",
@@ -511,13 +526,19 @@ impl StageLWorkspaceVm {
                 decl.params.len(),
                 args.len()
             );
+            let mut frame = LexFrame::with_capacity_and_return_ty(
+                parent_frame,
+                decl.params.len(),
+                Some(decl.return_type.clone()),
+            );
             for (param, val) in decl.params.iter().zip(args.drain(..)) {
                 frame
                     .vars
                     .insert(param.name.clone(), Rc::new(RefCell::new(Some(val))));
             }
+            let frame_rc = Rc::new(frame);
 
-            match self.eval_expr(mod_idx, &decl.body, &frame, true, depth, quota)?
+            match self.eval_expr(mod_idx, &decl.body, &frame_rc, true, depth, quota)?
             {
                 EvalSignal::Value(v) | EvalSignal::Return(v) => {
                     return Ok(RoutineOutcome::Returned(v));
@@ -549,7 +570,7 @@ impl StageLWorkspaceVm {
         &self,
         mod_idx: usize,
         expr: &Expr,
-        frame: &LexFrame,
+        frame: &Rc<LexFrame>,
         in_tail: bool,
         depth: usize,
         quota: &mut u64,
@@ -747,7 +768,7 @@ impl StageLWorkspaceVm {
         target: &SymbolTarget,
         args: &[Expr],
         span: Span,
-        frame: &LexFrame,
+        frame: &Rc<LexFrame>,
         in_tail: bool,
         depth: usize,
         quota: &mut u64,
@@ -821,17 +842,65 @@ impl StageLWorkspaceVm {
         &self,
         mod_idx: usize,
         stmts: &[BlockItem],
-        frame: &LexFrame,
+        frame: &Rc<LexFrame>,
         in_tail: bool,
         depth: usize,
         quota: &mut u64,
     ) -> Result<EvalSignal> {
-        let mut block_frame = LexFrame::new(Some(Rc::new(frame.clone())));
-        let mut pending_routines = Vec::new();
+        let mut var_count: usize = 0;
+        let mut routine_count: usize = 0;
+        for item in stmts {
+            match item {
+                BlockItem::Expr(Expr::RoutineDecl(_)) => {
+                    routine_count = routine_count.saturating_add(1);
+                }
+                BlockItem::Expr(Expr::Let { .. } | Expr::Const { .. }) => {
+                    var_count = var_count.saturating_add(1);
+                }
+                _ => {}
+            }
+        }
+
+        let last_expr_idx = stmts
+            .iter()
+            .rposition(|it| matches!(it, BlockItem::Expr(_)));
+        let mut last_val = Value::Void;
+
+        if var_count == 0 && routine_count == 0 {
+            for (idx, item) in stmts.iter().enumerate() {
+                let BlockItem::Expr(e) = item else {
+                    continue;
+                };
+                let is_last = Some(idx) == last_expr_idx;
+                match self.eval_expr(
+                    mod_idx,
+                    e,
+                    frame,
+                    in_tail && is_last,
+                    depth,
+                    quota,
+                )? {
+                    EvalSignal::Value(v) => {
+                        if is_last {
+                            last_val = v;
+                        }
+                    }
+                    sig => return Ok(sig),
+                }
+            }
+            return Ok(EvalSignal::Value(last_val));
+        }
+
+        let mut block_frame = LexFrame::with_capacity_and_return_ty(
+            Some(Rc::clone(frame)),
+            var_count,
+            frame.return_ty.clone(),
+        );
+        let mut pending_routines = Vec::with_capacity(routine_count);
         for item in stmts {
             match item {
                 BlockItem::Expr(Expr::RoutineDecl(r)) => {
-                    pending_routines.push((**r).clone());
+                    pending_routines.push(Rc::new((**r).clone()));
                 }
                 // Pre-create `let`/`const` variable cells before freezing
                 // `live_frame` so nested closures share the exact cells
@@ -845,10 +914,19 @@ impl StageLWorkspaceVm {
                 _ => {}
             }
         }
+        let nested_map_opt = if pending_routines.is_empty() {
+            None
+        } else {
+            let map_rc = Rc::new(RefCell::new(HashMap::with_capacity(
+                pending_routines.len(),
+            )));
+            block_frame.nested_verbs = Some(Rc::clone(&map_rc));
+            Some(map_rc)
+        };
 
         let live_frame = Rc::new(block_frame);
-        {
-            let mut map = live_frame.nested_verbs.borrow_mut();
+        if let Some(map_rc) = nested_map_opt {
+            let mut map = map_rc.borrow_mut();
             for r in pending_routines {
                 map.insert(
                     r.name.clone(),
@@ -860,11 +938,6 @@ impl StageLWorkspaceVm {
                 );
             }
         }
-
-        let last_expr_idx = stmts
-            .iter()
-            .rposition(|it| matches!(it, BlockItem::Expr(_)));
-        let mut last_val = Value::Void;
 
         for (idx, item) in stmts.iter().enumerate() {
             let BlockItem::Expr(e) = item else {
@@ -951,7 +1024,7 @@ impl StageLWorkspaceVm {
         cond: &Expr,
         then_branch: &Expr,
         else_branch: &Expr,
-        frame: &LexFrame,
+        frame: &Rc<LexFrame>,
         in_tail: bool,
         depth: usize,
         quota: &mut u64,
@@ -973,7 +1046,7 @@ impl StageLWorkspaceVm {
         mod_idx: usize,
         cond: &Expr,
         body: &Expr,
-        frame: &LexFrame,
+        frame: &Rc<LexFrame>,
         depth: usize,
         quota: &mut u64,
     ) -> Result<EvalSignal> {
@@ -1010,7 +1083,7 @@ impl StageLWorkspaceVm {
         elem_name: &str,
         list: &Expr,
         body: &Expr,
-        frame: &LexFrame,
+        frame: &Rc<LexFrame>,
         depth: usize,
         quota: &mut u64,
     ) -> Result<EvalSignal> {
@@ -1042,12 +1115,23 @@ impl StageLWorkspaceVm {
                 SeqIter::Dcs(d) => d.get(idx).copied().map(Value::Dc),
             }
             .context("Validated foreach index out of bounds")?;
-            let mut iter_frame = LexFrame::new(Some(Rc::new(frame.clone())));
+            let mut iter_frame = LexFrame::with_capacity_and_return_ty(
+                Some(Rc::clone(frame)),
+                1,
+                frame.return_ty.clone(),
+            );
             iter_frame
                 .vars
                 .insert(elem_name.to_owned(), Rc::new(RefCell::new(Some(item))));
-            match self.eval_expr(mod_idx, body, &iter_frame, false, depth, quota)?
-            {
+            let iter_frame_rc = Rc::new(iter_frame);
+            match self.eval_expr(
+                mod_idx,
+                body,
+                &iter_frame_rc,
+                false,
+                depth,
+                quota,
+            )? {
                 EvalSignal::Value(_) | EvalSignal::Continue => {}
                 EvalSignal::Break => return Ok(EvalSignal::Value(Value::Void)),
                 sig => return Ok(sig),
@@ -1067,7 +1151,7 @@ impl StageLWorkspaceVm {
         arms: &[MatchArm],
         fallback: Option<&Expr>,
         span: Span,
-        frame: &LexFrame,
+        frame: &Rc<LexFrame>,
         in_tail: bool,
         depth: usize,
         quota: &mut u64,
@@ -1102,14 +1186,31 @@ impl StageLWorkspaceVm {
         };
 
         if let Some(arm) = arms.iter().find(|a| a.variant == variant_name) {
-            let mut arm_frame = LexFrame::new(Some(Rc::new(frame.clone())));
             match (&arm.binding, payload_opt) {
                 (Some((_, bname, _)), Some(pval)) => {
+                    let mut arm_frame = LexFrame::with_capacity_and_return_ty(
+                        Some(Rc::clone(frame)),
+                        1,
+                        frame.return_ty.clone(),
+                    );
                     arm_frame
                         .vars
                         .insert(bname.clone(), Rc::new(RefCell::new(Some(pval))));
+                    let arm_frame_rc = Rc::new(arm_frame);
+                    return self.eval_expr(
+                        mod_idx,
+                        &arm.body,
+                        &arm_frame_rc,
+                        in_tail,
+                        depth,
+                        quota,
+                    );
                 }
-                (None, None) => {}
+                (None, None) => {
+                    return self.eval_expr(
+                        mod_idx, &arm.body, frame, in_tail, depth, quota,
+                    );
+                }
                 (Some((_, bname, bsp)), None) => {
                     bail!(
                         "Unit variant '{variant_name}' cannot bind payload '{bname}' at {bsp}"
@@ -1122,9 +1223,6 @@ impl StageLWorkspaceVm {
                     );
                 }
             }
-            return self.eval_expr(
-                mod_idx, &arm.body, &arm_frame, in_tail, depth, quota,
-            );
         }
 
         if let Some(fb) = fallback {
@@ -1141,7 +1239,7 @@ impl StageLWorkspaceVm {
         mod_idx: usize,
         inner: &Expr,
         span: Span,
-        frame: &LexFrame,
+        frame: &Rc<LexFrame>,
         depth: usize,
         quota: &mut u64,
     ) -> Result<EvalSignal> {
@@ -1178,7 +1276,7 @@ impl StageLWorkspaceVm {
         &self,
         mod_idx: usize,
         expr: &Expr,
-        frame: &LexFrame,
+        frame: &Rc<LexFrame>,
         depth: usize,
         quota: &mut u64,
     ) -> Result<EvalSignal> {
@@ -1265,7 +1363,7 @@ impl StageLWorkspaceVm {
         &self,
         mod_idx: usize,
         expr: &Expr,
-        frame: &LexFrame,
+        frame: &Rc<LexFrame>,
         depth: usize,
         quota: &mut u64,
     ) -> Result<EvalSignal> {
@@ -1883,7 +1981,7 @@ fn build_module_runtime(
                 if let Some(dc) = r.dc_id {
                     dc_routines.insert(dc, rkey.clone());
                 }
-                routines.insert(rkey, r.clone());
+                routines.insert(rkey, Rc::new(r.clone()));
             }
         }
     }
@@ -1915,7 +2013,7 @@ fn eval_pending_constants(
     pending: &[(ValueKey, TopValueDecl)],
 ) -> Result<()> {
     let mut remaining: Vec<(ValueKey, TopValueDecl)> = pending.to_vec();
-    let empty_frame = LexFrame::new(None);
+    let empty_frame = Rc::new(LexFrame::new(None));
     while !remaining.is_empty() {
         let before = remaining.len();
         let mut next_remaining = Vec::new();

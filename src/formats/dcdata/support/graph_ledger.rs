@@ -151,34 +151,36 @@ fn sh(dc: DcChar) -> DcShorthand {
 /// Returns the canonical `.ctbnbdl` framing Document Characters from `ctb_formats_dcdata::dc`.
 #[must_use]
 pub fn default_ctbnbdl_framing_dcs() -> CtbnbdlFramingDcs {
-    CtbnbdlFramingDcs {
-        begin_node: sh(DC_BEGIN_GRAPH_NODE_DEFINITION),
-        end_node: sh(DC_END_GRAPH_NODE_DEFINITION),
-        begin_checksummed_section: sh(DC_BEGIN_CHECKSUMMED_SECTION),
-        end_checksummed_section: sh(DC_END_CHECKSUMMED_SECTION),
-        section_digest: sh(DC_SECTION_DIGEST),
-        begin_time_moment: sh(DC_BEGIN_TIME_MOMENT),
-        end_time_moment: sh(DC_END_TIME_MOMENT),
-        section_node_creation_time: Some(sh(
-            DC_SECTION_TIMESTAMP_NODE_CREATION_TIME,
-        )),
-        ns_since_epoch_format: sh(DC_NS_SINCE_EPOCH),
-        sha256_format: sh(DC_SHA256),
-        escape: sh(DC_ESCAPE),
-        evaluate_as_atom: sh(DC_EVALUATE_VALUE_AS_ATOM),
-        has_a: sh(DC_HAS_A),
-        has_value: sh(DC_HAS_VALUE),
-        preferred: sh(DC_PREFERRED),
-        supersedes: sh(DC_SUPERSEDES),
-        retracts: sh(DC_RETRACTS),
-        enclosing_document: sh(DC_ENCLOSING_DOCUMENT),
-        is_instance_of: sh(DC_IS_INSTANCE_OF),
-        is_subtype_of: sh(DC_IS_SUBTYPE_OF),
-        is_based_on: sh(DC_IS_BASED_ON),
-        is_deprecated: sh(DC_IS_DEPRECATED),
-        is_closing_delimiter_for: sh(DC_IS_CLOSING_DELIMITER_FOR),
-        is_associated_with: sh(DC_IS_ASSOCIATED_WITH),
-    }
+    static DEFAULT_FRAMING: std::sync::LazyLock<CtbnbdlFramingDcs> =
+        std::sync::LazyLock::new(|| CtbnbdlFramingDcs {
+            begin_node: sh(DC_BEGIN_GRAPH_NODE_DEFINITION),
+            end_node: sh(DC_END_GRAPH_NODE_DEFINITION),
+            begin_checksummed_section: sh(DC_BEGIN_CHECKSUMMED_SECTION),
+            end_checksummed_section: sh(DC_END_CHECKSUMMED_SECTION),
+            section_digest: sh(DC_SECTION_DIGEST),
+            begin_time_moment: sh(DC_BEGIN_TIME_MOMENT),
+            end_time_moment: sh(DC_END_TIME_MOMENT),
+            section_node_creation_time: Some(sh(
+                DC_SECTION_TIMESTAMP_NODE_CREATION_TIME,
+            )),
+            ns_since_epoch_format: sh(DC_NS_SINCE_EPOCH),
+            sha256_format: sh(DC_SHA256),
+            escape: sh(DC_ESCAPE),
+            evaluate_as_atom: sh(DC_EVALUATE_VALUE_AS_ATOM),
+            has_a: sh(DC_HAS_A),
+            has_value: sh(DC_HAS_VALUE),
+            preferred: sh(DC_PREFERRED),
+            supersedes: sh(DC_SUPERSEDES),
+            retracts: sh(DC_RETRACTS),
+            enclosing_document: sh(DC_ENCLOSING_DOCUMENT),
+            is_instance_of: sh(DC_IS_INSTANCE_OF),
+            is_subtype_of: sh(DC_IS_SUBTYPE_OF),
+            is_based_on: sh(DC_IS_BASED_ON),
+            is_deprecated: sh(DC_IS_DEPRECATED),
+            is_closing_delimiter_for: sh(DC_IS_CLOSING_DELIMITER_FOR),
+            is_associated_with: sh(DC_IS_ASSOCIATED_WITH),
+        });
+    *DEFAULT_FRAMING
 }
 
 /// Partitions `nodes` into `(active_nodes, inactive_nodes)` using [`default_ctbnbdl_framing_dcs`].
