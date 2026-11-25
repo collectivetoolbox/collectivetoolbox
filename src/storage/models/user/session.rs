@@ -34,6 +34,7 @@ use anyhow::{Result, anyhow};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::{OnceLock, RwLock};
 use std::time::Instant;
 use zeroize::ZeroizeOnDrop;
@@ -42,15 +43,18 @@ use zeroize::ZeroizeOnDrop;
 #[derive(ZeroizeOnDrop)]
 pub struct StorageSession {
     token: String,
+    #[zeroize(skip)]
+    storage_dir: PathBuf,
     user_id: u64,
     #[zeroize(skip)]
     expiry: Instant,
 }
 
-/// Global cache of decrypted user DEKs for database encryption.
-static USER_KEYS: OnceLock<RwLock<HashMap<u64, Secret>>> = OnceLock::new();
+/// Global cache of decrypted user DEKs for database encryption, scoped by `(storage_dir, user_id)`.
+static USER_KEYS: OnceLock<RwLock<HashMap<(PathBuf, u64), Secret>>> =
+    OnceLock::new();
 
-fn user_keys() -> &'static RwLock<HashMap<u64, Secret>> {
+fn user_keys() -> &'static RwLock<HashMap<(PathBuf, u64), Secret>> {
     USER_KEYS.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
@@ -64,10 +68,11 @@ fn user_sessions() -> &'static RwLock<HashMap<String, StorageSession>> {
 
 /// Get the decrypted user DEK bytes from memory cache.
 pub(crate) fn get_user_dek(user_id: u64) -> Result<Secret> {
+    let storage_dir = ctb_utilities::storage::get_storage_dir()?;
     let keys = user_keys()
         .read()
         .map_err(|e| anyhow!("Keys lock poisoned: {e}"))?;
-    let secret = keys.get(&user_id).ok_or_else(|| {
+    let secret = keys.get(&(storage_dir, user_id)).ok_or_else(|| {
         anyhow!(
             "Encryption key (DEK) not registered/available for user {user_id}"
         )
@@ -78,28 +83,34 @@ pub(crate) fn get_user_dek(user_id: u64) -> Result<Secret> {
 
 /// Register a user's decrypted DEK in memory for database encryption.
 pub(crate) fn register_user_dek(user_id: u64, dek: Secret) -> Result<()> {
+    let storage_dir = ctb_utilities::storage::get_storage_dir()?;
     let mut keys = user_keys()
         .write()
         .map_err(|e| anyhow!("Keys lock poisoned: {e}"))?;
-    keys.insert(user_id, dek);
+    keys.insert((storage_dir, user_id), dek);
+    Ok(())
+}
+
+fn deregister_user_in_dir(storage_dir: &Path, user_id: u64) -> Result<()> {
+    // 1. Remove and drop the key (zeroizing its memory)
+    {
+        let mut keys = user_keys()
+            .write()
+            .map_err(|e| anyhow!("Keys lock poisoned: {e}"))?;
+        keys.remove(&(storage_dir.to_path_buf(), user_id));
+    }
+
+    // 2. Remove the database handles from connection pool in db
+    crate::db::close_connections_in_dir(storage_dir, user_id)?;
+
     Ok(())
 }
 
 /// Deregister a user's decrypted DEK and close/clear their database connections.
 #[ipc_method]
 pub async fn deregister_user(user_id: u64) -> Result<()> {
-    // 1. Remove and drop the key (zeroizing its memory)
-    {
-        let mut keys = user_keys()
-            .write()
-            .map_err(|e| anyhow!("Keys lock poisoned: {e}"))?;
-        keys.remove(&user_id);
-    }
-
-    // 2. Remove the database handles from connection pool in db
-    crate::db::close_connections(user_id)?;
-
-    Ok(())
+    let storage_dir = ctb_utilities::storage::get_storage_dir()?;
+    deregister_user_in_dir(&storage_dir, user_id)
 }
 
 /// Register an active session.
@@ -109,6 +120,7 @@ pub(crate) async fn register_session(
     dek: Secret,
     duration_secs: u64,
 ) -> Result<()> {
+    let storage_dir = ctb_utilities::storage::get_storage_dir()?;
     // Register the user DEK
     register_user_dek(user_id, dek)?;
 
@@ -121,6 +133,7 @@ pub(crate) async fn register_session(
             token.clone(),
             StorageSession {
                 token,
+                storage_dir,
                 user_id,
                 expiry: Instant::now()
                     .checked_add(std::time::Duration::from_secs(duration_secs))
@@ -141,11 +154,15 @@ pub(crate) fn register_test_session(
     user_id: u64,
     duration_secs: u64,
 ) {
+    let Ok(storage_dir) = ctb_utilities::storage::get_storage_dir() else {
+        return;
+    };
     if let Ok(mut sessions) = user_sessions().write() {
         sessions.insert(
             token.clone(),
             StorageSession {
                 token,
+                storage_dir,
                 user_id,
                 expiry: Instant::now()
                     .checked_add(std::time::Duration::from_secs(duration_secs))
@@ -242,13 +259,16 @@ pub async fn change_user_password(
     new_password.password.zeroize();
     let user_id = change_res?;
 
+    let storage_dir = ctb_utilities::storage::get_storage_dir()?;
     let tokens_to_revoke: Vec<String> = {
         let sessions = user_sessions()
             .read()
             .map_err(|e| anyhow!("Sessions lock poisoned: {e}"))?;
         sessions
             .iter()
-            .filter(|(_, s)| s.user_id == user_id)
+            .filter(|(_, s)| {
+                s.storage_dir == storage_dir && s.user_id == user_id
+            })
             .map(|(token, _)| token.clone())
             .collect()
     };
@@ -279,6 +299,7 @@ pub async fn refresh_session(token: String, duration_secs: u64) -> Result<()> {
 /// Validate a session and return the user ID.
 #[ipc_method]
 pub async fn validate_session(token: String) -> Result<Option<u64>> {
+    let storage_dir = ctb_utilities::storage::get_storage_dir()?;
     let now = Instant::now();
     let mut expired = false;
     let mut user_id = None;
@@ -287,7 +308,9 @@ pub async fn validate_session(token: String) -> Result<Option<u64>> {
         let sessions = user_sessions()
             .read()
             .map_err(|e| anyhow!("Sessions lock poisoned: {e}"))?;
-        if let Some(session) = sessions.get(&token) {
+        if let Some(session) = sessions.get(&token)
+            && session.storage_dir == storage_dir
+        {
             if now > session.expiry {
                 expired = true;
             } else {
@@ -354,26 +377,28 @@ async fn active_evict_expired_sessions() -> Result<()> {
 }
 
 async fn invalidate_session_internal(token: &str) -> Result<()> {
-    let (user_id, has_other_sessions) = {
+    let (user_key, has_other_sessions) = {
         let mut sessions = user_sessions()
             .write()
             .map_err(|e| anyhow!("Sessions lock poisoned: {e}"))?;
         if let Some(session) = sessions.remove(token) {
             let user_id = session.user_id;
-            let has_other_sessions =
-                sessions.values().any(|s| s.user_id == user_id);
-            (Some(user_id), has_other_sessions)
+            let storage_dir = session.storage_dir.clone();
+            let has_other_sessions = sessions
+                .values()
+                .any(|s| s.storage_dir == storage_dir && s.user_id == user_id);
+            (Some((storage_dir, user_id)), has_other_sessions)
         } else {
             (None, false)
         }
     };
 
-    if let Some(user_id) = user_id {
+    if let Some((storage_dir, user_id)) = user_key {
         if !has_other_sessions {
             log!(format!(
                 "No active sessions left for user {user_id}. Deregistering."
             ));
-            if let Err(e) = deregister_user(user_id).await {
+            if let Err(e) = deregister_user_in_dir(&storage_dir, user_id) {
                 error!(format!(
                     "Failed to automatically deregister user {user_id}: {e}"
                 ));

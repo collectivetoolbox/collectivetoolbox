@@ -254,15 +254,23 @@ pub fn get_table_name(name: &str) -> String {
     name.replace(['/', '-'], "_")
 }
 
-/// Close and clear database connections for a deregistered user.
-pub fn close_connections(user_id: u64) -> Result<()> {
-    let db_name = format!("graphs/{user_id}/user_data");
-    let path = get_db_path(&db_name)?;
+/// Close and clear database connections for a deregistered user in `storage_dir`.
+pub fn close_connections_in_dir(
+    storage_dir: &Path,
+    user_id: u64,
+) -> Result<()> {
+    let path = storage_dir.join(format!("graphs/{user_id}/user_data.db"));
     let mut pool = db_pool()
         .write()
         .map_err(|e| anyhow!("Pool lock poisoned: {e}"))?;
     pool.remove(&path);
     Ok(())
+}
+
+/// Close and clear database connections for a deregistered user.
+pub fn close_connections(user_id: u64) -> Result<()> {
+    let storage_dir = ctb_utilities::storage::get_storage_dir()?;
+    close_connections_in_dir(&storage_dir, user_id)
 }
 
 /// Convert `SeaQuery` Values to Turso Values.
