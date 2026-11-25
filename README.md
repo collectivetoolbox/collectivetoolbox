@@ -119,31 +119,43 @@ See index page at https://collectivetoolbox.com or in `assets/views/index.hbs` f
 
 ### Deploying
 
-- Save the deployer username into your `~/ctb-deploy.username`
-- Save the sudoer username into your `~/ctb-deploy.sudoer-username`
-- Save the server user's username into your `~/ctb-deploy.server-username`
-- Save the server IP into your `~/ctb-deploy.ip`
-- Save the server SSH port into your `~/ctb-deploy.port`
-- Upload the configuration to the server user's storage dir (Linux):
-  `~/.local/share/com/collectivetoolbox/collectivetoolbox/config/pc_settings.json`
+Server & local prerequisites:
+
+- Server (Debian/Linux): `rsync`, `curl`, `libcap2-bin` (`setcap`), `sudo`, and `systemd` with user lingering (`loginctl enable-linger <server-user>`), plus three separated accounts (deployer, sudoer, and server runner).
+- Local machine: `jq`, `rsync`, `openssh-client` (plus `sshpass` only if using password authentication instead of an SSH key, and `7z` optionally for local `../ctb-deploys/` archives).
+
+Target configuration (`~/ctb-deploy.*`, or in a directory passed via `--config-dir <DIR>` / `--target <DIR>`):
+
+- `~/ctb-deploy.username` — deployer SSH username (uploads releases, binaries, and systemd unit)
+- `~/ctb-deploy.sudoer-username` — sudoer SSH username (runs `scripts/setup-permissions-groups` and `setcap`)
+- `~/ctb-deploy.server-username` — service runner SSH username (runs the `ctoolbox` `systemd --user` service)
+- `~/ctb-deploy.ip` — server IP or hostname
+- `~/ctb-deploy.port` — server SSH port
+- `~/ctb-deploy.key` *(optional, or pass `--ssh-key <PATH>`)* — SSH private key; avoids `sshpass` and SSH password prompts
+- `~/ctb-deploy.global-graph-pass` *(optional)* — password for the server's `global` graph user; prompted interactively if omitted
+- Upload the server configuration to the server user's storage dir (Linux):
+  `~/.local/share/collectivetoolbox/config/pc_settings.json`
 
 Signing keys (developer flow):
 
 - Generate an Ed25519 keypair and write it to your local `pc_settings.json`:
-  `built/<host>/ctoolbox ctb-dev-key-create --write`
-- Copy the *public* key to the server config as `release_public_key`.
+  `./scripts/run-dev-ctb -- ctb-dev-key-create --write`
+- Copy the generated *public* key (`dev_signing_public_key`) to the server's `pc_settings.json` as `release_public_key`.
 
-Deployment script:
+Deployment script (`./deploy` skips lints and tests during compilation, as CI runs those):
 
-- `./deploy server` deploys the server binary (always linux-x64) and restarts
-  the systemd user service.
-- `./deploy releases` builds + signs + uploads update/installer releases for all
-  supported targets.
-- `./deploy all` does both.
+- `./deploy [all] --skip-clean` (or `--clean`): default `all` mode bumps the patch version, builds `linux-x64` and `linux-x86` release binaries + docs, archives source & vendored dependencies, updates Guix/Homebrew packaging, signs and chunks releases (`ctb-dev-sign`), uploads releases, deploys the `linux-x64` server binary and `.rsrc` bundles, restarts the `systemd --user` service, verifies release signatures/chunks (`ctb-dev-release-check`) and `/api/update-status`, logs in/initializes the `global` graph user, and tags `v<version>`.
+- `./deploy quick --skip-clean` (or `--clean`): runs the same pipeline for `linux-x64` only (skipping `linux-x86` cross-compilation).
+- Useful options:
+  - `--clean` / `--skip-clean`: required when building unless `--reuse-built`, `--no-build`, or `--target vm` is used.
+  - `--reuse-built`: reuse existing `built/<target>/ctoolbox` binaries whose embedded commit matches `HEAD`; rebuild only missing/stale targets.
+  - `--no-build`: skip building completely (requires up-to-date binaries matching `HEAD`).
+  - `--dry-run` (`--no-git-bump`): skip version bump, packaging file mutations, git commits, and git tags.
+  - `--target vm`: deploy to the local QEMU Debian sandbox VM (`127.0.0.1:2224`, implies `--dry-run`; see [docs/testing-deployment.md](docs/testing-deployment.md)).
+  - `--mock-artifacts` / `--allow-dirty`: speed up local VM deploy tests.
 
-You will be prompted for passwords for the deploy user (responsible for placing
-files), the server sudoer user (permissions + `setcap`), and the server user
-(service account).
+If SSH key authentication (`ctb-deploy.key` / `--ssh-key`) is not configured, you will be prompted for SSH passwords for the deployer, server, and sudoer accounts; if `ctb-deploy.global-graph-pass` is not present, you will also be prompted for the global graph user password.
+To prune old release chunks and manifests on the server later, run `ctoolbox ctb-dev-release-expire --older-than <DAYS>`.
 
 ### Platforms
 

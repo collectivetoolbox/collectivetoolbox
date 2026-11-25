@@ -57,11 +57,11 @@ particular releases and cross-target binaries in CI.
 
 The deployment test suite consists of three core components:
 
-1. **Debian 13 (Trixie) Linux QEMU VM (`scripts/linux-vm`)**:
+1. **Debian 13 (Trixie) Linux QEMU VM (`./scripts/vm linux` / `./ci-logs/vm linux`)**:
    An isolated virtual machine matching the production server environment:
    - Systemd user session with lingering (`loginctl enable-linger ctb-server`).
    - Privilege separation with three dedicated accounts:
-     - `ctb-deployer`: Uploads release artifacts and binaries (owns `/home/ctb-server/deploy` with group setgid `2750`).
+     - `ctb-deployer`: Uploads release artifacts and binaries (owns `/home/ctb-server/deploy` and `/home/ctb-server/.local/share/collectivetoolbox/releases` with group setgid `2750`).
      - `ctb-server`: Executes the `ctoolbox` service via `systemd --user`.
      - `ctb-sudoer`: Runs `setup-permissions-groups` and applies `cap_net_bind_service=+ep` capabilities via `sudo`.
    - SSH access configured with Ed25519 key authentication (`ci-logs/VMs/Linux/id_ed25519`).
@@ -79,7 +79,7 @@ The deployment test suite consists of three core components:
    - `--ssh-key <path>`: Uses explicit SSH private key authentication instead of `sshpass`.
    - `--allow-dirty`: Bypasses the clean working tree check when iterating locally.
 
-3. **Automated End-to-End Test Harness (`./scripts/linux-vm test-deploy`)**:
+3. **Automated End-to-End Test Harness (`./scripts/vm linux test-deploy`)**:
    Starts the VM in snapshot mode, waits for SSH connectivity, executes `./deploy --target vm`, polls `/api/update-status` and verifies the service health, asserts correct directory permissions and capabilities, and prints remote `journalctl --user -u ctoolbox` error logs if the service fails to start.
 
 ---
@@ -108,36 +108,36 @@ If working offline, provide a local image path:
 
 ## 2. Managing the Linux VM
 
-The `./scripts/linux-vm` helper provides lifecycle and inspection commands:
+The `./scripts/vm linux` helper provides lifecycle and inspection commands:
 
 ```bash
 # Start the VM in background with isolated port forwarding (snapshot mode)
-./scripts/linux-vm start --net
+./scripts/vm linux start --net
 
 # Check VM status and process info
-./scripts/linux-vm status
+./scripts/vm linux status
 
 # Connect via SSH as ctb-deployer (default)
-./scripts/linux-vm ssh
+./scripts/vm linux ssh
 
 # Connect as a different user (e.g. ctb-server or ctb-sudoer)
-./scripts/linux-vm ssh --user ctb-server
-./scripts/linux-vm ssh --user ctb-sudoer
+./scripts/vm linux ssh --user ctb-server
+./scripts/vm linux ssh --user ctb-sudoer
 
 # Run a remote command
-./scripts/linux-vm run uptime
+./scripts/vm linux run uptime
 
 # List snapshots
-./scripts/linux-vm snapshot list
+./scripts/vm linux snapshot list
 
 # Revert to clean base-state snapshot
-./scripts/linux-vm snapshot revert base-state
+./scripts/vm linux snapshot revert base-state
 
 # Capture a screenshot of the VM console
-./scripts/linux-vm screenshot /tmp/linux-vm.png
+./scripts/vm linux screenshot /tmp/linux-vm.png
 
 # Stop the VM gracefully
-./scripts/linux-vm stop
+./scripts/vm linux stop
 ```
 
 ---
@@ -153,7 +153,7 @@ When binaries are already compiled in `built/linux-x64/ctoolbox` and match the c
 ./deploy --target vm --no-build --mock-artifacts
 
 # Or run the complete automated verification harness
-./scripts/linux-vm test-deploy --no-build --mock-artifacts
+./scripts/vm linux test-deploy --no-build --mock-artifacts
 ```
 
 ### Smart Reusable Build & Deploy
@@ -161,7 +161,7 @@ When binaries are already compiled in `built/linux-x64/ctoolbox` and match the c
 If you want to build only what is missing or stale, and reuse existing current binaries:
 
 ```bash
-./scripts/linux-vm test-deploy --reuse-built --mock-artifacts
+./scripts/vm linux test-deploy --reuse-built --mock-artifacts
 ```
 
 If the deploy fails midway due to a server configuration issue, you can resolve the issue and rerun without triggering a 30-minute rebuild from scratch.
