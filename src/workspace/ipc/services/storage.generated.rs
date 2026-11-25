@@ -78,6 +78,8 @@ ipc_service_client! {
             => ::ctb_storage::models::sync_impl::AllocateNextRemoteRangeIpcClientExt(graph_id);
         async fn allocate_next_system_id(&self, session_token: & str) -> Result<u128>
             => ::ctb_storage::models::graph_impl::AllocateNextSystemIdIpcClientExt(session_token.to_string());
+        async fn change_user_password(&self, username: & str, old_password_bytes: Vec < u8 >, new_password_bytes: Vec < u8 >) -> Result<()>
+            => ::ctb_storage::models::user::session::ChangeUserPasswordIpcClientExt(username.to_string(), old_password_bytes, new_password_bytes);
         async fn create_user(&self, user: ::ctb_utilities::ipc::service_traits::storage::UserDto) -> Result<()>
             => ::ctb_storage::models::user_impl::CreateUserIpcClientExt(to_ctb_storage_user_dto(&user));
         async fn create_user_and_session(&self, username: & str, password_bytes: Vec < u8 >, duration_secs: u64) -> Result<String>

@@ -31,6 +31,10 @@ pub trait StorageClientTrait: crate::ipc::registry::IpcCaller + Send + Sync + st
 ///  Allocate the next system ID in the global graph layout.
     async fn allocate_next_system_id(&self, session_token: & str) -> Result<u128>;
 
+///  Rotate a user's password while preserving their DEK, and revoke all existing
+///  sessions for that user.
+    async fn change_user_password(&self, username: & str, old_password_bytes: Vec < u8 >, new_password_bytes: Vec < u8 >) -> Result<()>;
+
     async fn create_user(&self, user: UserDto) -> Result<()>;
 
 ///  Create user and session: creates a new user, registers session, and returns session token.
