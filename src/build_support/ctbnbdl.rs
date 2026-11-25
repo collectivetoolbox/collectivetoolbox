@@ -894,36 +894,44 @@ pub fn sync_highwater_shadow_ledgers(
 /// that the loaded nodes have not been rolled back or mutated relative to the high-water
 /// shadow ledgers.
 pub fn load_ledger_nodes_from_dir(graph_dir: &Path) -> Result<Vec<LedgerNode>> {
-    let repo_root_opt = find_repo_root_for_main_graph_dir(graph_dir);
-    let _read_guard = if let Some(ref repo_root) = repo_root_opt {
-        let guard = LedgerReadGuard::acquire(repo_root)?;
-        ensure_ledger_journal_clean(repo_root, &guard)?;
-        Some(guard)
-    } else {
-        None
-    };
-    let nodes = load_ledger_nodes_from_dir_raw(graph_dir)?;
-    if let Some(repo_root) = repo_root_opt {
+    if let Some(repo_root) = find_repo_root_for_main_graph_dir(graph_dir) {
+        let guard = LedgerReadGuard::acquire(&repo_root)?;
+        let (ledger_sha, nodes_arc) =
+            journal::ensure_ledger_journal_clean_and_load_committed(
+                &repo_root, &guard,
+            )?;
         for (label, shadow_dir) in highwater_shadow_dirs(&repo_root) {
             if shadow_dir.is_dir() {
-                let shadow_nodes = load_ledger_nodes_from_dir_raw(&shadow_dir)
+                let shadow_sha = journal::compute_ledger_dir_sha256(&shadow_dir)
                     .with_context(|| {
                         format!(
-                            "Failed to load {label} from {}",
+                            "Failed to hash {label} at {}",
                             shadow_dir.display()
                         )
                     })?;
-                if !shadow_nodes.is_empty() {
-                    verify_nodes_append_only_against_baseline(
-                        &label,
-                        &shadow_nodes,
-                        &nodes,
-                    )?;
+                if shadow_sha != ledger_sha {
+                    let shadow_nodes =
+                        load_ledger_nodes_from_dir_raw(&shadow_dir)
+                            .with_context(|| {
+                                format!(
+                                    "Failed to load {label} from {}",
+                                    shadow_dir.display()
+                                )
+                            })?;
+                    if !shadow_nodes.is_empty() {
+                        verify_nodes_append_only_against_baseline(
+                            &label,
+                            &shadow_nodes,
+                            &nodes_arc,
+                        )?;
+                    }
                 }
             }
         }
+        drop(guard);
+        return Ok(nodes_arc.as_ref().to_vec());
     }
-    Ok(nodes)
+    load_ledger_nodes_from_dir_raw(graph_dir)
 }
 
 /// Appends `tok` as an `[atom_dc]` token to `out`, escaping `Dc 203` (`Begin encapsulated binary data`),

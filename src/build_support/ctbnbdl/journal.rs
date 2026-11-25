@@ -2598,10 +2598,31 @@ pub fn compact_closed_ledger_chunks_with_guard(
 ///    and `final_last_id` match `assets/data/graph/*.ctbnodes`, and
 /// 4. `assets/data/graph/*.ctbnbdl` and `assets/data/graph/system/*.ctbnbdl` match `BATCH_COMMITTED`'s
 ///    recorded bundle SHA-256 inventory and pass full `(node.id, &node.tokens)` union and partition verification.
-pub fn ensure_ledger_journal_clean(
+#[derive(Clone, PartialEq, Eq)]
+struct VerifiedCommittedLedgerCacheEntry {
+    journal_sha256: String,
+    ledger_sha256: String,
+    unsplit_bundles_sha256: BTreeMap<String, String>,
+    split_present: bool,
+    active_bundles_sha256: BTreeMap<String, String>,
+    history_bundles_sha256: BTreeMap<String, String>,
+    nodes: std::sync::Arc<[LedgerNode]>,
+}
+
+static VERIFIED_COMMITTED_LEDGER_CACHE: std::sync::LazyLock<
+    std::sync::Mutex<Option<VerifiedCommittedLedgerCacheEntry>>,
+> = std::sync::LazyLock::new(|| std::sync::Mutex::new(None));
+
+/// Verifies `ledger-journal.jsonl`, `assets/data/graph/*.ctbnodes`, and `.ctbnbdl` bundles under
+/// `_read_guard`, returning `(final_ledger_sha256, committed_nodes)`.
+///
+/// Reuses the decoded node slice in-process only when the on-disk SHA-256 digests of
+/// `ledger-journal.jsonl`, every `.ctbnodes` chunk file, and every `.ctbnbdl` bundle file match
+/// a previously verified state byte-for-byte.
+pub(super) fn ensure_ledger_journal_clean_and_load_committed(
     repo_root: &Path,
     _read_guard: &LedgerReadGuard,
-) -> Result<()> {
+) -> Result<(String, std::sync::Arc<[LedgerNode]>)> {
     let journal_path = repo_root.join(LEDGER_JOURNAL_REL_PATH);
     let init_marker = repo_root.join(JOURNAL_INITIALIZED_REL_PATH);
     ensure!(
@@ -2610,6 +2631,36 @@ pub fn ensure_ledger_journal_clean(
         journal_path.display(),
         init_marker.exists()
     );
+
+    let journal_sha256 = sha256_file_hex(&journal_path)?;
+    let graph_dir = repo_root.join("assets/data/graph");
+    let actual_ledger_sha = compute_ledger_dir_sha256(&graph_dir)?;
+
+    let bundles_dir = bundles_dir_for_graph_dir(&graph_dir);
+    let actual_unsplit_sha256 = compute_bundle_dir_sha256s(&bundles_dir)?;
+    let live_dir = bundles_dir.join(GRAPH_BUNDLES_SPLIT_LIVE_SUBDIR);
+    let history_dir = bundles_dir.join(GRAPH_BUNDLES_SPLIT_HISTORY_SUBDIR);
+    let split_present = live_dir.exists() || history_dir.exists();
+    let (actual_active_sha256, actual_history_sha256) = if split_present {
+        (
+            compute_bundle_dir_sha256s(&live_dir)?,
+            compute_bundle_dir_sha256s(&history_dir)?,
+        )
+    } else {
+        (BTreeMap::new(), BTreeMap::new())
+    };
+
+    if let Ok(guard) = VERIFIED_COMMITTED_LEDGER_CACHE.lock()
+        && let Some(ref cached) = *guard
+        && cached.journal_sha256 == journal_sha256
+        && cached.ledger_sha256 == actual_ledger_sha
+        && cached.unsplit_bundles_sha256 == actual_unsplit_sha256
+        && cached.split_present == split_present
+        && cached.active_bundles_sha256 == actual_active_sha256
+        && cached.history_bundles_sha256 == actual_history_sha256
+    {
+        return Ok((actual_ledger_sha, std::sync::Arc::clone(&cached.nodes)));
+    }
 
     let parsed = inspect_ledger_journal(&journal_path)?;
     ensure!(
@@ -2630,8 +2681,6 @@ pub fn ensure_ledger_journal_clean(
         );
     };
 
-    let graph_dir = repo_root.join("assets/data/graph");
-    let actual_ledger_sha = compute_ledger_dir_sha256(&graph_dir)?;
     ensure!(
         actual_ledger_sha == last_committed.final_ledger_sha256,
         "CRITICAL: On-disk .ctbnodes ledger SHA-256 {} in {} does not match latest BATCH_COMMITTED ({}) final_ledger_sha256 {}; if ledger-journal.jsonl fell behind an append-only CSV write, run `ctb-lint recover-ledger-journal`.",
@@ -2665,6 +2714,28 @@ pub fn ensure_ledger_journal_clean(
         false,
     )?;
 
+    let nodes_arc: std::sync::Arc<[LedgerNode]> =
+        std::sync::Arc::from(committed_nodes);
+    if let Ok(mut guard) = VERIFIED_COMMITTED_LEDGER_CACHE.lock() {
+        *guard = Some(VerifiedCommittedLedgerCacheEntry {
+            journal_sha256,
+            ledger_sha256: actual_ledger_sha.clone(),
+            unsplit_bundles_sha256: actual_unsplit_sha256,
+            split_present,
+            active_bundles_sha256: actual_active_sha256,
+            history_bundles_sha256: actual_history_sha256,
+            nodes: std::sync::Arc::clone(&nodes_arc),
+        });
+    }
+
+    Ok((actual_ledger_sha, nodes_arc))
+}
+
+pub fn ensure_ledger_journal_clean(
+    repo_root: &Path,
+    read_guard: &LedgerReadGuard,
+) -> Result<()> {
+    let _ = ensure_ledger_journal_clean_and_load_committed(repo_root, read_guard)?;
     Ok(())
 }
 

@@ -87,6 +87,9 @@ opt-level = 2
 [profile.dev.package.ctb-storage-minimal]
 opt-level = 2
 
+[profile.dev.package.ctb-build-support]
+opt-level = 2
+
 [profile.dev.package.ctb-formats-dctf]
 opt-level = 2
 
@@ -168,6 +171,9 @@ opt-level = 2
 opt-level = 2
 
 [profile.test.package.ctb-storage-minimal]
+opt-level = 2
+
+[profile.test.package.ctb-build-support]
 opt-level = 2
 
 [profile.test.package.ctb-formats-dctf]
