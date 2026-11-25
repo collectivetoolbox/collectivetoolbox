@@ -33,8 +33,7 @@ WINEDEBUG=-all wine target/windows-standalone-tests/windows_shim/shim.exe
 Rustdoc executables persisted with `--persist-doctests` can be included through
 the same standalone-test directory. Compilation with `--no-run` alone is not
 native runtime verification. Each executable needs its own uniquely named
-parent directory. Standalone programs receive no libtest arguments; unit
-binaries run with `--include-ignored`.
+parent directory. Standalone programs receive no libtest arguments.
 
 The VM serial-protocol regressions do not require a running VM:
 

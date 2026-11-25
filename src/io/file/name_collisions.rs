@@ -460,7 +460,7 @@ pub fn validate_and_order_directory_entries(
 
     Ok(ordered)
 }
-#[cfg(all(test, unix))]
+#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,
@@ -481,132 +481,153 @@ mod tests {
     use tempfile::tempdir;
 
     #[crate::ctb_test]
+    #[cfg_attr(
+        not(unix),
+        ignore = "Unix arbitrary non-UTF-8 byte filenames are unavailable on Windows"
+    )]
     fn test_name_collision_preserves_native_names() -> Result<()> {
-        use std::os::unix::ffi::OsStringExt;
+        #[cfg(unix)]
+        {
+            use std::os::unix::ffi::OsStringExt;
 
-        let temp = tempdir()?;
-        let source = temp.path().join("source");
-        let destination = temp.path().join("destination");
-        fs::create_dir(&source)?;
-        fs::create_dir(&destination)?;
-        let names = [
-            std::ffi::OsString::from_vec(b"name\xff".to_vec()),
-            std::ffi::OsString::from_vec(b"name\xfe".to_vec()),
-            std::ffi::OsString::from("caf\u{e9}"),
-            std::ffi::OsString::from("cafe\u{301}"),
-        ];
-        for name in &names {
-            fs::write(source.join(name), name.as_encoded_bytes())?;
-        }
-        fs::create_dir(destination.join("name\u{fffd}"))?;
-        let entries = read_dir_safe(&source, &TraversalOptions::new())?;
-        let ordered = validate_and_order_directory_entries(
-            entries,
-            &source,
-            &destination,
-            &destination,
-            Path::new(""),
-            &AppleReadOptions::default(),
-            AppleWriteMode::NativeOnly,
-            AppleSingleExtension::WithoutExtension,
-        )?;
-        ensure!(ordered.len() == names.len());
-        for name in &names {
-            ensure!(ordered.iter().any(|entry| &entry.file_name == name));
-        }
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_name_collision_companions_preserve_native_names() -> Result<()> {
-        use std::os::unix::ffi::OsStringExt;
-
-        let name = std::ffi::OsString::from_vec(b"name\xff".to_vec());
-        let mut companion = std::ffi::OsString::from("._");
-        companion.push(&name);
-        for style in [
-            AppleDoubleStyle::Alongside,
-            AppleDoubleStyle::Zip,
-            AppleDoubleStyle::Netatalk,
-        ] {
-            let path = get_companion_path(
-                Path::new("destination"),
-                Path::new(&name),
-                false,
-                style,
-                Some(Path::new("destination")),
-                Some(&PathBuf::from("nested").join(&name)),
-            );
-            let expected = match style {
-                AppleDoubleStyle::Alongside => {
-                    PathBuf::from("destination").join(&companion)
-                }
-                AppleDoubleStyle::Zip => {
-                    PathBuf::from("destination/__MACOSX/nested")
-                        .join(&companion)
-                }
-                AppleDoubleStyle::Netatalk => {
-                    PathBuf::from("destination/.AppleDouble").join(&name)
-                }
-            };
-            ensure!(
-                path == expected,
-                "Companion path changed native filename: {style:?}"
-            );
-        }
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_name_collision_raw_apple_single_extension() -> Result<()> {
-        use std::os::unix::ffi::OsStringExt;
-
-        let temp = tempdir()?;
-        let source = temp.path().join("source");
-        let destination = temp.path().join("destination");
-        fs::create_dir(&source)?;
-        let name = OsString::from_vec(b"name\xff".to_vec());
-        fs::write(source.join(&name), b"original")?;
-        let entity = crate::entity::FileEntity::from_vec(b"encoded".to_vec());
-        let archive = crate::apple_double::create_apple_archive_from_entity(
-            &entity,
-            AppleFormat::AppleSingle,
-            Some(b"encoded".to_vec()),
-        )?;
-        let mut encoded_name = name.clone();
-        encoded_name.push(".As");
-        fs::write(
-            source.join(&encoded_name),
-            write_apple_single_double(&archive)?,
-        )?;
-        let read_options = AppleReadOptions {
-            read_apple_single_as: true,
-            ..Default::default()
-        };
-        let entries = read_dir_safe(&source, &TraversalOptions::new())?;
-        let result = validate_and_order_directory_entries(
-            entries,
-            &source,
-            &destination,
-            &destination,
-            Path::new(""),
-            &read_options,
-            AppleWriteMode::NativeOnly,
-            AppleSingleExtension::WithoutExtension,
-        );
-        ensure!(
-            result.is_err(),
-            "Raw AppleSingle stem collision was not detected"
-        );
-
-        fs::remove_file(source.join(&name))?;
-        let decoded =
-            crate::entity::FileEntity::from_filesystem_with_apple_options(
-                &source.join(&encoded_name),
-                Some(&source),
-                &read_options,
+            let temp = tempdir()?;
+            let source = temp.path().join("source");
+            let destination = temp.path().join("destination");
+            fs::create_dir(&source)?;
+            fs::create_dir(&destination)?;
+            let names = [
+                std::ffi::OsString::from_vec(b"name\xff".to_vec()),
+                std::ffi::OsString::from_vec(b"name\xfe".to_vec()),
+                std::ffi::OsString::from("caf\u{e9}"),
+                std::ffi::OsString::from("cafe\u{301}"),
+            ];
+            for name in &names {
+                fs::write(source.join(name), name.as_encoded_bytes())?;
+            }
+            fs::create_dir(destination.join("name\u{fffd}"))?;
+            let entries = read_dir_safe(&source, &TraversalOptions::new())?;
+            let ordered = validate_and_order_directory_entries(
+                entries,
+                &source,
+                &destination,
+                &destination,
+                Path::new(""),
+                &AppleReadOptions::default(),
+                AppleWriteMode::NativeOnly,
+                AppleSingleExtension::WithoutExtension,
             )?;
-        ensure!(decoded.identity.relative_path == Some(PathBuf::from(name)));
+            ensure!(ordered.len() == names.len());
+            for name in &names {
+                ensure!(ordered.iter().any(|entry| &entry.file_name == name));
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    #[cfg_attr(
+        not(unix),
+        ignore = "Unix arbitrary non-UTF-8 byte filenames are unavailable on Windows"
+    )]
+    fn test_name_collision_companions_preserve_native_names() -> Result<()> {
+        #[cfg(unix)]
+        {
+            use std::os::unix::ffi::OsStringExt;
+
+            let name = std::ffi::OsString::from_vec(b"name\xff".to_vec());
+            let mut companion = std::ffi::OsString::from("._");
+            companion.push(&name);
+            for style in [
+                AppleDoubleStyle::Alongside,
+                AppleDoubleStyle::Zip,
+                AppleDoubleStyle::Netatalk,
+            ] {
+                let path = get_companion_path(
+                    Path::new("destination"),
+                    Path::new(&name),
+                    false,
+                    style,
+                    Some(Path::new("destination")),
+                    Some(&PathBuf::from("nested").join(&name)),
+                );
+                let expected = match style {
+                    AppleDoubleStyle::Alongside => {
+                        PathBuf::from("destination").join(&companion)
+                    }
+                    AppleDoubleStyle::Zip => {
+                        PathBuf::from("destination/__MACOSX/nested")
+                            .join(&companion)
+                    }
+                    AppleDoubleStyle::Netatalk => {
+                        PathBuf::from("destination/.AppleDouble").join(&name)
+                    }
+                };
+                ensure!(
+                    path == expected,
+                    "Companion path changed native filename: {style:?}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    #[cfg_attr(
+        not(unix),
+        ignore = "Unix arbitrary non-UTF-8 byte filenames are unavailable on Windows"
+    )]
+    fn test_name_collision_raw_apple_single_extension() -> Result<()> {
+        #[cfg(unix)]
+        {
+            use std::os::unix::ffi::OsStringExt;
+
+            let temp = tempdir()?;
+            let source = temp.path().join("source");
+            let destination = temp.path().join("destination");
+            fs::create_dir(&source)?;
+            let name = OsString::from_vec(b"name\xff".to_vec());
+            fs::write(source.join(&name), b"original")?;
+            let entity = crate::entity::FileEntity::from_vec(b"encoded".to_vec());
+            let archive = crate::apple_double::create_apple_archive_from_entity(
+                &entity,
+                AppleFormat::AppleSingle,
+                Some(b"encoded".to_vec()),
+            )?;
+            let mut encoded_name = name.clone();
+            encoded_name.push(".As");
+            fs::write(
+                source.join(&encoded_name),
+                write_apple_single_double(&archive)?,
+            )?;
+            let read_options = AppleReadOptions {
+                read_apple_single_as: true,
+                ..Default::default()
+            };
+            let entries = read_dir_safe(&source, &TraversalOptions::new())?;
+            let result = validate_and_order_directory_entries(
+                entries,
+                &source,
+                &destination,
+                &destination,
+                Path::new(""),
+                &read_options,
+                AppleWriteMode::NativeOnly,
+                AppleSingleExtension::WithoutExtension,
+            );
+            ensure!(
+                result.is_err(),
+                "Raw AppleSingle stem collision was not detected"
+            );
+
+            fs::remove_file(source.join(&name))?;
+            let decoded =
+                crate::entity::FileEntity::from_filesystem_with_apple_options(
+                    &source.join(&encoded_name),
+                    Some(&source),
+                    &read_options,
+                )?;
+            ensure!(decoded.identity.relative_path == Some(PathBuf::from(name)));
+        }
         Ok(())
     }
 
@@ -791,6 +812,10 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    #[cfg_attr(
+        windows,
+        ignore = "NTFS treats ':' in filenames as an alternate data stream rather than a separate directory entry"
+    )]
     fn test_name_collision_windows_ads_companion_conflict() -> Result<()> {
         let temp = tempdir()?;
         let src = temp.path().join("src");

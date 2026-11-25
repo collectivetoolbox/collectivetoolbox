@@ -51,7 +51,6 @@ pub(crate) fn run_permission_test_unprivileged(
     let output = std::process::Command::new(std::env::current_exe()?)
         .arg("--exact")
         .arg(test_path)
-        .arg("--include-ignored")
         .arg("--nocapture")
         .env_remove("CTB_TEST_STORAGE_DIR")
         .uid(65534)

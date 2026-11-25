@@ -26,7 +26,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+#[cfg(target_os = "linux")]
 use include_dir::{Dir, DirEntry, include_dir};
+#[cfg(target_os = "linux")]
 use std::path::{Path, PathBuf};
 
 #[cfg(target_os = "linux")]
@@ -339,7 +341,7 @@ pub fn ensure_x11_locale_root() -> Result<()> {
     Ok(())
 }
 
-#[cfg(all(test, target_os = "linux"))]
+#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,
@@ -352,58 +354,65 @@ pub fn ensure_x11_locale_root() -> Result<()> {
 )]
 mod tests {
     use super::*;
-    use std::fs;
 
     #[crate::ctb_test]
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "XKB temp directory extraction is only active on Linux"
+    )]
     fn test_temp_dir_cleanup() {
-        use fs2::FileExt;
+        #[cfg(target_os = "linux")]
+        {
+            use fs2::FileExt;
+            use std::fs;
 
-        let temp_dir = std::env::temp_dir();
+            let temp_dir = std::env::temp_dir();
 
-        // 1. Create a dummy active temp directory (locked)
-        let active_dir = tempfile::Builder::new()
-            .prefix("ctoolbox-xkb-active-")
-            .tempdir()
-            .unwrap();
-        let active_lock_path = active_dir.path().join(".lock");
-        let active_lock_file = fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(&active_lock_path)
-            .unwrap();
-        active_lock_file.try_lock_exclusive().unwrap();
+            // 1. Create a dummy active temp directory (locked)
+            let active_dir = tempfile::Builder::new()
+                .prefix("ctoolbox-xkb-active-")
+                .tempdir()
+                .unwrap();
+            let active_lock_path = active_dir.path().join(".lock");
+            let active_lock_file = fs::OpenOptions::new()
+                .create(true)
+                .write(true)
+                .open(&active_lock_path)
+                .unwrap();
+            active_lock_file.try_lock_exclusive().unwrap();
 
-        // 2. Create a dummy orphaned temp directory (unlocked)
-        let orphaned_dir_path = temp_dir.join("ctoolbox-xkb-orphaned-test");
-        if orphaned_dir_path.exists() {
-            let _ = fs::remove_dir_all(&orphaned_dir_path);
+            // 2. Create a dummy orphaned temp directory (unlocked)
+            let orphaned_dir_path = temp_dir.join("ctoolbox-xkb-orphaned-test");
+            if orphaned_dir_path.exists() {
+                let _ = fs::remove_dir_all(&orphaned_dir_path);
+            }
+            fs::create_dir_all(&orphaned_dir_path).unwrap();
+            let orphaned_lock_path = orphaned_dir_path.join(".lock");
+            let orphaned_lock_file = fs::OpenOptions::new()
+                .create(true)
+                .write(true)
+                .open(&orphaned_lock_path)
+                .unwrap();
+            // Do not lock it (mocking a dead process where lock is released)
+            drop(orphaned_lock_file);
+
+            // Run the cleanup function
+            clean_orphaned_temp_dirs().unwrap();
+
+            // The active directory should still exist
+            assert!(
+                active_dir.path().exists(),
+                "Active locked directory should not be deleted"
+            );
+
+            // The orphaned directory should be deleted
+            assert!(
+                !orphaned_dir_path.exists(),
+                "Orphaned unlocked directory should be deleted"
+            );
+
+            // Clean up the active lock file so it doesn't leak
+            drop(active_lock_file);
         }
-        fs::create_dir_all(&orphaned_dir_path).unwrap();
-        let orphaned_lock_path = orphaned_dir_path.join(".lock");
-        let orphaned_lock_file = fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(&orphaned_lock_path)
-            .unwrap();
-        // Do not lock it (mocking a dead process where lock is released)
-        drop(orphaned_lock_file);
-
-        // Run the cleanup function
-        clean_orphaned_temp_dirs().unwrap();
-
-        // The active directory should still exist
-        assert!(
-            active_dir.path().exists(),
-            "Active locked directory should not be deleted"
-        );
-
-        // The orphaned directory should be deleted
-        assert!(
-            !orphaned_dir_path.exists(),
-            "Orphaned unlocked directory should be deleted"
-        );
-
-        // Clean up the active lock file so it doesn't leak
-        drop(active_lock_file);
     }
 }

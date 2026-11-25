@@ -24,14 +24,18 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #![no_std]
 
-use core::arch::asm;
-use core::ffi::{c_int, c_long, c_ulong};
-
-#[cfg(not(test))]
+#[cfg(all(not(test), target_os = "linux", target_arch = "x86_64"))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
-    loop {}
+    loop {
+        core::hint::spin_loop();
+    }
 }
+
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+mod linux_x86_64 {
+    use core::arch::asm;
+    use core::ffi::{c_int, c_long, c_ulong};
 
 #[expect(
     unsafe_code,
@@ -648,3 +652,7 @@ pub unsafe extern "C" fn fchownat(
     }
     0
 }
+}
+
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+pub use linux_x86_64::*;

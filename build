@@ -546,20 +546,9 @@ for p in "${platforms[@]}"; do
     export MAKEFLAGS="-j$(($(nproc)/2))"
 
     if [[ "$run_tests" == "true" ]]; then
-        test_exclude=( )
-        if [[ "$target" == i586-* || "$target" == i686-* || "$p" == *"x86"* ]]; then
-            test_exclude=(--exclude ctb-nopersonality)
-        fi
-        if [[ "$target" == *windows* ]]; then
-            test_exclude=(--exclude ctb-nopersonality --exclude yaxi --exclude ctb-workspace-x11-client --exclude ctb-workspace-x11-client-egui)
-        fi
-        if [[ "$target" == *freebsd* ]]; then
-            test_exclude=(--exclude ctb-nopersonality)
-        fi
-
         extra_test_args=()
         test_env_prefix=()
-        test_harness_args=(--include-ignored --skip tests::test_bootstrap_ts_compilation)
+        test_harness_args=()
         if [[ "$target" == *windows* ]]; then
             if ! setup_wine_env; then
                 echo "Could not find a working 64-bit WINE runner to run tests." >&2
@@ -575,18 +564,18 @@ for p in "${platforms[@]}"; do
 
         # Build workspace examples so example-based integration tests (which
         # spawn standalone example binaries) have their targets available.
-        CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" --examples --target "$target"
+        CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline "${extra_cargo_flags[@]}" --workspace --examples --target "$target"
 
         # Run tests if RUST_LOG is set (to get more verbose output). By default
         # even debug tests are quiet.
         if [[ -n "${RUST_LOG-}" ]]; then
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" "${test_env_prefix[@]}" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- "${test_harness_args[@]}" --nocapture || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" "${test_env_prefix[@]}" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- "${test_harness_args[@]}" --nocapture || exit 1
         else
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" "${test_env_prefix[@]}" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- "${test_harness_args[@]}" || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" "${test_env_prefix[@]}" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- "${test_harness_args[@]}" || exit 1
         fi
 
         if [[ "$target" == *windows* ]]; then
-            CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" "${test_env_prefix[@]}" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" --doc --no-fail-fast --target "$target" -- --include-ignored || exit 1
+            CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" "${test_env_prefix[@]}" cargo test $offline "${extra_cargo_flags[@]}" --workspace --doc --no-fail-fast --target "$target" || exit 1
         fi
 
         if [[ "$build_binaries" != "true" ]]; then
