@@ -40,9 +40,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::chunking::{
-    chunk_file, compute_file_sha256_hex, write_chunks_to_directory_compressed,
-};
+use crate::chunking::stream_chunk_file_to_directory_compressed;
 use crate::manifest::{FileEntry, Platform, ReleaseManifest};
 use crate::signing::{KeyId, private_key_from_base64, sign_manifest};
 use ctb_utilities::pc_settings::{PcSettingStrKey, PcSettings};
@@ -424,22 +422,15 @@ pub fn run_dev_sign(
         // Get artifact configuration
         let config = get_artifact_config(artifact_path);
 
-        // Compute file checksum
-        let checksum =
-            compute_file_sha256_hex(artifact_path).with_context(|| {
-                format!("Failed to hash file: {}", artifact_path.display())
-            })?;
-
-        // Chunk the file
-        let mut chunks = chunk_file(artifact_path).with_context(|| {
-            format!("Failed to chunk file: {}", artifact_path.display())
-        })?;
-
-        // Write chunks to output directory in compressed form (bh/a0/bc/hash.br)
-        write_chunks_to_directory_compressed(&mut chunks, &chunk_dir)
+        // Stream-hash, FastCDC-chunk, and Brotli-compress in bounded memory
+        let (checksum, chunk_infos) =
+            stream_chunk_file_to_directory_compressed(
+                artifact_path,
+                &chunk_dir,
+            )
             .with_context(|| {
                 format!(
-                    "Failed to write chunks for: {}",
+                    "Failed to chunk and compress artifact: {}",
                     artifact_path.display()
                 )
             })?;
@@ -456,11 +447,11 @@ pub fn run_dev_sign(
         entry.requires = config.requires;
 
         // Add chunk info to entry
-        for chunk in &chunks {
-            entry.add_chunk(chunk.to_chunk_info());
+        for info in &chunk_infos {
+            entry.add_chunk(info.clone());
         }
 
-        total_chunks = total_chunks.saturating_add(chunks.len());
+        total_chunks = total_chunks.saturating_add(chunk_infos.len());
         manifest.add_file(entry);
     }
 

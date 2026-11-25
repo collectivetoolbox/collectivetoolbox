@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/home/ctb/deploy/ctoolbox
+ExecStart=%h/deploy/ctoolbox
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal

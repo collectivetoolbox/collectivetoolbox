@@ -66,8 +66,10 @@ HOME_SERVER="/home/${USER_SERVER}"
 DEPLOYER_DIR="${HOME_SERVER}/deploy"
 SYSTEMD_DIR="${HOME_SERVER}/.config/systemd/user"
 SYSTEMD_WANTS_DIR="${SYSTEMD_DIR}/default.target.wants"
-CONFIG_DIR="${HOME_SERVER}/.local/share/collectivetoolbox/config"
-CONFIG_FILE="${HOME_SERVER}/.local/share/collectivetoolbox/config/pc_settings.json"
+STORAGE_DIR="${HOME_SERVER}/.local/share/collectivetoolbox"
+RELEASES_DIR="${STORAGE_DIR}/releases"
+CONFIG_DIR="${STORAGE_DIR}/config"
+CONFIG_FILE="${CONFIG_DIR}/pc_settings.json"
 SERVICE_FILE="${SYSTEMD_DIR}/ctoolbox.service"
 WANTS_SERVICE_FILE="${SYSTEMD_WANTS_DIR}/ctoolbox.service"
 
@@ -125,7 +127,12 @@ chmod 2750 "${DEPLOYER_DIR}"
 # We'll make the directory owned by deployer and group = server, with group read+execute for server.
 echo "Creating systemd user directory ${SYSTEMD_DIR} (owner=${USER_DEPLOYER}, group=${SERVER_PRIMARY_GROUP})."
 mkdir -p "${SYSTEMD_WANTS_DIR}"
+chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${HOME_SERVER}/.config"
+chmod 750 "${HOME_SERVER}/.config"
+chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${HOME_SERVER}/.config/systemd"
+chmod 750 "${HOME_SERVER}/.config/systemd"
 chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${SYSTEMD_DIR}"
+chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${SYSTEMD_WANTS_DIR}"
 # mode 750: owner rwx (deployer), group rx (server), others none
 chmod 750 "${SYSTEMD_DIR}"
 chmod 750 "${SYSTEMD_WANTS_DIR}"
@@ -139,21 +146,30 @@ fi
 chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${SERVICE_FILE}"
 # mode 0640: owner rw, group r, others none
 chmod 0640 "${SERVICE_FILE}"
-ln -s -f "${SERVICE_FILE}" "${WANTS_SERVICE_FILE}"
-chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${WANTS_SERVICE_FILE}"
-chmod 0640 "${WANTS_SERVICE_FILE}"
+if [ -e "${WANTS_SERVICE_FILE}" ] || [ -L "${WANTS_SERVICE_FILE}" ]; then
+  rm "${WANTS_SERVICE_FILE}"
+fi
+ln -s "${SERVICE_FILE}" "${WANTS_SERVICE_FILE}"
+chown -h "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${WANTS_SERVICE_FILE}"
 
-echo "Creating settings directory ${CONFIG_DIR} (owner=${USER_DEPLOYER}, group=${SERVER_PRIMARY_GROUP})."
-mkdir -p "${CONFIG_DIR}"
-# chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${HOME_SERVER}/.local" || true
-# chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${HOME_SERVER}/.local/share" || true
-chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${HOME_SERVER}/.local/share/collectivetoolbox" || true
+echo "Creating storage, releases, and settings directories under ${STORAGE_DIR}."
+mkdir -p "${CONFIG_DIR}" "${RELEASES_DIR}"
+chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${HOME_SERVER}/.local"
+chmod 750 "${HOME_SERVER}/.local"
+chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${HOME_SERVER}/.local/share"
+chmod 750 "${HOME_SERVER}/.local/share"
+chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${STORAGE_DIR}"
+chmod 750 "${STORAGE_DIR}"
+
+chown -R "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${RELEASES_DIR}"
+chmod 2750 "${RELEASES_DIR}"
+
 chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${CONFIG_DIR}"
 chmod 750 "${CONFIG_DIR}"
 
-if [ ! -e "${CONFIG_FILE}" ]; then
-  echo "Creating empty service file ${CONFIG_FILE}"
-  touch "${CONFIG_FILE}"
+if [ ! -s "${CONFIG_FILE}" ]; then
+  echo "Creating initial settings file ${CONFIG_FILE}"
+  printf '{"version":1,"note":"Initial server settings.","bind_to_ip":"127.0.0.1","fixed_http_port":8080}\n' > "${CONFIG_FILE}"
 fi
 chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${CONFIG_FILE}"
 chmod 0640 "${CONFIG_FILE}"

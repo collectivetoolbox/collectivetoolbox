@@ -33,7 +33,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use fastcdc::v2020::FastCDC;
+use fastcdc::v2020::{FastCDC, StreamCDC};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -347,6 +347,15 @@ pub fn write_chunks_to_directory_compressed(
             })?;
         }
 
+        // Reuse existing compressed chunk file if already present on disk
+        if let Ok(existing_meta) = fs::metadata(&chunk_path)
+            && existing_meta.is_file()
+            && existing_meta.len() > 0
+        {
+            chunk.compressed_size = Some(existing_meta.len());
+            continue;
+        }
+
         // Compress the chunk data using Brotli
         let mut compressed_data = Vec::new();
         {
@@ -369,11 +378,6 @@ pub fn write_chunks_to_directory_compressed(
         // Reason for fallback: compressed chunk data length u64 conversion overflow defaults size to 0
         let compressed_size = u64::try_from(compressed_data.len()).unwrap_or(0);
         chunk.compressed_size = Some(compressed_size);
-
-        // Skip if chunk already exists (deduplication)
-        if chunk_path.exists() {
-            continue;
-        }
 
         fs::write(&chunk_path, compressed_data).with_context(|| {
             format!(
@@ -610,14 +614,10 @@ pub fn reassemble_file_from_chunks(
     Ok(())
 }
 
-/// Streams a file's chunks to a directory, processing the file in a
-/// memory-efficient way.
+/// Streams a file's chunks to a directory, processing the file in bounded
+/// memory (`MAX_CHUNK_SIZE`) via `StreamCDC`.
 ///
-/// Unlike `chunk_file` which loads the entire file into memory, this function
-/// processes the file in streaming fashion and writes chunks directly to disk.
-/// However, due to `FastCDC`'s requirements, it still needs to buffer data.
-/// Uses two-level prefix subdirectory structure: ab/cd/hash
-///
+/// Uses two-level prefix subdirectory structure: `ab/cd/hash`.
 /// Returns the list of chunk infos (without data) for use in manifests.
 ///
 /// # Errors
@@ -626,13 +626,78 @@ pub fn stream_chunk_file_to_directory(
     input_path: &Path,
     output_dir: &Path,
 ) -> Result<Vec<crate::manifest::ChunkInfo>> {
-    // FastCDC requires all data in memory, so we read the file fully
-    // In the future, we could implement a streaming CDC algorithm
-    let chunks = chunk_file(input_path)?;
+    fs::create_dir_all(output_dir).with_context(|| {
+        format!("Failed to create chunk directory: {}", output_dir.display())
+    })?;
 
-    write_chunks_to_directory(&chunks, output_dir)?;
+    let file = File::open(input_path).with_context(|| {
+        format!(
+            "Failed to open file for streaming chunking: {}",
+            input_path.display()
+        )
+    })?;
 
-    Ok(chunks.iter().map(Chunk::to_chunk_info).collect())
+    let stream =
+        StreamCDC::new(file, MIN_CHUNK_SIZE, AVG_CHUNK_SIZE, MAX_CHUNK_SIZE);
+    let mut infos = Vec::new();
+
+    for item in stream {
+        let chunk_data = item.with_context(|| {
+            format!(
+                "Failed while streaming chunks from: {}",
+                input_path.display()
+            )
+        })?;
+        let chunk = Chunk::new(chunk_data.data, chunk_data.offset);
+        write_chunks_to_directory(std::slice::from_ref(&chunk), output_dir)?;
+        infos.push(chunk.to_chunk_info());
+    }
+
+    Ok(infos)
+}
+
+/// Streams a file through `StreamCDC`, computing the full-file SHA-256 digest
+/// and writing Brotli-compressed chunks (`ab/cd/hash.br`) in a single pass
+/// without loading the entire file into memory. Existing non-empty compressed
+/// chunks on disk are reused without re-compression.
+///
+/// Returns `(file_sha256_hex, chunk_infos)`.
+pub fn stream_chunk_file_to_directory_compressed(
+    input_path: &Path,
+    output_dir: &Path,
+) -> Result<(String, Vec<crate::manifest::ChunkInfo>)> {
+    fs::create_dir_all(output_dir).with_context(|| {
+        format!("Failed to create chunk directory: {}", output_dir.display())
+    })?;
+
+    let file = File::open(input_path).with_context(|| {
+        format!(
+            "Failed to open file for compressed streaming chunking: {}",
+            input_path.display()
+        )
+    })?;
+
+    let stream =
+        StreamCDC::new(file, MIN_CHUNK_SIZE, AVG_CHUNK_SIZE, MAX_CHUNK_SIZE);
+    let mut file_hasher = Sha256::new();
+    let mut infos = Vec::new();
+
+    for item in stream {
+        let chunk_data = item.with_context(|| {
+            format!(
+                "Failed while streaming chunks from: {}",
+                input_path.display()
+            )
+        })?;
+        file_hasher.update(&chunk_data.data);
+        let mut single = [Chunk::new(chunk_data.data, chunk_data.offset)];
+        write_chunks_to_directory_compressed(&mut single, output_dir)?;
+        if let Some(first) = single.first() {
+            infos.push(first.to_chunk_info());
+        }
+    }
+
+    Ok((bin2hex(file_hasher.finalize()), infos))
 }
 
 #[cfg(test)]
@@ -973,5 +1038,43 @@ mod tests {
         // Only one file should exist
         let entries: Vec<_> = fs::read_dir(&chunk_dir).unwrap().collect();
         assert_eq!(entries.len(), 1);
+    }
+
+    #[crate::ctb_test]
+    fn test_stream_chunk_compressed_matches_in_memory_and_reuses_existing() {
+        let temp_dir = TempDir::new().unwrap();
+        let target_len = usize::try_from(MAX_CHUNK_SIZE)
+            .unwrap_or(0)
+            .saturating_mul(2);
+        let original_data: Vec<u8> = (0..target_len)
+            .map(|i| {
+                u8::try_from((i.wrapping_mul(31).wrapping_add(7)) % 256)
+                    .expect("fits in u8")
+            })
+            .collect();
+        let input_path =
+            create_test_file(temp_dir.path(), "stream_in.bin", &original_data);
+        let chunk_dir = temp_dir.path().join("bh");
+
+        let expected_sha = compute_file_sha256_hex(&input_path).unwrap();
+        let mut expected_chunks = chunk_data(&original_data).unwrap();
+        let mem_dir = temp_dir.path().join("bh_mem");
+        write_chunks_to_directory_compressed(&mut expected_chunks, &mem_dir)
+            .unwrap();
+        let expected_infos: Vec<_> =
+            expected_chunks.iter().map(Chunk::to_chunk_info).collect();
+
+        let (stream_sha, stream_infos) =
+            stream_chunk_file_to_directory_compressed(&input_path, &chunk_dir)
+                .unwrap();
+        assert_eq!(stream_sha, expected_sha);
+        assert_eq!(stream_infos, expected_infos);
+
+        // Second pass should reuse existing compressed files and return identical compressed_size
+        let (stream_sha_2, stream_infos_2) =
+            stream_chunk_file_to_directory_compressed(&input_path, &chunk_dir)
+                .unwrap();
+        assert_eq!(stream_sha_2, expected_sha);
+        assert_eq!(stream_infos_2, expected_infos);
     }
 }

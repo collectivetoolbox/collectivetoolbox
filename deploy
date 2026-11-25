@@ -31,9 +31,9 @@ Usage:
 	./deploy [quick|all] [options]
 
 Modes:
-	quick     Build + deploy the server binary target (linux-x64).
-	all       Build + deploy all targets (linux-x64 and linux-x86). This is the
-              default.
+	quick     Build + sign + deploy the server & release target (linux-x64).
+	all       Build + sign + deploy all release targets (linux-x64 and linux-x86)
+	          plus update the server binary (linux-x64). This is the default.
 
 Build Options:
 	--clean           Run cargo clean before building.
@@ -48,14 +48,15 @@ Deployment Target & Credentials:
 	                        or a directory path containing ctb-deploy.* configuration files.
 	--config-dir <DIR>      Directory containing ctb-deploy.* files.
 	--ssh-key <PATH>        Use explicit SSH private key file instead of password/sshpass.
-	--dry-run               Skip version bump, git commits, and git tag creation.
+	--dry-run               Skip version bump, packaging mutations, git commits, and git tag creation.
 	--no-git-bump           Alias for --dry-run.
 	--allow-dirty           Allow deploying with unstaged or uncommitted changes.
 
 Notes:
+	- Lints and tests are skipped during ./deploy builds (handled by CI).
 	- Releases are uploaded into the server user's storage directory so the
 	  update server can serve them from /releases/...
-	- SSH key authentication is supported via --ssh-key or VM profile.
+	- SSH key authentication is supported via --ssh-key, ctb-deploy.key, or VM profile.
 USAGE
 }
 
@@ -67,6 +68,34 @@ read_secret() {
 	printf '%s' "$secret"
 }
 
+read_config_value() {
+	local file_path="$1"
+	if [[ ! -r "$file_path" ]]; then
+		echo "Error: Required deployment configuration file not found or unreadable: $file_path" >&2
+		exit 1
+	fi
+	local val
+	val="$(<"$file_path")"
+	val="${val%$'\r'}"
+	val="${val%$'\n'}"
+	if [[ -z "$val" ]]; then
+		echo "Error: Deployment configuration file is empty: $file_path" >&2
+		exit 1
+	fi
+	printf '%s' "$val"
+}
+
+replace_symlink() {
+	local link_target="$1"
+	local link_path="$2"
+	local tmp_link="${link_path}.tmp.$$"
+	if [[ -L "$tmp_link" || -e "$tmp_link" ]]; then
+		rm "$tmp_link"
+	fi
+	ln -s "$link_target" "$tmp_link"
+	mv -T "$tmp_link" "$link_path"
+}
+
 mode_quick=0
 skip_clean=""
 target_env="live"
@@ -76,6 +105,7 @@ reuse_built=0
 dry_run=0
 mock_artifacts=0
 ssh_key=""
+explicit_ssh_key=0
 allow_dirty=0
 
 while [[ $# -gt 0 ]]; do
@@ -114,16 +144,32 @@ while [[ $# -gt 0 ]]; do
 			allow_dirty=1
 			;;
 		"--target")
+			if [[ $# -lt 2 || -z "${2:-}" ]]; then
+				echo "Error: --target requires an argument (<live|vm|DIR>)." >&2
+				usage >&2
+				exit 1
+			fi
 			shift
-			target_env="${1:-live}"
+			target_env="$1"
 			;;
 		"--config-dir")
+			if [[ $# -lt 2 || -z "${2:-}" ]]; then
+				echo "Error: --config-dir requires a directory argument." >&2
+				usage >&2
+				exit 1
+			fi
 			shift
-			config_dir="${1:-}"
+			config_dir="$1"
 			;;
 		"--ssh-key")
+			if [[ $# -lt 2 || -z "${2:-}" ]]; then
+				echo "Error: --ssh-key requires a key file path argument." >&2
+				usage >&2
+				exit 1
+			fi
 			shift
-			ssh_key="${1:-}"
+			ssh_key="$1"
+			explicit_ssh_key=1
 			;;
 		"-h"|"--help"|"help")
 			usage
@@ -156,9 +202,24 @@ if [[ "$target_env" == "vm" ]]; then
 	fi
 fi
 
+# Resolve --target <DIR> and validate --config-dir before prompting or building
+if [[ -n "$config_dir" ]]; then
+	if [[ ! -d "$config_dir" ]]; then
+		echo "Error: Configuration directory not found: $config_dir" >&2
+		exit 1
+	fi
+elif [[ "$target_env" != "live" && "$target_env" != "vm" ]]; then
+	if [[ -d "$target_env" ]]; then
+		config_dir="$target_env"
+	else
+		echo "Error: Invalid --target '$target_env'. Expected 'live', 'vm', or an existing configuration directory." >&2
+		exit 1
+	fi
+fi
+
 if [[ "$skip_clean" == "" && "$no_build" -eq 0 ]]; then
-    echo "Please choose whether to --clean (will make sure docs are up to date) or to --skip-clean (which will build faster)."
-    exit 1
+	echo "Please choose whether to --clean (full rebuild from scratch) or to --skip-clean (incremental build)." >&2
+	exit 1
 fi
 
 # Configure target credentials & endpoint
@@ -182,36 +243,36 @@ if [[ "$target_env" == "vm" ]]; then
 		echo "Please run ./scripts/setup-linux-vm-image to provision the VM and key, or pass --ssh-key <path>." >&2
 		exit 1
 	fi
-elif [[ -n "$config_dir" && -d "$config_dir" ]]; then
-	user="$(<"$config_dir/ctb-deploy.username")" || exit 1
-	sudoer_user="$(<"$config_dir/ctb-deploy.sudoer-username")" || exit 1
-	server_user="$(<"$config_dir/ctb-deploy.server-username")" || exit 1
-	server="$(<"$config_dir/ctb-deploy.ip")" || exit 1
-	port="$(<"$config_dir/ctb-deploy.port")" || exit 1
-	if [[ -f "$config_dir/ctb-deploy.key" ]]; then
+elif [[ -n "$config_dir" ]]; then
+	user="$(read_config_value "$config_dir/ctb-deploy.username")"
+	sudoer_user="$(read_config_value "$config_dir/ctb-deploy.sudoer-username")"
+	server_user="$(read_config_value "$config_dir/ctb-deploy.server-username")"
+	server="$(read_config_value "$config_dir/ctb-deploy.ip")"
+	port="$(read_config_value "$config_dir/ctb-deploy.port")"
+	if [[ "$explicit_ssh_key" -eq 0 && -f "$config_dir/ctb-deploy.key" ]]; then
 		ssh_key="$config_dir/ctb-deploy.key"
 	fi
 	if [[ -f "$config_dir/ctb-deploy.global-graph-pass" ]]; then
-		GLOBAL_GRAPH_PASS="$(<"$config_dir/ctb-deploy.global-graph-pass")"
+		GLOBAL_GRAPH_PASS="$(read_config_value "$config_dir/ctb-deploy.global-graph-pass")"
 	fi
 else
-	# Read live deployment targets
-	user="$(<~/ctb-deploy.username)" || exit 1
-	sudoer_user="$(<~/ctb-deploy.sudoer-username)" || exit 1
-	server_user="$(<~/ctb-deploy.server-username)" || exit 1
-	server="$(<~/ctb-deploy.ip)" || exit 1
-	port="$(<~/ctb-deploy.port)" || exit 1
-	if [[ -f ~/ctb-deploy.key ]]; then
+	# Read live deployment targets from ~/ctb-deploy.*
+	user="$(read_config_value ~/ctb-deploy.username)"
+	sudoer_user="$(read_config_value ~/ctb-deploy.sudoer-username)"
+	server_user="$(read_config_value ~/ctb-deploy.server-username)"
+	server="$(read_config_value ~/ctb-deploy.ip)"
+	port="$(read_config_value ~/ctb-deploy.port)"
+	if [[ "$explicit_ssh_key" -eq 0 && -f ~/ctb-deploy.key ]]; then
 		ssh_key=~/ctb-deploy.key
 	fi
 	if [[ -f ~/ctb-deploy.global-graph-pass ]]; then
-		GLOBAL_GRAPH_PASS="$(<~/ctb-deploy.global-graph-pass)"
+		GLOBAL_GRAPH_PASS="$(read_config_value ~/ctb-deploy.global-graph-pass)"
 	fi
 fi
 
 if [[ -n "$ssh_key" && ! -f "$ssh_key" ]]; then
-	echo "Warning: SSH key specified at $ssh_key not found. Falling back to password authentication." >&2
-	ssh_key=""
+	echo "Error: SSH key specified at $ssh_key not found." >&2
+	exit 1
 fi
 
 if [[ -z "$ssh_key" ]]; then
@@ -230,6 +291,20 @@ elif [[ -z "$GLOBAL_GRAPH_PASS" ]]; then
 	GLOBAL_GRAPH_PASS="$(read_secret "Password for global graph server user: ")"
 fi
 
+password_for_user() {
+	local target_user="$1"
+	if [[ "$target_user" == "$user" ]]; then
+		printf '%s' "$PASS"
+	elif [[ "$target_user" == "$server_user" ]]; then
+		printf '%s' "$SERVER_USER_PASS"
+	elif [[ "$target_user" == "$sudoer_user" ]]; then
+		printf '%s' "$SUDOER_USER_PASS"
+	else
+		echo "Error: Unknown remote user '$target_user' for password lookup." >&2
+		exit 1
+	fi
+}
+
 # Remote SSH and Rsync abstractions
 remote_ssh() {
 	local target_user="$1"
@@ -238,7 +313,9 @@ remote_ssh() {
 		ssh -i "$ssh_key" -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
 			-o BatchMode=yes -o LogLevel=ERROR "${target_user}@${server}" "$@"
 	else
-		SSHPASS="$PASS" sshpass -e ssh -p "${port}" "${target_user}@${server}" "$@"
+		local ssh_pass
+		ssh_pass="$(password_for_user "$target_user")"
+		SSHPASS="$ssh_pass" sshpass -e ssh -p "${port}" "${target_user}@${server}" "$@"
 	fi
 }
 
@@ -251,7 +328,9 @@ remote_rsync() {
 		rsync -e "ssh -i $ssh_key -p $port -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR" \
 			"$@" "$src" "${target_user}@${server}:$dst"
 	else
-		SSHPASS="$PASS" sshpass -e rsync -e "ssh -p ${port}" "$@" "$src" "${target_user}@${server}:$dst"
+		local ssh_pass
+		ssh_pass="$(password_for_user "$target_user")"
+		SSHPASS="$ssh_pass" sshpass -e rsync -e "ssh -p ${port}" "$@" "$src" "${target_user}@${server}:$dst"
 	fi
 }
 
@@ -316,23 +395,25 @@ storage_dir_linux() {
 }
 
 release_targets() {
-    if [[ "$mode_quick" -eq 1 ]]; then
-	    printf '%s\n' "linux-x64"
-    else
-	    printf '%s\n' "linux-x64" "linux-x86"
-    fi
+	if [[ "$mode_quick" -eq 1 ]]; then
+		printf '%s\n' "linux-x64"
+	else
+		printf '%s\n' "linux-x64" "linux-x86"
+	fi
 }
 
 base_input_dir="$repository/../ctb_release/input"
-[[ -d "$base_input_dir" ]] && rm -r "$base_input_dir"
+if [[ -d "$base_input_dir" ]]; then
+	rm -r "$base_input_dir"
+fi
 mkdir -p "$base_input_dir" || exit 1
 
 cd "$repository" || exit 1
 
 mapfile -t targets < <(release_targets)
 if [[ "${#targets[@]}" -eq 0 ]]; then
-    echo "No release targets configured" >&2
-    exit 1
+	echo "No release targets configured" >&2
+	exit 1
 fi
 
 # Check binaries and decide what needs building
@@ -366,8 +447,8 @@ if [[ "${#targets_to_build[@]}" -gt 0 ]]; then
 	if [[ "$skip_clean" == "0" ]]; then
 		cargo clean
 	fi
-	echo "Building targets: ${targets_to_build[*]}..."
-	./build --release --docs "${targets_to_build[@]}"
+	echo "Building targets (skipping lints and tests): ${targets_to_build[*]}..."
+	./build --release --docs --no-lints --no-tests "${targets_to_build[@]}"
 else
 	echo "All release targets (${targets[*]}) are already built and match HEAD ($commit). Skipping compilation."
 fi
@@ -379,23 +460,31 @@ if [[ "$mock_artifacts" -eq 1 ]]; then
 	tar -cf "$base_input_dir/ctoolbox-src-$commitAndVersion.tar" -T /dev/null
 else
 	cd "$repository/vendor/ctb-vendored" || exit 1
-	"$repository/scripts/vendor-dependencies"
+	if [[ "$dry_run" -eq 0 ]]; then
+		"$repository/scripts/vendor-dependencies"
+	else
+		echo "[Dry Run] Skipping vendor-dependencies submodule commits; archiving current HEAD."
+	fi
 
-	git archive --format=tar HEAD -o "$base_input_dir/ctoolbox-dependencies-$commitAndVersion.tar"
+	cd "$repository/vendor/ctb-vendored" || exit 1
+	git archive --format=tar --prefix=ctoolbox-dependencies/ HEAD \
+		-o "$base_input_dir/ctoolbox-dependencies-$commitAndVersion.tar"
 
-	cd "$repository" || exit 1
-
-	# Archive application source code (including vendored code).
+	# Archive application source code (including vendored code) without leaving temporary tarballs in git dirs.
 	cd "$repository/vendor" || exit 1
-	git archive --format=tar HEAD -o vendor.tar
-	cp vendor.tar "$base_input_dir/vendor.tar"
+	git archive --format=tar HEAD -o "$base_input_dir/vendor.tar"
 
 	cd "$repository/packaging/homebrew-tap" || exit 1
-	git archive --format=tar HEAD -o "$repository/packaging/homebrew-tap/homebrew-tap.tar"
+	git archive --format=tar HEAD -o "$base_input_dir/homebrew-tap.tar"
 
 	cd "$repository" || exit 1
-	git archive --format=tar --add-file=vendor/vendor.tar --add-file="$repository/packaging/homebrew-tap/homebrew-tap.tar" HEAD -o \
-		"$base_input_dir/ctoolbox-src-$commitAndVersion.tar"
+	git archive --format=tar \
+		--prefix=ctoolbox-src/ \
+		--add-file="$base_input_dir/vendor.tar" \
+		--add-file="$base_input_dir/homebrew-tap.tar" \
+		HEAD -o "$base_input_dir/ctoolbox-src-$commitAndVersion.tar"
+
+	rm "$base_input_dir/vendor.tar" "$base_input_dir/homebrew-tap.tar"
 fi
 
 cd "$repository" || exit 1
@@ -404,49 +493,55 @@ cd "$repository" || exit 1
 output_dir="$repository/../ctb_release/releases"
 mkdir -p "$output_dir" || exit 1
 
+link_or_copy() {
+	local src_file="$1"
+	local dst_file="$2"
+	if [[ -e "$dst_file" || -L "$dst_file" ]]; then
+		rm "$dst_file"
+	fi
+	ln "$src_file" "$dst_file" 2>/dev/null || cp "$src_file" "$dst_file" || exit 1
+}
+
 for target in "${targets[@]}"; do
-    input_dir="$base_input_dir/$target"
-    mkdir "$input_dir" || exit 1
-    cp "built/$target/ctoolbox" "$input_dir/ctoolbox" || exit 1
-    if [[ -e "$input_dir/ctoolbox.rsrc" || -L "$input_dir/ctoolbox.rsrc" ]]; then
-        rm "$input_dir/ctoolbox.rsrc"
-    fi
-    ln "$repository/built/$target/ctoolbox.rsrc" "$input_dir/ctoolbox.rsrc" 2>/dev/null || \
-        cp "$repository/built/$target/ctoolbox.rsrc" "$input_dir/ctoolbox.rsrc" || exit 1
-    if [[ -f "$repository/built/$target/v86_images.rsrc" ]]; then
-        if [[ -e "$input_dir/v86_images.rsrc" || -L "$input_dir/v86_images.rsrc" ]]; then
-            rm "$input_dir/v86_images.rsrc"
-        fi
-        ln "$repository/built/$target/v86_images.rsrc" "$input_dir/v86_images.rsrc" 2>/dev/null || \
-            cp "$repository/built/$target/v86_images.rsrc" "$input_dir/v86_images.rsrc" || exit 1
-    fi
-    if [[ -f "built/$target/ctoolbox-installer" ]]; then
-        cp "built/$target/ctoolbox-installer" "$input_dir/ctoolbox-installer" || exit 1
-    fi
-    cp "$base_input_dir/ctoolbox-dependencies-$commitAndVersion.tar" \
-        "$input_dir/ctoolbox-dependencies-$commitAndVersion.tar" || exit 1
-    cp "$base_input_dir/ctoolbox-src-$commitAndVersion.tar" \
-        "$input_dir/ctoolbox-src-$commitAndVersion.tar" || exit 1
+	input_dir="$base_input_dir/$target"
+	mkdir "$input_dir" || exit 1
+	cp "built/$target/ctoolbox" "$input_dir/ctoolbox" || exit 1
+	if [[ -f "$repository/built/$target/ctoolbox.rsrc" ]]; then
+		link_or_copy "$repository/built/$target/ctoolbox.rsrc" "$input_dir/ctoolbox.rsrc"
+	elif [[ -f "$repository/built/ctoolbox.rsrc" ]]; then
+		link_or_copy "$repository/built/ctoolbox.rsrc" "$input_dir/ctoolbox.rsrc"
+	else
+		echo "Error: Missing ctoolbox.rsrc for target '$target'." >&2
+		exit 1
+	fi
+	if [[ -f "$repository/built/$target/system_graph_history.rsrc" ]]; then
+		link_or_copy "$repository/built/$target/system_graph_history.rsrc" "$input_dir/system_graph_history.rsrc"
+	elif [[ -f "$repository/built/system_graph_history.rsrc" ]]; then
+		link_or_copy "$repository/built/system_graph_history.rsrc" "$input_dir/system_graph_history.rsrc"
+	fi
+	if [[ -f "$repository/built/$target/v86_images.rsrc" ]]; then
+		link_or_copy "$repository/built/$target/v86_images.rsrc" "$input_dir/v86_images.rsrc"
+	fi
+	if [[ -f "built/$target/ctoolbox-installer" ]]; then
+		cp "built/$target/ctoolbox-installer" "$input_dir/ctoolbox-installer" || exit 1
+	fi
+	link_or_copy "$base_input_dir/ctoolbox-dependencies-$commitAndVersion.tar" \
+		"$input_dir/ctoolbox-dependencies-$commitAndVersion.tar"
+	link_or_copy "$base_input_dir/ctoolbox-src-$commitAndVersion.tar" \
+		"$input_dir/ctoolbox-src-$commitAndVersion.tar"
 done
 
-# Run dev-sign for each target and update local latest symlinks.
+# Resolve host ctoolbox binary for signing and JSON escaping.
 host="$(host_platform)"
 devsign_bin="$repository/built/$host/ctoolbox"
 if [[ ! -x "$devsign_bin" && -x "$repository/built/linux-x64/ctoolbox" ]]; then
-    devsign_bin="$repository/built/linux-x64/ctoolbox"
+	devsign_bin="$repository/built/linux-x64/ctoolbox"
 fi
 
 if [[ ! -x "$devsign_bin" ]]; then
-    echo "Expected dev-sign binary not found: $devsign_bin" >&2
-    echo "Try building the host target: ./build --release" >&2
-    exit 1
-fi
-
-echo "Updating Guix packaging..."
-cd "$repository" || exit 1
-cp packaging/guix/rust-crates.tmpl packaging/guix/generated/ctb-workspace-rust-crates.scm
-if command -v guix >/dev/null 2>&1; then
-    guix import --insert=packaging/guix/generated/ctb-workspace-rust-crates.scm crate --lockfile=Cargo.lock ctb-workspace || true
+	echo "Expected dev-sign binary not found: $devsign_bin" >&2
+	echo "Try building the host target: ./build --release" >&2
+	exit 1
 fi
 
 # Calculate deterministic gzip SHA256 hashes for Homebrew formula.
@@ -454,8 +549,23 @@ echo "Calculating Homebrew release hashes..."
 deps_sha="$("$devsign_bin" ctb-dev-gz-sha256 "$base_input_dir/ctoolbox-dependencies-$commitAndVersion.tar")"
 src_sha="$("$devsign_bin" ctb-dev-gz-sha256 "$base_input_dir/ctoolbox-src-$commitAndVersion.tar")"
 
+if [[ "$dry_run" -eq 0 ]]; then
+	guix_out="$repository/packaging/guix/generated/ctb-workspace-rust-crates.scm"
+	formula_out="$repository/packaging/homebrew-tap/Formula/ctoolbox.rb"
+else
+	guix_out="$base_input_dir/ctb-workspace-rust-crates.scm.preview"
+	formula_out="$base_input_dir/ctoolbox.rb.preview"
+fi
+
+echo "Updating Guix packaging..."
+cd "$repository" || exit 1
+cp packaging/guix/rust-crates.tmpl "$guix_out"
+if command -v guix >/dev/null 2>&1; then
+	guix import --insert="$guix_out" crate --lockfile=Cargo.lock ctb-workspace || true
+fi
+
 echo "Updating Homebrew formula..."
-cat <<EOF > "$repository/packaging/homebrew-tap/Formula/ctoolbox.rb"
+cat <<EOF > "$formula_out"
 # GENERATED! Do not edit directly. This file is automatically generated by the deploy script.
 class Ctoolbox < Formula
   desc "Collective Toolbox: A graph‑based workspace for linking documents and data"
@@ -481,34 +591,17 @@ class Ctoolbox < Formula
     (buildpath/"vendor/ctb-vendored").mkpath
     resource("dependencies").stage(buildpath/"vendor/ctb-vendored")
 
-    File.open(".cargo/config.toml", "a") do |f|
-      f.write <<~EOS
-
-        [source.crates-io]
-        replace-with = "vendored-sources"
-
-        [source.vendored-sources]
-        directory = "vendor/ctb-vendored/vendor"
-
-        [source."https://github.com/boa-dev/boa.git"]
-        git = "https://github.com/boa-dev/boa.git"
-        rev = "ffec9244d4267406d66aef8b3c8a1d89730df5b4"
-        replace-with = "vendored-sources"
-
-        [source."https://github.com/rust-dark-light/dark-light.git"]
-        git = "https://github.com/rust-dark-light/dark-light.git"
-        rev = "0f18d2fbcaa5d1c175db8aae7d53428988d7e961"
-        replace-with = "vendored-sources"
-      EOS
+    if File.exist?("./vendor/TypeScript-built.tar")
+      rm "./vendor/TypeScript-built.tar"
     end
 
-    rm "./vendor/TypeScript-built.tar"
-
-    system "./scripts/run-without-network", "./build", "--release", "--no-tests", "--no-docs", "linux-x64"
-    system "./build", "--release", "--no-tests", "--no-docs", "linux-x64"
+    system "./build", "--release", "--offline", "--no-lints", "--no-tests", "--no-docs", "linux-x64"
 
     bin.install "built/linux-x64/ctoolbox"
     bin.install "built/ctoolbox.rsrc"
+    if File.exist?("built/system_graph_history.rsrc")
+      bin.install "built/system_graph_history.rsrc"
+    end
   end
 
   test do
@@ -518,31 +611,63 @@ end
 EOF
 
 if [[ "$dry_run" -eq 0 ]]; then
-    cd "$repository" || exit 1
-    git add packaging || exit 1
-    git commit -m "chore: Automatically update packaging for version $version" || true
+	if [[ -d "$repository/packaging/homebrew-tap/.git" ]]; then
+		echo "Committing Homebrew formula updates..."
+		cd "$repository/packaging/homebrew-tap" || exit 1
+		git add Formula/ctoolbox.rb || exit 1
+		git commit -m "chore: Automatically update Formula for version $version" || true
+		cd "$repository" || exit 1
+	fi
 
-    if [[ -d "$repository/packaging/homebrew-tap/.git" ]]; then
-        echo "Committing Homebrew formula updates..."
-        cd "$repository/packaging/homebrew-tap" || exit 1
-        git add Formula/ctoolbox.rb || exit 1
-        git commit -m "chore: Automatically update Formula for version $version" || true
-        cd "$repository" || exit 1
-    fi
+	cd "$repository" || exit 1
+	git add packaging || exit 1
+	if ! git diff --quiet -- vendor; then
+		git add vendor || exit 1
+	fi
+	git commit -m "chore: Automatically update packaging for version $version" || true
 else
-    echo "[Dry Run] Skipping packaging git commits."
+	echo "[Dry Run] Skipping packaging file mutations and git commits."
+	rm "$guix_out" "$formula_out"
 fi
 
+declare -A target_manifests=()
 for target in "${targets[@]}"; do
-    "$devsign_bin" ctb-dev-sign \
-        --input-dir "$base_input_dir/$target" \
-        --output-dir "$output_dir" \
-        --platform "$target"
+	sign_output="$("$devsign_bin" ctb-dev-sign \
+		--input-dir "$base_input_dir/$target" \
+		--output-dir "$output_dir" \
+		--platform "$target")"
+	printf '%s\n' "$sign_output"
 
-    latest_manifest="$(ls -1t "$output_dir/ctb-$target-"*-*.json | head -n 1)"
-    ln -sfn "$(basename "$latest_manifest")" "$output_dir/ctb-$target-latest.json"
-    ln -sfn "$(basename "$latest_manifest").sig" "$output_dir/ctb-$target-latest.json.sig"
+	manifest_full_path="$(printf '%s\n' "$sign_output" | sed -n 's/^  Manifest: //p' | tail -n 1)"
+	if [[ -z "$manifest_full_path" || ! -f "$manifest_full_path" ]]; then
+		echo "Error: Failed to locate signed manifest produced by ctb-dev-sign for '$target'." >&2
+		exit 1
+	fi
+	manifest_basename="$(basename "$manifest_full_path")"
+	target_manifests["$target"]="$manifest_basename"
+
+	replace_symlink "$manifest_basename" "$output_dir/ctb-$target-latest.json"
+	replace_symlink "${manifest_basename}.sig" "$output_dir/ctb-$target-latest.json.sig"
 done
+
+# Remove large source/dependency tarballs and v86 hardlinks from staging dir now that signing is done
+for target in "${targets[@]}"; do
+	input_dir="$base_input_dir/$target"
+	rm "$input_dir/ctoolbox-dependencies-$commitAndVersion.tar" || exit 1
+	rm "$input_dir/ctoolbox-src-$commitAndVersion.tar" || exit 1
+	if [[ -e "$input_dir/v86_images.rsrc" || -L "$input_dir/v86_images.rsrc" ]]; then
+		rm "$input_dir/v86_images.rsrc" || exit 1
+	fi
+done
+rm "$base_input_dir/ctoolbox-dependencies-$commitAndVersion.tar" || exit 1
+rm "$base_input_dir/ctoolbox-src-$commitAndVersion.tar" || exit 1
+
+# Apply setup-permissions-groups BEFORE uploading releases and binaries so fresh servers have proper groups/dirs
+echo "Applying remote permissions and group configuration..."
+remote_rsync "$sudoer_user" "$repository/scripts/setup-permissions-groups" "/tmp/ctb-setup-permissions-groups" -avz
+remote_ssh "$sudoer_user" chmod 0700 /tmp/ctb-setup-permissions-groups
+remote_sudo "USER_SERVER='$server_user' USER_DEPLOYER='$user' /tmp/ctb-setup-permissions-groups"
+remote_ssh "$sudoer_user" "if [ -e /tmp/ctb-setup-permissions-groups ]; then rm /tmp/ctb-setup-permissions-groups; fi"
 
 # Upload releases into server storage directory
 remote_storage="/home/$server_user/$(storage_dir_linux)"
@@ -554,125 +679,185 @@ remote_ssh "$user" "mkdir -p '$remote_releases'" || exit 1
 echo "Uploading release artifacts to $remote_releases..."
 remote_rsync "$user" "$output_dir/" "$remote_releases/" -avz || exit 1
 
-# Remote check of uploaded manifests and chunks
-echo "Verifying remote manifest and chunk structure..."
-remote_ssh "$user" bash -s "$remote_releases" "${targets[@]}" <<'REMOTE_CHECK'
+# Update server-side latest symlinks to exact manifests signed in this run and verify structure
+manifest_pairs=()
+for target in "${targets[@]}"; do
+	manifest_pairs+=("$target" "${target_manifests[$target]}")
+done
+
+echo "Updating and verifying server-side latest release symlinks..."
+remote_ssh "$user" bash -s "$remote_releases" "${manifest_pairs[@]}" <<'REMOTE_MANIFESTS'
 set -euo pipefail
 
 releases_dir="$1"
 shift
 
+replace_symlink() {
+	local link_target="$1"
+	local link_path="$2"
+	local tmp_link="${link_path}.tmp.$$"
+	if [[ -L "$tmp_link" || -e "$tmp_link" ]]; then
+		rm "$tmp_link"
+	fi
+	ln -s "$link_target" "$tmp_link"
+	mv -T "$tmp_link" "$link_path"
+}
+
 test -d "$releases_dir"
 test -d "$releases_dir/bh"
-
-for target in "$@"; do
-    test -f "$releases_dir/ctb-$target-latest.json"
-done
-REMOTE_CHECK
-
-# Update server-side latest symlinks
-echo "Updating server-side latest release symlinks..."
-remote_ssh "$user" bash -s "$server_user" "$(storage_dir_linux)" "${targets[@]}" <<'REMOTE_SCRIPT'
-set -euo pipefail
-
-server_user="$1"
-storage_rel="$2"
-shift 2
-
-releases_dir="/home/$server_user/$storage_rel/releases"
 cd "$releases_dir" || exit 1
 
-for target in "$@"; do
-    latest="$(ls -1t "ctb-$target-"*-*.json | head -n 1)"
-    ln -sfn "$latest" "ctb-$target-latest.json"
-    ln -sfn "$latest.sig" "ctb-$target-latest.json.sig"
+while [[ $# -ge 2 ]]; do
+	target="$1"
+	manifest_name="$2"
+	shift 2
+
+	test -f "$manifest_name"
+	test -f "${manifest_name}.sig"
+	replace_symlink "$manifest_name" "ctb-$target-latest.json"
+	replace_symlink "${manifest_name}.sig" "ctb-$target-latest.json.sig"
+	test -f "ctb-$target-latest.json"
 done
-REMOTE_SCRIPT
+REMOTE_MANIFESTS
 
-# Verify uploaded releases with ctb-dev-release-check
-remote_verify_bin="/home/${server_user}/deploy/ctoolbox"
-if remote_ssh "$server_user" test -x "$remote_verify_bin"; then
-    for target in "${targets[@]}"; do
-        echo "Running remote release verification for $target..."
-        remote_ssh "$server_user" "$remote_verify_bin ctb-dev-release-check --platform '$target'" || exit 1
-    done
-else
-    echo "Skipping remote release verification; not found: $remote_verify_bin" >&2
-fi
-
-for target in "${targets[@]}"; do
-    input_dir="$base_input_dir/$target"
-    rm "$input_dir/ctoolbox-dependencies-$commitAndVersion.tar" || exit 1
-    rm "$input_dir/ctoolbox-src-$commitAndVersion.tar" || exit 1
-done
-
-# Apply setup-permissions-groups
-echo "Applying remote permissions and group configuration..."
-remote_rsync "$sudoer_user" "$repository/scripts/setup-permissions-groups" "/tmp/ctb-setup-permissions-groups" -avz
-remote_ssh "$sudoer_user" chmod 0700 /tmp/ctb-setup-permissions-groups
-remote_sudo "USER_SERVER='$server_user' USER_DEPLOYER='$user' /tmp/ctb-setup-permissions-groups"
-remote_ssh "$sudoer_user" rm -f /tmp/ctb-setup-permissions-groups
-
-# Upload binary and resources
+# Upload binary, matching resource bundles, and systemd service unit
 echo "Uploading ctoolbox binary and resources..."
 remote_rsync "$user" "$base_input_dir/linux-x64/ctoolbox" "/home/${server_user}/deploy/ctoolbox-${commit}" -avz --chmod=0750
-remote_rsync "$user" "$repository/built/ctoolbox.rsrc" "/home/${server_user}/deploy/ctoolbox-${commit}.rsrc" -avz
-
-if [[ "$dry_run" -eq 0 && "$target_env" != "vm" ]]; then
-    today="$(date +%Y%m%d_%H%M%S)"
-    mkdir -p "$repository/../ctb-deploys"
-    7z a "$repository"/../ctb-deploys/"$today".7z "$base_input_dir" || true
+remote_rsync "$user" "$base_input_dir/linux-x64/ctoolbox.rsrc" "/home/${server_user}/deploy/ctoolbox-${commit}.rsrc" -avz --chmod=0640
+has_history_rsrc=0
+if [[ -f "$base_input_dir/linux-x64/system_graph_history.rsrc" ]]; then
+	has_history_rsrc=1
+	remote_rsync "$user" "$base_input_dir/linux-x64/system_graph_history.rsrc" \
+		"/home/${server_user}/deploy/system_graph_history-${commit}.rsrc" -avz --chmod=0640
 fi
 
-# Upload systemd service unit
-echo "Uploading systemd unit file..."
-remote_rsync "$user" "$repository/scripts/ctoolbox.service" "/home/${server_user}/.config/systemd/user/ctoolbox.service" -avz
+if [[ "$dry_run" -eq 0 && "$target_env" != "vm" ]]; then
+	today="$(date +%Y%m%d_%H%M%S)"
+	mkdir -p "$repository/../ctb-deploys"
+	if command -v 7z >/dev/null 2>&1; then
+		7z a "$repository/../ctb-deploys/$today.7z" "$base_input_dir" || true
+	else
+		echo "Warning: 7z not found; skipping local ../ctb-deploys archive." >&2
+	fi
+fi
 
-# Gracefully restart service
+echo "Uploading systemd unit file..."
+remote_rsync "$user" "$repository/scripts/ctoolbox.service" "/home/${server_user}/.config/systemd/user/ctoolbox.service" -avz --chmod=0640
+
+# Record previous symlinks for rollback if verification or startup fails
+prev_links="$(remote_ssh "$user" bash -s "$server_user" <<'REMOTE_PREV'
+server_user="$1"
+deploy_dir="/home/$server_user/deploy"
+prev_bin="$(readlink "$deploy_dir/ctoolbox" 2>/dev/null || true)"
+prev_rsrc="$(readlink "$deploy_dir/ctoolbox.rsrc" 2>/dev/null || true)"
+prev_hist="$(readlink "$deploy_dir/system_graph_history.rsrc" 2>/dev/null || true)"
+printf '%s\n%s\n%s\n' "$prev_bin" "$prev_rsrc" "$prev_hist"
+REMOTE_PREV
+)"
+{
+	IFS= read -r prev_bin || true
+	IFS= read -r prev_rsrc || true
+	IFS= read -r prev_hist || true
+} <<< "$prev_links"
+
+rollback_previous_binary() {
+	if [[ -n "$prev_bin" && -n "$prev_rsrc" ]]; then
+		echo "Rolling back server binary symlinks to previous release ($prev_bin)..." >&2
+		remote_ssh "$user" bash -s "$server_user" "$prev_bin" "$prev_rsrc" "$prev_hist" <<'REMOTE_ROLLBACK' || true
+server_user="$1"
+prev_bin="$2"
+prev_rsrc="$3"
+prev_hist="$4"
+deploy_dir="/home/$server_user/deploy"
+
+replace_symlink() {
+	local link_target="$1"
+	local link_path="$2"
+	local tmp_link="${link_path}.tmp.$$"
+	if [[ -L "$tmp_link" || -e "$tmp_link" ]]; then
+		rm "$tmp_link"
+	fi
+	ln -s "$link_target" "$tmp_link"
+	mv -T "$tmp_link" "$link_path"
+}
+
+if [[ -f "$prev_bin" && -f "$prev_rsrc" ]]; then
+	replace_symlink "$prev_bin" "$deploy_dir/ctoolbox"
+	replace_symlink "$prev_rsrc" "$deploy_dir/ctoolbox.rsrc"
+	if [[ -n "$prev_hist" && -f "$prev_hist" ]]; then
+		replace_symlink "$prev_hist" "$deploy_dir/system_graph_history.rsrc"
+	fi
+fi
+REMOTE_ROLLBACK
+		remote_ssh "$server_user" "systemctl --user daemon-reload && systemctl --user start ctoolbox" || true
+	fi
+}
+
+# Gracefully stop service before switching active binary/resource symlinks
 echo "Stopping existing service..."
-remote_ssh "$server_user" bash -s "$commit" "$server_user" <<'REMOTE_SCRIPT'
-commit="$1"
-server_user="$2"
+remote_ssh "$server_user" bash <<'REMOTE_STOP'
 systemctl --user stop ctoolbox || true
 timeout 30 bash -c 'while systemctl --user is-active --quiet ctoolbox; do sleep 0.5; done' || true
-REMOTE_SCRIPT
+REMOTE_STOP
 
 echo "Updating active binary symlinks..."
-remote_ssh "$user" bash -s "$commit" "$server_user" <<'REMOTE_SCRIPT'
+remote_ssh "$user" bash -s "$commit" "$server_user" "$has_history_rsrc" <<'REMOTE_SYMLINKS'
+set -euo pipefail
 commit="$1"
 server_user="$2"
-ln -sfn "/home/$server_user/deploy/ctoolbox-$commit" "/home/$server_user/deploy/ctoolbox"
-ln -sfn "/home/$server_user/deploy/ctoolbox-$commit.rsrc" "/home/$server_user/deploy/ctoolbox.rsrc"
-REMOTE_SCRIPT
+has_history_rsrc="$3"
+
+replace_symlink() {
+	local link_target="$1"
+	local link_path="$2"
+	local tmp_link="${link_path}.tmp.$$"
+	if [[ -L "$tmp_link" || -e "$tmp_link" ]]; then
+		rm "$tmp_link"
+	fi
+	ln -s "$link_target" "$tmp_link"
+	mv -T "$tmp_link" "$link_path"
+}
+
+replace_symlink "/home/$server_user/deploy/ctoolbox-$commit" "/home/$server_user/deploy/ctoolbox"
+replace_symlink "/home/$server_user/deploy/ctoolbox-$commit.rsrc" "/home/$server_user/deploy/ctoolbox.rsrc"
+if [[ "$has_history_rsrc" -eq 1 ]]; then
+	replace_symlink "/home/$server_user/deploy/system_graph_history-$commit.rsrc" \
+		"/home/$server_user/deploy/system_graph_history.rsrc"
+fi
+REMOTE_SYMLINKS
 
 echo "Applying network binding capabilities..."
 remote_sudo "bash -c 'setcap '\''cap_net_bind_service=+ep'\'' \"\$(readlink /home/\"\$0\"/deploy/ctoolbox)\"' '$server_user'"
 
-# Clean up older deployed binaries
-remote_ssh "$user" bash -s "$commit" "$server_user" <<'REMOTE_SCRIPT'
-commit="$1"
-server_user="$2"
+# Verify uploaded releases using the newly deployed ctoolbox binary
+remote_verify_bin="/home/${server_user}/deploy/ctoolbox"
+remote_settings_file="/home/${server_user}/$(storage_dir_linux)/config/pc_settings.json"
+remote_pub_key="$(remote_ssh "$server_user" "'$remote_verify_bin' jq -r '.release_public_key // empty' '$remote_settings_file' 2>/dev/null || true")"
+if [[ -n "$remote_pub_key" ]]; then
+	for target in "${targets[@]}"; do
+		echo "Running remote release verification for $target..."
+		if ! remote_ssh "$server_user" "'$remote_verify_bin' ctb-dev-release-check --platform '$target'"; then
+			echo "Error: Remote release verification failed for $target." >&2
+			rollback_previous_binary
+			exit 1
+		fi
+	done
+elif [[ "$target_env" == "vm" ]]; then
+	echo "Note: release_public_key not configured in VM pc_settings.json; skipping remote signature check."
+else
+	echo "Warning: release_public_key not configured in $remote_settings_file; skipping remote ctb-dev-release-check." >&2
+fi
 
-cd /home/"$server_user"/deploy || exit 1
-find . -maxdepth 1 -type f -name "ctoolbox-*" \
-	! -name "ctoolbox-$commit" \
-	! -name "ctoolbox-$commit.rsrc" \
-	! -name "ctoolbox-dependencies-$commit.tar.gz" \
-	! -name "ctoolbox-src-$commit.tar.gz" \
-	-exec rm {} \; || true
-REMOTE_SCRIPT
-
-# Start service and poll health status
+# Start service and poll health status (without passing secrets as CLI arguments)
 echo "Starting ctoolbox systemd user service..."
-remote_ssh "$server_user" bash -s "${commit@Q}" "${server_user@Q}" "${GLOBAL_GRAPH_PASS@Q}" "${version@Q}" <<'REMOTE_SCRIPT'
-commit="$1"
-server_user="$2"
-GLOBAL_GRAPH_PASS="$3"
-version="$4"
+if ! remote_ssh "$server_user" bash -s "${server_user@Q}" "${version@Q}" <<'REMOTE_START_POLL'; then
+set -euo pipefail
+server_user="$1"
+version="$2"
 
 systemctl --user daemon-reload
 systemctl --user start ctoolbox
-systemctl --user status ctoolbox
+systemctl --user status ctoolbox --no-pager || true
 
 settings_file="/home/${server_user}/.local/share/collectivetoolbox/config/pc_settings.json"
 web_port=8080
@@ -681,103 +866,171 @@ domain_name=""
 bind_to_ip=""
 
 if [ -f "$settings_file" ]; then
-    tls_cert=$(/home/${server_user}/deploy/ctoolbox jq -r '.tls_certificate // empty' "$settings_file" 2>/dev/null || true)
-    https_port=$(/home/${server_user}/deploy/ctoolbox jq -r '.fixed_https_port // empty' "$settings_file" 2>/dev/null || true)
-    http_port=$(/home/${server_user}/deploy/ctoolbox jq -r '.fixed_http_port // empty' "$settings_file" 2>/dev/null || true)
-    domain_name=$(/home/${server_user}/deploy/ctoolbox jq -r '.domain_name // empty' "$settings_file" 2>/dev/null || true)
-    bind_to_ip=$(/home/${server_user}/deploy/ctoolbox jq -r '.bind_to_ip // empty' "$settings_file" 2>/dev/null || true)
+	tls_cert=$(/home/${server_user}/deploy/ctoolbox jq -r '.tls_certificate // empty' "$settings_file" 2>/dev/null || true)
+	https_port=$(/home/${server_user}/deploy/ctoolbox jq -r '.fixed_https_port // empty' "$settings_file" 2>/dev/null || true)
+	http_port=$(/home/${server_user}/deploy/ctoolbox jq -r '.fixed_http_port // empty' "$settings_file" 2>/dev/null || true)
+	domain_name=$(/home/${server_user}/deploy/ctoolbox jq -r '.domain_name // empty' "$settings_file" 2>/dev/null || true)
+	bind_to_ip=$(/home/${server_user}/deploy/ctoolbox jq -r '.bind_to_ip // empty' "$settings_file" 2>/dev/null || true)
 
-    if [ -n "$tls_cert" ]; then
-        proto="https"
-        web_port="${https_port:-8443}"
-    else
-        proto="http"
-        web_port="${http_port:-8080}"
-    fi
+	if [ -n "$tls_cert" ]; then
+		proto="https"
+		web_port="${https_port:-8443}"
+	else
+		proto="http"
+		web_port="${http_port:-8080}"
+	fi
 fi
 
 if [ -z "$bind_to_ip" ] || [ "$bind_to_ip" = "0.0.0.0" ] || [ "$bind_to_ip" = "::" ] || [ "$bind_to_ip" = "127.0.0.1" ]; then
-    connect_ip="127.0.0.1"
+	connect_ip="127.0.0.1"
 else
-    connect_ip="$bind_to_ip"
+	connect_ip="$bind_to_ip"
 fi
 
 curl_resolve_args=()
 if [ "$proto" = "https" ] && [ -n "$domain_name" ]; then
-    url="https://${domain_name}:${web_port}"
-    curl_resolve_args=(--resolve "${domain_name}:${web_port}:${connect_ip}")
+	url="https://${domain_name}:${web_port}"
+	curl_resolve_args=(--resolve "${domain_name}:${web_port}:${connect_ip}")
 else
-    url="${proto}://${connect_ip}:${web_port}"
+	url="${proto}://${connect_ip}:${web_port}"
 fi
 
 echo "Polling ${url}/api/update-status until server is responsive and reporting version ${version}..."
 responsive=0
-for i in {1..60}; do
-    response=$(curl -fsS "${curl_resolve_args[@]}" "${url}/api/update-status" 2>/dev/null || true)
-    if [ -n "$response" ]; then
-        reported_version=$(echo "$response" | /home/${server_user}/deploy/ctoolbox jq -r '.server_version // empty' 2>/dev/null || true)
-        if [ "$reported_version" = "$version" ]; then
-            echo "Server is responsive and reporting version ${version}!"
-            responsive=1
-            break
-        fi
-    fi
-    sleep 1
+for _ in {1..60}; do
+	response=$(curl -fsS "${curl_resolve_args[@]}" "${url}/api/update-status" 2>/dev/null || true)
+	if [ -n "$response" ]; then
+		reported_version=$(printf '%s' "$response" | /home/${server_user}/deploy/ctoolbox jq -r '.server_version // empty' 2>/dev/null || true)
+		if [ "$reported_version" = "$version" ]; then
+			echo "Server is responsive and reporting version ${version}!"
+			responsive=1
+			break
+		fi
+	fi
+	sleep 1
 done
 
 if [[ "$responsive" -eq 0 ]]; then
-    echo "Error: Server failed to become responsive and report version ${version} on ${url} within 60 seconds." >&2
-    echo "--- Systemd journal output for ctoolbox.service (last 50 lines) ---" >&2
-    journalctl --user -u ctoolbox -n 50 --no-pager 2>/dev/null || true
-    echo "--- Systemd service status ---" >&2
-    systemctl --user status ctoolbox 2>/dev/null || true
-    exit 1
+	echo "Error: Server failed to become responsive and report version ${version} on ${url} within 60 seconds." >&2
+	echo "--- Systemd journal output for ctoolbox.service (last 50 lines) ---" >&2
+	journalctl --user -u ctoolbox -n 50 --no-pager 2>/dev/null || true
+	echo "--- Systemd service status ---" >&2
+	systemctl --user status ctoolbox --no-pager 2>/dev/null || true
+	exit 1
+fi
+REMOTE_START_POLL
+	rollback_previous_binary
+	exit 1
+fi
+
+# Authenticate/initialize global graph user by piping the JSON body over SSH stdin (never via CLI args)
+echo "Setting up global user database..."
+escaped_global_pass="$(printf '%s' "$GLOBAL_GRAPH_PASS" | "$devsign_bin" json-escape)"
+global_setup_payload="{\"password\":${escaped_global_pass}}"
+unset escaped_global_pass
+
+if ! printf '%s' "$global_setup_payload" | remote_ssh "$server_user" bash -c '
+set -euo pipefail
+server_user="$1"
+payload="$(cat)"
+
+settings_file="/home/${server_user}/.local/share/collectivetoolbox/config/pc_settings.json"
+web_port=8080
+proto="http"
+domain_name=""
+bind_to_ip=""
+
+if [ -f "$settings_file" ]; then
+	tls_cert=$(/home/${server_user}/deploy/ctoolbox jq -r ".tls_certificate // empty" "$settings_file" 2>/dev/null || true)
+	https_port=$(/home/${server_user}/deploy/ctoolbox jq -r ".fixed_https_port // empty" "$settings_file" 2>/dev/null || true)
+	http_port=$(/home/${server_user}/deploy/ctoolbox jq -r ".fixed_http_port // empty" "$settings_file" 2>/dev/null || true)
+	domain_name=$(/home/${server_user}/deploy/ctoolbox jq -r ".domain_name // empty" "$settings_file" 2>/dev/null || true)
+	bind_to_ip=$(/home/${server_user}/deploy/ctoolbox jq -r ".bind_to_ip // empty" "$settings_file" 2>/dev/null || true)
+
+	if [ -n "$tls_cert" ]; then
+		proto="https"
+		web_port="${https_port:-8443}"
+	else
+		proto="http"
+		web_port="${http_port:-8080}"
+	fi
+fi
+
+if [ -z "$bind_to_ip" ] || [ "$bind_to_ip" = "0.0.0.0" ] || [ "$bind_to_ip" = "::" ] || [ "$bind_to_ip" = "127.0.0.1" ]; then
+	connect_ip="127.0.0.1"
+else
+	connect_ip="$bind_to_ip"
+fi
+
+curl_resolve_args=()
+if [ "$proto" = "https" ] && [ -n "$domain_name" ]; then
+	url="https://${domain_name}:${web_port}"
+	curl_resolve_args=(--resolve "${domain_name}:${web_port}:${connect_ip}")
+else
+	url="${proto}://${connect_ip}:${web_port}"
 fi
 
 token_dir="/home/${server_user}/.local/share/collectivetoolbox"
 token_file="${token_dir}/setup_token"
 
 if [ -f "$token_file" ]; then
-    rm "$token_file"
+	rm "$token_file"
 fi
 
-setup_token=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+setup_token=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d " \n")
 mkdir -p "$token_dir"
-echo "$setup_token" > "$token_file"
+printf "%s\n" "$setup_token" > "$token_file"
 chmod 600 "$token_file"
 
-echo "Setting up global user database..."
-escaped_pass=$(printf '%s' "$GLOBAL_GRAPH_PASS" | /home/${server_user}/deploy/ctoolbox json-escape)
-response=$(printf '{"password":%s}' "$escaped_pass" | curl -fsS "${curl_resolve_args[@]}" -X POST -H 'Content-Type: application/json' -H "X-Ctb-Setup-Token: $setup_token" --data-binary @- "${url}/api/sync/setup-global-user" 2>/dev/null || true)
+response=$(printf "%s" "$payload" | curl -fsS "${curl_resolve_args[@]}" -X POST -H "Content-Type: application/json" -H "X-Ctb-Setup-Token: $setup_token" --data-binary @- "${url}/api/sync/setup-global-user" 2>/dev/null || true)
+unset payload
 
 if [ -f "$token_file" ]; then
-    rm "$token_file"
+	rm "$token_file"
 fi
 
-if echo "$response" | grep -q '"success":true'; then
-    echo "Global user setup successful!"
+if printf "%s" "$response" | grep -q "\"success\":true"; then
+	echo "Global user setup successful!"
 else
-    echo "Global user setup failed: $response" >&2
-    exit 1
+	echo "Global user setup failed: $response" >&2
+	exit 1
 fi
 
 sleep 2
-systemctl --user status ctoolbox
-REMOTE_SCRIPT
+systemctl --user status ctoolbox --no-pager
+' _ "$server_user"; then
+	unset global_setup_payload GLOBAL_GRAPH_PASS PASS SERVER_USER_PASS SUDOER_USER_PASS
+	rollback_previous_binary
+	exit 1
+fi
 
-unset PASS SERVER_USER_PASS SUDOER_USER_PASS
+unset global_setup_payload GLOBAL_GRAPH_PASS PASS SERVER_USER_PASS SUDOER_USER_PASS
+
+# Clean up older deployed binaries and resource bundles ONLY after the new service is healthy
+echo "Cleaning up superseded deployed binaries..."
+remote_ssh "$user" bash -s "$commit" "$server_user" <<'REMOTE_CLEANUP'
+commit="$1"
+server_user="$2"
+
+cd /home/"$server_user"/deploy || exit 1
+find . -maxdepth 1 -type f \( -name "ctoolbox-*" -o -name "system_graph_history-*" \) \
+	! -name "ctoolbox-$commit" \
+	! -name "ctoolbox-$commit.rsrc" \
+	! -name "system_graph_history-$commit.rsrc" \
+	-exec rm {} \; || true
+REMOTE_CLEANUP
 
 if [[ "$dry_run" -eq 0 ]]; then
-    echo "$version" > VERSION
-    echo "$commit" > COMMIT
+	echo "$version" > VERSION
+	echo "$commit" > COMMIT
 
-    git add VERSION COMMIT
-    git commit -m 'chore: Increase version after deploy'
+	git add VERSION COMMIT
+	git commit -m 'chore: Increase version after deploy'
 
-    timestamp="$(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-    git tag -a "v$version" -m "Version $version - $timestamp"
+	timestamp="$(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+	git tag -a "v$version" -m "Version $version - $timestamp"
 else
-    echo "[Dry Run] Skipping git version bump commit and tag creation."
+	echo "[Dry Run] Skipping VERSION/COMMIT git commit and tag creation."
 fi
 
 echo

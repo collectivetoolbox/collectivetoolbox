@@ -44,7 +44,7 @@ class DeployFlagsTests(unittest.TestCase):
 
     def test_linux_vm_help(self):
         res = subprocess.run(
-            ["./scripts/linux-vm", "--help"],
+            ["./scripts/vm", "linux", "--help"],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -79,6 +79,67 @@ class DeployFlagsTests(unittest.TestCase):
         self.assertEqual(res.returncode, 1)
         self.assertIn("VM SSH key not found at", res.stderr)
 
+    def test_invalid_target_rejected_instead_of_live_fallback(self):
+        res = subprocess.run(
+            ["./deploy", "--target", "nonexistent-target-xyz", "--skip-clean", "--allow-dirty"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("Invalid --target", res.stderr)
+
+    def test_missing_config_dir_rejected(self):
+        res = subprocess.run(
+            ["./deploy", "--config-dir", "/tmp/nonexistent-ctb-cfg-99999", "--skip-clean", "--allow-dirty"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("Configuration directory not found", res.stderr)
+
+    def test_target_directory_reads_config_files(self):
+        with tempfile.TemporaryDirectory() as cfg_dir:
+            cfg = pathlib.Path(cfg_dir)
+            (cfg / "ctb-deploy.username").write_text("deployer\n", encoding="utf-8")
+            (cfg / "ctb-deploy.sudoer-username").write_text("sudoer\n", encoding="utf-8")
+            (cfg / "ctb-deploy.server-username").write_text("server\n", encoding="utf-8")
+            (cfg / "ctb-deploy.ip").write_text("127.0.0.1\n", encoding="utf-8")
+            (cfg / "ctb-deploy.port").write_text("2224\n", encoding="utf-8")
+
+            res = subprocess.run(
+                [
+                    "./deploy",
+                    "--target",
+                    cfg_dir,
+                    "--ssh-key",
+                    "/tmp/nonexistent-key-12345",
+                    "--skip-clean",
+                    "--allow-dirty",
+                ],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res.returncode, 1)
+            self.assertIn("SSH key specified at /tmp/nonexistent-key-12345 not found", res.stderr)
+
+    def test_missing_option_argument_rejected(self):
+        for flag in ("--target", "--config-dir", "--ssh-key"):
+            res = subprocess.run(
+                ["./deploy", "--allow-dirty", flag],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res.returncode, 1)
+            self.assertIn("requires", res.stderr)
+
     def test_no_build_rejects_missing_binary(self):
         with tempfile.NamedTemporaryFile() as key_file:
             res = subprocess.run(
@@ -103,7 +164,7 @@ class DeployFlagsTests(unittest.TestCase):
             )
 
     def test_dirty_working_tree_rejected(self):
-        with tempfile.NamedTemporaryFile(dir=REPO_ROOT, prefix="test_dirty_") as tmp_file:
+        with tempfile.NamedTemporaryFile(dir=REPO_ROOT, prefix="test_dirty_"):
             res = subprocess.run(
                 ["./deploy", "--target", "vm"],
                 cwd=REPO_ROOT,
@@ -115,7 +176,7 @@ class DeployFlagsTests(unittest.TestCase):
             self.assertIn("unstaged or uncommitted changes", res.stderr)
 
     def test_dirty_working_tree_allowed_with_flag(self):
-        with tempfile.NamedTemporaryFile(dir=REPO_ROOT, prefix="test_dirty_") as tmp_file:
+        with tempfile.NamedTemporaryFile(dir=REPO_ROOT, prefix="test_dirty_"):
             res = subprocess.run(
                 ["./deploy", "--target", "vm", "--allow-dirty", "--ssh-key", "/tmp/nonexistent-key-12345"],
                 cwd=REPO_ROOT,

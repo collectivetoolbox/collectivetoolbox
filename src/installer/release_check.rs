@@ -317,6 +317,9 @@ pub fn run_dev_release_check(
     log_fmt!("Chunks directory: {}", chunks_dir.display());
 
     let summary = verify_release(&manifest_path, &chunks_dir, &public_key_b64)?;
+    if !summary.success {
+        bail!("{summary}");
+    }
 
     Ok(summary.to_string())
 }
@@ -538,6 +541,53 @@ mod tests {
                 .errors
                 .iter()
                 .any(|e| e.contains("invalid signature"))
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_run_dev_release_check_returns_err_on_failed_verification() {
+        use ctb_utilities::json::maybe_value::MaybeOption;
+        use ctb_utilities::pc_settings::PcSettings;
+
+        let temp = TempDir::new().unwrap();
+        let releases_dir = temp.path().join("releases");
+        let chunks_dir = releases_dir.join("bh");
+        fs::create_dir_all(&chunks_dir).unwrap();
+
+        let (private_key, _) = generate_keypair();
+        let (_, wrong_public_key) = generate_keypair();
+        let wrong_public_key_b64 = public_key_to_base64(&wrong_public_key);
+
+        PcSettings::apply_patch(PcSettings {
+            release_public_key: MaybeOption::Value(wrong_public_key_b64),
+            ..Default::default()
+        })
+        .unwrap();
+
+        let mut manifest = ReleaseManifest::new(
+            semver::Version::new(1, 0, 0),
+            Platform::LinuxX64,
+            Timestamp::now(),
+        );
+        manifest.signature =
+            Some(sign_manifest(&manifest, &private_key).unwrap());
+
+        let manifest_path = releases_dir.join("ctb-linux-x64-latest.json");
+        fs::write(
+            &manifest_path,
+            serde_json::to_string_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
+
+        let err = run_dev_release_check(
+            Some(&manifest_path),
+            Some(&chunks_dir),
+            Some("linux-x64"),
+        )
+        .unwrap_err();
+        assert!(
+            err.to_string().contains("Verification FAILED"),
+            "expected failure summary in error, got: {err}"
         );
     }
 }
