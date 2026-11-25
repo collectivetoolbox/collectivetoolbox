@@ -149,9 +149,8 @@ trait ArchiveClient {
         file_progress: Option<&FileItemProgress>,
     ) -> Result<u64> {
         let bytes = self.fetch_download_bytes(identifier, file_name)?;
-        let len_u64 = u64::try_from(bytes.len()).map_err(|e| {
-            anyhow!("Failed to convert byte length to u64: {e}")
-        })?;
+        let len_u64 = u64::try_from(bytes.len())
+            .map_err(|e| anyhow!("Failed to convert byte length to u64: {e}"))?;
         if let Some(fp) = file_progress {
             fp.set_total_bytes(len_u64);
             fp.set_bytes_done(len_u64);
@@ -385,7 +384,12 @@ pub fn download_here(
     output_dir: Option<&Path>,
     progress: Progress,
 ) -> Result<Vec<u8>> {
-    download_here_with_client(&LiveArchiveClient, target, output_dir, progress)
+    download_here_with_client(
+        &LiveArchiveClient,
+        target,
+        output_dir,
+        progress,
+    )
 }
 
 fn download_with_client(

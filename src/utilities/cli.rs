@@ -149,6 +149,9 @@ pub fn stderr_terminal_cols() -> Option<usize> {
             unsafe_code,
             reason = "queries terminal window dimensions on STDERR_FILENO into a stack-initialized winsize struct via TIOCGWINSZ"
         )]
+        // SAFETY: `ws` is a valid, stack-allocated, fully initialized `winsize`
+        // struct whose mutable raw pointer matches `TIOCGWINSZ`'s expected argument
+        // on `STDERR_FILENO` (verified interactive above).
         let rc = unsafe {
             nix::libc::ioctl(
                 nix::libc::STDERR_FILENO,

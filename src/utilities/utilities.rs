@@ -30,7 +30,6 @@ use std::collections::HashMap;
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
-use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use sysinfo::{Pid, Process, System};

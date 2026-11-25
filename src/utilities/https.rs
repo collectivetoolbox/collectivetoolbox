@@ -139,7 +139,9 @@ impl AsyncChunkSource for ReqwestChunkSource {
     fn next_chunk(
         &mut self,
     ) -> Pin<
-        Box<dyn Future<Output = std::io::Result<Option<Vec<u8>>>> + Send + '_>,
+        Box<
+            dyn Future<Output = std::io::Result<Option<Vec<u8>>>> + Send + '_,
+        >,
     > {
         Box::pin(async move {
             match self.response.chunk().await {
@@ -299,8 +301,7 @@ pub fn blocking_get_response_with_backoff(
     url: &str,
     retry_count: usize,
 ) -> Result<BlockingResponse> {
-    blocking_client(ClientOptions::default())?
-        .get_with_backoff(url, retry_count)
+    blocking_client(ClientOptions::default())?.get_with_backoff(url, retry_count)
 }
 
 pub fn blocking_get_response_with_headers(
@@ -794,12 +795,11 @@ impl std::io::Read for BlockingResponse {
                 BlockingResponseBody::Consumed,
             );
             if let BlockingResponseBody::Unread(resp) = prev {
-                let exec = shared_executor().map_err(std::io::Error::other)?;
-                let stream = SyncByteStream::new(
-                    exec,
-                    ReqwestChunkSource { response: resp },
-                )
-                .map_err(std::io::Error::other)?;
+                let exec =
+                    shared_executor().map_err(std::io::Error::other)?;
+                let stream =
+                    SyncByteStream::new(exec, ReqwestChunkSource { response: resp })
+                        .map_err(std::io::Error::other)?;
                 self.body = BlockingResponseBody::Streaming(stream);
             }
         }
