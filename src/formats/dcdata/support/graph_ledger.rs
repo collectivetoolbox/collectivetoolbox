@@ -1137,6 +1137,8 @@ impl LedgerBuilder {
             cands.sort_by_key(|c| c.has_val_id);
         }
 
+        let value_node_by_tokens = index.build_value_node_by_tokens();
+
         Self {
             write_state,
             appended_count: 0,
@@ -1144,7 +1146,7 @@ impl LedgerBuilder {
             retracted_count: 0,
             token_labels,
             string_by_node_id: index.string_by_node_id,
-            value_node_by_tokens: index.value_node_by_tokens,
+            value_node_by_tokens,
             seed_entity_ids: index.seed_entity_ids,
             entity_class_by_id: index.entity_class_by_id,
             active_single_props: index.active_single_props,

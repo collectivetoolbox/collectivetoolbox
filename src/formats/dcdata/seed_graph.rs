@@ -284,8 +284,6 @@ pub struct SeedGraphIndex {
     pub(crate) string_by_node_id: HashMap<u128, String>,
     /// Decoded unsigned integers for `6 f199 .. 7` value nodes, keyed by `u128` node ID.
     pub(crate) integer_by_node_id: HashMap<u128, u128>,
-    /// Maps a value node's canonical token sequence to its first allocated `u128` node ID.
-    pub(crate) value_node_by_tokens: HashMap<Vec<DcShorthand>, u128>,
     /// Maps a `SeedEntityKey` (`BidiClass`, `GeneralCategory`, `Script`, `NamedConstruct`)
     /// to its allocated `u128` node ID.
     pub(crate) seed_entity_ids: HashMap<SeedEntityKey, u128>,
@@ -365,8 +363,9 @@ pub struct SeedGraphIndex {
     /// Active non-seed entity nodes (`Dc 586` `"Is an instance of"` `Dc 615` `"Enclosing document"` `<class_tok>`),
     /// mapped from entity `u128` node ID to `<class_tok>`.
     pub(crate) entity_class_by_id: HashMap<u128, DcShorthand>,
-    /// Exact verbatim token slice -> active node IDs in ascending `node.id` order.
-    pub(crate) active_nodes_by_exact_tokens: HashMap<Vec<DcShorthand>, Vec<u128>>,
+    /// Exact verbatim token slice -> active node IDs in ascending `node.id` order (populated on first query).
+    pub(crate) active_nodes_by_exact_tokens:
+        std::sync::OnceLock<HashMap<Vec<DcShorthand>, Vec<u128>>>,
     /// All active statement triples `(stmt_id, verb, subj, obj)` sorted deterministically.
     pub(crate) all_active_triples:
         Vec<(u128, DcShorthand, DcShorthand, DcShorthand)>,
@@ -1307,13 +1306,68 @@ impl SeedGraphIndex {
         let sh_data_source = sh(DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE);
         let sh_this_element = sh(DC_THIS_ELEMENT);
 
-        let mut node_index_by_id = HashMap::with_capacity(nodes.len());
-        for (idx, node) in nodes.iter().enumerate() {
-            node_index_by_id.insert(node.id, idx);
+        enum ParsedNodeForm {
+            Statement(DcShorthand, DcShorthand, DcShorthand),
+            ForEach(
+                DcShorthand,
+                DcShorthand,
+                DcShorthand,
+                DcShorthand,
+                Vec<DcShorthand>,
+            ),
+            Value,
         }
 
-        let (mut inactive_ids, superseded_by, retracted_by) =
-            compute_effective_inactive_ids(&nodes);
+        let mut node_index_by_id = HashMap::with_capacity(nodes.len());
+        let mut parsed_forms = Vec::with_capacity(nodes.len());
+        for (idx, node) in nodes.iter().enumerate() {
+            node_index_by_id.insert(node.id, idx);
+            let form = if let Some((verb, subj, obj)) =
+                parse_statement_tokens(&node.tokens)
+            {
+                ParsedNodeForm::Statement(verb, subj, obj)
+            } else if let Some((
+                inner_verb,
+                inner_subj,
+                inner_obj,
+                list_type,
+                targets,
+            )) = parse_for_each_statement_tokens(&node.tokens)
+            {
+                ParsedNodeForm::ForEach(
+                    inner_verb, inner_subj, inner_obj, list_type, targets,
+                )
+            } else {
+                ParsedNodeForm::Value
+            };
+            parsed_forms.push(form);
+        }
+
+        let mut inactive_ids = HashSet::new();
+        let mut superseded_by = HashMap::new();
+        let mut retracted_by = HashMap::new();
+        for (node, form) in nodes.iter().zip(&parsed_forms).rev() {
+            if inactive_ids.contains(&node.id) {
+                continue;
+            }
+            if let &ParsedNodeForm::Statement(verb, subj, obj) = form {
+                if verb == sh_supersedes {
+                    if let DcShorthand::Long(old_id) = obj {
+                        let new_id = match subj {
+                            DcShorthand::Long(n_id) => n_id,
+                            _ => node.id,
+                        };
+                        inactive_ids.insert(old_id);
+                        superseded_by.insert(old_id, new_id);
+                    }
+                } else if verb == sh_retracts
+                    && let DcShorthand::Long(old_id) = obj
+                {
+                    inactive_ids.insert(old_id);
+                    retracted_by.insert(old_id, node.id);
+                }
+            }
+        }
 
         let mut superseding_stmt_by_old_id: HashMap<u128, u128> =
             HashMap::new();
@@ -1328,67 +1382,63 @@ impl SeedGraphIndex {
             Vec<(u128, u128, DcShorthand)>,
         > = HashMap::new();
 
-        for node in &nodes {
-            if let Some((verb, subj, obj)) =
-                parse_statement_tokens(&node.tokens)
-            {
-                if verb == sh_supersedes {
-                    if let DcShorthand::Long(old_id) = obj
-                        && !inactive_ids.contains(&node.id)
-                    {
-                        superseding_stmt_by_old_id.insert(old_id, node.id);
-                    }
-                } else if verb == sh_has_value {
-                    if let DcShorthand::Long(has_a_id) = subj {
-                        has_val_stmt_ids_by_has_a
-                            .entry(has_a_id)
+        for (node, form) in nodes.iter().zip(&parsed_forms) {
+            match form {
+                &ParsedNodeForm::Statement(verb, subj, obj) => {
+                    if verb == sh_supersedes {
+                        if let DcShorthand::Long(old_id) = obj
+                            && !inactive_ids.contains(&node.id)
+                        {
+                            superseding_stmt_by_old_id.insert(old_id, node.id);
+                        }
+                    } else if verb == sh_has_value {
+                        if let DcShorthand::Long(has_a_id) = subj {
+                            has_val_stmt_ids_by_has_a
+                                .entry(has_a_id)
+                                .or_default()
+                                .push((node.id, obj));
+                        }
+                    } else if verb != sh_retracts {
+                        let eff_subj = if subj == sh_enclosing_doc {
+                            DcShorthand::Long(node.id)
+                        } else {
+                            subj
+                        };
+                        subject_all_stmt_ids
+                            .entry(eff_subj)
                             .or_default()
-                            .push((node.id, obj));
+                            .push(node.id);
                     }
-                } else if verb != sh_retracts {
-                    let eff_subj = if subj == sh_enclosing_doc {
-                        DcShorthand::Long(node.id)
-                    } else {
-                        subj
-                    };
-                    subject_all_stmt_ids
-                        .entry(eff_subj)
-                        .or_default()
-                        .push(node.id);
                 }
-            } else if let Some((
-                inner_verb,
-                inner_subj,
-                _inner_obj,
-                _list_type,
-                targets,
-            )) = parse_for_each_statement_tokens(&node.tokens)
-                && inner_verb != sh_has_value
-                && inner_verb != sh_supersedes
-                && inner_verb != sh_retracts
-            {
-                for &elem in &targets {
-                    let eff_subj = if inner_subj == sh_this_element {
-                        elem
-                    } else if inner_subj == sh_enclosing_doc {
-                        DcShorthand::Long(node.id)
-                    } else {
-                        inner_subj
-                    };
-                    subject_all_stmt_ids
-                        .entry(eff_subj)
-                        .or_default()
-                        .push(node.id);
+                ParsedNodeForm::ForEach(
+                    inner_verb,
+                    inner_subj,
+                    _inner_obj,
+                    _list_type,
+                    targets,
+                ) if *inner_verb != sh_has_value
+                    && *inner_verb != sh_supersedes
+                    && *inner_verb != sh_retracts =>
+                {
+                    for &elem in targets {
+                        let eff_subj = if *inner_subj == sh_this_element {
+                            elem
+                        } else if *inner_subj == sh_enclosing_doc {
+                            DcShorthand::Long(node.id)
+                        } else {
+                            *inner_subj
+                        };
+                        subject_all_stmt_ids
+                            .entry(eff_subj)
+                            .or_default()
+                            .push(node.id);
+                    }
                 }
+                ParsedNodeForm::ForEach(..) | ParsedNodeForm::Value => {}
             }
         }
 
-        // First pass: index active value nodes and find active `610` (`Has value`) and `584 <s1> 570` (`Preferred`) nodes.
-        let mut value_node_by_tokens = HashMap::new();
-        let mut active_nodes_by_exact_tokens: HashMap<
-            Vec<DcShorthand>,
-            Vec<u128>,
-        > = HashMap::new();
+        // First pass: decode literal value nodes and find active `610` (`Has value`) and `584 <s1> 570` (`Preferred`) nodes.
         let mut string_by_node_id: HashMap<u128, String> = HashMap::new();
         let mut integer_by_node_id: HashMap<u128, u128> = HashMap::new();
         let mut active_has_val_by_stmt: HashMap<
@@ -1401,37 +1451,22 @@ impl SeedGraphIndex {
         let mut node_data_source: HashMap<u128, DcShorthand> = HashMap::new();
         let mut provenance_stmt_ids: HashSet<u128> = HashSet::new();
 
-        for node in &nodes {
-            if let Some(decoded_str) = decode_string_value_tokens(&node.tokens)
-            {
-                string_by_node_id.insert(node.id, decoded_str);
-            } else if let Some(decoded_int) =
-                decode_integer_value_tokens(&node.tokens)
-            {
-                integer_by_node_id.insert(node.id, decoded_int);
+        for (node, form) in nodes.iter().zip(&parsed_forms) {
+            if matches!(form, ParsedNodeForm::Value) {
+                if let Some(decoded_str) =
+                    decode_string_value_tokens(&node.tokens)
+                {
+                    string_by_node_id.insert(node.id, decoded_str);
+                } else if let Some(decoded_int) =
+                    decode_integer_value_tokens(&node.tokens)
+                {
+                    integer_by_node_id.insert(node.id, decoded_int);
+                }
             }
             if inactive_ids.contains(&node.id) {
                 continue;
             }
-            active_nodes_by_exact_tokens
-                .entry(node.tokens.clone())
-                .or_default()
-                .push(node.id);
-            let stmt_opt = parse_statement_tokens(&node.tokens);
-            let for_each_opt = if stmt_opt.is_none() {
-                parse_for_each_statement_tokens(&node.tokens)
-            } else {
-                None
-            };
-            if stmt_opt.is_none()
-                && for_each_opt.is_none()
-                && parse_ambiguous_values_tokens(&node.tokens).is_none()
-            {
-                value_node_by_tokens
-                    .entry(node.tokens.clone())
-                    .or_insert(node.id);
-            }
-            if let Some((verb, subj, obj)) = stmt_opt {
+            if let &ParsedNodeForm::Statement(verb, subj, obj) = form {
                 if verb == sh_has_value {
                     if let DcShorthand::Long(has_a_id) = subj {
                         if inactive_ids.contains(&has_a_id) {
@@ -1439,16 +1474,13 @@ impl SeedGraphIndex {
                         } else {
                             let is_prop_has_a = node_index_by_id
                                 .get(&has_a_id)
-                                .and_then(|&idx| nodes.get(idx))
-                                .is_some_and(|n| {
-                                    parse_statement_tokens(&n.tokens)
-                                        .is_some_and(|(v, _, _)| v == sh_has_a)
-                                        || parse_for_each_statement_tokens(
-                                            &n.tokens,
-                                        )
-                                        .is_some_and(|(v, _, _, _, _)| {
-                                            v == sh_has_a
-                                        })
+                                .and_then(|&idx| parsed_forms.get(idx))
+                                .is_some_and(|f| match f {
+                                    ParsedNodeForm::Statement(v, _, _)
+                                    | ParsedNodeForm::ForEach(v, ..) => {
+                                        *v == sh_has_a
+                                    }
+                                    ParsedNodeForm::Value => false,
                                 });
                             if is_prop_has_a {
                                 active_has_val_by_stmt
@@ -1466,16 +1498,13 @@ impl SeedGraphIndex {
                     if let DcShorthand::Long(has_a_id) = subj {
                         let targets_has_a = node_index_by_id
                             .get(&has_a_id)
-                            .and_then(|&idx| nodes.get(idx))
-                            .is_some_and(|n| {
-                                parse_statement_tokens(&n.tokens)
-                                    .is_some_and(|(v, _, _)| v == sh_has_a)
-                                    || parse_for_each_statement_tokens(
-                                        &n.tokens,
-                                    )
-                                    .is_some_and(|(v, _, _, _, _)| {
-                                        v == sh_has_a
-                                    })
+                            .and_then(|&idx| parsed_forms.get(idx))
+                            .is_some_and(|f| match f {
+                                ParsedNodeForm::Statement(v, _, _)
+                                | ParsedNodeForm::ForEach(v, ..) => {
+                                    *v == sh_has_a
+                                }
+                                ParsedNodeForm::Value => false,
                             });
                         if targets_has_a {
                             if inactive_ids.contains(&has_a_id) {
@@ -1537,18 +1566,21 @@ impl SeedGraphIndex {
             DcShorthand,
         )> = Vec::new();
 
-        for node in &nodes {
+        for (node, form) in nodes.iter().zip(&parsed_forms) {
             if inactive_ids.contains(&node.id) {
                 continue;
             }
-            if let Some((
+            if let ParsedNodeForm::ForEach(
                 inner_verb,
                 inner_subj,
                 inner_obj,
                 _list_type,
                 targets,
-            )) = parse_for_each_statement_tokens(&node.tokens)
+            ) = form
             {
+                let inner_verb = *inner_verb;
+                let inner_subj = *inner_subj;
+                let inner_obj = *inner_obj;
                 let resolve_iter_tok =
                     |pat: DcShorthand, elem: DcShorthand| -> DcShorthand {
                         if pat == sh_this_element {
@@ -1559,7 +1591,7 @@ impl SeedGraphIndex {
                             pat
                         }
                     };
-                for &elem in &targets {
+                for &elem in targets {
                     all_active_triples.push((
                         node.id,
                         inner_verb,
@@ -1575,7 +1607,7 @@ impl SeedGraphIndex {
                             provenance_stmt_ids.insert(node.id);
                             for &(has_val_id, val_tok) in has_vals {
                                 provenance_stmt_ids.insert(has_val_id);
-                                for &elem in &targets {
+                                for &elem in targets {
                                     let subj =
                                         resolve_iter_tok(inner_subj, elem);
                                     if let DcShorthand::Long(target_node_id) =
@@ -1603,7 +1635,7 @@ impl SeedGraphIndex {
                                 consumed_pref_qual_has_a_ids.insert(node.id);
                             }
                             for &(has_val_id, val_tok) in has_vals {
-                                for &elem in &targets {
+                                for &elem in targets {
                                     let subj =
                                         resolve_iter_tok(inner_subj, elem);
                                     let obj = resolve_iter_tok(inner_obj, elem);
@@ -1649,7 +1681,7 @@ impl SeedGraphIndex {
                     && inner_verb != sh_supersedes
                     && inner_verb != sh_retracts
                 {
-                    for &elem in &targets {
+                    for &elem in targets {
                         let subj = resolve_iter_tok(inner_subj, elem);
                         let obj = resolve_iter_tok(inner_obj, elem);
                         direct_stmts_all
@@ -1674,8 +1706,7 @@ impl SeedGraphIndex {
                 continue;
             }
 
-            let Some((verb, subj, obj)) = parse_statement_tokens(&node.tokens)
-            else {
+            let &ParsedNodeForm::Statement(verb, subj, obj) = form else {
                 continue;
             };
             all_active_triples.push((node.id, verb, subj, obj));
@@ -1722,10 +1753,13 @@ impl SeedGraphIndex {
                 if let DcShorthand::Long(target_id) = subj {
                     if node_index_by_id
                         .get(&target_id)
-                        .and_then(|&idx| nodes.get(idx))
-                        .is_some_and(|n| {
-                            parse_statement_tokens(&n.tokens)
-                                .is_some_and(|(v, _, _)| v == sh_has_a)
+                        .and_then(|&idx| parsed_forms.get(idx))
+                        .is_some_and(|f| {
+                            matches!(
+                                f,
+                                ParsedNodeForm::Statement(v, _, _)
+                                    if *v == sh_has_a
+                            )
                         })
                     {
                         continue;
@@ -1914,10 +1948,6 @@ impl SeedGraphIndex {
             }
         }
 
-        for ids in active_nodes_by_exact_tokens.values_mut() {
-            ids.sort_unstable();
-            ids.dedup();
-        }
         all_active_triples.sort_unstable();
         all_active_triples.dedup();
         let mut triple_idx_by_verb_subj: HashMap<
@@ -1965,7 +1995,6 @@ impl SeedGraphIndex {
             inactive_ids,
             string_by_node_id,
             integer_by_node_id,
-            value_node_by_tokens,
             seed_entity_ids,
             seed_entity_by_id,
             active_single_props,
@@ -1991,7 +2020,7 @@ impl SeedGraphIndex {
             has_val_stmt_ids_by_has_a,
             system_block_most_recent_node_id,
             entity_class_by_id,
-            active_nodes_by_exact_tokens,
+            active_nodes_by_exact_tokens: std::sync::OnceLock::new(),
             all_active_triples,
             triple_idx_by_verb_subj,
             triple_idx_by_verb_obj,
@@ -1999,6 +2028,27 @@ impl SeedGraphIndex {
             triple_idx_by_subj,
             triple_idx_by_obj,
         }
+    }
+
+    /// Builds a canonical value-node token sequence -> first allocated `u128` node ID map
+    /// across active pure value nodes in this snapshot.
+    #[must_use]
+    pub(crate) fn build_value_node_by_tokens(
+        &self,
+    ) -> HashMap<Vec<DcShorthand>, u128> {
+        let mut map = HashMap::new();
+        for node in &self.nodes {
+            if self.inactive_ids.contains(&node.id) {
+                continue;
+            }
+            if parse_statement_tokens(&node.tokens).is_none()
+                && parse_for_each_statement_tokens(&node.tokens).is_none()
+                && parse_ambiguous_values_tokens(&node.tokens).is_none()
+            {
+                map.entry(node.tokens.clone()).or_insert(node.id);
+            }
+        }
+        map
     }
 
     /// Collects semantic graph invariant anomalies (supersession cycles, or active
@@ -2266,7 +2316,21 @@ impl SeedGraphIndex {
         &self,
         tokens: &[DcShorthand],
     ) -> &[u128] {
-        let Some(ids) = self.active_nodes_by_exact_tokens.get(tokens) else {
+        let index = self.active_nodes_by_exact_tokens.get_or_init(|| {
+            let mut map: HashMap<Vec<DcShorthand>, Vec<u128>> = HashMap::new();
+            for node in &self.nodes {
+                if self.inactive_ids.contains(&node.id) {
+                    continue;
+                }
+                map.entry(node.tokens.clone()).or_default().push(node.id);
+            }
+            for ids in map.values_mut() {
+                ids.sort_unstable();
+                ids.dedup();
+            }
+            map
+        });
+        let Some(ids) = index.get(tokens) else {
             return &[];
         };
         if let Some(pin_id) = self.system_block_most_recent_node_id {

@@ -141,6 +141,7 @@ fn run_single_complete_step(session: &mut DcWasmSession) -> Result<DcMstring> {
 
 #[crate::ctb_test]
 fn test_substitute_parity_dc_1936_and_dc_641_fallback() -> Result<()> {
+    ctb_wasm_substitutes::ensure_registered();
     let resolver = default_syntax_resolver();
     let dc_1936_wasm = compile_system_subject_wasm_bytes(
         DcShorthand::from_global_id(DC_DC_DOCUMENT_EXECUTION_KERNEL.to_u128()),
@@ -219,6 +220,7 @@ fn test_substitute_parity_dc_1936_and_dc_641_fallback() -> Result<()> {
 
 #[crate::ctb_test]
 fn test_substitute_parity_f1680_and_tight_quota_resume() -> Result<()> {
+    ctb_wasm_substitutes::ensure_registered();
     let resolver = default_syntax_resolver();
     let sg = SeedGraphIndex::shared()?;
     let f1680_wasm = compile_system_subject_wasm_bytes(
@@ -319,6 +321,7 @@ fn test_substitute_parity_f1680_and_tight_quota_resume() -> Result<()> {
 
 #[crate::ctb_test]
 fn test_substitute_parity_f1681() -> Result<()> {
+    ctb_wasm_substitutes::ensure_registered();
     let resolver = default_syntax_resolver();
     let sg = SeedGraphIndex::shared()?;
     let f1681_wasm = compile_system_subject_wasm_bytes(
@@ -359,6 +362,7 @@ pub v/l/u8/step l/u8/input
 
 #[crate::ctb_test]
 fn test_substitute_parity_dc_2608_option_b_capabilities() -> Result<()> {
+    ctb_wasm_substitutes::ensure_registered();
     let resolver = default_syntax_resolver();
     let sg = SeedGraphIndex::shared()?;
     let dc_2608_wasm = compile_system_subject_wasm_bytes(
@@ -416,6 +420,7 @@ fn test_substitute_parity_dc_2608_option_b_capabilities() -> Result<()> {
 #[crate::ctb_test]
 fn test_substitute_parity_dc_2608_bare_string_extraction_and_dc_2239_quote_atom()
 -> Result<()> {
+    ctb_wasm_substitutes::ensure_registered();
     let resolver = default_syntax_resolver();
     let sg = SeedGraphIndex::shared()?;
     let dc_2608_wasm = compile_system_subject_wasm_bytes(
@@ -700,23 +705,21 @@ fn test_substitute_parity_historical_dc_641_pin() -> Result<()> {
             SystemWasmSubstituteTargetKind::WasmConverter { .. }
                 if snap.target.subject == DcShorthand::Format(1680) =>
             {
-                let prefix_end = full_hist
-                    .nodes()
-                    .partition_point(|n| n.id <= snap.pin_node_id);
-                let hist_sg = SeedGraphIndex::from_bundled_nodes_at_most_recent(
-                    full_hist.nodes()[..prefix_end].to_vec(),
-                    snap.pin_node_id,
-                );
-                let hist_resolver =
-                    ctb_formats_dcdata::syntax::DatasetRuleResolver::from_seed_graph(
-                        &hist_sg,
+                let hist_resolver = resolver_cache
+                    .get(&snap.pin_node_id)
+                    .and_then(|opt| opt.as_ref())
+                    .context(
+                        "Expected cached DatasetRuleResolver for compiled snapshot",
                     )?;
+                let hist_sg = hist_resolver.seed_graph().context(
+                    "Expected SeedGraphIndex on cached DatasetRuleResolver",
+                )?;
                 let entry_tokens =
-                    sl3_to_dc_tokens_with_seed_graph(sl3_src, &hist_sg)?;
+                    sl3_to_dc_tokens_with_seed_graph(sl3_src, hist_sg)?;
                 let bundled = bundle_dc_module_for_wasm_converter(
                     &entry_tokens,
-                    &hist_sg,
-                    &hist_resolver,
+                    hist_sg,
+                    hist_resolver.as_ref(),
                 )?;
                 let f1680_input_doc = tokens_to_dcmstring(&bundled);
                 if !ran_tinywasm_distinct_historical_f1680
