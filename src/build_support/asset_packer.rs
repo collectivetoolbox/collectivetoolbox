@@ -32,7 +32,7 @@ use fs2::FileExt;
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
-use std::io::{ErrorKind, Read, Write};
+use std::io::{ErrorKind, Read};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 pub const DEBUG_LIBRARY_DOCS_STUB: &str = concat!(
@@ -146,8 +146,12 @@ fn copy_dir_recursive(
             let file_name = entry.file_name();
             let dst_path = dst.join(&file_name);
             if fs::metadata(&src_path).map(|m| m.is_dir()).unwrap_or(false) {
-                if src_path.ends_with("data/graph/system") {
-                    if dst_path.is_dir() {
+                if src_path.ends_with("data/graph")
+                    || src_path.ends_with("data/graph-bundles")
+                {
+                    if src_path.ends_with("data/graph-bundles")
+                        && dst_path.is_dir()
+                    {
                         fs::remove_dir_all(&dst_path)?;
                     }
                     continue;
@@ -185,10 +189,59 @@ fn copy_dir_recursive(
     Ok(())
 }
 
-#[expect(
-    dead_code,
-    reason = "Helper utility function for asset content comparison"
-)]
+fn sync_bundle_files_to_stage_dir(src_dir: &Path, dst_dir: &Path) -> Result<()> {
+    fs::create_dir_all(dst_dir)
+        .with_context(|| format!("Failed to create {}", dst_dir.display()))?;
+    let mut expected_names = HashSet::new();
+    if src_dir.is_dir() {
+        for entry in fs::read_dir(src_dir)
+            .with_context(|| format!("Failed to read {}", src_dir.display()))?
+        {
+            let entry = entry?;
+            let src_path = entry.path();
+            if !src_path.is_file() {
+                continue;
+            }
+            if src_path.extension().and_then(|e| e.to_str()) != Some("ctbnbdl")
+            {
+                continue;
+            }
+            let Some(name) = src_path.file_name().and_then(|n| n.to_str())
+            else {
+                continue;
+            };
+            expected_names.insert(name.to_string());
+            let dst_path = dst_dir.join(name);
+            if !files_match(&src_path, &dst_path)? {
+                fs::copy(&src_path, &dst_path).with_context(|| {
+                    format!(
+                        "Failed to copy {} to {}",
+                        src_path.display(),
+                        dst_path.display()
+                    )
+                })?;
+            }
+        }
+    }
+    for entry in fs::read_dir(dst_dir)
+        .with_context(|| format!("Failed to read {}", dst_dir.display()))?
+    {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            fs::remove_dir_all(&path)?;
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if !expected_names.contains(name) {
+            fs::remove_file(&path)?;
+        }
+    }
+    Ok(())
+}
+
 fn files_match(src: &Path, dst: &Path) -> Result<bool> {
     if !dst.is_file() {
         return Ok(false);
@@ -819,33 +872,35 @@ fn prepare_runtime_assets(
     fs::remove_dir_all(runtime_assets.join("docs/reference-implementations"))?;
     copy_license_files(project_root, &runtime_assets.join("docs"))?;
     let input_graph_dir = project_root.join("assets/data/graph");
+    let graph_bundles_dir =
+        project_root.join(crate::ctbnbdl::GRAPH_BUNDLES_REL_PATH);
     let framing_dcs =
         crate::dc_codegen::resolve_ctbnbdl_framing_dcs(&input_graph_dir)
             .context(
                 "Failed to resolve .ctbnbdl framing Dcs from system graph",
             )?;
-    crate::ctbnbdl::compile_ctbnodes_dir_to_ctbnbdl(
+    crate::ctbnbdl::compile_graph_bundles_from_ctbnodes_dir(
         &input_graph_dir,
-        &input_graph_dir,
+        &graph_bundles_dir,
         framing_dcs,
     )
-    .context("Failed to compile assets/data/graph/*.ctbnodes into source .ctbnbdl bundles")?;
-    let runtime_graph_system_dir = runtime_assets.join("data/graph/system");
+    .context("Failed to compile assets/data/graph/*.ctbnodes into assets/data/graph-bundles/ and split/")?;
+    let runtime_graph_dir = runtime_assets.join("data/graph");
+    let runtime_graph_system_dir = runtime_graph_dir.join("system");
     if runtime_graph_system_dir.is_dir() {
         fs::remove_dir_all(&runtime_graph_system_dir)?;
     }
-    crate::ctbnbdl::compile_ctbnodes_dir_to_ctbnbdl(
-        &input_graph_dir,
-        &runtime_assets.join("data/graph"),
-        framing_dcs,
+    sync_bundle_files_to_stage_dir(
+        &graph_bundles_dir.join(crate::ctbnbdl::GRAPH_BUNDLES_SPLIT_LIVE_SUBDIR),
+        &runtime_graph_dir,
     )
-    .context("Failed to compile assets/data/graph/*.ctbnodes into runtime .ctbnbdl bundles")?;
+    .context("Failed to stage live .ctbnbdl bundles into runtime assets")?;
     let history_stage_dir =
         project_root.join("built/system_graph_history_assets");
-    crate::ctbnbdl::compile_inactive_ctbnodes_dir_to_ctbnbdl(
-        &input_graph_dir,
+    sync_bundle_files_to_stage_dir(
+        &graph_bundles_dir
+            .join(crate::ctbnbdl::GRAPH_BUNDLES_SPLIT_HISTORY_SUBDIR),
         &history_stage_dir.join("data/graph/system"),
-        framing_dcs,
     )
     .context(
         "Failed to stage inactive system graph history .ctbnbdl bundles",

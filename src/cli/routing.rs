@@ -114,6 +114,7 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "gid"
             | "graph-id"
             | "graph_id"
+            | "explain-ctbnodes"
             | "character_description"
             | "character-description"
             | "chardesc"
@@ -309,6 +310,9 @@ pub enum Command {
         after_help = "Examples:\n  $ ctoolbox gid --s 1114408\n  dc:296\n\n  $ ctoolbox gid -i 1114408"
     )]
     Gid(ctb_formats_dcstring::cli_identifiers::GidArgs),
+    /// Render a .ctbnodes ledger file with synthesized human-readable explanation comments
+    #[command(name = "explain-ctbnodes")]
+    ExplainCtbnodes(ctb_formats_dcstring::cli_identifiers::ExplainCtbnodesArgs),
     /// Generate a range of numbers in various bases
     #[command(
         name = "range_gen",
@@ -1006,6 +1010,18 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             let output =
                 ctb_formats_dcstring::cli_identifiers::execute_cli_gid(args)?;
             Ok(ToolResult::immediate_ok(output.into_bytes()))
+        }
+        Command::ExplainCtbnodes(args) => {
+            let out =
+                ctb_formats_dcstring::cli_identifiers::execute_cli_explain_ctbnodes(
+                    args,
+                    read_file_or_stdin,
+                )?;
+            let bytes = match out {
+                Some(b) => b,
+                None => Vec::new(),
+            };
+            Ok(ToolResult::immediate_ok(bytes))
         }
         Command::RangeGen(args) => {
             let output =

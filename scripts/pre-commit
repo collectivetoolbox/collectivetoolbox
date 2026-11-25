@@ -46,15 +46,21 @@ while IFS= read -r rel_path; do
         exit 1
     fi
     rm "${head_tmp}"
-done < <(git ls-tree --name-only HEAD -- assets/data/graph/ | grep '\.ctbnodes$' || true)
+done < <(git ls-tree -r --name-only HEAD -- assets/data/graph/ | grep '\.ctbnodes$' || true)
 
 JOURNAL_PATH="${REPO_ROOT}/src/formats/dcdata/data-src/nodes/allocated/ledger-journal.jsonl"
 if [ -f "${JOURNAL_PATH}" ]; then
     python3 - "${REPO_ROOT}/assets/data/graph" "${JOURNAL_PATH}" << 'PY'
-import glob, json, os, sys
+import json, os, sys
 graph_dir, journal_path = sys.argv[1], sys.argv[2]
 max_node_id = 0
-for path in sorted(glob.glob(os.path.join(graph_dir, "*.ctbnodes"))):
+ctbnodes_paths = []
+for root, dirs, files in os.walk(graph_dir):
+    dirs[:] = [d for d in dirs if d.replace("_", "").isdigit()]
+    for fname in files:
+        if fname.endswith(".ctbnodes"):
+            ctbnodes_paths.append(os.path.join(root, fname))
+for path in sorted(ctbnodes_paths):
     with open(path, "rb") as f:
         for raw in f:
             line = raw.strip()

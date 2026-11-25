@@ -244,6 +244,18 @@ def unlock_git_dirs(git_dirs_root: str | None) -> int:
                         continue
     return unlocked
 
+def iter_ctbnodes_files(graph_dir: str) -> list[str]:
+    paths: list[str] = []
+    if not os.path.isdir(graph_dir):
+        return paths
+    for root, dirs, files in os.walk(graph_dir):
+        dirs[:] = [d for d in dirs if d.replace("_", "").isdigit()]
+        for fname in files:
+            if fname.endswith(".ctbnodes"):
+                paths.append(os.path.join(root, fname))
+    paths.sort()
+    return paths
+
 def lock_pass(
     graph_dir: str,
     canary_path: str,
@@ -265,7 +277,7 @@ def lock_pass(
         if got_lock:
             set_exact_lock_flags(canary_path, want_immutable=False, want_append=True)
             journal_pending = is_journal_pending(journal_dir)
-            for path in sorted(glob.glob(os.path.join(graph_dir, "*.ctbnodes"))):
+            for path in iter_ctbnodes_files(graph_dir):
                 if not journal_pending and is_complete_100_line_chunk(path):
                     set_exact_lock_flags(path, want_immutable=True, want_append=False)
                     immutable_count += 1
@@ -283,7 +295,7 @@ def unlock_pass(graph_dir: str, canary_path: str, git_dirs_root: str | None = No
     if os.path.isfile(canary_path):
         set_exact_lock_flags(canary_path, want_immutable=False, want_append=False)
         unlocked += 1
-    for path in sorted(glob.glob(os.path.join(graph_dir, "*.ctbnodes"))):
+    for path in iter_ctbnodes_files(graph_dir):
         set_exact_lock_flags(path, want_immutable=False, want_append=False)
         unlocked += 1
     git_unlocked = unlock_git_dirs(git_dirs_root)
@@ -418,7 +430,7 @@ seed_highwater_from_head() {
     fi
     mkdir -p "${target_dir}"
     local existing_files
-    existing_files="$(find "${target_dir}" -maxdepth 1 -name '*.ctbnodes' | wc -l | tr -d '[:space:]')"
+    existing_files="$(find "${target_dir}" -maxdepth 2 -name '*.ctbnodes' | wc -l | tr -d '[:space:]')"
     if [ "${existing_files}" -gt 0 ]; then
         return 0
     fi
@@ -426,12 +438,12 @@ seed_highwater_from_head() {
         if [ -z "${rel_path}" ]; then
             continue
         fi
-        local base_name
-        base_name="$(basename "${rel_path}")"
-        local dest_file="${target_dir}/${base_name}"
+        local rel_under_graph="${rel_path#assets/data/graph/}"
+        local dest_file="${target_dir}/${rel_under_graph}"
+        mkdir -p "$(dirname "${dest_file}")"
         git -C "${REPO_ROOT}" show "HEAD:${rel_path}" > "${dest_file}"
         chmod 0444 "${dest_file}"
-    done < <(git -C "${REPO_ROOT}" ls-tree --name-only HEAD -- assets/data/graph/ | grep '\.ctbnodes$' || true)
+    done < <(git -C "${REPO_ROOT}" ls-tree -r --name-only HEAD -- assets/data/graph/ | grep '\.ctbnodes$' || true)
 }
 
 remove_legacy_wrappers() {
@@ -561,7 +573,13 @@ finally:
 # 6. Read-only verification of FS_IMMUTABLE_FL / FS_APPEND_FL on assets/data/graph/*.ctbnodes
 imm_count = 0
 app_count = 0
-for path in sorted(glob.glob(os.path.join(graph_dir, "*.ctbnodes"))):
+ctbnodes_paths = []
+for root, dirs, files in os.walk(graph_dir):
+    dirs[:] = [d for d in dirs if d.replace("_", "").isdigit()]
+    for fname in files:
+        if fname.endswith(".ctbnodes"):
+            ctbnodes_paths.append(os.path.join(root, fname))
+for path in sorted(ctbnodes_paths):
     f_flags = get_flags(path)
     with open(path, "rb") as f:
         lines = sum(1 for _ in f)

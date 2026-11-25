@@ -364,6 +364,14 @@ vm_package_fixtures() {
     cp "$repo_root/src/formats/dcdata/dc.generated.rs" "$exchange_dir/src/formats/dcdata/"
     mkdir -p "$exchange_dir/assets/data"
     cp -r "$repo_root/assets/data/graph" "$exchange_dir/assets/data/"
+    if [[ -d "$repo_root/assets/data/graph-bundles" ]]; then
+        mkdir -p "$exchange_dir/assets/data/graph-bundles"
+        for bdl in "$repo_root/assets/data/graph-bundles"/*.ctbnbdl; do
+            if [[ -f "$bdl" ]]; then
+                cp "$bdl" "$exchange_dir/assets/data/graph-bundles/"
+            fi
+        done
+    fi
     cp -r "$repo_root/assets/data/character_descriptions" "$exchange_dir/assets/data/"
     cp -r "$repo_root/assets/data/detection" "$exchange_dir/assets/data/"
     mkdir -p "$exchange_dir/src/formats/kaitai"

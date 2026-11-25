@@ -29,13 +29,15 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::{
-    CtbnbdlFramingDcs, LedgerNode, MAX_BYTES_PER_BUNDLE, MAX_NODES_PER_BUNDLE,
-    MAX_NODES_PER_CHUNK, SYSTEM_REGION_START,
+    CtbnbdlFramingDcs, GRAPH_BUNDLES_SPLIT_HISTORY_SUBDIR,
+    GRAPH_BUNDLES_SPLIT_LIVE_SUBDIR, LedgerNode, MAX_BYTES_PER_BUNDLE,
+    MAX_NODES_PER_BUNDLE, MAX_NODES_PER_CHUNK, SYSTEM_REGION_START,
+    bundles_dir_for_graph_dir, chunk_rel_path_from_graph_dir,
     decode_nodes_from_ctbnbdl_bytes_with,
     encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent,
-    format_chunk_bundle_filename, format_chunk_filename, highwater_shadow_dirs,
+    format_chunk_bundle_filename, format_chunk_rel_path, highwater_shadow_dirs,
     list_chunk_files, load_ledger_nodes_from_dir_raw,
-    load_ledger_nodes_from_str, parse_chunk_filename_start_id,
+    load_ledger_nodes_from_str, parse_chunk_rel_path_start_id,
     partition_active_and_inactive_nodes_with,
     verify_nodes_append_only_against_baseline, write_chunk_file_append_only,
     write_ctbnbdl_bundles_to_dir,
@@ -548,14 +550,28 @@ pub struct JournalRecord {
     /// Planned node items (recorded in `BATCH_PENDING`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<PlannedLedgerItem>,
-    /// SHA-256 digests of active `.ctbnbdl` bundles in `assets/data/graph/` (recorded in `BATCH_COMMITTED`).
+    /// SHA-256 digests of tracked unsplit `.ctbnbdl` bundles in `assets/data/graph-bundles/` (recorded in `BATCH_COMMITTED`).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub unsplit_bundles_sha256: BTreeMap<String, String>,
+    /// SHA-256 digests of live `.ctbnbdl` bundles in `assets/data/graph-bundles/split/live/` (recorded in `BATCH_COMMITTED`).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub active_bundles_sha256: BTreeMap<String, String>,
-    /// SHA-256 digests of historical `.ctbnbdl` bundles in `assets/data/graph/system/` (recorded in `BATCH_COMMITTED`).
+    /// SHA-256 digests of historical `.ctbnbdl` bundles in `assets/data/graph-bundles/split/history/` (recorded in `BATCH_COMMITTED`).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub history_bundles_sha256: BTreeMap<String, String>,
     /// Lowercase hex SHA-256 checksum over the canonical JSON serialization of this record with `record_sha256: ""`.
     pub record_sha256: String,
+}
+
+/// Recorded SHA-256 inventories for unsplit and split `.ctbnbdl` bundle directories.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CompiledBundleDigests {
+    /// SHA-256 digests of tracked unsplit `.ctbnbdl` files in `assets/data/graph-bundles/`.
+    pub unsplit_bundles_sha256: BTreeMap<String, String>,
+    /// SHA-256 digests of gitignored live `.ctbnbdl` files in `assets/data/graph-bundles/split/live/`.
+    pub active_bundles_sha256: BTreeMap<String, String>,
+    /// SHA-256 digests of gitignored historical `.ctbnbdl` files in `assets/data/graph-bundles/split/history/`.
+    pub history_bundles_sha256: BTreeMap<String, String>,
 }
 
 impl JournalRecord {
@@ -667,33 +683,37 @@ pub fn fsync_dir(dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Returns the `.ctbnodes` chunk filename (`85899_34592.ctbnodes`, ...) that owns `node_id`.
+/// Returns the `.ctbnodes` chunk relative path (`"85899_34592.ctbnodes"`, ..., `"85900/85900_34492.ctbnodes"`)
+/// that owns `node_id`.
 #[must_use]
 pub fn chunk_filename_for_node_id(node_id: u128) -> String {
     let offset = node_id.saturating_sub(SYSTEM_REGION_START);
+    // Reason for fallback: MAX_NODES_PER_CHUNK is the compile-time constant 100.
     let max_u128 = u128::try_from(MAX_NODES_PER_CHUNK).unwrap_or(100);
+    // Reason for fallback: max_u128 is non-zero (100).
     let chunk_start = SYSTEM_REGION_START.saturating_add(
         offset
             .checked_div(max_u128)
             .unwrap_or(0)
             .saturating_mul(max_u128),
     );
-    format_chunk_filename(chunk_start)
+    format_chunk_rel_path(chunk_start)
 }
 
 /// Computes the canonical SHA-256 digest over all `.ctbnodes` chunk files in `graph_dir`,
-/// sorted by ascending chunk start ID (`name\0content\0`).
+/// sorted by ascending chunk start ID (`rel_path\0content\0`).
 pub fn compute_ledger_dir_sha256(graph_dir: &Path) -> Result<String> {
     let files = list_chunk_files(graph_dir)?;
     let mut hasher = Sha256::new();
     for path in files {
-        let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
+        let Some(rel_name) = chunk_rel_path_from_graph_dir(graph_dir, &path)
+        else {
             continue;
         };
         let bytes = fs::read(&path).with_context(|| {
             format!("Failed to read chunk {}", path.display())
         })?;
-        hasher.update(name.as_bytes());
+        hasher.update(rel_name.as_bytes());
         hasher.update(b"\0");
         hasher.update(&bytes);
         hasher.update(b"\0");
@@ -715,13 +735,13 @@ pub fn compute_nodes_slice_ledger_sha256(nodes: &[LedgerNode]) -> String {
         let Some(first) = chunk.first() else {
             continue;
         };
-        let name = format_chunk_filename(first.id);
+        let rel_name = format_chunk_rel_path(first.id);
         let mut content = String::new();
         for node in chunk {
             content.push_str(&node.format_line());
             content.push('\n');
         }
-        hasher.update(name.as_bytes());
+        hasher.update(rel_name.as_bytes());
         hasher.update(b"\0");
         hasher.update(content.as_bytes());
         hasher.update(b"\0");
@@ -824,58 +844,20 @@ fn decode_bundle_dir_nodes(
     Ok(all_nodes)
 }
 
-/// Verifies that the compiled active (`graph_dir/*.ctbnbdl`) and historical
-/// (`graph_dir/system/*.ctbnbdl`) bundles match `committed_nodes` in:
-/// 1. Exact bundle inventory and file SHA-256 digests (when `expected_active_sha256` / `expected_history_sha256` are provided),
-/// 2. Disjoint strictly ascending node IDs (`active_ids.is_disjoint(&history_ids)`),
-/// 3. Complete union equality in projected `(node.id, &node.tokens)` pairs (excluding comments), and
-/// 4. Exact active vs. inactive partition equality against `partition_active_and_inactive_nodes_with`.
+/// Verifies that the tracked unsplit bundles (`graph-bundles/*.ctbnbdl`) and, when present or required,
+/// the gitignored split live (`graph-bundles/split/live/*.ctbnbdl`) and historical
+/// (`graph-bundles/split/history/*.ctbnbdl`) bundles match `committed_nodes` in:
+/// 1. Exact bundle inventory and file SHA-256 digests (when `expected_digests` are provided),
+/// 2. Exact `(node.id, node.created_ns, &node.tokens)` sequence equality for unsplit bundles, and
+/// 3. Disjoint strictly ascending node IDs, union equality, and active/inactive partition equality
+///    for split bundles when `require_split` is `true` or `split/` exists on disk.
 pub fn verify_compiled_bundles_match_ledger(
     graph_dir: &Path,
     committed_nodes: &[LedgerNode],
     framing: CtbnbdlFramingDcs,
-    expected_active_sha256: Option<&BTreeMap<String, String>>,
-    expected_history_sha256: Option<&BTreeMap<String, String>>,
+    expected_digests: Option<&CompiledBundleDigests>,
+    require_split: bool,
 ) -> Result<()> {
-    let history_dir = graph_dir.join("system");
-    let actual_active_sha256 = compute_bundle_dir_sha256s(graph_dir)?;
-    let actual_history_sha256 = compute_bundle_dir_sha256s(&history_dir)?;
-
-    if let Some(expected_active) = expected_active_sha256 {
-        ensure!(
-            &actual_active_sha256 == expected_active,
-            "Active .ctbnbdl bundle SHA-256 inventory in {} does not match BATCH_COMMITTED: expected {:?}, found {:?}",
-            graph_dir.display(),
-            expected_active,
-            actual_active_sha256
-        );
-    }
-    if let Some(expected_history) = expected_history_sha256 {
-        ensure!(
-            &actual_history_sha256 == expected_history,
-            "Historical .ctbnbdl bundle SHA-256 inventory in {} does not match BATCH_COMMITTED: expected {:?}, found {:?}",
-            history_dir.display(),
-            expected_history,
-            actual_history_sha256
-        );
-    }
-
-    let decoded_active = decode_bundle_dir_nodes(graph_dir, framing)?;
-    let decoded_history = decode_bundle_dir_nodes(&history_dir, framing)?;
-
-    let active_ids: HashSet<u128> =
-        decoded_active.iter().map(|n| n.id).collect();
-    let history_ids: HashSet<u128> =
-        decoded_history.iter().map(|n| n.id).collect();
-    ensure!(
-        active_ids.is_disjoint(&history_ids),
-        "Active and historical .ctbnbdl bundles in {} are not disjoint!",
-        graph_dir.display()
-    );
-
-    let (expected_active, expected_history) =
-        partition_active_and_inactive_nodes_with(committed_nodes, framing);
-
     fn project_node_id_tokens(
         slice: &[LedgerNode],
     ) -> Vec<(u128, Option<i128>, &[crate::shorthand::DcShorthand])> {
@@ -885,13 +867,82 @@ pub fn verify_compiled_bundles_match_ledger(
             .collect()
     }
 
+    let bundles_dir = bundles_dir_for_graph_dir(graph_dir);
+    let actual_unsplit_sha256 = compute_bundle_dir_sha256s(&bundles_dir)?;
+    if let Some(expected) = expected_digests
+        && !expected.unsplit_bundles_sha256.is_empty()
+    {
+        ensure!(
+            actual_unsplit_sha256 == expected.unsplit_bundles_sha256,
+            "Unsplit .ctbnbdl bundle SHA-256 inventory in {} does not match BATCH_COMMITTED: expected {:?}, found {:?}",
+            bundles_dir.display(),
+            expected.unsplit_bundles_sha256,
+            actual_unsplit_sha256
+        );
+    }
+
+    let decoded_unsplit = decode_bundle_dir_nodes(&bundles_dir, framing)?;
+    let decoded_unsplit_pairs = project_node_id_tokens(&decoded_unsplit);
+    let committed_pairs = project_node_id_tokens(committed_nodes);
+    ensure!(
+        decoded_unsplit_pairs == committed_pairs,
+        "Decoded unsplit .ctbnbdl nodes ({} nodes) in {} do not match committed .ctbnodes ledger ({} nodes) by (id, created_ns, tokens)",
+        decoded_unsplit_pairs.len(),
+        bundles_dir.display(),
+        committed_pairs.len()
+    );
+
+    let live_dir = bundles_dir.join(GRAPH_BUNDLES_SPLIT_LIVE_SUBDIR);
+    let history_dir = bundles_dir.join(GRAPH_BUNDLES_SPLIT_HISTORY_SUBDIR);
+    let split_present =
+        require_split || live_dir.exists() || history_dir.exists();
+    if !split_present {
+        return Ok(());
+    }
+
+    let actual_active_sha256 = compute_bundle_dir_sha256s(&live_dir)?;
+    let actual_history_sha256 = compute_bundle_dir_sha256s(&history_dir)?;
+
+    if let Some(expected) = expected_digests {
+        ensure!(
+            actual_active_sha256 == expected.active_bundles_sha256,
+            "Active .ctbnbdl bundle SHA-256 inventory in {} does not match BATCH_COMMITTED: expected {:?}, found {:?}",
+            live_dir.display(),
+            expected.active_bundles_sha256,
+            actual_active_sha256
+        );
+        ensure!(
+            actual_history_sha256 == expected.history_bundles_sha256,
+            "Historical .ctbnbdl bundle SHA-256 inventory in {} does not match BATCH_COMMITTED: expected {:?}, found {:?}",
+            history_dir.display(),
+            expected.history_bundles_sha256,
+            actual_history_sha256
+        );
+    }
+
+    let decoded_active = decode_bundle_dir_nodes(&live_dir, framing)?;
+    let decoded_history = decode_bundle_dir_nodes(&history_dir, framing)?;
+
+    let active_ids: HashSet<u128> =
+        decoded_active.iter().map(|n| n.id).collect();
+    let history_ids: HashSet<u128> =
+        decoded_history.iter().map(|n| n.id).collect();
+    ensure!(
+        active_ids.is_disjoint(&history_ids),
+        "Active and historical .ctbnbdl bundles in {} are not disjoint!",
+        bundles_dir.display()
+    );
+
+    let (expected_active, expected_history) =
+        partition_active_and_inactive_nodes_with(committed_nodes, framing);
+
     let decoded_active_pairs = project_node_id_tokens(&decoded_active);
     let expected_active_pairs = project_node_id_tokens(&expected_active);
     ensure!(
         decoded_active_pairs == expected_active_pairs,
         "Decoded active .ctbnbdl nodes ({} nodes) in {} do not match expected active partition ({} nodes) by (id, created_ns, tokens)",
         decoded_active_pairs.len(),
-        graph_dir.display(),
+        live_dir.display(),
         expected_active_pairs.len()
     );
 
@@ -918,7 +969,6 @@ pub fn verify_compiled_bundles_match_ledger(
     merged_decoded.extend(decoded_history_pairs);
     merged_decoded.sort_by_key(|(id, _, _)| *id);
 
-    let committed_pairs = project_node_id_tokens(committed_nodes);
     ensure!(
         merged_decoded == committed_pairs,
         "Decoded active + history .ctbnbdl union ({} nodes) does not equal committed .ctbnodes ledger ({} nodes) by (id, created_ns, tokens)",
@@ -938,16 +988,33 @@ pub fn load_ledger_nodes_from_dir_with_write_guard(
     load_ledger_nodes_from_dir_raw(graph_dir)
 }
 
-/// Compiles `nodes` into active and historical `.ctbnbdl` bundles under an already-held `LedgerWriteGuard`
-/// directly from the validated in-memory `nodes` slice, `fsync`s all bundle files and directories,
-/// updates `built/` staging directories if present, verifies the compiled bundles via
-/// `verify_compiled_bundles_match_ledger`, and returns `(active_bundles_sha256, history_bundles_sha256)`.
+/// Compiles `nodes` into tracked unsplit (`assets/data/graph-bundles/*.ctbnbdl`) and gitignored split
+/// (`assets/data/graph-bundles/split/{live,history}/*.ctbnbdl`) bundles under an already-held
+/// `LedgerWriteGuard` directly from the validated in-memory `nodes` slice, `fsync`s all bundle files
+/// and directories, updates `built/` staging directories if present, verifies the compiled bundles via
+/// `verify_compiled_bundles_match_ledger`, and returns [`CompiledBundleDigests`].
 pub fn compile_nodes_slice_to_ctbnbdl_with_write_guard(
     write_guard: &LedgerWriteGuard,
     nodes: &[LedgerNode],
     graph_dir: &Path,
     framing: CtbnbdlFramingDcs,
-) -> Result<(BTreeMap<String, String>, BTreeMap<String, String>)> {
+) -> Result<CompiledBundleDigests> {
+    let bundles_dir = bundles_dir_for_graph_dir(graph_dir);
+    let unsplit_bundles =
+        encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
+            nodes,
+            framing,
+            MAX_NODES_PER_BUNDLE,
+            MAX_BYTES_PER_BUNDLE,
+            None,
+        )?;
+    write_ctbnbdl_bundles_to_dir(&bundles_dir, &unsplit_bundles, true)?;
+    for (first_id, _) in &unsplit_bundles {
+        let filename = format_chunk_bundle_filename(*first_id);
+        fsync_file(&bundles_dir.join(filename))?;
+    }
+    fsync_dir(&bundles_dir)?;
+
     let most_recent_node_id = nodes.iter().map(|n| n.id).max();
     let (active_nodes, inactive_nodes) =
         partition_active_and_inactive_nodes_with(nodes, framing);
@@ -960,12 +1027,13 @@ pub fn compile_nodes_slice_to_ctbnbdl_with_write_guard(
             MAX_BYTES_PER_BUNDLE,
             most_recent_node_id,
         )?;
-    write_ctbnbdl_bundles_to_dir(graph_dir, &active_bundles, false)?;
+    let split_live_dir = bundles_dir.join(GRAPH_BUNDLES_SPLIT_LIVE_SUBDIR);
+    write_ctbnbdl_bundles_to_dir(&split_live_dir, &active_bundles, true)?;
     for (first_id, _) in &active_bundles {
         let filename = format_chunk_bundle_filename(*first_id);
-        fsync_file(&graph_dir.join(filename))?;
+        fsync_file(&split_live_dir.join(filename))?;
     }
-    fsync_dir(graph_dir)?;
+    fsync_dir(&split_live_dir)?;
 
     let inactive_bundles =
         encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
@@ -975,13 +1043,17 @@ pub fn compile_nodes_slice_to_ctbnbdl_with_write_guard(
             MAX_BYTES_PER_BUNDLE,
             most_recent_node_id,
         )?;
-    let system_history_dir = graph_dir.join("system");
-    write_ctbnbdl_bundles_to_dir(&system_history_dir, &inactive_bundles, true)?;
+    let split_history_dir =
+        bundles_dir.join(GRAPH_BUNDLES_SPLIT_HISTORY_SUBDIR);
+    write_ctbnbdl_bundles_to_dir(&split_history_dir, &inactive_bundles, true)?;
     for (first_id, _) in &inactive_bundles {
         let filename = format_chunk_bundle_filename(*first_id);
-        fsync_file(&system_history_dir.join(filename))?;
+        fsync_file(&split_history_dir.join(filename))?;
     }
-    fsync_dir(&system_history_dir)?;
+    fsync_dir(&split_history_dir)?;
+    if let Some(split_root) = split_live_dir.parent() {
+        fsync_dir(split_root)?;
+    }
 
     let runtime_graph_dir =
         write_guard.repo_root().join("built/assets/data/graph");
@@ -1003,16 +1075,19 @@ pub fn compile_nodes_slice_to_ctbnbdl_with_write_guard(
         )?;
     }
 
-    let active_hashes = compute_bundle_dir_sha256s(graph_dir)?;
-    let history_hashes = compute_bundle_dir_sha256s(&system_history_dir)?;
+    let digests = CompiledBundleDigests {
+        unsplit_bundles_sha256: compute_bundle_dir_sha256s(&bundles_dir)?,
+        active_bundles_sha256: compute_bundle_dir_sha256s(&split_live_dir)?,
+        history_bundles_sha256: compute_bundle_dir_sha256s(&split_history_dir)?,
+    };
     verify_compiled_bundles_match_ledger(
         graph_dir,
         nodes,
         framing,
-        Some(&active_hashes),
-        Some(&history_hashes),
+        Some(&digests),
+        true,
     )?;
-    Ok((active_hashes, history_hashes))
+    Ok(digests)
 }
 
 /// Parses and validates `ledger-journal.jsonl`:
@@ -1419,11 +1494,11 @@ fn append_single_node_to_ledger_dir(
     let Some(last_node) = all_nodes_through_current.last() else {
         bail!("append_single_node_to_ledger_dir called with empty node slice");
     };
-    let chunk_name = chunk_filename_for_node_id(last_node.id);
-    let Some(chunk_start_id) = parse_chunk_filename_start_id(&chunk_name)
-    else {
-        bail!("Invalid chunk filename {chunk_name}");
+    let chunk_rel = chunk_filename_for_node_id(last_node.id);
+    let Some(chunk_start_id) = parse_chunk_rel_path_start_id(&chunk_rel) else {
+        bail!("Invalid chunk relative path {chunk_rel}");
     };
+    // Reason for fallback: MAX_NODES_PER_CHUNK is the compile-time constant 100.
     let chunk_end_id = chunk_start_id
         .saturating_add(u128::try_from(MAX_NODES_PER_CHUNK).unwrap_or(100));
 
@@ -1442,7 +1517,7 @@ fn append_single_node_to_ledger_dir(
             }
         }
     }
-    let chunk_path = dir.join(&chunk_name);
+    let chunk_path = dir.join(&chunk_rel);
     write_chunk_file_append_only(&chunk_path, &content)?;
     Ok(chunk_path)
 }
@@ -1727,6 +1802,7 @@ fn try_synthesize_pending_for_verified_csv_tail(
         final_ledger_sha256,
         manifest_sha256: None,
         items,
+        unsplit_bundles_sha256: BTreeMap::new(),
         active_bundles_sha256: BTreeMap::new(),
         history_bundles_sha256: BTreeMap::new(),
         record_sha256: String::new(),
@@ -1735,9 +1811,9 @@ fn try_synthesize_pending_for_verified_csv_tail(
 
 /// Synthesizes a zero-item `bundle_format_refresh` `BATCH_PENDING` record when `.ctbnodes`
 /// matches `last_committed` (`final_last_id` and `final_ledger_sha256`), high-water shadow
-/// ledgers corroborate `.ctbnodes`, and the canonical `.ctbnbdl` encoding produced by the
-/// current compiler differs from `last_committed.active_bundles_sha256` or
-/// `last_committed.history_bundles_sha256` (e.g. after upgrading `.ctbnbdl` section framing).
+/// ledgers corroborate `.ctbnodes`, and the canonical `.ctbnbdl` encoding or layout produced by
+/// the current compiler differs from `last_committed`'s recorded bundle digests or on-disk
+/// `assets/data/graph-bundles/` files.
 fn try_synthesize_pending_for_bundle_format_refresh(
     repo_root: &Path,
     parsed: &ParsedJournal,
@@ -1776,6 +1852,14 @@ fn try_synthesize_pending_for_bundle_format_refresh(
     }
 
     let framing = resolve_ctbnbdl_framing_dcs_from_nodes(&disk_nodes)?;
+    let unsplit_bundles =
+        encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
+            &disk_nodes,
+            framing,
+            MAX_NODES_PER_BUNDLE,
+            MAX_BYTES_PER_BUNDLE,
+            None,
+        )?;
     let most_recent_node_id = disk_nodes.iter().map(|n| n.id).max();
     let (active_nodes, inactive_nodes) =
         partition_active_and_inactive_nodes_with(&disk_nodes, framing);
@@ -1796,6 +1880,13 @@ fn try_synthesize_pending_for_bundle_format_refresh(
             most_recent_node_id,
         )?;
 
+    let mut canonical_unsplit_sha = BTreeMap::new();
+    for (first_id, bytes) in &unsplit_bundles {
+        canonical_unsplit_sha.insert(
+            format_chunk_bundle_filename(*first_id),
+            sha256_bytes_hex(bytes),
+        );
+    }
     let mut canonical_active_sha = BTreeMap::new();
     for (first_id, bytes) in &active_bundles {
         canonical_active_sha.insert(
@@ -1811,7 +1902,12 @@ fn try_synthesize_pending_for_bundle_format_refresh(
         );
     }
 
-    if canonical_active_sha == last_committed.active_bundles_sha256
+    let bundles_dir = bundles_dir_for_graph_dir(&graph_dir);
+    let disk_unsplit_sha = compute_bundle_dir_sha256s(&bundles_dir)?;
+
+    if canonical_unsplit_sha == last_committed.unsplit_bundles_sha256
+        && disk_unsplit_sha == canonical_unsplit_sha
+        && canonical_active_sha == last_committed.active_bundles_sha256
         && canonical_history_sha == last_committed.history_bundles_sha256
     {
         return Ok(None);
@@ -1831,6 +1927,7 @@ fn try_synthesize_pending_for_bundle_format_refresh(
         final_ledger_sha256: last_committed.final_ledger_sha256.clone(),
         manifest_sha256: None,
         items: Vec::new(),
+        unsplit_bundles_sha256: BTreeMap::new(),
         active_bundles_sha256: BTreeMap::new(),
         history_bundles_sha256: BTreeMap::new(),
         record_sha256: String::new(),
@@ -2147,12 +2244,20 @@ pub fn recover_pending_ledger_journal_with_guard(
     // Unconditionally fsync all touched primary chunks, shadow chunks, allocated files, and directories.
     for path in touched_primary_chunks.values() {
         fsync_file(path)?;
+        if let Some(parent) = path.parent()
+            && parent != graph_dir
+        {
+            fsync_dir(parent)?;
+        }
     }
     fsync_dir(&graph_dir)?;
 
     for path in &touched_shadow_chunks {
         if path.is_file() {
             fsync_file(path)?;
+            if let Some(parent) = path.parent() {
+                fsync_dir(parent)?;
+            }
         }
     }
     for (_, shadow_dir) in &shadow_dirs {
@@ -2186,13 +2291,12 @@ pub fn recover_pending_ledger_journal_with_guard(
     );
 
     let framing = resolve_ctbnbdl_framing_dcs_from_nodes(&progressive_nodes)?;
-    let (active_bundles_sha256, history_bundles_sha256) =
-        compile_nodes_slice_to_ctbnbdl_with_write_guard(
-            write_guard,
-            &progressive_nodes,
-            &graph_dir,
-            framing,
-        )?;
+    let bundle_digests = compile_nodes_slice_to_ctbnbdl_with_write_guard(
+        write_guard,
+        &progressive_nodes,
+        &graph_dir,
+        framing,
+    )?;
 
     let committed = JournalRecord {
         state: "BATCH_COMMITTED".to_string(),
@@ -2204,8 +2308,9 @@ pub fn recover_pending_ledger_journal_with_guard(
         final_ledger_sha256: pending.final_ledger_sha256,
         manifest_sha256: pending.manifest_sha256,
         items: Vec::new(),
-        active_bundles_sha256,
-        history_bundles_sha256,
+        unsplit_bundles_sha256: bundle_digests.unsplit_bundles_sha256,
+        active_bundles_sha256: bundle_digests.active_bundles_sha256,
+        history_bundles_sha256: bundle_digests.history_bundles_sha256,
         record_sha256: String::new(),
     };
     append_journal_record(&journal_path, &committed, fault)?;
@@ -2380,18 +2485,23 @@ pub fn compact_closed_ledger_chunks_with_guard(
         let compacted_manual_items: Vec<PlannedLedgerItem> =
             manual_items_by_id.into_values().collect();
         let batch_id = format!("bootstrap-compacted-{closed_cutoff_id}");
-        let (manifest_sha256, active_bundles_sha256, history_bundles_sha256) =
-            if remaining_pairs.is_empty()
-                && let Some(last_comm) = &parsed.last_committed
-            {
-                (
-                    last_comm.manifest_sha256.clone(),
-                    last_comm.active_bundles_sha256.clone(),
-                    last_comm.history_bundles_sha256.clone(),
-                )
-            } else {
-                (None, BTreeMap::new(), BTreeMap::new())
-            };
+        let (
+            manifest_sha256,
+            unsplit_bundles_sha256,
+            active_bundles_sha256,
+            history_bundles_sha256,
+        ) = if remaining_pairs.is_empty()
+            && let Some(last_comm) = &parsed.last_committed
+        {
+            (
+                last_comm.manifest_sha256.clone(),
+                last_comm.unsplit_bundles_sha256.clone(),
+                last_comm.active_bundles_sha256.clone(),
+                last_comm.history_bundles_sha256.clone(),
+            )
+        } else {
+            (None, BTreeMap::new(), BTreeMap::new(), BTreeMap::new())
+        };
 
         let ckpt_pending = JournalRecord {
             state: "BATCH_PENDING".to_string(),
@@ -2403,6 +2513,7 @@ pub fn compact_closed_ledger_chunks_with_guard(
             final_ledger_sha256: closed_ledger_sha256.clone(),
             manifest_sha256: manifest_sha256.clone(),
             items: compacted_manual_items,
+            unsplit_bundles_sha256: BTreeMap::new(),
             active_bundles_sha256: BTreeMap::new(),
             history_bundles_sha256: BTreeMap::new(),
             record_sha256: String::new(),
@@ -2419,6 +2530,7 @@ pub fn compact_closed_ledger_chunks_with_guard(
             final_ledger_sha256: closed_ledger_sha256,
             manifest_sha256,
             items: Vec::new(),
+            unsplit_bundles_sha256,
             active_bundles_sha256,
             history_bundles_sha256,
             record_sha256: String::new(),
@@ -2540,12 +2652,17 @@ pub fn ensure_ledger_journal_clean(
     );
 
     let framing = resolve_ctbnbdl_framing_dcs_from_nodes(&committed_nodes)?;
+    let expected_digests = CompiledBundleDigests {
+        unsplit_bundles_sha256: last_committed.unsplit_bundles_sha256.clone(),
+        active_bundles_sha256: last_committed.active_bundles_sha256.clone(),
+        history_bundles_sha256: last_committed.history_bundles_sha256.clone(),
+    };
     verify_compiled_bundles_match_ledger(
         &graph_dir,
         &committed_nodes,
         framing,
-        Some(&last_committed.active_bundles_sha256),
-        Some(&last_committed.history_bundles_sha256),
+        Some(&expected_digests),
+        false,
     )?;
 
     Ok(())
@@ -2675,12 +2792,23 @@ where
                 );
                 let framing =
                     resolve_ctbnbdl_framing_dcs_from_nodes(&current_nodes)?;
+                let expected_digests = CompiledBundleDigests {
+                    unsplit_bundles_sha256: last_committed
+                        .unsplit_bundles_sha256
+                        .clone(),
+                    active_bundles_sha256: last_committed
+                        .active_bundles_sha256
+                        .clone(),
+                    history_bundles_sha256: last_committed
+                        .history_bundles_sha256
+                        .clone(),
+                };
                 verify_compiled_bundles_match_ledger(
                     &graph_dir,
                     &current_nodes,
                     framing,
-                    Some(&last_committed.active_bundles_sha256),
-                    Some(&last_committed.history_bundles_sha256),
+                    Some(&expected_digests),
+                    false,
                 )?;
                 let touched_chunks: HashSet<&str> = manifest
                     .planned_items
@@ -2843,6 +2971,7 @@ where
         final_ledger_sha256,
         manifest_sha256: manifest_ref.map(|(_, s)| s.to_string()),
         items: journal_items,
+        unsplit_bundles_sha256: BTreeMap::new(),
         active_bundles_sha256: BTreeMap::new(),
         history_bundles_sha256: BTreeMap::new(),
         record_sha256: String::new(),
@@ -2961,15 +3090,19 @@ mod tests {
         assert_eq!(baseline_nodes.last().unwrap().id, 8_589_952_424);
 
         let graph_dst = root.join("assets/data/graph");
-        fs::create_dir_all(graph_dst.join("system")).unwrap();
+        fs::create_dir_all(&graph_dst).unwrap();
         for chunk in baseline_nodes.chunks(100) {
-            let chunk_name = format_chunk_filename(chunk[0].id);
+            let chunk_rel = format_chunk_rel_path(chunk[0].id);
             let mut buf = String::new();
             for n in chunk {
                 buf.push_str(&n.format_line());
                 buf.push('\n');
             }
-            fs::write(graph_dst.join(chunk_name), buf).unwrap();
+            let chunk_path = graph_dst.join(chunk_rel);
+            if let Some(parent) = chunk_path.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            fs::write(chunk_path, buf).unwrap();
         }
         {
             let write_guard = LedgerWriteGuard::acquire(root).unwrap();
@@ -3001,6 +3134,7 @@ mod tests {
             init_marker.display()
         );
         let graph_dir = repo_root.join("assets/data/graph");
+        let bundles_dir = bundles_dir_for_graph_dir(&graph_dir);
         let nodes = load_ledger_nodes_from_dir_with_write_guard(
             &write_guard,
             &graph_dir,
@@ -3008,15 +3142,21 @@ mod tests {
         let last_id = nodes.last().map(|n| n.id).unwrap_or(0);
         let actual_ledger_sha256 = compute_ledger_dir_sha256(&graph_dir)?;
         let framing = resolve_ctbnbdl_framing_dcs_from_nodes(&nodes)?;
-        let active_bundles_sha256 = compute_bundle_dir_sha256s(&graph_dir)?;
-        let history_bundles_sha256 =
-            compute_bundle_dir_sha256s(&graph_dir.join("system"))?;
+        let digests = CompiledBundleDigests {
+            unsplit_bundles_sha256: compute_bundle_dir_sha256s(&bundles_dir)?,
+            active_bundles_sha256: compute_bundle_dir_sha256s(
+                &bundles_dir.join(GRAPH_BUNDLES_SPLIT_LIVE_SUBDIR),
+            )?,
+            history_bundles_sha256: compute_bundle_dir_sha256s(
+                &bundles_dir.join(GRAPH_BUNDLES_SPLIT_HISTORY_SUBDIR),
+            )?,
+        };
         verify_compiled_bundles_match_ledger(
             &graph_dir,
             &nodes,
             framing,
-            Some(&active_bundles_sha256),
-            Some(&history_bundles_sha256),
+            Some(&digests),
+            true,
         )?;
 
         let pending = JournalRecord {
@@ -3029,6 +3169,7 @@ mod tests {
             final_ledger_sha256: actual_ledger_sha256.clone(),
             manifest_sha256: None,
             items: Vec::new(),
+            unsplit_bundles_sha256: BTreeMap::new(),
             active_bundles_sha256: BTreeMap::new(),
             history_bundles_sha256: BTreeMap::new(),
             record_sha256: String::new(),
@@ -3049,8 +3190,9 @@ mod tests {
             final_ledger_sha256: actual_ledger_sha256,
             manifest_sha256: None,
             items: Vec::new(),
-            active_bundles_sha256,
-            history_bundles_sha256,
+            unsplit_bundles_sha256: digests.unsplit_bundles_sha256,
+            active_bundles_sha256: digests.active_bundles_sha256,
+            history_bundles_sha256: digests.history_bundles_sha256,
             record_sha256: String::new(),
         };
         append_journal_record(&journal_path, &committed, None)?;
@@ -3168,25 +3310,29 @@ mod tests {
         let framing = resolve_ctbnbdl_framing_dcs_from_nodes(&nodes).unwrap();
 
         // Corrupt a single token on an interior node (keeping the highest node ID l8589952424 unchanged!)
-        // and re-encode the active bundle.
+        // and re-encode the split live bundle.
+        let bundles_dir = bundles_dir_for_graph_dir(&graph_dir);
+        let split_live_dir = bundles_dir.join(GRAPH_BUNDLES_SPLIT_LIVE_SUBDIR);
         let (mut active_nodes, _inactive_nodes) =
             partition_active_and_inactive_nodes_with(&nodes, framing);
         active_nodes[10].tokens =
             vec![crate::shorthand::DcShorthand::Unicode(999)];
-        let corrupted_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(
-            &active_nodes,
-            framing,
-            MAX_NODES_PER_BUNDLE,
-            MAX_BYTES_PER_BUNDLE,
-        )
-        .unwrap();
-        write_ctbnbdl_bundles_to_dir(&graph_dir, &corrupted_bundles, false)
+        let corrupted_bundles =
+            encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
+                &active_nodes,
+                framing,
+                MAX_NODES_PER_BUNDLE,
+                MAX_BYTES_PER_BUNDLE,
+                nodes.iter().map(|n| n.id).max(),
+            )
+            .unwrap();
+        write_ctbnbdl_bundles_to_dir(&split_live_dir, &corrupted_bundles, true)
             .unwrap();
 
         // Verify that both verify_compiled_bundles_match_ledger (even without expected SHA-256 map)
         // and ensure_ledger_journal_clean reject the corrupted bundle!
         let err_verify = verify_compiled_bundles_match_ledger(
-            &graph_dir, &nodes, framing, None, None,
+            &graph_dir, &nodes, framing, None, true,
         )
         .unwrap_err();
         assert!(
@@ -3203,6 +3349,34 @@ mod tests {
                 || err_gate
                     .to_string()
                     .contains("do not match expected active partition")
+        );
+
+        // Also verify that on a fresh clone where gitignored `split/` is absent,
+        // `ensure_ledger_journal_clean` still passes by verifying tracked unsplit `graph-bundles/*.ctbnbdl`
+        // AND catches corruption of the unsplit bundle!
+        fs::remove_dir_all(bundles_dir.join("split")).unwrap();
+        ensure_ledger_journal_clean(root, &read_guard).unwrap();
+
+        let mut tampered_unsplit = nodes.clone();
+        tampered_unsplit[5].tokens =
+            vec![crate::shorthand::DcShorthand::Unicode(888)];
+        let bad_unsplit =
+            encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
+                &tampered_unsplit,
+                framing,
+                MAX_NODES_PER_BUNDLE,
+                MAX_BYTES_PER_BUNDLE,
+                None,
+            )
+            .unwrap();
+        write_ctbnbdl_bundles_to_dir(&bundles_dir, &bad_unsplit, true).unwrap();
+        let err_unsplit =
+            ensure_ledger_journal_clean(root, &read_guard).unwrap_err();
+        assert!(
+            err_unsplit.to_string().contains("Unsplit .ctbnbdl bundle")
+                || err_unsplit
+                    .to_string()
+                    .contains("Decoded unsplit .ctbnbdl nodes")
         );
     }
 
@@ -3237,17 +3411,17 @@ mod tests {
 
         let graph_dst = root.join("assets/data/graph");
         let shadow_dst = root.join(crate::ctbnbdl::HIGHWATER_LEDGER_REL_PATH);
-        fs::create_dir_all(graph_dst.join("system")).unwrap();
+        fs::create_dir_all(&graph_dst).unwrap();
         fs::create_dir_all(&shadow_dst).unwrap();
         for chunk in baseline_nodes.chunks(100) {
-            let chunk_name = format_chunk_filename(chunk[0].id);
+            let chunk_rel = format_chunk_rel_path(chunk[0].id);
             let mut buf = String::new();
             for n in chunk {
                 buf.push_str(&n.format_line());
                 buf.push('\n');
             }
-            fs::write(graph_dst.join(&chunk_name), &buf).unwrap();
-            fs::write(shadow_dst.join(&chunk_name), &buf).unwrap();
+            fs::write(graph_dst.join(&chunk_rel), &buf).unwrap();
+            fs::write(shadow_dst.join(&chunk_rel), &buf).unwrap();
         }
         {
             let write_guard = LedgerWriteGuard::acquire(root).unwrap();
@@ -3315,13 +3489,13 @@ mod tests {
                 if chunk.last().unwrap().id <= last_base_id {
                     continue;
                 }
-                let chunk_name = format_chunk_filename(chunk[0].id);
+                let chunk_rel = format_chunk_rel_path(chunk[0].id);
                 let mut buf = String::new();
                 for n in chunk {
                     buf.push_str(&n.format_line());
                     buf.push('\n');
                 }
-                fs::write(dir.join(chunk_name), buf).unwrap();
+                fs::write(dir.join(chunk_rel), buf).unwrap();
             }
         }
         // Keep stale journal at `last_base_id`: gated reader must block, dry_run must detect, and recovery must succeed.
@@ -3348,7 +3522,7 @@ mod tests {
         });
         for dir in [&graph_dst, &shadow_dst] {
             let last_chunk = extended_nodes.chunks(100).last().unwrap();
-            let chunk_name = format_chunk_filename(last_chunk[0].id);
+            let chunk_rel = format_chunk_rel_path(last_chunk[0].id);
             let mut buf = String::new();
             for n in last_chunk {
                 buf.push_str(&n.format_line());
@@ -3357,13 +3531,13 @@ mod tests {
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                let p = dir.join(&chunk_name);
+                let p = dir.join(&chunk_rel);
                 if p.exists() {
                     let _ =
                         fs::set_permissions(&p, fs::Permissions::from_mode(0o644));
                 }
             }
-            fs::write(dir.join(chunk_name), buf).unwrap();
+            fs::write(dir.join(chunk_rel), buf).unwrap();
         }
         fs::write(&journal_path, &saved_journal_after_n3).unwrap();
         let err_unprov =
@@ -3373,6 +3547,137 @@ mod tests {
                 .to_string()
                 .contains("lacks verified in-graph CollectiveToolboxDcCsvSeedDatabase provenance"),
             "Unexpected error: {err_unprov}"
+        );
+    }
+
+    #[test]
+    fn test_ctbnodes_subfolder_sharding_after_999_chunks_and_unsplit_bundle_append()
+     {
+        assert_eq!(
+            format_chunk_rel_path(SYSTEM_REGION_START),
+            "85899_34592.ctbnodes"
+        );
+        // 999th chunk (0-based 998): stays in root
+        let id_999th = SYSTEM_REGION_START + 998 * 100;
+        assert_eq!(format_chunk_rel_path(id_999th), "85900_34392.ctbnodes");
+        // 1000th chunk (0-based 999): first chunk in subfolder `85900/`
+        let id_1000th = SYSTEM_REGION_START + 999 * 100;
+        assert_eq!(
+            format_chunk_rel_path(id_1000th),
+            "85900/85900_34492.ctbnodes"
+        );
+        // 1999th chunk (0-based 1998): last chunk in subfolder `85900/`
+        let id_1999th = SYSTEM_REGION_START + 1998 * 100;
+        assert_eq!(
+            format_chunk_rel_path(id_1999th),
+            "85900/85901_34392.ctbnodes"
+        );
+        // 2000th chunk (0-based 1999): first chunk in subfolder `85901/`
+        let id_2000th = SYSTEM_REGION_START + 1999 * 100;
+        assert_eq!(
+            format_chunk_rel_path(id_2000th),
+            "85901/85901_34492.ctbnodes"
+        );
+
+        let tmp = TempDir::new("subfolder_sharding_and_unsplit_append");
+        let graph_dir = tmp.path().join("assets/data/graph");
+        let total_nodes = 1000usize * 100 + 5; // 1001 chunks -> crosses 999 root chunks into `85900/`
+        let nodes: Vec<LedgerNode> = (0..total_nodes)
+            .map(|i| LedgerNode {
+                id: SYSTEM_REGION_START + u128::try_from(i).unwrap(),
+                tokens: vec![DcShorthand::Unicode(65)],
+                comment: String::new(),
+                created_ns: None,
+            })
+            .collect();
+        let written =
+            crate::ctbnbdl::write_ledger_nodes_to_dir(&graph_dir, &nodes)
+                .unwrap();
+        assert_eq!(written, 1001);
+        assert!(graph_dir.join("85900_34392.ctbnodes").is_file());
+        assert!(graph_dir.join("85900/85900_34492.ctbnodes").is_file());
+        assert!(graph_dir.join("85900/85900_34592.ctbnodes").is_file());
+
+        let loaded = load_ledger_nodes_from_dir_raw(&graph_dir).unwrap();
+        assert_eq!(loaded.len(), nodes.len());
+        assert_eq!(
+            compute_ledger_dir_sha256(&graph_dir).unwrap(),
+            compute_nodes_slice_ledger_sha256(&nodes)
+        );
+
+        // Verify unsplit bundle strictly appends bytes even when an earlier statement is retracted!
+        let small_tmp = TempDir::new("unsplit_append_on_retract");
+        let small_graph = small_tmp.path().join("assets/data/graph");
+        let bundles_dir = bundles_dir_for_graph_dir(&small_graph);
+        let real_nodes = load_ledger_nodes_from_dir_raw(
+            &crate::find_repository_root_from(Path::new(env!(
+                "CARGO_MANIFEST_DIR"
+            )))
+            .unwrap()
+            .join("assets/data/graph"),
+        )
+        .unwrap();
+        let framing =
+            resolve_ctbnbdl_framing_dcs_from_nodes(&real_nodes).unwrap();
+        let initial_small = vec![
+            LedgerNode {
+                id: SYSTEM_REGION_START,
+                tokens: vec![
+                    framing.is_instance_of,
+                    framing.enclosing_document,
+                    DcShorthand::Short(572),
+                ],
+                comment: String::new(),
+                created_ns: Some(1_700_000_000_000_000_000),
+            },
+            LedgerNode {
+                id: SYSTEM_REGION_START + 1,
+                tokens: vec![
+                    framing.has_a,
+                    DcShorthand::Long(SYSTEM_REGION_START),
+                    DcShorthand::Short(572),
+                ],
+                comment: String::new(),
+                created_ns: Some(1_700_000_000_000_000_001),
+            },
+        ];
+        crate::ctbnbdl::write_ledger_nodes_to_dir(&small_graph, &initial_small)
+            .unwrap();
+        crate::ctbnbdl::compile_graph_bundles_from_ctbnodes_dir(
+            &small_graph,
+            &bundles_dir,
+            framing,
+        )
+        .unwrap();
+        let unsplit_path = bundles_dir
+            .join(format_chunk_bundle_filename(SYSTEM_REGION_START));
+        let before_bytes = fs::read(&unsplit_path).unwrap();
+
+        // Now retract node `SYSTEM_REGION_START + 1`!
+        let mut after_retract = initial_small.clone();
+        after_retract.push(LedgerNode {
+            id: SYSTEM_REGION_START + 2,
+            tokens: vec![
+                framing.retracts,
+                framing.enclosing_document,
+                DcShorthand::Long(SYSTEM_REGION_START + 1),
+            ],
+            comment: String::new(),
+            created_ns: Some(1_700_000_000_000_000_002),
+        });
+        crate::ctbnbdl::write_ledger_nodes_to_dir(&small_graph, &after_retract)
+            .unwrap();
+        crate::ctbnbdl::compile_graph_bundles_from_ctbnodes_dir(
+            &small_graph,
+            &bundles_dir,
+            framing,
+        )
+        .unwrap();
+        let after_bytes = fs::read(&unsplit_path).unwrap();
+        assert!(
+            after_bytes.len() > before_bytes.len()
+                && after_bytes.starts_with(&before_bytes),
+            "Unsplit in-repo .ctbnbdl must remain a strict byte prefix even when an earlier statement is invalidated!"
         );
     }
 }

@@ -40,6 +40,22 @@ use crate::shorthand::DcShorthand;
 /// Maximum number of node declarations stored in a single `.ctbnodes` chunk file.
 pub const MAX_NODES_PER_CHUNK: usize = 100;
 
+/// Maximum number of `.ctbnodes` files stored directly in the top-level graph directory
+/// before sharding into 1000-file prefix subdirectories.
+pub const ROOT_CHUNKS_BEFORE_SUBFOLDER: usize = 999;
+
+/// Number of `.ctbnodes` files grouped into each prefix subdirectory starting at the 1000th file.
+pub const CHUNKS_PER_SUBFOLDER: usize = 1000;
+
+/// Relative repository path to the tracked unsplit `.ctbnbdl` bundle directory.
+pub const GRAPH_BUNDLES_REL_PATH: &str = "assets/data/graph-bundles";
+
+/// Subdirectory under `assets/data/graph-bundles/` holding gitignored live (active) `.ctbnbdl` bundles.
+pub const GRAPH_BUNDLES_SPLIT_LIVE_SUBDIR: &str = "split/live";
+
+/// Subdirectory under `assets/data/graph-bundles/` holding gitignored historical (inactive) `.ctbnbdl` bundles.
+pub const GRAPH_BUNDLES_SPLIT_HISTORY_SUBDIR: &str = "split/history";
+
 /// Maximum number of node definitions grouped into a single `.ctbnbdl` binary bundle file.
 pub const MAX_NODES_PER_BUNDLE: usize = 1_000_000;
 
@@ -338,7 +354,98 @@ pub fn parse_chunk_bundle_filename_start_id(filename: &str) -> Option<u128> {
     parse_grouped_stem_id(stem)
 }
 
-/// Returns the sorted list of `.ctbnodes` chunk files in `graph_dir`.
+/// Resolves the `.ctbnbdl` bundle directory associated with `graph_dir`:
+/// - `<parent>/graph-bundles` when `graph_dir` ends with `"graph"` (e.g. `assets/data/graph` -> `assets/data/graph-bundles`),
+/// - `<graph_dir>/graph-bundles` otherwise.
+#[must_use]
+pub fn bundles_dir_for_graph_dir(graph_dir: &Path) -> PathBuf {
+    if graph_dir.file_name().and_then(|s| s.to_str()) == Some("graph") {
+        graph_dir.with_file_name("graph-bundles")
+    } else {
+        graph_dir.join("graph-bundles")
+    }
+}
+
+/// Formats a `.ctbnodes` chunk's relative path inside `graph_dir`:
+/// - The first 999 `.ctbnodes` files (`chunk_idx` `0..999`, i.e. `85899_34592.ctbnodes` through
+///   `85900_34392.ctbnodes`) live directly in `graph_dir`.
+/// - Starting at the 1000th `.ctbnodes` file (`chunk_idx == 999`, `85900_34492.ctbnodes`), each
+///   block of 1000 `.ctbnodes` files lives in a subdirectory named after the grouped prefix of
+///   that block's starting chunk ID (`"85900/85900_34492.ctbnodes"`, ..., `"85901/85901_34492.ctbnodes"`).
+#[must_use]
+pub fn format_chunk_rel_path(first_id: u128) -> String {
+    let filename = format_chunk_filename(first_id);
+    let offset = first_id.saturating_sub(SYSTEM_REGION_START);
+    // Reason for fallback: MAX_NODES_PER_CHUNK is the compile-time constant 100.
+    let per_chunk = u128::try_from(MAX_NODES_PER_CHUNK).unwrap_or(100);
+    // Reason for fallback: per_chunk is non-zero (100).
+    let chunk_idx = offset.checked_div(per_chunk).unwrap_or(0);
+    // Reason for fallback: ROOT_CHUNKS_BEFORE_SUBFOLDER is the compile-time constant 999.
+    let root_limit = u128::try_from(ROOT_CHUNKS_BEFORE_SUBFOLDER).unwrap_or(999);
+    if chunk_idx < root_limit {
+        return filename;
+    }
+    // Reason for fallback: CHUNKS_PER_SUBFOLDER is the compile-time constant 1000.
+    let per_sub = u128::try_from(CHUNKS_PER_SUBFOLDER).unwrap_or(1000);
+    // Reason for fallback: per_sub is non-zero (1000).
+    let bucket_idx = chunk_idx
+        .saturating_sub(root_limit)
+        .checked_div(per_sub)
+        .unwrap_or(0);
+    let bucket_start_chunk =
+        root_limit.saturating_add(bucket_idx.saturating_mul(per_sub));
+    let bucket_first_id = SYSTEM_REGION_START
+        .saturating_add(bucket_start_chunk.saturating_mul(per_chunk));
+    let bucket_grouped = format_grouped_id(bucket_first_id);
+    // Reason for fallback: System-region IDs are >= 10 digits so format_grouped_id always contains '_'.
+    let prefix = bucket_grouped
+        .rsplit_once('_')
+        .map_or(bucket_grouped.as_str(), |(p, _)| p);
+    format!("{prefix}/{filename}")
+}
+
+/// Parses a `.ctbnodes` relative path (`"85899_34592.ctbnodes"` or `"85900/85900_34492.ctbnodes"`)
+/// into its starting node ID, validating any parent directory component.
+#[must_use]
+pub fn parse_chunk_rel_path_start_id(rel_path: &str) -> Option<u128> {
+    match rel_path.split_once('/') {
+        None => parse_chunk_filename_start_id(rel_path),
+        Some((subdir, fname)) => {
+            if fname.contains('/') || parse_grouped_stem_id(subdir).is_none() {
+                return None;
+            }
+            parse_chunk_filename_start_id(fname)
+        }
+    }
+}
+
+/// Returns `path` formatted relative to `graph_dir` using forward-slash separators.
+#[must_use]
+pub fn chunk_rel_path_from_graph_dir(
+    graph_dir: &Path,
+    path: &Path,
+) -> Option<String> {
+    let rel = path.strip_prefix(graph_dir).ok()?;
+    let mut parts: Vec<&str> = Vec::new();
+    for comp in rel.components() {
+        parts.push(comp.as_os_str().to_str()?);
+    }
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join("/"))
+    }
+}
+
+/// Returns `true` if `dir_name` is a valid numeric-prefix `.ctbnodes` shard subdirectory name
+/// (e.g. `"85900"`, `"85901"`, `"1_00000"`).
+#[must_use]
+pub fn is_chunk_prefix_subdir_name(dir_name: &str) -> bool {
+    parse_grouped_stem_id(dir_name).is_some()
+}
+
+/// Returns the sorted list of `.ctbnodes` chunk files in `graph_dir` (including 1000-file
+/// numeric-prefix subdirectories).
 pub fn list_chunk_files(graph_dir: &Path) -> Result<Vec<PathBuf>> {
     if !graph_dir.exists() {
         return Ok(Vec::new());
@@ -348,16 +455,43 @@ pub fn list_chunk_files(graph_dir: &Path) -> Result<Vec<PathBuf>> {
         format!("Failed to read graph directory {}", graph_dir.display())
     })? {
         let entry = entry?;
-        if !entry.file_type()?.is_file() {
-            continue;
-        }
+        let file_type = entry.file_type()?;
         let path = entry.path();
         let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
             continue;
         };
-        if let Some(start_id) = parse_chunk_filename_start_id(name) {
-            if (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&start_id) {
-                keyed_files.push((start_id, path));
+        if file_type.is_file() {
+            if let Some(start_id) = parse_chunk_filename_start_id(name) {
+                if (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&start_id)
+                {
+                    keyed_files.push((start_id, path));
+                }
+            }
+        } else if file_type.is_dir() && is_chunk_prefix_subdir_name(name) {
+            for sub_entry in std::fs::read_dir(&path).with_context(|| {
+                format!(
+                    "Failed to read graph shard subdirectory {}",
+                    path.display()
+                )
+            })? {
+                let sub_entry = sub_entry?;
+                if !sub_entry.file_type()?.is_file() {
+                    continue;
+                }
+                let sub_path = sub_entry.path();
+                let Some(sub_name) =
+                    sub_path.file_name().and_then(|s| s.to_str())
+                else {
+                    continue;
+                };
+                if let Some(start_id) = parse_chunk_filename_start_id(sub_name)
+                {
+                    if (SYSTEM_REGION_START..=SYSTEM_REGION_END)
+                        .contains(&start_id)
+                    {
+                        keyed_files.push((start_id, sub_path));
+                    }
+                }
             }
         }
     }
@@ -404,15 +538,13 @@ fn load_ledger_nodes_from_dir_raw(graph_dir: &Path) -> Result<Vec<LedgerNode>> {
             u128::try_from(chunk_idx.saturating_mul(MAX_NODES_PER_CHUNK))
                 .unwrap_or(0),
         );
-        let expected_name = format_chunk_filename(chunk_start_id);
-        // Reason for fallback: non-UTF-8 filenames fail the equality check against expected_name immediately below
-        let actual_name = path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or_default();
+        let expected_rel = format_chunk_rel_path(chunk_start_id);
+        // Reason for fallback: paths outside graph_dir or non-UTF-8 fail the equality check against expected_rel immediately below
+        let actual_rel = chunk_rel_path_from_graph_dir(graph_dir, path)
+            .unwrap_or_else(|| path.display().to_string());
         ensure!(
-            actual_name == expected_name,
-            "Expected sequential chunk file '{expected_name}', found '{actual_name}'"
+            actual_rel == expected_rel,
+            "Expected sequential chunk file '{expected_rel}', found '{actual_rel}'"
         );
         let file_nodes = load_ledger_nodes_from_file(path)?;
         let chunk_count = file_nodes.len();
@@ -423,20 +555,20 @@ fn load_ledger_nodes_from_dir_raw(graph_dir: &Path) -> Result<Vec<LedgerNode>> {
                 .saturating_add(u128::try_from(nodes.len()).unwrap_or(0));
             ensure!(
                 node.id == expected_id,
-                "{actual_name}:{line_no}: expected sequential node ID l{expected_id}, found l{}",
+                "{actual_rel}:{line_no}: expected sequential node ID l{expected_id}, found l{}",
                 node.id
             );
             nodes.push(node);
         }
         ensure!(
             chunk_count <= MAX_NODES_PER_CHUNK,
-            "{actual_name}: chunk contains {chunk_count} nodes, exceeding maximum {MAX_NODES_PER_CHUNK}"
+            "{actual_rel}: chunk contains {chunk_count} nodes, exceeding maximum {MAX_NODES_PER_CHUNK}"
         );
         if chunk_idx.saturating_add(1) < files.len() {
             ensure!(
                 chunk_count == MAX_NODES_PER_CHUNK,
-                "{actual_name}: non-final chunk has {chunk_count} nodes, expected {MAX_NODES_PER_CHUNK}. \
-                 CRITICAL: This indicates {actual_name} was truncated or reverted (e.g. via 'git checkout') \
+                "{actual_rel}: non-final chunk has {chunk_count} nodes, expected {MAX_NODES_PER_CHUNK}. \
+                 CRITICAL: This indicates {actual_rel} was truncated or reverted (e.g. via 'git checkout') \
                  after later chunk files were created. NEVER delete or revert .ctbnodes files!"
             );
         }
@@ -546,7 +678,13 @@ pub fn verify_repo_graph_append_only(
         if let Ok(ls_out) = std::process::Command::new("/usr/bin/git")
             .arg("-C")
             .arg(repo_root)
-            .args(["ls-tree", "--name-only", "HEAD", "assets/data/graph/"])
+            .args([
+                "ls-tree",
+                "-r",
+                "--name-only",
+                "HEAD",
+                "assets/data/graph/",
+            ])
             .output()
             && ls_out.status.success()
         {
@@ -698,7 +836,7 @@ pub fn write_ledger_nodes_to_dir(
         let Some(first_node) = chunk.first() else {
             continue;
         };
-        let file_path = graph_dir.join(format_chunk_filename(first_node.id));
+        let file_path = graph_dir.join(format_chunk_rel_path(first_node.id));
         let mut content = String::new();
         for node in chunk {
             content.push_str(&node.format_line());
@@ -1945,10 +2083,7 @@ pub fn encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
         max_nodes_per_bundle > 0,
         "max_nodes_per_bundle must be greater than 0"
     );
-    let header_bytes = encode_ctbnbdl_header_bytes(
-        most_recent_node_id.or_else(|| nodes.iter().map(|n| n.id).max()),
-        framing,
-    )?;
+    let header_bytes = encode_ctbnbdl_header_bytes(most_recent_node_id, framing)?;
     let header_len = header_bytes.len();
     ensure!(
         max_bytes_per_bundle > header_len,
@@ -2409,10 +2544,31 @@ pub fn partition_active_and_inactive_nodes_with(
 }
 
 fn write_bytes_if_changed(path: &Path, bytes: &[u8]) -> Result<bool> {
+    use std::io::Write;
+
     if path.is_file() {
         if let Ok(existing) = std::fs::read(path) {
             if existing == bytes {
                 return Ok(false);
+            }
+            if let Some(tail) = bytes.strip_prefix(existing.as_slice()) {
+                let mut file = std::fs::OpenOptions::new()
+                    .append(true)
+                    .open(path)
+                    .with_context(|| {
+                        format!(
+                            "Failed to open {} in append mode",
+                            path.display()
+                        )
+                    })?;
+                file.write_all(tail).with_context(|| {
+                    format!(
+                        "Failed to append {} bytes to {}",
+                        tail.len(),
+                        path.display()
+                    )
+                })?;
+                return Ok(true);
             }
         }
     }
@@ -2475,15 +2631,95 @@ fn write_ctbnbdl_bundles_to_dir(
     Ok(compiled_count)
 }
 
+/// Compiles all `.ctbnodes` chunk files in `src_dir` into:
+/// 1. Unsplit append-friendly `.ctbnbdl` bundle files directly in `bundles_dir`
+///    (containing all `LedgerNode`s in ascending ID order without a `Dc 641` watermark header,
+///    so newly appended nodes extend the tail of the bundle without rewriting invalidated entries),
+/// 2. Live (active) `.ctbnbdl` bundle files in `bundles_dir/split/live/` (with `Dc 641` watermark), and
+/// 3. Historical (inactive) `.ctbnbdl` bundle files in `bundles_dir/split/history/` (with `Dc 641` watermark).
+///
+/// Returns `(unsplit_written, live_written, history_written)`.
+pub fn compile_graph_bundles_from_ctbnodes_dir_with_limits(
+    src_dir: &Path,
+    bundles_dir: &Path,
+    framing: CtbnbdlFramingDcs,
+    max_nodes_per_bundle: usize,
+    max_bytes_per_bundle: usize,
+) -> Result<(usize, usize, usize)> {
+    if !src_dir.is_dir() {
+        return Ok((0, 0, 0));
+    }
+    let nodes = load_ledger_nodes_from_dir(src_dir)?;
+    let unsplit_bundles =
+        encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
+            &nodes,
+            framing,
+            max_nodes_per_bundle,
+            max_bytes_per_bundle,
+            None,
+        )?;
+    let unsplit_written =
+        write_ctbnbdl_bundles_to_dir(bundles_dir, &unsplit_bundles, true)?;
+
+    let most_recent_node_id = nodes.iter().map(|n| n.id).max();
+    let (active_nodes, inactive_nodes) =
+        partition_active_and_inactive_nodes_with(&nodes, framing);
+    let active_bundles =
+        encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
+            &active_nodes,
+            framing,
+            max_nodes_per_bundle,
+            max_bytes_per_bundle,
+            most_recent_node_id,
+        )?;
+    let inactive_bundles =
+        encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
+            &inactive_nodes,
+            framing,
+            max_nodes_per_bundle,
+            max_bytes_per_bundle,
+            most_recent_node_id,
+        )?;
+
+    let split_live_dir = bundles_dir.join(GRAPH_BUNDLES_SPLIT_LIVE_SUBDIR);
+    let live_written =
+        write_ctbnbdl_bundles_to_dir(&split_live_dir, &active_bundles, true)?;
+    let split_history_dir =
+        bundles_dir.join(GRAPH_BUNDLES_SPLIT_HISTORY_SUBDIR);
+    let history_written = write_ctbnbdl_bundles_to_dir(
+        &split_history_dir,
+        &inactive_bundles,
+        true,
+    )?;
+
+    Ok((unsplit_written, live_written, history_written))
+}
+
+/// Same as [`compile_graph_bundles_from_ctbnodes_dir_with_limits`] using default
+/// `MAX_NODES_PER_BUNDLE` and `MAX_BYTES_PER_BUNDLE` limits.
+pub fn compile_graph_bundles_from_ctbnodes_dir(
+    src_dir: &Path,
+    bundles_dir: &Path,
+    framing: CtbnbdlFramingDcs,
+) -> Result<(usize, usize, usize)> {
+    compile_graph_bundles_from_ctbnodes_dir_with_limits(
+        src_dir,
+        bundles_dir,
+        framing,
+        MAX_NODES_PER_BUNDLE,
+        MAX_BYTES_PER_BUNDLE,
+    )
+}
+
 /// Compiles all `.ctbnodes` chunk files in `src_dir` into grouped active `.ctbnbdl` bundle files
 /// in `dst_dir` using custom node-count and byte-size limits, removing any stale `.ctbnodes`
 /// or obsolete `.ctbnbdl` files in `dst_dir`.
 ///
-/// When `src_dir == dst_dir` (e.g., `assets/data/graph`), this also compiles all filtered-out
-/// inactive (superseded/retracted) nodes into `dst_dir.join("system")` using the same
-/// node-count and byte-size split limits.
+/// When `src_dir == dst_dir` (e.g., `assets/data/graph`), this delegates to
+/// [`compile_graph_bundles_from_ctbnodes_dir_with_limits`] targeting
+/// `bundles_dir_for_graph_dir(src_dir)` (`assets/data/graph-bundles/` and `split/{live,history}/`).
 ///
-/// Returns the number of active `.ctbnbdl` files written or updated in `dst_dir`.
+/// Returns the number of primary `.ctbnbdl` files written or updated.
 pub fn compile_ctbnodes_dir_to_ctbnbdl_with_limits(
     src_dir: &Path,
     dst_dir: &Path,
@@ -2494,12 +2730,6 @@ pub fn compile_ctbnodes_dir_to_ctbnbdl_with_limits(
     if !src_dir.is_dir() {
         return Ok(0);
     }
-    std::fs::create_dir_all(dst_dir).with_context(|| {
-        format!(
-            "Failed to create destination directory {}",
-            dst_dir.display()
-        )
-    })?;
 
     let is_same_dir = if let (Ok(c_src), Ok(c_dst)) =
         (src_dir.canonicalize(), dst_dir.canonicalize())
@@ -2509,38 +2739,40 @@ pub fn compile_ctbnodes_dir_to_ctbnbdl_with_limits(
         src_dir == dst_dir
     };
 
+    if is_same_dir {
+        let bundles_dir = bundles_dir_for_graph_dir(src_dir);
+        let (unsplit_written, _, _) =
+            compile_graph_bundles_from_ctbnodes_dir_with_limits(
+                src_dir,
+                &bundles_dir,
+                framing,
+                max_nodes_per_bundle,
+                max_bytes_per_bundle,
+            )?;
+        return Ok(unsplit_written);
+    }
+
+    std::fs::create_dir_all(dst_dir).with_context(|| {
+        format!(
+            "Failed to create destination directory {}",
+            dst_dir.display()
+        )
+    })?;
+
     let nodes = load_ledger_nodes_from_dir(src_dir)?;
     let most_recent_node_id = nodes.iter().map(|n| n.id).max();
-    let (active_nodes, inactive_nodes) =
+    let (active_nodes, _inactive_nodes) =
         partition_active_and_inactive_nodes_with(&nodes, framing);
 
-    let active_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
-        &active_nodes,
-        framing,
-        max_nodes_per_bundle,
-        max_bytes_per_bundle,
-        most_recent_node_id,
-    )?;
-    let compiled_count =
-        write_ctbnbdl_bundles_to_dir(dst_dir, &active_bundles, !is_same_dir)?;
-
-    if is_same_dir {
-        let inactive_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
-            &inactive_nodes,
+    let active_bundles =
+        encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
+            &active_nodes,
             framing,
             max_nodes_per_bundle,
             max_bytes_per_bundle,
             most_recent_node_id,
         )?;
-        let system_history_dir = dst_dir.join("system");
-        write_ctbnbdl_bundles_to_dir(
-            &system_history_dir,
-            &inactive_bundles,
-            true,
-        )?;
-    }
-
-    Ok(compiled_count)
+    write_ctbnbdl_bundles_to_dir(dst_dir, &active_bundles, true)
 }
 
 /// Compiles all `.ctbnodes` chunk files in `src_dir` into grouped active `.ctbnbdl` bundle files

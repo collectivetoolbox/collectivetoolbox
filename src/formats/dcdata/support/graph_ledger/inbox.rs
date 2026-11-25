@@ -512,13 +512,10 @@ fn prevalidate_and_plan_inbox_items_with_timestamps(
 
     for (inbox_name, inbox_sha256, content) in inbox_files {
         let parsed = parse_ctbnode_incoming_file(content, inbox_name)?;
-        // Reason for fallback: .dcsh/.ctbnode-incoming files without '# @comment:' or inline comment emit an uncommented .ctbnodes line.
-        let comment = parsed.comment.unwrap_or_default();
         let predicted_id = write_state.next_node_id(inbox_name)?;
         let allocated_name = format!("{predicted_id}_{inbox_name}");
         let next_id = write_state.validate_and_append_node(
             parsed.tokens,
-            comment,
             parsed.provenance,
             parsed.rationale.clone(),
             Some(allocated_name.clone()),
@@ -736,7 +733,7 @@ mod tests {
         fs::create_dir_all(
             root.join("src/formats/dcdata/data-src/nodes/allocated"),
         )?;
-        fs::create_dir_all(root.join("assets/data/graph/system"))?;
+        fs::create_dir_all(root.join("assets/data/graph"))?;
         fs::create_dir_all(root.join(".git"))?;
 
         // Build a minimal self-bootstrapping framing graph
@@ -816,13 +813,12 @@ mod tests {
         let write_guard = LedgerWriteGuard::acquire(root)?;
         write_ledger_nodes_to_dir(&graph_dir, &nodes)?;
         sync_highwater_shadow_ledgers(root, &nodes)?;
-        let (active_bundles_sha256, history_bundles_sha256) =
-            compile_nodes_slice_to_ctbnbdl_with_write_guard(
-                &write_guard,
-                &nodes,
-                &graph_dir,
-                framing,
-            )?;
+        let digests = compile_nodes_slice_to_ctbnbdl_with_write_guard(
+            &write_guard,
+            &nodes,
+            &graph_dir,
+            framing,
+        )?;
 
         let sha = compute_ledger_dir_sha256(&graph_dir)?;
         let last_id = nodes.last().unwrap().id;
@@ -836,6 +832,7 @@ mod tests {
             final_ledger_sha256: sha.clone(),
             manifest_sha256: None,
             items: Vec::new(),
+            unsplit_bundles_sha256: BTreeMap::new(),
             active_bundles_sha256: BTreeMap::new(),
             history_bundles_sha256: BTreeMap::new(),
             record_sha256: String::new(),
@@ -851,8 +848,9 @@ mod tests {
             final_ledger_sha256: sha,
             manifest_sha256: None,
             items: Vec::new(),
-            active_bundles_sha256,
-            history_bundles_sha256,
+            unsplit_bundles_sha256: digests.unsplit_bundles_sha256,
+            active_bundles_sha256: digests.active_bundles_sha256,
+            history_bundles_sha256: digests.history_bundles_sha256,
             record_sha256: String::new(),
         }
         .with_computed_sha256()?;
@@ -1114,7 +1112,7 @@ mod tests {
                 fs::write(
                     inbox_dir.join("01_journal.ctbnode-incoming"),
                     format!(
-                        "# @provenance: csv\n# @comment: \"{character}\"\nu61 u62\n"
+                        "# @provenance: csv\n# @rationale: {character}\nu61 u62\n"
                     ),
                 )?;
                 let err = process_inbox_nodes_with_fault(
@@ -1181,13 +1179,12 @@ mod tests {
                 let chunk_path = graph_dir.join(&item.target_chunk);
                 let complete_chunk = fs::read(&chunk_path)?;
                 let line_start = complete_chunk.len() - item.raw_line.len() - 1;
-                let split_at = line_start
-                    + item.raw_line.find(character).unwrap()
-                    + partial_bytes;
-                let torn_chunk = &complete_chunk[..split_at];
-                std::str::from_utf8(torn_chunk).unwrap_err();
+                let torn_chunk = &complete_chunk[..line_start + 3];
 
+                let partial_utf8 = &character.as_bytes()[..partial_bytes];
+                std::str::from_utf8(partial_utf8).unwrap_err();
                 let mut corrupt_complete_chunk = torn_chunk.to_vec();
+                corrupt_complete_chunk.extend_from_slice(partial_utf8);
                 corrupt_complete_chunk.push(b'\n');
                 fs::write(&chunk_path, &corrupt_complete_chunk)?;
                 let err = recover_pending_ledger_journal(root, None, false)
@@ -1207,7 +1204,10 @@ mod tests {
                     baseline_nodes.as_slice()
                 );
                 assert_eq!(nodes.len(), baseline_nodes.len() + 2);
-                assert!(nodes.last().unwrap().comment.contains(character));
+                assert!(
+                    nodes.last().unwrap().comment.is_empty(),
+                    "Newly appended .ctbnodes entries must not write explanation comments"
+                );
                 let parsed =
                     crate::ctbnbdl::inspect_ledger_journal(&journal_path)?;
                 assert!(parsed.open_pending.is_none());

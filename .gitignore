@@ -38,3 +38,6 @@
 
 # Weekly v86 initrd CI cache marker
 /.v86-build-cache
+
+# Split live/historical system graph bundles (materialized from unsplit graph-bundles)
+/assets/data/graph-bundles/split/

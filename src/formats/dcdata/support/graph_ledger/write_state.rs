@@ -527,12 +527,11 @@ impl SystemGraphWriteState {
     }
 
     /// Validates `tokens` against all System-block structural, syntactic,
-    /// provenance, and duplicate rules, appends the node, and updates active
-    /// and retracted indices atomically.
+    /// provenance, and duplicate rules, appends the node (without documentational
+    /// comments in `.ctbnodes`), and updates active and retracted indices atomically.
     pub(crate) fn validate_and_append_node(
         &mut self,
         tokens: Vec<DcShorthand>,
-        comment: String,
         provenance: NodeProvenance,
         rationale: Option<String>,
         allocated_file: Option<String>,
@@ -581,7 +580,7 @@ impl SystemGraphWriteState {
         let new_node = LedgerNode {
             id: next_id,
             tokens: tokens.clone(),
-            comment,
+            comment: String::new(),
             created_ns,
         };
         let new_pos = self.nodes.len();
@@ -1053,7 +1052,6 @@ impl SystemGraphWriteState {
         cands: &[u128],
         descending: bool,
         actor_prov: NodeProvenance,
-        format_comment: &dyn Fn(&[DcShorthand]) -> String,
     ) -> Result<Option<(u128, u128)>> {
         let mut candidates = cands.to_vec();
         candidates.sort_unstable();
@@ -1072,8 +1070,7 @@ impl SystemGraphWriteState {
                     DcShorthand::Long(retract_stmt_id),
                 );
                 let _cancel_id = self.validate_and_append_node(
-                    cancel_tokens.clone(),
-                    format_comment(&cancel_tokens),
+                    cancel_tokens,
                     actor_prov,
                     None,
                     None,
@@ -1092,18 +1089,12 @@ impl SystemGraphWriteState {
         &mut self,
         tokens: &[DcShorthand],
         actor_prov: NodeProvenance,
-        format_comment: &dyn Fn(&[DcShorthand]) -> String,
     ) -> Result<Option<(u128, u128)>> {
         let Some(cands) = self.retracted_nodes_by_tokens.get(tokens).cloned()
         else {
             return Ok(None);
         };
-        self.try_unretract_first_safe_candidate(
-            &cands,
-            false,
-            actor_prov,
-            format_comment,
-        )
+        self.try_unretract_first_safe_candidate(&cands, false, actor_prov)
     }
 
     /// Attempts to reactivate an earlier retracted value node whose expanded
@@ -1113,19 +1104,13 @@ impl SystemGraphWriteState {
         &mut self,
         expanded: &[DcShorthand],
         actor_prov: NodeProvenance,
-        format_comment: &dyn Fn(&[DcShorthand]) -> String,
     ) -> Result<Option<(u128, u128)>> {
         let Some(cands) =
             self.retracted_value_by_expanded_tokens.get(expanded).cloned()
         else {
             return Ok(None);
         };
-        self.try_unretract_first_safe_candidate(
-            &cands,
-            true,
-            actor_prov,
-            format_comment,
-        )
+        self.try_unretract_first_safe_candidate(&cands, true, actor_prov)
     }
 
     /// Attempts to reactivate a previously retracted `(584 subj prop, 610 l<ha> val_tok)`
@@ -1136,7 +1121,6 @@ impl SystemGraphWriteState {
         prop: DcShorthand,
         val_tok: DcShorthand,
         actor_prov: NodeProvenance,
-        format_comment: &dyn Fn(&[DcShorthand]) -> String,
     ) -> Result<Option<(u128, u128)>> {
         if subj == sh(DC_ENCLOSING_DOCUMENT) {
             return Ok(None);
@@ -1196,8 +1180,7 @@ impl SystemGraphWriteState {
                     DcShorthand::Long(ret_ha_id),
                 );
                 let _ = self.validate_and_append_node(
-                    cancel_ha_tokens.clone(),
-                    format_comment(&cancel_ha_tokens),
+                    cancel_ha_tokens,
                     actor_prov,
                     None,
                     None,
@@ -1211,8 +1194,7 @@ impl SystemGraphWriteState {
                     DcShorthand::Long(ret_hv_id),
                 );
                 let _ = self.validate_and_append_node(
-                    cancel_hv_tokens.clone(),
-                    format_comment(&cancel_hv_tokens),
+                    cancel_hv_tokens,
                     actor_prov,
                     None,
                     None,

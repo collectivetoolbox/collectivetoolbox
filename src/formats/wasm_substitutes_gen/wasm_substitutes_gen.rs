@@ -183,8 +183,9 @@ fn codegen_fingerprint_sha256(
     hasher.finalize().into()
 }
 
-/// Reads the highest allocated System-graph node ID from the lexicographically
-/// last `.ctbnodes` chunk file in `assets/data/graph/` in O(1) disk I/O.
+/// Reads the highest allocated System-graph node ID from the highest `.ctbnodes`
+/// chunk file in `assets/data/graph/` (checking the highest numeric prefix
+/// subdirectory first if present, otherwise top-level `assets/data/graph/`).
 ///
 /// Because the System graph is unconditionally append-only (prefix-immutable),
 /// the highest allocated node ID uniquely identifies the complete graph state.
@@ -193,25 +194,74 @@ fn read_graph_head_watermark_node_id(repo_root: &Path) -> Result<u128> {
     let entries = fs::read_dir(&graph_dir).with_context(|| {
         format!("Failed to read graph directory {}", graph_dir.display())
     })?;
-    let mut max_chunk_name: Option<String> = None;
-    let mut max_chunk_path: Option<PathBuf> = None;
+    let mut max_root_chunk: Option<(u128, PathBuf)> = None;
+    let mut max_subdir: Option<(u128, PathBuf)> = None;
     for entry_res in entries {
         let entry = entry_res?;
-        if !entry.file_type()?.is_file() {
-            continue;
-        }
+        let file_type = entry.file_type()?;
         let name_os = entry.file_name();
         let Some(name) = name_os.to_str() else {
             continue;
         };
-        if name.ends_with(".ctbnodes")
-            && max_chunk_name.as_deref().is_none_or(|cur| name > cur)
+        if file_type.is_file() {
+            if let Some(start_id) =
+                ctb_formats_dcdata::ctbnbdl::parse_chunk_filename_start_id(name)
+                && max_root_chunk.as_ref().is_none_or(|(cur, _)| start_id > *cur)
+            {
+                max_root_chunk = Some((start_id, entry.path()));
+            }
+        } else if file_type.is_dir()
+            && ctb_formats_dcdata::ctbnbdl::is_chunk_prefix_subdir_name(name)
         {
-            max_chunk_name = Some(name.to_owned());
-            max_chunk_path = Some(entry.path());
+            let digits: String = name.chars().filter(|&c| c != '_').collect();
+            if let Ok(prefix_num) = digits.parse::<u128>()
+                && max_subdir.as_ref().is_none_or(|(cur, _)| prefix_num > *cur)
+            {
+                max_subdir = Some((prefix_num, entry.path()));
+            }
         }
     }
-    let chunk_path = max_chunk_path.with_context(|| {
+
+    let mut max_sub_chunk: Option<(u128, PathBuf)> = None;
+    if let Some((_, sub_path)) = max_subdir {
+        for sub_res in fs::read_dir(&sub_path).with_context(|| {
+            format!(
+                "Failed to read graph shard subdirectory {}",
+                sub_path.display()
+            )
+        })? {
+            let sub = sub_res?;
+            if !sub.file_type()?.is_file() {
+                continue;
+            }
+            let sub_name_os = sub.file_name();
+            let Some(sub_name) = sub_name_os.to_str() else {
+                continue;
+            };
+            if let Some(start_id) =
+                ctb_formats_dcdata::ctbnbdl::parse_chunk_filename_start_id(
+                    sub_name,
+                )
+                && max_sub_chunk.as_ref().is_none_or(|(cur, _)| start_id > *cur)
+            {
+                max_sub_chunk = Some((start_id, sub.path()));
+            }
+        }
+    }
+
+    let best = match (max_sub_chunk, max_root_chunk) {
+        (Some(sub), Some(root)) => {
+            if sub.0 >= root.0 {
+                Some(sub.1)
+            } else {
+                Some(root.1)
+            }
+        }
+        (Some(sub), None) => Some(sub.1),
+        (None, Some(root)) => Some(root.1),
+        (None, None) => None,
+    };
+    let chunk_path = best.with_context(|| {
         format!("No .ctbnodes files found in {}", graph_dir.display())
     })?;
     let text = fs::read_to_string(&chunk_path).with_context(|| {

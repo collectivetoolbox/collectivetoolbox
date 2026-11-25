@@ -179,6 +179,69 @@ pub fn execute_cli_gid(args: &GidArgs) -> Result<String> {
     }
 }
 
+/// Arguments for the `explain-ctbnodes` CLI command.
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
+#[command(
+    name = "explain-ctbnodes",
+    after_help = "Examples:\n  $ ctoolbox explain-ctbnodes assets/data/graph/85899_34592.ctbnodes\n  $ ctoolbox explain-ctbnodes assets/data/graph/85900_04692.ctbnodes -o explained.ctbnodes"
+)]
+pub struct ExplainCtbnodesArgs {
+    /// Path to the input `.ctbnodes` file (or `-` to read from standard input)
+    pub file: std::path::PathBuf,
+
+    /// Optional output file path (writes to standard output if omitted)
+    #[arg(short = 'o', long = "output")]
+    pub output: Option<std::path::PathBuf>,
+
+    /// Optional system graph directory (`assets/data/graph`) for resolving node labels
+    #[arg(long = "graph-dir")]
+    pub graph_dir: Option<std::path::PathBuf>,
+}
+
+/// Executes the `explain-ctbnodes` CLI command, returning `Some(bytes)` to write to stdout
+/// or `None` when `-o` wrote directly to an output file.
+pub fn execute_cli_explain_ctbnodes<F>(
+    args: &ExplainCtbnodesArgs,
+    read_file_or_stdin: F,
+) -> Result<Option<Vec<u8>>>
+where
+    F: FnOnce(&std::path::Path) -> Result<Vec<u8>>,
+{
+    let rendered = if args.file == std::path::Path::new("-") {
+        let raw = read_file_or_stdin(&args.file)?;
+        let content = String::from_utf8(raw)
+            .context("Standard input for explain-ctbnodes is not valid UTF-8")?;
+        ctb_formats_dcdata::graph_ledger::explain_ctbnodes_str(
+            &content,
+            "<stdin>",
+            args.graph_dir.as_deref(),
+        )?
+    } else {
+        ctb_formats_dcdata::graph_ledger::explain_ctbnodes_file(
+            &args.file,
+            args.graph_dir.as_deref(),
+        )?
+    };
+
+    if let Some(out_path) = &args.output
+        && out_path != std::path::Path::new("-")
+    {
+        if let Some(parent) = out_path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create directory {}", parent.display())
+            })?;
+        }
+        std::fs::write(out_path, rendered.as_bytes()).with_context(|| {
+            format!("Failed to write {}", out_path.display())
+        })?;
+        return Ok(None);
+    }
+
+    Ok(Some(rendered.into_bytes()))
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -386,6 +449,35 @@ mod tests {
             res_gid_info.starts_with(
                 "1114408\nNext number is a Dc-equivalent reference"
             )
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_explain_ctbnodes_cli_execution() {
+        let sample = "l8589934592: u68 u69 # @created_ns:1700000000000000000\n\
+                      l8589934593: 584 296 574\n\
+                      l8589934594: 610 l8589934593 l8589934592\n";
+        let out_bytes = execute_cli_explain_ctbnodes(
+            &ExplainCtbnodesArgs {
+                file: std::path::PathBuf::from("-"),
+                output: None,
+                graph_dir: None,
+            },
+            |_| Ok(sample.as_bytes().to_vec()),
+        )
+        .expect("explain-ctbnodes on stdin must succeed")
+        .expect("stdout bytes");
+        let text = String::from_utf8(out_bytes).unwrap();
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines.len(), 3);
+        assert_eq!(
+            lines[0],
+            "l8589934592: u68 u69 # @created_ns:1700000000000000000 \"hi\""
+        );
+        assert!(lines[1].contains("Has a (") && lines[1].contains("Programmatic identifier)"));
+        assert!(
+            lines[2].contains("Has value (Has a (")
+                && lines[2].contains("Programmatic identifier), \"hi\")")
         );
     }
 }

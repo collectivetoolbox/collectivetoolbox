@@ -1181,14 +1181,7 @@ impl LedgerBuilder {
         )
     }
 
-    fn describe_token(&self, tok: DcShorthand) -> String {
-        describe_token_with(&self.token_labels, tok)
-    }
-
-    fn describe_atom_dc_tokens(&self, tok: DcShorthand) -> String {
-        describe_atom_dc_tokens_with(&self.token_labels, tok)
-    }
-
+    #[cfg(test)]
     fn format_tokens_comment(&self, tokens: &[DcShorthand]) -> String {
         format_tokens_comment_with(&self.token_labels, tokens)
     }
@@ -1199,18 +1192,14 @@ impl LedgerBuilder {
         policy: DuplicatePolicy<'_>,
         label: &str,
     ) -> Result<u128> {
-        let comment = self.format_tokens_comment(&tokens);
         let next_id = self.write_state.validate_and_append_node(
             tokens,
-            comment.clone(),
             NodeProvenance::Csv,
             None,
             None,
             policy,
             label,
         )?;
-        self.token_labels
-            .insert(DcShorthand::Long(next_id), comment);
         self.appended_count = self.appended_count.saturating_add(1);
         Ok(next_id)
     }
@@ -1243,13 +1232,9 @@ impl LedgerBuilder {
         obj: DcShorthand,
     ) -> Result<Option<u128>> {
         let tokens = encode_statement_tokens(verb, subj, obj);
-        let token_labels = &self.token_labels;
         let Some((reactivated_id, _)) =
-            self.write_state.try_unretract_matching_node(
-                &tokens,
-                NodeProvenance::Csv,
-                &|toks| format_tokens_comment_with(token_labels, toks),
-            )?
+            self.write_state
+                .try_unretract_matching_node(&tokens, NodeProvenance::Csv)?
         else {
             return Ok(None);
         };
@@ -1264,13 +1249,11 @@ impl LedgerBuilder {
         prop: DcShorthand,
         val_tok: DcShorthand,
     ) -> Result<Option<(u128, u128)>> {
-        let token_labels = &self.token_labels;
         let Some(pair) = self.write_state.try_unretract_property_pair(
             subj,
             prop,
             val_tok,
             NodeProvenance::Csv,
-            &|toks| format_tokens_comment_with(token_labels, toks),
         )?
         else {
             return Ok(None);
@@ -1286,25 +1269,25 @@ impl LedgerBuilder {
         summary_label: String,
     ) -> Result<u128> {
         if let Some(&existing_id) = self.value_node_by_tokens.get(&tokens) {
-            self.token_labels
-                .entry(DcShorthand::Long(existing_id))
-                .or_insert(summary_label);
+            if !summary_label.is_empty() {
+                self.token_labels
+                    .entry(DcShorthand::Long(existing_id))
+                    .or_insert(summary_label);
+            }
             return Ok(existing_id);
         }
-        let token_labels = &self.token_labels;
         if let Some((reactivated_id, _)) =
-            self.write_state.try_unretract_matching_node(
-                &tokens,
-                NodeProvenance::Csv,
-                &|toks| format_tokens_comment_with(token_labels, toks),
-            )?
+            self.write_state
+                .try_unretract_matching_node(&tokens, NodeProvenance::Csv)?
         {
             self.appended_count = self.appended_count.saturating_add(1);
             self.retracted_count = self.retracted_count.saturating_add(1);
             self.value_node_by_tokens
                 .insert(tokens.clone(), reactivated_id);
-            self.token_labels
-                .insert(DcShorthand::Long(reactivated_id), summary_label);
+            if !summary_label.is_empty() {
+                self.token_labels
+                    .insert(DcShorthand::Long(reactivated_id), summary_label);
+            }
             if let Some(decoded_str) = decode_string_value_tokens(&tokens) {
                 self.string_by_node_id.insert(reactivated_id, decoded_str);
             }
@@ -1316,8 +1299,10 @@ impl LedgerBuilder {
             "value node",
         )?;
         self.value_node_by_tokens.insert(tokens.clone(), id);
-        self.token_labels
-            .insert(DcShorthand::Long(id), summary_label);
+        if !summary_label.is_empty() {
+            self.token_labels
+                .insert(DcShorthand::Long(id), summary_label);
+        }
         if let Some(decoded_str) = decode_string_value_tokens(&tokens) {
             self.string_by_node_id.insert(id, decoded_str);
         }
@@ -1605,10 +1590,9 @@ impl LedgerBuilder {
                 match mode {
                     None => out.extend_from_slice(frame_slice),
                     Some(0) => {
-                        let summary = self.format_tokens_comment(frame_slice);
                         let interned_id = self.get_or_insert_value_node(
                             frame_slice.to_vec(),
-                            summary,
+                            String::new(),
                         )?;
                         out.push(DcShorthand::Long(interned_id));
                     }
@@ -1624,10 +1608,9 @@ impl LedgerBuilder {
                             .context("Invalid frame closer index")?;
                         let bare_tokens =
                             Self::unescape_frame_payload_for_bare_node(raw_inner);
-                        let summary = self.format_tokens_comment(&bare_tokens);
                         let interned_id = self.get_or_insert_value_node(
                             bare_tokens,
-                            summary,
+                            String::new(),
                         )?;
                         out.extend_from_slice(header_slice);
                         out.push(DcShorthand::Long(interned_id));
@@ -1721,13 +1704,11 @@ impl LedgerBuilder {
                 }
 
                 // 3. Expanded-equivalence retracted match (cancel Dc 592).
-                let token_labels = &self.token_labels;
                 if let Some((reactivated_id, _)) = self
                     .write_state
                     .try_unretract_matching_expanded_value_node(
                         &expanded,
                         NodeProvenance::Csv,
-                        &|toks| format_tokens_comment_with(token_labels, toks),
                     )?
                 {
                     self.appended_count = self.appended_count.saturating_add(1);
@@ -4913,6 +4894,221 @@ pub fn update_system_graph_ledger_with_options(
     Ok(stats)
 }
 
+fn populate_token_labels_from_seed_index(
+    index: &crate::seed_graph::SeedGraphIndex,
+    labels: &mut HashMap<DcShorthand, String>,
+) {
+    for (&(subj, prop), &(_, _, val_tok)) in &index.active_single_props {
+        if prop == sh(DC_CANONICAL_NAME)
+            && let DcShorthand::Long(str_id) = val_tok
+            && let Some(name) = index.string_by_node_id.get(&str_id)
+            && !name.is_empty()
+        {
+            labels.insert(subj, name.clone());
+        }
+    }
+    for (&(subj, prop), &(_, _, val_tok)) in &index.active_single_props {
+        if prop == sh(DC_PROGRAMMATIC_IDENTIFIER)
+            && let DcShorthand::Long(str_id) = val_tok
+            && let Some(ident) = index.string_by_node_id.get(&str_id)
+            && !ident.is_empty()
+        {
+            labels.entry(subj).or_insert_with(|| ident.clone());
+        }
+    }
+    for (&node_id, decoded) in &index.string_by_node_id {
+        labels.insert(
+            DcShorthand::Long(node_id),
+            format_string_summary(decoded),
+        );
+    }
+    for (&node_id, val) in &index.integer_by_node_id {
+        labels.insert(DcShorthand::Long(node_id), val.to_string());
+    }
+    for (seed_key, &seed_id) in &index.seed_entity_ids {
+        labels
+            .entry(DcShorthand::Long(seed_id))
+            .or_insert_with(|| seed_key.comment());
+    }
+}
+
+fn ensure_lazy_long_labels(
+    tokens: &[DcShorthand],
+    labels: &mut HashMap<DcShorthand, String>,
+    index_nodes_by_id: &HashMap<u128, &LedgerNode>,
+    local_nodes_by_id: &HashMap<u128, &LedgerNode>,
+    visiting: &mut HashSet<u128>,
+) {
+    for &tok in tokens {
+        let DcShorthand::Long(ref_id) = tok else {
+            continue;
+        };
+        if labels.contains_key(&tok) || !visiting.insert(ref_id) {
+            continue;
+        }
+        if let Some(&ref_node) = local_nodes_by_id
+            .get(&ref_id)
+            .or_else(|| index_nodes_by_id.get(&ref_id))
+        {
+            let computed = if let Some(decoded) =
+                decode_string_value_tokens(&ref_node.tokens)
+            {
+                format_string_summary(&decoded)
+            } else if let Some(bound) =
+                NumericBoundValue::decode_tokens(&ref_node.tokens)
+            {
+                bound.summary_label()
+            } else {
+                ensure_lazy_long_labels(
+                    &ref_node.tokens,
+                    labels,
+                    index_nodes_by_id,
+                    local_nodes_by_id,
+                    visiting,
+                );
+                format_tokens_comment_with(labels, &ref_node.tokens)
+            };
+            if !computed.is_empty() {
+                labels.insert(tok, computed);
+            }
+        }
+        visiting.remove(&ref_id);
+    }
+}
+
+fn infer_graph_dir_for_ctbnodes_path(path: &Path) -> Option<std::path::PathBuf> {
+    let parent = path.parent()?;
+    if parent.file_name().and_then(|s| s.to_str()) == Some("graph") {
+        return Some(parent.to_path_buf());
+    }
+    let grandparent = parent.parent()?;
+    if grandparent.file_name().and_then(|s| s.to_str()) == Some("graph") {
+        return Some(grandparent.to_path_buf());
+    }
+    None
+}
+
+/// Renders a `.ctbnodes` text buffer with synthesized human-readable explanation comments
+/// (`l<id>: <tokens> # [@created_ns:<ts>] <explanation>`).
+pub fn explain_ctbnodes_str(
+    content: &str,
+    file_label: &str,
+    graph_dir_override: Option<&Path>,
+) -> Result<String> {
+    let parsed_input_nodes = load_ledger_nodes_from_str(content, file_label)?;
+    let max_input_id = parsed_input_nodes.iter().map(|n| n.id).max();
+
+    let single_props = single_valued_property_set();
+    let owned_dir_index = if let Some(dir) = graph_dir_override {
+        let dir_nodes = load_ledger_nodes_from_dir(dir)?;
+        Some(crate::seed_graph::SeedGraphIndex::from_nodes_with_single_props(
+            dir_nodes,
+            &single_props,
+        ))
+    } else {
+        None
+    };
+
+    let shared_index = if owned_dir_index.is_none() {
+        crate::seed_graph::SeedGraphIndex::shared().ok()
+    } else {
+        None
+    };
+
+    // If `shared_index` is older than `max_input_id` and no override was given, leave `owned_dir_index` None
+    // unless caller used `explain_ctbnodes_file` (which passes inferred `graph_dir`).
+    let _ = max_input_id;
+
+    let active_index =
+        owned_dir_index.as_ref().or(shared_index.map(|v| &**v));
+    let mut labels = build_initial_token_labels(&[], &[]);
+    let mut index_nodes_by_id: HashMap<u128, &LedgerNode> = HashMap::new();
+    if let Some(idx) = active_index {
+        populate_token_labels_from_seed_index(idx, &mut labels);
+        index_nodes_by_id.reserve(idx.nodes.len());
+        for n in &idx.nodes {
+            index_nodes_by_id.insert(n.id, n);
+        }
+    }
+
+    let mut local_nodes_by_id: HashMap<u128, &LedgerNode> =
+        HashMap::with_capacity(parsed_input_nodes.len());
+    for n in &parsed_input_nodes {
+        labels.remove(&DcShorthand::Long(n.id));
+        local_nodes_by_id.insert(n.id, n);
+    }
+
+    let mut visiting: HashSet<u128> = HashSet::new();
+    let mut out = String::with_capacity(content.len().saturating_mul(2));
+    for (line_idx, raw_line) in content.lines().enumerate() {
+        if raw_line.trim().is_empty() {
+            out.push('\n');
+            continue;
+        }
+        let line_no = line_idx.saturating_add(1);
+        let mut node = LedgerNode::parse_line(raw_line, file_label, line_no)?;
+        ensure_lazy_long_labels(
+            &node.tokens,
+            &mut labels,
+            &index_nodes_by_id,
+            &local_nodes_by_id,
+            &mut visiting,
+        );
+        let explanation = format_tokens_comment_with(&labels, &node.tokens);
+        if !explanation.is_empty() {
+            labels
+                .entry(DcShorthand::Long(node.id))
+                .or_insert_with(|| explanation.clone());
+            node.comment = explanation;
+        }
+        out.push_str(&node.format_line());
+        out.push('\n');
+    }
+    Ok(out)
+}
+
+/// Reads a `.ctbnodes` file from `path` and renders it with synthesized human-readable
+/// explanation comments.
+pub fn explain_ctbnodes_file(
+    path: &Path,
+    graph_dir_override: Option<&Path>,
+) -> Result<String> {
+    // Reason for fallback: paths without a terminal filename component use the generic ".ctbnodes" diagnostic label.
+    let file_label = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(".ctbnodes");
+    let content = std::fs::read_to_string(path).with_context(|| {
+        format!("Failed to read .ctbnodes file {}", path.display())
+    })?;
+    let inferred = if graph_dir_override.is_none() {
+        let parsed = load_ledger_nodes_from_str(&content, file_label)?;
+        let max_id = parsed.iter().map(|n| n.id).max();
+        let need_repo_dir = match (
+            max_id,
+            crate::seed_graph::SeedGraphIndex::shared().ok(),
+        ) {
+            (Some(mid), Some(shared)) => shared
+                .system_block_most_recent_node_id()
+                .is_none_or(|wm| mid > wm),
+            (_, None) => true,
+            (None, Some(_)) => false,
+        };
+        if need_repo_dir {
+            infer_graph_dir_for_ctbnodes_path(path)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    explain_ctbnodes_str(
+        &content,
+        file_label,
+        graph_dir_override.or(inferred.as_deref()),
+    )
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -5155,6 +5351,7 @@ mod tests {
         assert!(stats1.total_nodes > 0);
 
         // Verify that statements about Dc 203, Dc 255, and Dc 616 escape their subject with Dc 255
+        // and omit documentational comments in raw `.ctbnodes`, while `explain_ctbnodes_str` renders them.
         let escaped_203 = nodes1.iter().any(|n| {
             n.tokens
                 == vec![
@@ -5163,8 +5360,7 @@ mod tests {
                     sh(DC_START_ENCAPSULATION_BINARY),
                     sh(DC_CANONICAL_NAME),
                 ]
-                && n.comment
-                    == "Has a (Ignore following Dc, Begin encapsulated binary data, Canonical name)"
+                && n.comment.is_empty()
         });
         assert!(escaped_203, "Expected `584 255 203 572` statement node");
 
@@ -5176,8 +5372,7 @@ mod tests {
                     sh(DC_ESCAPE),
                     sh(DC_CANONICAL_NAME),
                 ]
-                && n.comment
-                    == "Has a (Ignore following Dc, Ignore following Dc, Canonical name)"
+                && n.comment.is_empty()
         });
         assert!(escaped_255, "Expected `584 255 255 572` statement node");
 
@@ -5189,10 +5384,25 @@ mod tests {
                     sh(DC_EVALUATE_VALUE_AS_ATOM),
                     sh(DC_CANONICAL_NAME),
                 ]
-                && n.comment
-                    == "Has a (Ignore following Dc, Evaluate value as atom, Canonical name)"
+                && n.comment.is_empty()
         });
         assert!(escaped_616, "Expected `584 255 616 572` statement node");
+
+        let raw_lines: String = nodes1
+            .iter()
+            .map(|n| format!("{}\n", n.format_line()))
+            .collect();
+        let explained =
+            explain_ctbnodes_str(&raw_lines, "escaped.ctbnodes", None)?;
+        assert!(explained.contains(
+            "Has a (Ignore following Dc, Begin encapsulated binary data, Canonical name)"
+        ));
+        assert!(explained.contains(
+            "Has a (Ignore following Dc, Ignore following Dc, Canonical name)"
+        ));
+        assert!(explained.contains(
+            "Has a (Ignore following Dc, Evaluate value as atom, Canonical name)"
+        ));
 
         // Second run must be idempotent
         let (nodes2, stats2) = update_ledger_in_memory(
@@ -5556,8 +5766,9 @@ mod tests {
         )?;
         assert_eq!(compiled_again, 0);
 
-        // Compiling in-place (src_dir == dst_dir) should produce the active .ctbnbdl file
-        // in `src_dir` and the inactive .ctbnbdl file in `src_dir/system/` without deleting
+        // Compiling in-place (src_dir == dst_dir) should produce the unsplit .ctbnbdl file
+        // in `src_dir/graph-bundles/`, the active .ctbnbdl file in `src_dir/graph-bundles/split/live/`,
+        // and the inactive .ctbnbdl file in `src_dir/graph-bundles/split/history/` without deleting
         // the source .ctbnodes files.
         let src_chunk_file =
             src_dir.join(format_chunk_filename(SYSTEM_REGION_START));
@@ -5572,13 +5783,22 @@ mod tests {
             src_chunk_file.is_file(),
             "Source .ctbnodes file must be preserved when compiling in-place"
         );
-        let in_place_bundle =
-            src_dir.join(format_chunk_bundle_filename(SYSTEM_REGION_START));
-        assert!(in_place_bundle.is_file());
-        assert_eq!(std::fs::read(&in_place_bundle)?, bundle_bytes);
+        let bundles_dir = crate::ctbnbdl::bundles_dir_for_graph_dir(&src_dir);
+        let unsplit_bundle =
+            bundles_dir.join(format_chunk_bundle_filename(SYSTEM_REGION_START));
+        assert!(unsplit_bundle.is_file());
+        let decoded_unsplit =
+            decode_nodes_from_ctbnbdl_bytes(&std::fs::read(&unsplit_bundle)?)?;
+        assert_eq!(decoded_unsplit.len(), nodes.len());
 
-        let history_bundle = src_dir
-            .join("system")
+        let live_bundle = bundles_dir
+            .join(crate::ctbnbdl::GRAPH_BUNDLES_SPLIT_LIVE_SUBDIR)
+            .join(format_chunk_bundle_filename(SYSTEM_REGION_START));
+        assert!(live_bundle.is_file());
+        assert_eq!(std::fs::read(&live_bundle)?, bundle_bytes);
+
+        let history_bundle = bundles_dir
+            .join(crate::ctbnbdl::GRAPH_BUNDLES_SPLIT_HISTORY_SUBDIR)
             .join(format_chunk_bundle_filename(id1));
         assert!(
             history_bundle.is_file(),
@@ -6892,7 +7112,6 @@ mod tests {
             ws.try_unretract_matching_node(
                 &manual_val_tokens,
                 NodeProvenance::Csv,
-                &|_| "cancel".to_string(),
             )?
             .is_none()
         );
@@ -6900,7 +7119,6 @@ mod tests {
         let res = ws.try_unretract_matching_node(
             &manual_val_tokens,
             NodeProvenance::Manual,
-            &|_| "cancel".to_string(),
         )?;
         assert_eq!(res, Some((manual_val_id, manual_ret_id)));
         assert!(!ws.inactive_ids.contains(&manual_val_id));
@@ -6909,7 +7127,6 @@ mod tests {
         let csv_val_tokens = encode_string_value_tokens("csv-immutable-val");
         let csv_val_id = ws.validate_and_append_node(
             csv_val_tokens,
-            "\"csv-immutable-val\"".to_string(),
             NodeProvenance::Csv,
             None,
             None,
@@ -6923,7 +7140,6 @@ mod tests {
                     sh(DC_ENCLOSING_DOCUMENT),
                     DcShorthand::Long(csv_val_id),
                 ),
-                "Attempt CSV retract of pure value".to_string(),
                 NodeProvenance::Csv,
                 None,
                 None,
@@ -6937,7 +7153,6 @@ mod tests {
         );
         let sup_other_val_id = ws.validate_and_append_node(
             encode_string_value_tokens("replacement-val"),
-            "\"replacement-val\"".to_string(),
             NodeProvenance::Csv,
             None,
             None,
@@ -6951,7 +7166,6 @@ mod tests {
                     DcShorthand::Long(sup_other_val_id),
                     DcShorthand::Long(csv_val_id),
                 ),
-                "Attempt CSV supersede of pure value".to_string(),
                 NodeProvenance::Csv,
                 None,
                 None,
@@ -6972,7 +7186,6 @@ mod tests {
         );
         let csv_stmt_id = ws.validate_and_append_node(
             csv_stmt_tokens.clone(),
-            "CSV statement".to_string(),
             NodeProvenance::Csv,
             None,
             None,
@@ -6985,7 +7198,6 @@ mod tests {
                 sh(DC_ENCLOSING_DOCUMENT),
                 DcShorthand::Long(csv_stmt_id),
             ),
-            "CSV retract".to_string(),
             NodeProvenance::Csv,
             None,
             None,
@@ -6996,7 +7208,6 @@ mod tests {
             ws.try_unretract_matching_node(
                 &csv_stmt_tokens,
                 NodeProvenance::Csv,
-                &|_| "cancel".to_string(),
             )?,
             Some((csv_stmt_id, csv_ret_id))
         );
@@ -7008,7 +7219,6 @@ mod tests {
                 DcShorthand::Short(900),
                 DcShorthand::Short(572),
             ),
-            "Replacement statement".to_string(),
             NodeProvenance::Csv,
             None,
             None,
@@ -7021,7 +7231,6 @@ mod tests {
                 DcShorthand::Long(sup_new_stmt_id),
                 DcShorthand::Long(csv_stmt_id),
             ),
-            "Supersedes".to_string(),
             NodeProvenance::Csv,
             None,
             None,
@@ -7032,11 +7241,101 @@ mod tests {
             ws.try_unretract_matching_node(
                 &csv_stmt_tokens,
                 NodeProvenance::Csv,
-                &|_| "cancel".to_string(),
             )?
             .is_none()
         );
         let _ = &defn.name;
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_new_ctbnodes_omit_comments_preserving_existing_and_explain_ctbnodes()
+    -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let legacy_node = LedgerNode {
+            id: SYSTEM_REGION_START,
+            tokens: encode_string_value_tokens("legacy_ident"),
+            comment: "\"legacy_ident\"".to_string(),
+            created_ns: Some(1_700_000_000_000_000_000),
+        };
+        write_ledger_nodes_to_dir(
+            dir.path(),
+            std::slice::from_ref(&legacy_node),
+        )?;
+        let chunk_path =
+            dir.path().join(format_chunk_filename(SYSTEM_REGION_START));
+        let initial_chunk_text = std::fs::read_to_string(&chunk_path)?;
+        assert!(initial_chunk_text.contains("\"legacy_ident\""));
+
+        let mut ws = SystemGraphWriteState::from_nodes_and_provenance(
+            std::slice::from_ref(&legacy_node),
+            NodeProvenanceMap::default(),
+        )
+        .with_creation_timestamps(Some(1_700_000_000_000_000_999), None);
+
+        let ha_id = ws.validate_and_append_node(
+            encode_statement_tokens(
+                sh(DC_HAS_A),
+                DcShorthand::Short(296),
+                sh(DC_PROGRAMMATIC_IDENTIFIER),
+            ),
+            NodeProvenance::Csv,
+            None,
+            None,
+            DuplicatePolicy::AllowDistinctInstance,
+            "test",
+        )?;
+        let hv_id = ws.validate_and_append_node(
+            encode_statement_tokens(
+                sh(DC_HAS_VALUE),
+                DcShorthand::Long(ha_id),
+                DcShorthand::Long(SYSTEM_REGION_START),
+            ),
+            NodeProvenance::Csv,
+            None,
+            None,
+            DuplicatePolicy::AllowDistinctInstance,
+            "test",
+        )?;
+
+        write_ledger_nodes_to_dir(dir.path(), &ws.nodes)?;
+        let updated_chunk_text = std::fs::read_to_string(&chunk_path)?;
+        assert!(
+            updated_chunk_text.starts_with(&initial_chunk_text),
+            "Existing .ctbnodes lines must retain their comments byte-for-byte!"
+        );
+        let lines: Vec<&str> = updated_chunk_text.lines().collect();
+        assert_eq!(lines.len(), 3);
+        assert!(
+            lines[1].ends_with("# @created_ns:1700000000000000999"),
+            "Newly appended line must retain @created_ns without explanation comment, got: {}",
+            lines[1]
+        );
+        assert!(
+            lines[2].ends_with("# @created_ns:1700000000000000999"),
+            "Newly appended line must retain @created_ns without explanation comment, got: {}",
+            lines[2]
+        );
+
+        let explained =
+            explain_ctbnodes_str(&updated_chunk_text, "test.ctbnodes", None)?;
+        let explained_lines: Vec<&str> = explained.lines().collect();
+        assert_eq!(explained_lines.len(), 3);
+        assert!(
+            explained_lines[1]
+                .contains("Has a (")
+                && explained_lines[1].contains("Programmatic identifier)"),
+            "Expected synthesized Has a explanation, got: {}",
+            explained_lines[1]
+        );
+        assert!(
+            explained_lines[2].contains(&format!(
+                "l{hv_id}:"
+            )) && explained_lines[2]
+                .contains("Programmatic identifier), \"legacy_ident\")"),
+            "Expected nested explanation resolving intra-file Has a and string nodes, got: {}",
+            explained_lines[2]
+        );
         Ok(())
     }
 }

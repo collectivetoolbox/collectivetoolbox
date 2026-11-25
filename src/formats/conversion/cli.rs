@@ -924,13 +924,13 @@ mod tests {
     #[crate::ctb_test]
     fn test_cli_character_description_ctbnbdl_and_dc203_tokens() {
         let ctbnbdl_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../assets/data/graph/85899_34592.ctbnbdl");
+            .join("../../../assets/data/graph-bundles/85899_34592.ctbnbdl");
         let ctbnbdl_bytes = std::fs::read(&ctbnbdl_path)
-            .expect("read assets/data/graph/85899_34592.ctbnbdl");
+            .expect("read assets/data/graph-bundles/85899_34592.ctbnbdl");
         let out = execute_cli_character_description(
             CharacterDescriptionArgs {
                 file: Some(PathBuf::from(
-                    "assets/data/graph/85899_34592.ctbnbdl",
+                    "assets/data/graph-bundles/85899_34592.ctbnbdl",
                 )),
                 ..Default::default()
             },
