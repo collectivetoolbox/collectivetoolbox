@@ -33,20 +33,25 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use fastcdc::v2020::{FastCDC, StreamCDC};
+use fastcdc::v2020::{FastCDC, Normalization, StreamCDC};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
-/// Minimum chunk size in bytes (320KB).
-pub const MIN_CHUNK_SIZE: u32 = 32 * 1024 * 10;
+/// Minimum chunk size in bytes (64 KiB).
+pub const MIN_CHUNK_SIZE: u32 = 64 * 1024;
 
-/// Average chunk size in bytes (640KB).
-pub const AVG_CHUNK_SIZE: u32 = 64 * 1024 * 10;
+/// Average chunk size in bytes (256 KiB).
+pub const AVG_CHUNK_SIZE: u32 = 256 * 1024;
 
-/// Maximum chunk size in bytes (1280KB).
-pub const MAX_CHUNK_SIZE: u32 = 128 * 1024 * 10;
+/// Maximum chunk size in bytes (2 MiB).
+pub const MAX_CHUNK_SIZE: u32 = 2 * 1024 * 1024;
+
+/// FastCDC chunk-size normalization level (`Level2` centers cut distribution
+/// tightly around `AVG_CHUNK_SIZE` while `MAX = 8 * AVG` avoids forced max-size
+/// offset cuts on non-zero data).
+pub const CHUNK_NORMALIZATION: Normalization = Normalization::Level2;
 
 /// A content-defined chunk extracted from a file.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -146,8 +151,13 @@ pub fn chunk_file(path: &Path) -> Result<Vec<Chunk>> {
 ///
 /// This is the in-memory variant of `chunk_file`.
 pub fn chunk_data(data: &[u8]) -> Result<Vec<Chunk>> {
-    let chunker =
-        FastCDC::new(data, MIN_CHUNK_SIZE, AVG_CHUNK_SIZE, MAX_CHUNK_SIZE);
+    let chunker = FastCDC::with_level(
+        data,
+        MIN_CHUNK_SIZE,
+        AVG_CHUNK_SIZE,
+        MAX_CHUNK_SIZE,
+        CHUNK_NORMALIZATION,
+    );
     let mut chunks = Vec::new();
 
     for chunk_result in chunker {
@@ -651,8 +661,13 @@ pub fn stream_chunk_file_to_directory(
         )
     })?;
 
-    let stream =
-        StreamCDC::new(file, MIN_CHUNK_SIZE, AVG_CHUNK_SIZE, MAX_CHUNK_SIZE);
+    let stream = StreamCDC::with_level(
+        file,
+        MIN_CHUNK_SIZE,
+        AVG_CHUNK_SIZE,
+        MAX_CHUNK_SIZE,
+        CHUNK_NORMALIZATION,
+    );
     let mut infos = Vec::new();
 
     for item in stream {
@@ -691,8 +706,13 @@ pub fn stream_chunk_file_to_directory_compressed(
         )
     })?;
 
-    let stream =
-        StreamCDC::new(file, MIN_CHUNK_SIZE, AVG_CHUNK_SIZE, MAX_CHUNK_SIZE);
+    let stream = StreamCDC::with_level(
+        file,
+        MIN_CHUNK_SIZE,
+        AVG_CHUNK_SIZE,
+        MAX_CHUNK_SIZE,
+        CHUNK_NORMALIZATION,
+    );
     let mut file_hasher = Sha256::new();
     let mut infos = Vec::new();
 
@@ -1090,5 +1110,45 @@ mod tests {
                 .unwrap();
         assert_eq!(stream_sha_2, expected_sha);
         assert_eq!(stream_infos_2, expected_infos);
+    }
+
+    #[crate::ctb_test]
+    fn test_chunk_tuning_avoids_forced_max_cuts_on_pseudorandom_data()
+    -> Result<()> {
+        // 8 MiB of deterministic high-entropy pseudo-random bytes (~32 chunks at 256 KiB average)
+        let len = 8 * 1024 * 1024;
+        let mut state: u64 = 0x9E37_79B9_7F4A_7C15;
+        let mut data = vec![0u8; len];
+        for slot in &mut data {
+            state ^= state >> 12;
+            state ^= state << 25;
+            state ^= state >> 27;
+            let mixed = state.wrapping_mul(0x2545_F491_4F6C_DD1D);
+            *slot = u8::try_from((mixed >> 56) & 0xFF).unwrap();
+        }
+
+        let chunks = chunk_data(&data)?;
+        assert!(
+            chunks.len() >= 20 && chunks.len() <= 50,
+            "Expected ~32 chunks around 256 KiB avg for 8 MiB input, got {}",
+            chunks.len()
+        );
+
+        let min_sz = usize::try_from(MIN_CHUNK_SIZE)?;
+        let max_sz = usize::try_from(MAX_CHUNK_SIZE)?;
+        for (idx, chunk) in chunks.iter().enumerate() {
+            if idx + 1 < chunks.len() {
+                assert!(
+                    chunk.data.len() >= min_sz,
+                    "Non-final chunk {idx} smaller than MIN_CHUNK_SIZE: {}",
+                    chunk.data.len()
+                );
+                assert!(
+                    chunk.data.len() < max_sz,
+                    "Non-final chunk {idx} unexpectedly hit MAX_CHUNK_SIZE ({max_sz}) on pseudorandom data"
+                );
+            }
+        }
+        Ok(())
     }
 }

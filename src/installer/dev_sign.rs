@@ -41,6 +41,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::chunking::{
+    AVG_CHUNK_SIZE, CHUNK_NORMALIZATION, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE,
     compressed_chunk_file_path, stream_chunk_file_to_directory_compressed,
 };
 use crate::manifest::{ChunkInfo, FileEntry, Platform, ReleaseManifest};
@@ -171,12 +172,16 @@ fn artifact_cache_key(path: &Path) -> Result<(String, u64)> {
     let meta = fs::metadata(path).with_context(|| {
         format!("Failed to stat artifact: {}", path.display())
     })?;
+    let params_tag = format!(
+        "cdc:{MIN_CHUNK_SIZE}:{AVG_CHUNK_SIZE}:{MAX_CHUNK_SIZE}:L{}",
+        CHUNK_NORMALIZATION.bits()
+    );
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
         Ok((
             format!(
-                "unix:{}:{}:{}:{}:{}",
+                "{params_tag}:unix:{}:{}:{}:{}:{}",
                 meta.dev(),
                 meta.ino(),
                 meta.size(),
@@ -197,7 +202,11 @@ fn artifact_cache_key(path: &Path) -> Result<(String, u64)> {
             // Reason for fallback: missing or pre-epoch mtime uses 0ns sentinel in cache key
             .map_or(0, |d| d.as_nanos());
         Ok((
-            format!("path:{}:{}:{mtime_ns}", canon.display(), meta.len()),
+            format!(
+                "{params_tag}:path:{}:{}:{mtime_ns}",
+                canon.display(),
+                meta.len()
+            ),
             meta.len(),
         ))
     }
