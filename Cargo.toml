@@ -108,6 +108,18 @@ opt-level = 2
 [profile.dev.package.ctb-formats-compression-libraries]
 opt-level = 2
 
+[profile.dev.package.lzokay-native]
+opt-level = 2
+
+[profile.dev.package.ctb-formats-detection]
+opt-level = 2
+
+[profile.dev.package.regex-automata]
+opt-level = 2
+
+[profile.dev.package.regex-syntax]
+opt-level = 2
+
 [profile.test]
 inherits = "dev"
 
@@ -192,6 +204,18 @@ opt-level = 2
 opt-level = 2
 
 [profile.test.package.ctb-formats-compression-libraries]
+opt-level = 2
+
+[profile.test.package.lzokay-native]
+opt-level = 2
+
+[profile.test.package.ctb-formats-detection]
+opt-level = 2
+
+[profile.test.package.regex-automata]
+opt-level = 2
+
+[profile.test.package.regex-syntax]
 opt-level = 2
 
 [profile.release]

@@ -459,6 +459,52 @@ use super::magic_parser::{
     NumOp, Offset, PascalLengthSize, RelOp,
 };
 
+static COMPILED_MAGIC_REGEXES: std::sync::LazyLock<
+    std::sync::RwLock<HashMap<(String, bool), Option<regex::Regex>>>,
+> = std::sync::LazyLock::new(|| std::sync::RwLock::new(HashMap::new()));
+
+fn get_compiled_magic_regex(
+    pattern: &str,
+    case_insensitive: bool,
+) -> Option<regex::Regex> {
+    if let Ok(guard) = COMPILED_MAGIC_REGEXES.read()
+        && let Some(cached) =
+            guard.get(&(pattern.to_owned(), case_insensitive))
+    {
+        return cached.clone();
+    }
+    let compiled = regex::RegexBuilder::new(pattern)
+        .case_insensitive(case_insensitive)
+        .build()
+        .ok();
+    if let Ok(mut guard) = COMPILED_MAGIC_REGEXES.write() {
+        guard.insert((pattern.to_owned(), case_insensitive), compiled.clone());
+    }
+    compiled
+}
+
+fn bounded_source_read<S: DetectionSource + ?Sized>(
+    source: &mut S,
+    pos: u64,
+    max_bytes: usize,
+) -> Option<Vec<u8>> {
+    let alloc_len = if let Some(total) = source.total_len() {
+        if pos >= total {
+            return Some(Vec::new());
+        }
+        // Reason for fallback: remaining byte count exceeding usize::MAX clamps to max_bytes
+        let avail =
+            usize::try_from(total.saturating_sub(pos)).unwrap_or(max_bytes);
+        max_bytes.min(avail)
+    } else {
+        max_bytes
+    };
+    let mut buf = vec![0u8; alloc_len];
+    let n = source.read_at(pos, &mut buf).ok()?;
+    buf.truncate(n);
+    Some(buf)
+}
+
 /// Result of evaluating a hierarchical magic rule against a payload source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuleMatchResult {
@@ -1637,17 +1683,12 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             line_limit,
             offset_start,
         } => {
-            let mut buf = vec![0u8; *max_bytes];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n == 0 {
+            let slice = bounded_source_read(source, pos, *max_bytes)?;
+            if slice.is_empty() {
                 false
             } else {
-                let slice = buf.get(..n)?;
-                let text = String::from_utf8_lossy(slice);
-                let re = regex::RegexBuilder::new(pattern)
-                    .case_insensitive(*case_insensitive)
-                    .build()
-                    .ok()?;
+                let text = String::from_utf8_lossy(&slice);
+                let re = get_compiled_magic_regex(pattern, *case_insensitive)?;
                 // Reason for fallback: default regex search limit in libmagic is 80 lines when unconstrained
                 let limit = line_limit.unwrap_or(80);
                 let mut line_start_byte: usize = 0;
@@ -2403,9 +2444,9 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             {
                 false
             } else {
-                let mut buf = vec![0u8; *max_bytes];
-                let n = source.read_at(pos, &mut buf).ok()?;
-                if let Some(slice) = buf.get(..n) {
+                let slice_buf = bounded_source_read(source, pos, *max_bytes)?;
+                let slice = slice_buf.as_slice();
+                {
                     if pattern.is_empty() {
                         !negated
                     } else {
@@ -2489,16 +2530,12 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                             *negated
                         }
                     }
-                } else {
-                    false
                 }
             }
         }
         MagicTest::Der(pattern) => {
-            let mut buf = vec![0u8; 8192];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            let slice = buf.get(..n)?;
-            if let Some(res) = crate::der::match_der(pattern, slice) {
+            let slice = bounded_source_read(source, pos, 8192)?;
+            if let Some(res) = crate::der::match_der(pattern, &slice) {
                 match_len = res.header_len;
                 der_match_info = Some((res.header_len, res.payload_len));
                 format_val = FormatValue::Str(res.formatted_val);

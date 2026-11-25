@@ -458,7 +458,14 @@ pub trait DetectionSource {
 
     /// Reads up to `max_len` bytes from the beginning of the file (BOF).
     fn read_bof(&mut self, max_len: usize) -> Result<Vec<u8>> {
-        let mut buf = vec![0u8; max_len];
+        let alloc_len = if let Some(total) = self.total_len() {
+            // Reason for fallback: payloads larger than usize::MAX clamp to max_len
+            let total_usize = usize::try_from(total).unwrap_or(max_len);
+            max_len.min(total_usize)
+        } else {
+            max_len
+        };
+        let mut buf = vec![0u8; alloc_len];
         let n = self.read_at(0, &mut buf)?;
         buf.truncate(n);
         Ok(buf)
