@@ -217,12 +217,12 @@
                     <li>Supported operating systems and CPU architectures:
                         <ul class="list-disc pl-5 mt-1">
                             <li><strong>Linux</strong> (kernel 3.2 or later): <code>x86_64</code> or 32-bit <code>x86</code> (SSE2) &mdash; statically linked with <code>musl</code> (<code>glibc</code> is <em>not</em> required)</li>
-                            <li><strong>Windows</strong> (Windows 7 SP1, Windows 10, Windows 11, or later): <code>x86_64</code></li>
+                            <li><strong>Windows</strong> (Windows 7 SP1 or later): <code>x86_64</code></li>
                             <li><strong>FreeBSD</strong> (FreeBSD 14 or later): <code>x86_64</code></li>
                             <li><strong>macOS</strong> (<code>x86_64</code> and Apple Silicon <code>arm64</code>): planned</li>
                         </ul>
                     </li>
-                    <li>For the graphical interface: native Wayland or X11 display server on Linux and FreeBSD, native desktop support on Windows, or any modern web browser via the local web interface.</li>
+                    <li>For the graphical interface (WIP, may not work): native Wayland or X11 display server on Linux and FreeBSD, native desktop support on Windows (untested and may not work!), or any modern web browser via the local web interface.</li>
                     <li><small>I'd love to add support for older CPUs and OSes eventually, but I'm currently not pursuing that: it would be a lot of work (requiring patched dependencies), and there would be security implications that would warrant making it a separate build with an extra-big scary warning.</small></li>
                 </ul>
                 <div class="flex flex-col gap-4">
