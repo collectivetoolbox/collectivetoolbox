@@ -611,9 +611,11 @@ pub fn run_generator(
     }
     let write_through_cache_dir = Some(cache_dir_buf.as_path());
 
-    let graph_dir = repo_root.join("assets").join("data").join("graph");
-    let merged_nodes =
-        SeedGraphIndex::load_merged_nodes_from_disk_graph_dir(&graph_dir)?;
+    let graph_bundles_dir =
+        repo_root.join(ctb_formats_dcdata::ctbnbdl::GRAPH_BUNDLES_REL_PATH);
+    let merged_nodes = SeedGraphIndex::load_merged_nodes_from_disk_graph_dir(
+        &graph_bundles_dir,
+    )?;
     let (generated_files, compiled_count) =
         generate_substitutes_for_nodes_with_cache(
             &merged_nodes,
