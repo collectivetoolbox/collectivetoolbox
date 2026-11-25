@@ -12,9 +12,9 @@
 - **Front-end workflow**: Skip `cargo check`, `cargo test`, and `./test` for front-end-only changes. Use `./lint --quick` to check JS/TS types.
 - **Lingering server processes**: Run `killall ctoolbox` (or similar) if needed to stop background server processes.
 - **Antigravity chat folders**: Never run temporary Cargo builds in Antigravity chat folders; all new files there are indexed as "Artifacts" and lock up the IDE.
-- **Clippy errors** are important to resolve. **Clippy warnings** have proven impossible to turn off for CLI compilation without breaking their display in rust-analyzer; their output is mostly noise and may be disregarded.
+- **Clippy errors** are important to resolve. **Clippy warnings** have proven impossible to turn off for CLI compilation without breaking their display in rust-analyzer; their output is mostly noise and may be disregarded. Nightly-only options in rustfmt.toml are in anticipation of stabilization; don't use nightly.
 - **Sub-agents** - if operator has specifically requested that you use sub-agents for a task, **never** report back to operator unless the task is fully and correctly completed. If the sub-agents did not finish the work, identify remaining tasks and create new sub-agents to finish it. Monitor their work periodically (or use a second lightweight agent to) to identify cases where they try to reinvent duplicative code rather than using, extending, or refactoring existing implementations - code must **strictly** be kept DRY.
-- Tests are usually run using cargo. For testing that can't be done on the host, you can use the ci-logs/vm script. Helpful options include "screenshot", "screentext" (screenshot + OCR), and "serve" if you can't read one directly.
+- **Tests** are usually run using cargo. For testing that can't be done on the host, you can use the ci-logs/vm script. Helpful options include "screenshot", "screentext" (screenshot + OCR), and "serve" if you can't read one directly.
 - **CI failures** - Logs are in ci-logs/ folder. Gate completion of requests to resolve CI failures on `./lint --quick` and `./test-quick`. Requests other than for CI/linting fixes can use narrowly scoped tests and linting. Don't run lints or tests when only Markdown files are changed.
 - **Performance** - if asked to work on performance improvements, see docs/skills/perf.md for performance tools.
 
