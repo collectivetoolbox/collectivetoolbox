@@ -146,9 +146,16 @@ trait ArchiveClient {
         identifier: &str,
         file_name: &str,
         destination: &Path,
-        _progress: Option<&Progress>,
+        file_progress: Option<&FileItemProgress>,
     ) -> Result<u64> {
         let bytes = self.fetch_download_bytes(identifier, file_name)?;
+        let len_u64 = u64::try_from(bytes.len()).map_err(|e| {
+            anyhow!("Failed to convert byte length to u64: {e}")
+        })?;
+        if let Some(fp) = file_progress {
+            fp.set_total_bytes(len_u64);
+            fp.set_bytes_done(len_u64);
+        }
         // Reason for fallback: If destination has no parent path (bare filename), stage temp file in current directory.
         let parent = destination.parent().unwrap_or_else(|| Path::new("."));
         let temp_path = create_temp_path(parent, file_name);
@@ -161,34 +168,23 @@ trait ArchiveClient {
         })?;
         commit_atomic_file(&temp_path, destination)?;
         cleanup_guard.active = false;
-        u64::try_from(bytes.len())
-            .map_err(|e| anyhow!("Failed to convert byte length to u64: {e}"))
+        Ok(len_u64)
     }
 }
 
-struct LiveArchiveClient {
-    http: https::BlockingClient,
-}
-
-impl LiveArchiveClient {
-    fn new() -> Result<Self> {
-        Ok(Self {
-            http: new_ia_http_client()?,
-        })
-    }
-}
+struct LiveArchiveClient;
 
 impl ArchiveClient for LiveArchiveClient {
     fn fetch_metadata(&self, identifier: &str) -> Result<MetadataResponse> {
-        fetch_live_metadata_with_http(&self.http, identifier)
+        fetch_live_metadata(identifier)
     }
 
     fn fetch_files_xml_bytes(&self, identifier: &str) -> Result<Vec<u8>> {
-        fetch_live_files_xml_bytes_with_http(&self.http, identifier)
+        fetch_live_files_xml_bytes(identifier)
     }
 
     fn fetch_meta_xml_bytes(&self, identifier: &str) -> Result<Vec<u8>> {
-        fetch_live_meta_xml_bytes_with_http(&self.http, identifier)
+        fetch_live_meta_xml_bytes(identifier)
     }
 
     fn fetch_download_bytes(
@@ -196,7 +192,7 @@ impl ArchiveClient for LiveArchiveClient {
         identifier: &str,
         file_name: &str,
     ) -> Result<Vec<u8>> {
-        fetch_download_bytes_with_http(&self.http, identifier, file_name)
+        fetch_download_bytes(identifier, file_name)
     }
 
     fn download_file(
@@ -204,14 +200,13 @@ impl ArchiveClient for LiveArchiveClient {
         identifier: &str,
         file_name: &str,
         destination: &Path,
-        progress: Option<&Progress>,
+        file_progress: Option<&FileItemProgress>,
     ) -> Result<u64> {
         download_live_file_chunked_range(
-            &self.http,
             identifier,
             file_name,
             destination,
-            progress,
+            file_progress,
         )
     }
 }
@@ -306,6 +301,7 @@ pub fn verify(
         &VerificationOptions {
             files_xml_live_sha1,
         },
+        None,
     )?;
     pretty_json_bytes(&verification)
 }
@@ -346,23 +342,23 @@ pub fn iamd5(
 }
 
 pub fn contains(target: &str, desired_file: &str) -> Result<Vec<u8>> {
-    contains_with_client(&LiveArchiveClient::new()?, target, desired_file)
+    contains_with_client(&LiveArchiveClient, target, desired_file)
 }
 
 pub fn listplain(target: &str) -> Result<Vec<u8>> {
-    listplain_with_client(&LiveArchiveClient::new()?, target)
+    listplain_with_client(&LiveArchiveClient, target)
 }
 
 pub fn metadata(target: &str) -> Result<Vec<u8>> {
-    metadata_with_client(&LiveArchiveClient::new()?, target)
+    metadata_with_client(&LiveArchiveClient, target)
 }
 
 pub fn filesxml(target: &str) -> Result<Vec<u8>> {
-    filesxml_with_client(&LiveArchiveClient::new()?, target)
+    filesxml_with_client(&LiveArchiveClient, target)
 }
 
 pub fn metaxml(target: &str) -> Result<Vec<u8>> {
-    metaxml_with_client(&LiveArchiveClient::new()?, target)
+    metaxml_with_client(&LiveArchiveClient, target)
 }
 
 pub fn download(
@@ -372,7 +368,7 @@ pub fn download(
     progress: Progress,
 ) -> Result<Vec<u8>> {
     download_with_client(
-        &LiveArchiveClient::new()?,
+        &LiveArchiveClient,
         target,
         output_dir,
         original,
@@ -381,7 +377,7 @@ pub fn download(
 }
 
 pub fn download_as_stream(target: &str) -> Result<Vec<u8>> {
-    download_as_stream_with_client(&LiveArchiveClient::new()?, target)
+    download_as_stream_with_client(&LiveArchiveClient, target)
 }
 
 pub fn download_here(
@@ -389,12 +385,7 @@ pub fn download_here(
     output_dir: Option<&Path>,
     progress: Progress,
 ) -> Result<Vec<u8>> {
-    download_here_with_client(
-        &LiveArchiveClient::new()?,
-        target,
-        output_dir,
-        progress,
-    )
+    download_here_with_client(&LiveArchiveClient, target, output_dir, progress)
 }
 
 fn download_with_client(
@@ -417,36 +408,56 @@ fn download_with_client(
         item_directory.display()
     ));
 
-    let file_names = if original {
+    let file_specs: Vec<(String, Option<u64>)> = if original {
         let metadata_files =
             client.fetch_metadata(&archive_target.identifier)?.files;
-        let original_files: Vec<String> = metadata_files
+        let original_files: Vec<(String, Option<u64>)> = metadata_files
             .into_iter()
             .filter(|file| file.source.as_deref() == Some("original"))
-            .map(|file| file.name)
+            .map(|file| {
+                let size = file.size.as_deref().and_then(|s| s.parse().ok());
+                (file.name, size)
+            })
             .collect();
         if let Some(file_name) = &archive_target.archive_path {
             original_files
                 .into_iter()
-                .filter(|name| name == file_name)
+                .filter(|(name, _)| name == file_name)
                 .collect()
         } else {
             original_files
         }
     } else if let Some(file_name) = &archive_target.archive_path {
-        vec![file_name.clone()]
+        vec![(file_name.clone(), None)]
     } else {
         client
             .fetch_metadata(&archive_target.identifier)?
             .files
             .into_iter()
-            .map(|file| file.name)
+            .map(|file| {
+                let size = file.size.as_deref().and_then(|s| s.parse().ok());
+                (file.name, size)
+            })
             .collect()
     };
 
-    let total_files = file_names.len();
+    let total_files = file_specs.len();
+    let total_files_u64 = u64::try_from(total_files)
+        .map_err(|e| anyhow!("Failed to convert file count to u64: {e}"))?;
+    let initial_known_bytes: u64 = file_specs
+        .iter()
+        .filter_map(|(_, sz)| *sz)
+        .fold(0_u64, u64::saturating_add);
+    let any_known_size = file_specs.iter().any(|(_, sz)| sz.is_some());
+    let batch = progress.start_file_batch(
+        &format!("Overall ({})", archive_target.identifier),
+        Some(total_files_u64),
+        any_known_size.then_some(initial_known_bytes),
+    );
+
     let mut downloaded_files = Vec::new();
-    for (i, file_name) in file_names.iter().enumerate() {
+
+    for (file_name, known_size) in &file_specs {
         let destination = item_directory.join(Path::new(file_name));
         if let Some(parent) = destination.parent() {
             fs::create_dir_all(parent).with_context(|| {
@@ -456,22 +467,18 @@ fn download_with_client(
                 )
             })?;
         }
-        let idx = i.saturating_add(1);
-        progress.start_step(
-            idx,
-            total_files,
-            &format!("Downloading {file_name}"),
-        );
+        let file_progress = batch.start_file(file_name, *known_size);
         let bytes_written = client.download_file(
             &archive_target.identifier,
             file_name,
             &destination,
-            Some(&progress),
+            Some(&file_progress),
         )?;
-        let size_str = format_bytes_decimal(bytes_written);
-        progress.finish_step(Some(&size_str));
+        file_progress.finish(bytes_written);
         downloaded_files.push(file_name.clone());
     }
+
+    batch.finish();
 
     let result = DownloadResult {
         identifier: archive_target.identifier,
@@ -488,7 +495,7 @@ pub fn checkeddl(
     progress: Progress,
 ) -> Result<Vec<u8>> {
     checkeddl_with_client(
-        &LiveArchiveClient::new()?,
+        &LiveArchiveClient,
         target,
         output_dir,
         original,
@@ -562,6 +569,7 @@ fn checkeddl_with_client(
                 &live_files_xml_bytes,
             )),
         },
+        Some(&progress),
     )?;
     progress.message("Verification complete.");
     pretty_json_bytes(&verification)
@@ -596,15 +604,20 @@ fn download_here_with_client(
             anyhow!("Could not determine local file name for {file_name}")
         })?;
     let output_path = base_output_dir.join(leaf_name);
-    progress.start_step(0, 0, &format!("Downloading {file_name}"));
+    let batch = progress.start_file_batch(
+        &format!("Overall ({})", archive_target.identifier),
+        Some(1),
+        None,
+    );
+    let file_progress = batch.start_file(&file_name, None);
     let bytes_written = client.download_file(
         &archive_target.identifier,
         &file_name,
         &output_path,
-        Some(&progress),
+        Some(&file_progress),
     )?;
-    let size_str = format_bytes_decimal(bytes_written);
-    progress.finish_step(Some(&size_str));
+    file_progress.finish(bytes_written);
+    batch.finish();
     let result = DownloadHereResult {
         identifier: archive_target.identifier,
         output_path: output_path.display().to_string(),
@@ -782,6 +795,7 @@ fn verify_against_manifest(
     selected_files: Option<&BTreeSet<String>>,
     include_unexpected: bool,
     options: &VerificationOptions,
+    progress: Option<&Progress>,
 ) -> Result<VerificationResult> {
     let selected_names: BTreeSet<String> =
         if let Some(selected_files) = selected_files {
@@ -790,6 +804,25 @@ fn verify_against_manifest(
             manifest.entries.keys().cloned().collect()
         };
 
+    let total_files = selected_names.len();
+    let total_files_u64 = u64::try_from(total_files)
+        .map_err(|e| anyhow!("Failed to convert verify count to u64: {e}"))?;
+    let known_verify_bytes: u64 = selected_names
+        .iter()
+        .filter_map(|name| manifest.entries.get(name).and_then(|e| e.size))
+        .fold(0_u64, u64::saturating_add);
+    let any_known_size = selected_names
+        .iter()
+        .any(|name| manifest.entries.get(name).and_then(|e| e.size).is_some());
+
+    let verify_batch = progress.map(|prog| {
+        prog.start_file_batch(
+            &format!("Verifying ({identifier})"),
+            Some(total_files_u64),
+            any_known_size.then_some(known_verify_bytes),
+        )
+    });
+
     let mut checked_files = Vec::new();
     let mut missing_files = Vec::new();
     let mut mismatched_files = Vec::new();
@@ -797,25 +830,46 @@ fn verify_against_manifest(
     for file_name in &selected_names {
         let Some(entry) = manifest.entries.get(file_name) else {
             missing_files.push(file_name.clone());
+            if let Some(ref batch) = verify_batch {
+                batch.record_skipped_file();
+            }
             continue;
         };
         let local_path = item_root.join(Path::new(file_name));
         if !local_path.is_file() {
             missing_files.push(file_name.clone());
+            if let Some(ref batch) = verify_batch {
+                batch.record_skipped_file();
+            }
             continue;
-        }
+        };
 
-        if let Some(mismatch) = verify_local_file(
+        let file_progress = verify_batch.as_ref().map(|batch| {
+            batch.start_transient_file("Verify", file_name, entry.size)
+        });
+
+        let (mismatch_opt, file_size_hashed) = verify_local_file(
             item_root,
             identifier,
             &local_path,
             entry,
             options,
-        )? {
+            file_progress.as_ref(),
+        )?;
+
+        if let Some(fp) = file_progress {
+            fp.finish(file_size_hashed);
+        }
+
+        if let Some(mismatch) = mismatch_opt {
             mismatched_files.push(mismatch);
         } else {
             checked_files.push(file_name.clone());
         }
+    }
+
+    if let Some(batch) = verify_batch {
+        batch.finish();
     }
 
     let unexpected_files = if include_unexpected {
@@ -852,17 +906,21 @@ fn verify_local_file(
     local_path: &Path,
     entry: &ManifestEntry,
     options: &VerificationOptions,
-) -> Result<Option<VerificationMismatch>> {
+    file_progress: Option<&FileItemProgress>,
+) -> Result<(Option<VerificationMismatch>, u64)> {
     let actual_size = fs::metadata(local_path)
         .with_context(|| {
             format!("Failed to read metadata for {}", local_path.display())
         })?
         .len();
+    if let Some(fp) = file_progress {
+        fp.set_total_bytes(actual_size);
+    }
     let relative_name = relative_archive_name(item_root, local_path)?;
     let files_xml_name = format!("{identifier}{FILES_XML_SUFFIX}");
     let is_files_xml = relative_name == files_xml_name;
     if is_files_xml && options.files_xml_live_sha1.is_none() {
-        return Ok(None);
+        return Ok((None, actual_size));
     }
 
     let mut mismatch = VerificationMismatch {
@@ -892,7 +950,7 @@ fn verify_local_file(
     match (&mismatch.expected_sha1, &mismatch.expected_md5) {
         (Some(expected_sha1), Some(expected_md5)) => {
             let (actual_sha1, actual_md5) =
-                sha1_and_md5_hex_for_file(local_path)?;
+                sha1_and_md5_hex_for_file(local_path, file_progress)?;
             if &actual_sha1 != expected_sha1 {
                 mismatch.actual_sha1 = Some(actual_sha1);
                 has_mismatch = true;
@@ -903,14 +961,16 @@ fn verify_local_file(
             }
         }
         (Some(expected_sha1), None) => {
-            let actual_sha1 = sha1_hex_for_file(local_path)?;
+            let actual_sha1 =
+                sha1_hex_for_file_with_progress(local_path, file_progress)?;
             if &actual_sha1 != expected_sha1 {
                 mismatch.actual_sha1 = Some(actual_sha1);
                 has_mismatch = true;
             }
         }
         (None, Some(expected_md5)) => {
-            let actual_md5 = md5_hex_for_file(local_path)?;
+            let actual_md5 =
+                md5_hex_for_file_with_progress(local_path, file_progress)?;
             if &actual_md5 != expected_md5 {
                 mismatch.actual_md5 = Some(actual_md5);
                 has_mismatch = true;
@@ -920,9 +980,9 @@ fn verify_local_file(
     }
 
     if has_mismatch {
-        Ok(Some(mismatch))
+        Ok((Some(mismatch), actual_size))
     } else {
-        Ok(None)
+        Ok((None, actual_size))
     }
 }
 
@@ -978,16 +1038,7 @@ fn load_local_files_manifest(
     parse_files_manifest(identifier, &bytes)
 }
 
-const IA_READ_TIMEOUT: std::time::Duration =
-    std::time::Duration::from_secs(120);
 const CHUNK_RETRY_BASE_DELAY_MS: u64 = 500;
-
-fn new_ia_http_client() -> Result<https::BlockingClient> {
-    https::blocking_client(https::ClientOptions {
-        read_timeout: Some(IA_READ_TIMEOUT),
-        ..https::ClientOptions::default()
-    })
-}
 
 fn fetch_live_files_manifest(identifier: &str) -> Result<FilesManifest> {
     let bytes = fetch_live_files_xml_bytes(identifier)?;
@@ -995,44 +1046,22 @@ fn fetch_live_files_manifest(identifier: &str) -> Result<FilesManifest> {
 }
 
 fn fetch_live_files_xml_bytes(identifier: &str) -> Result<Vec<u8>> {
-    let http = new_ia_http_client()?;
-    fetch_live_files_xml_bytes_with_http(&http, identifier)
-}
-
-fn fetch_live_files_xml_bytes_with_http(
-    http: &https::BlockingClient,
-    identifier: &str,
-) -> Result<Vec<u8>> {
-    let response = perform_get_with_http(
-        http,
-        &format!(
-            "https://archive.org/download/{identifier}/{identifier}{FILES_XML_SUFFIX}"
-        ),
-    )?;
+    let response = perform_get(&format!(
+        "https://archive.org/download/{identifier}/{identifier}{FILES_XML_SUFFIX}"
+    ))?;
     response.bytes().context("Failed to read files XML body")
 }
 
-fn fetch_live_meta_xml_bytes_with_http(
-    http: &https::BlockingClient,
-    identifier: &str,
-) -> Result<Vec<u8>> {
-    let response = perform_get_with_http(
-        http,
-        &format!(
-            "https://archive.org/download/{identifier}/{identifier}{META_XML_SUFFIX}"
-        ),
-    )?;
+fn fetch_live_meta_xml_bytes(identifier: &str) -> Result<Vec<u8>> {
+    let response = perform_get(&format!(
+        "https://archive.org/download/{identifier}/{identifier}{META_XML_SUFFIX}"
+    ))?;
     response.bytes().context("Failed to read meta XML body")
 }
 
-fn fetch_live_metadata_with_http(
-    http: &https::BlockingClient,
-    identifier: &str,
-) -> Result<MetadataResponse> {
-    let response = perform_get_with_http(
-        http,
-        &format!("https://archive.org/metadata/{identifier}"),
-    )?;
+fn fetch_live_metadata(identifier: &str) -> Result<MetadataResponse> {
+    let response =
+        perform_get(&format!("https://archive.org/metadata/{identifier}"))?;
     let body = response.text().context("Failed to read metadata body")?;
     serde_json::from_str(&body)
         .context("Failed to parse Internet Archive metadata JSON")
@@ -1068,13 +1097,15 @@ trait RangeHttpClient {
     ) -> Result<Box<dyn RangeHttpResponse>>;
 }
 
-impl RangeHttpClient for https::BlockingClient {
+struct PooledRangeHttpClient;
+
+impl RangeHttpClient for PooledRangeHttpClient {
     fn get_with_headers(
         &self,
         url: &str,
         headers: Option<reqwest::header::HeaderMap>,
     ) -> Result<Box<dyn RangeHttpResponse>> {
-        let resp = https::BlockingClient::get_with_headers(self, url, headers)?;
+        let resp = https::blocking_get_response_with_headers(url, headers)?;
         Ok(Box::new(resp))
     }
 }
@@ -1150,15 +1181,11 @@ fn commit_atomic_file(temp_path: &Path, destination: &Path) -> Result<()> {
     })
 }
 
-fn fetch_download_bytes_with_http(
-    http: &https::BlockingClient,
-    identifier: &str,
-    file_name: &str,
-) -> Result<Vec<u8>> {
+fn fetch_download_bytes(identifier: &str, file_name: &str) -> Result<Vec<u8>> {
     let url = download_url(identifier, file_name)?;
     let mut buffer = Vec::new();
     download_to_writer_chunked_range_with_http(
-        http,
+        &PooledRangeHttpClient,
         url.as_str(),
         &mut buffer,
         None,
@@ -1169,11 +1196,10 @@ fn fetch_download_bytes_with_http(
 }
 
 fn download_live_file_chunked_range(
-    http: &https::BlockingClient,
     identifier: &str,
     file_name: &str,
     destination: &Path,
-    progress: Option<&Progress>,
+    file_progress: Option<&FileItemProgress>,
 ) -> Result<u64> {
     let url = download_url(identifier, file_name)?;
     // Reason for fallback: If destination is a relative file path without an explicit parent directory, use current directory.
@@ -1190,10 +1216,10 @@ fn download_live_file_chunked_range(
         format!("Failed to create temporary file {}", temp_path.display())
     })?;
     let bytes_written = download_to_writer_chunked_range_with_http(
-        http,
+        &PooledRangeHttpClient,
         url.as_str(),
         &mut temp_file,
-        progress,
+        file_progress,
         DOWNLOAD_CHUNK_SIZE,
         CHUNK_RETRY_BASE_DELAY_MS,
     )?;
@@ -1227,12 +1253,38 @@ fn sleep_chunk_retry(attempt: usize, backoff_base_ms: u64) {
     std::thread::sleep(std::time::Duration::from_millis(delay_ms));
 }
 
+fn read_response_to_vec_with_progress(
+    response: &mut dyn RangeHttpResponse,
+    base_offset: u64,
+    file_progress: Option<&FileItemProgress>,
+) -> Result<Vec<u8>> {
+    let mut out = Vec::new();
+    let mut buf = [0_u8; 64 * 1024];
+    loop {
+        let n = response
+            .read(&mut buf)
+            .context("Failed to read chunk response body")?;
+        if n == 0 {
+            break;
+        }
+        let slice = buf.get(..n).context("Buffer slice index out of bounds")?;
+        out.extend_from_slice(slice);
+        if let Some(fp) = file_progress
+            && let Ok(cur_u64) = u64::try_from(out.len())
+        {
+            fp.set_bytes_done(base_offset.saturating_add(cur_u64));
+        }
+    }
+    Ok(out)
+}
+
 fn fetch_initial_chunk_with_retry(
     http: &dyn RangeHttpClient,
     url: &str,
     chunk_size: u64,
     retry_limit: usize,
     backoff_base_ms: u64,
+    file_progress: Option<&FileItemProgress>,
 ) -> Result<InitialChunkOutcome> {
     let first_end = chunk_size.saturating_sub(1);
     let range_str = format!("bytes=0-{first_end}");
@@ -1296,11 +1348,16 @@ fn fetch_initial_chunk_with_retry(
             {
                 total_size = Some(content_len);
             }
+            if let (Some(fp), Some(total)) = (file_progress, total_size) {
+                fp.set_total_bytes(total);
+            }
 
-            let mut chunk_buf = Vec::new();
-            response
-                .read_to_end(&mut chunk_buf)
-                .context("Failed to read first chunk body")?;
+            let chunk_buf = read_response_to_vec_with_progress(
+                response.as_mut(),
+                0,
+                file_progress,
+            )
+            .context("Failed to read first chunk body")?;
             if chunk_buf.is_empty() && total_size != Some(0) {
                 bail!(
                     "Received empty body for initial byte range 0-{first_end}"
@@ -1333,12 +1390,13 @@ fn stream_full_response_to_writer(
     mut response: Box<dyn RangeHttpResponse>,
     url: &str,
     writer: &mut dyn Write,
-    progress: Option<&Progress>,
-    chunk_size: u64,
+    file_progress: Option<&FileItemProgress>,
 ) -> Result<u64> {
     let expected_len = response.content_length();
+    if let (Some(fp), Some(expected)) = (file_progress, expected_len) {
+        fp.set_total_bytes(expected);
+    }
     let mut total_copied = 0_u64;
-    let mut next_progress_at = chunk_size;
     let mut buf = [0_u8; 64 * 1024];
     loop {
         let n = response
@@ -1355,14 +1413,8 @@ fn stream_full_response_to_writer(
             .write_all(slice)
             .context("Failed to write downloaded bytes to stream")?;
         total_copied = total_copied.saturating_add(n_u64);
-        if let (Some(prog), Some(total)) = (progress, expected_len)
-            && total > chunk_size
-            && total_copied >= next_progress_at
-        {
-            let current_str = format_bytes_decimal(total_copied);
-            let total_str = format_bytes_decimal(total);
-            prog.message(&format!("{current_str} / {total_str}"));
-            next_progress_at = total_copied.saturating_add(chunk_size);
+        if let Some(fp) = file_progress {
+            fp.set_bytes_done(total_copied);
         }
     }
     if let Some(expected) = expected_len {
@@ -1378,7 +1430,7 @@ fn download_to_writer_chunked_range_with_http(
     http: &dyn RangeHttpClient,
     url: &str,
     writer: &mut dyn Write,
-    progress: Option<&Progress>,
+    file_progress: Option<&FileItemProgress>,
     chunk_size: u64,
     backoff_base_ms: u64,
 ) -> Result<u64> {
@@ -1393,11 +1445,21 @@ fn download_to_writer_chunked_range_with_http(
         chunk_size,
         retry_limit,
         backoff_base_ms,
+        file_progress,
     )? {
-        InitialChunkOutcome::EmptyFile => return Ok(0),
+        InitialChunkOutcome::EmptyFile => {
+            if let Some(fp) = file_progress {
+                fp.set_total_bytes(0);
+                fp.set_bytes_done(0);
+            }
+            return Ok(0);
+        }
         InitialChunkOutcome::FullStream(response) => {
             return stream_full_response_to_writer(
-                response, url, writer, progress, chunk_size,
+                response,
+                url,
+                writer,
+                file_progress,
             );
         }
         InitialChunkOutcome::Partial { bytes, total_size } => {
@@ -1412,6 +1474,9 @@ fn download_to_writer_chunked_range_with_http(
         .context("Failed to write first chunk to destination")?;
 
     let mut current_offset = first_chunk_len;
+    if let Some(fp) = file_progress {
+        fp.set_bytes_done(current_offset);
+    }
 
     if let Some(total) = total_size {
         if current_offset >= total {
@@ -1422,13 +1487,10 @@ fn download_to_writer_chunked_range_with_http(
             return Ok(current_offset);
         }
     } else if first_chunk_len < chunk_size {
+        if let Some(fp) = file_progress {
+            fp.set_total_bytes(current_offset);
+        }
         return Ok(current_offset);
-    }
-
-    if let (Some(prog), Some(total)) = (progress, total_size) {
-        let current_str = format_bytes_decimal(current_offset);
-        let total_str = format_bytes_decimal(total);
-        prog.message(&format!("{current_str} / {total_str}"));
     }
 
     loop {
@@ -1459,6 +1521,7 @@ fn download_to_writer_chunked_range_with_http(
             total_size,
             retry_limit,
             backoff_base_ms,
+            file_progress,
         )?;
 
         let Some(chunk_bytes) = chunk_bytes_opt else {
@@ -1474,11 +1537,8 @@ fn download_to_writer_chunked_range_with_http(
             .context("Failed to write chunk bytes to destination")?;
 
         current_offset = current_offset.saturating_add(chunk_len);
-
-        if let (Some(prog), Some(total)) = (progress, total_size) {
-            let current_str = format_bytes_decimal(current_offset);
-            let total_str = format_bytes_decimal(total);
-            prog.message(&format!("{current_str} / {total_str}"));
+        if let Some(fp) = file_progress {
+            fp.set_bytes_done(current_offset);
         }
 
         if chunk_len < chunk_size && total_size.is_none() {
@@ -1491,6 +1551,8 @@ fn download_to_writer_chunked_range_with_http(
             current_offset == total,
             "Incomplete download for {url}: received {current_offset} of {total} bytes"
         );
+    } else if let Some(fp) = file_progress {
+        fp.set_total_bytes(current_offset);
     }
 
     Ok(current_offset)
@@ -1504,6 +1566,7 @@ fn fetch_chunk_with_retry(
     expected_total: Option<u64>,
     retry_limit: usize,
     backoff_base_ms: u64,
+    file_progress: Option<&FileItemProgress>,
 ) -> Result<Option<Vec<u8>>> {
     let range_val = format!("bytes={start}-{end}");
     let mut attempt = 0;
@@ -1553,10 +1616,12 @@ fn fetch_chunk_with_retry(
                 }
             }
 
-            let mut buf = Vec::new();
-            chunk_resp
-                .read_to_end(&mut buf)
-                .context("Failed to read chunk response body")?;
+            let buf = read_response_to_vec_with_progress(
+                chunk_resp.as_mut(),
+                start,
+                file_progress,
+            )
+            .context("Failed to read chunk response body")?;
             if buf.is_empty() {
                 bail!("Received empty body for chunk {start}-{end}");
             }
@@ -1582,12 +1647,8 @@ fn fetch_chunk_with_retry(
     }
 }
 
-fn perform_get_with_http(
-    http: &https::BlockingClient,
-    url: &str,
-) -> Result<https::BlockingResponse> {
-    let response = http
-        .get_with_backoff(url, 3)
+fn perform_get(url: &str) -> Result<https::BlockingResponse> {
+    let response = https::blocking_get_response_with_backoff(url, 3)
         .with_context(|| format!("Failed to GET {url}"))?;
     if !response.is_success() {
         bail!(
@@ -1931,12 +1992,16 @@ fn is_probable_identifier(candidate: &str) -> bool {
 
 const FILE_HASH_BUFFER_SIZE: usize = 65536;
 
-fn sha1_and_md5_hex_for_file(path: &Path) -> Result<(String, String)> {
+fn sha1_and_md5_hex_for_file(
+    path: &Path,
+    file_progress: Option<&FileItemProgress>,
+) -> Result<(String, String)> {
     let mut file = File::open(path)
         .with_context(|| format!("Failed to open {}", path.display()))?;
     let mut sha1_hasher = Sha1::new();
     let mut md5_hasher = Md5::new();
     let mut buffer = [0_u8; FILE_HASH_BUFFER_SIZE];
+    let mut total_read = 0_u64;
     loop {
         let bytes_read = file
             .read(&mut buffer)
@@ -1949,6 +2014,12 @@ fn sha1_and_md5_hex_for_file(path: &Path) -> Result<(String, String)> {
             .context("Invalid bytes read length")?;
         sha1_hasher.update(slice);
         md5_hasher.update(slice);
+        if let Ok(n_u64) = u64::try_from(bytes_read) {
+            total_read = total_read.saturating_add(n_u64);
+            if let Some(fp) = file_progress {
+                fp.set_bytes_done(total_read);
+            }
+        }
     }
     Ok((
         format!("{:x}", sha1_hasher.finalize()),
@@ -1957,10 +2028,18 @@ fn sha1_and_md5_hex_for_file(path: &Path) -> Result<(String, String)> {
 }
 
 fn sha1_hex_for_file(path: &Path) -> Result<String> {
+    sha1_hex_for_file_with_progress(path, None)
+}
+
+fn sha1_hex_for_file_with_progress(
+    path: &Path,
+    file_progress: Option<&FileItemProgress>,
+) -> Result<String> {
     let mut file = File::open(path)
         .with_context(|| format!("Failed to open {}", path.display()))?;
     let mut hasher = Sha1::new();
     let mut buffer = [0_u8; FILE_HASH_BUFFER_SIZE];
+    let mut total_read = 0_u64;
     loop {
         let bytes_read = file
             .read(&mut buffer)
@@ -1973,15 +2052,29 @@ fn sha1_hex_for_file(path: &Path) -> Result<String> {
                 .get(..bytes_read)
                 .context("Invalid bytes read length")?,
         );
+        if let Ok(n_u64) = u64::try_from(bytes_read) {
+            total_read = total_read.saturating_add(n_u64);
+            if let Some(fp) = file_progress {
+                fp.set_bytes_done(total_read);
+            }
+        }
     }
     Ok(format!("{:x}", hasher.finalize()))
 }
 
 fn md5_hex_for_file(path: &Path) -> Result<String> {
+    md5_hex_for_file_with_progress(path, None)
+}
+
+fn md5_hex_for_file_with_progress(
+    path: &Path,
+    file_progress: Option<&FileItemProgress>,
+) -> Result<String> {
     let mut file = File::open(path)
         .with_context(|| format!("Failed to open {}", path.display()))?;
     let mut hasher = Md5::new();
     let mut buffer = [0_u8; FILE_HASH_BUFFER_SIZE];
+    let mut total_read = 0_u64;
     loop {
         let bytes_read = file
             .read(&mut buffer)
@@ -1994,6 +2087,12 @@ fn md5_hex_for_file(path: &Path) -> Result<String> {
                 .get(..bytes_read)
                 .context("Invalid bytes read length")?,
         );
+        if let Ok(n_u64) = u64::try_from(bytes_read) {
+            total_read = total_read.saturating_add(n_u64);
+            if let Some(fp) = file_progress {
+                fp.set_bytes_done(total_read);
+            }
+        }
     }
     Ok(format!("{:x}", hasher.finalize()))
 }
@@ -2294,6 +2393,7 @@ mod tests {
                     &live_files_xml_bytes,
                 )),
             },
+            None,
         )
         .unwrap();
 
@@ -2814,16 +2914,21 @@ mod tests {
             })
         });
 
+        let progress = Progress::new(false);
+        let batch = progress.start_file_batch("Overall", Some(1), None);
+        let fp = batch.start_file("big.bin", None);
         let mut out = Vec::new();
         let written = download_to_writer_chunked_range_with_http(
             &client,
             "https://archive.org/download/test/big.bin",
             &mut out,
-            Some(&Progress::new(false)),
+            Some(&fp),
             16,
             0,
         )
         .unwrap();
+        fp.finish(written);
+        batch.finish();
 
         assert_eq!(written, total_len);
         assert_eq!(out, payload);

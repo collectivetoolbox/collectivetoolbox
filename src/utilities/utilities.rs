@@ -69,8 +69,10 @@ pub mod terminfo;
 pub mod testing;
 pub mod time;
 pub mod ui;
+pub mod unasync;
 pub mod workspace_path_resolution;
 pub use terminfo::Terminfo;
+pub use unasync::unasync;
 #[rustfmt::skip]
 #[path = "format_id.generated.rs"]
 pub mod format_id;
@@ -88,7 +90,8 @@ pub use crate::string::{
     parse_bytes, parse_bytes_u128,
 };
 pub use crate::ui::progress::{
-    Progress, ProgressStream, TaskId, should_show_progress, should_use_controls,
+    FileBatchProgress, FileItemProgress, Progress, ProgressStream, TaskId,
+    should_show_progress, should_use_controls,
 };
 pub use crate::utilities_json_json as json;
 pub use anyhow;
@@ -836,52 +839,6 @@ pub fn rand_fill(buf: &mut [u8]) -> Result<()> {
 /// Will fill the length of the buffer, *not* its capacity if passing a Vec.
 pub fn rand_fill_fast_insecure(buf: &mut [u8]) -> Result<()> {
     Ok(rand::rng().try_fill_bytes(buf)?)
-}
-
-/// Run an async future to completion from synchronous code.
-///
-/// Hopefully makes futures less miserable to work with.
-///
-/// Notes:
-/// - On a Tokio current-thread runtime, blocking would deadlock, so this
-///   returns an error.
-/// - On a Tokio multi-thread runtime, this uses `block_in_place` +
-///   `Handle::block_on`.
-/// - If no Tokio runtime is active, this creates a new runtime.
-pub fn unasync<R>(fut: impl Future<Output = R> + Send) -> Result<R>
-where
-    R: Send,
-{
-    if let Ok(_handle) = tokio::runtime::Handle::try_current() {
-        let test_name = crate::testing::try_get_current_test_name();
-        let test_storage_dir = crate::testing::try_get_test_storage_dir();
-
-        let result = std::thread::scope(|s| {
-            let thread_handle = s.spawn(move || {
-                let _guard = crate::testing::push_current_test_name(test_name);
-                if let Some(dir) = test_storage_dir {
-                    crate::testing::TEST_STORAGE_DIR_SYNC
-                        .with(|c| *c.borrow_mut() = Some(dir));
-                }
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .context("failed to create Tokio runtime")?;
-                Ok::<R, anyhow::Error>(rt.block_on(fut))
-            });
-            thread_handle.join()
-        });
-
-        let res = result
-            .map_err(|e| anyhow::anyhow!("unasync thread panicked: {e:?}"))??;
-        Ok(res)
-    } else {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .context("failed to create Tokio runtime")?;
-        Ok(rt.block_on(fut))
-    }
 }
 
 pub fn official_domain() -> String {

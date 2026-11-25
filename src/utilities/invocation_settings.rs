@@ -279,10 +279,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_invocation_settings_recover_graph_flag() {
-        let args = vec![
-            "ctoolbox".to_string(),
-            "--recover-graph".to_string(),
-        ];
+        let args = vec!["ctoolbox".to_string(), "--recover-graph".to_string()];
         let settings =
             InvocationSettings::from_command_line_args(&args).unwrap();
         assert!(settings.recover_graph);

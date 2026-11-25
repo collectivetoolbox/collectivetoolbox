@@ -184,7 +184,7 @@ pub fn execute_copy_pipeline(
     }
 
     let mut uncommitted_count: usize = 0;
-    let copy_task = progress.start_task("Copying", None);
+    let copy_task = progress.start_files_task("Copying", None, None);
 
     let strict_lossless = args.strict || !args.best_effort_metadata;
     let (apple_write_mode, apple_single_write_extension) =
@@ -662,12 +662,11 @@ pub fn execute_copy_pipeline(
                         }
 
                         if progress.is_enabled() {
-                            let detail =
-                                format!("{} bytes", stats.bytes_copied);
-                            progress.update_task(
+                            progress.update_task_files_and_bytes(
                                 copy_task,
                                 stats.files_copied,
-                                Some(&detail),
+                                stats.bytes_copied,
+                                None,
                             );
                         }
                     }
@@ -784,11 +783,11 @@ pub fn execute_copy_pipeline(
                     )?;
                 }
                 if progress.is_enabled() {
-                    let detail = format!("{} bytes", stats.bytes_copied);
-                    progress.update_task(
+                    progress.update_task_files_and_bytes(
                         copy_task,
                         stats.files_copied,
-                        Some(&detail),
+                        stats.bytes_copied,
+                        None,
                     );
                 }
             }
@@ -1182,8 +1181,9 @@ pub fn execute_copy_pipeline(
 
     if progress.is_enabled() && stats.files_copied > 0 {
         let detail = format!(
-            "{} files ({} bytes)",
-            stats.files_copied, stats.bytes_copied
+            "{} files ({})",
+            stats.files_copied,
+            format_bytes_decimal(stats.bytes_copied)
         );
         progress.finish_task(copy_task, Some(&detail));
     }
@@ -1197,8 +1197,19 @@ pub fn execute_copy_pipeline(
         try_drop_system_caches();
 
         let total_to_verify = u64::try_from(files_to_verify.len())?;
-        let verify_task =
-            progress.start_task("Verifying", Some(total_to_verify));
+        let total_bytes_to_verify: u64 = files_to_verify
+            .iter()
+            .filter_map(|(_, _, e)| match &e.kind {
+                FileEntityKind::Regular { size, .. } => Some(*size),
+                _ => None,
+            })
+            .fold(0_u64, u64::saturating_add);
+        let verify_task = progress.start_files_task(
+            "Verifying",
+            Some(total_to_verify),
+            Some(total_bytes_to_verify),
+        );
+        let mut verified_bytes = 0_u64;
 
         for (src_path, dest_path, entity) in &files_to_verify {
             if progress.is_enabled() {
@@ -1207,9 +1218,10 @@ pub fn execute_copy_pipeline(
                     src_path.file_name().map_or_else(String::new, |f| {
                         f.to_string_lossy().into_owned()
                     });
-                progress.update_task(
+                progress.update_task_files_and_bytes(
                     verify_task,
                     stats.files_verified,
+                    verified_bytes,
                     Some(&detail),
                 );
             }
@@ -1266,12 +1278,18 @@ pub fn execute_copy_pipeline(
                 )?;
                 continue;
             }
-            if entity.is_regular() {
+            if let FileEntityKind::Regular { size, .. } = &entity.kind {
                 stats.files_verified = stats.files_verified.saturating_add(1);
+                verified_bytes = verified_bytes.saturating_add(*size);
             }
 
             if progress.is_enabled() {
-                progress.update_task(verify_task, stats.files_verified, None);
+                progress.update_task_files_and_bytes(
+                    verify_task,
+                    stats.files_verified,
+                    verified_bytes,
+                    None,
+                );
             }
         }
 

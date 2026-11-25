@@ -76,21 +76,94 @@ pub fn is_stderr_interactive() -> bool {
     std::io::stderr().is_terminal()
 }
 
-/// Returns true if standard error is connected to an interactive terminal that supports
-/// cursor control characters (ANSI escapes, carriage return).
+fn stderr_terminfo_from_env() -> Option<crate::terminfo::Terminfo> {
+    let term = std::env::var("TERM").ok()?;
+    if term.is_empty() || term == "dumb" {
+        return None;
+    }
+    crate::terminfo::Terminfo::from_name(&term)
+}
+
+/// Returns true if standard error is connected to an interactive terminal
+/// supporting cursor control characters rather than a teleprinter or dumb
+/// terminal.
 pub fn supports_control_characters() -> bool {
     if !is_stderr_interactive() {
         return false;
     }
-    if let Ok(term) = std::env::var("TERM") {
-        if term == "dumb" || term.is_empty() {
-            return false;
-        }
-    } else {
-        #[cfg(unix)]
+    if std::env::var_os("TERM").is_some() {
+        return stderr_terminfo_from_env().is_some_and(|info| {
+            !info.get_bool("hc")
+                && !info.get_bool("os")
+                && (info.can_edit_line() || info.can_cursor_address())
+        });
+    }
+    #[cfg(unix)]
+    {
+        false
+    }
+    #[cfg(not(unix))]
+    {
+        true
+    }
+}
+
+/// Returns true if standard error is connected to a VT100/ANSI videoterminal
+/// capable of multi-line cursor movement (`\x1b[<N>A` and `\x1b[J`).
+pub fn supports_multiline_cursor_controls() -> bool {
+    if !is_stderr_interactive() {
         return false;
     }
-    true
+    if std::env::var_os("TERM").is_some() {
+        return stderr_terminfo_from_env().is_some_and(|info| {
+            !info.get_bool("hc")
+                && !info.get_bool("os")
+                && info.can_cursor_address()
+                && info.is_vt100_compatible()
+        });
+    }
+    #[cfg(unix)]
+    {
+        false
+    }
+    #[cfg(not(unix))]
+    {
+        true
+    }
+}
+
+/// Queries the column width of standard error when connected to a terminal.
+pub fn stderr_terminal_cols() -> Option<usize> {
+    if !is_stderr_interactive() {
+        return None;
+    }
+    #[cfg(unix)]
+    {
+        let mut ws = nix::libc::winsize {
+            ws_row: 0,
+            ws_col: 0,
+            ws_xpixel: 0,
+            ws_ypixel: 0,
+        };
+        #[expect(
+            unsafe_code,
+            reason = "queries terminal window dimensions on STDERR_FILENO into a stack-initialized winsize struct via TIOCGWINSZ"
+        )]
+        let rc = unsafe {
+            nix::libc::ioctl(
+                nix::libc::STDERR_FILENO,
+                nix::libc::TIOCGWINSZ,
+                &raw mut ws,
+            )
+        };
+        if rc == 0 && ws.ws_col > 0 {
+            return Some(usize::from(ws.ws_col));
+        }
+    }
+    stderr_terminfo_from_env()
+        .and_then(|info| info.get_num("cols"))
+        .filter(|&c| c > 0)
+        .and_then(|c| usize::try_from(c).ok())
 }
 
 #[cfg(test)]
