@@ -298,6 +298,7 @@ mod tests {
             Platform::LinuxX64,
             Platform::LinuxX86,
             Platform::WindowsX64,
+            Platform::FreebsdX64,
             Platform::MacX64,
             Platform::MacArm64,
         ] {

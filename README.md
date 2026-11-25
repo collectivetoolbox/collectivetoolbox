@@ -144,12 +144,13 @@ Signing keys (developer flow):
 
 Deployment script (`./deploy` skips lints and tests during compilation, as CI runs those):
 
-- `./deploy [all] --skip-clean` (or `--clean`): default `all` mode bumps the patch version, builds `linux-x64` and `linux-x86` release binaries + docs, archives source & vendored dependencies, updates Guix/Homebrew packaging, signs and chunks releases (`ctb-dev-sign`), uploads releases, deploys the `linux-x64` server binary and `.rsrc` bundles, restarts the `systemd --user` service, verifies release signatures/chunks (`ctb-dev-release-check`) and `/api/update-status`, logs in/initializes the `global` graph user, and tags `v<version>`.
-- `./deploy quick --skip-clean` (or `--clean`): runs the same pipeline for `linux-x64` only (skipping `linux-x86` cross-compilation).
+- `./deploy [all] --skip-clean` (or `--clean`): default `all` mode bumps the patch version, builds `linux-x64`, `linux-x86`, `windows-x64`, and `freebsd-x64` release binaries + docs, archives source & vendored dependencies, updates Guix/Homebrew packaging, signs and chunks releases (`ctb-dev-sign`, reusing shared artifact chunks across targets), uploads releases, deploys the `linux-x64` server binary and `.rsrc` bundles, restarts the `systemd --user` service, verifies release signatures and unique chunks once across all targets (`ctb-dev-release-check`) and `/api/update-status`, logs in/initializes (or rotates) the `global` graph user, and tags `v<version>`.
+- `./deploy quick --skip-clean` (or `--clean`): runs the same pipeline for `linux-x64` only (skipping `linux-x86`, `windows-x64`, and `freebsd-x64` cross-compilation).
 - Useful options:
   - `--clean` / `--skip-clean`: required when building unless `--reuse-built`, `--no-build`, or `--target vm` is used.
-  - `--reuse-built`: reuse existing `built/<target>/ctoolbox` binaries whose embedded commit matches `HEAD`; rebuild only missing/stale targets.
+  - `--reuse-built`: reuse existing `built/<target>/ctoolbox[.exe]` binaries whose embedded commit matches `HEAD`; rebuild only missing/stale targets.
   - `--no-build`: skip building completely (requires up-to-date binaries matching `HEAD`).
+  - `--rotate-global-pass` / `--new-global-pass-file <PATH>`: rotate the `global` graph user password non-destructively (preserving its DEK and graphs and revoking prior sessions).
   - `--dry-run` (`--no-git-bump`): skip version bump, packaging file mutations, git commits, and git tags.
   - `--target vm`: deploy to the local QEMU Debian sandbox VM (`127.0.0.1:2224`, implies `--dry-run`; see [docs/testing-deployment.md](docs/testing-deployment.md)).
   - `--mock-artifacts` / `--allow-dirty`: speed up local VM deploy tests.

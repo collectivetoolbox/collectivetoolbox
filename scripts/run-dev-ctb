@@ -22,24 +22,41 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
 ctb_binary_commit() {
-    local binary="$1" metadata
-    if ! command -v jq >/dev/null 2>&1; then
-        echo "Error: jq is required to validate ctoolbox build metadata." >&2
+    local binary="$1" metadata embedded_matches embedded_commit
+    if [[ ! -r "$binary" ]]; then
+        echo "Cannot read binary $binary." >&2
         return 1
     fi
-    if ! metadata="$(timeout 10 "$binary" --version-json)"; then
-        echo "Cannot read build metadata from $binary." >&2
-        return 1
-    fi
-    if ! jq -er '
-        select(.name == "ctoolbox")
-        | .commit
-        | select(type == "string")
-        | select(test("^[0-9a-f]{40}([0-9a-f]{24})?$"))
-    ' <<< "$metadata"; then
+    if [[ -x "$binary" ]] && metadata="$(timeout 10 "$binary" --version-json 2>/dev/null)"; then
+        if ! command -v jq >/dev/null 2>&1; then
+            echo "Error: jq is required to validate ctoolbox build metadata." >&2
+            return 1
+        fi
+        if jq -er '
+            select(.name == "ctoolbox")
+            | .commit
+            | select(type == "string")
+            | select(test("^[0-9a-f]{40}([0-9a-f]{24})?$"))
+        ' <<< "$metadata"; then
+            return 0
+        fi
         echo "Invalid ctoolbox build metadata from $binary." >&2
         return 1
     fi
+
+    # Cross-compiled binaries (e.g. windows-x64 PE .exe or freebsd-x64 ELF on a
+    # Linux host) cannot be executed directly; extract the unique build-info
+    # marker embedded by ctb-build-info (` (build <40-or-64-hex-sha>)`).
+    embedded_matches="$(LC_ALL=C grep -aoE ' \(build [0-9a-f]{40}([0-9a-f]{24})?\)' "$binary" 2>/dev/null | sort -u || true)"
+    if [[ -n "$embedded_matches" && "$(printf '%s\n' "$embedded_matches" | wc -l)" -eq 1 ]]; then
+        embedded_commit="${embedded_matches#' (build '}"
+        embedded_commit="${embedded_commit%')'}"
+        printf '%s\n' "$embedded_commit"
+        return 0
+    fi
+
+    echo "Cannot read build metadata from $binary." >&2
+    return 1
 }
 
 ctb_run_dev() {

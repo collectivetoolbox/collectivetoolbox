@@ -204,10 +204,15 @@ fn current_platform_str() -> &'static str {
             "mac-x64"
         }
     }
+    #[cfg(target_os = "freebsd")]
+    {
+        "freebsd-x64"
+    }
     #[cfg(not(any(
         target_os = "linux",
         target_os = "windows",
-        target_os = "macos"
+        target_os = "macos",
+        target_os = "freebsd"
     )))]
     {
         "linux-x64"

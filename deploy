@@ -32,8 +32,9 @@ Usage:
 
 Modes:
 	quick     Build + sign + deploy the server & release target (linux-x64).
-	all       Build + sign + deploy all release targets (linux-x64 and linux-x86)
-	          plus update the server binary (linux-x64). This is the default.
+	all       Build + sign + deploy all release targets (linux-x64, linux-x86,
+	          windows-x64, and freebsd-x64) plus update the server binary
+	          (linux-x64). This is the default.
 
 Build Options:
 	--clean           Run cargo clean before building.
@@ -44,13 +45,15 @@ Build Options:
 	--mock-artifacts  Generate minimal mock tarballs for rapid deploy testing.
 
 Deployment Target & Credentials:
-	--target <live|vm|DIR>  Target environment: 'live' (default), 'vm' (local QEMU Linux VM on 127.0.0.1:2224),
-	                        or a directory path containing ctb-deploy.* configuration files.
-	--config-dir <DIR>      Directory containing ctb-deploy.* files.
-	--ssh-key <PATH>        Use explicit SSH private key file instead of password/sshpass.
-	--dry-run               Skip version bump, packaging mutations, git commits, and git tag creation.
-	--no-git-bump           Alias for --dry-run.
-	--allow-dirty           Allow deploying with unstaged or uncommitted changes.
+	--target <live|vm|DIR>        Target environment: 'live' (default), 'vm' (local QEMU Linux VM on 127.0.0.1:2224),
+	                              or a directory path containing ctb-deploy.* configuration files.
+	--config-dir <DIR>            Directory containing ctb-deploy.* files.
+	--ssh-key <PATH>              Use explicit SSH private key file instead of password/sshpass.
+	--rotate-global-pass          Prompt for a new global graph password and rotate it non-destructively.
+	--new-global-pass-file <PATH> Read a new global graph password from PATH and rotate it non-destructively.
+	--dry-run                     Skip version bump, packaging mutations, git commits, and git tag creation.
+	--no-git-bump                 Alias for --dry-run.
+	--allow-dirty                 Allow deploying with unstaged or uncommitted changes.
 
 Notes:
 	- Lints and tests are skipped during ./deploy builds (handled by CI).
@@ -107,6 +110,8 @@ mock_artifacts=0
 ssh_key=""
 explicit_ssh_key=0
 allow_dirty=0
+rotate_global_pass=0
+new_global_pass_file=""
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -142,6 +147,19 @@ while [[ $# -gt 0 ]]; do
 			;;
 		"--allow-dirty")
 			allow_dirty=1
+			;;
+		"--rotate-global-pass")
+			rotate_global_pass=1
+			;;
+		"--new-global-pass-file")
+			if [[ $# -lt 2 || -z "${2:-}" ]]; then
+				echo "Error: --new-global-pass-file requires a file path argument." >&2
+				usage >&2
+				exit 1
+			fi
+			shift
+			new_global_pass_file="$1"
+			rotate_global_pass=1
 			;;
 		"--target")
 			if [[ $# -lt 2 || -z "${2:-}" ]]; then
@@ -227,6 +245,11 @@ PASS=""
 SERVER_USER_PASS=""
 SUDOER_USER_PASS=""
 GLOBAL_GRAPH_PASS=""
+NEW_GLOBAL_GRAPH_PASS=""
+
+if [[ -n "$new_global_pass_file" ]]; then
+	NEW_GLOBAL_GRAPH_PASS="$(read_config_value "$new_global_pass_file")"
+fi
 
 if [[ "$target_env" == "vm" ]]; then
 	user="ctb-deployer"
@@ -289,6 +312,14 @@ if [[ -z "$ssh_key" ]]; then
 	fi
 elif [[ -z "$GLOBAL_GRAPH_PASS" ]]; then
 	GLOBAL_GRAPH_PASS="$(read_secret "Password for global graph server user: ")"
+fi
+
+if [[ "$rotate_global_pass" -eq 1 && -z "$NEW_GLOBAL_GRAPH_PASS" ]]; then
+	NEW_GLOBAL_GRAPH_PASS="$(read_secret "New password for global graph server user: ")"
+	if [[ -z "$NEW_GLOBAL_GRAPH_PASS" ]]; then
+		echo "Error: New password for global graph server user cannot be empty." >&2
+		exit 1
+	fi
 fi
 
 password_for_user() {
@@ -398,8 +429,19 @@ release_targets() {
 	if [[ "$mode_quick" -eq 1 ]]; then
 		printf '%s\n' "linux-x64"
 	else
-		printf '%s\n' "linux-x64" "linux-x86"
+		printf '%s\n' "linux-x64" "linux-x86" "windows-x64" "freebsd-x64"
 	fi
+}
+
+exe_suffix_for_target() {
+	case "$1" in
+		windows-*)
+			printf '%s' ".exe"
+			;;
+		*)
+			printf '%s' ""
+			;;
+	esac
 }
 
 base_input_dir="$repository/../ctb_release/input"
@@ -419,8 +461,9 @@ fi
 # Check binaries and decide what needs building
 targets_to_build=()
 for target in "${targets[@]}"; do
-	bin_path="$repository/built/$target/ctoolbox"
-	if [[ -x "$bin_path" ]]; then
+	exe_suffix="$(exe_suffix_for_target "$target")"
+	bin_path="$repository/built/$target/ctoolbox${exe_suffix}"
+	if [[ -f "$bin_path" ]]; then
 		bin_commit=""
 		if bin_commit="$(ctb_binary_commit "$bin_path")" && [[ "$bin_commit" == "$commit" ]]; then
 			echo "Target '$target' binary is current (matches HEAD commit $commit)."
@@ -503,9 +546,10 @@ link_or_copy() {
 }
 
 for target in "${targets[@]}"; do
+	exe_suffix="$(exe_suffix_for_target "$target")"
 	input_dir="$base_input_dir/$target"
 	mkdir "$input_dir" || exit 1
-	cp "built/$target/ctoolbox" "$input_dir/ctoolbox" || exit 1
+	cp "built/$target/ctoolbox${exe_suffix}" "$input_dir/ctoolbox${exe_suffix}" || exit 1
 	if [[ -f "$repository/built/$target/ctoolbox.rsrc" ]]; then
 		link_or_copy "$repository/built/$target/ctoolbox.rsrc" "$input_dir/ctoolbox.rsrc"
 	elif [[ -f "$repository/built/ctoolbox.rsrc" ]]; then
@@ -521,9 +565,11 @@ for target in "${targets[@]}"; do
 	fi
 	if [[ -f "$repository/built/$target/v86_images.rsrc" ]]; then
 		link_or_copy "$repository/built/$target/v86_images.rsrc" "$input_dir/v86_images.rsrc"
+	elif [[ -f "$repository/built/v86_images.rsrc" ]]; then
+		link_or_copy "$repository/built/v86_images.rsrc" "$input_dir/v86_images.rsrc"
 	fi
-	if [[ -f "built/$target/ctoolbox-installer" ]]; then
-		cp "built/$target/ctoolbox-installer" "$input_dir/ctoolbox-installer" || exit 1
+	if [[ -f "built/$target/ctoolbox-installer${exe_suffix}" ]]; then
+		cp "built/$target/ctoolbox-installer${exe_suffix}" "$input_dir/ctoolbox-installer${exe_suffix}" || exit 1
 	fi
 	link_or_copy "$base_input_dir/ctoolbox-dependencies-$commitAndVersion.tar" \
 		"$input_dir/ctoolbox-dependencies-$commitAndVersion.tar"
@@ -793,11 +839,15 @@ REMOTE_ROLLBACK
 	fi
 }
 
-# Gracefully stop service before switching active binary/resource symlinks
+# Gracefully stop service before switching active binary/resource symlinks, and prune any stale cached downloads
 echo "Stopping existing service..."
 remote_ssh "$server_user" bash <<'REMOTE_STOP'
 systemctl --user stop ctoolbox || true
 timeout 30 bash -c 'while systemctl --user is-active --quiet ctoolbox; do sleep 0.5; done' || true
+cache_dir="$HOME/.cache/collectivetoolbox/downloads_cache"
+if [ -d "$cache_dir" ]; then
+	find "$cache_dir" -maxdepth 1 -type f -exec rm {} \; || true
+fi
 REMOTE_STOP
 
 echo "Updating active binary symlinks..."
@@ -829,19 +879,18 @@ REMOTE_SYMLINKS
 echo "Applying network binding capabilities..."
 remote_sudo "bash -c 'setcap '\''cap_net_bind_service=+ep'\'' \"\$(readlink /home/\"\$0\"/deploy/ctoolbox)\"' '$server_user'"
 
-# Verify uploaded releases using the newly deployed ctoolbox binary
+# Verify uploaded releases using a single deduplicated ctoolbox run across all deployed targets
 remote_verify_bin="/home/${server_user}/deploy/ctoolbox"
 remote_settings_file="/home/${server_user}/$(storage_dir_linux)/config/pc_settings.json"
 remote_pub_key="$(remote_ssh "$server_user" "'$remote_verify_bin' jq -r '.release_public_key // empty' '$remote_settings_file' 2>/dev/null || true")"
 if [[ -n "$remote_pub_key" ]]; then
-	for target in "${targets[@]}"; do
-		echo "Running remote release verification for $target..."
-		if ! remote_ssh "$server_user" "'$remote_verify_bin' ctb-dev-release-check --platform '$target'"; then
-			echo "Error: Remote release verification failed for $target." >&2
-			rollback_previous_binary
-			exit 1
-		fi
-	done
+	platforms_csv="$(IFS=,; printf '%s' "${targets[*]}")"
+	echo "Running deduplicated remote release verification for targets: ${platforms_csv}..."
+	if ! remote_ssh "$server_user" "'$remote_verify_bin' ctb-dev-release-check --platform '$platforms_csv'"; then
+		echo "Error: Remote release verification failed for targets: ${platforms_csv}." >&2
+		rollback_previous_binary
+		exit 1
+	fi
 elif [[ "$target_env" == "vm" ]]; then
 	echo "Note: release_public_key not configured in VM pc_settings.json; skipping remote signature check."
 else
@@ -923,10 +972,16 @@ REMOTE_START_POLL
 	exit 1
 fi
 
-# Authenticate/initialize global graph user by piping the JSON body over SSH stdin (never via CLI args)
+# Authenticate/initialize (or rotate password of) global graph user by piping the JSON body over SSH stdin (never via CLI args)
 echo "Setting up global user database..."
 escaped_global_pass="$(printf '%s' "$GLOBAL_GRAPH_PASS" | "$devsign_bin" json-escape)"
-global_setup_payload="{\"password\":${escaped_global_pass}}"
+if [[ -n "$NEW_GLOBAL_GRAPH_PASS" ]]; then
+	escaped_new_global_pass="$(printf '%s' "$NEW_GLOBAL_GRAPH_PASS" | "$devsign_bin" json-escape)"
+	global_setup_payload="{\"password\":${escaped_global_pass},\"new_password\":${escaped_new_global_pass}}"
+	unset escaped_new_global_pass
+else
+	global_setup_payload="{\"password\":${escaped_global_pass}}"
+fi
 unset escaped_global_pass
 
 if ! printf '%s' "$global_setup_payload" | remote_ssh "$server_user" bash -c '
@@ -999,12 +1054,16 @@ fi
 sleep 2
 systemctl --user status ctoolbox --no-pager
 ' _ "$server_user"; then
-	unset global_setup_payload GLOBAL_GRAPH_PASS PASS SERVER_USER_PASS SUDOER_USER_PASS
+	unset global_setup_payload GLOBAL_GRAPH_PASS NEW_GLOBAL_GRAPH_PASS PASS SERVER_USER_PASS SUDOER_USER_PASS
 	rollback_previous_binary
 	exit 1
 fi
 
-unset global_setup_payload GLOBAL_GRAPH_PASS PASS SERVER_USER_PASS SUDOER_USER_PASS
+if [[ -n "$NEW_GLOBAL_GRAPH_PASS" ]]; then
+	echo "Global graph user password rotated successfully. Remember to update your local ctb-deploy.global-graph-pass file if used."
+fi
+
+unset global_setup_payload GLOBAL_GRAPH_PASS NEW_GLOBAL_GRAPH_PASS PASS SERVER_USER_PASS SUDOER_USER_PASS
 
 # Clean up older deployed binaries and resource bundles ONLY after the new service is healthy
 echo "Cleaning up superseded deployed binaries..."

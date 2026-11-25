@@ -310,7 +310,10 @@ impl StreamingTarball {
         }
 
         if let Some((data_source, installer_size)) = installer_source {
-            let installer_name = format!("{root_name}/ctoolbox-installer");
+            let installer_name = format!(
+                "{root_name}/{}",
+                manifest.platform.installer_binary_name()
+            );
             let installer_header =
                 TarHeader::file(&installer_name, installer_size)
                     .with_mtime(mtime)

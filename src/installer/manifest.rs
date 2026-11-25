@@ -49,10 +49,28 @@ pub enum Platform {
     LinuxX86,
     #[serde(rename = "windows-x64")]
     WindowsX64,
+    #[serde(rename = "freebsd-x64")]
+    FreebsdX64,
     #[serde(rename = "mac-x64")]
     MacX64,
     #[serde(rename = "mac-arm64")]
     MacArm64,
+}
+
+impl Platform {
+    /// Returns the canonical installer binary filename in manifests and offline
+    /// tarballs for this platform.
+    #[must_use]
+    pub const fn installer_binary_name(self) -> &'static str {
+        match self {
+            Platform::WindowsX64 => "ctoolbox-installer.exe",
+            Platform::LinuxX64
+            | Platform::LinuxX86
+            | Platform::FreebsdX64
+            | Platform::MacX64
+            | Platform::MacArm64 => "ctoolbox-installer",
+        }
+    }
 }
 
 impl std::fmt::Display for Platform {
@@ -61,6 +79,7 @@ impl std::fmt::Display for Platform {
             Platform::LinuxX64 => write!(f, "linux-x64"),
             Platform::LinuxX86 => write!(f, "linux-x86"),
             Platform::WindowsX64 => write!(f, "windows-x64"),
+            Platform::FreebsdX64 => write!(f, "freebsd-x64"),
             Platform::MacX64 => write!(f, "mac-x64"),
             Platform::MacArm64 => write!(f, "mac-arm64"),
         }
@@ -156,9 +175,10 @@ impl ReleaseManifest {
 
     /// Returns the size of the installer file entry in the manifest, if present.
     pub fn installer_file_size(&self) -> u64 {
+        let expected_name = self.platform.installer_binary_name();
         self.files
             .iter()
-            .find(|f| f.path == "ctoolbox-installer")
+            .find(|f| f.path == expected_name || f.path == "ctoolbox-installer")
             // Reason for fallback: file entry missing from manifest defaults file size to 0 bytes
             .map_or(0, |f| f.file_size)
     }
@@ -594,6 +614,18 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&Platform::WindowsX64).unwrap(),
             "\"windows-x64\""
+        );
+        assert_eq!(
+            serde_json::to_string(&Platform::FreebsdX64).unwrap(),
+            "\"freebsd-x64\""
+        );
+        assert_eq!(
+            Platform::WindowsX64.installer_binary_name(),
+            "ctoolbox-installer.exe"
+        );
+        assert_eq!(
+            Platform::FreebsdX64.installer_binary_name(),
+            "ctoolbox-installer"
         );
         assert_eq!(
             serde_json::to_string(&Platform::MacX64).unwrap(),

@@ -35,13 +35,15 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use jiff::Timestamp;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::chunking::stream_chunk_file_to_directory_compressed;
-use crate::manifest::{FileEntry, Platform, ReleaseManifest};
+use crate::chunking::{
+    compressed_chunk_file_path, stream_chunk_file_to_directory_compressed,
+};
+use crate::manifest::{ChunkInfo, FileEntry, Platform, ReleaseManifest};
 use crate::signing::{KeyId, private_key_from_base64, sign_manifest};
 use ctb_utilities::pc_settings::{PcSettingStrKey, PcSettings};
 
@@ -84,10 +86,15 @@ fn current_platform() -> Platform {
             _ => Platform::MacX64,
         }
     }
+    #[cfg(target_os = "freebsd")]
+    {
+        Platform::FreebsdX64
+    }
     #[cfg(not(any(
         target_os = "linux",
         target_os = "windows",
-        target_os = "macos"
+        target_os = "macos",
+        target_os = "freebsd"
     )))]
     {
         Platform::LinuxX64 // Fallback
@@ -102,6 +109,9 @@ fn parse_platform(s: &str) -> Result<Platform> {
         "windows" | "win" | "windows-x64" | "win-x64" | "windows-amd64" => {
             Ok(Platform::WindowsX64)
         }
+        "freebsd" | "freebsd-x64" | "freebsd-amd64" => {
+            Ok(Platform::FreebsdX64)
+        }
         "mac" | "macos" | "darwin" | "mac-x64" | "macos-x64" | "darwin-x64" => {
             Ok(Platform::MacX64)
         }
@@ -110,10 +120,110 @@ fn parse_platform(s: &str) -> Result<Platform> {
         }
         _ => {
             bail!(
-                "Unknown platform: '{s}'. Use e.g. 'linux-x64', 'linux-x86', 'windows-x64', 'mac-x64', or 'mac-arm64'."
+                "Unknown platform: '{s}'. Use e.g. 'linux-x64', 'linux-x86', 'windows-x64', 'freebsd-x64', 'mac-x64', or 'mac-arm64'."
             )
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CachedArtifactChunks {
+    checksum: String,
+    chunks: Vec<ChunkInfo>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct DevSignChunkCache {
+    entries: HashMap<String, CachedArtifactChunks>,
+}
+
+fn dev_sign_cache_path(output_dir: &Path) -> Option<PathBuf> {
+    let abs_output = fs::canonicalize(output_dir).ok()?;
+    abs_output
+        .parent()
+        .map(|parent| parent.join(".ctb-dev-sign-cache.json"))
+}
+
+fn load_dev_sign_cache(output_dir: &Path) -> DevSignChunkCache {
+    let Some(cache_path) = dev_sign_cache_path(output_dir) else {
+        return DevSignChunkCache::default();
+    };
+    let Ok(json) = fs::read_to_string(&cache_path) else {
+        return DevSignChunkCache::default();
+    };
+    // Reason for fallback: unreadable or outdated local dev-sign cache JSON safely falls back to an empty cache
+    serde_json::from_str(&json).unwrap_or_default()
+}
+
+fn save_dev_sign_cache(output_dir: &Path, cache: &DevSignChunkCache) {
+    let Some(cache_path) = dev_sign_cache_path(output_dir) else {
+        return;
+    };
+    if let Ok(json) = serde_json::to_string(cache) {
+        let tmp_path = cache_path.with_extension("json.tmp");
+        if fs::write(&tmp_path, json).is_ok() {
+            let _ = fs::rename(&tmp_path, &cache_path);
+        }
+    }
+}
+
+fn artifact_cache_key(path: &Path) -> Result<(String, u64)> {
+    let meta = fs::metadata(path).with_context(|| {
+        format!("Failed to stat artifact: {}", path.display())
+    })?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        Ok((
+            format!(
+                "unix:{}:{}:{}:{}:{}",
+                meta.dev(),
+                meta.ino(),
+                meta.size(),
+                meta.mtime(),
+                meta.mtime_nsec()
+            ),
+            meta.len(),
+        ))
+    }
+    #[cfg(not(unix))]
+    {
+        // Reason for fallback: non-canonicalizable artifact path uses its raw PathBuf for cache key construction
+        let canon = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let mtime_ns = meta
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            // Reason for fallback: missing or pre-epoch mtime uses 0ns sentinel in cache key
+            .map_or(0, |d| d.as_nanos());
+        Ok((
+            format!("path:{}:{}:{mtime_ns}", canon.display(), meta.len()),
+            meta.len(),
+        ))
+    }
+}
+
+fn cache_entry_is_valid(
+    entry: &CachedArtifactChunks,
+    file_size: u64,
+    chunk_dir: &Path,
+) -> bool {
+    let total_len: u64 = entry.chunks.iter().map(|c| c.length).sum();
+    if total_len != file_size {
+        return false;
+    }
+    for chunk in &entry.chunks {
+        let chunk_path = compressed_chunk_file_path(chunk_dir, &chunk.hash);
+        let Ok(meta) = fs::metadata(&chunk_path) else {
+            return false;
+        };
+        if let Some(expected_comp) = chunk.compressed_size
+            && meta.len() != expected_comp
+        {
+            return false;
+        }
+    }
+    true
 }
 
 /// Summary of the dev-sign operation.
@@ -406,34 +516,57 @@ pub fn run_dev_sign(
         format!("Failed to create chunk directory: {}", chunk_dir.display())
     })?;
 
+    let mut sign_cache = load_dev_sign_cache(&output_dir);
+    let mut sign_cache_dirty = false;
     let mut total_chunks: usize = 0;
 
     // Process each artifact
     for artifact_path in &artifacts {
-        log_fmt!(
-            "Processing: {}",
-            artifact_path
-                .file_name()
-                // Reason for fallback: artifact path without file_name component defaults to empty OsStr
-                .unwrap_or_default()
-                .to_string_lossy()
-        );
+        let artifact_name = artifact_path
+            .file_name()
+            // Reason for fallback: artifact path without file_name component defaults to empty OsStr
+            .unwrap_or_default()
+            .to_string_lossy();
 
         // Get artifact configuration
         let config = get_artifact_config(artifact_path);
 
-        // Stream-hash, FastCDC-chunk, and Brotli-compress in bounded memory
-        let (checksum, chunk_infos) =
-            stream_chunk_file_to_directory_compressed(
-                artifact_path,
-                &chunk_dir,
-            )
-            .with_context(|| {
-                format!(
-                    "Failed to chunk and compress artifact: {}",
-                    artifact_path.display()
+        let (cache_key, file_size) = artifact_cache_key(artifact_path)?;
+        let (checksum, chunk_infos) = if let Some(cached) =
+            sign_cache.entries.get(&cache_key)
+            && cache_entry_is_valid(cached, file_size, &chunk_dir)
+        {
+            log_fmt!(
+                "Reusing verified chunks ({} chunks): {artifact_name}",
+                cached.chunks.len()
+            );
+            (cached.checksum.clone(), cached.chunks.clone())
+        } else {
+            log_fmt!("Processing: {artifact_name}");
+
+            // Stream-hash, FastCDC-chunk, and Brotli-compress in bounded memory
+            let (checksum, chunk_infos) =
+                stream_chunk_file_to_directory_compressed(
+                    artifact_path,
+                    &chunk_dir,
                 )
-            })?;
+                .with_context(|| {
+                    format!(
+                        "Failed to chunk and compress artifact: {}",
+                        artifact_path.display()
+                    )
+                })?;
+
+            sign_cache.entries.insert(
+                cache_key,
+                CachedArtifactChunks {
+                    checksum: checksum.clone(),
+                    chunks: chunk_infos.clone(),
+                },
+            );
+            sign_cache_dirty = true;
+            (checksum, chunk_infos)
+        };
 
         // Build file entry
         let mut entry = FileEntry::new(
@@ -453,6 +586,10 @@ pub fn run_dev_sign(
 
         total_chunks = total_chunks.saturating_add(chunk_infos.len());
         manifest.add_file(entry);
+    }
+
+    if sign_cache_dirty {
+        save_dev_sign_cache(&output_dir, &sign_cache);
     }
 
     // Sign the manifest
@@ -541,6 +678,11 @@ mod tests {
             parse_platform("windows-x64").unwrap(),
             Platform::WindowsX64
         );
+        assert_eq!(
+            parse_platform("freebsd-x64").unwrap(),
+            Platform::FreebsdX64
+        );
+        assert_eq!(parse_platform("freebsd").unwrap(), Platform::FreebsdX64);
         assert_eq!(parse_platform("mac-x64").unwrap(), Platform::MacX64);
         assert_eq!(parse_platform("mac-arm64").unwrap(), Platform::MacArm64);
 
@@ -712,5 +854,50 @@ mod tests {
         assert!(display.contains("Files processed: 5"));
         assert!(display.contains("Total chunks: 42"));
         assert!(display.contains("abc12345"));
+    }
+
+    #[crate::ctb_test]
+    fn test_hardlinked_artifact_cache_reuses_and_revalidates_chunks() {
+        let temp_dir = TempDir::new().expect("Failed to create temp directory");
+        let input_linux = temp_dir.path().join("input").join("linux-x64");
+        let input_freebsd = temp_dir.path().join("input").join("freebsd-x64");
+        let output_dir = temp_dir.path().join("releases");
+        let chunk_dir = output_dir.join("bh");
+        fs::create_dir_all(&input_linux).unwrap();
+        fs::create_dir_all(&input_freebsd).unwrap();
+        fs::create_dir_all(&chunk_dir).unwrap();
+
+        let shared_linux = input_linux.join("ctoolbox.rsrc");
+        let shared_freebsd = input_freebsd.join("ctoolbox.rsrc");
+        fs::write(&shared_linux, vec![0x5Au8; 700_000]).unwrap();
+        fs::hard_link(&shared_linux, &shared_freebsd).unwrap();
+
+        let (key_linux, size_linux) = artifact_cache_key(&shared_linux).unwrap();
+        let (key_freebsd, size_freebsd) =
+            artifact_cache_key(&shared_freebsd).unwrap();
+        assert_eq!(key_linux, key_freebsd);
+        assert_eq!(size_linux, size_freebsd);
+
+        let (checksum, chunks) =
+            stream_chunk_file_to_directory_compressed(&shared_linux, &chunk_dir)
+                .unwrap();
+        let cached = CachedArtifactChunks {
+            checksum,
+            chunks: chunks.clone(),
+        };
+        assert!(cache_entry_is_valid(&cached, size_freebsd, &chunk_dir));
+
+        // Ensure cache file lives outside output_dir so rsync never uploads it
+        let mut cache = DevSignChunkCache::default();
+        cache.entries.insert(key_linux, cached.clone());
+        save_dev_sign_cache(&output_dir, &cache);
+        assert!(!output_dir.join(".ctb-dev-sign-cache.json").exists());
+        assert!(temp_dir.path().join(".ctb-dev-sign-cache.json").exists());
+
+        // Deleting a referenced .br chunk must invalidate the cache entry
+        let first_chunk_path =
+            compressed_chunk_file_path(&chunk_dir, &chunks[0].hash);
+        fs::remove_file(&first_chunk_path).unwrap();
+        assert!(!cache_entry_is_valid(&cached, size_freebsd, &chunk_dir));
     }
 }

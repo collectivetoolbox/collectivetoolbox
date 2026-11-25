@@ -56,7 +56,7 @@ const FILE_CHUNK_DOWNLOAD_PARALLELISM: usize = 4;
 
 /// Returns the current target string for use in URLs.
 ///
-/// Examples: "linux-x64", "linux-x86", "windows-x64", "mac-x64",
+/// Examples: "linux-x64", "linux-x86", "windows-x64", "freebsd-x64", "mac-x64",
 /// "mac-arm64".
 #[must_use]
 pub fn current_platform() -> String {
@@ -79,10 +79,15 @@ pub fn current_platform() -> String {
             _ => "mac-x64".to_string(),
         }
     }
+    #[cfg(target_os = "freebsd")]
+    {
+        "freebsd-x64".to_string()
+    }
     #[cfg(not(any(
         target_os = "linux",
         target_os = "windows",
-        target_os = "macos"
+        target_os = "macos",
+        target_os = "freebsd"
     )))]
     {
         "linux-x64".to_string()

@@ -37,7 +37,7 @@ use fastcdc::v2020::{FastCDC, StreamCDC};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Minimum chunk size in bytes (320KB).
 pub const MIN_CHUNK_SIZE: u32 = 32 * 1024 * 10;
@@ -532,6 +532,20 @@ pub fn read_chunk_from_directory_compressed(
     }
 
     Ok(chunk)
+}
+
+/// Returns the canonical two-level prefix path `{chunks_dir}/{ab}/{cd}/{hash}.br`
+/// (or `{chunks_dir}/{hash}.br` if `hash.len() < 4`).
+#[must_use]
+pub fn compressed_chunk_file_path(chunks_dir: &Path, hash: &str) -> PathBuf {
+    if let (Some(prefix1), Some(prefix2)) = (hash.get(0..2), hash.get(2..4)) {
+        chunks_dir
+            .join(prefix1)
+            .join(prefix2)
+            .join(format!("{hash}.br"))
+    } else {
+        chunks_dir.join(format!("{hash}.br"))
+    }
 }
 
 /// Reads raw compressed chunk bytes from a directory by its hash.

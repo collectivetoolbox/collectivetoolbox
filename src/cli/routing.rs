@@ -700,10 +700,11 @@ pub enum Command {
         #[arg(long)]
         chunks_dir: Option<PathBuf>,
 
-        /// Target to verify (e.g. linux-x64, linux-x86).
-        /// Defaults to the current platform.
-        #[arg(long)]
-        platform: Option<String>,
+        /// Target(s) to verify (e.g. `linux-x64,linux-x86,windows-x64,freebsd-x64`).
+        /// May be specified multiple times or comma-separated; defaults to the
+        /// current platform.
+        #[arg(long, value_delimiter = ',')]
+        platform: Vec<String>,
     },
     /// Delete old release chunks and manifests to reclaim disk space.
     ///
@@ -1419,7 +1420,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             let summary = ctb_installer::release_check::run_dev_release_check(
                 manifest.as_deref(),
                 chunks_dir.as_deref(),
-                platform.as_deref(),
+                platform,
             )?;
             println!("{summary}");
             Ok(ToolResult::immediate_ok(Vec::new()))

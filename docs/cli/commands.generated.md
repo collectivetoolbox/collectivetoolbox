@@ -1136,7 +1136,7 @@ Usage: ctoolbox ctb-dev-release-check [OPTIONS]
 Options:
       --manifest <MANIFEST>      Path to the manifest file to verify. Defaults to `{storage_dir}/releases/ctb-{platform}-latest.json` if not specified
       --chunks-dir <CHUNKS_DIR>  Path to the chunks directory. Defaults to `{storage_dir}/releases/bh/` if not specified
-      --platform <PLATFORM>      Target to verify (e.g. linux-x64, linux-x86). Defaults to the current platform
+      --platform <PLATFORM>      Target(s) to verify (e.g. `linux-x64,linux-x86,windows-x64,freebsd-x64`). May be specified multiple times or comma-separated; defaults to the current platform
       --recover-graph            Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
   -h, --help                     Print help
 ```

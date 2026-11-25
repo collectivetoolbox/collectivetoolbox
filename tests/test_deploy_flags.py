@@ -41,6 +41,10 @@ class DeployFlagsTests(unittest.TestCase):
         self.assertIn("--dry-run", res.stdout)
         self.assertIn("--mock-artifacts", res.stdout)
         self.assertIn("--allow-dirty", res.stdout)
+        self.assertIn("windows-x64", res.stdout)
+        self.assertIn("freebsd-x64", res.stdout)
+        self.assertIn("--rotate-global-pass", res.stdout)
+        self.assertIn("--new-global-pass-file", res.stdout)
 
     def test_linux_vm_help(self):
         res = subprocess.run(
@@ -129,7 +133,7 @@ class DeployFlagsTests(unittest.TestCase):
             self.assertIn("SSH key specified at /tmp/nonexistent-key-12345 not found", res.stderr)
 
     def test_missing_option_argument_rejected(self):
-        for flag in ("--target", "--config-dir", "--ssh-key"):
+        for flag in ("--target", "--config-dir", "--ssh-key", "--new-global-pass-file"):
             res = subprocess.run(
                 ["./deploy", "--allow-dirty", flag],
                 cwd=REPO_ROOT,
@@ -187,6 +191,55 @@ class DeployFlagsTests(unittest.TestCase):
             self.assertEqual(res.returncode, 1)
             self.assertNotIn("unstaged or uncommitted changes", res.stderr)
             self.assertIn("VM SSH key not found at", res.stderr)
+
+    def test_cross_target_binary_commit_extraction(self):
+        expected_sha = "0123456789abcdef0123456789abcdef01234567"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = pathlib.Path(tmpdir)
+
+            # Non-executable mock PE/cross binary with single embedded ctb-build-info marker
+            valid_pe = tmp / "ctoolbox.exe"
+            valid_pe.write_bytes(
+                b"MZ\x90\x00\x03\x00\x00\x00ctoolbox 0.1.0 (build "
+                + expected_sha.encode("ascii")
+                + b")\x00trailing"
+            )
+            res_ok = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    'source ./scripts/run-dev-ctb && ctb_binary_commit "$1"',
+                    "_",
+                    str(valid_pe),
+                ],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res_ok.returncode, 0, res_ok.stderr)
+            self.assertEqual(res_ok.stdout.strip(), expected_sha)
+
+            # Ambiguous binary with two different markers must be rejected
+            ambiguous_pe = tmp / "ambiguous.exe"
+            ambiguous_pe.write_bytes(
+                b"MZ (build 0123456789abcdef0123456789abcdef01234567) "
+                b"(build fedcba9876543210fedcba9876543210fedcba98)"
+            )
+            res_bad = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    'source ./scripts/run-dev-ctb && ctb_binary_commit "$1"',
+                    "_",
+                    str(ambiguous_pe),
+                ],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertNotEqual(res_bad.returncode, 0)
 
 
 if __name__ == "__main__":
