@@ -24,6 +24,7 @@ Commands:
   xxd                        Format binary data as an xxd hex dump
   short-dc                   Convert Document Character (Dc) shorthand to Global Graph ID or show metadata
   gid                        Convert Global Graph ID to short representation or show full metadata
+  explain-ctbnodes           Render a .ctbnodes ledger file with synthesized human-readable explanation comments
   range_gen                  Generate a range of numbers in various bases
   character_description      Describe Unicode characters, Dcs, and Graph IDs with annotations, aliases, and meanings. This feature may be changed or simplified in future
   convert                    Convert documents or text between supported formats
@@ -1303,6 +1304,27 @@ Supported compression formats:
   xz: XZ compression
   zl, zz, zlib, zlib-deflate: Zlib-wrapped DEFLATE stream (RFC 1950)
   zst, zstd: Zstandard compression
+```
+
+### `ctoolbox explain-ctbnodes`
+
+```text
+Render a .ctbnodes ledger file with synthesized human-readable explanation comments
+
+Usage: ctoolbox explain-ctbnodes [OPTIONS] <FILE>
+
+Arguments:
+  <FILE>  Path to the input `.ctbnodes` file (or `-` to read from standard input)
+
+Options:
+  -o, --output <OUTPUT>        Optional output file path (writes to standard output if omitted)
+      --graph-dir <GRAPH_DIR>  Optional system graph directory (`assets/data/graph`) for resolving node labels
+      --recover-graph          Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
+  -h, --help                   Print help
+
+Examples:
+  $ ctoolbox explain-ctbnodes assets/data/graph/85899_34592.ctbnodes
+  $ ctoolbox explain-ctbnodes assets/data/graph/85900_04692.ctbnodes -o explained.ctbnodes
 ```
 
 ### `ctoolbox file`
