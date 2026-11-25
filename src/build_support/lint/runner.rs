@@ -39,8 +39,8 @@ use anyhow::{Context, Result, bail};
 use rayon::prelude::*;
 
 use super::{
-    deny_config, format_log, headers, helper, patches, test_boilerplate,
-    unwrap_or, vendor_versions, workspace_crates,
+    deny_config, format_log, headers, helper, insecure_curl, patches,
+    test_boilerplate, unwrap_or, vendor_versions, workspace_crates,
 };
 
 #[derive(Default)]
@@ -602,7 +602,33 @@ If you don't understand why that diff is missing the point of this lint, re-read
         }
     }
 
-    // --- Section 9: Append-Only Graph Ledger Integrity ---
+    // --- Section 9: Insecure curl Flags ---
+    println!("\n=== Checking for insecure curl flags (-k / --insecure) ===");
+    let (checked_curl_files, insecure_curl_violations) =
+        insecure_curl::check_discovered_files(
+            workspace_root,
+            &shell_files,
+            &docker_files,
+            &python_files,
+        )?;
+    if insecure_curl_violations.is_empty() {
+        println!(
+            "insecure-curl lint passed ({checked_curl_files} script/Python files checked)."
+        );
+    } else {
+        any_failure = true;
+        eprintln!(
+            "insecure-curl lint failed: found {} violation(s):",
+            insecure_curl_violations.len()
+        );
+        for v in &insecure_curl_violations {
+            let relative =
+                v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
+            eprintln!("  {}:{}: {}", relative.display(), v.line, v.message);
+        }
+    }
+
+    // --- Section 10: Append-Only Graph Ledger Integrity ---
     println!("\n=== Checking append-only graph ledger integrity ===");
     let graph_dir = workspace_root.join("assets").join("data").join("graph");
     if graph_dir.is_dir() {

@@ -23,6 +23,7 @@ pub mod deny_config;
 pub mod format_log;
 pub mod headers;
 pub mod helper;
+pub mod insecure_curl;
 pub mod patches;
 pub mod runner;
 pub mod test_boilerplate;

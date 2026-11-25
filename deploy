@@ -678,33 +678,42 @@ settings_file="/home/${server_user}/.local/share/collectivetoolbox/config/pc_set
 web_port=8080
 proto="http"
 domain_name=""
+bind_to_ip=""
 
 if [ -f "$settings_file" ]; then
+    tls_cert=$(/home/${server_user}/deploy/ctoolbox jq -r '.tls_certificate // empty' "$settings_file" 2>/dev/null || true)
     https_port=$(/home/${server_user}/deploy/ctoolbox jq -r '.fixed_https_port // empty' "$settings_file" 2>/dev/null || true)
     http_port=$(/home/${server_user}/deploy/ctoolbox jq -r '.fixed_http_port // empty' "$settings_file" 2>/dev/null || true)
     domain_name=$(/home/${server_user}/deploy/ctoolbox jq -r '.domain_name // empty' "$settings_file" 2>/dev/null || true)
+    bind_to_ip=$(/home/${server_user}/deploy/ctoolbox jq -r '.bind_to_ip // empty' "$settings_file" 2>/dev/null || true)
 
-    if [ -n "$https_port" ]; then
-        web_port="$https_port"
+    if [ -n "$tls_cert" ]; then
         proto="https"
-    elif [ -n "$http_port" ]; then
-        web_port="$http_port"
+        web_port="${https_port:-8443}"
+    else
         proto="http"
+        web_port="${http_port:-8080}"
     fi
 fi
 
-if [ -n "$domain_name" ]; then
-    host_target="$domain_name"
+if [ -z "$bind_to_ip" ] || [ "$bind_to_ip" = "0.0.0.0" ] || [ "$bind_to_ip" = "::" ] || [ "$bind_to_ip" = "127.0.0.1" ]; then
+    connect_ip="127.0.0.1"
 else
-    host_target="127.0.0.1"
+    connect_ip="$bind_to_ip"
 fi
 
-url="${proto}://${host_target}:${web_port}"
+curl_resolve_args=()
+if [ "$proto" = "https" ] && [ -n "$domain_name" ]; then
+    url="https://${domain_name}:${web_port}"
+    curl_resolve_args=(--resolve "${domain_name}:${web_port}:${connect_ip}")
+else
+    url="${proto}://${connect_ip}:${web_port}"
+fi
 
 echo "Polling ${url}/api/update-status until server is responsive and reporting version ${version}..."
 responsive=0
 for i in {1..60}; do
-    response=$(curl -s -k "${url}/api/update-status" 2>/dev/null || true)
+    response=$(curl -fsS "${curl_resolve_args[@]}" "${url}/api/update-status" 2>/dev/null || true)
     if [ -n "$response" ]; then
         reported_version=$(echo "$response" | /home/${server_user}/deploy/ctoolbox jq -r '.server_version // empty' 2>/dev/null || true)
         if [ "$reported_version" = "$version" ]; then
@@ -738,8 +747,8 @@ echo "$setup_token" > "$token_file"
 chmod 600 "$token_file"
 
 echo "Setting up global user database..."
-escaped_pass=$(/home/${server_user}/deploy/ctoolbox json-escape "$GLOBAL_GRAPH_PASS")
-response=$(curl -s -k -X POST -H 'Content-Type: application/json' -H "X-Ctb-Setup-Token: $setup_token" -d "{\"password\":$escaped_pass}" "${url}/api/sync/setup-global-user" 2>/dev/null || true)
+escaped_pass=$(printf '%s' "$GLOBAL_GRAPH_PASS" | /home/${server_user}/deploy/ctoolbox json-escape)
+response=$(printf '{"password":%s}' "$escaped_pass" | curl -fsS "${curl_resolve_args[@]}" -X POST -H 'Content-Type: application/json' -H "X-Ctb-Setup-Token: $setup_token" --data-binary @- "${url}/api/sync/setup-global-user" 2>/dev/null || true)
 
 if [ -f "$token_file" ]; then
     rm "$token_file"

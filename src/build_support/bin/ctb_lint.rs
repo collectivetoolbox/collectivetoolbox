@@ -26,7 +26,7 @@ use anyhow::{Result, bail};
 use ctb_build_support::ctbnbdl::recover_pending_ledger_journal;
 use ctb_build_support::find_repository_root;
 use ctb_build_support::lint::{
-    deny_config, format_log, headers, helper, patches, runner,
+    deny_config, format_log, headers, helper, insecure_curl, patches, runner,
     test_boilerplate, unwrap_or, vendor_versions,
 };
 
@@ -40,6 +40,7 @@ Subcommands:
   format-log        Check for silently discarded FormatLog instances
   headers           Check license headers and module docblocks
   helper            Check test tempdirs and workspace crates
+  insecure-curl     Check that scripts and Python never invoke curl -k or --insecure
   patches           Check vendor patch crates usage
   test-boilerplate  Check standard repository test boilerplate
   unwrap-or         Check unwrap_or domain fallback comments
@@ -70,6 +71,9 @@ fn main() -> Result<()> {
         Some("format-log") => ("format-log", args.get(1..).unwrap_or(&[])),
         Some("headers") => ("headers", args.get(1..).unwrap_or(&[])),
         Some("helper") => ("helper", args.get(1..).unwrap_or(&[])),
+        Some("insecure-curl") => {
+            ("insecure-curl", args.get(1..).unwrap_or(&[]))
+        }
         Some("patches") => ("patches", args.get(1..).unwrap_or(&[])),
         Some("test-boilerplate") => {
             ("test-boilerplate", args.get(1..).unwrap_or(&[]))
@@ -142,6 +146,7 @@ fn main() -> Result<()> {
         "format-log" => format_log::run(&root),
         "headers" => headers::run(&root, add_headers),
         "helper" => helper::run(&root),
+        "insecure-curl" => insecure_curl::run(&root),
         "patches" => patches::run(&root),
         "test-boilerplate" => test_boilerplate::run(&root, fix),
         "unwrap-or" => unwrap_or::run(&root),
