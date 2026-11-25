@@ -120,6 +120,27 @@ opt-level = 2
 [profile.dev.package.regex-syntax]
 opt-level = 2
 
+[profile.dev.package.ctb-io-csc]
+opt-level = 2
+
+[profile.dev.package.ctb-io-file]
+opt-level = 2
+
+[profile.dev.package.ctb-io-environment]
+opt-level = 2
+
+[profile.dev.package.ctb-formats-checksum]
+opt-level = 2
+
+[profile.dev.package.ctb-formats-conversion]
+opt-level = 2
+
+[profile.dev.package.serde_json]
+opt-level = 2
+
+[profile.dev.package.argon2]
+opt-level = 2
+
 [profile.test]
 inherits = "dev"
 
@@ -216,6 +237,27 @@ opt-level = 2
 opt-level = 2
 
 [profile.test.package.regex-syntax]
+opt-level = 2
+
+[profile.test.package.ctb-io-csc]
+opt-level = 2
+
+[profile.test.package.ctb-io-file]
+opt-level = 2
+
+[profile.test.package.ctb-io-environment]
+opt-level = 2
+
+[profile.test.package.ctb-formats-checksum]
+opt-level = 2
+
+[profile.test.package.ctb-formats-conversion]
+opt-level = 2
+
+[profile.test.package.serde_json]
+opt-level = 2
+
+[profile.test.package.argon2]
 opt-level = 2
 
 [profile.release]

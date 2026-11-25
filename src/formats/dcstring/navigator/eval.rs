@@ -1715,14 +1715,82 @@ impl DcDocumentNavigator<'_> {
         self.run_eval_frames(EvalInit::Pattern(pattern), ctx)
     }
 
-    /// Evaluates a `.Semantic:Pattern` `&[DcShorthand]` token slice directly from the seed graph
-    /// without constructing a recursive `SyntaxPattern` AST.
+    /// Evaluates a `.Semantic:Pattern` `&[DcShorthand]` token slice from the seed graph,
+    /// memoizing the decoded [`SyntaxPattern`] per `(SeedGraphIndex::instance_id, raw_tokens)`
+    /// so repeated evaluations execute without per-step token re-decoding or heap allocations.
     pub fn eval_pattern_tokens<'p, 'r: 'p>(
         &mut self,
         raw_tokens: &'p [ctb_storage_minimal::shorthand::DcShorthand],
         ctx: &mut SyntaxEvalContext<'r>,
     ) -> Result<bool> {
-        self.run_eval_frames(EvalInit::Tokens(raw_tokens), ctx)
+        use ctb_storage_minimal::shorthand::DcShorthand;
+
+        static CACHED_TOKEN_PATTERNS: std::sync::LazyLock<
+            std::sync::RwLock<
+                std::collections::HashMap<
+                    u64,
+                    std::collections::HashMap<
+                        Vec<DcShorthand>,
+                        Arc<SyntaxPattern>,
+                    >,
+                >,
+            >,
+        > = std::sync::LazyLock::new(|| {
+            std::sync::RwLock::new(std::collections::HashMap::new())
+        });
+
+        fn decode_tokens_recursive(
+            sg: &ctb_formats_dcdata::seed_graph::SeedGraphIndex,
+            tokens: &[DcShorthand],
+        ) -> Result<SyntaxPattern> {
+            if let Some(branch_slices) = sg.split_alternation_branches(tokens)?
+            {
+                let mut branches = Vec::with_capacity(branch_slices.len());
+                for branch_tokens in branch_slices {
+                    branches.push(decode_tokens_recursive(sg, branch_tokens)?);
+                }
+                return Ok(SyntaxPattern::Alternation(branches));
+            }
+            let mut elements = Vec::new();
+            let mut idx = 0usize;
+            while idx < tokens.len() {
+                let (elem, after_quant) =
+                    sg.step_pattern_element_tokens(tokens, idx)?;
+                elements.push(elem);
+                idx = after_quant;
+            }
+            Ok(SyntaxPattern::Sequence(elements))
+        }
+
+        let Some(sg) = ctx.resolver.seed_graph() else {
+            return Ok(false);
+        };
+        let sg_id = sg.instance_id();
+        let cached = if let Ok(guard) = CACHED_TOKEN_PATTERNS.read()
+            && let Some(by_tokens) = guard.get(&sg_id)
+            && let Some(pat) = by_tokens.get(raw_tokens)
+        {
+            Some(Arc::clone(pat))
+        } else {
+            None
+        };
+        let pat_arc = if let Some(pat) = cached {
+            pat
+        } else {
+            let stripped = sg.strip_pattern_action_tokens(raw_tokens)?;
+            let decoded = Arc::new(decode_tokens_recursive(sg, stripped)?);
+            if let Ok(mut guard) = CACHED_TOKEN_PATTERNS.write() {
+                if guard.len() >= 128 {
+                    guard.clear();
+                }
+                guard
+                    .entry(sg_id)
+                    .or_default()
+                    .insert(raw_tokens.to_vec(), Arc::clone(&decoded));
+            }
+            decoded
+        };
+        self.run_eval_frames(EvalInit::Pattern(&pat_arc), ctx)
     }
 
     /// Evaluates a fixed-arity sequence of `ExactOne` operands starting at the current cursor.

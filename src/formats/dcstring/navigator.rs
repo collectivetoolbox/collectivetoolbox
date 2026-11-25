@@ -1462,8 +1462,14 @@ impl<'a> DcDocumentNavigator<'a> {
         );
         file.seek(SeekFrom::Start(base_offset))
             .context("Failed to seek to DcMixed header")?;
+        // Reason for fallback: files exceeding usize::MAX on 32-bit hosts clamp to the 64 KiB reader buffer cap.
+        let buf_cap = usize::try_from(file_len.saturating_sub(base_offset))
+            .unwrap_or(65_536)
+            .clamp(512, 65_536);
+        let mut reader = BufReader::with_capacity(buf_cap, file);
         let mut header = [0_u8; DCMM_HEADER_LEN];
-        file.read_exact(&mut header)
+        reader
+            .read_exact(&mut header)
             .context("Failed to read DcMixed header")?;
         ensure!(
             header.get(..5) == Some(DCMM_MAGIC.as_slice())
@@ -1473,11 +1479,6 @@ impl<'a> DcDocumentNavigator<'a> {
             "Invalid DcMixed (.dcmm) header magic or UUID"
         );
         let is_v1 = header.get(5..21) == Some(crate::DCMM_UUID_V1.as_slice());
-        // Reason for fallback: files exceeding usize::MAX on 32-bit hosts clamp to the 64 KiB reader buffer cap.
-        let buf_cap = usize::try_from(file_len.saturating_sub(header_end))
-            .unwrap_or(65_536)
-            .clamp(512, 65_536);
-        let reader = BufReader::with_capacity(buf_cap, file);
         let mut nav = Self {
             backend: NavBackend::SeekableFile {
                 reader,
@@ -1546,8 +1547,14 @@ impl<'a> DcDocumentNavigator<'a> {
         );
         file.seek(SeekFrom::Start(base_offset))
             .context("Failed to seek to DcMixed header")?;
+        // Reason for fallback: files exceeding usize::MAX on 32-bit hosts clamp to the 64 KiB reader buffer cap.
+        let buf_cap = usize::try_from(file_len.saturating_sub(base_offset))
+            .unwrap_or(65_536)
+            .clamp(512, 65_536);
+        let mut reader = BufReader::with_capacity(buf_cap, file);
         let mut header = [0_u8; DCMM_HEADER_LEN];
-        file.read_exact(&mut header)
+        reader
+            .read_exact(&mut header)
             .context("Failed to read DcMixed header")?;
         ensure!(
             header.get(..5) == Some(DCMM_MAGIC.as_slice())
@@ -1557,11 +1564,6 @@ impl<'a> DcDocumentNavigator<'a> {
             "Invalid DcMixed (.dcmm) header magic or UUID"
         );
         let is_v1 = header.get(5..21) == Some(crate::DCMM_UUID_V1.as_slice());
-        // Reason for fallback: files exceeding usize::MAX on 32-bit hosts clamp to the 64 KiB reader buffer cap.
-        let buf_cap = usize::try_from(file_len.saturating_sub(header_end))
-            .unwrap_or(65_536)
-            .clamp(512, 65_536);
-        let reader = BufReader::with_capacity(buf_cap, file);
         let mut nav = Self {
             backend: NavBackend::SeekableFile {
                 reader,

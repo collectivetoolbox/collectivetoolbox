@@ -1032,6 +1032,7 @@ pub struct DatasetRuleResolver {
     pub(crate) framing_shapes: HashMap<u128, FramingShape>,
     pub(crate) special_wrapper_tokens: HashSet<u128>,
     pub(crate) splice_trigger_tokens: HashSet<u128>,
+    pub(crate) has_built_splice_triggers: bool,
     pub(crate) excluded_atom_dc_tokens: HashSet<u128>,
     pub(crate) type_tokens: HashSet<u128>,
     pub(crate) evaluable_expression_starters: HashSet<u128>,
@@ -1103,37 +1104,53 @@ impl DatasetRuleResolver {
     fn populate_seed_graph_splice_triggers(&mut self) {
         use ctb_storage_minimal::shorthand::DcShorthand;
 
-        let Some(sg) = self.seed_graph.as_deref() else {
-            return;
-        };
-        let mut wasm_triggers = Vec::new();
-        for &(subj, prop, _) in sg.active_multi_props().keys() {
-            if matches!(prop, DcShorthand::Short(611 | 571 | 614))
-                && sg.get_wasm_definition_tokens(subj).is_some()
-                && let Ok(gid) = subj.to_global_id()
-                && self.is_wasm_routine_splice_candidate(gid)
-            {
-                wasm_triggers.push(gid);
-            }
-        }
-        for &(subj, prop) in sg.active_single_props().keys() {
-            if prop == DcShorthand::Short(594)
-                && sg.get_wasm_definition_tokens(subj).is_some()
-                && let Ok(gid) = subj.to_global_id()
-                && self.is_wasm_routine_splice_candidate(gid)
-            {
-                wasm_triggers.push(gid);
-            }
-        }
-        for tok in wasm_triggers {
-            self.splice_trigger_tokens.insert(tok);
-            let canon = self.canonical_token(tok);
+        self.splice_trigger_tokens.clear();
+        let base_triggers = [
+            crate::dc::DC_LANG_SAY.to_u128(),
+            crate::dc::DC_RESOLVE_TO_PIN.to_u128(),
+            crate::dc::DC_CONVERT_DC_STRING_TO_WASM.to_u128(),
+        ];
+        for base in base_triggers {
+            self.splice_trigger_tokens.insert(base);
+            let canon = self.canonical_token(base);
             self.splice_trigger_tokens.insert(canon);
+            if let Some(equivs) = self.semantic_equivalents.get(&base) {
+                self.splice_trigger_tokens.extend(equivs.iter().copied());
+            }
             if let Some(equivs) = self.semantic_equivalents.get(&canon) {
                 self.splice_trigger_tokens.extend(equivs.iter().copied());
             }
-            if let Some(equivs) = self.semantic_equivalents.get(&tok) {
-                self.splice_trigger_tokens.extend(equivs.iter().copied());
+        }
+        if let Some(sg) = self.seed_graph.as_deref() {
+            let mut wasm_triggers = Vec::new();
+            for &(subj, prop, _) in sg.active_multi_props().keys() {
+                if matches!(prop, DcShorthand::Short(611 | 571 | 614))
+                    && sg.get_wasm_definition_tokens(subj).is_some()
+                    && let Ok(gid) = subj.to_global_id()
+                    && self.is_wasm_routine_splice_candidate(gid)
+                {
+                    wasm_triggers.push(gid);
+                }
+            }
+            for &(subj, prop) in sg.active_single_props().keys() {
+                if prop == DcShorthand::Short(594)
+                    && sg.get_wasm_definition_tokens(subj).is_some()
+                    && let Ok(gid) = subj.to_global_id()
+                    && self.is_wasm_routine_splice_candidate(gid)
+                {
+                    wasm_triggers.push(gid);
+                }
+            }
+            for tok in wasm_triggers {
+                self.splice_trigger_tokens.insert(tok);
+                let canon = self.canonical_token(tok);
+                self.splice_trigger_tokens.insert(canon);
+                if let Some(equivs) = self.semantic_equivalents.get(&canon) {
+                    self.splice_trigger_tokens.extend(equivs.iter().copied());
+                }
+                if let Some(equivs) = self.semantic_equivalents.get(&tok) {
+                    self.splice_trigger_tokens.extend(equivs.iter().copied());
+                }
             }
         }
         for (&alias, &canon) in &self.canonical_map {
@@ -1141,6 +1158,7 @@ impl DatasetRuleResolver {
                 self.splice_trigger_tokens.insert(alias);
             }
         }
+        self.has_built_splice_triggers = true;
     }
 
     pub(crate) fn build_unicode_text_mappings(
@@ -1309,6 +1327,7 @@ impl DatasetRuleResolver {
         alias_token: u128,
         canonical_token: u128,
     ) {
+        self.has_built_splice_triggers = false;
         self.canonical_map.insert(alias_token, canonical_token);
         self.canonical_map
             .entry(canonical_token)
@@ -1585,6 +1604,7 @@ impl DatasetRuleResolver {
         self.framing_shapes.clear();
         self.special_wrapper_tokens.clear();
         self.splice_trigger_tokens.clear();
+        self.has_built_splice_triggers = false;
         self.excluded_atom_dc_tokens.clear();
         self.type_tokens.clear();
         self.evaluable_expression_starters.clear();
@@ -2396,14 +2416,12 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
     }
 
     fn is_splice_trigger_token(&self, token: u128) -> bool {
+        if self.has_built_splice_triggers {
+            return self.splice_trigger_tokens.contains(&token);
+        }
         if self.token_fills_role(token, DcRole::LangSay)
             || self.token_fills_role(token, DcRole::ResolveToPin)
             || self.token_fills_role(token, DcRole::ConvertDcStringToWasm)
-        {
-            return true;
-        }
-        if !self.splice_trigger_tokens.is_empty()
-            && self.splice_trigger_tokens.contains(&token)
         {
             return true;
         }

@@ -98,7 +98,34 @@ impl<'a> DcDocumentNavigator<'a> {
                 is_v1,
                 ..
             } => {
+                use std::io::BufRead as _;
+
                 seek_buffered_file(reader, reader_pos, offset)?;
+                let rem = match reader.fill_buf() {
+                    Ok(buf) => buf,
+                    Err(err) => {
+                        *reader_pos = None;
+                        return Err(err.into());
+                    }
+                };
+                if rem.is_empty() {
+                    return Ok(None);
+                }
+                let fast_decoded = if *is_v1 {
+                    decode_utf_8e_128_buf(rem)
+                } else {
+                    decode_dctf_buf(rem)
+                };
+                if let Some((val, seq_len)) = fast_decoded {
+                    reader.consume(seq_len);
+                    let next_offset =
+                        offset.saturating_add(u64::try_from(seq_len)?);
+                    *reader_pos = Some(next_offset);
+                    if next_offset > self.active_span.end {
+                        return Ok(None);
+                    }
+                    return Ok(Some((DcChar::from_u128(val), next_offset)));
+                }
                 let mut first = [0_u8; 1];
                 match reader.read(&mut first) {
                     Ok(0) => return Ok(None),
