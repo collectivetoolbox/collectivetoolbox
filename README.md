@@ -160,7 +160,7 @@ To prune old release chunks and manifests on the server later, run `ctoolbox ctb
 
 Backing up the server locally (`./scripts/backup-server`):
 
-- `./scripts/backup-server [--dest <DIR>]` incrementally backs up the server's `/home` directory tree (including `~/.local/share/collectivetoolbox/` databases, user graphs, `pc_settings.json`, `systemd --user` units, deployed binaries, and release artifacts) to a local folder (`../ctb-server-backup` by default), using the same `~/ctb-deploy.*`, `--config-dir`, `--target <live|vm|DIR>`, and `--ssh-key` configuration as `./deploy`.
+- `~/ctoolbox/scripts/backup-server [--dest <DIR>]` incrementally backs up the server's `/home` directory tree (including `~/.local/share/collectivetoolbox/` databases, user graphs, `pc_settings.json`, `systemd --user` units, deployed binaries, and release artifacts) to a local folder (`../ctb-server-backup` by default), using the same `~/ctb-deploy.*`, `--config-dir`, `--target <live|vm|DIR>`, and `--ssh-key` configuration as `./deploy`.
 - OS directories (`/var`, `/etc`, `/usr`, `/proc`, `/sys`, `/tmp`, etc.) and disposable server caches (`downloads_cache/`, `setup_token`) are excluded.
 - Useful options:
   - `--dest <DIR>` (or positional `<DIR>`): destination folder outside the repository.

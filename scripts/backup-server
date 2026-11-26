@@ -279,12 +279,12 @@ pull_rsync() {
 	local local_dst="$3"
 	shift 3
 	if [[ -n "${ssh_key:-}" && -f "${ssh_key:-}" ]]; then
-		rsync -e "ssh -i $ssh_key -p $port -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR" \
+		rsync -avz --checksum -e "ssh -i $ssh_key -p $port -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR" \
 			"$@" "${target_user}@${server}:${remote_src}" "$local_dst"
 	else
 		local ssh_pass
 		ssh_pass="$(password_for_user "$target_user")"
-		SSHPASS="$ssh_pass" sshpass -e rsync -e "ssh -p ${port}" \
+		SSHPASS="$ssh_pass" sshpass -e rsync -avz --checksum -e "ssh -p ${port}" \
 			"$@" "${target_user}@${server}:${remote_src}" "$local_dst"
 	fi
 }
