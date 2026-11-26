@@ -45,8 +45,8 @@ Options:
 	--ssh-key <PATH>        Use explicit SSH private key file instead of password/sshpass.
 	--exclude-releases      Skip .local/share/collectivetoolbox/releases/ (faster user-data-only backup).
 	--stop-service          Temporarily stop ctoolbox.service during the backup for a cold DB snapshot
-	                        (restarts automatically on exit). Without this flag, a fast second rsync pass
-	                        is run over users/ and graphs/ to minimize WAL skew with zero downtime.
+	                        (restarts automatically on exit). Without this flag, the service stays up
+	                        and the second --checksum pass narrows live DB/WAL skew with zero downtime.
 	--mirror                Delete files in DEST_DIR/home that no longer exist on the server
 	                        (rsync --delete-after). Off by default so accidental remote deletions
 	                        do not erase previously backed-up local files.
@@ -278,15 +278,25 @@ pull_rsync() {
 	local remote_src="$2"
 	local local_dst="$3"
 	shift 3
+	local rc=0
 	if [[ -n "${ssh_key:-}" && -f "${ssh_key:-}" ]]; then
-		rsync -avz --checksum -e "ssh -i $ssh_key -p $port -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR" \
-			"$@" "${target_user}@${server}:${remote_src}" "$local_dst"
+		rsync -e "ssh -i $ssh_key -p $port -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR" \
+			"$@" "${target_user}@${server}:${remote_src}" "$local_dst" || rc=$?
 	else
 		local ssh_pass
 		ssh_pass="$(password_for_user "$target_user")"
-		SSHPASS="$ssh_pass" sshpass -e rsync -avz --checksum -e "ssh -p ${port}" \
-			"$@" "${target_user}@${server}:${remote_src}" "$local_dst"
+		SSHPASS="$ssh_pass" sshpass -e rsync -e "ssh -p ${port}" \
+			"$@" "${target_user}@${server}:${remote_src}" "$local_dst" || rc=$?
 	fi
+	# During live backups (without --stop-service), transient lock/WAL/temp files
+	# may be unlinked between rsync's file-list scan and file open, which rsync
+	# reports as exit code 24 (RERR_VANISHED). Allow exit 24 when live so Pass 1
+	# still proceeds to Pass 2 and transient deletions do not abort the backup.
+	if [[ "$rc" -eq 24 && "$stop_service" -eq 0 ]]; then
+		echo "Note: some transient remote files vanished during live rsync (exit 24); continuing." >&2
+		return 0
+	fi
+	return "$rc"
 }
 
 service_was_stopped=0
@@ -303,10 +313,13 @@ trap cleanup_on_exit EXIT
 
 rsync_common_args=(
 	-rlptDzv
+	--progress
 	--safe-links
 	--chmod=u+rwX
 	--exclude=/.cache/collectivetoolbox/downloads_cache/
 	--exclude=/*/.cache/collectivetoolbox/downloads_cache/
+	--exclude=/.local/share/collectivetoolbox/releases/downloads_cache/
+	--exclude=/*/.local/share/collectivetoolbox/releases/downloads_cache/
 	--exclude=/.local/share/collectivetoolbox/setup_token
 	--exclude=/*/.local/share/collectivetoolbox/setup_token
 )
@@ -339,57 +352,41 @@ REMOTE_STOP
 	service_was_stopped=1
 fi
 
-echo "Backing up /home from ${server}:${port} to ${resolved_dest}/home (excluding /var and all other OS directories)..."
-
+use_sudo_rsync=0
 if remote_ssh "$sudoer_user" "sudo -n true" >/dev/null 2>&1; then
+	use_sudo_rsync=1
 	echo "Using passwordless sudo rsync via ${sudoer_user} to back up all /home accounts..."
-	pull_rsync "$sudoer_user" "/home/" "$resolved_dest/home/" \
-		--rsync-path="sudo rsync" "${rsync_common_args[@]}"
-
-	if [[ "$stop_service" -eq 0 ]]; then
-		echo "Running second consistency pass over live storage directories (users/ and graphs/)..."
-		for subdir in users graphs config; do
-			if remote_ssh "$sudoer_user" "sudo -n test -d '/home/${server_user}/.local/share/collectivetoolbox/${subdir}'" >/dev/null 2>&1; then
-				if [[ "$dry_run" -eq 0 ]]; then
-					mkdir -p "$resolved_dest/home/$server_user/.local/share/collectivetoolbox/$subdir"
-				fi
-				pull_rsync "$sudoer_user" \
-					"/home/${server_user}/.local/share/collectivetoolbox/${subdir}/" \
-					"$resolved_dest/home/$server_user/.local/share/collectivetoolbox/$subdir/" \
-					--rsync-path="sudo rsync" "${rsync_common_args[@]}"
-			fi
-		done
-	fi
 else
 	echo "Note: Passwordless sudo is not enabled for ${sudoer_user}; backing up each configured user's /home directory directly..."
-	declare -A synced_users=()
-	for acct in "$server_user" "$user" "$sudoer_user"; do
-		if [[ -n "${synced_users[$acct]:-}" ]]; then
-			continue
-		fi
-		synced_users["$acct"]=1
-		echo "Syncing /home/${acct}..."
-		if [[ "$dry_run" -eq 0 ]]; then
-			mkdir -p "$resolved_dest/home/$acct"
-		fi
-		pull_rsync "$acct" "/home/${acct}/" "$resolved_dest/home/$acct/" "${rsync_common_args[@]}"
-	done
+fi
 
-	if [[ "$stop_service" -eq 0 ]]; then
-		echo "Running second consistency pass over live storage directories (users/ and graphs/)..."
-		for subdir in users graphs config; do
-			if remote_ssh "$server_user" "test -d '/home/${server_user}/.local/share/collectivetoolbox/${subdir}'" >/dev/null 2>&1; then
-				if [[ "$dry_run" -eq 0 ]]; then
-					mkdir -p "$resolved_dest/home/$server_user/.local/share/collectivetoolbox/$subdir"
-				fi
-				pull_rsync "$server_user" \
-					"/home/${server_user}/.local/share/collectivetoolbox/${subdir}/" \
-					"$resolved_dest/home/$server_user/.local/share/collectivetoolbox/$subdir/" \
-					"${rsync_common_args[@]}"
+sync_all_home() {
+	if [[ "$use_sudo_rsync" -eq 1 ]]; then
+		pull_rsync "$sudoer_user" "/home/" "$resolved_dest/home/" \
+			--rsync-path="sudo rsync" "${rsync_common_args[@]}" "$@"
+	else
+		declare -A synced_users=()
+		local acct
+		for acct in "$server_user" "$user" "$sudoer_user"; do
+			if [[ -n "${synced_users[$acct]:-}" ]]; then
+				continue
 			fi
+			synced_users["$acct"]=1
+			echo "Syncing /home/${acct}..."
+			if [[ "$dry_run" -eq 0 ]]; then
+				mkdir -p "$resolved_dest/home/$acct"
+			fi
+			pull_rsync "$acct" "/home/${acct}/" "$resolved_dest/home/$acct/" \
+				"${rsync_common_args[@]}" "$@"
 		done
 	fi
-fi
+}
+
+echo "Pass 1/2: Syncing /home from ${server}:${port} to ${resolved_dest}/home (excluding /var and all other OS directories)..."
+sync_all_home
+
+echo "Pass 2/2: Re-reading and verifying all /home files with --checksum..."
+sync_all_home --checksum
 
 if [[ "$dry_run" -eq 0 ]]; then
 	timestamp_utc="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"

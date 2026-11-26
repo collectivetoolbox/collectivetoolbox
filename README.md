@@ -165,7 +165,7 @@ Backing up the server locally (`./scripts/backup-server`):
 - Useful options:
   - `--dest <DIR>` (or positional `<DIR>`): destination folder outside the repository.
   - `--exclude-releases`: skip `.local/share/collectivetoolbox/releases/` for a fast user-data/config backup.
-  - `--stop-service`: briefly stop `ctoolbox.service` during the sync for a cold database snapshot (restarting it automatically on exit); without this flag, a fast second `rsync` pass runs over `users/`, `graphs/`, and `config/` with zero downtime.
+  - `--stop-service`: briefly stop `ctoolbox.service` during the sync for a cold database snapshot (restarting it automatically on exit); without this flag, the service stays online while `backup-server` runs a first pass followed by a full second `--checksum` pass over `/home` to re-read and catch live DB/WAL edits with zero downtime.
   - `--mirror`: delete local backup files that were removed on the server (`rsync --delete-after`; off by default).
   - `--dry-run`: preview files that would be transferred without modifying the local destination folder.
 

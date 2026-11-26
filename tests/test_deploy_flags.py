@@ -309,6 +309,12 @@ class DeployFlagsTests(unittest.TestCase):
                 / "1"
                 / "node.bin"
             ).write_bytes(b"important-graph-bytes")
+            users_db = (
+                server_home / ".local" / "share" / "collectivetoolbox" / "users.db"
+            )
+            users_db.write_bytes(b"users-db-v1-00")
+            fixed_mtime = (1700000000, 1700000000)
+            os.utime(users_db, fixed_mtime)
             (
                 server_home / ".local" / "share" / "collectivetoolbox" / "setup_token"
             ).write_text("ephemeral-token\n", encoding="utf-8")
@@ -377,10 +383,13 @@ exit 0
             )
             mock_ssh.chmod(mock_ssh.stat().st_mode | stat.S_IXUSR)
 
+            rsync_log = tmp / "rsync_invocations.jsonl"
             mock_rsync = bin_dir / "rsync"
             mock_rsync.write_text(
                 f"""#!/usr/bin/env python3
-import subprocess, sys
+import json, os, subprocess, sys
+with open({str(rsync_log)!r}, "a", encoding="utf-8") as logf:
+    logf.write(json.dumps(sys.argv[1:]) + "\\n")
 args = []
 i = 1
 while i < len(sys.argv):
@@ -397,7 +406,14 @@ while i < len(sys.argv):
     else:
         args.append(a)
     i += 1
-sys.exit(subprocess.call([{real_rsync!r}] + args))
+rc = subprocess.call([{real_rsync!r}] + args)
+# Simulate a live same-size, same-mtime edit right after Pass 1 (e.g. mmap/same-second DB write)
+if "--checksum" not in sys.argv[1:]:
+    db_path = {str(users_db)!r}
+    with open(db_path, "wb") as f:
+        f.write(b"users-db-v2-99")
+    os.utime(db_path, (1700000000, 1700000000))
+sys.exit(rc)
 """,
                 encoding="utf-8",
             )
@@ -431,6 +447,33 @@ sys.exit(subprocess.call([{real_rsync!r}] + args))
                 check=False,
             )
             self.assertEqual(res.returncode, 0, res.stderr)
+
+            # Verify two full passes over /home/: Pass 1 without --checksum, Pass 2 with --checksum
+            invocations = [
+                json.loads(line)
+                for line in rsync_log.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            self.assertEqual(len(invocations), 2, invocations)
+            self.assertNotIn("--checksum", invocations[0])
+            self.assertIn("--checksum", invocations[1])
+            for inv in invocations:
+                self.assertNotIn("-avz", inv)
+                self.assertNotIn("-a", inv)
+
+            # Same-size, same-mtime edit to users.db after Pass 1 must be caught by Pass 2 --checksum
+            self.assertEqual(
+                (
+                    backup_dest
+                    / "home"
+                    / "ctb-server"
+                    / ".local"
+                    / "share"
+                    / "collectivetoolbox"
+                    / "users.db"
+                ).read_bytes(),
+                b"users-db-v2-99",
+            )
 
             # /home accounts & graph data backed up
             self.assertEqual(
