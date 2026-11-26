@@ -33,11 +33,12 @@ use md5::{Digest as _, Md5};
 use serde::{Deserialize, Serialize};
 use sha1::Sha1;
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs::{self, File};
-use std::io::{BufReader, Read, Write};
+use std::fs::{self, File, OpenOptions};
+use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 use std::path::{Component, Path, PathBuf};
 use xml::reader::{EventReader, XmlEvent};
 
+const PART_FILE_SUFFIX: &str = ".part";
 const FILES_XML_SUFFIX: &str = "_files.xml";
 const META_XML_SUFFIX: &str = "_meta.xml";
 const META_SQLITE_SUFFIX: &str = "_meta.sqlite";
@@ -146,27 +147,81 @@ trait ArchiveClient {
         identifier: &str,
         file_name: &str,
         destination: &Path,
+        expected_size: Option<u64>,
         file_progress: Option<&FileItemProgress>,
     ) -> Result<u64> {
         let bytes = self.fetch_download_bytes(identifier, file_name)?;
-        let len_u64 = u64::try_from(bytes.len())
-            .map_err(|e| anyhow!("Failed to convert byte length to u64: {e}"))?;
+        let len_u64 = u64::try_from(bytes.len()).map_err(|e| {
+            anyhow!("Failed to convert byte length to u64: {e}")
+        })?;
+        if let Some(expected) = expected_size {
+            anyhow::ensure!(
+                len_u64 == expected,
+                "Downloaded size {len_u64} did not match expected size {expected} for {file_name}"
+            );
+        }
         if let Some(fp) = file_progress {
             fp.set_total_bytes(len_u64);
             fp.set_bytes_done(len_u64);
         }
-        // Reason for fallback: If destination has no parent path (bare filename), stage temp file in current directory.
+        // Reason for fallback: If destination has no parent path (bare filename), stage .part file in current directory.
         let parent = destination.parent().unwrap_or_else(|| Path::new("."));
-        let temp_path = create_temp_path(parent, file_name);
-        let mut cleanup_guard = TempFileCleanupGuard {
-            temp_path: temp_path.clone(),
-            active: true,
-        };
-        fs::write(&temp_path, &bytes).with_context(|| {
-            format!("Failed to write temporary file {}", temp_path.display())
+        fs::create_dir_all(parent).with_context(|| {
+            format!("Failed to create parent directory {}", parent.display())
         })?;
-        commit_atomic_file(&temp_path, destination)?;
-        cleanup_guard.active = false;
+        let part_path = part_path_for_destination(destination);
+        let mut part_file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .open(&part_path)
+            .with_context(|| {
+                format!(
+                    "Failed to open partial download file {}",
+                    part_path.display()
+                )
+            })?;
+        let existing_len = part_file
+            .metadata()
+            .with_context(|| {
+                format!("Failed to read metadata for {}", part_path.display())
+            })?
+            .len();
+        let existing_usize = usize::try_from(existing_len).ok();
+        let can_append = existing_usize.is_some_and(|existing| {
+            existing <= bytes.len()
+                && bytes.get(..existing).is_some_and(|prefix| {
+                    let mut current = vec![0_u8; existing];
+                    part_file
+                        .read_exact(&mut current)
+                        .is_ok_and(|()| current.as_slice() == prefix)
+                })
+        });
+        if let Some(existing) = existing_usize.filter(|_| can_append) {
+            part_file.seek(SeekFrom::End(0)).with_context(|| {
+                format!("Failed to seek to end of {}", part_path.display())
+            })?;
+            if let Some(tail) = bytes.get(existing..) {
+                part_file.write_all(tail).with_context(|| {
+                    format!("Failed to append to {}", part_path.display())
+                })?;
+            }
+        } else {
+            part_file.set_len(0).with_context(|| {
+                format!("Failed to truncate {}", part_path.display())
+            })?;
+            part_file.seek(SeekFrom::Start(0)).with_context(|| {
+                format!("Failed to seek to start of {}", part_path.display())
+            })?;
+            part_file.write_all(&bytes).with_context(|| {
+                format!("Failed to write {}", part_path.display())
+            })?;
+        }
+        part_file.sync_all().with_context(|| {
+            format!("Failed to sync {}", part_path.display())
+        })?;
+        drop(part_file);
+        commit_atomic_file(&part_path, destination)?;
         Ok(len_u64)
     }
 }
@@ -199,12 +254,14 @@ impl ArchiveClient for LiveArchiveClient {
         identifier: &str,
         file_name: &str,
         destination: &Path,
+        expected_size: Option<u64>,
         file_progress: Option<&FileItemProgress>,
     ) -> Result<u64> {
         download_live_file_chunked_range(
             identifier,
             file_name,
             destination,
+            expected_size,
             file_progress,
         )
     }
@@ -384,12 +441,83 @@ pub fn download_here(
     output_dir: Option<&Path>,
     progress: Progress,
 ) -> Result<Vec<u8>> {
-    download_here_with_client(
-        &LiveArchiveClient,
-        target,
-        output_dir,
-        progress,
-    )
+    download_here_with_client(&LiveArchiveClient, target, output_dir, progress)
+}
+
+fn resolve_download_file_specs(
+    client: &dyn ArchiveClient,
+    archive_target: &ArchiveTarget,
+    original: bool,
+    manifest: Option<&FilesManifest>,
+) -> Result<Vec<(String, Option<u64>)>> {
+    if original {
+        let metadata_files =
+            client.fetch_metadata(&archive_target.identifier)?.files;
+        let original_files: Vec<(String, Option<u64>)> = metadata_files
+            .into_iter()
+            .filter(|file| file.source.as_deref() == Some("original"))
+            .map(|file| {
+                let size =
+                    file.size.as_deref().and_then(|s| s.parse().ok()).or_else(
+                        || {
+                            manifest
+                                .and_then(|m| m.entries.get(&file.name))
+                                .and_then(|e| e.size)
+                        },
+                    );
+                (file.name, size)
+            })
+            .collect();
+        if let Some(file_name) = &archive_target.archive_path {
+            Ok(original_files
+                .into_iter()
+                .filter(|(name, _)| name == file_name)
+                .collect())
+        } else {
+            Ok(original_files)
+        }
+    } else if let Some(file_name) = &archive_target.archive_path {
+        let known_size = manifest
+            .and_then(|m| m.entries.get(file_name))
+            .and_then(|e| e.size);
+        Ok(vec![(file_name.clone(), known_size)])
+    } else {
+        Ok(client
+            .fetch_metadata(&archive_target.identifier)?
+            .files
+            .into_iter()
+            .map(|file| {
+                let size =
+                    file.size.as_deref().and_then(|s| s.parse().ok()).or_else(
+                        || {
+                            manifest
+                                .and_then(|m| m.entries.get(&file.name))
+                                .and_then(|e| e.size)
+                        },
+                    );
+                (file.name, size)
+            })
+            .collect())
+    }
+}
+
+fn start_download_batch(
+    progress: &Progress,
+    identifier: &str,
+    file_specs: &[(String, Option<u64>)],
+) -> Result<FileBatchProgress> {
+    let total_files_u64 = u64::try_from(file_specs.len())
+        .map_err(|e| anyhow!("Failed to convert file count to u64: {e}"))?;
+    let initial_known_bytes: u64 = file_specs
+        .iter()
+        .filter_map(|(_, sz)| *sz)
+        .fold(0_u64, u64::saturating_add);
+    let any_known_size = file_specs.iter().any(|(_, sz)| sz.is_some());
+    Ok(progress.start_file_batch(
+        &format!("Overall ({identifier})"),
+        Some(total_files_u64),
+        any_known_size.then_some(initial_known_bytes),
+    ))
 }
 
 fn download_with_client(
@@ -412,52 +540,13 @@ fn download_with_client(
         item_directory.display()
     ));
 
-    let file_specs: Vec<(String, Option<u64>)> = if original {
-        let metadata_files =
-            client.fetch_metadata(&archive_target.identifier)?.files;
-        let original_files: Vec<(String, Option<u64>)> = metadata_files
-            .into_iter()
-            .filter(|file| file.source.as_deref() == Some("original"))
-            .map(|file| {
-                let size = file.size.as_deref().and_then(|s| s.parse().ok());
-                (file.name, size)
-            })
-            .collect();
-        if let Some(file_name) = &archive_target.archive_path {
-            original_files
-                .into_iter()
-                .filter(|(name, _)| name == file_name)
-                .collect()
-        } else {
-            original_files
-        }
-    } else if let Some(file_name) = &archive_target.archive_path {
-        vec![(file_name.clone(), None)]
-    } else {
-        client
-            .fetch_metadata(&archive_target.identifier)?
-            .files
-            .into_iter()
-            .map(|file| {
-                let size = file.size.as_deref().and_then(|s| s.parse().ok());
-                (file.name, size)
-            })
-            .collect()
-    };
-
-    let total_files = file_specs.len();
-    let total_files_u64 = u64::try_from(total_files)
-        .map_err(|e| anyhow!("Failed to convert file count to u64: {e}"))?;
-    let initial_known_bytes: u64 = file_specs
-        .iter()
-        .filter_map(|(_, sz)| *sz)
-        .fold(0_u64, u64::saturating_add);
-    let any_known_size = file_specs.iter().any(|(_, sz)| sz.is_some());
-    let batch = progress.start_file_batch(
-        &format!("Overall ({})", archive_target.identifier),
-        Some(total_files_u64),
-        any_known_size.then_some(initial_known_bytes),
-    );
+    let file_specs =
+        resolve_download_file_specs(client, &archive_target, original, None)?;
+    let batch = start_download_batch(
+        &progress,
+        &archive_target.identifier,
+        &file_specs,
+    )?;
 
     let mut downloaded_files = Vec::new();
 
@@ -471,11 +560,24 @@ fn download_with_client(
                 )
             })?;
         }
+        let part_path = part_path_for_destination(&destination);
+        if let Some(expected_sz) = *known_size
+            && destination.is_file()
+            && !part_path.exists()
+            && fs::metadata(&destination).is_ok_and(|m| m.len() == expected_sz)
+        {
+            let fp =
+                batch.start_transient_file("Existing", file_name, *known_size);
+            fp.finish(expected_sz);
+            downloaded_files.push(file_name.clone());
+            continue;
+        }
         let file_progress = batch.start_file(file_name, *known_size);
         let bytes_written = client.download_file(
             &archive_target.identifier,
             file_name,
             &destination,
+            *known_size,
             Some(&file_progress),
         )?;
         file_progress.finish(bytes_written);
@@ -507,6 +609,103 @@ pub fn checkeddl(
     )
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Internal per-file resume and manifest verification helper"
+)]
+fn checkeddl_download_or_resume_file(
+    client: &dyn ArchiveClient,
+    item_directory: &Path,
+    identifier: &str,
+    file_name: &str,
+    known_size: Option<u64>,
+    manifest: &FilesManifest,
+    verify_options: &VerificationOptions,
+    batch: &FileBatchProgress,
+    progress: &Progress,
+    pre_verified_ok: &mut BTreeSet<String>,
+) -> Result<()> {
+    let destination = item_directory.join(Path::new(file_name));
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent).with_context(|| {
+            format!("Failed to create parent directory {}", parent.display())
+        })?;
+    }
+    let part_path = part_path_for_destination(&destination);
+    let entry_opt = manifest.entries.get(file_name);
+
+    if destination.is_file()
+        && let Some(entry) = entry_opt
+    {
+        let check_fp =
+            batch.start_transient_file("Check", file_name, known_size);
+        let (mismatch_opt, hashed_len) = verify_local_file(
+            item_directory,
+            identifier,
+            &destination,
+            entry,
+            verify_options,
+            Some(&check_fp),
+        )?;
+        if mismatch_opt.is_none() {
+            if part_path.is_file() {
+                drop(fs::remove_file(&part_path));
+            }
+            check_fp.finish(hashed_len);
+            pre_verified_ok.insert(file_name.to_string());
+            return Ok(());
+        }
+        drop(check_fp);
+        if !part_path.is_file() {
+            drop(fs::remove_file(&destination));
+        }
+    }
+
+    let had_existing_part = part_path.is_file();
+    let file_progress = batch.start_file(file_name, known_size);
+    let bytes_written = client.download_file(
+        identifier,
+        file_name,
+        &destination,
+        known_size,
+        Some(&file_progress),
+    )?;
+    file_progress.finish(bytes_written);
+
+    if had_existing_part && let Some(entry) = entry_opt {
+        let (mismatch_opt, _) = verify_local_file(
+            item_directory,
+            identifier,
+            &destination,
+            entry,
+            verify_options,
+            None,
+        )?;
+        if mismatch_opt.is_none() {
+            pre_verified_ok.insert(file_name.to_string());
+        } else {
+            progress.message(&format!(
+                "Resumed partial download for '{file_name}' did not match manifest checksum; re-downloading cleanly..."
+            ));
+            drop(fs::remove_file(&destination));
+            if part_path.is_file() {
+                drop(fs::remove_file(&part_path));
+            }
+            let retry_fp =
+                batch.start_transient_file("Retry", file_name, known_size);
+            let retried_bytes = client.download_file(
+                identifier,
+                file_name,
+                &destination,
+                known_size,
+                Some(&retry_fp),
+            )?;
+            retry_fp.finish(retried_bytes);
+        }
+    }
+    Ok(())
+}
+
 fn checkeddl_with_client(
     client: &dyn ArchiveClient,
     target: &str,
@@ -517,26 +716,73 @@ fn checkeddl_with_client(
     let archive_target = parse_archive_target(target)?;
     let base_output_dir = resolve_output_dir(output_dir)?;
     let item_directory = base_output_dir.join(&archive_target.identifier);
+    fs::create_dir_all(&item_directory).with_context(|| {
+        format!("Failed to create {}", item_directory.display())
+    })?;
 
-    let _ = download_with_client(
-        client,
-        target,
-        Some(&base_output_dir),
-        original,
-        progress.clone(),
-    )?;
-    progress.message("Verifying downloaded files...");
+    progress.message(&format!(
+        "Downloading item '{}' to {}",
+        archive_target.identifier,
+        item_directory.display()
+    ));
+
     let live_files_xml_bytes =
         client.fetch_files_xml_bytes(&archive_target.identifier)?;
-    let files_xml_path = item_directory
-        .join(format!("{}{FILES_XML_SUFFIX}", archive_target.identifier));
-    if !files_xml_path.exists() {
-        let _ = fs::write(&files_xml_path, &live_files_xml_bytes);
-    }
     let manifest = parse_files_manifest(
         &archive_target.identifier,
         &live_files_xml_bytes,
     )?;
+    let verify_options = VerificationOptions {
+        files_xml_live_sha1: Some(sha1_hex_for_bytes(&live_files_xml_bytes)),
+    };
+    let files_xml_name =
+        format!("{}{FILES_XML_SUFFIX}", archive_target.identifier);
+    let files_xml_path = item_directory.join(&files_xml_name);
+
+    let file_specs = resolve_download_file_specs(
+        client,
+        &archive_target,
+        original,
+        Some(&manifest),
+    )?;
+    let batch = start_download_batch(
+        &progress,
+        &archive_target.identifier,
+        &file_specs,
+    )?;
+    let mut pre_verified_ok = BTreeSet::new();
+
+    for (file_name, known_size) in &file_specs {
+        if file_name == &files_xml_name {
+            write_atomic_bytes(&files_xml_path, &live_files_xml_bytes)?;
+            let xml_len = u64::try_from(live_files_xml_bytes.len())
+                .map_err(|e| anyhow!("Invalid files.xml length: {e}"))?;
+            let fp = batch.start_file(file_name, Some(xml_len));
+            fp.finish(xml_len);
+            pre_verified_ok.insert(file_name.clone());
+            continue;
+        }
+        checkeddl_download_or_resume_file(
+            client,
+            &item_directory,
+            &archive_target.identifier,
+            file_name,
+            *known_size,
+            &manifest,
+            &verify_options,
+            &batch,
+            &progress,
+            &mut pre_verified_ok,
+        )?;
+    }
+
+    batch.finish();
+
+    if !files_xml_path.exists() || archive_target.archive_path.is_none() {
+        write_atomic_bytes(&files_xml_path, &live_files_xml_bytes)?;
+    }
+
+    progress.message("Verifying downloaded files...");
     let selected_files =
         if let Some(file_name) = archive_target.archive_path.clone() {
             let mut files = BTreeSet::new();
@@ -562,17 +808,14 @@ fn checkeddl_with_client(
         } else {
             None
         };
-    let verification = verify_against_manifest(
+    let verification = verify_against_manifest_with_preverified(
         &item_directory,
         &archive_target.identifier,
         &manifest,
         selected_files.as_ref(),
         archive_target.archive_path.is_none(),
-        &VerificationOptions {
-            files_xml_live_sha1: Some(sha1_hex_for_bytes(
-                &live_files_xml_bytes,
-            )),
-        },
+        &verify_options,
+        &pre_verified_ok,
         Some(&progress),
     )?;
     progress.message("Verification complete.");
@@ -618,6 +861,7 @@ fn download_here_with_client(
         &archive_target.identifier,
         &file_name,
         &output_path,
+        None,
         Some(&file_progress),
     )?;
     file_progress.finish(bytes_written);
@@ -801,6 +1045,33 @@ fn verify_against_manifest(
     options: &VerificationOptions,
     progress: Option<&Progress>,
 ) -> Result<VerificationResult> {
+    let empty_preverified = BTreeSet::new();
+    verify_against_manifest_with_preverified(
+        item_root,
+        identifier,
+        manifest,
+        selected_files,
+        include_unexpected,
+        options,
+        &empty_preverified,
+        progress,
+    )
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Internal manifest verifier accepting optional pre-verified set from resumed checkeddl"
+)]
+fn verify_against_manifest_with_preverified(
+    item_root: &Path,
+    identifier: &str,
+    manifest: &FilesManifest,
+    selected_files: Option<&BTreeSet<String>>,
+    include_unexpected: bool,
+    options: &VerificationOptions,
+    pre_verified_ok: &BTreeSet<String>,
+    progress: Option<&Progress>,
+) -> Result<VerificationResult> {
     let selected_names: BTreeSet<String> =
         if let Some(selected_files) = selected_files {
             selected_files.clone()
@@ -847,6 +1118,22 @@ fn verify_against_manifest(
             }
             continue;
         };
+
+        if pre_verified_ok.contains(file_name)
+            && let Ok(meta) = fs::metadata(&local_path)
+            && entry.size.is_none_or(|sz| sz == meta.len())
+        {
+            if let Some(ref batch) = verify_batch {
+                let fp = batch.start_transient_file(
+                    "Verify",
+                    file_name,
+                    Some(meta.len()),
+                );
+                fp.finish(meta.len());
+            }
+            checked_files.push(file_name.clone());
+            continue;
+        }
 
         let file_progress = verify_batch.as_ref().map(|batch| {
             batch.start_transient_file("Verify", file_name, entry.size)
@@ -1138,6 +1425,12 @@ fn parse_unsatisfied_content_range_total(val: &str) -> Option<u64> {
     total_part.trim().parse().ok()
 }
 
+fn part_path_for_destination(destination: &Path) -> PathBuf {
+    let mut os_str = destination.as_os_str().to_os_string();
+    os_str.push(PART_FILE_SUFFIX);
+    PathBuf::from(os_str)
+}
+
 fn create_temp_path(parent_dir: &Path, file_name: &str) -> PathBuf {
     static ATOMIC_SEQ: std::sync::atomic::AtomicU64 =
         std::sync::atomic::AtomicU64::new(0);
@@ -1185,6 +1478,30 @@ fn commit_atomic_file(temp_path: &Path, destination: &Path) -> Result<()> {
     })
 }
 
+fn write_atomic_bytes(destination: &Path, bytes: &[u8]) -> Result<()> {
+    // Reason for fallback: If destination is a bare filename without a parent directory, stage in current directory.
+    let parent = destination.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent).with_context(|| {
+        format!("Failed to create parent directory {}", parent.display())
+    })?;
+    // Reason for fallback: Non-UTF-8 leaf names use a generic prefix for the transient atomic staging file.
+    let name_str = destination
+        .file_name()
+        .and_then(std::ffi::OsStr::to_str)
+        .unwrap_or("file");
+    let temp_path = create_temp_path(parent, name_str);
+    let mut guard = TempFileCleanupGuard {
+        temp_path: temp_path.clone(),
+        active: true,
+    };
+    fs::write(&temp_path, bytes).with_context(|| {
+        format!("Failed to write temporary file {}", temp_path.display())
+    })?;
+    commit_atomic_file(&temp_path, destination)?;
+    guard.active = false;
+    Ok(())
+}
+
 fn fetch_download_bytes(identifier: &str, file_name: &str) -> Result<Vec<u8>> {
     let url = download_url(identifier, file_name)?;
     let mut buffer = Vec::new();
@@ -1203,42 +1520,34 @@ fn download_live_file_chunked_range(
     identifier: &str,
     file_name: &str,
     destination: &Path,
+    expected_size: Option<u64>,
     file_progress: Option<&FileItemProgress>,
 ) -> Result<u64> {
     let url = download_url(identifier, file_name)?;
-    // Reason for fallback: If destination is a relative file path without an explicit parent directory, use current directory.
-    let parent = destination.parent().unwrap_or_else(|| Path::new("."));
-    fs::create_dir_all(parent).with_context(|| {
-        format!("Failed to create parent directory {}", parent.display())
-    })?;
-    let temp_path = create_temp_path(parent, file_name);
-    let mut cleanup_guard = TempFileCleanupGuard {
-        temp_path: temp_path.clone(),
-        active: true,
-    };
-    let mut temp_file = fs::File::create(&temp_path).with_context(|| {
-        format!("Failed to create temporary file {}", temp_path.display())
-    })?;
-    let bytes_written = download_to_writer_chunked_range_with_http(
+    download_to_part_file_chunked_range_with_http(
         &PooledRangeHttpClient,
         url.as_str(),
-        &mut temp_file,
+        destination,
+        expected_size,
         file_progress,
         DOWNLOAD_CHUNK_SIZE,
         CHUNK_RETRY_BASE_DELAY_MS,
-    )?;
-    temp_file.sync_all().with_context(|| {
-        format!("Failed to sync temporary file {}", temp_path.display())
-    })?;
-    drop(temp_file);
-    commit_atomic_file(&temp_path, destination)?;
-    cleanup_guard.active = false;
-    Ok(bytes_written)
+    )
 }
 
 enum InitialChunkOutcome {
     FullStream(Box<dyn RangeHttpResponse>),
     EmptyFile,
+    Partial {
+        bytes: Vec<u8>,
+        total_size: Option<u64>,
+    },
+}
+
+enum ResumeChunkOutcome {
+    AlreadyComplete(u64),
+    RestartFromZero,
+    FullStreamFromZero(Box<dyn RangeHttpResponse>),
     Partial {
         bytes: Vec<u8>,
         total_size: Option<u64>,
@@ -1430,54 +1739,132 @@ fn stream_full_response_to_writer(
     Ok(total_copied)
 }
 
-fn download_to_writer_chunked_range_with_http(
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Internal HTTP range resumption helper with explicit retry and progress parameters"
+)]
+fn fetch_resume_chunk_with_retry(
+    http: &dyn RangeHttpClient,
+    url: &str,
+    resume_offset: u64,
+    resume_end: u64,
+    expected_size: Option<u64>,
+    retry_limit: usize,
+    backoff_base_ms: u64,
+    file_progress: Option<&FileItemProgress>,
+) -> Result<ResumeChunkOutcome> {
+    let range_str = format!("bytes={resume_offset}-{resume_end}");
+    let mut attempt = 0;
+
+    loop {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            reqwest::header::RANGE,
+            reqwest::header::HeaderValue::from_str(&range_str)
+                .context("Failed to format resume Range header")?,
+        );
+
+        let attempt_res: Result<ResumeChunkOutcome> = (|| {
+            let mut response = http
+                .get_with_headers(url, Some(headers))
+                .with_context(|| format!("Failed to connect to {url}"))?;
+            let status = response.status();
+            if status == reqwest::StatusCode::OK {
+                return Ok(ResumeChunkOutcome::FullStreamFromZero(response));
+            }
+            if status == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
+                let unsatisfied_total = response
+                    .headers()
+                    .get(reqwest::header::CONTENT_RANGE)
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(parse_unsatisfied_content_range_total);
+                if unsatisfied_total == Some(resume_offset) {
+                    return Ok(ResumeChunkOutcome::AlreadyComplete(
+                        resume_offset,
+                    ));
+                }
+                return Ok(ResumeChunkOutcome::RestartFromZero);
+            }
+            if status != reqwest::StatusCode::PARTIAL_CONTENT {
+                bail!(
+                    "Unexpected HTTP response status {status} while resuming {url}"
+                );
+            }
+
+            let parsed_range = response
+                .headers()
+                .get(reqwest::header::CONTENT_RANGE)
+                .and_then(|v| v.to_str().ok())
+                .and_then(parse_content_range);
+            if let Some((range_start, _, _)) = parsed_range {
+                anyhow::ensure!(
+                    range_start == resume_offset,
+                    "Unexpected Content-Range start {range_start} (expected {resume_offset}) while resuming {url}"
+                );
+            }
+            let total_size = parsed_range
+                .and_then(|(_, _, total)| total)
+                .or(expected_size);
+            if let Some(total) = total_size
+                && resume_offset > total
+            {
+                return Ok(ResumeChunkOutcome::RestartFromZero);
+            }
+            if let (Some(fp), Some(total)) = (file_progress, total_size) {
+                fp.set_total_bytes(total);
+            }
+
+            let chunk_buf = read_response_to_vec_with_progress(
+                response.as_mut(),
+                resume_offset,
+                file_progress,
+            )
+            .context("Failed to read resumed chunk body")?;
+            if chunk_buf.is_empty() && total_size != Some(resume_offset) {
+                bail!(
+                    "Received empty body for resumed byte range {resume_offset}-{resume_end}"
+                );
+            }
+            Ok(ResumeChunkOutcome::Partial {
+                bytes: chunk_buf,
+                total_size,
+            })
+        })();
+
+        match attempt_res {
+            Ok(outcome) => return Ok(outcome),
+            Err(err) => {
+                if attempt < retry_limit {
+                    attempt = attempt.saturating_add(1);
+                    warn_fmt!(
+                        "Retrying resumed chunk {resume_offset}-{resume_end} for {url} (attempt {attempt}/{retry_limit}): {err}"
+                    );
+                    sleep_chunk_retry(attempt, backoff_base_ms);
+                    continue;
+                }
+                return Err(err);
+            }
+        }
+    }
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Shared chunked HTTP Range download loop across file and stream writers"
+)]
+fn continue_chunked_range_loop(
     http: &dyn RangeHttpClient,
     url: &str,
     writer: &mut dyn Write,
-    file_progress: Option<&FileItemProgress>,
+    initial_offset: u64,
+    initial_chunk_len: u64,
+    total_size: Option<u64>,
     chunk_size: u64,
+    retry_limit: usize,
     backoff_base_ms: u64,
+    file_progress: Option<&FileItemProgress>,
 ) -> Result<u64> {
-    anyhow::ensure!(chunk_size > 0, "Download chunk size must be non-zero");
-    let retry_limit = invocation_settings::get_settings()
-        .retry_on_host_error
-        .max(3);
-
-    let (first_chunk, total_size) = match fetch_initial_chunk_with_retry(
-        http,
-        url,
-        chunk_size,
-        retry_limit,
-        backoff_base_ms,
-        file_progress,
-    )? {
-        InitialChunkOutcome::EmptyFile => {
-            if let Some(fp) = file_progress {
-                fp.set_total_bytes(0);
-                fp.set_bytes_done(0);
-            }
-            return Ok(0);
-        }
-        InitialChunkOutcome::FullStream(response) => {
-            return stream_full_response_to_writer(
-                response,
-                url,
-                writer,
-                file_progress,
-            );
-        }
-        InitialChunkOutcome::Partial { bytes, total_size } => {
-            (bytes, total_size)
-        }
-    };
-
-    let first_chunk_len = u64::try_from(first_chunk.len())
-        .map_err(|e| anyhow!("Failed to convert chunk size to u64: {e}"))?;
-    writer
-        .write_all(&first_chunk)
-        .context("Failed to write first chunk to destination")?;
-
-    let mut current_offset = first_chunk_len;
+    let mut current_offset = initial_offset;
     if let Some(fp) = file_progress {
         fp.set_bytes_done(current_offset);
     }
@@ -1490,7 +1877,7 @@ fn download_to_writer_chunked_range_with_http(
             );
             return Ok(current_offset);
         }
-    } else if first_chunk_len < chunk_size {
+    } else if initial_chunk_len < chunk_size {
         if let Some(fp) = file_progress {
             fp.set_total_bytes(current_offset);
         }
@@ -1539,6 +1926,9 @@ fn download_to_writer_chunked_range_with_http(
         writer
             .write_all(&chunk_bytes)
             .context("Failed to write chunk bytes to destination")?;
+        writer
+            .flush()
+            .context("Failed to flush chunk bytes to destination")?;
 
         current_offset = current_offset.saturating_add(chunk_len);
         if let Some(fp) = file_progress {
@@ -1560,6 +1950,285 @@ fn download_to_writer_chunked_range_with_http(
     }
 
     Ok(current_offset)
+}
+
+fn download_to_writer_chunked_range_with_http(
+    http: &dyn RangeHttpClient,
+    url: &str,
+    writer: &mut dyn Write,
+    file_progress: Option<&FileItemProgress>,
+    chunk_size: u64,
+    backoff_base_ms: u64,
+) -> Result<u64> {
+    anyhow::ensure!(chunk_size > 0, "Download chunk size must be non-zero");
+    let retry_limit = invocation_settings::get_settings()
+        .retry_on_host_error
+        .max(3);
+
+    let (first_chunk, total_size) = match fetch_initial_chunk_with_retry(
+        http,
+        url,
+        chunk_size,
+        retry_limit,
+        backoff_base_ms,
+        file_progress,
+    )? {
+        InitialChunkOutcome::EmptyFile => {
+            if let Some(fp) = file_progress {
+                fp.set_total_bytes(0);
+                fp.set_bytes_done(0);
+            }
+            return Ok(0);
+        }
+        InitialChunkOutcome::FullStream(response) => {
+            return stream_full_response_to_writer(
+                response,
+                url,
+                writer,
+                file_progress,
+            );
+        }
+        InitialChunkOutcome::Partial { bytes, total_size } => {
+            (bytes, total_size)
+        }
+    };
+
+    let first_chunk_len = u64::try_from(first_chunk.len())
+        .map_err(|e| anyhow!("Failed to convert chunk size to u64: {e}"))?;
+    writer
+        .write_all(&first_chunk)
+        .context("Failed to write first chunk to destination")?;
+    writer
+        .flush()
+        .context("Failed to flush first chunk to destination")?;
+
+    continue_chunked_range_loop(
+        http,
+        url,
+        writer,
+        first_chunk_len,
+        first_chunk_len,
+        total_size,
+        chunk_size,
+        retry_limit,
+        backoff_base_ms,
+        file_progress,
+    )
+}
+
+fn finalize_part_file(
+    mut part_file: File,
+    part_path: &Path,
+    destination: &Path,
+    total_bytes: u64,
+) -> Result<u64> {
+    part_file.sync_all().with_context(|| {
+        format!(
+            "Failed to sync partial download file {}",
+            part_path.display()
+        )
+    })?;
+    drop(part_file);
+    commit_atomic_file(part_path, destination)?;
+    Ok(total_bytes)
+}
+
+fn reset_part_file_to_zero(
+    part_file: &mut File,
+    part_path: &Path,
+) -> Result<()> {
+    part_file.set_len(0).with_context(|| {
+        format!("Failed to truncate {}", part_path.display())
+    })?;
+    let _ = part_file.seek(SeekFrom::Start(0)).with_context(|| {
+        format!("Failed to seek to start of {}", part_path.display())
+    })?;
+    Ok(())
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Internal .part resumption helper taking explicit file handle, destination paths, and range parameters"
+)]
+fn resume_existing_part_file(
+    http: &dyn RangeHttpClient,
+    url: &str,
+    mut part_file: File,
+    part_path: &Path,
+    destination: &Path,
+    existing_len: u64,
+    expected_size: Option<u64>,
+    file_progress: Option<&FileItemProgress>,
+    chunk_size: u64,
+    retry_limit: usize,
+    backoff_base_ms: u64,
+) -> Result<u64> {
+    part_file.seek(SeekFrom::End(0)).with_context(|| {
+        format!("Failed to seek to end of {}", part_path.display())
+    })?;
+    if let Some(fp) = file_progress {
+        if let Some(expected) = expected_size {
+            fp.set_total_bytes(expected);
+        }
+        fp.set_bytes_done(existing_len);
+    }
+    let resume_end = if let Some(expected) = expected_size {
+        std::cmp::min(
+            existing_len.saturating_add(chunk_size).saturating_sub(1),
+            expected.saturating_sub(1),
+        )
+    } else {
+        existing_len.saturating_add(chunk_size).saturating_sub(1)
+    };
+    match fetch_resume_chunk_with_retry(
+        http,
+        url,
+        existing_len,
+        resume_end,
+        expected_size,
+        retry_limit,
+        backoff_base_ms,
+        file_progress,
+    )? {
+        ResumeChunkOutcome::AlreadyComplete(total) => {
+            if let Some(fp) = file_progress {
+                fp.set_total_bytes(total);
+                fp.set_bytes_done(total);
+            }
+            finalize_part_file(part_file, part_path, destination, total)
+        }
+        ResumeChunkOutcome::FullStreamFromZero(response) => {
+            reset_part_file_to_zero(&mut part_file, part_path)?;
+            let written = stream_full_response_to_writer(
+                response,
+                url,
+                &mut part_file,
+                file_progress,
+            )?;
+            finalize_part_file(part_file, part_path, destination, written)
+        }
+        ResumeChunkOutcome::RestartFromZero => {
+            reset_part_file_to_zero(&mut part_file, part_path)?;
+            let written = download_to_writer_chunked_range_with_http(
+                http,
+                url,
+                &mut part_file,
+                file_progress,
+                chunk_size,
+                backoff_base_ms,
+            )?;
+            finalize_part_file(part_file, part_path, destination, written)
+        }
+        ResumeChunkOutcome::Partial { bytes, total_size } => {
+            let chunk_len = u64::try_from(bytes.len()).map_err(|e| {
+                anyhow!("Failed to convert chunk size to u64: {e}")
+            })?;
+            part_file.write_all(&bytes).with_context(|| {
+                format!("Failed to append to {}", part_path.display())
+            })?;
+            part_file.flush().with_context(|| {
+                format!("Failed to flush {}", part_path.display())
+            })?;
+            let new_offset = existing_len.saturating_add(chunk_len);
+            let total_written = continue_chunked_range_loop(
+                http,
+                url,
+                &mut part_file,
+                new_offset,
+                chunk_len,
+                total_size,
+                chunk_size,
+                retry_limit,
+                backoff_base_ms,
+                file_progress,
+            )?;
+            finalize_part_file(part_file, part_path, destination, total_written)
+        }
+    }
+}
+
+fn download_to_part_file_chunked_range_with_http(
+    http: &dyn RangeHttpClient,
+    url: &str,
+    destination: &Path,
+    expected_size: Option<u64>,
+    file_progress: Option<&FileItemProgress>,
+    chunk_size: u64,
+    backoff_base_ms: u64,
+) -> Result<u64> {
+    anyhow::ensure!(chunk_size > 0, "Download chunk size must be non-zero");
+    // Reason for fallback: If destination is a relative file path without an explicit parent directory, use current directory.
+    let parent = destination.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent).with_context(|| {
+        format!("Failed to create parent directory {}", parent.display())
+    })?;
+
+    let part_path = part_path_for_destination(destination);
+    let mut part_file = OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .open(&part_path)
+        .with_context(|| {
+            format!(
+                "Failed to open partial download file {}",
+                part_path.display()
+            )
+        })?;
+    let mut existing_len = part_file
+        .metadata()
+        .with_context(|| {
+            format!("Failed to read metadata for {}", part_path.display())
+        })?
+        .len();
+
+    if let Some(expected) = expected_size {
+        if existing_len > expected {
+            reset_part_file_to_zero(&mut part_file, &part_path)?;
+            existing_len = 0;
+        } else if existing_len == expected && expected > 0 {
+            if let Some(fp) = file_progress {
+                fp.set_total_bytes(expected);
+                fp.set_bytes_done(expected);
+            }
+            return finalize_part_file(
+                part_file,
+                &part_path,
+                destination,
+                expected,
+            );
+        }
+    }
+
+    let retry_limit = invocation_settings::get_settings()
+        .retry_on_host_error
+        .max(3);
+
+    if existing_len > 0 {
+        return resume_existing_part_file(
+            http,
+            url,
+            part_file,
+            &part_path,
+            destination,
+            existing_len,
+            expected_size,
+            file_progress,
+            chunk_size,
+            retry_limit,
+            backoff_base_ms,
+        );
+    }
+
+    let total_written = download_to_writer_chunked_range_with_http(
+        http,
+        url,
+        &mut part_file,
+        file_progress,
+        chunk_size,
+        backoff_base_ms,
+    )?;
+    finalize_part_file(part_file, &part_path, destination, total_written)
 }
 
 fn fetch_chunk_with_retry(
@@ -3062,5 +3731,406 @@ mod tests {
         )
         .unwrap_err();
         assert!(format!("{err:#}").contains("416"));
+    }
+
+    #[crate::ctb_test]
+    fn test_part_file_interrupted_download_resumes_from_exact_offset() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest = temp_dir.path().join("movie.iso");
+        let part = part_path_for_destination(&dest);
+        assert_eq!(part, temp_dir.path().join("movie.iso.part"));
+
+        let payload: Vec<u8> = (0..120_u32)
+            .map(|i| u8::try_from(i % 251).unwrap())
+            .collect();
+        let total_len = u64::try_from(payload.len()).unwrap();
+
+        // Run 1: fail persistently once offset reaches 48 (3 chunks of 16 bytes),
+        // simulating an interrupted download leaving 48 bytes in movie.iso.part.
+        let run1_client = MockRangeClient::new(|_url, headers| {
+            let range_str = headers
+                .unwrap()
+                .get(reqwest::header::RANGE)
+                .unwrap()
+                .to_str()
+                .unwrap();
+            let (start_s, end_s) = range_str
+                .strip_prefix("bytes=")
+                .unwrap()
+                .split_once('-')
+                .unwrap();
+            let start: usize = start_s.parse().unwrap();
+            let end: usize =
+                end_s.parse::<usize>().unwrap().min(payload.len() - 1);
+            if start >= 48 {
+                bail!("simulated interruption at byte 48");
+            }
+            let mut resp_headers = reqwest::header::HeaderMap::new();
+            resp_headers.insert(
+                reqwest::header::CONTENT_RANGE,
+                reqwest::header::HeaderValue::from_str(&format!(
+                    "bytes {start}-{end}/{total_len}"
+                ))
+                .unwrap(),
+            );
+            let slice = payload[start..=end].to_vec();
+            let slice_len = u64::try_from(slice.len()).unwrap();
+            Ok(MockRangeResponse {
+                status: reqwest::StatusCode::PARTIAL_CONTENT,
+                headers: resp_headers,
+                content_length: Some(slice_len),
+                body: std::io::Cursor::new(slice),
+                fail_after_bytes: None,
+                read_so_far: 0,
+            })
+        });
+
+        download_to_part_file_chunked_range_with_http(
+            &run1_client,
+            "https://archive.org/download/test/movie.iso",
+            &dest,
+            Some(total_len),
+            None,
+            16,
+            0,
+        )
+        .unwrap_err();
+
+        assert!(!dest.exists());
+        assert!(part.is_file());
+        assert_eq!(fs::read(&part).unwrap(), &payload[..48]);
+
+        // Run 2: resume from movie.iso.part; assert NO request starts below byte 48!
+        let requested_starts = std::sync::Mutex::new(Vec::new());
+        let run2_client = MockRangeClient::new(|_url, headers| {
+            let range_str = headers
+                .unwrap()
+                .get(reqwest::header::RANGE)
+                .unwrap()
+                .to_str()
+                .unwrap();
+            let (start_s, end_s) = range_str
+                .strip_prefix("bytes=")
+                .unwrap()
+                .split_once('-')
+                .unwrap();
+            let start: usize = start_s.parse().unwrap();
+            let end: usize =
+                end_s.parse::<usize>().unwrap().min(payload.len() - 1);
+            requested_starts.lock().unwrap().push(start);
+
+            let mut resp_headers = reqwest::header::HeaderMap::new();
+            resp_headers.insert(
+                reqwest::header::CONTENT_RANGE,
+                reqwest::header::HeaderValue::from_str(&format!(
+                    "bytes {start}-{end}/{total_len}"
+                ))
+                .unwrap(),
+            );
+            let slice = payload[start..=end].to_vec();
+            let slice_len = u64::try_from(slice.len()).unwrap();
+            Ok(MockRangeResponse {
+                status: reqwest::StatusCode::PARTIAL_CONTENT,
+                headers: resp_headers,
+                content_length: Some(slice_len),
+                body: std::io::Cursor::new(slice),
+                fail_after_bytes: None,
+                read_so_far: 0,
+            })
+        });
+
+        let final_len = download_to_part_file_chunked_range_with_http(
+            &run2_client,
+            "https://archive.org/download/test/movie.iso",
+            &dest,
+            Some(total_len),
+            None,
+            16,
+            0,
+        )
+        .unwrap();
+
+        assert_eq!(final_len, total_len);
+        assert!(!part.exists());
+        assert_eq!(fs::read(&dest).unwrap(), payload);
+        let starts = requested_starts.lock().unwrap().clone();
+        assert_eq!(starts, vec![48, 64, 80, 96, 112]);
+    }
+
+    #[crate::ctb_test]
+    fn test_part_file_handles_already_complete_416_and_200_ok_fallback() {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        // Case A: .part already has full 32 bytes, expected_size is None, server returns 416 bytes */32
+        let dest_a = temp_dir.path().join("complete.bin");
+        let part_a = part_path_for_destination(&dest_a);
+        let payload_a = b"0123456789abcdef0123456789abcdef".to_vec();
+        fs::write(&part_a, &payload_a).unwrap();
+
+        let client_416 = MockRangeClient::new(|_url, _headers| {
+            let mut resp_headers = reqwest::header::HeaderMap::new();
+            resp_headers.insert(
+                reqwest::header::CONTENT_RANGE,
+                reqwest::header::HeaderValue::from_static("bytes */32"),
+            );
+            Ok(MockRangeResponse {
+                status: reqwest::StatusCode::RANGE_NOT_SATISFIABLE,
+                headers: resp_headers,
+                content_length: Some(0),
+                body: std::io::Cursor::new(Vec::new()),
+                fail_after_bytes: None,
+                read_so_far: 0,
+            })
+        });
+        let written_a = download_to_part_file_chunked_range_with_http(
+            &client_416,
+            "https://archive.org/download/test/complete.bin",
+            &dest_a,
+            None,
+            None,
+            16,
+            0,
+        )
+        .unwrap();
+        assert_eq!(written_a, 32);
+        assert!(!part_a.exists());
+        assert_eq!(fs::read(&dest_a).unwrap(), payload_a);
+
+        // Case B: .part has 10 bytes, server ignores Range and responds 200 OK with full stream
+        let dest_b = temp_dir.path().join("fallback200.bin");
+        let part_b = part_path_for_destination(&dest_b);
+        fs::write(&part_b, b"0123456789").unwrap();
+        let payload_b = b"0123456789ABCDEFGHIJKLMNOPQRSTUV".to_vec();
+        let payload_b_clone = payload_b.clone();
+
+        let client_200 = MockRangeClient::new(move |_url, _headers| {
+            Ok(MockRangeResponse {
+                status: reqwest::StatusCode::OK,
+                headers: reqwest::header::HeaderMap::new(),
+                content_length: Some(32),
+                body: std::io::Cursor::new(payload_b_clone.clone()),
+                fail_after_bytes: None,
+                read_so_far: 0,
+            })
+        });
+        let written_b = download_to_part_file_chunked_range_with_http(
+            &client_200,
+            "https://archive.org/download/test/fallback200.bin",
+            &dest_b,
+            Some(32),
+            None,
+            16,
+            0,
+        )
+        .unwrap();
+        assert_eq!(written_b, 32);
+        assert!(!part_b.exists());
+        assert_eq!(fs::read(&dest_b).unwrap(), payload_b);
+    }
+
+    #[crate::ctb_test]
+    fn test_checkeddl_resumes_interrupted_batch_skipping_verified_and_healing_corrupt_part()
+     {
+        struct RangeBackedArchiveClient<'a> {
+            metadata: MetadataResponse,
+            files_xml: Vec<u8>,
+            files: BTreeMap<String, Vec<u8>>,
+            range_log: &'a std::sync::Mutex<Vec<(String, usize)>>,
+        }
+
+        impl ArchiveClient for RangeBackedArchiveClient<'_> {
+            fn fetch_metadata(
+                &self,
+                _identifier: &str,
+            ) -> Result<MetadataResponse> {
+                Ok(self.metadata.clone())
+            }
+
+            fn fetch_files_xml_bytes(
+                &self,
+                _identifier: &str,
+            ) -> Result<Vec<u8>> {
+                Ok(self.files_xml.clone())
+            }
+
+            fn fetch_meta_xml_bytes(
+                &self,
+                _identifier: &str,
+            ) -> Result<Vec<u8>> {
+                Ok(META_XML.as_bytes().to_vec())
+            }
+
+            fn fetch_download_bytes(
+                &self,
+                _identifier: &str,
+                file_name: &str,
+            ) -> Result<Vec<u8>> {
+                self.files
+                    .get(file_name)
+                    .cloned()
+                    .ok_or_else(|| anyhow!("missing {file_name}"))
+            }
+
+            fn download_file(
+                &self,
+                identifier: &str,
+                file_name: &str,
+                destination: &Path,
+                expected_size: Option<u64>,
+                file_progress: Option<&FileItemProgress>,
+            ) -> Result<u64> {
+                let data = self
+                    .files
+                    .get(file_name)
+                    .cloned()
+                    .ok_or_else(|| anyhow!("missing {file_name}"))?;
+                let total = u64::try_from(data.len()).unwrap();
+                let fname = file_name.to_string();
+                let log_ref = self.range_log;
+                let mock_http = MockRangeClient::new(move |_url, headers| {
+                    let range_str = headers
+                        .unwrap()
+                        .get(reqwest::header::RANGE)
+                        .unwrap()
+                        .to_str()
+                        .unwrap();
+                    let (start_s, end_s) = range_str
+                        .strip_prefix("bytes=")
+                        .unwrap()
+                        .split_once('-')
+                        .unwrap();
+                    let start: usize = start_s.parse().unwrap();
+                    let end: usize =
+                        end_s.parse::<usize>().unwrap().min(data.len() - 1);
+                    log_ref.lock().unwrap().push((fname.clone(), start));
+                    let mut resp_headers = reqwest::header::HeaderMap::new();
+                    resp_headers.insert(
+                        reqwest::header::CONTENT_RANGE,
+                        reqwest::header::HeaderValue::from_str(&format!(
+                            "bytes {start}-{end}/{total}"
+                        ))
+                        .unwrap(),
+                    );
+                    let slice = data[start..=end].to_vec();
+                    let slice_len = u64::try_from(slice.len()).unwrap();
+                    Ok(MockRangeResponse {
+                        status: reqwest::StatusCode::PARTIAL_CONTENT,
+                        headers: resp_headers,
+                        content_length: Some(slice_len),
+                        body: std::io::Cursor::new(slice),
+                        fail_after_bytes: None,
+                        read_so_far: 0,
+                    })
+                });
+                let url = download_url(identifier, file_name)?;
+                download_to_part_file_chunked_range_with_http(
+                    &mock_http,
+                    url.as_str(),
+                    destination,
+                    expected_size,
+                    file_progress,
+                    16,
+                    0,
+                )
+            }
+        }
+
+        let file_a = b"file-a-already-complete-and-verified-bytes!".to_vec();
+        let file_b =
+            b"file-b-resumable-payload-across-several-16-byte-chunks!!"
+                .to_vec();
+        let file_c =
+            b"file-c-clean-remote-contents-after-corrupt-part".to_vec();
+
+        let files_map = BTreeMap::from([
+            ("a.bin".to_string(), file_a.clone()),
+            ("b.bin".to_string(), file_b.clone()),
+            ("c.bin".to_string(), file_c.clone()),
+        ]);
+
+        let mut xml =
+            String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?><files>");
+        let mut meta_files = Vec::new();
+        for (name, bytes) in &files_map {
+            let md5 = md5_hex_for_bytes(bytes);
+            let sha1 = sha1_hex_for_bytes(bytes);
+            let sz = bytes.len().to_string();
+            xml.push_str(&format!(
+                "<file name=\"{name}\" source=\"original\"><size>{sz}</size><md5>{md5}</md5><sha1>{sha1}</sha1></file>"
+            ));
+            meta_files.push(MetadataFile {
+                name: name.clone(),
+                source: Some("original".to_string()),
+                md5: Some(md5),
+                sha1: Some(sha1),
+                size: Some(sz),
+            });
+        }
+        xml.push_str(&format!(
+            "<file name=\"{TEST_IDENTIFIER}{FILES_XML_SUFFIX}\" source=\"original\"><md5>placeholder</md5></file></files>"
+        ));
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let item_dir = temp_dir.path().join(TEST_IDENTIFIER);
+        fs::create_dir_all(&item_dir).unwrap();
+
+        // Seed interrupted state on disk:
+        // 1) a.bin is complete & valid (plus a stale a.bin.part that should be cleaned up)
+        fs::write(item_dir.join("a.bin"), &file_a).unwrap();
+        fs::write(item_dir.join("a.bin.part"), b"stale").unwrap();
+        // 2) b.bin was interrupted after 24 bytes -> b.bin.part exists
+        fs::write(item_dir.join("b.bin.part"), &file_b[..24]).unwrap();
+        // 3) c.bin.part has 16 corrupted bytes -> must detect mismatch after resume and re-download cleanly
+        fs::write(item_dir.join("c.bin.part"), b"CORRUPTED_PREFIX").unwrap();
+
+        let range_log = std::sync::Mutex::new(Vec::new());
+        let client = RangeBackedArchiveClient {
+            metadata: MetadataResponse {
+                files: meta_files,
+                extra: BTreeMap::new(),
+            },
+            files_xml: xml.into_bytes(),
+            files: files_map,
+            range_log: &range_log,
+        };
+
+        let out = checkeddl_with_client(
+            &client,
+            TEST_IDENTIFIER,
+            Some(temp_dir.path()),
+            false,
+            Progress::new(false),
+        )
+        .unwrap();
+        let json_res: serde_json::Value = serde_json::from_slice(&out).unwrap();
+        assert_eq!(json_res["valid"], true, "{json_res:#}");
+        assert_eq!(json_res["mismatched_files"], serde_json::json!([]));
+        assert_eq!(json_res["unexpected_files"], serde_json::json!([]));
+
+        assert_eq!(fs::read(item_dir.join("a.bin")).unwrap(), file_a);
+        assert_eq!(fs::read(item_dir.join("b.bin")).unwrap(), file_b);
+        assert_eq!(fs::read(item_dir.join("c.bin")).unwrap(), file_c);
+        assert!(!item_dir.join("a.bin.part").exists());
+        assert!(!item_dir.join("b.bin.part").exists());
+        assert!(!item_dir.join("c.bin.part").exists());
+
+        let logged = range_log.lock().unwrap().clone();
+        // a.bin must NOT be downloaded at all (0 HTTP requests)!
+        assert!(!logged.iter().any(|(f, _)| f == "a.bin"), "{logged:?}");
+        // b.bin must ONLY be requested starting at offset 24 (24, 40)!
+        let b_starts: Vec<usize> = logged
+            .iter()
+            .filter(|(f, _)| f == "b.bin")
+            .map(|(_, s)| *s)
+            .collect();
+        assert_eq!(b_starts, vec![24, 40]);
+        // c.bin resumed at 16 first, failed SHA1/MD5 check, then re-downloaded cleanly from 0!
+        let c_starts: Vec<usize> = logged
+            .iter()
+            .filter(|(f, _)| f == "c.bin")
+            .map(|(_, s)| *s)
+            .collect();
+        assert_eq!(c_starts.first().copied(), Some(16));
+        assert!(c_starts.contains(&0), "{c_starts:?}");
     }
 }

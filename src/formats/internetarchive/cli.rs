@@ -101,7 +101,7 @@ pub enum IACommand {
         /// An item identifier or archive.org URL.
         target: String,
     },
-    /// Download an item or file from archive.org.
+    /// Download an item or file from archive.org (resuming partial `.part` files).
     Download {
         /// An item identifier, item/file path, or archive.org download URL.
         target: String,
@@ -124,7 +124,7 @@ pub enum IACommand {
         /// An item/file path or archive.org download URL.
         target: String,
     },
-    /// Download a single file into the current directory.
+    /// Download a single file into the current directory (resuming partial `.part` files).
     #[command(name = "downloadHere")]
     DownloadHere {
         /// An item/file path or archive.org download URL.
@@ -139,7 +139,7 @@ pub enum IACommand {
         #[arg(long, overrides_with = "progress")]
         no_progress: bool,
     },
-    /// Download an item or file, then verify the downloaded content.
+    /// Download an item or file (resuming partial `.part` files), then verify checksums.
     Checkeddl {
         /// An item identifier, item/file path, or archive.org download URL.
         target: String,
