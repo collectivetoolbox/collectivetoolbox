@@ -102,24 +102,28 @@ const BUILTIN_TYPE_WORDS: &[&str] = &[
 const BUILTIN_HEAD_WORDS: &[&str] = &[
     // Module & declaration starters (8)
     "ns", "use", "pub", "struct", "brand", "type", "enum", "test",
-    // Binding, control-flow, pattern, & literal head forms (19)
-    "let", "const", "set", "do", "if", "while", "foreach", "match", "case",
-    "else", "break", "continue", "return", "rec", "fault", "nop", "true",
-    "false", "unimplemented",
-    // Composite, nominal, & conversion head forms (9)
-    "bufNew", "tupNew", "structNew", "field", "with", "wrap", "unwrap", "conv",
-    "bitcast",
-    // Unary built-in verbs (20)
-    "neg", "bitNot", "not", "clz", "ctz", "popcnt", "len", "bufFreeze",
-    "isSome", "isNone", "isOk", "isErr", "byteLen", "dcFromU128", "u128FromDc",
-    "dcsFromS", "sFromDcs", "unwrapSome", "unwrapOk", "unwrapErr",
-    // Binary built-in verbs (35)
-    "add", "sub", "mul", "div", "rem", "mod", "truncRem", "wrapAdd", "wrapSub",
+    // Binding, control-flow, pattern, & literal head forms (canonical + synonyms)
+    "be", "hold", "become", "let", "const", "set", "do", "if", "while",
+    "foreach", "match", "case", "else", "break", "continue", "return", "rec",
+    "fault", "nop", "true", "false", "unimplemented",
+    // Composite, nominal, & conversion head forms (canonical + synonyms)
+    "bufNew", "tupNew", "structNew", "field", "with", "wrapped", "unwrapped",
+    "wrap", "unwrap", "conv", "bitcast",
+    // Unary built-in verbs (canonical + synonyms)
+    "neg", "bitNot", "not", "clz", "ctz", "popcnt", "len", "bufFrozen",
+    "bufFreeze", "isSome", "isNone", "isOk", "isErr", "byteLen", "dcFromU128",
+    "u128FromDc", "dcsFromS", "sFromDcs", "capability", "requestCapability",
+    "unwrapSome", "unwrapOk", "unwrapErr",
+    // Binary built-in verbs (canonical + synonyms)
+    "sum", "add", "diff", "sub", "prod", "mul", "quot", "div", "rem", "mod",
+    "truncRem", "wrapSum", "wrapAdd", "wrapDiff", "wrapSub", "wrapProd",
     "wrapMul", "bitAnd", "bitOr", "bitXor", "shl", "shr", "rotl", "rotr", "and",
-    "or", "eq", "ne", "lt", "le", "gt", "ge", "get", "concat", "bufFill",
-    "bufPush", "bufExtend", "unwrapOr", "okOr", "makeRat", "explode", "implode",
-    // Ternary built-in verbs (2)
-    "slice", "bufSet",
+    "or", "eq", "ne", "lt", "le", "gt", "ge", "at", "get", "chain", "concat",
+    "bufFilled", "bufFill", "bufGain", "bufPush", "bufGainAll", "bufExtend",
+    "valOr", "unwrapOr", "okOr", "ratio", "makeRat", "pieces", "explode",
+    "joined", "implode",
+    // Ternary built-in verbs (canonical + synonyms)
+    "slice", "bufBecomeAt", "bufSet",
 ];
 
 const OVERLOADABLE_STD_VERBS: &[&str] = &[
@@ -134,16 +138,23 @@ const OVERLOADABLE_STD_VERBS: &[&str] = &[
     "u128FromDc",
     "dcsFromS",
     "sFromDcs",
-    // Binary
+    // Binary (canonical + imperative synonyms)
+    "sum",
     "add",
+    "diff",
     "sub",
+    "prod",
     "mul",
+    "quot",
     "div",
     "rem",
     "mod",
     "truncRem",
+    "wrapSum",
     "wrapAdd",
+    "wrapDiff",
     "wrapSub",
+    "wrapProd",
     "wrapMul",
     "bitAnd",
     "bitOr",
@@ -158,9 +169,13 @@ const OVERLOADABLE_STD_VERBS: &[&str] = &[
     "le",
     "gt",
     "ge",
+    "at",
     "get",
+    "ratio",
     "makeRat",
+    "pieces",
     "explode",
+    "joined",
     "implode",
     // Ternary
     "slice",
@@ -849,7 +864,7 @@ mod tests {
         }
 
         let all_core_and_stager_ops = [
-            // Core unary & binary & ternary ops + StageL partials
+            // Core unary & binary & ternary ops + StageL partials (canonical + synonyms)
             "neg",
             "bitNot",
             "not",
@@ -857,14 +872,24 @@ mod tests {
             "ctz",
             "popcnt",
             "len",
+            "bufFrozen",
             "bufFreeze",
+            "capability",
+            "requestCapability",
+            "sum",
             "add",
+            "diff",
             "sub",
+            "prod",
             "mul",
+            "quot",
             "div",
             "rem",
+            "wrapSum",
             "wrapAdd",
+            "wrapDiff",
             "wrapSub",
+            "wrapProd",
             "wrapMul",
             "bitAnd",
             "bitOr",
@@ -881,16 +906,22 @@ mod tests {
             "le",
             "gt",
             "ge",
+            "at",
             "get",
+            "chain",
             "concat",
+            "bufFilled",
             "bufFill",
+            "bufGain",
             "bufPush",
+            "bufGainAll",
             "bufExtend",
             "slice",
+            "bufBecomeAt",
             "bufSet",
             "fault",
             "bitcast",
-            // StageR-added unary/binary/ternary/forbidden ops
+            // StageR-added unary/binary/ternary/forbidden ops (canonical + synonyms)
             "isSome",
             "isNone",
             "isOk",
@@ -902,10 +933,14 @@ mod tests {
             "sFromDcs",
             "mod",
             "truncRem",
+            "valOr",
             "unwrapOr",
             "okOr",
+            "ratio",
             "makeRat",
+            "pieces",
             "explode",
+            "joined",
             "implode",
             "unimplemented",
             "unwrapSome",

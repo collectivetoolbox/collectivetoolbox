@@ -833,10 +833,16 @@ v/u32/useIdents u32/in u32/out u32/len u32/type u32/error
             parser::parse_sr3_module("v/u64/bitcast u64/x :: /x.\n").is_err()
         );
         assert!(parser::parse_module("v/u32/add u32/x :: /x.\n").is_err());
+        assert!(parser::parse_module("v/u32/sum u32/x :: /x.\n").is_err());
+        assert!(parser::parse_module("v/u32/be u32/x :: /x.\n").is_err());
+        assert!(parser::parse_module("v/u32/hold u32/x :: /x.\n").is_err());
+        assert!(parser::parse_module("v/u32/become u32/x :: /x.\n").is_err());
         assert!(parser::parse_module("v/u32/ADD u32/x :: /x.\n").is_err());
         assert!(parser::parse_module("v/u32/match u32/x :: /x.\n").is_err());
         assert!(parser::parse_module("v/u32/makeRat u32/x :: /x.\n").is_err());
+        assert!(parser::parse_module("v/u32/ratio u32/x :: /x.\n").is_err());
         assert!(parser::parse_module("v/u32/explode u32/x :: /x.\n").is_err());
+        assert!(parser::parse_module("v/u32/pieces u32/x :: /x.\n").is_err());
         assert!(
             parser::parse_module(
                 "ns std/bytes.\npub v/l/u8/explode l/u8/x :: /x.\n"
@@ -844,8 +850,20 @@ v/u32/useIdents u32/in u32/out u32/len u32/type u32/error
             .is_ok()
         );
         assert!(
+            parser::parse_module(
+                "ns std/bytes.\npub v/l/u8/pieces l/u8/x :: /x.\n"
+            )
+            .is_ok()
+        );
+        assert!(
             parser::parse_sr3_module(
                 "ns std/bytes.\npub v/l/u8/explode l/u8/x :: /x.\n"
+            )
+            .is_err()
+        );
+        assert!(
+            parser::parse_sr3_module(
+                "ns std/bytes.\npub v/l/u8/pieces l/u8/x :: /x.\n"
             )
             .is_err()
         );

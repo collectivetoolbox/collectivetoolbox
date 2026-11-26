@@ -281,17 +281,18 @@ impl Parser {
                     span,
                 }))
             }
-            "let" => {
+            "hold" | "let" => {
                 if let Some(target) = self.peek()
                     && let LexKind::Word(tw) = &target.kind
                     && tw.starts_with("v/")
                 {
                     bail!(
-                        "Nested routine declarations use 'const {tw} ...', not 'let' at {span}"
+                        "Nested routine declarations use 'be {tw} ...' (or 'const {tw} ...'), not '{word}' at {span}"
                     );
                 }
+                let after_desc = format!("after '{word}'");
                 let (ty, name, _) =
-                    self.parse_typed_name_from_tokens("after 'let'")?;
+                    self.parse_typed_name_from_tokens(&after_desc)?;
                 let init = if let Some(next) = self.peek_skip_comments() {
                     if matches!(next.kind, LexKind::Dot | LexKind::DoubleColon)
                     {
@@ -309,17 +310,18 @@ impl Parser {
                     span,
                 }))
             }
-            "const" => {
+            "be" | "const" => {
                 if let Some(target) = self.peek()
                     && let LexKind::Word(tw) = &target.kind
                     && tw.starts_with("v/")
                 {
                     bail!(
-                        "Nested routine declaration 'const {tw}' at {span} is only allowed as a direct statement inside a routine or 'do ... ::' block"
+                        "Nested routine declaration '{word} {tw}' at {span} is only allowed as a direct statement inside a routine or 'do ... ::' block"
                     );
                 }
+                let after_desc = format!("after '{word}'");
                 let (ty, name, _) =
-                    self.parse_typed_name_from_tokens("after 'const'")?;
+                    self.parse_typed_name_from_tokens(&after_desc)?;
                 let value = Box::new(self.parse_expr(enclosing_is_void)?);
                 Ok(Some(Expr::Const {
                     dc_id: None,
@@ -329,17 +331,18 @@ impl Parser {
                     span,
                 }))
             }
-            "set" => {
+            "become" | "set" => {
                 if let Some(target) = self.peek()
                     && let LexKind::Word(tw) = &target.kind
                     && tw.starts_with("v/")
                 {
                     bail!(
-                        "Routine '{tw}' cannot be mutated with 'set' at {span}"
+                        "Routine '{tw}' cannot be mutated with '{word}' at {span}"
                     );
                 }
+                let after_desc = format!("after '{word}'");
                 let (ty, name, _) =
-                    self.parse_optional_typed_name_from_tokens("after 'set'")?;
+                    self.parse_optional_typed_name_from_tokens(&after_desc)?;
                 let value = Box::new(self.parse_expr(enclosing_is_void)?);
                 Ok(Some(Expr::Set {
                     ty,
@@ -397,16 +400,18 @@ impl Parser {
                 )?;
                 Ok(Some(Expr::TupleNew { elements, span }))
             }
-            "wrap" if self.dialect == StageDialect::StageR3 => {
+            "wrapped" | "wrap" if self.dialect == StageDialect::StageR3 => {
                 let expr = Box::new(self.parse_expr(enclosing_is_void)?);
-                let target_ty = self.parse_type_operand(span, "wrap")?;
+                let target_ty = self.parse_type_operand(span, word)?;
                 Ok(Some(Expr::WrapNominal {
                     expr,
                     target_ty,
                     span,
                 }))
             }
-            "unwrap" if self.dialect == StageDialect::StageR3 => {
+            "unwrapped" | "unwrap"
+                if self.dialect == StageDialect::StageR3 =>
+            {
                 let expr = Box::new(self.parse_expr(enclosing_is_void)?);
                 Ok(Some(Expr::UnwrapNominal { expr, span }))
             }
@@ -877,7 +882,7 @@ impl Parser {
         if word.starts_with("v/") {
             ensure!(
                 self.dialect == StageDialect::StageR3,
-                "Inline anonymous routine call '{word}' at {span} belongs to StageR 3; declare a local named routine with 'const v/<RETURN>/<name> ...' in StageL 3"
+                "Inline anonymous routine call '{word}' at {span} belongs to StageR 3; declare a local named routine with 'be v/<RETURN>/<name> ...' (or 'const v/<RETURN>/<name> ...') in StageL 3"
             );
             return self.parse_inline_anon_call(word, span, enclosing_is_void);
         }

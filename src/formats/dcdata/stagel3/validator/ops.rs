@@ -31,6 +31,7 @@ use crate::utilities::*;
 use super::super::ast::{
     BinaryOp, Expr, Span, StageDialect, StageLType, StructTypeRef,
     SymbolTarget, TernaryOp, TypedIntLit, UnaryOp,
+    overloadable_std_synonym_counterpart,
 };
 use super::consts_and_flow::{BodyCtx, FlowState};
 use super::imports_and_decls::ModuleValidator;
@@ -1071,6 +1072,36 @@ impl<'a> ModuleValidator<'a> {
         Ok((lty, rty))
     }
 
+    fn find_stagel_op_overload_ident(&self, op_name: &str) -> Option<String> {
+        if self.routine_candidates.contains_key(op_name) {
+            return Some(op_name.to_owned());
+        }
+        if let Some(alt) = overloadable_std_synonym_counterpart(op_name)
+            && self.routine_candidates.contains_key(alt)
+        {
+            return Some(alt.to_owned());
+        }
+        None
+    }
+
+    fn resolve_stagel_op_overload_by_ident(
+        &mut self,
+        cand_ident: &str,
+        arg_tys: &[StageLType],
+        was_in_tail: bool,
+        span: Span,
+    ) -> Result<StageLType> {
+        let ret = self.resolve_ident_overload_call(
+            cand_ident,
+            arg_tys,
+            was_in_tail,
+            span,
+        )?;
+        self.overload_call_idents
+            .insert((span.line, span.col), cand_ident.to_owned());
+        Ok(ret)
+    }
+
     /// Type-checks a unified unary operator expression across StageL 3 and StageR 3.
     fn try_stagel_op_overload(
         &mut self,
@@ -1081,10 +1112,10 @@ impl<'a> ModuleValidator<'a> {
         builtin_err: anyhow::Error,
     ) -> Result<StageLType> {
         if self.dialect == StageDialect::StageL3
-            && self.routine_candidates.contains_key(op_name)
+            && let Some(cand_ident) = self.find_stagel_op_overload_ident(op_name)
         {
-            self.resolve_ident_overload_call(
-                op_name,
+            self.resolve_stagel_op_overload_by_ident(
+                &cand_ident,
                 arg_tys,
                 was_in_tail,
                 span,
@@ -1106,7 +1137,9 @@ impl<'a> ModuleValidator<'a> {
         let was_in_tail = ctx.in_tail;
         match op {
             UnaryOp::Len => {
-                let ty = self.check_buf_target(operand, "len", false, state, ctx)?;
+                let ty = self.check_buf_target(
+                    operand, "len", false, false, state, ctx,
+                )?;
                 if ty == StageLType::Never {
                     return Ok(if self.dialect == StageDialect::StageL3 {
                         StageLType::U64
@@ -1136,8 +1169,9 @@ impl<'a> ModuleValidator<'a> {
             UnaryOp::BufFreeze => {
                 let ty = self.check_buf_target(
                     operand,
-                    "bufFreeze",
+                    op.keyword(),
                     self.dialect == StageDialect::StageR3,
+                    true,
                     state,
                     ctx,
                 )?;
@@ -1146,7 +1180,8 @@ impl<'a> ModuleValidator<'a> {
                 }
                 let StageLType::Buf(inner) = ty else {
                     bail!(
-                        "'bufFreeze' requires 'buf/T' operand at {span}, found '{ty}'"
+                        "'{}' requires 'buf/T' operand at {span}, found '{ty}'",
+                        op.keyword()
                     );
                 };
                 Ok(StageLType::List(inner))
@@ -1162,10 +1197,11 @@ impl<'a> ModuleValidator<'a> {
                     }
                     if self.dialect == StageDialect::StageL3
                         && !ty.is_integer()
-                        && self.routine_candidates.contains_key(op.keyword())
+                        && let Some(cand_ident) =
+                            self.find_stagel_op_overload_ident(op.keyword())
                     {
-                        return self.resolve_ident_overload_call(
-                            op.keyword(),
+                        return self.resolve_stagel_op_overload_by_ident(
+                            &cand_ident,
                             &[ty],
                             was_in_tail,
                             span,
@@ -1195,10 +1231,11 @@ impl<'a> ModuleValidator<'a> {
                     return Ok(ty);
                 }
                 if self.dialect == StageDialect::StageL3
-                    && self.routine_candidates.contains_key(op.keyword())
+                    && let Some(cand_ident) =
+                        self.find_stagel_op_overload_ident(op.keyword())
                 {
-                    return self.resolve_ident_overload_call(
-                        op.keyword(),
+                    return self.resolve_stagel_op_overload_by_ident(
+                        &cand_ident,
                         &[ty],
                         was_in_tail,
                         span,
@@ -1233,10 +1270,11 @@ impl<'a> ModuleValidator<'a> {
                     return Ok(StageLType::U32);
                 }
                 if self.dialect == StageDialect::StageL3
-                    && self.routine_candidates.contains_key(op.keyword())
+                    && let Some(cand_ident) =
+                        self.find_stagel_op_overload_ident(op.keyword())
                 {
-                    return self.resolve_ident_overload_call(
-                        op.keyword(),
+                    return self.resolve_stagel_op_overload_by_ident(
+                        &cand_ident,
                         &[ty],
                         was_in_tail,
                         span,
@@ -1418,39 +1456,55 @@ impl<'a> ModuleValidator<'a> {
                 self.check_short_circuit_logic(op, left, right, span, state, ctx)
             }
             BinaryOp::BufPush => {
-                let buf_ty =
-                    self.check_buf_target(left, "bufPush", true, state, ctx)?;
+                let buf_ty = self.check_buf_target(
+                    left,
+                    op.keyword(),
+                    true,
+                    false,
+                    state,
+                    ctx,
+                )?;
                 let val_ty = self.check_subexpr(right, state, ctx)?;
                 if buf_ty == StageLType::Never {
                     return Ok(StageLType::Never);
                 }
                 let StageLType::Buf(inner) = buf_ty else {
                     bail!(
-                        "'bufPush' requires 'buf/T' first argument at {span}, found '{buf_ty}'"
+                        "'{}' requires 'buf/T' first argument at {span}, found '{buf_ty}'",
+                        op.keyword()
                     );
                 };
                 ensure!(
                     types_compatible(&val_ty, &inner),
-                    "'bufPush' element at {span} has type '{val_ty}', expected '{inner}'"
+                    "'{}' element at {span} has type '{val_ty}', expected '{inner}'",
+                    op.keyword()
                 );
                 Ok(StageLType::Void)
             }
             BinaryOp::BufExtend => {
-                let buf_ty =
-                    self.check_buf_target(left, "bufExtend", true, state, ctx)?;
+                let buf_ty = self.check_buf_target(
+                    left,
+                    op.keyword(),
+                    true,
+                    false,
+                    state,
+                    ctx,
+                )?;
                 let list_ty = self.check_subexpr(right, state, ctx)?;
                 if buf_ty == StageLType::Never {
                     return Ok(StageLType::Never);
                 }
                 let StageLType::Buf(inner) = buf_ty else {
                     bail!(
-                        "'bufExtend' requires 'buf/T' first argument at {span}, found '{buf_ty}'"
+                        "'{}' requires 'buf/T' first argument at {span}, found '{buf_ty}'",
+                        op.keyword()
                     );
                 };
                 let expected_list = StageLType::List(inner);
                 ensure!(
                     types_compatible(&list_ty, &expected_list),
-                    "'bufExtend' list at {span} has type '{list_ty}', expected '{expected_list}'"
+                    "'{}' list at {span} has type '{list_ty}', expected '{expected_list}'",
+                    op.keyword()
                 );
                 Ok(StageLType::Void)
             }
@@ -1832,7 +1886,8 @@ impl<'a> ModuleValidator<'a> {
         ctx: &mut BodyCtx,
     ) -> Result<StageLType> {
         let is_total = op == BinaryOp::TotalGet;
-        let lty = self.check_buf_target(left, op.keyword(), false, state, ctx)?;
+        let lty =
+            self.check_buf_target(left, op.keyword(), false, false, state, ctx)?;
         let rty = self.check_subexpr(right, state, ctx)?;
         if !is_total
             && self.dialect == StageDialect::StageL3
@@ -1840,10 +1895,11 @@ impl<'a> ModuleValidator<'a> {
                 lty,
                 StageLType::List(_) | StageLType::Buf(_) | StageLType::Never
             )
-            && self.routine_candidates.contains_key(op.keyword())
+            && let Some(cand_ident) =
+                self.find_stagel_op_overload_ident(op.keyword())
         {
-            return self.resolve_ident_overload_call(
-                op.keyword(),
+            return self.resolve_stagel_op_overload_by_ident(
+                &cand_ident,
                 &[lty, rty],
                 was_in_tail,
                 span,
@@ -2107,10 +2163,11 @@ impl<'a> ModuleValidator<'a> {
                             | StageLType::Buf(_)
                             | StageLType::Never
                     )
-                    && self.routine_candidates.contains_key(op.keyword())
+                    && let Some(cand_ident) =
+                        self.find_stagel_op_overload_ident(op.keyword())
                 {
-                    return self.resolve_ident_overload_call(
-                        op.keyword(),
+                    return self.resolve_stagel_op_overload_by_ident(
+                        &cand_ident,
                         &[seq_ty, start_ty, end_ty],
                         was_in_tail,
                         span,
@@ -2155,8 +2212,14 @@ impl<'a> ModuleValidator<'a> {
             }
             TernaryOp::BufSet | TernaryOp::TotalBufSet => {
                 let is_total = op == TernaryOp::TotalBufSet;
-                let buf_ty =
-                    self.check_buf_target(first, "bufSet", true, state, ctx)?;
+                let buf_ty = self.check_buf_target(
+                    first,
+                    op.keyword(),
+                    true,
+                    false,
+                    state,
+                    ctx,
+                )?;
                 let idx_ty = self.check_subexpr(second, state, ctx)?;
                 let val_ty = self.check_subexpr(third, state, ctx)?;
                 let prefix = if is_total {

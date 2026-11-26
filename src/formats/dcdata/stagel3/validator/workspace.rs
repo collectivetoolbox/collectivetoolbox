@@ -30,7 +30,7 @@ use crate::utilities::*;
 use super::super::ast::{
     Expr, Module, RoutineDecl, StageDialect, StageLType, StructTypeRef,
     TestExpected, TopDecl, TypedIntLit, format_dc_shorthand,
-    parse_dc_shorthand,
+    overloadable_std_synonym_counterpart, parse_dc_shorthand,
 };
 use super::super::parser::{
     StageRImportContext, StageRTypeKind, parse_module_with_imports,
@@ -656,7 +656,8 @@ pub(crate) fn build_stager_import_context(
                         | ImportedSymbol::Struct { .. } => {}
                     }
                 } else {
-                    let local_name = if words.get(wi) == Some(&"as") {
+                    let has_alias = words.get(wi) == Some(&"as");
+                    let local_name = if has_alias {
                         wi = wi.saturating_add(1);
                         let a = *words
                             .get(wi)
@@ -666,17 +667,40 @@ pub(crate) fn build_stager_import_context(
                     } else {
                         item_w
                     };
-                    if let Some(sigs) = exports.routines.get(item_w) {
+                    let is_std_path =
+                        path == "std" || path.starts_with("std/");
+                    let sigs_opt =
+                        exports.routines.get(item_w).or_else(|| {
+                            if is_std_path {
+                                overloadable_std_synonym_counterpart(item_w)
+                                    .and_then(|alt| exports.routines.get(alt))
+                            } else {
+                                None
+                            }
+                        });
+                    if let Some(sigs) = sigs_opt {
                         ensure!(
                             !sigs.is_empty(),
                             "Empty routine export overload list"
                         );
                         for sig in sigs {
+                            let arity = sig.params.len();
                             record_imported_verb_arity(
                                 &mut ctx.verb_arities,
                                 local_name,
-                                sig.params.len(),
+                                arity,
                             )?;
+                            if !has_alias
+                                && is_std_path
+                                && let Some(alt) =
+                                    overloadable_std_synonym_counterpart(
+                                        local_name,
+                                    )
+                            {
+                                ctx.verb_arities
+                                    .entry(alt.to_owned())
+                                    .or_insert(arity);
+                            }
                         }
                     } else if exports.named_structs.contains_key(item_w) {
                         ctx.type_kinds_by_name.insert(

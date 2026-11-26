@@ -549,7 +549,7 @@ pub(super) fn parse_anon_routine_ret_after_head_with_ctx(
             && nw.starts_with('/')
         {
             bail!(
-                "Nested routine declaration 'v/{return_type}{nw}' at {span} must be prefixed with 'const' inside a block (write 'const v/{return_type}{nw} ...')"
+                "Nested routine declaration 'v/{return_type}{nw}' at {span} must be prefixed with 'be' (or 'const') inside a block (write 'be v/{return_type}{nw} ...' or 'const v/{return_type}{nw} ...')"
             );
         }
         return Ok(return_type);
@@ -560,7 +560,7 @@ pub(super) fn parse_anon_routine_ret_after_head_with_ctx(
         Err(type_err) => {
             if parse_routine_sig_token_with_ctx(word, span, ctx).is_ok() {
                 bail!(
-                    "Nested routine declaration '{word}' at {span} must be prefixed with 'const' inside a block (write 'const {word} ...')"
+                    "Nested routine declaration '{word}' at {span} must be prefixed with 'be' (or 'const') inside a block (write 'be {word} ...' or 'const {word} ...')"
                 );
             }
             Err(type_err)
@@ -724,14 +724,14 @@ pub(super) fn match_unary_op(
         (StageDialect::StageR3, "u128FromDc") => UnaryOp::U128FromDc,
         (StageDialect::StageR3, "dcsFromS") => UnaryOp::DcsFromS,
         (StageDialect::StageR3, "sFromDcs") => UnaryOp::SFromDcs,
-        (_, "requestCapability") => UnaryOp::RequestCapability,
+        (_, "capability" | "requestCapability") => UnaryOp::RequestCapability,
         (_, "bitNot") => UnaryOp::BitNot,
         (_, "not") => UnaryOp::Not,
         (_, "clz") => UnaryOp::Clz,
         (_, "ctz") => UnaryOp::Ctz,
         (_, "popcnt") => UnaryOp::Popcnt,
         (_, "len") => UnaryOp::Len,
-        (_, "bufFreeze") => UnaryOp::BufFreeze,
+        (_, "bufFrozen" | "bufFreeze") => UnaryOp::BufFreeze,
         _ => return None,
     };
     Some(op)
@@ -742,14 +742,14 @@ pub(super) fn match_binary_op(
     dialect: StageDialect,
 ) -> Option<BinaryOp> {
     let op = match (dialect, word) {
-        (StageDialect::StageL3, "add") => BinaryOp::Add,
-        (StageDialect::StageR3, "add") => BinaryOp::TotalAdd,
-        (StageDialect::StageL3, "sub") => BinaryOp::Sub,
-        (StageDialect::StageR3, "sub") => BinaryOp::TotalSub,
-        (StageDialect::StageL3, "mul") => BinaryOp::Mul,
-        (StageDialect::StageR3, "mul") => BinaryOp::TotalMul,
-        (StageDialect::StageL3, "div") => BinaryOp::Div,
-        (StageDialect::StageR3, "div") => BinaryOp::TotalDiv,
+        (StageDialect::StageL3, "sum" | "add") => BinaryOp::Add,
+        (StageDialect::StageR3, "sum" | "add") => BinaryOp::TotalAdd,
+        (StageDialect::StageL3, "diff" | "sub") => BinaryOp::Sub,
+        (StageDialect::StageR3, "diff" | "sub") => BinaryOp::TotalSub,
+        (StageDialect::StageL3, "prod" | "mul") => BinaryOp::Mul,
+        (StageDialect::StageR3, "prod" | "mul") => BinaryOp::TotalMul,
+        (StageDialect::StageL3, "quot" | "div") => BinaryOp::Div,
+        (StageDialect::StageR3, "quot" | "div") => BinaryOp::TotalDiv,
         (StageDialect::StageL3, "rem") => BinaryOp::Rem,
         (StageDialect::StageR3, "mod") => BinaryOp::TotalMod,
         (StageDialect::StageR3, "truncRem") => BinaryOp::TotalTruncRem,
@@ -757,16 +757,16 @@ pub(super) fn match_binary_op(
         (StageDialect::StageR3, "shl") => BinaryOp::TotalShl,
         (StageDialect::StageL3, "shr") => BinaryOp::Shr,
         (StageDialect::StageR3, "shr") => BinaryOp::TotalShr,
-        (StageDialect::StageL3, "get") => BinaryOp::Get,
-        (StageDialect::StageR3, "get") => BinaryOp::TotalGet,
-        (StageDialect::StageR3, "unwrapOr") => BinaryOp::UnwrapOr,
+        (StageDialect::StageL3, "at" | "get") => BinaryOp::Get,
+        (StageDialect::StageR3, "at" | "get") => BinaryOp::TotalGet,
+        (StageDialect::StageR3, "valOr" | "unwrapOr") => BinaryOp::UnwrapOr,
         (StageDialect::StageR3, "okOr") => BinaryOp::OkOr,
-        (StageDialect::StageR3, "makeRat") => BinaryOp::MakeRat,
-        (StageDialect::StageR3, "explode") => BinaryOp::Explode,
-        (StageDialect::StageR3, "implode") => BinaryOp::Implode,
-        (_, "wrapAdd") => BinaryOp::WrapAdd,
-        (_, "wrapSub") => BinaryOp::WrapSub,
-        (_, "wrapMul") => BinaryOp::WrapMul,
+        (StageDialect::StageR3, "ratio" | "makeRat") => BinaryOp::MakeRat,
+        (StageDialect::StageR3, "pieces" | "explode") => BinaryOp::Explode,
+        (StageDialect::StageR3, "joined" | "implode") => BinaryOp::Implode,
+        (_, "wrapSum" | "wrapAdd") => BinaryOp::WrapAdd,
+        (_, "wrapDiff" | "wrapSub") => BinaryOp::WrapSub,
+        (_, "wrapProd" | "wrapMul") => BinaryOp::WrapMul,
         (_, "bitAnd") => BinaryOp::BitAnd,
         (_, "bitOr") => BinaryOp::BitOr,
         (_, "bitXor") => BinaryOp::BitXor,
@@ -780,10 +780,10 @@ pub(super) fn match_binary_op(
         (_, "le") => BinaryOp::Le,
         (_, "gt") => BinaryOp::Gt,
         (_, "ge") => BinaryOp::Ge,
-        (_, "concat") => BinaryOp::Concat,
-        (_, "bufFill") => BinaryOp::BufFill,
-        (_, "bufPush") => BinaryOp::BufPush,
-        (_, "bufExtend") => BinaryOp::BufExtend,
+        (_, "chain" | "concat") => BinaryOp::Concat,
+        (_, "bufFilled" | "bufFill") => BinaryOp::BufFill,
+        (_, "bufGain" | "bufPush") => BinaryOp::BufPush,
+        (_, "bufGainAll" | "bufExtend") => BinaryOp::BufExtend,
         _ => return None,
     };
     Some(op)
@@ -796,8 +796,10 @@ pub(super) fn match_ternary_op(
     let op = match (dialect, word) {
         (StageDialect::StageL3, "slice") => TernaryOp::Slice,
         (StageDialect::StageR3, "slice") => TernaryOp::TotalSlice,
-        (StageDialect::StageL3, "bufSet") => TernaryOp::BufSet,
-        (StageDialect::StageR3, "bufSet") => TernaryOp::TotalBufSet,
+        (StageDialect::StageL3, "bufBecomeAt" | "bufSet") => TernaryOp::BufSet,
+        (StageDialect::StageR3, "bufBecomeAt" | "bufSet") => {
+            TernaryOp::TotalBufSet
+        }
         _ => return None,
     };
     Some(op)
