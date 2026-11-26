@@ -30,20 +30,15 @@ use crate::utilities::*;
 use super::super::ast::{
     AnonRoutine, BlockItem, Comment, Expr, ImportTarget, Module, RoutineDecl,
     StageDialect, StageLType, StructTypeRef, SymbolTarget, TestExpected,
-    TopDecl, canonicalize_overloadable_std_verb,
-    canonicalize_stage1_call_synonym, format_dc_shorthand,
-    is_enclosing_routine_token_dc,
+    TopDecl, format_dc_shorthand, is_enclosing_routine_token_dc,
 };
 use super::dc_chars_to_dcts_string;
 use crate::DcChar;
 use crate::syntax::{SyntaxRuleResolver, default_syntax_resolver};
-use std::collections::HashSet;
 use std::fmt::Write as _;
 
 struct FormatCtx {
     dialect: StageDialect,
-    is_std_ns: bool,
-    std_aliased_names: HashSet<String>,
     anon_counter: usize,
     resolver: &'static dyn SyntaxRuleResolver,
 }
@@ -52,8 +47,6 @@ impl FormatCtx {
     fn new(dialect: StageDialect) -> Self {
         Self {
             dialect,
-            is_std_ns: false,
-            std_aliased_names: HashSet::new(),
             anon_counter: 0,
             resolver: default_syntax_resolver().as_ref(),
         }
@@ -118,30 +111,16 @@ fn format_module_inner(
         write_comment_line(&mut out, 0, c)?;
     }
     if let Some(ns_segs) = &module.namespace {
-        ctx.is_std_ns = ns_segs.first().map(String::as_str) == Some("std");
         writeln!(out, "ns {}.", ns_segs.join("/"))?;
     }
     for u in &module.uses {
-        let use_is_std = u.path.first().map(String::as_str) == Some("std");
         for c in &u.comments_before {
             write_comment_line(&mut out, 0, c)?;
         }
         write!(out, "use {}:", u.path.join("/"))?;
         for item in &u.items {
-            if let Some(alias) = &item.alias {
-                ctx.std_aliased_names.insert(alias.clone());
-            }
             match &item.target {
-                ImportTarget::Name(n) => {
-                    let rendered = if use_is_std {
-                        // Reason for fallback: non-synonym std exports keep their declared identifier unchanged.
-                        canonicalize_overloadable_std_verb(n)
-                            .unwrap_or(n.as_str())
-                    } else {
-                        n.as_str()
-                    };
-                    write!(out, " {rendered}")?;
-                }
+                ImportTarget::Name(n) => write!(out, " {n}")?,
                 ImportTarget::Dc(dc) => {
                     write!(out, " dc/{}", format_dc_shorthand(*dc))?;
                 }
@@ -270,7 +249,7 @@ fn write_top_decl(
             }
         }
         TopDecl::Value(v) => {
-            let private_kw = if v.is_pub { None } else { Some("be") };
+            let private_kw = if v.is_pub { None } else { Some("const") };
             write_decl_header_prefix(
                 out,
                 0,
@@ -438,7 +417,7 @@ fn write_routine(
     is_nested: bool,
     ctx: &mut FormatCtx,
 ) -> Result<()> {
-    let private_kw = if is_nested { Some("be") } else { None };
+    let private_kw = if is_nested { Some("const") } else { None };
     write_decl_header_prefix(
         out,
         indent,
@@ -448,16 +427,7 @@ fn write_routine(
         r.dc_id,
         private_kw,
     )?;
-    let routine_name = if !is_nested
-        && ctx.dialect == StageDialect::StageL3
-        && ctx.is_std_ns
-    {
-        // Reason for fallback: non-synonym std routines keep their declared identifier unchanged.
-        canonicalize_overloadable_std_verb(&r.name).unwrap_or(r.name.as_str())
-    } else {
-        r.name.as_str()
-    };
-    write!(out, "v/{}/{routine_name}", r.return_type)?;
+    write!(out, "v/{}/{}", r.return_type, r.name)?;
     for p in &r.params {
         write!(out, " {}/{}", p.ty, p.name)?;
     }
@@ -806,7 +776,7 @@ fn write_expr(
             write_symbol_target(out, target)?;
         }
         Expr::Let { ty, name, init, .. } => {
-            write!(out, "hold {ty}/{name}")?;
+            write!(out, "let {ty}/{name}")?;
             if let Some(e) = init {
                 out.push(' ');
                 write_expr(out, e, indent, ctx)?;
@@ -815,13 +785,13 @@ fn write_expr(
         Expr::Const {
             ty, name, value, ..
         } => {
-            write!(out, "be {ty}/{name} ")?;
+            write!(out, "const {ty}/{name} ")?;
             write_expr(out, value, indent, ctx)?;
         }
         Expr::Set { ty, name, value, .. } => {
             match ty {
-                Some(t) => write!(out, "become {t}/{name} ")?,
-                None => write!(out, "become /{name} ")?,
+                Some(t) => write!(out, "set {t}/{name} ")?,
+                None => write!(out, "set /{name} ")?,
             }
             write_expr(out, value, indent, ctx)?;
         }
@@ -849,16 +819,6 @@ fn write_expr(
                 && is_enclosing_routine_token_dc(ctx.resolver, *dc)
             {
                 out.push_str("rec");
-            } else if let SymbolTarget::Ident(n) = target
-                && ctx.dialect == StageDialect::StageL3
-                && !ctx.std_aliased_names.contains(n)
-                && let Some(canon) = canonicalize_overloadable_std_verb(n)
-                    .filter(|_| {
-                        ctx.is_std_ns
-                            || canonicalize_stage1_call_synonym(n).is_some()
-                    })
-            {
-                out.push_str(canon);
             } else {
                 write_symbol_target(out, target)?;
             }
@@ -998,7 +958,7 @@ fn write_expr(
         } => {
             write_prefix_op_call(
                 out,
-                "wrapped",
+                "wrap",
                 &[expr],
                 Some(target_ty),
                 indent,
@@ -1006,7 +966,7 @@ fn write_expr(
             )?;
         }
         Expr::UnwrapNominal { expr, .. } => {
-            write_prefix_op_call(out, "unwrapped", &[expr], None, indent, ctx)?;
+            write_prefix_op_call(out, "unwrap", &[expr], None, indent, ctx)?;
         }
         Expr::Match {
             scrutinee,

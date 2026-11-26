@@ -825,7 +825,7 @@ pub enum UnaryOp {
 }
 
 impl UnaryOp {
-    /// Canonical non-imperative camelCase source keyword.
+    /// Canonical camelCase source keyword.
     #[must_use]
     pub const fn keyword(self) -> &'static str {
         match self {
@@ -836,7 +836,7 @@ impl UnaryOp {
             Self::Ctz => "ctz",
             Self::Popcnt => "popcnt",
             Self::Len => "len",
-            Self::BufFreeze => "bufFrozen",
+            Self::BufFreeze => "bufFreeze",
             Self::IsSome => "isSome",
             Self::IsNone => "isNone",
             Self::IsOk => "isOk",
@@ -846,7 +846,7 @@ impl UnaryOp {
             Self::U128FromDc => "u128FromDc",
             Self::DcsFromS => "dcsFromS",
             Self::SFromDcs => "sFromDcs",
-            Self::RequestCapability => "capability",
+            Self::RequestCapability => "requestCapability",
         }
     }
 
@@ -987,20 +987,20 @@ pub enum BinaryOp {
 }
 
 impl BinaryOp {
-    /// Canonical non-imperative camelCase source keyword.
+    /// Canonical camelCase source keyword.
     #[must_use]
     pub const fn keyword(self) -> &'static str {
         match self {
-            Self::Add | Self::TotalAdd => "sum",
-            Self::Sub | Self::TotalSub => "diff",
-            Self::Mul | Self::TotalMul => "prod",
-            Self::Div | Self::TotalDiv => "quot",
+            Self::Add | Self::TotalAdd => "add",
+            Self::Sub | Self::TotalSub => "sub",
+            Self::Mul | Self::TotalMul => "mul",
+            Self::Div | Self::TotalDiv => "div",
             Self::Rem => "rem",
             Self::TotalMod => "mod",
             Self::TotalTruncRem => "truncRem",
-            Self::WrapAdd => "wrapSum",
-            Self::WrapSub => "wrapDiff",
-            Self::WrapMul => "wrapProd",
+            Self::WrapAdd => "wrapAdd",
+            Self::WrapSub => "wrapSub",
+            Self::WrapMul => "wrapMul",
             Self::BitAnd => "bitAnd",
             Self::BitOr => "bitOr",
             Self::BitXor => "bitXor",
@@ -1016,16 +1016,16 @@ impl BinaryOp {
             Self::Le => "le",
             Self::Gt => "gt",
             Self::Ge => "ge",
-            Self::Get | Self::TotalGet => "at",
-            Self::Concat => "chain",
-            Self::BufFill => "bufFilled",
-            Self::BufPush => "bufGain",
-            Self::BufExtend => "bufGainAll",
-            Self::UnwrapOr => "valOr",
+            Self::Get | Self::TotalGet => "get",
+            Self::Concat => "concat",
+            Self::BufFill => "bufFill",
+            Self::BufPush => "bufPush",
+            Self::BufExtend => "bufExtend",
+            Self::UnwrapOr => "unwrapOr",
             Self::OkOr => "okOr",
-            Self::MakeRat => "ratio",
-            Self::Explode => "pieces",
-            Self::Implode => "joined",
+            Self::MakeRat => "makeRat",
+            Self::Explode => "explode",
+            Self::Implode => "implode",
         }
     }
 
@@ -1113,12 +1113,12 @@ pub enum TernaryOp {
 }
 
 impl TernaryOp {
-    /// Canonical non-imperative camelCase source keyword.
+    /// Canonical camelCase source keyword.
     #[must_use]
     pub const fn keyword(self) -> &'static str {
         match self {
             Self::Slice | Self::TotalSlice => "slice",
-            Self::BufSet | Self::TotalBufSet => "bufBecomeAt",
+            Self::BufSet | Self::TotalBufSet => "bufSet",
         }
     }
 
@@ -1149,72 +1149,6 @@ impl TernaryOp {
     #[must_use]
     pub const fn is_imperative_buf_op(self) -> bool {
         matches!(self, Self::BufSet | Self::TotalBufSet)
-    }
-}
-
-/// Maps either the canonical non-imperative spelling or the accepted imperative
-/// synonym of an overloadable `std/*` operator verb to its canonical spelling.
-#[must_use]
-pub fn canonicalize_overloadable_std_verb(name: &str) -> Option<&'static str> {
-    match name {
-        "sum" | "add" => Some("sum"),
-        "diff" | "sub" => Some("diff"),
-        "prod" | "mul" => Some("prod"),
-        "quot" | "div" => Some("quot"),
-        "wrapSum" | "wrapAdd" => Some("wrapSum"),
-        "wrapDiff" | "wrapSub" => Some("wrapDiff"),
-        "wrapProd" | "wrapMul" => Some("wrapProd"),
-        "at" | "get" => Some("at"),
-        "ratio" | "makeRat" => Some("ratio"),
-        "pieces" | "explode" => Some("pieces"),
-        "joined" | "implode" => Some("joined"),
-        _ => None,
-    }
-}
-
-/// Returns the alternate spelling (`canonical <-> imperative synonym`) of an
-/// overloadable `std/*` operator verb, or `None` if `name` has no synonym pair.
-#[must_use]
-pub fn overloadable_std_synonym_counterpart(
-    name: &str,
-) -> Option<&'static str> {
-    match name {
-        "sum" => Some("add"),
-        "add" => Some("sum"),
-        "diff" => Some("sub"),
-        "sub" => Some("diff"),
-        "prod" => Some("mul"),
-        "mul" => Some("prod"),
-        "quot" => Some("div"),
-        "div" => Some("quot"),
-        "wrapSum" => Some("wrapAdd"),
-        "wrapAdd" => Some("wrapSum"),
-        "wrapDiff" => Some("wrapSub"),
-        "wrapSub" => Some("wrapDiff"),
-        "wrapProd" => Some("wrapMul"),
-        "wrapMul" => Some("wrapProd"),
-        "at" => Some("get"),
-        "get" => Some("at"),
-        "ratio" => Some("makeRat"),
-        "makeRat" => Some("ratio"),
-        "pieces" => Some("explode"),
-        "explode" => Some("pieces"),
-        "joined" => Some("implode"),
-        "implode" => Some("joined"),
-        _ => None,
-    }
-}
-
-/// Maps StageL 3 call-position imperative synonyms (`makeRat`, `explode`,
-/// `implode` — which are `Expr::Call` in StageL 3 and built-in `BinaryOp` in
-/// StageR 3) to their canonical `std/*` verb names.
-#[must_use]
-pub fn canonicalize_stage1_call_synonym(name: &str) -> Option<&'static str> {
-    match name {
-        "makeRat" => Some("ratio"),
-        "explode" => Some("pieces"),
-        "implode" => Some("joined"),
-        _ => None,
     }
 }
 

@@ -38,7 +38,7 @@ pub v/tup: b dcVal ::/tryGet l/dcVal/seq u64/idx
         in l/dcVal: structNew dcVal: u64:65 u64:0 :: :: u64:3
         out tupNew: false structNew dcVal: u64:0 u64:0 :: ::.
     if lt /idx len /seq
-        tupNew: true at /seq /idx ::
+        tupNew: true get /seq /idx ::
         tupNew: false dcNew u64:0 u64:0 ::.
 
 : Total `slice` on `dcs` (`(l/dcVal, u64, u64) -> tup: b l/dcVal ::`).
@@ -55,7 +55,7 @@ pub v/tup: b l/dcVal ::/trySlice l/dcVal/seq u64/start u64/end
 
 : Splits `input` around non-overlapping occurrences of `sep` (`explode` on `dcs`).
 : @dc l8589982145
-pub v/l/l/dcVal/pieces l/dcVal/sep l/dcVal/input
+pub v/l/l/dcVal/explode l/dcVal/sep l/dcVal/input
     test
         in l/dcVal: structNew dcVal: u64:58 u64:0 :: :: l/dcVal: structNew dcVal: u64:97 u64:0 :: structNew dcVal: u64:58 u64:0 :: structNew dcVal: u64:98 u64:0 :: structNew dcVal: u64:58 u64:0 :: ::
         out l/l/dcVal: l/dcVal: structNew dcVal: u64:97 u64:0 :: :: l/dcVal: structNew dcVal: u64:98 u64:0 :: :: l/dcVal: :: ::.
@@ -63,83 +63,83 @@ pub v/l/l/dcVal/pieces l/dcVal/sep l/dcVal/input
         out l/l/dcVal: l/dcVal: structNew dcVal: u64:97 u64:0 :: :: l/dcVal: structNew dcVal: u64:98 u64:0 :: :: ::.
         in l/dcVal: :: l/dcVal: ::
         out l/l/dcVal: ::.
-    be u64/slen len /sep.
-    be u64/ilen len /input.
+    const u64/slen len /sep.
+    const u64/ilen len /input.
     if eq /slen u64:0
         do
             if eq /ilen u64:0
                 return l/l/dcVal: ::
                 nop.
-            be buf/l/dcVal/out bufNew l/dcVal /ilen.
-            hold u64/i u64:0.
+            const buf/l/dcVal/out bufNew l/dcVal /ilen.
+            let u64/i u64:0.
             while lt /i /ilen do
-                bufGain /out l/dcVal: at /input /i ::.
-                become /i sum /i u64:1.
+                bufPush /out l/dcVal: get /input /i ::.
+                set /i add /i u64:1.
             ::.
-            return bufFrozen /out.
+            return bufFreeze /out.
         ::
         nop.
-    be buf/l/dcVal/out bufNew l/dcVal u64:4.
-    hold u64/cursor u64:0.
+    const buf/l/dcVal/out bufNew l/dcVal u64:4.
+    let u64/cursor u64:0.
     while le /cursor /ilen do
-        be u64/remLen diff /ilen /cursor.
+        const u64/remLen sub /ilen /cursor.
         if lt /remLen /slen
             do
-                bufGain /out slice /input /cursor /ilen.
-                return bufFrozen /out.
+                bufPush /out slice /input /cursor /ilen.
+                return bufFreeze /out.
             ::
             nop.
-        be u64/maxOff diff /remLen /slen.
-        hold b/found false.
-        hold u64/foundOff u64:0.
-        hold u64/off u64:0.
+        const u64/maxOff sub /remLen /slen.
+        let b/found false.
+        let u64/foundOff u64:0.
+        let u64/off u64:0.
         while and not /found le /off /maxOff do
-            be u64/cand sum /cursor /off.
-            if eq slice /input /cand sum /cand /slen /sep
+            const u64/cand add /cursor /off.
+            if eq slice /input /cand add /cand /slen /sep
                 do
-                    become /found true.
-                    become /foundOff /off.
+                    set /found true.
+                    set /foundOff /off.
                 ::
-                become /off sum /off u64:1.
+                set /off add /off u64:1.
         ::.
         if /found
             do
-                bufGain /out slice /input /cursor sum /cursor /foundOff.
-                become /cursor sum sum /cursor /foundOff /slen.
+                bufPush /out slice /input /cursor add /cursor /foundOff.
+                set /cursor add add /cursor /foundOff /slen.
             ::
             do
-                bufGain /out slice /input /cursor /ilen.
-                return bufFrozen /out.
+                bufPush /out slice /input /cursor /ilen.
+                return bufFreeze /out.
             ::.
     ::.
-    bufGain /out l/dcVal: ::.
-    bufFrozen /out.
+    bufPush /out l/dcVal: ::.
+    bufFreeze /out.
 
 : Concatenates `parts` interspersed with `sep` (`implode` on `dcs`).
 : @dc l8589982146
-pub v/l/dcVal/joined l/dcVal/sep l/l/dcVal/parts
+pub v/l/dcVal/implode l/dcVal/sep l/l/dcVal/parts
     test
         in l/dcVal: structNew dcVal: u64:58 u64:0 :: :: l/l/dcVal: l/dcVal: structNew dcVal: u64:97 u64:0 :: :: l/dcVal: structNew dcVal: u64:98 u64:0 :: :: l/dcVal: :: ::
         out l/dcVal: structNew dcVal: u64:97 u64:0 :: structNew dcVal: u64:58 u64:0 :: structNew dcVal: u64:98 u64:0 :: structNew dcVal: u64:58 u64:0 :: ::.
-    be u64/plen len /parts.
+    const u64/plen len /parts.
     if eq /plen u64:0
         return l/dcVal: ::
         nop.
-    be u64/slen len /sep.
-    hold u64/total prod diff /plen u64:1 /slen.
+    const u64/slen len /sep.
+    let u64/total mul sub /plen u64:1 /slen.
     foreach l/dcVal/p /parts do
-        become /total sum /total len /p.
+        set /total add /total len /p.
     ::.
-    be buf/dcVal/out bufNew dcVal /total.
-    hold u64/idx u64:0.
+    const buf/dcVal/out bufNew dcVal /total.
+    let u64/idx u64:0.
     while lt /idx /plen do
         if gt /idx u64:0
-            bufGainAll /out /sep
+            bufExtend /out /sep
             nop.
-        bufGainAll /out at /parts /idx.
-        become /idx sum /idx u64:1.
+        bufExtend /out get /parts /idx.
+        set /idx add /idx u64:1.
     ::.
-    bufFrozen /out.
+    bufFreeze /out.
 
 : Infallible `dcFromU128` conversion (`u128Val -> dcVal`, `Dc 2610`; all `0..=2^128-1` scalars including surrogates are valid).
 : @dc l8589984708

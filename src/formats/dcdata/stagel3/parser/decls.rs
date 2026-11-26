@@ -32,8 +32,7 @@ use super::super::ast::{
     ImportTarget, Module, NamedFieldDecl, NamedStructDecl, Param,
     PositionalStructDecl, RoutineDecl, Span, StageDialect, StageLType,
     StructTypeRef, TestBlock, TestCase, TestExpected, TopDecl, TopValueDecl,
-    UseImport, UseImportItem, format_dc_shorthand,
-    overloadable_std_synonym_counterpart, parse_dc_shorthand,
+    UseImport, UseImportItem, format_dc_shorthand, parse_dc_shorthand,
 };
 use super::lexer::{
     LexKind, LexToken, opens_double_colon_block, parse_dc_directive_comment,
@@ -267,12 +266,7 @@ impl Parser {
                     "Conflicting parameter count for overloaded routine '{k}' in module scope: expected {prev_arity} parameter(s), found {v}"
                 );
             } else {
-                scope.insert(k.clone(), v);
-            }
-            if self.allow_std_builtin_overloads
-                && let Some(alt) = overloadable_std_synonym_counterpart(&k)
-            {
-                scope.entry(alt.to_owned()).or_insert(v);
+                scope.insert(k, v);
             }
         }
         self.verb_scopes.push(scope);
@@ -513,7 +507,7 @@ impl Parser {
     ) -> Result<TopDecl> {
         let LexKind::Word(w) = &first_tok.kind else {
             bail!(
-                "Expected top-level declaration (`pub`, `be`, or `v/...`) at {}",
+                "Expected top-level declaration (`pub`, `const`, or `v/...`) at {}",
                 first_tok.span
             );
         };
@@ -537,17 +531,17 @@ impl Parser {
                 "'use' import at {} must precede all declarations and routines",
                 first_tok.span
             ),
-            "hold" | "let" | "become" | "set" => bail!(
+            "let" | "set" => bail!(
                 "'{w}' at {} is local-block-only and disallowed at module top level",
                 first_tok.span
             ),
-            "be" | "const" => {
+            "const" => {
                 if let Some(next_tok) = self.peek_at(self.pos.saturating_add(1))
                     && let LexKind::Word(nw) = &next_tok.kind
                 {
                     if nw.starts_with("v/") {
                         bail!(
-                            "Redundant '{w}' before top-level '{nw}' at {}; bare top-level 'v/...' is already an implicit private const",
+                            "Redundant 'const' before top-level '{nw}' at {}; bare top-level 'v/...' is already an implicit private const",
                             first_tok.span
                         );
                     }
@@ -556,18 +550,16 @@ impl Parser {
                         "struct" | "brand" | "type" | "enum"
                     ) {
                         bail!(
-                            "Redundant '{w}' before '{nw}' at {}; write '{nw} ...'",
+                            "Redundant 'const' before '{nw}' at {}; write '{nw} ...'",
                             first_tok.span
                         );
                     }
                 }
                 self.pos = self.pos.saturating_add(1);
-                let after_desc = format!("after '{w}'");
                 let (ty, name, _) =
-                    self.parse_typed_name_from_tokens(&after_desc)?;
+                    self.parse_typed_name_from_tokens("after 'const'")?;
                 let value = self.parse_expr(false)?;
-                let dot_desc = format!("after top-level '{w}' declaration");
-                self.expect_dot(&dot_desc)?;
+                self.expect_dot("after top-level 'const' declaration")?;
                 Ok(TopDecl::Value(TopValueDecl {
                     is_pub: false,
                     pub_dc_syntax: false,
@@ -596,9 +588,9 @@ impl Parser {
                         next_tok.span
                     );
                 };
-                if nw == "be" || nw == "const" {
+                if nw == "const" {
                     bail!(
-                        "Redundant '{nw}' after 'pub' at {}; write 'pub TYPE/name EXPR.'",
+                        "Redundant 'const' after 'pub' at {}; write 'pub TYPE/name EXPR.'",
                         next_tok.span
                     );
                 }
@@ -683,7 +675,7 @@ impl Parser {
                 Ok(TopDecl::Routine(routine))
             }
             other => bail!(
-                "Unexpected top-level token '{other}' at {}; only `ns`, `use`, `pub`, `be` (`const`), `struct`, and `v/...` are permitted at top level",
+                "Unexpected top-level token '{other}' at {}; only `ns`, `use`, `pub`, `const`, `struct`, and `v/...` are permitted at top level",
                 first_tok.span
             ),
         }
@@ -1309,7 +1301,7 @@ impl Parser {
         let LexKind::Word(w) = &tok.kind else {
             return None;
         };
-        if w != "be" && w != "const" {
+        if w != "const" {
             return None;
         }
         let sig_tok = self.tokens.get(idx.saturating_add(1))?;
@@ -1330,14 +1322,14 @@ impl Parser {
         let LexKind::Word(w) = &tok.kind else {
             return Ok(false);
         };
-        if w == "be" || w == "const" {
+        if w == "const" {
             if let Some(sig_tok) = self.peek_at(self.pos.saturating_add(1))
                 && let LexKind::Word(sw) = &sig_tok.kind
                 && sw.starts_with("v/")
             {
                 ensure!(
                     sig_tok.span.line == tok.span.line,
-                    "Expected routine signature '{sw}' on the same line as '{w}' at {}",
+                    "Expected routine signature '{sw}' on the same line as 'const' at {}",
                     tok.span
                 );
                 self.pos = self.pos.saturating_add(1);
@@ -1346,7 +1338,7 @@ impl Parser {
         } else if w.starts_with("v/") && self.is_named_routine_sig_at(self.pos)
         {
             bail!(
-                "Nested routine declaration '{w}' at {} must be prefixed with 'be' (or 'const') inside a block (write 'be {w} ...' or 'const {w} ...')",
+                "Nested routine declaration '{w}' at {} must be prefixed with 'const' inside a block (write 'const {w} ...')",
                 tok.span
             );
         }
@@ -1571,7 +1563,7 @@ impl Parser {
                             && self.is_named_routine_sig_at(i)
                         {
                             bail!(
-                                "Nested routine declaration '{w}' at {} must be prefixed with 'be' (or 'const') inside a block (write 'be {w} ...' or 'const {w} ...')",
+                                "Nested routine declaration '{w}' at {} must be prefixed with 'const' inside a block (write 'const {w} ...')",
                                 tok.span
                             );
                         }
@@ -1606,7 +1598,7 @@ impl Parser {
                     LexKind::Word(w) if w.starts_with("v/") => {
                         if self.is_named_routine_sig_at(i) {
                             bail!(
-                                "Nested routine declaration '{w}' at {} must be prefixed with 'be' (or 'const') inside a block (write 'be {w} ...' or 'const {w} ...')",
+                                "Nested routine declaration '{w}' at {} must be prefixed with 'const' inside a block (write 'const {w} ...')",
                                 tok.span
                             );
                         }

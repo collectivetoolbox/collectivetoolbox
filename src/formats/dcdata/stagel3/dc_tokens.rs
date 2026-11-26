@@ -736,8 +736,7 @@ v/void/voidRoutine u32/inputVal
         }
 
         // Decoding restores AtomDc -> ': @dc l...' and 'pub dc/256', preserves
-        // omitted vs explicit value-ref / become types, normalizes imperative
-        // synonyms to canonical VSO forms, and normalizes empty 2213..2214 to 'nop'.
+        // omitted vs explicit value-ref / set types, and normalizes empty 2213..2214 to 'nop'.
         let formatted1 =
             dc_tokens_to_sl3(&tokens1).expect("decode dc tokens to sl3");
         assert!(formatted1.contains(": @dc l9000001"));
@@ -748,13 +747,8 @@ v/void/voidRoutine u32/inputVal
         assert!(formatted1.contains("i64:-9223372036854775808"));
         assert!(formatted1.contains(": Leading module comment"));
         assert!(formatted1.contains("voidRoutine"));
-        assert!(formatted1.contains("be u32/baseOffset u32:10."));
-        assert!(formatted1.contains("hold u32/acc."));
-        assert!(formatted1.contains("be v/u32/helper u32/n :: sum /n /baseOffset."));
-        assert!(formatted1.contains("become /acc /x."));
-        assert!(formatted1.contains("become u32/acc u32:0."));
-        assert!(formatted1.contains("bufGain /scratch u8:65."));
-        assert!(formatted1.contains("hold l/u8/frozen bufFrozen /scratch."));
+        assert!(formatted1.contains("set /acc /x."));
+        assert!(formatted1.contains("set u32/acc u32:0."));
         assert!(formatted1.contains("if eq /inputVal u32:0 fault nop."));
         assert!(!formatted1.contains("do ::"));
 
@@ -1006,7 +1000,7 @@ pub v/u32/countDown u32/n :: if eq /n u32:0 u32:0 rec sub /n u32:1.
         assert!(sl3_rec_toks.contains(&DC_ENCLOSING_ROUTINE));
         let sl3_rec_fmt =
             dc_tokens_to_sl3(&sl3_rec_toks).expect("format sl3 rec");
-        assert!(sl3_rec_fmt.contains("rec diff /n u32:1"));
+        assert!(sl3_rec_fmt.contains("rec sub /n u32:1"));
 
         // StageR 3 supports inline anonymous routine calls with +8 body / +4 closer indentation and `rec` / `rec?`.
         let sr3_src = r#"ns demo/inline_sr3.
@@ -1042,12 +1036,12 @@ pub v/result/u32/runSr3Inline u32/x
             dc_tokens_to_sr3(&sr3_tokens).expect("decode inline sr3");
         assert!(
             sr3_fmt1.contains(
-                "    v/void u32/delta ::\n            become /acc wrapSum /acc /delta.\n        :: u32:5."
+                "    v/void u32/delta ::\n            set /acc wrapAdd /acc /delta.\n        :: u32:5."
             ),
             "Formatted StageR 3 multi-line inline routine must indent body +8 and closing '::' +4:\n{sr3_fmt1}"
         );
         assert!(
-            sr3_fmt1.contains("rec diff? /n u32:1 sum? /cur /n."),
+            sr3_fmt1.contains("rec sub? /n u32:1 add? /cur /n."),
             "Formatted StageR 3 recursive call must emit 'rec':\n{sr3_fmt1}"
         );
         let sr3_tokens2 =
@@ -1150,108 +1144,5 @@ pub v/u32/recur u32/n
         let recon_fmt =
             format_module_to_sr3(&reconstructed).expect("fmt reconstructed");
         assert_eq!(canonical_orig, recon_fmt);
-    }
-
-    #[crate::ctb_test]
-    fn test_vso_non_imperative_canonical_forms_and_imperative_synonyms() {
-        let canonical_sl3 = r#"ns demo/vso_sl3.
-
-be u32/kBase u32:4.
-
-pub v/l/u32/exerciseSl3 l/u32/xs l/u8/req
-    hold u32/slot.
-    be v/u32/step u32/v :: sum /v /kBase.
-    become /slot diff prod u32:6 u32:3 quot u32:8 u32:2.
-    become u32/slot wrapSum wrapDiff wrapProd /slot u32:2 u32:1 at /xs u64:0.
-    hold buf/u32/buf bufFilled u32:0 u64:1.
-    bufBecomeAt /buf u64:0 step /slot.
-    bufGain /buf conv len /xs u32.
-    bufGainAll /buf /xs.
-    be l/u8/_reply capability /req.
-    chain bufFrozen /buf l/u32: u32:9 ::.
-"#;
-        let imperative_sl3 = r#"ns demo/vso_sl3.
-
-const u32/kBase u32:4.
-
-pub v/l/u32/exerciseSl3 l/u32/xs l/u8/req
-    let u32/slot.
-    const v/u32/step u32/v :: add /v /kBase.
-    set /slot sub mul u32:6 u32:3 div u32:8 u32:2.
-    set u32/slot wrapAdd wrapSub wrapMul /slot u32:2 u32:1 get /xs u64:0.
-    let buf/u32/buf bufFill u32:0 u64:1.
-    bufSet /buf u64:0 step /slot.
-    bufPush /buf conv len /xs u32.
-    bufExtend /buf /xs.
-    const l/u8/_reply requestCapability /req.
-    concat bufFreeze /buf l/u32: u32:9 ::.
-"#;
-
-        let tok_canon_sl3 =
-            sl3_to_dc_tokens(canonical_sl3).expect("encode canonical sl3");
-        let tok_imp_sl3 =
-            sl3_to_dc_tokens(imperative_sl3).expect("encode imperative sl3");
-        assert_eq!(
-            tok_canon_sl3, tok_imp_sl3,
-            "Imperative synonyms in StageL 3 must encode to identical Token Dcs"
-        );
-        let decompiled_sl3 =
-            dc_tokens_to_sl3(&tok_imp_sl3).expect("decompile sl3");
-        assert_eq!(decompiled_sl3, canonical_sl3);
-        validate_module(&parse_module(&decompiled_sl3).unwrap())
-            .expect("validate canonical sl3");
-
-        let canonical_sr3 = r#"ns demo/vso_sr3.
-
-pub brand i32/tagVal.
-
-pub v/result/s/exerciseSr3 i32/x l/i32/xs s/req
-    be tagVal/w wrapped /x tagVal.
-    hold i32/cur unwrapped /w.
-    become /cur sum? diff? /cur i32:1 valOr quot prod? /cur i32:2 i32:2 i32:0.
-    be rat/_r ratio? int:3 int:4.
-    be i32/elem valOr at /xs u64:0 i32:0.
-    hold buf/i32/buf bufFilled /elem u64:1.
-    bufBecomeAt? /buf u64:0 wrapSum wrapDiff wrapProd /cur i32:1 i32:0 i32:2.
-    bufGain /buf i32:7.
-    bufGainAll /buf l/i32: i32:8 ::.
-    be l/i32/_frozen bufFrozen /buf.
-    be s/rejoined joined ":" pieces ":" "a:b".
-    be s/rep capability? /req.
-    result/s:ok chain /rejoined /rep.
-"#;
-        let imperative_sr3 = r#"ns demo/vso_sr3.
-
-pub brand i32/tagVal.
-
-pub v/result/s/exerciseSr3 i32/x l/i32/xs s/req
-    const tagVal/w wrap /x tagVal.
-    let i32/cur unwrap /w.
-    set /cur add? sub? /cur i32:1 unwrapOr div mul? /cur i32:2 i32:2 i32:0.
-    const rat/_r makeRat? int:3 int:4.
-    const i32/elem unwrapOr get /xs u64:0 i32:0.
-    let buf/i32/buf bufFill /elem u64:1.
-    bufSet? /buf u64:0 wrapAdd wrapSub wrapMul /cur i32:1 i32:0 i32:2.
-    bufPush /buf i32:7.
-    bufExtend /buf l/i32: i32:8 ::.
-    const l/i32/_frozen bufFreeze /buf.
-    const s/rejoined implode ":" explode ":" "a:b".
-    const s/rep requestCapability? /req.
-    result/s:ok concat /rejoined /rep.
-"#;
-
-        let tok_canon_sr3 =
-            sr3_to_dc_tokens(canonical_sr3).expect("encode canonical sr3");
-        let tok_imp_sr3 =
-            sr3_to_dc_tokens(imperative_sr3).expect("encode imperative sr3");
-        assert_eq!(
-            tok_canon_sr3, tok_imp_sr3,
-            "Imperative synonyms in StageR 3 must encode to identical Token Dcs"
-        );
-        let decompiled_sr3 =
-            dc_tokens_to_sr3(&tok_imp_sr3).expect("decompile sr3");
-        assert_eq!(decompiled_sr3, canonical_sr3);
-        validate_module(&parse_sr3_module(&decompiled_sr3).unwrap())
-            .expect("validate canonical sr3");
     }
 }

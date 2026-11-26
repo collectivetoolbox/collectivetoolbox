@@ -33,7 +33,7 @@ use super::super::ast::{
     NamedStructDecl, PositionalStructDecl, RoutineDecl, Span, StageDialect,
     StageLType, StructTypeRef, SymbolTarget, TestExpected, TopDecl,
     TopValueDecl, UseImportItem, format_dc_shorthand,
-    is_enclosing_routine_token_dc, overloadable_std_synonym_counterpart,
+    is_enclosing_routine_token_dc,
 };
 use super::consts_and_flow::{
     AssignState, BindingEntry, NestedVerbSummary, VerbTarget,
@@ -57,7 +57,6 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 /// one [`Module`].
 pub(super) struct ModuleValidator<'a> {
     pub(super) dialect: StageDialect,
-    pub(super) namespace_key: Option<String>,
     /// Module-scope constants (`local_name -> ResolvedValueTarget`), combining
     /// imported and top-level constants (at most one definition per name).
     pub(super) value_candidates: HashMap<String, ResolvedValueTarget>,
@@ -115,9 +114,6 @@ pub(super) struct ModuleValidator<'a> {
     pub(super) tail_calls: HashSet<(usize, usize)>,
     /// Statically resolved top-level/imported call targets by `(line, col)`.
     pub(super) resolved_calls: HashMap<(usize, usize), ResolvedCallTarget>,
-    /// Local candidate identifier selected for StageL 3 overloaded std operator
-    /// or synonym calls, indexed by `(line, col)`.
-    pub(super) overload_call_idents: HashMap<(usize, usize), String>,
     /// Statically resolved top-level/imported constant targets by `(line, col)`.
     pub(super) resolved_values: HashMap<(usize, usize), ResolvedValueTarget>,
     /// Statically resolved positional `struct` targets for `Expr::StructNew`.
@@ -294,7 +290,6 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
 
     let mut validator = ModuleValidator {
         dialect,
-        namespace_key: reg.namespace_key,
         value_candidates: reg.value_candidates,
         routine_candidates: reg.routine_candidates,
         local_structs: reg.local_structs,
@@ -319,7 +314,6 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
         pending_nested_calls: Vec::new(),
         tail_calls: HashSet::new(),
         resolved_calls: HashMap::new(),
-        overload_call_idents: HashMap::new(),
         resolved_values: HashMap::new(),
         resolved_structs: HashMap::new(),
         resolved_named_structs: HashMap::new(),
@@ -342,11 +336,7 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
     }
 
     let validated_module = if dialect == StageDialect::StageL3 {
-        desugar_overloaded_ops_in_module(
-            orig_module,
-            &validator.resolved_calls,
-            &validator.overload_call_idents,
-        )
+        desugar_overloaded_ops_in_module(orig_module, &validator.resolved_calls)
     } else {
         orig_module.clone()
     };
@@ -819,19 +809,6 @@ impl ModuleSymbolReg {
                         .map(|sig| ImportedSymbol::Routine {
                             namespace: target_ns.to_owned(),
                             original_name: name.clone(),
-                            sig: sig.clone(),
-                        })
-                        .collect()
-                } else if (target_ns == "std" || target_ns.starts_with("std/"))
-                    && let Some(alt_name) =
-                        overloadable_std_synonym_counterpart(name)
-                    && let Some(sig_list) = dep_exp.routines.get(alt_name)
-                {
-                    sig_list
-                        .iter()
-                        .map(|sig| ImportedSymbol::Routine {
-                            namespace: target_ns.to_owned(),
-                            original_name: alt_name.to_owned(),
                             sig: sig.clone(),
                         })
                         .collect()
@@ -2231,7 +2208,6 @@ fn collect_expr_call_spans(expr: &Expr, out: &mut Vec<(usize, usize)>) {
 fn desugar_expr_in_place(
     expr: &mut Expr,
     resolved_calls: &HashMap<(usize, usize), ResolvedCallTarget>,
-    overload_call_idents: &HashMap<(usize, usize), String>,
 ) {
     match expr {
         Expr::Bool { .. }
@@ -2248,17 +2224,17 @@ fn desugar_expr_in_place(
         | Expr::ErrorTag { .. } => {}
         Expr::List { elements, .. } | Expr::TupleNew { elements, .. } => {
             for e in elements {
-                desugar_expr_in_place(e, resolved_calls, overload_call_idents);
+                desugar_expr_in_place(e, resolved_calls);
             }
         }
         Expr::StructNew { fields, .. } => {
             for f in fields {
-                desugar_expr_in_place(f, resolved_calls, overload_call_idents);
+                desugar_expr_in_place(f, resolved_calls);
             }
         }
         Expr::NamedStructNew { fields, .. } => {
             for (_, v, _) in fields {
-                desugar_expr_in_place(v, resolved_calls, overload_call_idents);
+                desugar_expr_in_place(v, resolved_calls);
             }
         }
         Expr::Field { base, .. }
@@ -2274,21 +2250,21 @@ fn desugar_expr_in_place(
         | Expr::OptionSome { value: base, .. }
         | Expr::ResultOk { value: base, .. }
         | Expr::ResultErr { error: base, .. } => {
-            desugar_expr_in_place(base, resolved_calls, overload_call_idents);
+            desugar_expr_in_place(base, resolved_calls);
         }
         Expr::Let { init, .. } => {
             if let Some(e) = init {
-                desugar_expr_in_place(e, resolved_calls, overload_call_idents);
+                desugar_expr_in_place(e, resolved_calls);
             }
         }
         Expr::Return { value, .. } => {
             if let Some(e) = value {
-                desugar_expr_in_place(e, resolved_calls, overload_call_idents);
+                desugar_expr_in_place(e, resolved_calls);
             }
         }
         Expr::EnumVariant { payload, .. } => {
             if let Some(e) = payload {
-                desugar_expr_in_place(e, resolved_calls, overload_call_idents);
+                desugar_expr_in_place(e, resolved_calls);
             }
         }
         Expr::With { base, value, .. }
@@ -2303,8 +2279,8 @@ fn desugar_expr_in_place(
             body: value,
             ..
         } => {
-            desugar_expr_in_place(base, resolved_calls, overload_call_idents);
-            desugar_expr_in_place(value, resolved_calls, overload_call_idents);
+            desugar_expr_in_place(base, resolved_calls);
+            desugar_expr_in_place(value, resolved_calls);
         }
         Expr::If {
             cond,
@@ -2312,28 +2288,16 @@ fn desugar_expr_in_place(
             else_branch,
             ..
         } => {
-            desugar_expr_in_place(cond, resolved_calls, overload_call_idents);
-            desugar_expr_in_place(
-                then_branch,
-                resolved_calls,
-                overload_call_idents,
-            );
-            desugar_expr_in_place(
-                else_branch,
-                resolved_calls,
-                overload_call_idents,
-            );
+            desugar_expr_in_place(cond, resolved_calls);
+            desugar_expr_in_place(then_branch, resolved_calls);
+            desugar_expr_in_place(else_branch, resolved_calls);
         }
         Expr::Unary { operand, .. } => {
-            desugar_expr_in_place(
-                operand,
-                resolved_calls,
-                overload_call_idents,
-            );
+            desugar_expr_in_place(operand, resolved_calls);
         }
         Expr::Binary { left, right, .. } => {
-            desugar_expr_in_place(left, resolved_calls, overload_call_idents);
-            desugar_expr_in_place(right, resolved_calls, overload_call_idents);
+            desugar_expr_in_place(left, resolved_calls);
+            desugar_expr_in_place(right, resolved_calls);
         }
         Expr::Ternary {
             first,
@@ -2341,51 +2305,31 @@ fn desugar_expr_in_place(
             third,
             ..
         } => {
-            desugar_expr_in_place(first, resolved_calls, overload_call_idents);
-            desugar_expr_in_place(second, resolved_calls, overload_call_idents);
-            desugar_expr_in_place(third, resolved_calls, overload_call_idents);
+            desugar_expr_in_place(first, resolved_calls);
+            desugar_expr_in_place(second, resolved_calls);
+            desugar_expr_in_place(third, resolved_calls);
         }
-        Expr::Call {
-            target, args, span, ..
-        } => {
+        Expr::Call { args, .. } => {
             for a in args {
-                desugar_expr_in_place(a, resolved_calls, overload_call_idents);
-            }
-            if let SymbolTarget::Ident(ident) = target
-                && let Some(mapped) =
-                    overload_call_idents.get(&(span.line, span.col))
-            {
-                ident.clone_from(mapped);
+                desugar_expr_in_place(a, resolved_calls);
             }
         }
         Expr::RoutineDecl(r) => {
-            desugar_routine_in_place(r, resolved_calls, overload_call_idents);
+            desugar_routine_in_place(r, resolved_calls);
         }
         Expr::AnonRoutine(r) => {
-            desugar_expr_in_place(
-                &mut r.body,
-                resolved_calls,
-                overload_call_idents,
-            );
+            desugar_expr_in_place(&mut r.body, resolved_calls);
         }
         Expr::InlineCall { routine, args, .. } => {
-            desugar_expr_in_place(
-                &mut routine.body,
-                resolved_calls,
-                overload_call_idents,
-            );
+            desugar_expr_in_place(&mut routine.body, resolved_calls);
             for a in args {
-                desugar_expr_in_place(a, resolved_calls, overload_call_idents);
+                desugar_expr_in_place(a, resolved_calls);
             }
         }
         Expr::Block { stmts, .. } => {
             for item in stmts {
                 if let BlockItem::Expr(sub) = item {
-                    desugar_expr_in_place(
-                        sub,
-                        resolved_calls,
-                        overload_call_idents,
-                    );
+                    desugar_expr_in_place(sub, resolved_calls);
                 }
             }
         }
@@ -2395,20 +2339,12 @@ fn desugar_expr_in_place(
             fallback,
             ..
         } => {
-            desugar_expr_in_place(
-                scrutinee,
-                resolved_calls,
-                overload_call_idents,
-            );
+            desugar_expr_in_place(scrutinee, resolved_calls);
             for a in arms {
-                desugar_expr_in_place(
-                    &mut a.body,
-                    resolved_calls,
-                    overload_call_idents,
-                );
+                desugar_expr_in_place(&mut a.body, resolved_calls);
             }
             if let Some(fb) = fallback {
-                desugar_expr_in_place(fb, resolved_calls, overload_call_idents);
+                desugar_expr_in_place(fb, resolved_calls);
             }
         }
     }
@@ -2423,16 +2359,10 @@ fn desugar_expr_in_place(
     ) {
         return;
     }
-    let matched_ident = overload_call_idents
-        .get(&(op_span.line, op_span.col))
-        .cloned();
     let taken = std::mem::replace(expr, Expr::Nop { span: op_span });
     *expr = match taken {
         Expr::Unary { op, operand, span } => Expr::Call {
-            // Reason for fallback: defaults to canonical op.keyword() when the local candidate key matches op.keyword().
-            target: SymbolTarget::Ident(
-                matched_ident.unwrap_or_else(|| op.keyword().to_owned()),
-            ),
+            target: SymbolTarget::Ident(op.keyword().to_owned()),
             args: vec![*operand],
             span,
         },
@@ -2442,10 +2372,7 @@ fn desugar_expr_in_place(
             right,
             span,
         } => Expr::Call {
-            // Reason for fallback: defaults to canonical op.keyword() when the local candidate key matches op.keyword().
-            target: SymbolTarget::Ident(
-                matched_ident.unwrap_or_else(|| op.keyword().to_owned()),
-            ),
+            target: SymbolTarget::Ident(op.keyword().to_owned()),
             args: vec![*left, *right],
             span,
         },
@@ -2456,10 +2383,7 @@ fn desugar_expr_in_place(
             third,
             span,
         } => Expr::Call {
-            // Reason for fallback: defaults to canonical op.keyword() when the local candidate key matches op.keyword().
-            target: SymbolTarget::Ident(
-                matched_ident.unwrap_or_else(|| op.keyword().to_owned()),
-            ),
+            target: SymbolTarget::Ident(op.keyword().to_owned()),
             args: vec![*first, *second, *third],
             span,
         },
@@ -2470,53 +2394,35 @@ fn desugar_expr_in_place(
 fn desugar_routine_in_place(
     r: &mut RoutineDecl,
     resolved_calls: &HashMap<(usize, usize), ResolvedCallTarget>,
-    overload_call_idents: &HashMap<(usize, usize), String>,
 ) {
     for tb in &mut r.tests {
         for tc in &mut tb.cases {
             for inp in &mut tc.inputs {
-                desugar_expr_in_place(
-                    inp,
-                    resolved_calls,
-                    overload_call_idents,
-                );
+                desugar_expr_in_place(inp, resolved_calls);
             }
             if let TestExpected::Expr(exp) = &mut tc.expected {
-                desugar_expr_in_place(
-                    exp,
-                    resolved_calls,
-                    overload_call_idents,
-                );
+                desugar_expr_in_place(exp, resolved_calls);
             }
         }
     }
-    desugar_expr_in_place(&mut r.body, resolved_calls, overload_call_idents);
+    desugar_expr_in_place(&mut r.body, resolved_calls);
 }
 
 fn desugar_overloaded_ops_in_module(
     module: &Module,
     resolved_calls: &HashMap<(usize, usize), ResolvedCallTarget>,
-    overload_call_idents: &HashMap<(usize, usize), String>,
 ) -> Module {
     let mut out = module.clone();
-    if resolved_calls.is_empty() && overload_call_idents.is_empty() {
+    if resolved_calls.is_empty() {
         return out;
     }
     for item in &mut out.items {
         match item {
             TopDecl::Value(v) => {
-                desugar_expr_in_place(
-                    &mut v.value,
-                    resolved_calls,
-                    overload_call_idents,
-                );
+                desugar_expr_in_place(&mut v.value, resolved_calls);
             }
             TopDecl::Routine(r) => {
-                desugar_routine_in_place(
-                    r,
-                    resolved_calls,
-                    overload_call_idents,
-                );
+                desugar_routine_in_place(r, resolved_calls);
             }
             TopDecl::Struct(_)
             | TopDecl::BrandType(_)

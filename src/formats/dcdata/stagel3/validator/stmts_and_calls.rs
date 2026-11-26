@@ -32,7 +32,6 @@ use super::super::ast::{
     BinaryOp, BlockItem, Expr, MatchArm, RoutineDecl, Span, StageDialect,
     StageLType, StageRErrorTag, StructTypeRef, SymbolTarget,
     format_dc_shorthand, is_enclosing_routine_token_dc,
-    overloadable_std_synonym_counterpart,
 };
 use super::consts_and_flow::{
     BindingEntry, BindingKind, BodyCtx, BufState, FlowState, NestedVerbSummary,
@@ -395,15 +394,14 @@ impl<'a> ModuleValidator<'a> {
         }
     }
 
-    /// Validates direct buffer verb target `/b` (for `bufGain` / `bufPush`,
-    /// `bufGainAll` / `bufExtend`, `bufFrozen` / `bufFreeze`, and `len`),
-    /// enforcing StageR 3 linearity and loop freeze protection.
+    /// Validates direct buffer verb target `/b` (for `bufPush`, `bufExtend`,
+    /// `bufFreeze`, and `len`), enforcing StageR 3 linearity and loop freeze
+    /// protection.
     pub(super) fn check_buf_target(
         &mut self,
         expr: &Expr,
         op_name: &str,
         require_buf: bool,
-        is_freeze: bool,
         state: &mut FlowState,
         ctx: &mut BodyCtx,
     ) -> Result<StageLType> {
@@ -443,10 +441,10 @@ impl<'a> ModuleValidator<'a> {
                 ),
             }
 
-            if is_freeze {
+            if op_name == "bufFreeze" {
                 ensure!(
                     !ctx.loop_protected_bufs.contains(&entry.id),
-                    "Cannot freeze outer buffer '{name}' with '{op_name}' inside a loop at {span}"
+                    "Cannot freeze outer buffer '{name}' with 'bufFreeze' inside a loop at {span}"
                 );
                 state.bufs.insert(entry.id, BufState::Frozen);
             }
@@ -779,27 +777,6 @@ impl<'a> ModuleValidator<'a> {
                     return self.resolve_ident_overload_call(
                         name, &arg_tys, was_in_tail, span,
                     );
-                }
-
-                if self.dialect == StageDialect::StageL3
-                    && let Some(alt) = overloadable_std_synonym_counterpart(name)
-                    && self.routine_candidates.get(alt).is_some_and(|cands| {
-                        cands.iter().all(|c| {
-                            c.namespace
-                                .as_deref()
-                                .or(self.namespace_key.as_deref())
-                                .is_some_and(|ns| {
-                                    ns == "std" || ns.starts_with("std/")
-                                })
-                        })
-                    })
-                {
-                    let ret = self.resolve_ident_overload_call(
-                        alt, &arg_tys, was_in_tail, span,
-                    )?;
-                    self.overload_call_idents
-                        .insert((span.line, span.col), alt.to_owned());
-                    return Ok(ret);
                 }
 
                 bail!("Unknown routine '{name}' at {span}");

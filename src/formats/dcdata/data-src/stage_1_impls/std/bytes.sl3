@@ -22,13 +22,13 @@ ns std/bytes.
 : Private helper checking whether `sep` matches `input` starting at `pos`.
 : @dc l8589978238
 v/b/matchesAt l/u8/input u64/pos l/u8/sep
-    be u64/sepLen len /sep.
-    hold u64/k u64:0.
+    const u64/sepLen len /sep.
+    let u64/k u64:0.
     while lt /k /sepLen do
-        if ne at /input sum /pos /k at /sep /k
+        if ne get /input add /pos /k get /sep /k
             return false
             nop.
-        become /k sum /k u64:1.
+        set /k add /k u64:1.
     ::.
     true.
 
@@ -37,7 +37,7 @@ v/b/matchesAt l/u8/input u64/pos l/u8/sep
 : `implode sep (explode sep x) == x`. When `sep` is empty (`b""`), splits `input` into
 : individual 1-byte slices (`explode b"" b"" == []` and `explode b"" b"abc" == [b"a", b"b", b"c"]`).
 : @dc l8589978239
-pub v/l/l/u8/pieces l/u8/sep l/u8/input
+pub v/l/l/u8/explode l/u8/sep l/u8/input
     test
         in b"," b"a,b,c"
         out l/l/u8: b"a" b"b" b"c" ::.
@@ -53,42 +53,42 @@ pub v/l/l/u8/pieces l/u8/sep l/u8/input
         out l/l/u8: ::.
         in b"" b"abc"
         out l/l/u8: b"a" b"b" b"c" ::.
-    be u64/sepLen len /sep.
-    be u64/inLen len /input.
+    const u64/sepLen len /sep.
+    const u64/inLen len /input.
     if eq /sepLen u64:0
         do
-            be buf/l/u8/elems bufNew l/u8 /inLen.
-            hold u64/idx u64:0.
+            const buf/l/u8/elems bufNew l/u8 /inLen.
+            let u64/idx u64:0.
             while lt /idx /inLen do
-                bufGain /elems slice /input /idx sum /idx u64:1.
-                become /idx sum /idx u64:1.
+                bufPush /elems slice /input /idx add /idx u64:1.
+                set /idx add /idx u64:1.
             ::.
-            return bufFrozen /elems.
+            return bufFreeze /elems.
         ::
         nop.
-    be buf/l/u8/outBuf bufNew l/u8 u64:4.
-    hold u64/segStart u64:0.
-    hold u64/pos u64:0.
+    const buf/l/u8/outBuf bufNew l/u8 u64:4.
+    let u64/segStart u64:0.
+    let u64/pos u64:0.
     if le /sepLen /inLen
         do
-            be u64/limit diff /inLen /sepLen.
+            const u64/limit sub /inLen /sepLen.
             while le /pos /limit do
                 if matchesAt /input /pos /sep
                     do
-                        bufGain /outBuf slice /input /segStart /pos.
-                        become /pos sum /pos /sepLen.
-                        become /segStart /pos.
+                        bufPush /outBuf slice /input /segStart /pos.
+                        set /pos add /pos /sepLen.
+                        set /segStart /pos.
                     ::
-                    become /pos sum /pos u64:1.
+                    set /pos add /pos u64:1.
             ::.
         ::
         nop.
-    bufGain /outBuf slice /input /segStart /inLen.
-    bufFrozen /outBuf.
+    bufPush /outBuf slice /input /segStart /inLen.
+    bufFreeze /outBuf.
 
 : Concatenates `parts` in linear `O(N)` time inserting `sep` between adjacent slices.
 : @dc l8589978240
-pub v/l/u8/joined l/u8/sep l/l/u8/parts
+pub v/l/u8/implode l/u8/sep l/l/u8/parts
     test
         in b"," l/l/u8: b"a" b"b" b"c" ::
         out b"a,b,c".
@@ -102,23 +102,23 @@ pub v/l/u8/joined l/u8/sep l/l/u8/parts
         out b"abcd".
         in b"--" l/l/u8: b"a" b"-b" ::
         out b"a---b".
-    be u64/count len /parts.
+    const u64/count len /parts.
     if eq /count u64:0
         return b""
         nop.
-    hold u64/total prod diff /count u64:1 len /sep.
-    hold u64/i u64:0.
+    let u64/total mul sub /count u64:1 len /sep.
+    let u64/i u64:0.
     while lt /i /count do
-        become /total sum /total len at /parts /i.
-        become /i sum /i u64:1.
+        set /total add /total len get /parts /i.
+        set /i add /i u64:1.
     ::.
-    be buf/u8/outBuf bufNew u8 /total.
-    become /i u64:0.
+    const buf/u8/outBuf bufNew u8 /total.
+    set /i u64:0.
     while lt /i /count do
         if gt /i u64:0
-            bufGainAll /outBuf /sep
+            bufExtend /outBuf /sep
             nop.
-        bufGainAll /outBuf at /parts /i.
-        become /i sum /i u64:1.
+        bufExtend /outBuf get /parts /i.
+        set /i add /i u64:1.
     ::.
-    bufFrozen /outBuf.
+    bufFreeze /outBuf.

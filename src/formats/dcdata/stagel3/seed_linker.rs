@@ -42,7 +42,6 @@ use super::ast::{
     ImportTarget, Module, NamedFieldDecl, NamedStructDecl,
     PositionalStructDecl, RoutineDecl, Span, StageDialect, StageLType,
     StructTypeRef, SymbolTarget, TestExpected, TopDecl, TopValueDecl,
-    overloadable_std_synonym_counterpart,
 };
 use super::dc_tokens::{
     decode_anon_routine_from_dc_tokens_at_line, decode_module_from_dc_tokens,
@@ -2480,42 +2479,12 @@ fn parse_source_with_seed_graph_context(
     }
     let import_ctx =
         build_stager_import_context(source, pre_ns_exports, &dc_import_map)?;
-    let mut module = match dialect {
+    match dialect {
         StageDialect::StageL3 => {
-            parse_module_with_imports(source, &import_ctx.verb_arities)?
+            parse_module_with_imports(source, &import_ctx.verb_arities)
         }
         StageDialect::StageR3 => {
-            parse_sr3_module_with_imports(source, &import_ctx)?
-        }
-    };
-    align_std_use_targets_with_exports(&mut module, pre_ns_exports);
-    Ok(module)
-}
-
-fn align_std_use_targets_with_exports(
-    module: &mut Module,
-    pre_ns_exports: &HashMap<String, NamespaceExports>,
-) {
-    for u in &mut module.uses {
-        if u.path.first().map(String::as_str) != Some("std") {
-            continue;
-        }
-        let target_key = u.path.join("/");
-        let Some(exp) = pre_ns_exports.get(&target_key) else {
-            continue;
-        };
-        for item in &mut u.items {
-            if let ImportTarget::Name(n) = &mut item.target
-                && !exp.routines.contains_key(n.as_str())
-                && let Some(alt) =
-                    overloadable_std_synonym_counterpart(n.as_str())
-                && exp.routines.contains_key(alt)
-            {
-                if item.alias.is_none() {
-                    item.alias = Some(n.clone());
-                }
-                *n = alt.to_owned();
-            }
+            parse_sr3_module_with_imports(source, &import_ctx)
         }
     }
 }
