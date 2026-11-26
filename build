@@ -451,7 +451,8 @@ if [[ "$build_docs" == "true" ]]; then
         cp docs/workspace-dependencies.generated.svg built/docs/
     fi
     if [[ "$clean_targets" == "true" ]]; then
-        rm -rf target/x86_64-unknown-linux-musl/doc target/doc
+        cargo clean --doc --target x86_64-unknown-linux-musl 2>/dev/null || true
+        cargo clean --doc 2>/dev/null || true
     fi
 fi
 
@@ -488,7 +489,25 @@ if [[ "$prep_only" == "true" ]]; then
     exit 0
 fi
 
+free_disk_kib() {
+    df -Pk . 2>/dev/null | awk 'NR==2 {print $4}'
+}
+
+clean_single_target_dir() {
+    local triple="$1"
+    cargo clean --target "$triple" 2>/dev/null || {
+        if [[ -d "target/$triple" ]]; then
+            rm -r "target/$triple"
+        fi
+    }
+}
+
+min_free_kib="${CTB_MIN_FREE_KIB:-52428800}"
+platform_count="${#platforms[@]}"
+platform_idx=0
+
 for p in "${platforms[@]}"; do
+    platform_idx=$((platform_idx + 1))
     echo "Building for platform $p with release profile $release..."
     if [[ "$p" == "linux-x64" ]]; then
         target=x86_64-unknown-linux-musl
@@ -510,6 +529,18 @@ for p in "${platforms[@]}"; do
     else
         echo "Unknown or unimplemented target $p."
         exit 1
+    fi
+
+    if [[ "$clean_targets" != "true" && "$platform_count" -gt 1 ]]; then
+        avail_kib="$(free_disk_kib)"
+        if [[ "$avail_kib" =~ ^[0-9]+$ && "$avail_kib" -lt "$min_free_kib" ]]; then
+            for other_triple in x86_64-unknown-linux-musl i586-unknown-linux-musl x86_64-win7-windows-gnu x86_64-unknown-freebsd x86_64-unknown-linux-gnu i586-unknown-linux-gnu x86_64-apple-darwin aarch64-apple-darwin; do
+                if [[ "$other_triple" != "$target" && -d "target/$other_triple" ]]; then
+                    echo "Low free disk space ($((avail_kib / 1048576)) GiB available); cleaning stale target/$other_triple before building $p..."
+                    clean_single_target_dir "$other_triple"
+                fi
+            done
+        fi
     fi
 
     target_rustflags="$RUSTFLAGS"
@@ -742,9 +773,24 @@ for p in "${platforms[@]}"; do
 
     if [[ "$clean_targets" == "true" ]]; then
         echo "Cleaning target artifacts for $target..."
-        cargo clean 2>/dev/null || rm -rf target
+        clean_single_target_dir "$target"
+    elif [[ "$platform_idx" -lt "$platform_count" ]]; then
+        avail_kib="$(free_disk_kib)"
+        if [[ "$avail_kib" =~ ^[0-9]+$ && "$avail_kib" -lt "$min_free_kib" ]]; then
+            echo "Low free disk space ($((avail_kib / 1048576)) GiB available); cleaning target/$target before next platform build..."
+            clean_single_target_dir "$target"
+        fi
     fi
 done
+
+if [[ "$clean_targets" == "true" ]]; then
+    echo "Cleaning remaining host build artifacts..."
+    cargo clean 2>/dev/null || {
+        if [[ -d target ]]; then
+            rm -r target
+        fi
+    }
+fi
 
 # cp built/web/vendor/coi-serviceworker/coi-serviceworker.js built/web/
 

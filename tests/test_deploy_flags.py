@@ -754,6 +754,317 @@ sys.exit(subprocess.call([{real_rsync!r}] + args))
             self.assertNotIn("secret-global-pass-xyz", unlock_events[0]["cmd"])
             self.assertIn("secret-global-pass-xyz", unlock_events[0]["stdin"])
 
+    def test_deploy_version_bump_locks_cargo_lock_skips_stale_noise_and_passes_clean_targets(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = pathlib.Path(tmpdir)
+            repo = tmp / "repo"
+            (repo / "scripts").mkdir(parents=True)
+            (repo / "built" / "linux-x64").mkdir(parents=True)
+
+            # Copy deploy and run-dev-ctb into isolated temp git repo
+            deploy_dst = repo / "deploy"
+            deploy_dst.write_text(
+                (REPO_ROOT / "deploy").read_text(encoding="utf-8"), encoding="utf-8"
+            )
+            deploy_dst.chmod(0o755)
+            (repo / "scripts" / "run-dev-ctb").write_text(
+                (REPO_ROOT / "scripts" / "run-dev-ctb").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+
+            # Seed stale/unversioned binaries in built/linux-x64 to verify no noise by default
+            (repo / "built" / "linux-x64" / "ctoolbox").write_bytes(
+                b"\x7fELF-legacy-no-build-marker"
+            )
+            (repo / "built" / "linux-x64" / "ctoolbox-installer").write_bytes(
+                b"\x7fELF-legacy-installer-no-marker"
+            )
+            (repo / "built" / "ctoolbox.rsrc").write_bytes(b"rsrc-stub")
+
+            (repo / "Cargo.toml").write_text(
+                '[package]\nname = "ctoolbox"\nversion = "0.1.49"\nedition = "2024"\n',
+                encoding="utf-8",
+            )
+            (repo / "Cargo.lock").write_text(
+                'version = 4\n\n[[package]]\nname = "ctoolbox"\nversion = "0.1.49"\n',
+                encoding="utf-8",
+            )
+            (repo / ".gitignore").write_text("/built/\n", encoding="utf-8")
+
+            build_args_log = tmp / "build_args.jsonl"
+            cargo_args_log = tmp / "cargo_args.jsonl"
+            mock_build = repo / "build"
+            mock_build.write_text(
+                f"""#!/usr/bin/env python3
+import json, sys
+with open({str(build_args_log)!r}, "a", encoding="utf-8") as f:
+    f.write(json.dumps(sys.argv[1:]) + "\\n")
+# Exit cleanly with sentinel error so deploy stops right after ./build invocation
+sys.stderr.write("SENTINEL_STOP_AFTER_BUILD\\n")
+sys.exit(42)
+""",
+                encoding="utf-8",
+            )
+            mock_build.chmod(0o755)
+
+            bin_dir = tmp / "mock_bin"
+            bin_dir.mkdir()
+            mock_cargo = bin_dir / "cargo"
+            mock_cargo.write_text(
+                f"""#!/usr/bin/env python3
+import json, pathlib, re, sys
+args = sys.argv[1:]
+with open({str(cargo_args_log)!r}, "a", encoding="utf-8") as f:
+    f.write(json.dumps(args) + "\\n")
+if args and args[0] == "metadata":
+    toml_txt = pathlib.Path("Cargo.toml").read_text(encoding="utf-8")
+    m = re.search(r'^version\\s*=\\s*"([^"]+)"', toml_txt, re.M)
+    ver = m.group(1) if m else "0.0.0"
+    # Real cargo metadata ONLY updates Cargo.lock when --no-deps is NOT passed!
+    if "--no-deps" not in args:
+        lock_path = pathlib.Path("Cargo.lock")
+        lock_txt = lock_path.read_text(encoding="utf-8")
+        lock_txt = re.sub(
+            r'(name = "ctoolbox"\\nversion = ")[^"]+(")',
+            r"\\g<1>" + ver + r"\\g<2>",
+            lock_txt,
+        )
+        lock_path.write_text(lock_txt, encoding="utf-8")
+    print(json.dumps({{"packages": [{{"name": "ctoolbox", "version": ver}}]}}))
+    sys.exit(0)
+if args and args[0] == "clean":
+    sys.exit(0)
+sys.exit(0)
+""",
+                encoding="utf-8",
+            )
+            mock_cargo.chmod(0o755)
+
+            subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True
+            )
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "add", "Cargo.toml", "Cargo.lock", ".gitignore", "deploy", "build", "scripts"],
+                cwd=repo,
+                check=True,
+            )
+            subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)
+
+            cfg = tmp / "cfg"
+            cfg.mkdir()
+            for name, val in (
+                ("username", "deployer"),
+                ("sudoer-username", "sudoer"),
+                ("server-username", "server"),
+                ("ip", "127.0.0.1"),
+                ("port", "2224"),
+                ("global-graph-pass", "pass123"),
+                ("key", "dummy-key"),
+            ):
+                (cfg / f"ctb-deploy.{name}").write_text(f"{val}\n", encoding="utf-8")
+
+            env = os.environ.copy()
+            env["PATH"] = f"{bin_dir}:{env['PATH']}"
+
+            # 1) Default ./deploy quick --clean: bumps Cargo.toml + Cargo.lock in one commit,
+            #    emits ZERO stale/metadata noise, and passes --clean-targets to ./build.
+            res_clean = subprocess.run(
+                ["./deploy", "quick", "--clean", "--target", str(cfg)],
+                cwd=repo,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res_clean.returncode, 42, res_clean.stderr)
+            self.assertIn("SENTINEL_STOP_AFTER_BUILD", res_clean.stderr)
+            self.assertNotIn("Cannot read build metadata", res_clean.stderr)
+            self.assertNotIn("binaries are stale", res_clean.stdout)
+            self.assertIn('version = "0.1.50"', (repo / "Cargo.toml").read_text(encoding="utf-8"))
+            self.assertIn('version = "0.1.50"', (repo / "Cargo.lock").read_text(encoding="utf-8"))
+            git_status = subprocess.check_output(
+                ["git", "status", "--porcelain"], cwd=repo, text=True
+            ).strip()
+            self.assertEqual(git_status, "", "Cargo.lock must be clean/committed after version bump")
+
+            build_calls = [
+                json.loads(ln)
+                for ln in build_args_log.read_text(encoding="utf-8").splitlines()
+                if ln.strip()
+            ]
+            self.assertEqual(len(build_calls), 1)
+            self.assertIn("--clean-targets", build_calls[0])
+
+            # 2) ./deploy quick --reuse-built: probes binaries cleanly WITHOUT raw
+            #    'Cannot read build metadata' stderr noise, while reporting structured staleness.
+            res_reuse = subprocess.run(
+                ["./deploy", "quick", "--reuse-built", "--dry-run", "--target", str(cfg)],
+                cwd=repo,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res_reuse.returncode, 42, res_reuse.stderr)
+            self.assertNotIn("Cannot read build metadata", res_reuse.stderr)
+            self.assertIn("Target 'linux-x64' binaries are stale", res_reuse.stdout)
+            build_calls = [
+                json.loads(ln)
+                for ln in build_args_log.read_text(encoding="utf-8").splitlines()
+                if ln.strip()
+            ]
+            self.assertEqual(len(build_calls), 2)
+            self.assertNotIn("--clean-targets", build_calls[1])
+
+    def test_build_per_target_clean_and_low_disk_guard(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = pathlib.Path(tmpdir)
+            repo = tmp / "repo"
+            (repo / ".cargo").mkdir(parents=True)
+            (repo / ".cargo" / "config.default.toml").write_text("", encoding="utf-8")
+            (repo / "built" / "v86_out" / "build").mkdir(parents=True)
+            (repo / "built" / "v86_out" / "bios").mkdir(parents=True)
+            (repo / "built" / "v86_out" / "build" / "v86.wasm").write_bytes(b"wasm")
+            (repo / "built" / "v86_out" / "bios" / "seabios.bin").write_bytes(b"bios")
+            (repo / "built" / "v86_out" / "bios" / "vgabios.bin").write_bytes(b"vga")
+            (repo / "built" / "ctoolbox.rsrc").write_bytes(b"rsrc")
+
+            build_dst = repo / "build"
+            build_dst.write_text(
+                (REPO_ROOT / "build").read_text(encoding="utf-8"), encoding="utf-8"
+            )
+            build_dst.chmod(0o755)
+
+            cargo_log = tmp / "cargo_clean_calls.jsonl"
+            bin_dir = tmp / "mock_bin"
+            bin_dir.mkdir()
+
+            mock_cargo = bin_dir / "cargo"
+            mock_cargo.write_text(
+                f"""#!/usr/bin/env python3
+import json, pathlib, shutil, sys
+args = sys.argv[1:]
+with open({str(cargo_log)!r}, "a", encoding="utf-8") as f:
+    f.write(json.dumps(args) + "\\n")
+if args and args[0] == "build":
+    target = args[args.index("--target") + 1]
+    bin_name = args[args.index("--bin") + 1]
+    out_dir = pathlib.Path("target") / target / "release"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    # Also create shared host build dir to verify per-target clean preserves it!
+    (pathlib.Path("target") / "release" / "build").mkdir(parents=True, exist_ok=True)
+    (out_dir / bin_name).write_bytes(b"\\x7fELF-static")
+    sys.exit(0)
+if args and args[0] == "clean":
+    if "--target" in args:
+        triple = args[args.index("--target") + 1]
+        assert (pathlib.Path("target") / "release" / "build").is_dir()
+        tdir = pathlib.Path("target") / triple
+        if tdir.is_dir():
+            shutil.rmtree(tdir)
+    else:
+        tdir = pathlib.Path("target")
+        if tdir.is_dir():
+            shutil.rmtree(tdir)
+    sys.exit(0)
+sys.exit(0)
+""",
+                encoding="utf-8",
+            )
+            mock_cargo.chmod(0o755)
+
+            for tool, out_txt in (
+                ("ldd", "statically linked\n"),
+                ("file", "ELF 64-bit LSB executable, statically linked\n"),
+            ):
+                p = bin_dir / tool
+                p.write_text(
+                    f"#!/usr/bin/env bash\nprintf '%s' {out_txt!r}\n", encoding="utf-8"
+                )
+                p.chmod(0o755)
+
+            env = os.environ.copy()
+            env["PATH"] = f"{bin_dir}:{env['PATH']}"
+
+            # Case 1: --clean-targets cleans per-target triple between targets, then full cargo clean at end
+            res1 = subprocess.run(
+                [
+                    "./build",
+                    "--release",
+                    "--no-docs",
+                    "--skip-codegen",
+                    "--no-lints",
+                    "--no-tests",
+                    "--clean-targets",
+                    "linux-x64",
+                    "linux-x86",
+                ],
+                cwd=repo,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res1.returncode, 0, res1.stderr)
+            calls1 = [
+                json.loads(ln)
+                for ln in cargo_log.read_text(encoding="utf-8").splitlines()
+                if ln.strip()
+            ]
+            clean_calls1 = [c for c in calls1 if c[0] == "clean"]
+            self.assertEqual(
+                clean_calls1,
+                [
+                    ["clean", "--target", "x86_64-unknown-linux-musl"],
+                    ["clean", "--target", "i586-unknown-linux-musl"],
+                    ["clean"],
+                ],
+            )
+            self.assertTrue((repo / "built" / "linux-x64" / "ctoolbox").is_file())
+            self.assertTrue((repo / "built" / "linux-x86" / "ctoolbox").is_file())
+
+            # Case 2: Without --clean-targets, when free disk space < CTB_MIN_FREE_KIB,
+            # stale other-target dirs AND completed intermediate target dirs are reclaimed automatically!
+            cargo_log.unlink()
+            (repo / "target" / "x86_64-win7-windows-gnu").mkdir(parents=True)
+            env_low_disk = env.copy()
+            # Set threshold above any realistic disk so low-disk eviction triggers deterministically
+            env_low_disk["CTB_MIN_FREE_KIB"] = str(10**15)
+            res2 = subprocess.run(
+                [
+                    "./build",
+                    "--release",
+                    "--no-docs",
+                    "--skip-codegen",
+                    "--no-lints",
+                    "--no-tests",
+                    "linux-x64",
+                    "linux-x86",
+                ],
+                cwd=repo,
+                env=env_low_disk,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res2.returncode, 0, res2.stderr)
+            calls2 = [
+                json.loads(ln)
+                for ln in cargo_log.read_text(encoding="utf-8").splitlines()
+                if ln.strip()
+            ]
+            clean_calls2 = [c for c in calls2 if c[0] == "clean"]
+            self.assertIn(
+                ["clean", "--target", "x86_64-win7-windows-gnu"], clean_calls2
+            )
+            self.assertIn(
+                ["clean", "--target", "x86_64-unknown-linux-musl"], clean_calls2
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

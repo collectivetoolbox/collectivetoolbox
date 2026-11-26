@@ -37,7 +37,7 @@ Modes:
 	          (linux-x64). This is the default.
 
 Build Options:
-	--clean           Run cargo clean before building.
+	--clean           Run cargo clean before building and clean each target after staging.
 	--skip-clean      Skip cargo clean before building.
 	--no-clean        Alias for --skip-clean.
 	--no-build        Skip build completely; require existing, up-to-date binaries matching current git commit.
@@ -422,7 +422,8 @@ if [[ "$dry_run" -eq 0 && "$no_build" -eq 0 && "$reuse_built" -eq 0 ]]; then
 	fi
 
 	# Trigger cargo to update Cargo.lock with the new version.
-	cargo metadata --format-version=1 --no-deps >/dev/null
+	cargo metadata --format-version=1 --offline >/dev/null 2>&1 \
+		|| cargo metadata --format-version=1 >/dev/null
 
 	# Automatically commit the version bump if there are changes.
 	if ! git diff --quiet Cargo.toml Cargo.lock; then
@@ -507,71 +508,86 @@ if [[ -f "$repository/built/docs/help.html" || -f "$repository/built/docs/index.
 	has_docs_built=1
 fi
 
-for target in "${targets[@]}"; do
-	exe_suffix="$(exe_suffix_for_target "$target")"
-	bin_path="$repository/built/$target/ctoolbox${exe_suffix}"
-	installer_path="$repository/built/$target/ctoolbox-installer${exe_suffix}"
-	rsrc_exists=0
-	if [[ -f "$repository/built/$target/ctoolbox.rsrc" || -f "$repository/built/ctoolbox.rsrc" ]]; then
-		rsrc_exists=1
-	fi
-
-	if [[ -f "$bin_path" && -f "$installer_path" && "$rsrc_exists" -eq 1 ]]; then
-		bin_commit=""
-		inst_commit=""
-		bin_ok=0
-		inst_ok=0
-		if bin_commit="$(ctb_binary_commit "$bin_path")" && [[ "$bin_commit" == "$commit" ]]; then
-			bin_ok=1
-		fi
-		if inst_commit="$(ctb_binary_commit "$installer_path")" && [[ "$inst_commit" == "$commit" ]]; then
-			inst_ok=1
+if [[ "$reuse_built" -eq 1 || "$no_build" -eq 1 ]]; then
+	for target in "${targets[@]}"; do
+		exe_suffix="$(exe_suffix_for_target "$target")"
+		bin_path="$repository/built/$target/ctoolbox${exe_suffix}"
+		installer_path="$repository/built/$target/ctoolbox-installer${exe_suffix}"
+		rsrc_exists=0
+		if [[ -f "$repository/built/$target/ctoolbox.rsrc" || -f "$repository/built/ctoolbox.rsrc" ]]; then
+			rsrc_exists=1
 		fi
 
-		if [[ "$bin_ok" -eq 1 && "$inst_ok" -eq 1 ]]; then
-			if [[ "$no_build" -eq 1 ]]; then
-				echo "Target '$target' binaries (ctoolbox + ctoolbox-installer) match HEAD ($commit)."
-				reused_targets+=("$target")
-				continue
+		if [[ -f "$bin_path" && -f "$installer_path" && "$rsrc_exists" -eq 1 ]]; then
+			bin_commit=""
+			inst_commit=""
+			bin_ok=0
+			inst_ok=0
+			if [[ "$reuse_built" -eq 1 && "$no_build" -eq 0 ]]; then
+				if bin_commit="$(ctb_binary_commit "$bin_path" 2>/dev/null)" && [[ "$bin_commit" == "$commit" ]]; then
+					bin_ok=1
+				fi
+				if inst_commit="$(ctb_binary_commit "$installer_path" 2>/dev/null)" && [[ "$inst_commit" == "$commit" ]]; then
+					inst_ok=1
+				fi
+			else
+				if bin_commit="$(ctb_binary_commit "$bin_path")" && [[ "$bin_commit" == "$commit" ]]; then
+					bin_ok=1
+				fi
+				if inst_commit="$(ctb_binary_commit "$installer_path")" && [[ "$inst_commit" == "$commit" ]]; then
+					inst_ok=1
+				fi
 			fi
-			if [[ "$reuse_built" -eq 1 && "$has_docs_built" -eq 1 ]]; then
-				echo "Target '$target' binaries and docs are current (match HEAD $commit)."
-				reused_targets+=("$target")
-				continue
-			elif [[ "$reuse_built" -eq 1 && "$has_docs_built" -eq 0 ]]; then
-				echo "Target '$target' binaries match HEAD ($commit), but built/docs is missing (likely a --quick build); rebuilding with --docs."
+
+			if [[ "$bin_ok" -eq 1 && "$inst_ok" -eq 1 ]]; then
+				if [[ "$no_build" -eq 1 ]]; then
+					echo "Target '$target' binaries (ctoolbox + ctoolbox-installer) match HEAD ($commit)."
+					reused_targets+=("$target")
+					continue
+				fi
+				if [[ "$reuse_built" -eq 1 && "$has_docs_built" -eq 1 ]]; then
+					echo "Target '$target' binaries and docs are current (match HEAD $commit)."
+					reused_targets+=("$target")
+					continue
+				elif [[ "$reuse_built" -eq 1 && "$has_docs_built" -eq 0 ]]; then
+					echo "Target '$target' binaries match HEAD ($commit), but built/docs is missing (likely a --quick build); rebuilding with --docs."
+				fi
+			else
+				if [[ "$no_build" -eq 1 ]]; then
+					echo "Error: Binary or installer for target '$target' is stale (ctoolbox='$bin_commit', installer='$inst_commit', HEAD='$commit'). Cannot use --no-build." >&2
+					exit 1
+				fi
+				echo "Target '$target' binaries are stale (ctoolbox='$bin_commit', installer='$inst_commit', HEAD='$commit'). Rebuilding required."
 			fi
 		else
 			if [[ "$no_build" -eq 1 ]]; then
-				echo "Error: Binary or installer for target '$target' is stale (ctoolbox='$bin_commit', installer='$inst_commit', HEAD='$commit'). Cannot use --no-build." >&2
+				echo "Error: Binary, installer, or ctoolbox.rsrc for target '$target' not found ($bin_path, $installer_path). Cannot use --no-build." >&2
 				exit 1
 			fi
-			echo "Target '$target' binaries are stale (ctoolbox='$bin_commit', installer='$inst_commit', HEAD='$commit'). Rebuilding required."
 		fi
-	else
-		if [[ "$no_build" -eq 1 ]]; then
-			echo "Error: Binary, installer, or ctoolbox.rsrc for target '$target' not found ($bin_path, $installer_path). Cannot use --no-build." >&2
-			exit 1
-		fi
-	fi
-	targets_to_build+=("$target")
-done
+		targets_to_build+=("$target")
+	done
+else
+	targets_to_build=("${targets[@]}")
+fi
 
 if [[ "${#targets_to_build[@]}" -gt 0 ]]; then
+	build_clean_flags=()
 	if [[ "$skip_clean" == "0" ]]; then
 		cargo clean
+		build_clean_flags=(--clean-targets)
 	fi
 	rsrc_sha_before=""
 	if [[ -f "$repository/built/ctoolbox.rsrc" ]]; then
 		rsrc_sha_before="$(sha256sum "$repository/built/ctoolbox.rsrc" | cut -d' ' -f1)"
 	fi
 	echo "Building targets (skipping lints and tests): ${targets_to_build[*]}..."
-	./build --release --docs --no-lints --no-tests "${targets_to_build[@]}"
+	./build --release --docs --no-lints --no-tests "${build_clean_flags[@]}" "${targets_to_build[@]}"
 	if [[ "${#reused_targets[@]}" -gt 0 && -f "$repository/built/ctoolbox.rsrc" ]]; then
 		rsrc_sha_after="$(sha256sum "$repository/built/ctoolbox.rsrc" | cut -d' ' -f1)"
 		if [[ "$rsrc_sha_after" != "$rsrc_sha_before" ]]; then
 			echo "Runtime bundle built/ctoolbox.rsrc changed during build; rebuilding reused targets (${reused_targets[*]}) to align embedded bundle SHA-256..."
-			./build --release --no-docs --skip-codegen --no-lints --no-tests "${reused_targets[@]}"
+			./build --release --no-docs --skip-codegen --no-lints --no-tests "${build_clean_flags[@]}" "${reused_targets[@]}"
 		fi
 	fi
 else
