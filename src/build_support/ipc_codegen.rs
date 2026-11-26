@@ -1608,10 +1608,8 @@ mod tests {
 
     #[test]
     fn test_collect_rs_files_skips_built_and_non_source_dirs() -> Result<()> {
-        let temp_dir = std::env::temp_dir().join(format!(
-            "ctb_test_ipc_collect_rs_{}",
-            std::process::id()
-        ));
+        let temp_dir = std::env::temp_dir()
+            .join(format!("ctb_test_ipc_collect_rs_{}", std::process::id()));
         if temp_dir.is_dir() {
             fs::remove_dir_all(&temp_dir)?;
         }

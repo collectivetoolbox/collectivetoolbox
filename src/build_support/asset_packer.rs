@@ -191,7 +191,10 @@ fn copy_dir_recursive(
     Ok(())
 }
 
-fn sync_bundle_files_to_stage_dir(src_dir: &Path, dst_dir: &Path) -> Result<()> {
+fn sync_bundle_files_to_stage_dir(
+    src_dir: &Path,
+    dst_dir: &Path,
+) -> Result<()> {
     fs::create_dir_all(dst_dir)
         .with_context(|| format!("Failed to create {}", dst_dir.display()))?;
     let mut expected_names = HashSet::new();
@@ -896,7 +899,8 @@ fn prepare_runtime_assets(
         fs::remove_dir_all(&runtime_graph_system_dir)?;
     }
     sync_bundle_files_to_stage_dir(
-        &graph_bundles_dir.join(crate::ctbnbdl::GRAPH_BUNDLES_SPLIT_LIVE_SUBDIR),
+        &graph_bundles_dir
+            .join(crate::ctbnbdl::GRAPH_BUNDLES_SPLIT_LIVE_SUBDIR),
         &runtime_graph_dir,
     )
     .context("Failed to stage live .ctbnbdl bundles into runtime assets")?;
@@ -998,7 +1002,12 @@ fn prepare_runtime_assets(
 
     if guix_fs_json.is_file() && (initrd_out_of_date || rebuild_requested) {
         let rustc_has_i586 = Command::new("rustc")
-            .args(["--target", "i586-unknown-linux-gnu", "--print", "target-libdir"])
+            .args([
+                "--target",
+                "i586-unknown-linux-gnu",
+                "--print",
+                "target-libdir",
+            ])
             .output()
             .is_ok_and(|out| out.status.success());
         ensure_parent_dir(&guix_initrd)?;
@@ -1462,10 +1471,8 @@ mod tests {
 
     #[test]
     fn test_copy_dir_recursive_skips_reference_implementations() -> Result<()> {
-        let temp_dir = std::env::temp_dir().join(format!(
-            "ctb_test_copy_docs_{}",
-            std::process::id()
-        ));
+        let temp_dir = std::env::temp_dir()
+            .join(format!("ctb_test_copy_docs_{}", std::process::id()));
         if temp_dir.is_dir() {
             fs::remove_dir_all(&temp_dir)?;
         }

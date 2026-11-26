@@ -72,6 +72,7 @@ The deployment test suite consists of three core components:
 
 2. **Decoupled & Fast Deployment Options (`./deploy`)**:
    - `--target <live|vm|DIR>`: Switch between the live production server, the local Linux VM sandbox, or a directory of config files.
+   - `--clean`: Runs `cargo clean` upfront and passes `--clean-targets` to `./build` so each target's `target/<triple>` directory is cleaned immediately after staging its binaries into `built/<platform>/` (preserving shared host proc-macros across targets, then cleaning `target/` at the end). Even under `--skip-clean`, multi-platform `./build` runs automatically evict completed `target/<triple>` directories if free disk space drops below 50 GiB.
    - `--reuse-built`: Inspects pre-existing binaries in `built/$target/ctoolbox` using `--version-json`. If a binary matches `git rev-parse HEAD`, it is reused immediately. Only missing or stale targets are compiled.
    - `--no-build`: Strictly requires that binaries already exist and match the current git commit `HEAD`. Bypasses compilation completely (tests run in ~15–30 seconds).
    - `--mock-artifacts`: Generates lightweight mock tarballs for dependency and source packages, skipping multi-hundred-megabyte git archiving and heavy FastCDC chunking.
