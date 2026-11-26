@@ -230,7 +230,7 @@ All 20 numeric widening/narrowing conversions and 4 same-width bit reinterpretat
 - `conv X TARGET_TYPE` (`Dc 2541 "Convert value (faulting)"`): Lossless when widening (`u8 -> u32/i32/u64/i64`, `u32 -> u64/i64`, `i32 -> i64`); checked narrowing (faults when `X` is outside `TARGET_TYPE`'s range).
 - `bitcast X TARGET_TYPE` (`Dc 2542 "Bitcast value"`): Lossless same-width bit-pattern reinterpretation (`i32 <-> u32`, `i64 <-> u64`; never faults).
 
-### 6.5 Immutable Lists (`l/T`), Local Builder Buffers (`buf/T`), and Library Helpers
+### 6.5 Immutable Lists (`l/T`), Local Builder Buffers (`buf/T`), Host Capabilities, and Library Helpers
 - **Immutable list construction & sequence operations**:
   - `l/T: ELEM_1 ... ::` (`Dc 2578 "Begin StageL list"`..`Dc 2579 "End StageL list"`) -> `l/T`
   - `len XS` (`Dc 2543 "Sequence length"`) -> `l/T | buf/T -> u64`
@@ -244,6 +244,8 @@ All 20 numeric widening/narrowing conversions and 4 same-width bit reinterpretat
   - `bufExtend BUF LIST` (`Dc 2583 "StageL buffer extend"`) -> `void` (bulk `memcpy` append of `l/T`; faults if `BUF` is frozen)
   - `bufSet BUF IDX VAL` (`Dc 2584 "StageL buffer set (faulting)"`) -> `void` (`O(1)` in-place element write at `IDX < len BUF`; faults if out of bounds or frozen)
   - `bufFreeze BUF` (`Dc 2585 "StageL buffer freeze"`) -> `l/T` (`O(1)` zero-copy conversion to immutable `l/T`, marking `BUF` frozen so later mutations fault)
+- **Host capability requests**:
+  - `requestCapability REQ` (`Dc 2616 "Request host capability"`) -> `l/u8 -> l/u8`
 - **Standard library sequence & assertion helpers (`stage_1_impls/std/{bytes,assert}.sl3`, not core Token Dcs)**:
   - `explode` and `implode` in `stage_1_impls/std/bytes.sl3` are total linear-time byte-slice splitting and joining verbs built over `slice`, `bufNew`, `bufPush`, `bufExtend`, and `bufFreeze`: when `sep` is non-empty, `explode` retains leading, trailing, and adjacent empty slices (`implode sep (explode sep x) == x`); when `sep` is empty (`b""`), `explode` splits `input` into individual 1-byte slices (`explode b"" b"" == []`, `explode b"" b"abc" == [b"a", b"b", b"c"]`). `assertStageLInternal` in `stage_1_impls/std/assert.sl3` (`if /cond nop fault`) is gated to `stage_1_impls/`.
 

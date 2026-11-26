@@ -402,6 +402,7 @@ impl<'a> ModuleValidator<'a> {
         expr: &Expr,
         op_name: &str,
         require_buf: bool,
+        is_freeze: bool,
         state: &mut FlowState,
         ctx: &mut BodyCtx,
     ) -> Result<StageLType> {
@@ -441,10 +442,10 @@ impl<'a> ModuleValidator<'a> {
                 ),
             }
 
-            if op_name == "bufFreeze" {
+            if is_freeze {
                 ensure!(
                     !ctx.loop_protected_bufs.contains(&entry.id),
-                    "Cannot freeze outer buffer '{name}' with 'bufFreeze' inside a loop at {span}"
+                    "Cannot freeze outer buffer '{name}' with '{op_name}' inside a loop at {span}"
                 );
                 state.bufs.insert(entry.id, BufState::Frozen);
             }

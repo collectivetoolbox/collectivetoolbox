@@ -109,10 +109,11 @@ const BUILTIN_HEAD_WORDS: &[&str] = &[
     // Composite, nominal, & conversion head forms (9)
     "bufNew", "tupNew", "structNew", "field", "with", "wrap", "unwrap", "conv",
     "bitcast",
-    // Unary built-in verbs (20)
+    // Unary built-in verbs (21)
     "neg", "bitNot", "not", "clz", "ctz", "popcnt", "len", "bufFreeze",
     "isSome", "isNone", "isOk", "isErr", "byteLen", "dcFromU128", "u128FromDc",
-    "dcsFromS", "sFromDcs", "unwrapSome", "unwrapOk", "unwrapErr",
+    "dcsFromS", "sFromDcs", "requestCapability", "unwrapSome", "unwrapOk",
+    "unwrapErr",
     // Binary built-in verbs (35)
     "add", "sub", "mul", "div", "rem", "mod", "truncRem", "wrapAdd", "wrapSub",
     "wrapMul", "bitAnd", "bitOr", "bitXor", "shl", "shr", "rotl", "rotr", "and",
@@ -858,6 +859,7 @@ mod tests {
             "popcnt",
             "len",
             "bufFreeze",
+            "requestCapability",
             "add",
             "sub",
             "mul",

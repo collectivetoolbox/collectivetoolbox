@@ -834,6 +834,10 @@ v/u32/useIdents u32/in u32/out u32/len u32/type u32/error
         );
         assert!(parser::parse_module("v/u32/add u32/x :: /x.\n").is_err());
         assert!(parser::parse_module("v/u32/ADD u32/x :: /x.\n").is_err());
+        assert!(
+            parser::parse_module("v/u32/requestCapability u32/x :: /x.\n")
+                .is_err()
+        );
         assert!(parser::parse_module("v/u32/match u32/x :: /x.\n").is_err());
         assert!(parser::parse_module("v/u32/makeRat u32/x :: /x.\n").is_err());
         assert!(parser::parse_module("v/u32/explode u32/x :: /x.\n").is_err());

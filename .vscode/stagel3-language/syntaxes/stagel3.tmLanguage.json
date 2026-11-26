@@ -299,7 +299,7 @@
                     }
                 },
                 {
-                    "match": "(?<![A-Za-z0-9_/:])((?i:add|sub|mul|div|rem|truncRem|mod|neg|wrapAdd|wrapSub|wrapMul|tryAdd|trySub|tryMul|tryDiv|tryMod|tryTruncRem|bitAnd|bitOr|bitXor|bitNot|shl|shr|rotl|rotr|clz|ctz|popcnt|not|and|or|eq|ne|lt|le|gt|ge|conv|bitcast|len|byteLen|get|slice|concat|explode|implode|bufNew|tupNew|structNew|bufFill|bufPush|bufExtend|bufSet|bufFreeze|zl|wrap|unwrap|field|with|isSome|isNone|unwrapOr|okOr|unwrapSome|isOk|isErr|unwrapOk|unwrapErr|makeRat|dcFromU128|u128FromDc|dcsFromS|sFromDcs|assert))([/?])?(?![A-Za-z0-9_/:?])",
+                    "match": "(?<![A-Za-z0-9_/:])((?i:add|sub|mul|div|rem|truncRem|mod|neg|wrapAdd|wrapSub|wrapMul|tryAdd|trySub|tryMul|tryDiv|tryMod|tryTruncRem|bitAnd|bitOr|bitXor|bitNot|shl|shr|rotl|rotr|clz|ctz|popcnt|not|and|or|eq|ne|lt|le|gt|ge|conv|bitcast|len|byteLen|get|slice|concat|explode|implode|bufNew|tupNew|structNew|bufFill|bufPush|bufExtend|bufSet|bufFreeze|zl|wrap|unwrap|field|with|isSome|isNone|unwrapOr|okOr|unwrapSome|isOk|isErr|unwrapOk|unwrapErr|makeRat|dcFromU128|u128FromDc|dcsFromS|sFromDcs|requestCapability|assert))([/?])?(?![A-Za-z0-9_/:?])",
                     "captures": {
                         "1": {
                             "name": "support.function.builtin.stagel3"

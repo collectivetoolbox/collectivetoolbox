@@ -1106,7 +1106,9 @@ impl<'a> ModuleValidator<'a> {
         let was_in_tail = ctx.in_tail;
         match op {
             UnaryOp::Len => {
-                let ty = self.check_buf_target(operand, "len", false, state, ctx)?;
+                let ty = self.check_buf_target(
+                    operand, "len", false, false, state, ctx,
+                )?;
                 if ty == StageLType::Never {
                     return Ok(if self.dialect == StageDialect::StageL3 {
                         StageLType::U64
@@ -1136,8 +1138,9 @@ impl<'a> ModuleValidator<'a> {
             UnaryOp::BufFreeze => {
                 let ty = self.check_buf_target(
                     operand,
-                    "bufFreeze",
+                    op.keyword(),
                     self.dialect == StageDialect::StageR3,
+                    true,
                     state,
                     ctx,
                 )?;
@@ -1418,8 +1421,14 @@ impl<'a> ModuleValidator<'a> {
                 self.check_short_circuit_logic(op, left, right, span, state, ctx)
             }
             BinaryOp::BufPush => {
-                let buf_ty =
-                    self.check_buf_target(left, "bufPush", true, state, ctx)?;
+                let buf_ty = self.check_buf_target(
+                    left,
+                    op.keyword(),
+                    true,
+                    false,
+                    state,
+                    ctx,
+                )?;
                 let val_ty = self.check_subexpr(right, state, ctx)?;
                 if buf_ty == StageLType::Never {
                     return Ok(StageLType::Never);
@@ -1436,8 +1445,14 @@ impl<'a> ModuleValidator<'a> {
                 Ok(StageLType::Void)
             }
             BinaryOp::BufExtend => {
-                let buf_ty =
-                    self.check_buf_target(left, "bufExtend", true, state, ctx)?;
+                let buf_ty = self.check_buf_target(
+                    left,
+                    op.keyword(),
+                    true,
+                    false,
+                    state,
+                    ctx,
+                )?;
                 let list_ty = self.check_subexpr(right, state, ctx)?;
                 if buf_ty == StageLType::Never {
                     return Ok(StageLType::Never);
@@ -1832,7 +1847,8 @@ impl<'a> ModuleValidator<'a> {
         ctx: &mut BodyCtx,
     ) -> Result<StageLType> {
         let is_total = op == BinaryOp::TotalGet;
-        let lty = self.check_buf_target(left, op.keyword(), false, state, ctx)?;
+        let lty =
+            self.check_buf_target(left, op.keyword(), false, false, state, ctx)?;
         let rty = self.check_subexpr(right, state, ctx)?;
         if !is_total
             && self.dialect == StageDialect::StageL3
@@ -2155,8 +2171,14 @@ impl<'a> ModuleValidator<'a> {
             }
             TernaryOp::BufSet | TernaryOp::TotalBufSet => {
                 let is_total = op == TernaryOp::TotalBufSet;
-                let buf_ty =
-                    self.check_buf_target(first, "bufSet", true, state, ctx)?;
+                let buf_ty = self.check_buf_target(
+                    first,
+                    op.keyword(),
+                    true,
+                    false,
+                    state,
+                    ctx,
+                )?;
                 let idx_ty = self.check_subexpr(second, state, ctx)?;
                 let val_ty = self.check_subexpr(third, state, ctx)?;
                 let prefix = if is_total {
