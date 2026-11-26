@@ -221,6 +221,7 @@
   <path class="edge-path" d="M 2994.0 926.0 C 2994.0 966.0, 3491.5 966.0, 3491.5 1006.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3193.0 814.0 C 3193.0 854.0, 4785.0 854.0, 4785.0 894.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3193.0 814.0 C 3193.0 854.0, 4984.0 854.0, 4984.0 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 506.5 478.0 C 506.5 798.0, 3093.5 798.0, 3093.5 1118.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 705.5 478.0 C 705.5 798.0, 3093.5 798.0, 3093.5 1118.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 904.5 478.0 C 904.5 798.0, 3093.5 798.0, 3093.5 1118.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 1800.0 926.0 C 1800.0 1022.0, 3093.5 1022.0, 3093.5 1118.0" marker-end="url(#arrow-down)" />
@@ -237,7 +238,6 @@
   <path class="edge-path" d="M 3790.0 926.0 C 3790.0 1134.0, 3193.0 1134.0, 3193.0 1342.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3193.0 1262.0 C 3193.0 1302.0, 3193.0 1302.0, 3193.0 1342.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3193.0 366.0 C 3193.0 406.0, 5083.5 406.0, 5083.5 446.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 506.5 478.0 C 506.5 910.0, 3392.0 910.0, 3392.0 1342.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3491.5 478.0 C 3491.5 910.0, 3392.0 910.0, 3392.0 1342.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 4287.5 478.0 C 4287.5 910.0, 3392.0 910.0, 3392.0 1342.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 4486.5 478.0 C 4486.5 910.0, 3392.0 910.0, 3392.0 1342.0" marker-end="url(#arrow-down)" />
@@ -315,7 +315,7 @@ Depends on (1):
   ctb-utilities
 
 Depended on by (1):
-  ctb-io-webui</title>
+  ctb-installer</title>
     <rect class="node-rect" x="419.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#f8fafc" stroke="#64748b" stroke-width="1.3" />
     <text class="node-text" x="506.5" y="462.0" fill="#0f172a" text-anchor="middle" dominant-baseline="middle">ctb-build-info</text>
   </g>
@@ -1187,8 +1187,8 @@ Depended on by (2):
     <title>Crate: ctb-installer
 Layer: 9
 
-Depends on (6):
-  ctb-formats-alias, ctb-formats-applescript, ctb-formats-base64, ctb-formats-hexdump, ctb-formats-lnk, ctb-workspace-x11-client-egui
+Depends on (7):
+  ctb-build-info, ctb-formats-alias, ctb-formats-applescript, ctb-formats-base64, ctb-formats-hexdump, ctb-formats-lnk, ctb-workspace-x11-client-egui
 
 Depended on by (1):
   ctb-io-webui</title>
@@ -1259,8 +1259,8 @@ Depended on by (1):
     <title>Crate: ctb-io-webui
 Layer: 11
 
-Depends on (11):
-  ctb-build-info, ctb-formats-ipaddr, ctb-formats-markdown, ctb-formats-multipart, ctb-formats-pem, ctb-formats-syndication, ctb-formats-useragent, ctb-installer, ctb-io-environment, ctb-io-system, ctb-storage
+Depends on (10):
+  ctb-formats-ipaddr, ctb-formats-markdown, ctb-formats-multipart, ctb-formats-pem, ctb-formats-syndication, ctb-formats-useragent, ctb-installer, ctb-io-environment, ctb-io-system, ctb-storage
 
 Depended on by (1):
   ctb-io</title>

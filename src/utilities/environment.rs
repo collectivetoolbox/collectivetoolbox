@@ -373,9 +373,14 @@ fn verify_official_signature_in_thread() -> bool {
     }
 
     manifest.files.iter().any(|entry| {
-        (entry.path == "ctoolbox"
-            || entry.path == "bin/ctoolbox"
-            || entry.path == "ctoolbox-installer")
-            && entry.checksum == exe_hash
+        matches!(
+            entry.path.as_str(),
+            "ctoolbox"
+                | "ctoolbox.exe"
+                | "bin/ctoolbox"
+                | "bin/ctoolbox.exe"
+                | "ctoolbox-installer"
+                | "ctoolbox-installer.exe"
+        ) && entry.checksum == exe_hash
     })
 }

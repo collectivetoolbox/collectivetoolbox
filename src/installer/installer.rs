@@ -54,7 +54,7 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(
     name = "ctoolbox-installer",
-    version = environment::ctb_version(),
+    version = ctb_build_info::ctb_version_display(),
     about = "ctoolbox installer",
     disable_help_subcommand = true
 )]
@@ -63,6 +63,10 @@ use clap::Parser;
     reason = "CLI argument configuration options"
 )]
 struct InstallerCli {
+    /// Print version information in JSON format and exit.
+    #[arg(long)]
+    version_json: bool,
+
     /// Run repair mode.
     #[arg(long)]
     repair: bool,
@@ -121,13 +125,19 @@ struct InstallerCli {
 /// # Errors
 /// Returns an error if the installer fails to start or encounters an error.
 pub fn main() -> anyhow::Result<()> {
+    let raw_args: Vec<String> = std::env::args().collect();
+    let cli = InstallerCli::parse_from(&raw_args);
+    if cli.version_json {
+        let info = ctb_build_info::build_info();
+        println!("{}", serde_json::to_string_pretty(&info)?);
+        return Ok(());
+    }
+
     crate::utilities::logging::setup_logger(
         "installer".to_string(),
         "installer".to_string(),
     )?;
 
-    let raw_args: Vec<String> = std::env::args().collect();
-    let cli = InstallerCli::parse_from(&raw_args);
     invocation_settings::apply_command_line_args(&raw_args)?;
 
     if cli.repair && cli.uninstall {

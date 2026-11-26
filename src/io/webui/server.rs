@@ -579,9 +579,20 @@ fn start_webui_server_inner(
     // Build templates once and share via state
     let state = AppState::try_new()?;
 
-    // Clear downloads_cache directory at server startup
+    // Clear downloads_cache directories at server startup
     if let Ok(storage_dir) = ctb_utilities::storage::get_storage_dir() {
         let cache_dir = storage_dir.join("releases").join("downloads_cache");
+        if cache_dir.exists() {
+            if let Err(e) = std::fs::remove_dir_all(&cache_dir) {
+                warn_fmt!(
+                    "Failed to clear downloads cache directory {}: {e}",
+                    cache_dir.display()
+                );
+            }
+        }
+    }
+    if let Ok(app_cache_dir) = ctb_utilities::storage::get_cache_dir() {
+        let cache_dir = app_cache_dir.join("downloads_cache");
         if cache_dir.exists() {
             if let Err(e) = std::fs::remove_dir_all(&cache_dir) {
                 warn_fmt!(

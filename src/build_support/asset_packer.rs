@@ -1285,6 +1285,14 @@ pub fn print_rerun_directives(manifest_dir: &Path) -> Result<()> {
         "cargo:rerun-if-changed={}",
         project_root.join("build").display()
     );
+    println!(
+        "cargo:rerun-if-changed={}",
+        project_root.join("Cargo.lock").display()
+    );
+    let built_docs_dir = project_root.join("built").join("docs");
+    if built_docs_dir.is_dir() {
+        println!("cargo:rerun-if-changed={}", built_docs_dir.display());
+    }
     println!("cargo:rerun-if-env-changed=PROFILE");
     println!("cargo:rerun-if-env-changed=CTB_SKIP_DOCS");
     println!("cargo:rerun-if-env-changed=CTB_SKIP_V86_RSRC");

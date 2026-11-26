@@ -58,10 +58,10 @@ fn padding_to_block(size: u64) -> u64 {
     }
 }
 
-/// A tar entry header for streaming generation.
+/// A tar entry header for streaming generation (POSIX.1-1988 `ustar` format).
 #[derive(Debug, Clone)]
 struct TarHeader {
-    /// File path within the archive (limited to 100 chars for basic tar).
+    /// File path within the archive (up to 255 bytes via `ustar` prefix + name).
     name: String,
     /// File size in bytes.
     size: u64,
@@ -71,6 +71,49 @@ struct TarHeader {
     mtime: u64,
     /// Whether this is a directory.
     is_dir: bool,
+}
+
+/// Splits a tar entry path into `(ustar_prefix, ustar_name)` where `prefix` is
+/// at most 155 bytes and `name` is 1..=100 bytes.
+fn split_ustar_path(full_name: &str) -> Result<(&[u8], &[u8])> {
+    let full_bytes = full_name.as_bytes();
+    ensure!(!full_bytes.is_empty(), "Tar entry path must not be empty");
+    ensure!(
+        !full_bytes.contains(&0),
+        "Tar entry path must not contain NUL bytes: {full_name}"
+    );
+
+    if full_bytes.len() <= 100 {
+        return Ok((&[], full_bytes));
+    }
+
+    // Find the rightmost '/' within the first 156 bytes so `prefix` (before '/')
+    // fits in 155 bytes and `name` (after '/') is non-empty and fits in 100 bytes.
+    let max_sep_index = full_bytes.len().min(156);
+    let search_slice = full_bytes
+        .get(..max_sep_index)
+        .context("Invalid slice bounds while splitting ustar path")?;
+    for (idx, &byte) in search_slice.iter().enumerate().rev() {
+        if byte == b'/' && idx > 0 && idx <= 155 {
+            let Some(prefix) = full_bytes.get(..idx) else {
+                continue;
+            };
+            let Some(after_slash_idx) = idx.checked_add(1) else {
+                continue;
+            };
+            let Some(name) = full_bytes.get(after_slash_idx..) else {
+                continue;
+            };
+            if !name.is_empty() && name.len() <= 100 {
+                return Ok((prefix, name));
+            }
+        }
+    }
+
+    bail!(
+        "Tar entry path exceeds POSIX ustar 155+100 byte limit ({} bytes): {full_name}",
+        full_bytes.len()
+    )
 }
 
 impl TarHeader {
@@ -108,54 +151,109 @@ impl TarHeader {
         self
     }
 
-    /// Serializes the header to a 512-byte tar block.
-    fn to_bytes(&self) -> [u8; 512] {
+    /// Serializes the header to a 512-byte POSIX.1-1988 `ustar` block.
+    fn to_bytes(&self) -> Result<[u8; 512]> {
         let mut header = [0u8; 512];
 
-        // Name (0-99): Ensure trailing slash for directories
-        let name = if self.is_dir && !self.name.ends_with('/') {
+        // Ensure trailing slash for directories
+        let full_name = if self.is_dir && !self.name.ends_with('/') {
             format!("{}/", self.name)
         } else {
             self.name.clone()
         };
-        let name_bytes = name.as_bytes();
-        let name_len = name_bytes.len().min(100);
-        if let (Some(dst), Some(src)) =
-            (header.get_mut(..name_len), name_bytes.get(..name_len))
-        {
-            dst.copy_from_slice(src);
-        }
+        let (prefix_bytes, name_bytes) = split_ustar_path(&full_name)?;
 
-        // Mode (100-107): Octal ASCII with trailing space and null
+        ensure!(
+            self.mode <= 0o777_7777,
+            "Tar entry mode {:o} exceeds 7-digit octal ustar limit",
+            self.mode
+        );
+        ensure!(
+            self.size <= 0o777_7777_7777,
+            "Tar entry size {} exceeds 11-digit octal ustar limit for {}",
+            self.size,
+            full_name
+        );
+        let clamped_mtime = self.mtime.min(0o777_7777_7777);
+
+        // Name (0..100)
+        header
+            .get_mut(..name_bytes.len())
+            .context("ustar name slice out of bounds")?
+            .copy_from_slice(name_bytes);
+
+        // Mode (100..108): 7 octal digits + NUL
         let mode_str = format!("{:07o}\0", self.mode);
-        header[100..108].copy_from_slice(mode_str.as_bytes());
+        header
+            .get_mut(100..108)
+            .context("ustar mode slice out of bounds")?
+            .copy_from_slice(mode_str.as_bytes());
 
-        // UID (108-115): 0 in octal
-        header[108..116].copy_from_slice(b"0000000\0");
+        // UID (108..116) & GID (116..124): 0 in octal
+        header
+            .get_mut(108..116)
+            .context("ustar uid slice out of bounds")?
+            .copy_from_slice(b"0000000\0");
+        header
+            .get_mut(116..124)
+            .context("ustar gid slice out of bounds")?
+            .copy_from_slice(b"0000000\0");
 
-        // GID (116-123): 0 in octal
-        header[116..124].copy_from_slice(b"0000000\0");
-
-        // Size (124-135): Octal ASCII with trailing space
+        // Size (124..136): 11 octal digits + trailing space
         let size_str = format!("{:011o} ", self.size);
-        header[124..136].copy_from_slice(size_str.as_bytes());
+        header
+            .get_mut(124..136)
+            .context("ustar size slice out of bounds")?
+            .copy_from_slice(size_str.as_bytes());
 
-        // Mtime (136-147): Octal ASCII with trailing space
-        let mtime_str = format!("{:011o} ", self.mtime);
-        header[136..148].copy_from_slice(mtime_str.as_bytes());
+        // Mtime (136..148): 11 octal digits + trailing space
+        let mtime_str = format!("{:011o} ", clamped_mtime);
+        header
+            .get_mut(136..148)
+            .context("ustar mtime slice out of bounds")?
+            .copy_from_slice(mtime_str.as_bytes());
 
-        // Checksum placeholder (148-155): 8 spaces for initial calculation
-        header[148..156].copy_from_slice(b"        ");
+        // Checksum placeholder (148..156): 8 spaces for initial calculation
+        header
+            .get_mut(148..156)
+            .context("ustar checksum slice out of bounds")?
+            .copy_from_slice(b"        ");
 
         // Typeflag (156): '5' for directory, '0' for regular file
-        header[156] = if self.is_dir { b'5' } else { b'0' };
+        if let Some(slot) = header.get_mut(156) {
+            *slot = if self.is_dir { b'5' } else { b'0' };
+        }
+
+        // POSIX ustar magic (257..263) and version (263..265)
+        header
+            .get_mut(257..263)
+            .context("ustar magic slice out of bounds")?
+            .copy_from_slice(b"ustar\0");
+        header
+            .get_mut(263..265)
+            .context("ustar version slice out of bounds")?
+            .copy_from_slice(b"00");
+
+        // Prefix (345..500): up to 155 bytes when path exceeds 100 bytes
+        if !prefix_bytes.is_empty() {
+            let prefix_end = 345usize
+                .checked_add(prefix_bytes.len())
+                .context("ustar prefix end overflow")?;
+            header
+                .get_mut(345..prefix_end)
+                .context("ustar prefix slice out of bounds")?
+                .copy_from_slice(prefix_bytes);
+        }
 
         // Calculate checksum (sum of all bytes in header, treating checksum as spaces)
         let checksum: u32 = header.iter().map(|&b| u32::from(b)).sum();
         let checksum_str = format!("{checksum:06o}\0 ");
-        header[148..156].copy_from_slice(checksum_str.as_bytes());
-
         header
+            .get_mut(148..156)
+            .context("ustar checksum slice out of bounds")?
+            .copy_from_slice(checksum_str.as_bytes());
+
+        Ok(header)
     }
 
     /// Returns the total size this entry occupies in the tarball (header +
@@ -324,6 +422,10 @@ impl StreamingTarball {
                 data_source,
             });
             offset = offset.saturating_add(installer_header.total_size());
+        }
+
+        for entry in &entries {
+            let _ = entry.header.to_bytes()?;
         }
 
         let total_size = offset.saturating_add(1024);
@@ -502,7 +604,7 @@ impl StreamingTarball {
         let mut bytes = Vec::with_capacity(total_size);
 
         // Write header
-        bytes.extend_from_slice(&entry.header.to_bytes());
+        bytes.extend_from_slice(&entry.header.to_bytes()?);
 
         // Write content based on data source
         match &entry.data_source {
@@ -785,10 +887,12 @@ mod tests {
     #[crate::ctb_test]
     fn test_tar_header_file() {
         let header = TarHeader::file("test.txt", 100);
-        let bytes = header.to_bytes();
+        let bytes = header.to_bytes().unwrap();
 
-        // Verify name
+        // Verify name and ustar magic
         assert_eq!(&bytes[0..8], b"test.txt");
+        assert_eq!(&bytes[257..263], b"ustar\0");
+        assert_eq!(&bytes[263..265], b"00");
 
         // Verify typeflag is '0' for regular file
         assert_eq!(bytes[156], b'0');
@@ -800,10 +904,11 @@ mod tests {
     #[crate::ctb_test]
     fn test_tar_header_directory() {
         let header = TarHeader::directory("mydir");
-        let bytes = header.to_bytes();
+        let bytes = header.to_bytes().unwrap();
 
         // Name should have trailing slash
         assert_eq!(&bytes[0..6], b"mydir/");
+        assert_eq!(&bytes[257..263], b"ustar\0");
 
         // Typeflag should be '5' for directory
         assert_eq!(bytes[156], b'5');
@@ -819,6 +924,68 @@ mod tests {
         };
         let size = u64::from_str_radix(size_digits, 8).unwrap();
         assert_eq!(size, 0);
+    }
+
+    #[crate::ctb_test]
+    fn test_streaming_tarball_preserves_full_64char_sha256_chunk_paths() {
+        use crate::manifest::{ChunkInfo, FileEntry};
+
+        let temp = TempDir::new().unwrap();
+        let chunks_dir = temp.path().join("bh");
+        let hash =
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let chunk_file = chunks_dir
+            .join("01")
+            .join("23")
+            .join(format!("{hash}.br"));
+        std::fs::create_dir_all(chunk_file.parent().unwrap()).unwrap();
+        let compressed_payload = b"mock-brotli-chunk-bytes";
+        std::fs::write(&chunk_file, compressed_payload).unwrap();
+
+        let mut manifest = ReleaseManifest::new(
+            semver::Version::new(0, 1, 50),
+            Platform::WindowsX64,
+            Timestamp::now(),
+        );
+        let mut file_entry = FileEntry::new(
+            "ctoolbox.exe".to_string(),
+            hash.to_string(),
+            "core".to_string(),
+        );
+        file_entry.add_chunk(ChunkInfo::new(hash.to_string(), 0, 128));
+        manifest.add_file(file_entry);
+
+        let tarball = StreamingTarball::new(
+            manifest,
+            chunks_dir.to_string_lossy().to_string(),
+            None,
+        )
+        .unwrap();
+
+        let tar_bytes = tarball.generate_range(0, None).unwrap();
+        assert_eq!(
+            u64::try_from(tar_bytes.len()).unwrap(),
+            tarball.total_size()
+        );
+
+        // Locate the chunk entry header (entry index 3: root dir, manifest.json, chunks dir, chunk)
+        let chunk_entry = &tarball.entries[3];
+        let hdr_start = usize::try_from(chunk_entry.start_offset).unwrap();
+        let hdr = &tar_bytes[hdr_start..hdr_start + 512];
+        assert_eq!(&hdr[257..263], b"ustar\0");
+
+        let name_part = std::str::from_utf8(&hdr[0..100])
+            .unwrap()
+            .trim_end_matches('\0');
+        let prefix_part = std::str::from_utf8(&hdr[345..500])
+            .unwrap()
+            .trim_end_matches('\0');
+        let reconstructed = format!("{prefix_part}/{name_part}");
+        assert_eq!(
+            reconstructed,
+            format!("ctoolbox-windows-x64-0.1.50/chunks/01/23/{hash}.br")
+        );
+        assert!(reconstructed.len() > 100);
     }
 
     #[crate::ctb_test]

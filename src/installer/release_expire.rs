@@ -221,6 +221,53 @@ pub fn expire_releases(
         );
     }
 
+    // First pass: protect any manifest currently referenced by a `ctb-*-latest.json`
+    // symlink (or copied latest manifest) so active platform releases and their
+    // chunks are never deleted even when older than `older_than_days`.
+    let mut protected_manifest_names: HashSet<String> = HashSet::new();
+    for entry in fs::read_dir(releases_dir).with_context(|| {
+        format!(
+            "Failed to read releases directory: {}",
+            releases_dir.display()
+        )
+    })? {
+        let Ok(entry) = entry else {
+            continue;
+        };
+        let path = entry.path();
+        let Some(filename) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if !filename.starts_with("ctb-") || !filename.ends_with("-latest.json")
+        {
+            continue;
+        }
+
+        if let Ok(link_target) = fs::read_link(&path)
+            && let Some(target_name) =
+                link_target.file_name().and_then(|n| n.to_str())
+        {
+            protected_manifest_names.insert(target_name.to_string());
+        }
+        if let Ok(canon) = fs::canonicalize(&path)
+            && let Some(canon_name) = canon.file_name().and_then(|n| n.to_str())
+        {
+            protected_manifest_names.insert(canon_name.to_string());
+        }
+
+        if let Ok(latest_json) = fs::read_to_string(&path)
+            && let Ok(latest_manifest) =
+                serde_json::from_str::<ReleaseManifest>(&latest_json)
+        {
+            keep_chunk_hashes.extend(get_chunk_hashes(&latest_manifest));
+            protected_manifest_names.insert(format!(
+                "ctb-{}-{}.json",
+                latest_manifest.platform,
+                latest_manifest.date.strftime("%Y%m%d-%H%M%S")
+            ));
+        }
+    }
+
     for entry in fs::read_dir(releases_dir).with_context(|| {
         format!(
             "Failed to read releases directory: {}",
@@ -235,12 +282,21 @@ pub fn expire_releases(
             }
         };
 
-        let path = entry.path();
+        let file_type = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(e) => {
+                errors.push(format!("Failed to stat directory entry: {e}"));
+                continue;
+            }
+        };
 
-        // Skip directories and non-JSON files
-        if !path.is_file() {
+        // Skip directories and symlinks (such as -latest.json and version symlinks);
+        // only regular dated manifest files are candidates for expiration.
+        if !file_type.is_file() {
             continue;
         }
+
+        let path = entry.path();
 
         let filename = match path.file_name().and_then(|n| n.to_str()) {
             Some(name) => name,
@@ -251,7 +307,7 @@ pub fn expire_releases(
             continue;
         }
 
-        // Skip 'latest.json' symlinks - these are managed separately
+        // Skip 'latest.json' files - these are managed separately
         if filename.ends_with("-latest.json") {
             continue;
         }
@@ -282,15 +338,10 @@ pub fn expire_releases(
                 }
             };
 
-        // Check if manifest is old enough to expire
-        if manifest.date < cutoff_date {
-            log_fmt!(
-                "Marking for deletion: {} (date: {})",
-                filename,
-                manifest.date.strftime("%Y-%m-%d")
-            );
-            manifests_to_delete.push(path);
-        } else {
+        // Never expire an active latest manifest; otherwise check cutoff date
+        if protected_manifest_names.contains(filename)
+            || manifest.date >= cutoff_date
+        {
             log_fmt!(
                 "Keeping: {} (date: {})",
                 filename,
@@ -301,6 +352,13 @@ pub fn expire_releases(
             // Add all chunk hashes from this manifest to the keep set
             let hashes = get_chunk_hashes(&manifest);
             keep_chunk_hashes.extend(hashes);
+        } else {
+            log_fmt!(
+                "Marking for deletion: {} (date: {})",
+                filename,
+                manifest.date.strftime("%Y-%m-%d")
+            );
+            manifests_to_delete.push(path);
         }
     }
 
@@ -339,7 +397,7 @@ pub fn expire_releases(
         }
     }
 
-    // Delete old manifest files
+    // Delete old manifest files and their detached .sig files
     let manifests_deleted = manifests_to_delete.len();
     for manifest_path in manifests_to_delete {
         if let Ok(metadata) = fs::metadata(&manifest_path) {
@@ -350,6 +408,42 @@ pub fn expire_releases(
                 "Failed to delete manifest {}: {e}",
                 manifest_path.display()
             ));
+        }
+
+        let sig_path = manifest_path.with_extension("json.sig");
+        if let Ok(sig_meta) = fs::symlink_metadata(&sig_path)
+            && sig_meta.file_type().is_file()
+        {
+            bytes_freed = bytes_freed.saturating_add(sig_meta.len());
+            if let Err(e) = fs::remove_file(&sig_path) {
+                errors.push(format!(
+                    "Failed to delete manifest signature {}: {e}",
+                    sig_path.display()
+                ));
+            }
+        }
+    }
+
+    // Prune any dangling non-latest manifest/signature symlinks (e.g. expired version symlinks)
+    if let Ok(entries) = fs::read_dir(releases_dir) {
+        for entry in entries.flatten() {
+            let Ok(ft) = entry.file_type() else {
+                continue;
+            };
+            if !ft.is_symlink() {
+                continue;
+            }
+            let path = entry.path();
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            let is_release_link = name.starts_with("ctb-")
+                && (name.ends_with(".json") || name.ends_with(".json.sig"))
+                && !name.ends_with("-latest.json")
+                && !name.ends_with("-latest.json.sig");
+            if is_release_link && fs::metadata(&path).is_err() {
+                let _ = fs::remove_file(&path);
+            }
         }
     }
 
@@ -693,5 +787,112 @@ mod tests {
         assert!(!is_manifest_file("readme.txt"));
         assert!(!is_manifest_file("manifest.json"));
         assert!(!is_manifest_file("ctb-linux.tar.gz"));
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_expire_keeps_active_latest_manifest_and_prunes_sig_and_dangling_symlinks()
+     {
+        use std::os::unix::fs::symlink;
+
+        let temp = TempDir::new().unwrap();
+        let releases_dir = temp.path();
+        let chunks_dir = releases_dir.join("bh");
+        fs::create_dir_all(&chunks_dir).unwrap();
+
+        let active_old_hash =
+            "1111223344556677889900aabbccddeeff00112233445566778899aabbccddee";
+        let expired_hash =
+            "2222223344556677889900aabbccddeeff00112233445566778899aabbccddee";
+        create_test_chunk(&chunks_dir, active_old_hash, b"active-latest-chunk")
+            .unwrap();
+        create_test_chunk(&chunks_dir, expired_hash, b"expired-chunk").unwrap();
+
+        // Active latest manifest for windows-x64 is 60 days old (> 30-day cutoff),
+        // e.g. after running `./deploy quick` for linux-x64 only.
+        let active_old_manifest = "ctb-windows-x64-20260901-120000.json";
+        create_test_manifest(
+            releases_dir,
+            active_old_manifest,
+            days_ago(60),
+            &[active_old_hash],
+        )
+        .unwrap();
+        fs::write(
+            releases_dir.join(format!("{active_old_manifest}.sig")),
+            b"sig-active",
+        )
+        .unwrap();
+        symlink(
+            active_old_manifest,
+            releases_dir.join("ctb-windows-x64-latest.json"),
+        )
+        .unwrap();
+        symlink(
+            format!("{active_old_manifest}.sig"),
+            releases_dir.join("ctb-windows-x64-latest.json.sig"),
+        )
+        .unwrap();
+
+        // Superseded manifest (90 days old) with detached .sig and version symlinks
+        let expired_manifest = "ctb-windows-x64-20260801-120000.json";
+        create_test_manifest(
+            releases_dir,
+            expired_manifest,
+            days_ago(90),
+            &[expired_hash],
+        )
+        .unwrap();
+        fs::write(
+            releases_dir.join(format!("{expired_manifest}.sig")),
+            b"sig-expired",
+        )
+        .unwrap();
+        symlink(
+            expired_manifest,
+            releases_dir.join("ctb-windows-x64-0.1.0.json"),
+        )
+        .unwrap();
+        symlink(
+            format!("{expired_manifest}.sig"),
+            releases_dir.join("ctb-windows-x64-0.1.0.json.sig"),
+        )
+        .unwrap();
+
+        let summary = expire_releases(releases_dir, 30).unwrap();
+        assert!(summary.errors.is_empty(), "{:?}", summary.errors);
+        assert_eq!(summary.manifests_scanned, 2);
+        assert_eq!(summary.manifests_kept, 1);
+        assert_eq!(summary.manifests_deleted, 1);
+        assert_eq!(summary.chunks_kept, 1);
+        assert_eq!(summary.chunks_deleted, 1);
+
+        // Active latest manifest, sig, and chunk must remain intact
+        assert!(releases_dir.join(active_old_manifest).is_file());
+        assert!(releases_dir.join(format!("{active_old_manifest}.sig")).is_file());
+        assert!(releases_dir.join("ctb-windows-x64-latest.json").exists());
+        assert!(
+            chunks_dir
+                .join("11")
+                .join("11")
+                .join(active_old_hash)
+                .is_file()
+        );
+
+        // Expired manifest, detached .sig, chunk, and dangling version symlinks must be removed
+        assert!(!releases_dir.join(expired_manifest).exists());
+        assert!(!releases_dir.join(format!("{expired_manifest}.sig")).exists());
+        assert!(
+            fs::symlink_metadata(
+                releases_dir.join("ctb-windows-x64-0.1.0.json")
+            )
+            .is_err()
+        );
+        assert!(
+            fs::symlink_metadata(
+                releases_dir.join("ctb-windows-x64-0.1.0.json.sig")
+            )
+            .is_err()
+        );
     }
 }

@@ -3727,6 +3727,7 @@ dependencies = [
  "base64 0.22.1",
  "brotli 8.0.3",
  "clap",
+ "ctb-build-info",
  "ctb-formats-alias",
  "ctb-formats-applescript",
  "ctb-formats-base64",

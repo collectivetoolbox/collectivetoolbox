@@ -49,7 +49,6 @@ fn main() -> Result<()> {
 
     // Print rerun-if-changed directives for asset paths
     print_rerun_directives(manifest_path)?;
-    println!("cargo:rerun-if-changed=./Cargo.lock");
 
     // Prepare assets (Cargo controls re-running build scripts via the
     // `rerun-if-changed` directives above).

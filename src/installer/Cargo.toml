@@ -11,6 +11,7 @@ name = "ctoolbox-installer"
 path = "bin.rs"
 
 [dependencies]
+ctb-build-info = { path = "../build_info" }
 ctb-utilities = { path = "../utilities" }
 ctb-formats-applescript = { path = "../formats/applescript" }
 ctb-formats-base64 = { path = "../formats/base64" }
