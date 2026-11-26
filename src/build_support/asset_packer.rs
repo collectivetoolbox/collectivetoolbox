@@ -148,8 +148,10 @@ fn copy_dir_recursive(
             if fs::metadata(&src_path).map(|m| m.is_dir()).unwrap_or(false) {
                 if src_path.ends_with("data/graph")
                     || src_path.ends_with("data/graph-bundles")
+                    || src_path.ends_with("docs/reference-implementations")
                 {
-                    if src_path.ends_with("data/graph-bundles")
+                    if (src_path.ends_with("data/graph-bundles")
+                        || src_path.ends_with("docs/reference-implementations"))
                         && dst_path.is_dir()
                     {
                         fs::remove_dir_all(&dst_path)?;
@@ -868,8 +870,11 @@ fn prepare_runtime_assets(
         &mut visited,
     )
     .context("Failed to copy docs directory")?;
-    // remove refrence implementations
-    fs::remove_dir_all(runtime_assets.join("docs/reference-implementations"))?;
+    // Remove any stale reference-implementations directory from prior builds.
+    let ref_impls_dir = runtime_assets.join("docs/reference-implementations");
+    if ref_impls_dir.is_dir() {
+        fs::remove_dir_all(&ref_impls_dir)?;
+    }
     copy_license_files(project_root, &runtime_assets.join("docs"))?;
     let input_graph_dir = project_root.join("assets/data/graph");
     let graph_bundles_dir =
@@ -1452,6 +1457,43 @@ mod tests {
 
         // Clean up
         let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[test]
+    fn test_copy_dir_recursive_skips_reference_implementations() -> Result<()> {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "ctb_test_copy_docs_{}",
+            std::process::id()
+        ));
+        if temp_dir.is_dir() {
+            fs::remove_dir_all(&temp_dir)?;
+        }
+        let src_docs = temp_dir.join("docs");
+        let dst_docs = temp_dir.join("built/assets/docs");
+        fs::create_dir_all(src_docs.join("reference-implementations/demo"))?;
+        fs::create_dir_all(src_docs.join("guides"))?;
+        fs::write(src_docs.join("guides/intro.md"), b"# Intro\n")?;
+        fs::write(
+            src_docs.join("reference-implementations/demo/ref.txt"),
+            b"do not stage",
+        )?;
+
+        // Seed a stale destination copy to verify cleanup on incremental runs.
+        fs::create_dir_all(dst_docs.join("reference-implementations"))?;
+        fs::write(
+            dst_docs.join("reference-implementations/stale.txt"),
+            b"stale",
+        )?;
+
+        let canon_root = fs::canonicalize(&temp_dir)?;
+        let mut visited = HashSet::new();
+        copy_dir_recursive(&src_docs, &dst_docs, &canon_root, &mut visited)?;
+
+        assert!(dst_docs.join("guides/intro.md").is_file());
+        assert!(!dst_docs.join("reference-implementations").exists());
+
+        fs::remove_dir_all(&temp_dir)?;
         Ok(())
     }
 }

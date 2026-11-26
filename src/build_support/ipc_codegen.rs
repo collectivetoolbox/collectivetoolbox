@@ -1272,25 +1272,34 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
         let file_type = entry.file_type()?;
 
         if file_type.is_dir() {
+            // Reason for fallback: non-UTF-8 directory names cannot match ASCII ignore names and can still be traversed safely.
             let file_name =
                 path.file_name().and_then(|s| s.to_str()).unwrap_or("");
             if file_name.starts_with('.')
-                || file_name == "vendor"
-                || file_name == "target"
+                || matches!(
+                    file_name,
+                    "vendor"
+                        | "target"
+                        | "built"
+                        | "assets"
+                        | "docs"
+                        | "ci-logs"
+                        | "packaging"
+                        | "scripts"
+                        | "issues"
+                        | "memories"
+                        | "supply-chain"
+                        | "old"
+                        | "tests"
+                        | "data"
+                        | "generated"
+                )
             {
                 continue;
             }
 
             // Skip nested crates; each workspace crate is collected independently.
             if path.join("Cargo.toml").is_file() {
-                continue;
-            }
-
-            let is_data_dir = path.file_name() == Some(OsStr::new("data"));
-            let is_generated_dir =
-                path.file_name() == Some(OsStr::new("generated"));
-
-            if is_data_dir || is_generated_dir {
                 continue;
             }
 
@@ -1581,4 +1590,83 @@ fn is_ref_to_slice_u8(ty: &syn::Type) -> bool {
     };
 
     p.path.segments.last().is_some_and(|s| s.ident == "u8")
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_collect_rs_files_skips_built_and_non_source_dirs() -> Result<()> {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "ctb_test_ipc_collect_rs_{}",
+            std::process::id()
+        ));
+        if temp_dir.is_dir() {
+            fs::remove_dir_all(&temp_dir)?;
+        }
+        fs::create_dir_all(temp_dir.join("src/submod"))?;
+        fs::create_dir_all(
+            temp_dir.join("built/assets/docs/reference-implementations"),
+        )?;
+        fs::create_dir_all(temp_dir.join("target/release/build"))?;
+        fs::create_dir_all(temp_dir.join("vendor/dep/src"))?;
+        fs::create_dir_all(temp_dir.join("docs"))?;
+        fs::create_dir_all(temp_dir.join("nested_crate"))?;
+
+        fs::write(temp_dir.join("src/main.rs"), "fn main() {}\n")?;
+        fs::write(temp_dir.join("src/submod/helper.rs"), "pub fn h() {}\n")?;
+        fs::write(
+            temp_dir.join("src/submod/foo.generated.rs"),
+            "pub fn gen_fn() {}\n",
+        )?;
+        fs::write(temp_dir.join("build.rs"), "fn main() {}\n")?;
+        fs::write(
+            temp_dir
+                .join("built/assets/docs/reference-implementations/stale.rs"),
+            "pub fn ignored() {}\n",
+        )?;
+        fs::write(
+            temp_dir.join("target/release/build/out.rs"),
+            "pub fn ignored() {}\n",
+        )?;
+        fs::write(
+            temp_dir.join("vendor/dep/src/lib.rs"),
+            "pub fn ignored() {}\n",
+        )?;
+        fs::write(temp_dir.join("docs/example.rs"), "pub fn ignored() {}\n")?;
+        fs::write(
+            temp_dir.join("nested_crate/Cargo.toml"),
+            "[package]\nname = \"nested\"\nversion = \"0.0.0\"\n",
+        )?;
+        fs::write(
+            temp_dir.join("nested_crate/lib.rs"),
+            "pub fn nested() {}\n",
+        )?;
+
+        let mut collected = Vec::new();
+        collect_rs_files(&temp_dir, &mut collected)?;
+        collected.sort();
+
+        assert_eq!(
+            collected,
+            vec![
+                temp_dir.join("src/main.rs"),
+                temp_dir.join("src/submod/helper.rs"),
+            ]
+        );
+
+        fs::remove_dir_all(&temp_dir)?;
+        Ok(())
+    }
 }
