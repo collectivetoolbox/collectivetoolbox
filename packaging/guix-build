@@ -29,7 +29,7 @@ HASH_SRC="$(guix hash built/src/src.zip)"
 tar -cf built/src/vendor.tar ./vendor
 HASH_VENDOR="$(guix hash built/src/vendor.tar)"
 
-cp packaging/guix/generated/ctoolbox-workspace-rust-crates.scm packaging/guix/generated/ctoolbox_1.scm
+cp packaging/guix/generated/ctb-workspace-rust-crates.scm packaging/guix/generated/ctoolbox_1.scm
 template="$(<packaging/guix/ctoolbox.scm)"
 
 echo "${template//0placeholder1/"$HASH_SRC"}" >> packaging/guix/generated/ctoolbox_1.scm

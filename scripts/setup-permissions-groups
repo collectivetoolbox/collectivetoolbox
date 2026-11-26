@@ -25,39 +25,97 @@
 # - server user has only read+execute on /home/server/deploy and enclosed binary (no write)
 # - deployer user can update /home/server/.config/systemd/user/ctoolbox.service (write)
 #
-# Run as root: sudo ./setup-permissions-groups.sh
+# Run as root: sudo ./scripts/setup-permissions-groups
 
 set -euo pipefail
 
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
-
+REPO_OR_PARENT="$(pwd)"
 
 usage() {
   cat <<'EOF'
 Usage:
-  setup-permissions-groups
+  sudo ./scripts/setup-permissions-groups [options]
+
+Options:
+  --server-user <USER>    Service runner UNIX account (overrides USER_SERVER)
+  --deployer-user <USER>  Deployer UNIX account (overrides USER_DEPLOYER)
+  --config-dir <DIR>      Directory containing ctb-deploy.* configuration files
+  -h, --help              Show this help message and exit
 
 This script is intended to be safe to re-run (idempotent).
 
-Inputs can be provided via:
-      ~/ctb-deploy.server-username
-      ~/ctb-deploy.username
+Inputs can also be provided via USER_SERVER and USER_DEPLOYER environment
+variables, or read from:
+  ~/ctb-deploy.server-username
+  ~/ctb-deploy.username
 EOF
+}
+
+read_trimmed_file() {
+  local file_path="$1"
+  local val
+  val="$(<"$file_path")" || return 1
+  val="${val%$'\r'}"
+  val="${val%$'\n'}"
+  printf '%s' "$val"
 }
 
 USER_SERVER="${USER_SERVER:-}"
 USER_DEPLOYER="${USER_DEPLOYER:-}"
+CFG_DIR=""
 
-if [ -z "${USER_SERVER}" ] && [ -r ~/ctb-deploy.server-username ]; then
-  USER_SERVER="$(<~/ctb-deploy.server-username)" || exit 1
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --server-user)
+      [ "$#" -ge 2 ] && [ -n "${2:-}" ] || { echo "ERROR: --server-user requires an argument." >&2; usage >&2; exit 2; }
+      shift
+      USER_SERVER="$1"
+      ;;
+    --deployer-user)
+      [ "$#" -ge 2 ] && [ -n "${2:-}" ] || { echo "ERROR: --deployer-user requires an argument." >&2; usage >&2; exit 2; }
+      shift
+      USER_DEPLOYER="$1"
+      ;;
+    --config-dir)
+      [ "$#" -ge 2 ] && [ -n "${2:-}" ] || { echo "ERROR: --config-dir requires a directory argument." >&2; usage >&2; exit 2; }
+      shift
+      CFG_DIR="$1"
+      ;;
+    -h|--help|help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "ERROR: Unknown option '$1'." >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+if [ -z "${CFG_DIR}" ]; then
+  if [ -r ~/ctb-deploy.server-username ] || [ -r ~/ctb-deploy.username ]; then
+    CFG_DIR=~
+  elif [ -n "${SUDO_USER:-}" ] && command -v getent >/dev/null 2>&1; then
+    sudo_home="$(getent passwd "${SUDO_USER}" | cut -d: -f6 || true)"
+    if [ -n "${sudo_home}" ] && { [ -r "${sudo_home}/ctb-deploy.server-username" ] || [ -r "${sudo_home}/ctb-deploy.username" ]; }; then
+      CFG_DIR="${sudo_home}"
+    fi
+  fi
 fi
 
-if [ -z "${USER_DEPLOYER}" ] && [ -r ~/ctb-deploy.username ]; then
-  USER_DEPLOYER="$(<~/ctb-deploy.username)" || exit 1
+if [ -z "${USER_SERVER}" ] && [ -n "${CFG_DIR}" ] && [ -r "${CFG_DIR}/ctb-deploy.server-username" ]; then
+  USER_SERVER="$(read_trimmed_file "${CFG_DIR}/ctb-deploy.server-username")" || exit 1
+fi
+
+if [ -z "${USER_DEPLOYER}" ] && [ -n "${CFG_DIR}" ] && [ -r "${CFG_DIR}/ctb-deploy.username" ]; then
+  USER_DEPLOYER="$(read_trimmed_file "${CFG_DIR}/ctb-deploy.username")" || exit 1
 fi
 
 if [ -z "${USER_SERVER}" ] || [ -z "${USER_DEPLOYER}" ]; then
-  echo "ERROR: missing server/deployer user; pass flags or set env vars." >&2
+  echo "ERROR: missing server/deployer user; pass --server-user/--deployer-user or set USER_SERVER and USER_DEPLOYER." >&2
   usage >&2
   exit 2
 fi
@@ -124,7 +182,7 @@ chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${DEPLOYER_DIR}"
 chmod 2750 "${DEPLOYER_DIR}"
 
 # 4) Systemd user directory - allow deployer to create/replace service file while server only has read access.
-# We'll make the directory owned by deployer and group = server, with group read+execute for server.
+# Use setgid (2750) so files atomically replaced by rsync inherit SERVER_PRIMARY_GROUP.
 echo "Creating systemd user directory ${SYSTEMD_DIR} (owner=${USER_DEPLOYER}, group=${SERVER_PRIMARY_GROUP})."
 mkdir -p "${SYSTEMD_WANTS_DIR}"
 chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${HOME_SERVER}/.config"
@@ -133,24 +191,28 @@ chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${HOME_SERVER}/.config/systemd"
 chmod 750 "${HOME_SERVER}/.config/systemd"
 chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${SYSTEMD_DIR}"
 chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${SYSTEMD_WANTS_DIR}"
-# mode 750: owner rwx (deployer), group rx (server), others none
-chmod 750 "${SYSTEMD_DIR}"
-chmod 750 "${SYSTEMD_WANTS_DIR}"
+# mode 2750: setgid + owner rwx (deployer), group rx (server), others none
+chmod 2750 "${SYSTEMD_DIR}"
+chmod 2750 "${SYSTEMD_WANTS_DIR}"
 
-# 5) Create the service file (if missing) and set owner to deployer so deployer can update it.
-#    Make group = server and permissions 0640 so server (via group) can read but not write.
-if [ ! -e "${SERVICE_FILE}" ]; then
-  echo "Creating empty service file ${SERVICE_FILE}"
-  touch "${SERVICE_FILE}"
+# 5) Populate or fix ownership on the service file so deployer can update it
+#    and server (via group) can read but not write.
+if [ ! -s "${SERVICE_FILE}" ] && [ -f "${REPO_OR_PARENT}/scripts/ctoolbox.service" ]; then
+  echo "Installing initial service file ${SERVICE_FILE}"
+  cp "${REPO_OR_PARENT}/scripts/ctoolbox.service" "${SERVICE_FILE}"
 fi
-chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${SERVICE_FILE}"
-# mode 0640: owner rw, group r, others none
-chmod 0640 "${SERVICE_FILE}"
-if [ -e "${WANTS_SERVICE_FILE}" ] || [ -L "${WANTS_SERVICE_FILE}" ]; then
-  rm "${WANTS_SERVICE_FILE}"
+if [ -e "${SERVICE_FILE}" ]; then
+  chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${SERVICE_FILE}"
+  # mode 0640: owner rw, group r, others none
+  chmod 0640 "${SERVICE_FILE}"
 fi
-ln -s "${SERVICE_FILE}" "${WANTS_SERVICE_FILE}"
-chown -h "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${WANTS_SERVICE_FILE}"
+TMP_WANTS_LINK="${WANTS_SERVICE_FILE}.tmp.$$"
+if [ -e "${TMP_WANTS_LINK}" ] || [ -L "${TMP_WANTS_LINK}" ]; then
+  rm "${TMP_WANTS_LINK}"
+fi
+ln -s "${SERVICE_FILE}" "${TMP_WANTS_LINK}"
+chown -h "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${TMP_WANTS_LINK}"
+mv -T "${TMP_WANTS_LINK}" "${WANTS_SERVICE_FILE}"
 
 echo "Creating storage, releases, and settings directories under ${STORAGE_DIR}."
 mkdir -p "${CONFIG_DIR}" "${RELEASES_DIR}"
@@ -162,10 +224,11 @@ chown "${USER_SERVER}:${SERVER_PRIMARY_GROUP}" "${STORAGE_DIR}"
 chmod 750 "${STORAGE_DIR}"
 
 chown -R "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${RELEASES_DIR}"
-chmod 2750 "${RELEASES_DIR}"
+find "${RELEASES_DIR}" -type d -exec chmod 2750 {} +
+find "${RELEASES_DIR}" -type f -exec chmod 0640 {} +
 
 chown "${USER_DEPLOYER}:${SERVER_PRIMARY_GROUP}" "${CONFIG_DIR}"
-chmod 750 "${CONFIG_DIR}"
+chmod 2750 "${CONFIG_DIR}"
 
 if [ ! -s "${CONFIG_FILE}" ]; then
   echo "Creating initial settings file ${CONFIG_FILE}"

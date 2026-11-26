@@ -170,19 +170,29 @@ if [[ "$mode" == "deploy" ]]; then
 
     echo "Extracting source tarball..."
     tar -xf ctoolbox-src.tar.gz --strip-components=1
+    rm ctoolbox-src.tar.gz
 
     echo "Extracting dependencies tarball..."
     mkdir -p vendor/ctb-vendored
     tar -xf ctoolbox-dependencies.tar.gz -C vendor/ctb-vendored --strip-components=1
+    rm ctoolbox-dependencies.tar.gz
 
     echo "Extracting vendor.tar..."
     mkdir -p vendor
     if [[ -f vendor/vendor.tar ]]; then
         tar -xf vendor/vendor.tar -C vendor
+        rm vendor/vendor.tar
     elif [[ -f vendor.tar ]]; then
         tar -xf vendor.tar -C vendor
+        rm vendor.tar
     else
         echo "Warning: vendor.tar not found" >&2
+    fi
+
+    if [[ -f homebrew-tap.tar ]]; then
+        mkdir -p packaging/homebrew-tap
+        tar -xf homebrew-tap.tar -C packaging/homebrew-tap
+        rm homebrew-tap.tar
     fi
 else
     echo "=== Running CI Development Check ==="

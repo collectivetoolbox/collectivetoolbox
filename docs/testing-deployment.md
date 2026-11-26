@@ -146,14 +146,14 @@ The `./scripts/vm linux` helper provides lifecycle and inspection commands:
 
 ### Fast Integration Test (Using Prebuilt Binaries)
 
-When binaries are already compiled in `built/linux-x64/ctoolbox` and match the current commit:
+When `ctoolbox` and `ctoolbox-installer` are already compiled in `built/linux-x64/` and match the current commit:
 
 ```bash
-# Direct deploy to VM sandbox
-./deploy --target vm --no-build --mock-artifacts
+# Direct single-target deploy to VM sandbox
+./deploy quick --target vm --no-build --mock-artifacts
 
-# Or run the complete automated verification harness
-./scripts/vm linux test-deploy --no-build --mock-artifacts
+# Or run the complete automated verification harness (linux-x64 only; omit 'quick' to test all 4 targets)
+./scripts/vm linux test-deploy quick --no-build --mock-artifacts
 ```
 
 ### Smart Reusable Build & Deploy
@@ -161,7 +161,7 @@ When binaries are already compiled in `built/linux-x64/ctoolbox` and match the c
 If you want to build only what is missing or stale, and reuse existing current binaries:
 
 ```bash
-./scripts/vm linux test-deploy --reuse-built --mock-artifacts
+./scripts/vm linux test-deploy quick --reuse-built --mock-artifacts
 ```
 
 If the deploy fails midway due to a server configuration issue, you can resolve the issue and rerun without triggering a 30-minute rebuild from scratch.

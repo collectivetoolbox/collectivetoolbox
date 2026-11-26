@@ -244,8 +244,11 @@ fi
 PASS=""
 SERVER_USER_PASS=""
 SUDOER_USER_PASS=""
+SUDO_PASS=""
 GLOBAL_GRAPH_PASS=""
 NEW_GLOBAL_GRAPH_PASS=""
+sudo_nopasswd_checked=0
+sudo_nopasswd=0
 
 if [[ -n "$new_global_pass_file" ]]; then
 	NEW_GLOBAL_GRAPH_PASS="$(read_config_value "$new_global_pass_file")"
@@ -278,6 +281,9 @@ elif [[ -n "$config_dir" ]]; then
 	if [[ -f "$config_dir/ctb-deploy.global-graph-pass" ]]; then
 		GLOBAL_GRAPH_PASS="$(read_config_value "$config_dir/ctb-deploy.global-graph-pass")"
 	fi
+	if [[ -f "$config_dir/ctb-deploy.sudo-pass" ]]; then
+		SUDO_PASS="$(read_config_value "$config_dir/ctb-deploy.sudo-pass")"
+	fi
 else
 	# Read live deployment targets from ~/ctb-deploy.*
 	user="$(read_config_value ~/ctb-deploy.username)"
@@ -290,6 +296,9 @@ else
 	fi
 	if [[ -f ~/ctb-deploy.global-graph-pass ]]; then
 		GLOBAL_GRAPH_PASS="$(read_config_value ~/ctb-deploy.global-graph-pass)"
+	fi
+	if [[ -f ~/ctb-deploy.sudo-pass ]]; then
+		SUDO_PASS="$(read_config_value ~/ctb-deploy.sudo-pass)"
 	fi
 fi
 
@@ -305,8 +314,21 @@ if [[ -z "$ssh_key" ]]; then
 		exit 1
 	fi
 	PASS="${PASS:-$(read_secret "Password for ${user}@${server}: ")}"
-	SERVER_USER_PASS="${SERVER_USER_PASS:-$(read_secret "Password for ${server_user}@${server}: ")}"
-	SUDOER_USER_PASS="${SUDOER_USER_PASS:-$(read_secret "Password for ${sudoer_user}@${server}: ")}"
+	if [[ "$server_user" == "$user" ]]; then
+		SERVER_USER_PASS="$PASS"
+	else
+		SERVER_USER_PASS="${SERVER_USER_PASS:-$(read_secret "Password for ${server_user}@${server}: ")}"
+	fi
+	if [[ "$sudoer_user" == "$user" ]]; then
+		SUDOER_USER_PASS="$PASS"
+	elif [[ "$sudoer_user" == "$server_user" ]]; then
+		SUDOER_USER_PASS="$SERVER_USER_PASS"
+	else
+		SUDOER_USER_PASS="${SUDOER_USER_PASS:-$(read_secret "Password for ${sudoer_user}@${server}: ")}"
+	fi
+	if [[ -z "$SUDO_PASS" ]]; then
+		SUDO_PASS="$SUDOER_USER_PASS"
+	fi
 	if [[ -z "$GLOBAL_GRAPH_PASS" ]]; then
 		GLOBAL_GRAPH_PASS="$(read_secret "Password for global graph server user: ")"
 	fi
@@ -356,7 +378,8 @@ remote_rsync() {
 	local dst="$3"
 	shift 3
 	if [[ -n "${ssh_key:-}" && -f "${ssh_key:-}" ]]; then
-		rsync -e "ssh -i $ssh_key -p $port -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR" \
+		local escaped_key="${ssh_key//\'/\'\\\'\'}"
+		rsync -e "ssh -i '${escaped_key}' -p ${port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR" \
 			"$@" "$src" "${target_user}@${server}:$dst"
 	else
 		local ssh_pass
@@ -367,10 +390,22 @@ remote_rsync() {
 
 remote_sudo() {
 	local cmd="$1"
-	if [[ -n "${SUDOER_USER_PASS:-}" ]]; then
-		printf '%s\n' "$SUDOER_USER_PASS" | remote_ssh "$sudoer_user" "sudo -S -p '' $cmd"
+	if [[ "$sudo_nopasswd_checked" -eq 0 ]]; then
+		if remote_ssh "$sudoer_user" "sudo -n true" >/dev/null 2>&1; then
+			sudo_nopasswd=1
+		else
+			sudo_nopasswd=0
+		fi
+		sudo_nopasswd_checked=1
+	fi
+
+	if [[ "$sudo_nopasswd" -eq 1 ]]; then
+		remote_ssh "$sudoer_user" "sudo -n $cmd"
 	else
-		remote_ssh "$sudoer_user" "sudo $cmd"
+		if [[ -z "${SUDO_PASS:-}" ]]; then
+			SUDO_PASS="$(read_secret "Sudo password for ${sudoer_user}@${server}: ")"
+		fi
+		printf '%s\n' "$SUDO_PASS" | remote_ssh "$sudoer_user" "sudo -S -p '' $cmd"
 	fi
 }
 
@@ -398,6 +433,12 @@ fi
 version="$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "ctoolbox") | .version')"
 commit="$(git rev-parse HEAD)"
 commitAndVersion="$version-$commit"
+
+if [[ "$dry_run" -eq 0 ]] && git rev-parse -q --verify "refs/tags/v$version" >/dev/null 2>&1; then
+	echo "Error: Git tag 'v$version' already exists." >&2
+	echo "Bump the version in Cargo.toml, delete the local tag if retrying an aborted release, or pass --dry-run." >&2
+	exit 1
+fi
 
 host_platform() {
 	local os arch
@@ -458,28 +499,58 @@ if [[ "${#targets[@]}" -eq 0 ]]; then
 	exit 1
 fi
 
-# Check binaries and decide what needs building
+# Check binaries (both ctoolbox and ctoolbox-installer) and decide what needs building
 targets_to_build=()
+reused_targets=()
+has_docs_built=0
+if [[ -f "$repository/built/docs/help.html" || -f "$repository/built/docs/index.html" ]]; then
+	has_docs_built=1
+fi
+
 for target in "${targets[@]}"; do
 	exe_suffix="$(exe_suffix_for_target "$target")"
 	bin_path="$repository/built/$target/ctoolbox${exe_suffix}"
-	if [[ -f "$bin_path" ]]; then
+	installer_path="$repository/built/$target/ctoolbox-installer${exe_suffix}"
+	rsrc_exists=0
+	if [[ -f "$repository/built/$target/ctoolbox.rsrc" || -f "$repository/built/ctoolbox.rsrc" ]]; then
+		rsrc_exists=1
+	fi
+
+	if [[ -f "$bin_path" && -f "$installer_path" && "$rsrc_exists" -eq 1 ]]; then
 		bin_commit=""
+		inst_commit=""
+		bin_ok=0
+		inst_ok=0
 		if bin_commit="$(ctb_binary_commit "$bin_path")" && [[ "$bin_commit" == "$commit" ]]; then
-			echo "Target '$target' binary is current (matches HEAD commit $commit)."
-			if [[ "$reuse_built" -eq 1 || "$no_build" -eq 1 ]]; then
+			bin_ok=1
+		fi
+		if inst_commit="$(ctb_binary_commit "$installer_path")" && [[ "$inst_commit" == "$commit" ]]; then
+			inst_ok=1
+		fi
+
+		if [[ "$bin_ok" -eq 1 && "$inst_ok" -eq 1 ]]; then
+			if [[ "$no_build" -eq 1 ]]; then
+				echo "Target '$target' binaries (ctoolbox + ctoolbox-installer) match HEAD ($commit)."
+				reused_targets+=("$target")
 				continue
+			fi
+			if [[ "$reuse_built" -eq 1 && "$has_docs_built" -eq 1 ]]; then
+				echo "Target '$target' binaries and docs are current (match HEAD $commit)."
+				reused_targets+=("$target")
+				continue
+			elif [[ "$reuse_built" -eq 1 && "$has_docs_built" -eq 0 ]]; then
+				echo "Target '$target' binaries match HEAD ($commit), but built/docs is missing (likely a --quick build); rebuilding with --docs."
 			fi
 		else
 			if [[ "$no_build" -eq 1 ]]; then
-				echo "Error: Binary for target '$target' is stale (commit '$bin_commit' != HEAD '$commit'). Cannot use --no-build." >&2
+				echo "Error: Binary or installer for target '$target' is stale (ctoolbox='$bin_commit', installer='$inst_commit', HEAD='$commit'). Cannot use --no-build." >&2
 				exit 1
 			fi
-			echo "Target '$target' binary is stale (commit '$bin_commit' != HEAD '$commit'). Rebuilding required."
+			echo "Target '$target' binaries are stale (ctoolbox='$bin_commit', installer='$inst_commit', HEAD='$commit'). Rebuilding required."
 		fi
 	else
 		if [[ "$no_build" -eq 1 ]]; then
-			echo "Error: Binary for target '$target' not found at $bin_path. Cannot use --no-build." >&2
+			echo "Error: Binary, installer, or ctoolbox.rsrc for target '$target' not found ($bin_path, $installer_path). Cannot use --no-build." >&2
 			exit 1
 		fi
 	fi
@@ -490,8 +561,19 @@ if [[ "${#targets_to_build[@]}" -gt 0 ]]; then
 	if [[ "$skip_clean" == "0" ]]; then
 		cargo clean
 	fi
+	rsrc_sha_before=""
+	if [[ -f "$repository/built/ctoolbox.rsrc" ]]; then
+		rsrc_sha_before="$(sha256sum "$repository/built/ctoolbox.rsrc" | cut -d' ' -f1)"
+	fi
 	echo "Building targets (skipping lints and tests): ${targets_to_build[*]}..."
 	./build --release --docs --no-lints --no-tests "${targets_to_build[@]}"
+	if [[ "${#reused_targets[@]}" -gt 0 && -f "$repository/built/ctoolbox.rsrc" ]]; then
+		rsrc_sha_after="$(sha256sum "$repository/built/ctoolbox.rsrc" | cut -d' ' -f1)"
+		if [[ "$rsrc_sha_after" != "$rsrc_sha_before" ]]; then
+			echo "Runtime bundle built/ctoolbox.rsrc changed during build; rebuilding reused targets (${reused_targets[*]}) to align embedded bundle SHA-256..."
+			./build --release --no-docs --skip-codegen --no-lints --no-tests "${reused_targets[@]}"
+		fi
+	fi
 else
 	echo "All release targets (${targets[*]}) are already built and match HEAD ($commit). Skipping compilation."
 fi
@@ -568,9 +650,11 @@ for target in "${targets[@]}"; do
 	elif [[ -f "$repository/built/v86_images.rsrc" ]]; then
 		link_or_copy "$repository/built/v86_images.rsrc" "$input_dir/v86_images.rsrc"
 	fi
-	if [[ -f "built/$target/ctoolbox-installer${exe_suffix}" ]]; then
-		cp "built/$target/ctoolbox-installer${exe_suffix}" "$input_dir/ctoolbox-installer${exe_suffix}" || exit 1
+	if [[ ! -f "built/$target/ctoolbox-installer${exe_suffix}" ]]; then
+		echo "Error: Missing ctoolbox-installer${exe_suffix} for target '$target'." >&2
+		exit 1
 	fi
+	cp "built/$target/ctoolbox-installer${exe_suffix}" "$input_dir/ctoolbox-installer${exe_suffix}" || exit 1
 	link_or_copy "$base_input_dir/ctoolbox-dependencies-$commitAndVersion.tar" \
 		"$input_dir/ctoolbox-dependencies-$commitAndVersion.tar"
 	link_or_copy "$base_input_dir/ctoolbox-src-$commitAndVersion.tar" \
@@ -603,11 +687,19 @@ else
 	formula_out="$base_input_dir/ctoolbox.rb.preview"
 fi
 
-echo "Updating Guix packaging..."
 cd "$repository" || exit 1
-cp packaging/guix/rust-crates.tmpl "$guix_out"
 if command -v guix >/dev/null 2>&1; then
-	guix import --insert="$guix_out" crate --lockfile=Cargo.lock ctb-workspace || true
+	echo "Updating Guix packaging..."
+	guix_tmp="${guix_out}.tmp.$$"
+	cp packaging/guix/rust-crates.tmpl "$guix_tmp"
+	if guix import --insert="$guix_tmp" crate --lockfile=Cargo.lock ctb-workspace; then
+		mv "$guix_tmp" "$guix_out"
+	else
+		echo "Warning: 'guix import' failed; preserving existing Guix crate definitions." >&2
+		rm "$guix_tmp"
+	fi
+else
+	echo "Note: 'guix' not found locally; preserving existing Guix crate definitions."
 fi
 
 echo "Updating Homebrew formula..."
@@ -619,6 +711,7 @@ class Ctoolbox < Formula
   url "https://collectivetoolbox.com/releases/src/ctoolbox-src-$version-$commit.tar.gz"
   sha256 "$src_sha"
 
+  # We use env :userpaths to preserve the host's rustup and musl-tools paths in CI.
   env :userpaths
 
   depends_on "cargo-deny" => :build
@@ -657,7 +750,7 @@ end
 EOF
 
 if [[ "$dry_run" -eq 0 ]]; then
-	if [[ -d "$repository/packaging/homebrew-tap/.git" ]]; then
+	if [[ -e "$repository/packaging/homebrew-tap/.git" ]]; then
 		echo "Committing Homebrew formula updates..."
 		cd "$repository/packaging/homebrew-tap" || exit 1
 		git add Formula/ctoolbox.rb || exit 1
@@ -673,7 +766,12 @@ if [[ "$dry_run" -eq 0 ]]; then
 	git commit -m "chore: Automatically update packaging for version $version" || true
 else
 	echo "[Dry Run] Skipping packaging file mutations and git commits."
-	rm "$guix_out" "$formula_out"
+	if [[ -f "$guix_out" ]]; then
+		rm "$guix_out"
+	fi
+	if [[ -f "$formula_out" ]]; then
+		rm "$formula_out"
+	fi
 fi
 
 declare -A target_manifests=()
@@ -694,6 +792,8 @@ for target in "${targets[@]}"; do
 
 	replace_symlink "$manifest_basename" "$output_dir/ctb-$target-latest.json"
 	replace_symlink "${manifest_basename}.sig" "$output_dir/ctb-$target-latest.json.sig"
+	replace_symlink "$manifest_basename" "$output_dir/ctb-$target-$version.json"
+	replace_symlink "${manifest_basename}.sig" "$output_dir/ctb-$target-$version.json.sig"
 done
 
 # Remove large source/dependency tarballs and v86 hardlinks from staging dir now that signing is done
@@ -723,20 +823,21 @@ echo "Creating remote release directory $remote_releases..."
 remote_ssh "$user" "mkdir -p '$remote_releases'" || exit 1
 
 echo "Uploading release artifacts to $remote_releases..."
-remote_rsync "$user" "$output_dir/" "$remote_releases/" -avz || exit 1
+remote_rsync "$user" "$output_dir/" "$remote_releases/" -rlptzv --no-o --no-g --chmod=Du=rwx,Dg=rx,Do=,Fu=rw,Fg=r,Fo= || exit 1
 
-# Update server-side latest symlinks to exact manifests signed in this run and verify structure
+# Update server-side latest and semver symlinks to exact manifests signed in this run and verify structure
 manifest_pairs=()
 for target in "${targets[@]}"; do
 	manifest_pairs+=("$target" "${target_manifests[$target]}")
 done
 
-echo "Updating and verifying server-side latest release symlinks..."
-remote_ssh "$user" bash -s "$remote_releases" "${manifest_pairs[@]}" <<'REMOTE_MANIFESTS'
+echo "Updating and verifying server-side release symlinks..."
+remote_ssh "$user" bash -s "$remote_releases" "$version" "${manifest_pairs[@]}" <<'REMOTE_MANIFESTS'
 set -euo pipefail
 
 releases_dir="$1"
-shift
+version="$2"
+shift 2
 
 replace_symlink() {
 	local link_target="$1"
@@ -762,19 +863,22 @@ while [[ $# -ge 2 ]]; do
 	test -f "${manifest_name}.sig"
 	replace_symlink "$manifest_name" "ctb-$target-latest.json"
 	replace_symlink "${manifest_name}.sig" "ctb-$target-latest.json.sig"
+	replace_symlink "$manifest_name" "ctb-$target-$version.json"
+	replace_symlink "${manifest_name}.sig" "ctb-$target-$version.json.sig"
 	test -f "ctb-$target-latest.json"
+	test -f "ctb-$target-$version.json"
 done
 REMOTE_MANIFESTS
 
 # Upload binary, matching resource bundles, and systemd service unit
 echo "Uploading ctoolbox binary and resources..."
-remote_rsync "$user" "$base_input_dir/linux-x64/ctoolbox" "/home/${server_user}/deploy/ctoolbox-${commit}" -avz --chmod=0750
-remote_rsync "$user" "$base_input_dir/linux-x64/ctoolbox.rsrc" "/home/${server_user}/deploy/ctoolbox-${commit}.rsrc" -avz --chmod=0640
+remote_rsync "$user" "$base_input_dir/linux-x64/ctoolbox" "/home/${server_user}/deploy/ctoolbox-${commit}" -avz --no-o --no-g --chmod=0750
+remote_rsync "$user" "$base_input_dir/linux-x64/ctoolbox.rsrc" "/home/${server_user}/deploy/ctoolbox-${commit}.rsrc" -avz --no-o --no-g --chmod=0640
 has_history_rsrc=0
 if [[ -f "$base_input_dir/linux-x64/system_graph_history.rsrc" ]]; then
 	has_history_rsrc=1
 	remote_rsync "$user" "$base_input_dir/linux-x64/system_graph_history.rsrc" \
-		"/home/${server_user}/deploy/system_graph_history-${commit}.rsrc" -avz --chmod=0640
+		"/home/${server_user}/deploy/system_graph_history-${commit}.rsrc" -avz --no-o --no-g --chmod=0640
 fi
 
 if [[ "$dry_run" -eq 0 && "$target_env" != "vm" ]]; then
@@ -788,7 +892,7 @@ if [[ "$dry_run" -eq 0 && "$target_env" != "vm" ]]; then
 fi
 
 echo "Uploading systemd unit file..."
-remote_rsync "$user" "$repository/scripts/ctoolbox.service" "/home/${server_user}/.config/systemd/user/ctoolbox.service" -avz --chmod=0640
+remote_rsync "$user" "$repository/scripts/ctoolbox.service" "/home/${server_user}/.config/systemd/user/ctoolbox.service" -avz --no-o --no-g --chmod=0640
 
 # Record previous symlinks for rollback if verification or startup fails
 prev_links="$(remote_ssh "$user" bash -s "$server_user" <<'REMOTE_PREV'
@@ -1037,24 +1141,27 @@ mkdir -p "$token_dir"
 printf "%s\n" "$setup_token" > "$token_file"
 chmod 600 "$token_file"
 
-response=$(printf "%s" "$payload" | curl -fsS "${curl_resolve_args[@]}" -X POST -H "Content-Type: application/json" -H "X-Ctb-Setup-Token: $setup_token" --data-binary @- "${url}/api/sync/setup-global-user" 2>/dev/null || true)
+resp_file="$(mktemp)"
+http_code=$(printf "%s" "$payload" | curl -sS -o "$resp_file" -w "%{http_code}" "${curl_resolve_args[@]}" -X POST -H "Content-Type: application/json" -H "X-Ctb-Setup-Token: $setup_token" --data-binary @- "${url}/api/sync/setup-global-user" || true)
 unset payload
+response="$(cat "$resp_file" 2>/dev/null || true)"
+rm "$resp_file"
 
 if [ -f "$token_file" ]; then
 	rm "$token_file"
 fi
 
-if printf "%s" "$response" | grep -q "\"success\":true"; then
+if [ "$http_code" = "200" ] && printf "%s" "$response" | grep -q "\"success\":true"; then
 	echo "Global user setup successful!"
 else
-	echo "Global user setup failed: $response" >&2
+	echo "Global user setup failed (HTTP ${http_code:-error}): $response" >&2
 	exit 1
 fi
 
 sleep 2
 systemctl --user status ctoolbox --no-pager
 ' _ "$server_user"; then
-	unset global_setup_payload GLOBAL_GRAPH_PASS NEW_GLOBAL_GRAPH_PASS PASS SERVER_USER_PASS SUDOER_USER_PASS
+	unset global_setup_payload GLOBAL_GRAPH_PASS NEW_GLOBAL_GRAPH_PASS PASS SERVER_USER_PASS SUDOER_USER_PASS SUDO_PASS
 	rollback_previous_binary
 	exit 1
 fi
@@ -1063,7 +1170,7 @@ if [[ -n "$NEW_GLOBAL_GRAPH_PASS" ]]; then
 	echo "Global graph user password rotated successfully. Remember to update your local ctb-deploy.global-graph-pass file if used."
 fi
 
-unset global_setup_payload GLOBAL_GRAPH_PASS NEW_GLOBAL_GRAPH_PASS PASS SERVER_USER_PASS SUDOER_USER_PASS
+unset global_setup_payload GLOBAL_GRAPH_PASS NEW_GLOBAL_GRAPH_PASS PASS SERVER_USER_PASS SUDOER_USER_PASS SUDO_PASS
 
 # Clean up older deployed binaries and resource bundles ONLY after the new service is healthy
 echo "Cleaning up superseded deployed binaries..."

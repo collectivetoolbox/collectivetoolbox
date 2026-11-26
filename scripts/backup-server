@@ -45,8 +45,10 @@ Options:
 	--ssh-key <PATH>        Use explicit SSH private key file instead of password/sshpass.
 	--exclude-releases      Skip .local/share/collectivetoolbox/releases/ (faster user-data-only backup).
 	--stop-service          Temporarily stop ctoolbox.service during the backup for a cold DB snapshot
-	                        (restarts automatically on exit). Without this flag, the service stays up
-	                        and the second --checksum pass narrows live DB/WAL skew with zero downtime.
+	                        (restarts and re-unlocks the global graph user automatically on exit).
+	                        Without this flag, the service stays up and the second --checksum pass
+	                        narrows live DB/WAL skew with zero downtime.
+	--global-pass-file <P>  Read global graph user password from P (used with --stop-service).
 	--mirror                Delete files in DEST_DIR/home that no longer exist on the server
 	                        (rsync --delete-after). Off by default so accidental remote deletions
 	                        do not erase previously backed-up local files.
@@ -87,6 +89,7 @@ ssh_key=""
 explicit_ssh_key=0
 exclude_releases=0
 stop_service=0
+global_pass_file=""
 mirror_delete=0
 dry_run=0
 
@@ -134,6 +137,15 @@ while [[ $# -gt 0 ]]; do
 			;;
 		"--stop-service")
 			stop_service=1
+			;;
+		"--global-pass-file")
+			if [[ $# -lt 2 || -z "${2:-}" ]]; then
+				echo "Error: --global-pass-file requires a file path argument." >&2
+				usage >&2
+				exit 1
+			fi
+			shift
+			global_pass_file="$1"
 			;;
 		"--mirror")
 			mirror_delete=1
@@ -188,6 +200,11 @@ fi
 PASS=""
 SERVER_USER_PASS=""
 SUDOER_USER_PASS=""
+GLOBAL_GRAPH_PASS=""
+
+if [[ -n "$global_pass_file" ]]; then
+	GLOBAL_GRAPH_PASS="$(read_config_value "$global_pass_file")"
+fi
 
 if [[ "$target_env" == "vm" ]]; then
 	user="ctb-deployer"
@@ -197,6 +214,9 @@ if [[ "$target_env" == "vm" ]]; then
 	port="2224"
 	if [[ -z "$ssh_key" ]]; then
 		ssh_key="$repository/ci-logs/VMs/Linux/id_ed25519"
+	fi
+	if [[ -z "$GLOBAL_GRAPH_PASS" ]]; then
+		GLOBAL_GRAPH_PASS="test_global_graph_pass_123"
 	fi
 	if [[ ! -f "$ssh_key" ]]; then
 		echo "Error: VM SSH key not found at $ssh_key." >&2
@@ -212,6 +232,9 @@ elif [[ -n "$config_dir" ]]; then
 	if [[ "$explicit_ssh_key" -eq 0 && -f "$config_dir/ctb-deploy.key" ]]; then
 		ssh_key="$config_dir/ctb-deploy.key"
 	fi
+	if [[ -z "$GLOBAL_GRAPH_PASS" && -f "$config_dir/ctb-deploy.global-graph-pass" ]]; then
+		GLOBAL_GRAPH_PASS="$(read_config_value "$config_dir/ctb-deploy.global-graph-pass")"
+	fi
 else
 	user="$(read_config_value ~/ctb-deploy.username)"
 	sudoer_user="$(read_config_value ~/ctb-deploy.sudoer-username)"
@@ -220,6 +243,9 @@ else
 	port="$(read_config_value ~/ctb-deploy.port)"
 	if [[ "$explicit_ssh_key" -eq 0 && -f ~/ctb-deploy.key ]]; then
 		ssh_key=~/ctb-deploy.key
+	fi
+	if [[ -z "$GLOBAL_GRAPH_PASS" && -f ~/ctb-deploy.global-graph-pass ]]; then
+		GLOBAL_GRAPH_PASS="$(read_config_value ~/ctb-deploy.global-graph-pass)"
 	fi
 fi
 
@@ -242,9 +268,38 @@ if [[ -z "$ssh_key" ]]; then
 		exit 1
 	fi
 	PASS="${PASS:-$(read_secret "Password for ${user}@${server}: ")}"
-	SERVER_USER_PASS="${SERVER_USER_PASS:-$(read_secret "Password for ${server_user}@${server}: ")}"
-	SUDOER_USER_PASS="${SUDOER_USER_PASS:-$(read_secret "Password for ${sudoer_user}@${server}: ")}"
+	if [[ "$server_user" == "$user" ]]; then
+		SERVER_USER_PASS="$PASS"
+	else
+		SERVER_USER_PASS="${SERVER_USER_PASS:-$(read_secret "Password for ${server_user}@${server}: ")}"
+	fi
+	if [[ "$sudoer_user" == "$user" ]]; then
+		SUDOER_USER_PASS="$PASS"
+	elif [[ "$sudoer_user" == "$server_user" ]]; then
+		SUDOER_USER_PASS="$SERVER_USER_PASS"
+	else
+		SUDOER_USER_PASS="${SUDOER_USER_PASS:-$(read_secret "Password for ${sudoer_user}@${server}: ")}"
+	fi
 fi
+
+if [[ "$stop_service" -eq 1 && "$dry_run" -eq 0 && -z "$GLOBAL_GRAPH_PASS" ]]; then
+	GLOBAL_GRAPH_PASS="$(read_secret "Password for global graph server user (to unlock global graph on service restart): ")"
+	if [[ -z "$GLOBAL_GRAPH_PASS" ]]; then
+		echo "Error: Global graph password is required when using --stop-service so the global graph can be unlocked after restarting ctoolbox.service." >&2
+		exit 1
+	fi
+fi
+
+json_escape_stdin() {
+	if command -v jq >/dev/null 2>&1; then
+		jq -Rs .
+	elif command -v python3 >/dev/null 2>&1; then
+		python3 -c 'import json, sys; sys.stdout.write(json.dumps(sys.stdin.read()))'
+	else
+		echo "Error: jq or python3 is required locally to JSON-escape credentials." >&2
+		return 1
+	fi
+}
 
 password_for_user() {
 	local target_user="$1"
@@ -280,7 +335,8 @@ pull_rsync() {
 	shift 3
 	local rc=0
 	if [[ -n "${ssh_key:-}" && -f "${ssh_key:-}" ]]; then
-		rsync -e "ssh -i $ssh_key -p $port -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR" \
+		local escaped_key="${ssh_key//\'/\'\\\'\'}"
+		rsync -e "ssh -i '${escaped_key}' -p ${port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR" \
 			"$@" "${target_user}@${server}:${remote_src}" "$local_dst" || rc=$?
 	else
 		local ssh_pass
@@ -299,15 +355,118 @@ pull_rsync() {
 	return "$rc"
 }
 
+restart_and_unlock_service() {
+	echo "Restarting ctoolbox.service on ${server} and re-unlocking global graph user..."
+	local escaped_global_pass payload
+	escaped_global_pass="$(printf '%s' "$GLOBAL_GRAPH_PASS" | json_escape_stdin)" || return 1
+	payload="{\"password\":${escaped_global_pass}}"
+	unset escaped_global_pass
+
+	if ! printf '%s' "$payload" | remote_ssh "$server_user" bash -c '
+set -euo pipefail
+server_user="$1"
+payload="$(cat)"
+
+systemctl --user start ctoolbox
+
+settings_file="/home/${server_user}/.local/share/collectivetoolbox/config/pc_settings.json"
+web_port=8080
+proto="http"
+domain_name=""
+bind_to_ip=""
+
+if [ -f "$settings_file" ]; then
+	tls_cert=$(/home/${server_user}/deploy/ctoolbox jq -r ".tls_certificate // empty" "$settings_file" 2>/dev/null || true)
+	https_port=$(/home/${server_user}/deploy/ctoolbox jq -r ".fixed_https_port // empty" "$settings_file" 2>/dev/null || true)
+	http_port=$(/home/${server_user}/deploy/ctoolbox jq -r ".fixed_http_port // empty" "$settings_file" 2>/dev/null || true)
+	domain_name=$(/home/${server_user}/deploy/ctoolbox jq -r ".domain_name // empty" "$settings_file" 2>/dev/null || true)
+	bind_to_ip=$(/home/${server_user}/deploy/ctoolbox jq -r ".bind_to_ip // empty" "$settings_file" 2>/dev/null || true)
+
+	if [ -n "$tls_cert" ]; then
+		proto="https"
+		web_port="${https_port:-8443}"
+	else
+		proto="http"
+		web_port="${http_port:-8080}"
+	fi
+fi
+
+if [ -z "$bind_to_ip" ] || [ "$bind_to_ip" = "0.0.0.0" ] || [ "$bind_to_ip" = "::" ] || [ "$bind_to_ip" = "127.0.0.1" ]; then
+	connect_ip="127.0.0.1"
+else
+	connect_ip="$bind_to_ip"
+fi
+
+curl_resolve_args=()
+if [ "$proto" = "https" ] && [ -n "$domain_name" ]; then
+	url="https://${domain_name}:${web_port}"
+	curl_resolve_args=(--resolve "${domain_name}:${web_port}:${connect_ip}")
+else
+	url="${proto}://${connect_ip}:${web_port}"
+fi
+
+responsive=0
+for _ in {1..60}; do
+	if curl -fsS "${curl_resolve_args[@]}" "${url}/api/update-status" >/dev/null 2>&1; then
+		responsive=1
+		break
+	fi
+	sleep 1
+done
+
+if [ "$responsive" -eq 0 ]; then
+	unset payload
+	echo "Error: ctoolbox.service did not become responsive on ${url} within 60s after restart." >&2
+	exit 1
+fi
+
+token_dir="/home/${server_user}/.local/share/collectivetoolbox"
+token_file="${token_dir}/setup_token"
+if [ -f "$token_file" ]; then
+	rm "$token_file"
+fi
+setup_token=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d " \n")
+mkdir -p "$token_dir"
+printf "%s\n" "$setup_token" > "$token_file"
+chmod 600 "$token_file"
+
+resp_file="$(mktemp)"
+http_code=$(printf "%s" "$payload" | curl -sS -o "$resp_file" -w "%{http_code}" "${curl_resolve_args[@]}" -X POST -H "Content-Type: application/json" -H "X-Ctb-Setup-Token: $setup_token" --data-binary @- "${url}/api/sync/setup-global-user" || true)
+unset payload
+response="$(cat "$resp_file" 2>/dev/null || true)"
+rm "$resp_file"
+
+if [ -f "$token_file" ]; then
+	rm "$token_file"
+fi
+
+if [ "$http_code" = "200" ] && printf "%s" "$response" | grep -q "\"success\":true"; then
+	echo "ctoolbox.service restarted and global graph user re-unlocked successfully."
+else
+	echo "Error: Failed to re-unlock global graph user after restart (HTTP ${http_code:-error}): ${response}" >&2
+	exit 1
+fi
+' _ "$server_user"; then
+		unset payload
+		return 1
+	fi
+	unset payload
+	return 0
+}
+
 service_was_stopped=0
 cleanup_on_exit() {
-	unset PASS SERVER_USER_PASS SUDOER_USER_PASS
+	local exit_rc=$?
 	if [[ "$service_was_stopped" -eq 1 ]]; then
-		echo "Restarting ctoolbox.service on ${server}..."
-		remote_ssh "$server_user" "systemctl --user start ctoolbox" || {
-			echo "Warning: Failed to restart ctoolbox.service automatically; check 'systemctl --user status ctoolbox' on ${server}." >&2
-		}
+		if ! restart_and_unlock_service; then
+			echo "Error: Failed to cleanly restart and re-unlock ctoolbox.service on ${server}; check 'systemctl --user status ctoolbox' or re-run ./deploy." >&2
+			if [[ "$exit_rc" -eq 0 ]]; then
+				exit_rc=1
+			fi
+		fi
 	fi
+	unset GLOBAL_GRAPH_PASS PASS SERVER_USER_PASS SUDOER_USER_PASS
+	exit "$exit_rc"
 }
 trap cleanup_on_exit EXIT
 
@@ -372,6 +531,10 @@ sync_all_home() {
 				continue
 			fi
 			synced_users["$acct"]=1
+			if ! remote_ssh "$acct" "test -d '/home/${acct}'" >/dev/null 2>&1; then
+				echo "Skipping /home/${acct} (directory not present on ${server})."
+				continue
+			fi
 			echo "Syncing /home/${acct}..."
 			if [[ "$dry_run" -eq 0 ]]; then
 				mkdir -p "$resolved_dest/home/$acct"
@@ -412,6 +575,26 @@ if [[ "$dry_run" -eq 0 ]]; then
 				stopped_service: ($stopped_service == 1),
 				mirror: ($mirror == 1)
 			}' > "$resolved_dest/backup-metadata.json"
+	elif command -v python3 >/dev/null 2>&1; then
+		python3 - "$timestamp_utc" "$target_env" "$server" "$port" "$server_user" "$exclude_releases" "$stop_service" "$mirror_delete" "$resolved_dest/backup-metadata.json" <<'PYMETA'
+import json, sys
+ts, target, server, port, s_user, excl, stopped, mirror, out_path = sys.argv[1:]
+meta = {
+    "timestamp_utc": ts,
+    "scope": "/home",
+    "excluded_os_dirs": ["/var", "/etc", "/usr", "/proc", "/sys", "/dev", "/run", "/tmp", "/boot", "/opt", "/root"],
+    "target": target,
+    "server": server,
+    "port": port,
+    "server_user": s_user,
+    "exclude_releases": excl == "1",
+    "stopped_service": stopped == "1",
+    "mirror": mirror == "1",
+}
+with open(out_path, "w", encoding="utf-8") as f:
+    json.dump(meta, f, indent=2)
+    f.write("\n")
+PYMETA
 	fi
 	echo "Backup completed successfully at: ${resolved_dest}"
 else

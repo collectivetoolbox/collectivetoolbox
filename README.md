@@ -132,6 +132,7 @@ Target configuration (`~/ctb-deploy.*`, or in a directory passed via `--config-d
 - `~/ctb-deploy.ip` — server IP or hostname
 - `~/ctb-deploy.port` — server SSH port
 - `~/ctb-deploy.key` *(optional, or pass `--ssh-key <PATH>`)* — SSH private key; avoids `sshpass` and SSH password prompts
+- `~/ctb-deploy.sudo-pass` *(optional)* — sudo password for `sudoer-username` when passwordless `sudo` (`NOPASSWD`) is not enabled; prompted interactively only when `sudo -n` requires it
 - `~/ctb-deploy.global-graph-pass` *(optional)* — password for the server's `global` graph user; prompted interactively if omitted
 - Upload the server configuration to the server user's storage dir (Linux):
   `~/.local/share/collectivetoolbox/config/pc_settings.json`
@@ -156,7 +157,7 @@ Deployment script (`./deploy` skips lints and tests during compilation, as CI ru
   - `--mock-artifacts` / `--allow-dirty`: speed up local VM deploy tests.
 
 If SSH key authentication (`ctb-deploy.key` / `--ssh-key`) is not configured, you will be prompted for SSH passwords for the deployer, server, and sudoer accounts; if `ctb-deploy.global-graph-pass` is not present, you will also be prompted for the global graph user password.
-To prune old release chunks and manifests on the server later, run `ctoolbox ctb-dev-release-expire --older-than <DAYS>`.
+To prune old release chunks and manifests on the server later (as the deployer user, which owns the `releases/` directory; active `latest` manifests are always retained): `ctoolbox ctb-dev-release-expire --releases-dir /home/<server-user>/.local/share/collectivetoolbox/releases --older-than <DAYS>`.
 
 Backing up the server locally (`./scripts/backup-server`):
 
@@ -165,7 +166,7 @@ Backing up the server locally (`./scripts/backup-server`):
 - Useful options:
   - `--dest <DIR>` (or positional `<DIR>`): destination folder outside the repository.
   - `--exclude-releases`: skip `.local/share/collectivetoolbox/releases/` for a fast user-data/config backup.
-  - `--stop-service`: briefly stop `ctoolbox.service` during the sync for a cold database snapshot (restarting it automatically on exit); without this flag, the service stays online while `backup-server` runs a first pass followed by a full second `--checksum` pass over `/home` to re-read and catch live DB/WAL edits with zero downtime.
+  - `--stop-service`: briefly stop `ctoolbox.service` during the sync for a cold database snapshot (restarting it and re-unlocking the `global` graph user automatically on exit, using `ctb-deploy.global-graph-pass`, `--global-pass-file <PATH>`, or an interactive prompt); without this flag, the service stays online while `backup-server` runs a first pass followed by a full second `--checksum` pass over `/home` to re-read and catch live DB/WAL edits with zero downtime.
   - `--mirror`: delete local backup files that were removed on the server (`rsync --delete-after`; off by default).
   - `--dry-run`: preview files that would be transferred without modifying the local destination folder.
 

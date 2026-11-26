@@ -75,6 +75,18 @@ class DeployFlagsTests(unittest.TestCase):
         self.assertIn("--image", res.stdout)
         self.assertIn("--url", res.stdout)
 
+    def test_setup_permissions_groups_help_without_root(self):
+        res = subprocess.run(
+            ["./scripts/setup-permissions-groups", "--help"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn("--server-user", res.stdout)
+        self.assertIn("--deployer-user", res.stdout)
+
     def test_missing_vm_ssh_key_error(self):
         res = subprocess.run(
             ["./deploy", "--target", "vm", "--ssh-key", "/tmp/nonexistent-key-12345", "--allow-dirty"],
@@ -243,6 +255,55 @@ class DeployFlagsTests(unittest.TestCase):
                 check=False,
             )
             self.assertNotEqual(res_bad.returncode, 0)
+
+    def test_deploy_rejects_existing_version_tag_when_not_dry_run(self):
+        # Verify Cargo.toml version lookup + early tag collision guard logic
+        meta = subprocess.check_output(
+            ["cargo", "metadata", "--format-version=1", "--no-deps"],
+            cwd=REPO_ROOT,
+            text=True,
+        )
+        pkgs = json.loads(meta)["packages"]
+        ctb_ver = next(p["version"] for p in pkgs if p["name"] == "ctoolbox")
+        tag_name = f"v{ctb_ver}"
+        tag_exists = (
+            subprocess.run(
+                ["git", "rev-parse", "-q", "--verify", f"refs/tags/{tag_name}"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                check=False,
+            ).returncode
+            == 0
+        )
+        if tag_exists:
+            with tempfile.TemporaryDirectory() as cfg_dir:
+                cfg = pathlib.Path(cfg_dir)
+                for name, val in (
+                    ("username", "deployer"),
+                    ("sudoer-username", "sudoer"),
+                    ("server-username", "server"),
+                    ("ip", "127.0.0.1"),
+                    ("port", "2224"),
+                    ("global-graph-pass", "pass123"),
+                    ("key", "dummy-key"),
+                ):
+                    (cfg / f"ctb-deploy.{name}").write_text(f"{val}\n", encoding="utf-8")
+                res = subprocess.run(
+                    [
+                        "./deploy",
+                        "quick",
+                        "--target",
+                        cfg_dir,
+                        "--no-build",
+                        "--allow-dirty",
+                    ],
+                    cwd=REPO_ROOT,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(res.returncode, 1)
+                self.assertIn(f"Git tag '{tag_name}' already exists", res.stderr)
 
     def test_backup_server_help_and_flag_validation(self):
         res = subprocess.run(
@@ -534,6 +595,164 @@ sys.exit(rc)
             self.assertEqual(meta["scope"], "/home")
             self.assertIn("/var", meta["excluded_os_dirs"])
             self.assertTrue(meta["exclude_releases"])
+
+    def test_backup_server_stop_service_reunlocks_global_user_and_handles_spaces_in_key_and_root_sudoer(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = pathlib.Path(tmpdir)
+            remote_root = tmp / "mock_remote"
+            server_home = remote_root / "home" / "ctb-server"
+            deployer_home = remote_root / "home" / "ctb-deployer"
+            (server_home / ".local" / "share" / "collectivetoolbox").mkdir(parents=True)
+            (server_home / ".local" / "share" / "collectivetoolbox" / "users.db").write_bytes(
+                b"cold-db"
+            )
+            deployer_home.mkdir(parents=True)
+            (deployer_home / "note.txt").write_text("ok\n", encoding="utf-8")
+            # Note: sudoer_user is 'root', so /home/root intentionally does NOT exist!
+
+            ssh_events_log = tmp / "ssh_events.jsonl"
+            bin_dir = tmp / "mock_bin"
+            bin_dir.mkdir()
+            real_rsync = subprocess.check_output(["which", "rsync"], text=True).strip()
+
+            mock_ssh = bin_dir / "ssh"
+            mock_ssh.write_text(
+                f"""#!/usr/bin/env python3
+import json, os, pathlib, sys
+
+args = sys.argv[1:]
+i = 0
+while i < len(args):
+    a = args[i]
+    if a in ("-i", "-p", "-o"):
+        i += 2
+    elif a.startswith("-"):
+        i += 1
+    else:
+        break
+
+target = args[i]
+remote_cmd = " ".join(args[i + 1:])
+stdin_data = ""
+if "setup-global-user" in remote_cmd or remote_cmd == "bash":
+    stdin_data = sys.stdin.read()
+
+with open({str(ssh_events_log)!r}, "a", encoding="utf-8") as logf:
+    logf.write(json.dumps({{"target": target, "cmd": remote_cmd, "stdin": stdin_data}}) + "\\n")
+
+if remote_cmd == "sudo -n true":
+    # Simulate non-NOPASSWD sudo so fallback per-user sync is exercised
+    sys.exit(1)
+
+if remote_cmd.startswith("test -d "):
+    rel = remote_cmd[len("test -d "):].strip().strip("'")
+    exists = pathlib.Path({str(remote_root)!r} + rel).is_dir()
+    sys.exit(0 if exists else 1)
+
+if "setup-global-user" in remote_cmd:
+    payload = json.loads(stdin_data)
+    assert payload == {{"password": "secret-global-pass-xyz"}}, payload
+    print("ctoolbox.service restarted and global graph user re-unlocked successfully.")
+    sys.exit(0)
+
+sys.exit(0)
+""",
+                encoding="utf-8",
+            )
+            mock_ssh.chmod(mock_ssh.stat().st_mode | stat.S_IXUSR)
+
+            mock_rsync = bin_dir / "rsync"
+            mock_rsync.write_text(
+                f"""#!/usr/bin/env python3
+import subprocess, sys
+args = []
+i = 1
+while i < len(sys.argv):
+    a = sys.argv[i]
+    if a == "-e":
+        rsh = sys.argv[i + 1]
+        assert "'/" in rsh and "key with spaces" in rsh, f"Expected quoted key path in -e: {{rsh}}"
+        i += 2
+        continue
+    if ":" in a and not a.startswith("-"):
+        _, remote_path = a.split(":", 1)
+        args.append({str(remote_root)!r} + remote_path)
+    else:
+        args.append(a)
+    i += 1
+sys.exit(subprocess.call([{real_rsync!r}] + args))
+""",
+                encoding="utf-8",
+            )
+            mock_rsync.chmod(mock_rsync.stat().st_mode | stat.S_IXUSR)
+
+            cfg = tmp / "cfg"
+            cfg.mkdir()
+            (cfg / "ctb-deploy.username").write_text("ctb-deployer\n", encoding="utf-8")
+            (cfg / "ctb-deploy.sudoer-username").write_text("root\n", encoding="utf-8")
+            (cfg / "ctb-deploy.server-username").write_text("ctb-server\n", encoding="utf-8")
+            (cfg / "ctb-deploy.ip").write_text("198.51.100.11\n", encoding="utf-8")
+            (cfg / "ctb-deploy.port").write_text("22\n", encoding="utf-8")
+            (cfg / "ctb-deploy.global-graph-pass").write_text(
+                "secret-global-pass-xyz\n", encoding="utf-8"
+            )
+
+            key_dir = tmp / "dir with spaces"
+            key_dir.mkdir()
+            spaced_key = key_dir / "key with spaces"
+            spaced_key.write_text("mock-private-key\n", encoding="utf-8")
+
+            backup_dest = tmp / "cold_backup_out"
+            env = os.environ.copy()
+            env["PATH"] = f"{bin_dir}:{env['PATH']}"
+
+            res = subprocess.run(
+                [
+                    "./scripts/backup-server",
+                    "--target",
+                    str(cfg),
+                    "--ssh-key",
+                    str(spaced_key),
+                    "--stop-service",
+                    str(backup_dest),
+                ],
+                cwd=REPO_ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res.returncode, 0, f"stdout={res.stdout}\nstderr={res.stderr}")
+            self.assertIn("Skipping /home/root", res.stdout)
+            self.assertTrue(
+                (
+                    backup_dest
+                    / "home"
+                    / "ctb-server"
+                    / ".local"
+                    / "share"
+                    / "collectivetoolbox"
+                    / "users.db"
+                ).is_file()
+            )
+            self.assertFalse((backup_dest / "home" / "root").exists())
+
+            events = [
+                json.loads(ln)
+                for ln in ssh_events_log.read_text(encoding="utf-8").splitlines()
+                if ln.strip()
+            ]
+            # Service must be stopped before sync and re-unlocked via stdin (never in cmd) on exit
+            self.assertTrue(
+                any("systemctl --user stop ctoolbox" in ev["stdin"] for ev in events),
+                events,
+            )
+            unlock_events = [ev for ev in events if "setup-global-user" in ev["cmd"]]
+            self.assertEqual(len(unlock_events), 1, events)
+            self.assertNotIn("secret-global-pass-xyz", unlock_events[0]["cmd"])
+            self.assertIn("secret-global-pass-xyz", unlock_events[0]["stdin"])
 
 
 if __name__ == "__main__":
