@@ -22,57 +22,57 @@
 ns std/dcmst.
 use std/u128: errInvalidEncoding ::.
 use std/dctf: dcVal dcShort dcShortId lenDctf encodeDcStream decodeDcStream ::.
-use std/dcs: implode as dcsImplode ::.
+use std/dcs: joined as dcsImplode ::.
 
 : Returns true iff `c` is a Base64 encapsulation digit (`Dc 127..=190`) or padding (`Dc 195`).
 : @dc l8589982132
 v/b/isB64DigitOrPad dcVal/c
-    const u32/sid dcShortId /c.
+    be u32/sid dcShortId /c.
     or eq /sid u32:195 and ge /sid u32:127 le /sid u32:190.
 
 : Parses a `Dc 203 .. Dc 204` binary encapsulation frame starting at `start` (`get chars start == Dc 203`),
 : returning `(nextIdx, frameByteLen)` using `DcMst` binary chunk header + decoded Base64 payload sizes.
 : @dc l8589982133
 v/tup: u64 u64 ::/measureBinaryFrame l/dcVal/chars u64/start
-    const u64/clen len /chars.
-    let u64/endIdx add /start u64:1.
-    while and lt /endIdx /clen ne dcShortId get /chars /endIdx u32:204 do
-        set /endIdx add /endIdx u64:1.
+    be u64/clen len /chars.
+    hold u64/endIdx sum /start u64:1.
+    while and lt /endIdx /clen ne dcShortId at /chars /endIdx u32:204 do
+        become /endIdx sum /endIdx u64:1.
     ::.
-    const u64/innerStart add /start u64:1.
-    let u64/firstB64 /endIdx.
-    let u64/scan /innerStart.
+    be u64/innerStart sum /start u64:1.
+    hold u64/firstB64 /endIdx.
+    hold u64/scan /innerStart.
     while and lt /scan /endIdx eq /firstB64 /endIdx do
-        if isB64DigitOrPad get /chars /scan
-            set /firstB64 /scan
-            set /scan add /scan u64:1.
+        if isB64DigitOrPad at /chars /scan
+            become /firstB64 /scan
+            become /scan sum /scan u64:1.
     ::.
-    const u64/b64Len sub /endIdx /firstB64.
-    let u64/padding u64:0.
+    be u64/b64Len diff /endIdx /firstB64.
+    hold u64/padding u64:0.
     if gt /b64Len u64:0
         do
-            if eq dcShortId get /chars sub /endIdx u64:1 u32:195
-                set /padding add /padding u64:1
+            if eq dcShortId at /chars diff /endIdx u64:1 u32:195
+                become /padding sum /padding u64:1
                 nop.
-            if and gt /b64Len u64:1 eq dcShortId get /chars sub /endIdx u64:2 u32:195
-                set /padding add /padding u64:1
+            if and gt /b64Len u64:1 eq dcShortId at /chars diff /endIdx u64:2 u32:195
+                become /padding sum /padding u64:1
                 nop.
         ::
         nop.
-    const u64/decodedLen sub mul shr /b64Len u32:2 u64:3 /padding.
-    let u64/frameBytes.
+    be u64/decodedLen diff prod shr /b64Len u32:2 u64:3 /padding.
+    hold u64/frameBytes.
     if eq /firstB64 /innerStart
-        set /frameBytes add u64:21 /decodedLen
+        become /frameBytes sum u64:21 /decodedLen
         do
-            let u64/metaBytes u64:0.
-            let u64/mIdx /innerStart.
+            hold u64/metaBytes u64:0.
+            hold u64/mIdx /innerStart.
             while lt /mIdx /firstB64 do
-                set /metaBytes add /metaBytes lenDctf get /chars /mIdx.
-                set /mIdx add /mIdx u64:1.
+                become /metaBytes sum /metaBytes lenDctf at /chars /mIdx.
+                become /mIdx sum /mIdx u64:1.
             ::.
-            set /frameBytes add u64:37 add /metaBytes /decodedLen.
+            become /frameBytes sum u64:37 sum /metaBytes /decodedLen.
         ::.
-    const u64/nextIdx if lt /endIdx /clen add /endIdx u64:1 /clen.
+    be u64/nextIdx if lt /endIdx /clen sum /endIdx u64:1 /clen.
     tupNew: /nextIdx /frameBytes ::.
 
 : Computes `byteLen` of a validated mixed-mode `s` (`DcMst`) `l/dcVal` sequence.
@@ -83,34 +83,34 @@ pub v/u64/byteLen l/dcVal/chars
         out u64:0.
         in l/dcVal: structNew dcVal: u64:65 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114316 u64:0 :: ::
         out u64:25.
-    const u64/clen len /chars.
-    let u64/idx u64:0.
-    let u64/total u64:0.
+    be u64/clen len /chars.
+    hold u64/idx u64:0.
+    hold u64/total u64:0.
     while lt /idx /clen do
-        const dcVal/ch get /chars /idx.
-        const u32/sid dcShortId /ch.
+        be dcVal/ch at /chars /idx.
+        be u32/sid dcShortId /ch.
         if eq /sid u32:255
             do
-                const u64/nextIdx add /idx u64:1.
+                be u64/nextIdx sum /idx u64:1.
                 if lt /nextIdx /clen
                     do
-                        set /total add /total add lenDctf /ch lenDctf get /chars /nextIdx.
-                        set /idx add /idx u64:2.
+                        become /total sum /total sum lenDctf /ch lenDctf at /chars /nextIdx.
+                        become /idx sum /idx u64:2.
                     ::
                     do
-                        set /total add /total lenDctf /ch.
-                        set /idx /clen.
+                        become /total sum /total lenDctf /ch.
+                        become /idx /clen.
                     ::.
             ::
             if eq /sid u32:203
                 do
-                    const tup: u64 u64 ::/fb measureBinaryFrame /chars /idx.
-                    set /idx field /fb u32:0.
-                    set /total add /total field /fb u32:1.
+                    be tup: u64 u64 ::/fb measureBinaryFrame /chars /idx.
+                    become /idx field /fb u32:0.
+                    become /total sum /total field /fb u32:1.
                 ::
                 do
-                    set /total add /total lenDctf /ch.
-                    set /idx add /idx u64:1.
+                    become /total sum /total lenDctf /ch.
+                    become /idx sum /idx u64:1.
                 ::.
     ::.
     /total.
@@ -126,30 +126,30 @@ pub v/tup: b l/dcVal u8 ::/tryDcsFromS l/dcVal/chars
         out tupNew: true l/dcVal: structNew dcVal: u64:55296 u64:0 :: :: u8:0 ::.
         in l/dcVal: structNew dcVal: u64:1114315 u64:0 :: structNew dcVal: u64:1114316 u64:0 :: ::
         out tupNew: false l/dcVal: :: u8:4 ::.
-    const u64/clen len /chars.
-    const buf/dcVal/out bufNew dcVal /clen.
-    let u64/idx u64:0.
+    be u64/clen len /chars.
+    be buf/dcVal/out bufNew dcVal /clen.
+    hold u64/idx u64:0.
     while lt /idx /clen do
-        const dcVal/ch get /chars /idx.
-        const u32/sid dcShortId /ch.
+        be dcVal/ch at /chars /idx.
+        be u32/sid dcShortId /ch.
         if eq /sid u32:255
             do
-                const u64/nextIdx add /idx u64:1.
+                be u64/nextIdx sum /idx u64:1.
                 if ge /nextIdx /clen
                     return tupNew: false l/dcVal: :: /errInvalidEncoding ::
                     nop.
-                const dcVal/esc get /chars /nextIdx.
-                bufPush /out /esc.
-                set /idx add /idx u64:2.
+                be dcVal/esc at /chars /nextIdx.
+                bufGain /out /esc.
+                become /idx sum /idx u64:2.
             ::
             if or eq /sid u32:203 eq /sid u32:204
                 return tupNew: false l/dcVal: :: /errInvalidEncoding ::
                 do
-                    bufPush /out /ch.
-                    set /idx add /idx u64:1.
+                    bufGain /out /ch.
+                    become /idx sum /idx u64:1.
                 ::.
     ::.
-    tupNew: true bufFreeze /out u8:0 ::.
+    tupNew: true bufFrozen /out u8:0 ::.
 
 : Infallible `sFromDcs` widening (`l/dcVal -> l/dcVal`), escaping `Dc 255`, `Dc 203`, and `Dc 204` with `Dc 255`.
 : @dc l8589982136
@@ -157,115 +157,115 @@ pub v/l/dcVal/sFromDcs l/dcVal/chars
     test
         in l/dcVal: structNew dcVal: u64:97 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: structNew dcVal: u64:1114367 u64:0 :: ::
         out l/dcVal: structNew dcVal: u64:97 u64:0 :: structNew dcVal: u64:1114367 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: structNew dcVal: u64:1114367 u64:0 :: structNew dcVal: u64:1114367 u64:0 :: ::.
-    const buf/dcVal/out bufNew dcVal len /chars.
+    be buf/dcVal/out bufNew dcVal len /chars.
     foreach dcVal/ch /chars do
-        const u32/sid dcShortId /ch.
+        be u32/sid dcShortId /ch.
         if or eq /sid u32:255 or eq /sid u32:203 eq /sid u32:204
-            bufPush /out dcShort u32:255
+            bufGain /out dcShort u32:255
             nop.
-        bufPush /out /ch.
+        bufGain /out /ch.
     ::.
-    bufFreeze /out.
+    bufFrozen /out.
 
 : Segments `chars` into atomic `DcMst` units (single `dcVal`, `Dc 255` escape pair, or `Dc 203..Dc 204` binary frame).
 : @dc l8589982137
 v/l/l/dcVal/dcmstAtomicUnits l/dcVal/chars
-    const u64/clen len /chars.
-    const buf/l/dcVal/units bufNew l/dcVal /clen.
-    let u64/idx u64:0.
+    be u64/clen len /chars.
+    be buf/l/dcVal/units bufNew l/dcVal /clen.
+    hold u64/idx u64:0.
     while lt /idx /clen do
-        const dcVal/ch get /chars /idx.
-        const u32/sid dcShortId /ch.
+        be dcVal/ch at /chars /idx.
+        be u32/sid dcShortId /ch.
         if eq /sid u32:255
             do
-                const u64/endIdx if lt add /idx u64:2 /clen add /idx u64:2 /clen.
-                bufPush /units slice /chars /idx /endIdx.
-                set /idx /endIdx.
+                be u64/endIdx if lt sum /idx u64:2 /clen sum /idx u64:2 /clen.
+                bufGain /units slice /chars /idx /endIdx.
+                become /idx /endIdx.
             ::
             if eq /sid u32:203
                 do
-                    const tup: u64 u64 ::/fb measureBinaryFrame /chars /idx.
-                    const u64/nextIdx field /fb u32:0.
-                    bufPush /units slice /chars /idx /nextIdx.
-                    set /idx /nextIdx.
+                    be tup: u64 u64 ::/fb measureBinaryFrame /chars /idx.
+                    be u64/nextIdx field /fb u32:0.
+                    bufGain /units slice /chars /idx /nextIdx.
+                    become /idx /nextIdx.
                 ::
                 do
-                    bufPush /units l/dcVal: /ch ::.
-                    set /idx add /idx u64:1.
+                    bufGain /units l/dcVal: /ch ::.
+                    become /idx sum /idx u64:1.
                 ::.
     ::.
-    bufFreeze /units.
+    bufFrozen /units.
 
 : Flattens a slice of atomic `DcMst` units `[start..end)` into a single `l/dcVal`.
 : @dc l8589982138
 v/l/dcVal/flattenUnits l/l/dcVal/units u64/start u64/end
-    let u64/total u64:0.
-    let u64/i /start.
+    hold u64/total u64:0.
+    hold u64/i /start.
     while lt /i /end do
-        set /total add /total len get /units /i.
-        set /i add /i u64:1.
+        become /total sum /total len at /units /i.
+        become /i sum /i u64:1.
     ::.
-    const buf/dcVal/out bufNew dcVal /total.
-    let u64/j /start.
+    be buf/dcVal/out bufNew dcVal /total.
+    hold u64/j /start.
     while lt /j /end do
-        bufExtend /out get /units /j.
-        set /j add /j u64:1.
+        bufGainAll /out at /units /j.
+        become /j sum /j u64:1.
     ::.
-    bufFreeze /out.
+    bufFrozen /out.
 
 : Splits `input` around non-overlapping occurrences of `sep` (`explode` on `s`), never splitting inside
 : a `Dc 255` escape pair or `Dc 203..Dc 204` binary encapsulation frame.
 : @dc l8589982139
-pub v/l/l/dcVal/explode l/dcVal/sep l/dcVal/input
+pub v/l/l/dcVal/pieces l/dcVal/sep l/dcVal/input
     test
         in l/dcVal: :: l/dcVal: structNew dcVal: u64:97 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114316 u64:0 :: ::
         out l/l/dcVal: l/dcVal: structNew dcVal: u64:97 u64:0 :: :: l/dcVal: structNew dcVal: u64:1114315 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114239 u64:0 :: structNew dcVal: u64:1114316 u64:0 :: :: ::.
-    const l/l/dcVal/sepUnits dcmstAtomicUnits /sep.
-    const l/l/dcVal/inpUnits dcmstAtomicUnits /input.
-    const u64/slen len /sepUnits.
-    const u64/ilen len /inpUnits.
+    be l/l/dcVal/sepUnits dcmstAtomicUnits /sep.
+    be l/l/dcVal/inpUnits dcmstAtomicUnits /input.
+    be u64/slen len /sepUnits.
+    be u64/ilen len /inpUnits.
     if eq /slen u64:0
         return /inpUnits
         nop.
-    const buf/l/dcVal/out bufNew l/dcVal u64:4.
-    let u64/cursor u64:0.
+    be buf/l/dcVal/out bufNew l/dcVal u64:4.
+    hold u64/cursor u64:0.
     while le /cursor /ilen do
-        const u64/remLen sub /ilen /cursor.
+        be u64/remLen diff /ilen /cursor.
         if lt /remLen /slen
             do
-                bufPush /out flattenUnits /inpUnits /cursor /ilen.
-                return bufFreeze /out.
+                bufGain /out flattenUnits /inpUnits /cursor /ilen.
+                return bufFrozen /out.
             ::
             nop.
-        const u64/maxOff sub /remLen /slen.
-        let b/found false.
-        let u64/foundOff u64:0.
-        let u64/off u64:0.
+        be u64/maxOff diff /remLen /slen.
+        hold b/found false.
+        hold u64/foundOff u64:0.
+        hold u64/off u64:0.
         while and not /found le /off /maxOff do
-            const u64/cand add /cursor /off.
-            if eq slice /inpUnits /cand add /cand /slen /sepUnits
+            be u64/cand sum /cursor /off.
+            if eq slice /inpUnits /cand sum /cand /slen /sepUnits
                 do
-                    set /found true.
-                    set /foundOff /off.
+                    become /found true.
+                    become /foundOff /off.
                 ::
-                set /off add /off u64:1.
+                become /off sum /off u64:1.
         ::.
         if /found
             do
-                bufPush /out flattenUnits /inpUnits /cursor add /cursor /foundOff.
-                set /cursor add add /cursor /foundOff /slen.
+                bufGain /out flattenUnits /inpUnits /cursor sum /cursor /foundOff.
+                become /cursor sum sum /cursor /foundOff /slen.
             ::
             do
-                bufPush /out flattenUnits /inpUnits /cursor /ilen.
-                return bufFreeze /out.
+                bufGain /out flattenUnits /inpUnits /cursor /ilen.
+                return bufFrozen /out.
             ::.
     ::.
-    bufPush /out l/dcVal: ::.
-    bufFreeze /out.
+    bufGain /out l/dcVal: ::.
+    bufFrozen /out.
 
 : Concatenates `parts` interspersed with `sep` (`implode` on `s`).
 : @dc l8589982140
-pub v/l/dcVal/implode l/dcVal/sep l/l/dcVal/parts
+pub v/l/dcVal/joined l/dcVal/sep l/l/dcVal/parts
     dcsImplode /sep /parts.
 
 : Host capability RPC for mixed-mode/pure-Dc strings (`l/dcVal -> tup: b l/dcVal u8 ::`),
@@ -273,9 +273,9 @@ pub v/l/dcVal/implode l/dcVal/sep l/l/dcVal/parts
 : decoding the response DcTF bytes (returning `errInvalidEncoding` if malformed).
 : @dc l8589992731
 pub v/tup: b l/dcVal u8 ::/requestCapabilityS l/dcVal/req
-    const l/u8/reqBytes encodeDcStream /req.
-    const l/u8/respBytes requestCapability /reqBytes.
-    const tup: b l/dcVal ::/dec decodeDcStream /respBytes.
+    be l/u8/reqBytes encodeDcStream /req.
+    be l/u8/respBytes capability /reqBytes.
+    be tup: b l/dcVal ::/dec decodeDcStream /respBytes.
     if field /dec u32:0
         tupNew: true field /dec u32:1 u8:0 ::
         tupNew: false l/dcVal: :: /errInvalidEncoding ::.
@@ -284,7 +284,7 @@ pub v/tup: b l/dcVal u8 ::/requestCapabilityS l/dcVal/req
 : directly without decoding or re-encoding the payload token stream.
 : @dc l8589993763
 pub v/l/u8/requestCapabilityBytes l/u8/req
-    requestCapability /req.
+    capability /req.
 
 : Checked StageL `dcsFromS` conversion (`l/dcVal -> l/dcVal`), faulting when unescaped binary
 : encapsulation markers (`Dc 203`/`Dc 204`), trailing escapes, or surrogates appear.
@@ -295,7 +295,7 @@ pub v/l/dcVal/dcsFromS l/dcVal/chars
         out l/dcVal: structNew dcVal: u64:104 u64:0 :: structNew dcVal: u64:1114315 u64:0 :: ::.
         in l/dcVal: structNew dcVal: u64:1114315 u64:0 :: ::
         out fault.
-    const tup: b l/dcVal u8 ::/r tryDcsFromS /chars.
+    be tup: b l/dcVal u8 ::/r tryDcsFromS /chars.
     if not field /r u32:0
         fault
         field /r u32:1.

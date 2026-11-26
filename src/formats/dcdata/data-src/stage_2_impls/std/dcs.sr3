@@ -58,24 +58,24 @@ pub v/dcKind/classifyDc dc/ch
         in dc:256
         out dcKind:short u32:256.
         in dc:f657
-        out dcKind:format wrap u32:657 formatId.
+        out dcKind:format wrapped u32:657 formatId.
         in dc:l8589934592
         out dcKind:long u128:8589934592.
-    const u128/gid u128FromDc /ch.
+    be u128/gid u128FromDc /ch.
     if le /gid u128:1114111
         : Guarded `gid <= 1_114_111` fits losslessly in `u32`.
-        dcKind:unicode unwrapOr conv /gid u32 u32:0
+        dcKind:unicode valOr conv /gid u32 u32:0
         if le /gid u128:2228223
             do
                 : Guarded `1_114_112 <= gid <= 2_228_223` yields offset `0..=1_114_111`.
-                const u128/off unwrapOr sub /gid u128:1114112 u128:0.
-                dcKind:short unwrapOr conv /off u32 u32:0.
+                be u128/off valOr diff /gid u128:1114112 u128:0.
+                dcKind:short valOr conv /off u32 u32:0.
             ::
             if le /gid u128:3342335
                 do
                     : Guarded `2_228_224 <= gid <= 3_342_335` yields offset `0..=1_114_111`.
-                    const u128/off unwrapOr sub /gid u128:2228224 u128:0.
-                    dcKind:format wrap unwrapOr conv /off u32 u32:0 formatId.
+                    be u128/off valOr diff /gid u128:2228224 u128:0.
+                    dcKind:format wrapped valOr conv /off u32 u32:0 formatId.
                 ::
                 dcKind:long /gid.
 
@@ -122,7 +122,7 @@ pub v/option/u32/dcShort dc/ch
 pub v/option/formatId/dcFormat dc/ch
     test
         in dc:f657
-        out option/formatId:some wrap u32:657 formatId.
+        out option/formatId:some wrapped u32:657 formatId.
         in dc:256
         out option/formatId:none.
     match classifyDc /ch
@@ -182,160 +182,160 @@ pub v/result/dc/dcFromShort u32/id
         out result/dc:err error:numberOutsideShortDcRange.
     if gt /id u32:1114111
         result/dc:err error:numberOutsideShortDcRange
-        result/dc:ok dcFromU128 add? u128:1114112 conv /id u128.
+        result/dc:ok dcFromU128 sum? u128:1114112 conv /id u128.
 
 : Converts an opaque `formatId` into its Format Dc (`FORMAT_REGION_START + id`).
 : @dc l8589987657
 pub v/dc/dcFromFormat formatId/fid
     test
-        in wrap u32:657 formatId
+        in wrapped u32:657 formatId
         out dc:f657.
     : Validated `formatId` is `<= 1_114_111`, so adding `2_228_224` cannot overflow `u128`.
-    dcFromU128 unwrapOr add u128:2228224 conv unwrap /fid u128 u128:0.
+    dcFromU128 valOr sum u128:2228224 conv unwrapped /fid u128 u128:0.
 
 : @dc l8589987658
 v/decParse/parseAsciiDecDcs dcs/chars u64/start
-    const u64/total len /chars.
+    be u64/total len /chars.
     if ge /start /total
         return decParse:badSyntax
         nop.
-    let u64/checkIdx /start.
+    hold u64/checkIdx /start.
     while lt /checkIdx /total do
-        match get /chars /checkIdx
+        match at /chars /checkIdx
             case none return decParse:badSyntax.
             case some dc/ch do
-                const u128/code u128FromDc /ch.
+                be u128/code u128FromDc /ch.
                 if or lt /code u128:48 gt /code u128:57
                     return decParse:badSyntax
                     nop.
             ::.
         ::.
         : `checkIdx < total <= u64::MAX` guarantees `checkIdx + 1` cannot overflow.
-        set /checkIdx unwrapOr add /checkIdx u64:1 /total.
+        become /checkIdx valOr sum /checkIdx u64:1 /total.
     ::.
-    let u128/acc u128:0.
-    let u64/idx /start.
+    hold u128/acc u128:0.
+    hold u64/idx /start.
     while lt /idx /total do
-        match get /chars /idx
+        match at /chars /idx
             case none return decParse:badSyntax.
             case some dc/ch do
-                const u128/dig unwrapOr sub u128FromDc /ch u128:48 u128:0.
-                const result/u128/scaled mul /acc u128:10.
+                be u128/dig valOr diff u128FromDc /ch u128:48 u128:0.
+                be result/u128/scaled prod /acc u128:10.
                 match /scaled
                     case err error/ignoredErr return decParse:overflowed.
                     case ok u128/nextMul do
-                        match add /nextMul /dig
+                        match sum /nextMul /dig
                             case err error/ignoredErr return decParse:overflowed.
-                            case ok u128/nextVal set /acc /nextVal.
+                            case ok u128/nextVal become /acc /nextVal.
                         ::.
                     ::.
                 ::.
             ::.
         ::.
         : `idx < total <= u64::MAX` guarantees `idx + 1` cannot overflow.
-        set /idx unwrapOr add /idx u64:1 /total.
+        become /idx valOr sum /idx u64:1 /total.
     ::.
     decParse:okVal /acc.
 
 : @dc l8589987659
 v/hexU32Parse/parseLowerHexU32Dcs dcs/chars u64/start
-    const u64/total len /chars.
+    be u64/total len /chars.
     if ge /start /total
         return hexU32Parse:badSyntax
         nop.
-    let u64/checkIdx /start.
+    hold u64/checkIdx /start.
     while lt /checkIdx /total do
-        match get /chars /checkIdx
+        match at /chars /checkIdx
             case none return hexU32Parse:badSyntax.
             case some dc/ch do
-                const u128/code u128FromDc /ch.
-                const b/isDec and ge /code u128:48 le /code u128:57.
-                const b/isLowHex and ge /code u128:97 le /code u128:102.
+                be u128/code u128FromDc /ch.
+                be b/isDec and ge /code u128:48 le /code u128:57.
+                be b/isLowHex and ge /code u128:97 le /code u128:102.
                 if not or /isDec /isLowHex
                     return hexU32Parse:badSyntax
                     nop.
             ::.
         ::.
         : `checkIdx < total <= u64::MAX` guarantees `checkIdx + 1` cannot overflow.
-        set /checkIdx unwrapOr add /checkIdx u64:1 /total.
+        become /checkIdx valOr sum /checkIdx u64:1 /total.
     ::.
-    let u32/acc u32:0.
-    let u64/idx /start.
+    hold u32/acc u32:0.
+    hold u64/idx /start.
     while lt /idx /total do
-        match get /chars /idx
+        match at /chars /idx
             case none return hexU32Parse:badSyntax.
             case some dc/ch do
-                const u128/code u128FromDc /ch.
+                be u128/code u128FromDc /ch.
                 : Digit character was already validated to `'0'..'9'` or `'a'..'f'`.
-                const u32/dig
+                be u32/dig
                     if le /code u128:57
-                        unwrapOr conv unwrapOr sub /code u128:48 u128:0 u32 u32:0
-                        unwrapOr conv unwrapOr sub /code u128:87 u128:0 u32 u32:0.
-                match mul /acc u32:16
+                        valOr conv valOr diff /code u128:48 u128:0 u32 u32:0
+                        valOr conv valOr diff /code u128:87 u128:0 u32 u32:0.
+                match prod /acc u32:16
                     case err error/ignoredErr return hexU32Parse:overflowed.
                     case ok u32/shifted do
-                        match add /shifted /dig
+                        match sum /shifted /dig
                             case err error/ignoredErr return hexU32Parse:overflowed.
-                            case ok u32/nextVal set /acc /nextVal.
+                            case ok u32/nextVal become /acc /nextVal.
                         ::.
                     ::.
                 ::.
             ::.
         ::.
         : `idx < total <= u64::MAX` guarantees `idx + 1` cannot overflow.
-        set /idx unwrapOr add /idx u64:1 /total.
+        become /idx valOr sum /idx u64:1 /total.
     ::.
     hexU32Parse:okVal /acc.
 
 : @dc l8589987660
 v/l/dc/reverseDcList l/dc/xs
-    const u64/n len /xs.
-    let buf/dc/out bufNew dc /n.
-    let u64/ri /n.
+    be u64/n len /xs.
+    hold buf/dc/out bufNew dc /n.
+    hold u64/ri /n.
     while gt /ri u64:0 do
         : `ri > 0` guarantees subtraction cannot underflow and `ri - 1 < n`.
-        set /ri unwrapOr sub /ri u64:1 u64:0.
-        bufPush /out unwrapOr get /xs /ri dcFromU128 u128:48.
+        become /ri valOr diff /ri u64:1 u64:0.
+        bufGain /out valOr at /xs /ri dcFromU128 u128:48.
     ::.
-    bufFreeze /out.
+    bufFrozen /out.
 
 : @dc l8589987661
 v/l/dc/u128ToDecDcs u128/val
     if eq /val u128:0
         return l/dc: dcFromU128 u128:48 ::
         nop.
-    let buf/dc/rev bufNew dc u64:40.
-    let u128/cur /val.
+    hold buf/dc/rev bufNew dc u64:40.
+    hold u128/cur /val.
     while gt /cur u128:0 do
         : Divisor `u128:10` is non-zero; `48 + rem` cannot overflow `u128`.
-        const u128/remVal unwrapOr mod /cur u128:10 u128:0.
-        bufPush /rev dcFromU128 unwrapOr add u128:48 /remVal u128:48.
-        set /cur unwrapOr div /cur u128:10 u128:0.
+        be u128/remVal valOr mod /cur u128:10 u128:0.
+        bufGain /rev dcFromU128 valOr sum u128:48 /remVal u128:48.
+        become /cur valOr quot /cur u128:10 u128:0.
     ::.
-    reverseDcList bufFreeze /rev.
+    reverseDcList bufFrozen /rev.
 
 : @dc l8589987662
 v/l/dc/u32ToLowerHexDcs u32/val
     if eq /val u32:0
         return l/dc: dcFromU128 u128:48 ::
         nop.
-    let buf/dc/rev bufNew dc u64:8.
-    let u32/cur /val.
+    hold buf/dc/rev bufNew dc u64:8.
+    hold u32/cur /val.
     while gt /cur u32:0 do
-        const u32/nib bitAnd /cur u32:15.
+        be u32/nib bitAnd /cur u32:15.
         : `nib` is masked to `0..=15`, so `48 + nib <= 57` and `87 + nib <= 102` cannot overflow.
-        const u32/cp
+        be u32/cp
             if lt /nib u32:10
-                unwrapOr add u32:48 /nib u32:48
-                unwrapOr add u32:87 /nib u32:97.
-        bufPush /rev dcFromU128 conv /cp u128.
-        set /cur unwrapOr div /cur u32:16 u32:0.
+                valOr sum u32:48 /nib u32:48
+                valOr sum u32:87 /nib u32:97.
+        bufGain /rev dcFromU128 conv /cp u128.
+        become /cur valOr quot /cur u32:16 u32:0.
     ::.
-    reverseDcList bufFreeze /rev.
+    reverseDcList bufFrozen /rev.
 
 : @dc l8589987663
 v/result/formatId/parseFormatIdDcs dcs/chars
-    const option/dc/first get /chars u64:0.
+    be option/dc/first at /chars u64:0.
     match /first
         case none result/formatId:err error:parseFailure.
         case some dc/fc do
@@ -348,7 +348,7 @@ v/result/formatId/parseFormatIdDcs dcs/chars
                         if gt /rawId u128:1114111
                             result/formatId:err error:numberOutsideFormatRange
                             : `rawId <= 1_114_111` fits losslessly in `u32`.
-                            result/formatId:ok wrap unwrapOr conv /rawId u32 u32:0 formatId.
+                            result/formatId:ok wrapped valOr conv /rawId u32 u32:0 formatId.
                 ::.
         ::.
     ::.
@@ -358,9 +358,9 @@ v/result/formatId/parseFormatIdDcs dcs/chars
 pub v/result/formatId/formatIdFromShorthand s/txt
     test
         in "f657"
-        out result/formatId:ok wrap u32:657 formatId.
+        out result/formatId:ok wrapped u32:657 formatId.
         in "f0"
-        out result/formatId:ok wrap u32:0 formatId.
+        out result/formatId:ok wrapped u32:0 formatId.
         in "f1114112"
         out result/formatId:err error:numberOutsideFormatRange.
         in "F657"
@@ -378,20 +378,20 @@ pub v/result/formatId/formatIdFromShorthand s/txt
 : @dc l8589987665
 pub v/s/formatIdShorthand formatId/fid
     test
-        in wrap u32:657 formatId
+        in wrapped u32:657 formatId
         out "f657".
-        in wrap u32:0 formatId
+        in wrapped u32:0 formatId
         out "f0".
-    const l/dc/prefix l/dc: dc:u66 ::.
-    const l/dc/digits u128ToDecDcs conv unwrap /fid u128.
-    sFromDcs conv concat /prefix /digits dcs.
+    be l/dc/prefix l/dc: dc:u66 ::.
+    be l/dc/digits u128ToDecDcs conv unwrapped /fid u128.
+    sFromDcs conv chain /prefix /digits dcs.
 
 : @dc l8589987666
 v/result/dc/parseDcDcs dcs/chars
-    match get /chars u64:0
+    match at /chars u64:0
         case none result/dc:err error:parseFailure.
         case some dc/fc do
-            const u128/headCode u128FromDc /fc.
+            be u128/headCode u128FromDc /fc.
             if eq /headCode u128:102
                 match parseAsciiDecDcs /chars u64:1
                     case badSyntax result/dc:err error:parseFailure.
@@ -399,7 +399,7 @@ v/result/dc/parseDcDcs dcs/chars
                     case okVal u128/rawFmt
                         if gt /rawFmt u128:1114111
                             result/dc:err error:numberOutsideFormatRange
-                            result/dc:ok dcFromU128 add? u128:2228224 /rawFmt.
+                            result/dc:ok dcFromU128 sum? u128:2228224 /rawFmt.
                 ::
                 if eq /headCode u128:117
                     match parseLowerHexU32Dcs /chars u64:1
@@ -422,7 +422,7 @@ v/result/dc/parseDcDcs dcs/chars
                             case okVal u128/rawShort
                                 if gt /rawShort u128:1114111
                                     result/dc:err error:numberOutsideShortDcRange
-                                    result/dc:ok dcFromU128 add? u128:1114112 /rawShort.
+                                    result/dc:ok dcFromU128 sum? u128:1114112 /rawShort.
                         ::.
         ::.
     ::.
@@ -474,12 +474,12 @@ pub v/s/formatDcShorthand dc/ch
         out "f657".
         in dc:l8589934592
         out "l8589934592".
-    const l/dc/tokens
+    be l/dc/tokens
         match classifyDc /ch
-            case unicode u32/cp concat l/dc: dc:u75 :: u32ToLowerHexDcs /cp.
+            case unicode u32/cp chain l/dc: dc:u75 :: u32ToLowerHexDcs /cp.
             case short u32/sid u128ToDecDcs conv /sid u128.
-            case format formatId/fid concat l/dc: dc:u66 :: u128ToDecDcs conv unwrap /fid u128.
-            case long u128/gid concat l/dc: dc:u6c :: u128ToDecDcs /gid.
+            case format formatId/fid chain l/dc: dc:u66 :: u128ToDecDcs conv unwrapped /fid u128.
+            case long u128/gid chain l/dc: dc:u6c :: u128ToDecDcs /gid.
         ::.
     sFromDcs conv /tokens dcs.
 
@@ -523,7 +523,7 @@ pub v/result/dcs/decodeDcsDctf l/u8/bytes
         out result/dcs:ok conv l/dc: dc:u41 dc:ud800 dc:256 dc:f657 :: dcs.
         in l/u8: u8:255 ::
         out result/dcs:err error:invalidEncoding.
-    const tup: b l/dc ::/dec decodeDcStream /bytes.
+    be tup: b l/dc ::/dec decodeDcStream /bytes.
     if field /dec u32:0
         result/dcs:ok conv field /dec u32:1 dcs
         result/dcs:err error:invalidEncoding.

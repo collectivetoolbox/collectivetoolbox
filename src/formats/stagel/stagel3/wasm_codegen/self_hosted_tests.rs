@@ -1143,6 +1143,71 @@ pub v/l/u8/step l/u8/input
         let sr3_cap_out = run_target_with_capabilities(&sr3_cap_wasm, &cap_in)?;
         assert_eq!(sr3_cap_out, expected_cap_out);
 
+        let canon_sr3 = r#"ns app/vso_canon_sr3.
+use std/math: sum as slSum ::.
+
+pub brand i32/tagI32.
+
+v/result/b/verify s/inp
+    be tagI32/w wrapped i32:6 tagI32.
+    hold i32/v unwrapped /w.
+    become /v sum? diff? prod? /v i32:3 i32:2 quot? i32:8 i32:2.
+    be rat/r ratio? int:6 int:3.
+    be int/ri conv? /r int.
+    be int/tot slSum /ri int:4.
+    be l/s/parts pieces "," /inp.
+    be s/first valOr at /parts u64:0 "".
+    be s/rejoined joined "-" /parts.
+    result/b:ok and eq /v i32:20 and eq /tot int:6 and eq /first "a" eq /rejoined "a-b".
+
+pub v/l/u8/step l/u8/input
+    if valOr verify "a,b" false
+        chain b"SR:" /input
+        b"FAIL".
+"#;
+
+        let imp_sr3 = r#"ns app/vso_imp_sr3.
+use std/math: add as slSum ::.
+
+pub brand i32/tagI32.
+
+v/result/b/verify s/inp
+    const tagI32/w wrap i32:6 tagI32.
+    let i32/v unwrap /w.
+    set /v add? sub? mul? /v i32:3 i32:2 div? i32:8 i32:2.
+    const rat/r makeRat? int:6 int:3.
+    const int/ri conv? /r int.
+    const int/tot slSum /ri int:4.
+    const l/s/parts explode "," /inp.
+    const s/first unwrapOr get /parts u64:0 "".
+    const s/rejoined implode "-" /parts.
+    result/b:ok and eq /v i32:20 and eq /tot int:6 and eq /first "a" eq /rejoined "a-b".
+
+pub v/l/u8/step l/u8/input
+    if unwrapOr verify "a,b" false
+        concat b"SR:" /input
+        b"FAIL".
+"#;
+
+        for sr_src in [canon_sr3, imp_sr3] {
+            let sr_tokens =
+                ctb_formats_dcdata::stagel3::seed_linker::sr3_to_dc_tokens_with_seed_graph(
+                    sr_src, sg,
+                )?;
+            let bundled =
+                ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_dependencies(
+                    &sr_tokens, sg,
+                )?;
+            let lowered_doc = run_f1681_wasm_raw(&bundled)?;
+            let lowered_tokens: Vec<DcChar> =
+                lowered_doc.to_dc_string()?.chars().collect();
+            let target_wasm =
+                compile_dc_tokens_via_wat_compiler(&lowered_tokens, sg)?;
+            let out =
+                run_target_with_high_quota(&target_wasm, &ascii_dcmstring("ok"))?;
+            assert_eq!(out, ascii_dcmstring("SR:ok"));
+        }
+
         Ok(())
     }
 
@@ -1180,6 +1245,73 @@ pub v/l/u8/step l/u8/input
         let self_hosted_out =
             run_target_with_capabilities(&self_hosted_wasm, &cap_in)?;
         assert_eq!(self_hosted_out, expected_out);
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_self_hosted_canonical_vso_verbs_and_imperative_synonyms_parity()
+    -> Result<()> {
+        let sg = SeedGraphIndex::shared()?;
+
+        let canon_sl3 = r#"ns app/vso_canon_sl3.
+use std/bytes: pieces joined ::.
+use std/math: sum ::.
+use std/bigint: bigInt from tryToI64 ::.
+
+be u32/kDelta u32:3.
+
+pub v/l/u8/step l/u8/input
+    hold u32/acc u32:2.
+    become /acc sum diff prod /acc u32:5 quot u32:8 u32:2 /kDelta.
+    be bigInt/bi sum from i64:10 from i64:5.
+    be tup: b i64 u8 ::/biRes tryToI64 /bi.
+    hold buf/u8/buf bufFilled u8:48 u64:1.
+    bufBecomeAt /buf u64:0 conv wrapSum /acc conv field /biRes u32:1 u32 u8.
+    bufGain /buf u8:58.
+    be l/l/u8/parts pieces b"," /input.
+    bufGainAll /buf joined b"-" /parts.
+    be l/u8/frozen bufFrozen /buf.
+    if eq at /frozen u64:0 u8:24
+        chain b"OK:" slice /frozen u64:2 len /frozen
+        b"FAIL".
+"#;
+
+        let imp_sl3 = r#"ns app/vso_imp_sl3.
+use std/bytes: explode implode ::.
+use std/math: add ::.
+use std/bigint: bigInt from tryToI64 ::.
+
+const u32/kDelta u32:3.
+
+pub v/l/u8/step l/u8/input
+    let u32/acc u32:2.
+    set /acc add sub mul /acc u32:5 div u32:8 u32:2 /kDelta.
+    const bigInt/bi add from i64:10 from i64:5.
+    const tup: b i64 u8 ::/biRes tryToI64 /bi.
+    let buf/u8/buf bufFill u8:48 u64:1.
+    bufSet /buf u64:0 conv wrapAdd /acc conv field /biRes u32:1 u32 u8.
+    bufPush /buf u8:58.
+    const l/l/u8/parts explode b"," /input.
+    bufExtend /buf implode b"-" /parts.
+    const l/u8/frozen bufFreeze /buf.
+    if eq get /frozen u64:0 u8:24
+        concat b"OK:" slice /frozen u64:2 len /frozen
+        b"FAIL".
+"#;
+
+        let out_canon_sl3 = assert_self_hosted_matches_rust_wasm(
+            canon_sl3,
+            sg,
+            &ascii_dcmstring("a,b,c"),
+        )?;
+        let out_imp_sl3 = assert_self_hosted_matches_rust_wasm(
+            imp_sl3,
+            sg,
+            &ascii_dcmstring("a,b,c"),
+        )?;
+        assert_eq!(out_canon_sl3, ascii_dcmstring("OK:a-b-c"));
+        assert_eq!(out_imp_sl3, out_canon_sl3);
 
         Ok(())
     }

@@ -44,11 +44,11 @@ use std/convert_dc_string_to_wasm:
 ::.
 
 : @dc l8590004235
-const u128/maxUnicodeU128 u128:1114111.
+be u128/maxUnicodeU128 u128:1114111.
 : @dc l8590004236
-const u128/surrogateStartU128 u128:55296.
+be u128/surrogateStartU128 u128:55296.
 : @dc l8590004237
-const u128/surrogateEndU128 u128:57343.
+be u128/surrogateEndU128 u128:57343.
 
 : @dc l8590004219
 struct ttCacheEntry
@@ -87,19 +87,19 @@ v/b/isUnicodeScalarU128 u128/gid
 
 : @dc l8590004239
 v/ttState/emptyTtState
-    const l/ttCacheEntry/emptyBucket l/ttCacheEntry: ::.
-    let buf/l/ttCacheEntry/bs bufNew l/ttCacheEntry u64:64.
-    let u64/i u64:0.
+    be l/ttCacheEntry/emptyBucket l/ttCacheEntry: ::.
+    hold buf/l/ttCacheEntry/bs bufNew l/ttCacheEntry u64:64.
+    hold u64/i u64:0.
     while lt /i u64:64 do
-        bufPush /bs /emptyBucket.
-        set /i wrapAdd /i u64:1.
+        bufGain /bs /emptyBucket.
+        become /i wrapSum /i u64:1.
     ::.
-    structNew ttState: cli emptyClient buckets bufFreeze /bs ::.
+    structNew ttState: cli emptyClient buckets bufFrozen /bs ::.
 
 : @dc l8590004240
 v/option/ttCacheEntry/lookupTtCache l/l/ttCacheEntry/buckets u128/id
-    const u64/bIdx bitAnd u128Lo /id u64:63.
-    const l/ttCacheEntry/bucket match get /buckets /bIdx
+    be u64/bIdx bitAnd u128Lo /id u64:63.
+    be l/ttCacheEntry/bucket match at /buckets /bIdx
         case some l/ttCacheEntry/b /b.
         case none return option/ttCacheEntry:none.
     ::.
@@ -112,8 +112,8 @@ v/option/ttCacheEntry/lookupTtCache l/l/ttCacheEntry/buckets u128/id
 
 : @dc l8590004241
 v/ttState/insertTtCache ttState/st u128/id u8/kind l/dc/chars
-    const u64/bIdx bitAnd u128Lo /id u64:63.
-    const l/ttCacheEntry/oldB match get field /st buckets /bIdx
+    be u64/bIdx bitAnd u128Lo /id u64:63.
+    be l/ttCacheEntry/oldB match at field /st buckets /bIdx
         case some l/ttCacheEntry/b /b.
         case none l/ttCacheEntry: ::.
     ::.
@@ -122,23 +122,23 @@ v/ttState/insertTtCache ttState/st u128/id u8/kind l/dc/chars
             return /st
             nop.
     ::.
-    let buf/ttCacheEntry/nb bufNew ttCacheEntry wrapAdd len /oldB u64:1.
-    bufExtend /nb /oldB.
-    bufPush /nb structNew ttCacheEntry: id /id kind /kind chars /chars ::.
-    let buf/l/ttCacheEntry/out bufNew l/ttCacheEntry u64:64.
-    bufExtend /out field /st buckets.
-    match bufSet /out /bIdx bufFreeze /nb
+    hold buf/ttCacheEntry/nb bufNew ttCacheEntry wrapSum len /oldB u64:1.
+    bufGainAll /nb /oldB.
+    bufGain /nb structNew ttCacheEntry: id /id kind /kind chars /chars ::.
+    hold buf/l/ttCacheEntry/out bufNew l/ttCacheEntry u64:64.
+    bufGainAll /out field /st buckets.
+    match bufBecomeAt /out /bIdx bufFrozen /nb
         case ok nop.
         case err error/_e nop.
     ::.
-    with /st buckets bufFreeze /out.
+    with /st buckets bufFrozen /out.
 
 : @dc l8590004242
 v/b/isNonTextDecompPayload l/dc/tokens
     if eq len /tokens u64:0
         return true
         nop.
-    const u32/s0 dcShortId dcAtOr /tokens u64:0 dc:0.
+    be u32/s0 dcShortId dcAtOr /tokens u64:0 dc:0.
     if or eq /s0 u32:1927 or eq /s0 u32:2192 or eq /s0 u32:2221 or eq /s0 u32:2203 or eq /s0 u32:2240 eq /s0 u32:2206
         return true
         nop.
@@ -149,32 +149,32 @@ v/b/isNonTextDecompPayload l/dc/tokens
 
 : @dc l8590004243
 v/option/l/u8/asciiBytesOfDcs l/dc/chars
-    let buf/u8/out bufNew u8 len /chars.
+    hold buf/u8/out bufNew u8 len /chars.
     foreach dc/c /chars do
-        const u128/u u128FromDc /c.
+        be u128/u u128FromDc /c.
         if gt /u u128:127
             return option/l/u8:none
             nop.
         match conv /u u8
-            case ok u8/b bufPush /out /b.
+            case ok u8/b bufGain /out /b.
             case err error/_e return option/l/u8:none.
         ::.
     ::.
-    option/l/u8:some bufFreeze /out.
+    option/l/u8:some bufFrozen /out.
 
 : @dc l8590004244
 v/capBoolRes/entityHasCanonicalName capClient/cli u128/entityId l/u8/wantAscii
-    const capPropListRes/pr queryMultiProperty /cli dcFromU128 /entityId dc:572.
-    let capClient/curCli field /pr cli.
+    be capPropListRes/pr queryMultiProperty /cli dcFromU128 /entityId dc:572.
+    hold capClient/curCli field /pr cli.
     if not field /pr ok
         return structNew capBoolRes: cli /curCli ok false val false errTokens field /pr errTokens ::
         nop.
     foreach propEntry/pe field /pr props do
-        const u128/vn u128FromDc field /pe val.
+        be u128/vn u128FromDc field /pe val.
         if isSysRegionId /vn
             do
-                const capOptNodeRes/nr queryNodeExpanded /curCli /vn.
-                set /curCli field /nr cli.
+                be capOptNodeRes/nr queryNodeExpanded /curCli /vn.
+                become /curCli field /nr cli.
                 if eq field /nr tag u8:2
                     return structNew capBoolRes: cli /curCli ok false val false errTokens field /nr payload ::
                     nop.
@@ -194,17 +194,17 @@ v/capBoolRes/entityHasCanonicalName capClient/cli u128/entityId l/u8/wantAscii
 
 : @dc l8590004245
 v/capBoolRes/dcInScriptNamed capClient/cli dc/ch l/u8/scriptName
-    const capTripleListRes/tr queryTriples /cli true dc:586 true /ch false dc:0.
-    let capClient/curCli field /tr cli.
+    be capTripleListRes/tr queryTriples /cli true dc:586 true /ch false dc:0.
+    hold capClient/curCli field /tr cli.
     if not field /tr ok
         return structNew capBoolRes: cli /curCli ok false val false errTokens field /tr errTokens ::
         nop.
     foreach tripleRec/t field /tr triples do
-        const u128/objId u128FromDc field /t obj.
+        be u128/objId u128FromDc field /t obj.
         if isSysRegionId /objId
             do
-                const capBoolRes/nm entityHasCanonicalName /curCli /objId /scriptName.
-                set /curCli field /nm cli.
+                be capBoolRes/nm entityHasCanonicalName /curCli /objId /scriptName.
+                become /curCli field /nm cli.
                 if not field /nm ok
                     return /nm
                     nop.
@@ -218,10 +218,10 @@ v/capBoolRes/dcInScriptNamed capClient/cli dc/ch l/u8/scriptName
 
 : @dc l8590004246
 v/capBoolRes/isNonPrintingTeletypeDc capClient/cli dc/ch
-    let capClient/curCli /cli.
+    hold capClient/curCli /cli.
     foreach dc/ctrl l/dc: dc:114 dc:115 dc:235 dc:236 :: do
-        const capBoolRes/eqCtrl dcIsEquiv /curCli /ch /ctrl.
-        set /curCli field /eqCtrl cli.
+        be capBoolRes/eqCtrl dcIsEquiv /curCli /ch /ctrl.
+        become /curCli field /eqCtrl cli.
         if not field /eqCtrl ok
             return /eqCtrl
             nop.
@@ -230,8 +230,8 @@ v/capBoolRes/isNonPrintingTeletypeDc capClient/cli dc/ch
             nop.
     ::.
     foreach l/u8/scr l/l/u8: b".Styling" b".DCE" b".DCE sheets" b".DCE versions" :: do
-        const capBoolRes/inScr dcInScriptNamed /curCli /ch /scr.
-        set /curCli field /inScr cli.
+        be capBoolRes/inScr dcInScriptNamed /curCli /ch /scr.
+        become /curCli field /inScr cli.
         if not field /inScr ok
             return /inScr
             nop.
@@ -243,41 +243,41 @@ v/capBoolRes/isNonPrintingTeletypeDc capClient/cli dc/ch
 
 : @dc l8590004247
 v/ttLookupRes/resolveDecompPropToUnicode ttState/st l/u128/eqIds dc/propDc b/_isReplacementAtom u64/depth
-    let ttState/curSt /st.
+    hold ttState/curSt /st.
     foreach u128/eid /eqIds do
-        const capPropListRes/pr queryMultiProperty field /curSt cli dcFromU128 /eid /propDc.
-        set /curSt with /curSt cli field /pr cli.
+        be capPropListRes/pr queryMultiProperty field /curSt cli dcFromU128 /eid /propDc.
+        become /curSt with /curSt cli field /pr cli.
         if not field /pr ok
             return structNew ttLookupRes: st /curSt found false kind u8:2 chars l/dc: :: ::
             nop.
         foreach propEntry/pe field /pr props do
-            const capBoolRes/qc hasAnyContextQualifier field /curSt cli field /pe hasAId.
-            set /curSt with /curSt cli field /qc cli.
+            be capBoolRes/qc hasAnyContextQualifier field /curSt cli field /pe hasAId.
+            become /curSt with /curSt cli field /qc cli.
             if not field /qc ok
                 return structNew ttLookupRes: st /curSt found false kind u8:2 chars l/dc: :: ::
                 nop.
             if not field /qc val
                 do
-                    const u128/valId u128FromDc field /pe val.
+                    be u128/valId u128FromDc field /pe val.
                     if isSysRegionId /valId
                         do
-                            const capOptNodeRes/nr queryNodeExpanded field /curSt cli /valId.
-                            set /curSt with /curSt cli field /nr cli.
+                            be capOptNodeRes/nr queryNodeExpanded field /curSt cli /valId.
+                            become /curSt with /curSt cli field /nr cli.
                             if and eq field /nr tag u8:1 not isNonTextDecompPayload field /nr payload
                                 do
-                                    let buf/dc/seqOut bufNew dc len field /nr payload.
-                                    let b/allOk true.
+                                    hold buf/dc/seqOut bufNew dc len field /nr payload.
+                                    hold b/allOk true.
                                     foreach dc/dtok field /nr payload do
-                                        const ttLookupRes/sub resolveDcForTeletype /curSt /dtok wrapAdd /depth u64:1.
-                                        set /curSt field /sub st.
+                                        be ttLookupRes/sub resolveDcForTeletype /curSt /dtok wrapSum /depth u64:1.
+                                        become /curSt field /sub st.
                                         if and field /sub found eq field /sub kind u8:0
-                                            bufExtend /seqOut field /sub chars
+                                            bufGainAll /seqOut field /sub chars
                                             do
-                                                set /allOk false.
+                                                become /allOk false.
                                                 break.
                                             ::.
                                     ::.
-                                    const l/dc/frozen bufFreeze /seqOut.
+                                    be l/dc/frozen bufFrozen /seqOut.
                                     if and /allOk gt len /frozen u64:0
                                         return structNew ttLookupRes: st /curSt found true kind u8:0 chars /frozen ::
                                         nop.
@@ -285,8 +285,8 @@ v/ttLookupRes/resolveDecompPropToUnicode ttState/st l/u128/eqIds dc/propDc b/_is
                                 nop.
                         ::
                         do
-                            const ttLookupRes/sub resolveDcForTeletype /curSt field /pe val wrapAdd /depth u64:1.
-                            set /curSt field /sub st.
+                            be ttLookupRes/sub resolveDcForTeletype /curSt field /pe val wrapSum /depth u64:1.
+                            become /curSt field /sub st.
                             if and field /sub found eq field /sub kind u8:0
                                 return /sub
                                 nop.
@@ -299,7 +299,7 @@ v/ttLookupRes/resolveDecompPropToUnicode ttState/st l/u128/eqIds dc/propDc b/_is
 
 : @dc l8590004248
 v/ttLookupRes/resolveDcForTeletype ttState/st dc/ch u64/depth
-    const u128/gid u128FromDc /ch.
+    be u128/gid u128FromDc /ch.
     if le /gid /maxUnicodeU128
         if and ge /gid /surrogateStartU128 le /gid /surrogateEndU128
             return structNew ttLookupRes: st /st found true kind u8:2 chars l/dc: dc:ufffd :: ::
@@ -313,113 +313,113 @@ v/ttLookupRes/resolveDcForTeletype ttState/st dc/ch u64/depth
     if ge /depth u64:8
         return structNew ttLookupRes: st /st found false kind u8:2 chars l/dc: dc:ufffd :: ::
         nop.
-    let ttState/curSt /st.
+    hold ttState/curSt /st.
     : 1. Exact 1-character Unicode equivalence (`Dc 585` + 1-token `Dc 611`).
-    const capU128ListRes/eqRes collectEquivClass field /curSt cli /ch.
-    set /curSt with /curSt cli field /eqRes cli.
+    be capU128ListRes/eqRes collectEquivClass field /curSt cli /ch.
+    become /curSt with /curSt cli field /eqRes cli.
     if field /eqRes ok
         do
-            let b/hasBest false.
-            let u128/bestCp u128:0.
+            hold b/hasBest false.
+            hold u128/bestCp u128:0.
             foreach u128/cand field /eqRes ids do
                 if isUnicodeScalarU128 /cand
                     if or not /hasBest lt /cand /bestCp
                         do
-                            set /hasBest true.
-                            set /bestCp /cand.
+                            become /hasBest true.
+                            become /bestCp /cand.
                         ::
                         nop
                     nop.
             ::.
             if /hasBest
                 do
-                    const l/dc/mapped l/dc: dcFromU128 /bestCp ::.
-                    set /curSt insertTtCache /curSt /gid u8:0 /mapped.
+                    be l/dc/mapped l/dc: dcFromU128 /bestCp ::.
+                    become /curSt insertTtCache /curSt /gid u8:0 /mapped.
                     return structNew ttLookupRes: st /curSt found true kind u8:0 chars /mapped ::
                 ::
                 nop.
             : 2. Multi-character `<equiv>` (`Dc 611`), `<prefer>` (`Dc 569`), `<compat>` (`Dc 612`), `<approx>` (`Dc 613`).
-            const ttLookupRes/r611 resolveDecompPropToUnicode /curSt field /eqRes ids dc:611 false /depth.
-            set /curSt field /r611 st.
+            be ttLookupRes/r611 resolveDecompPropToUnicode /curSt field /eqRes ids dc:611 false /depth.
+            become /curSt field /r611 st.
             if field /r611 found
                 do
-                    set /curSt insertTtCache /curSt /gid u8:0 field /r611 chars.
+                    become /curSt insertTtCache /curSt /gid u8:0 field /r611 chars.
                     return structNew ttLookupRes: st /curSt found true kind u8:0 chars field /r611 chars ::
                 ::
                 nop.
-            const ttLookupRes/r569 resolveDecompPropToUnicode /curSt field /eqRes ids dc:569 true /depth.
-            set /curSt field /r569 st.
+            be ttLookupRes/r569 resolveDecompPropToUnicode /curSt field /eqRes ids dc:569 true /depth.
+            become /curSt field /r569 st.
             if field /r569 found
                 do
-                    set /curSt insertTtCache /curSt /gid u8:0 field /r569 chars.
+                    become /curSt insertTtCache /curSt /gid u8:0 field /r569 chars.
                     return structNew ttLookupRes: st /curSt found true kind u8:0 chars field /r569 chars ::
                 ::
                 nop.
-            const ttLookupRes/r612 resolveDecompPropToUnicode /curSt field /eqRes ids dc:612 false /depth.
-            set /curSt field /r612 st.
+            be ttLookupRes/r612 resolveDecompPropToUnicode /curSt field /eqRes ids dc:612 false /depth.
+            become /curSt field /r612 st.
             if field /r612 found
                 do
-                    set /curSt insertTtCache /curSt /gid u8:0 field /r612 chars.
+                    become /curSt insertTtCache /curSt /gid u8:0 field /r612 chars.
                     return structNew ttLookupRes: st /curSt found true kind u8:0 chars field /r612 chars ::
                 ::
                 nop.
-            const ttLookupRes/r613 resolveDecompPropToUnicode /curSt field /eqRes ids dc:613 false /depth.
-            set /curSt field /r613 st.
+            be ttLookupRes/r613 resolveDecompPropToUnicode /curSt field /eqRes ids dc:613 false /depth.
+            become /curSt field /r613 st.
             if field /r613 found
                 do
-                    set /curSt insertTtCache /curSt /gid u8:0 field /r613 chars.
+                    become /curSt insertTtCache /curSt /gid u8:0 field /r613 chars.
                     return structNew ttLookupRes: st /curSt found true kind u8:0 chars field /r613 chars ::
                 ::
                 nop.
             : 3. Non-printing styling / document-envelope / DCE transport control tokens in Teletype mode.
             if listContainsU128 field /eqRes ids u128FromDc dc:304
                 do
-                    set /curSt insertTtCache /curSt /gid u8:3 l/dc: ::.
+                    become /curSt insertTtCache /curSt /gid u8:3 l/dc: ::.
                     return structNew ttLookupRes: st /curSt found true kind u8:3 chars l/dc: :: ::
                 ::
                 nop.
-            const capBoolRes/np isNonPrintingTeletypeDc field /curSt cli /ch.
-            set /curSt with /curSt cli field /np cli.
+            be capBoolRes/np isNonPrintingTeletypeDc field /curSt cli /ch.
+            become /curSt with /curSt cli field /np cli.
             if and field /np ok field /np val
                 do
-                    set /curSt insertTtCache /curSt /gid u8:1 l/dc: ::.
+                    become /curSt insertTtCache /curSt /gid u8:1 l/dc: ::.
                     return structNew ttLookupRes: st /curSt found true kind u8:1 chars l/dc: :: ::
                 ::
                 nop.
         ::
         nop.
-    const l/dc/repl l/dc: dc:ufffd ::.
-    set /curSt insertTtCache /curSt /gid u8:2 /repl.
+    be l/dc/repl l/dc: dc:ufffd ::.
+    become /curSt insertTtCache /curSt /gid u8:2 /repl.
     structNew ttLookupRes: st /curSt found true kind u8:2 chars /repl ::.
 
 : @dc l8590004249
 v/l/dc/lowerSemanticTokensToUnicode l/dc/tokens
-    let ttState/st emptyTtState.
-    const u64/n len /tokens.
-    let u64/pos skipAllComments /tokens u64:0.
+    hold ttState/st emptyTtState.
+    be u64/n len /tokens.
+    hold u64/pos skipAllComments /tokens u64:0.
     if lt /pos /n
         do
-            const dc/first dcAtOr /tokens /pos dc:0.
-            let b/startsPin eq /first dc:641.
+            be dc/first dcAtOr /tokens /pos dc:0.
+            hold b/startsPin eq /first dc:641.
             if and not /startsPin gt u128FromDc /first /maxUnicodeU128
                 do
-                    const capBoolRes/pe dcIsEquiv field /st cli /first dc:641.
-                    set /st with /st cli field /pe cli.
+                    be capBoolRes/pe dcIsEquiv field /st cli /first dc:641.
+                    become /st with /st cli field /pe cli.
                     if field /pe ok
-                        set /startsPin field /pe val
+                        become /startsPin field /pe val
                         nop.
                 ::
                 nop.
             if /startsPin
                 do
-                    let buf/dc/pinBuf bufNew dc wrapSub /n /pos.
-                    bufPush /pinBuf dc:641.
-                    match slice /tokens wrapAdd /pos u64:1 /n
-                        case some l/dc/rest bufExtend /pinBuf /rest.
+                    hold buf/dc/pinBuf bufNew dc wrapDiff /n /pos.
+                    bufGain /pinBuf dc:641.
+                    match slice /tokens wrapSum /pos u64:1 /n
+                        case some l/dc/rest bufGainAll /pinBuf /rest.
                         case none nop.
                     ::.
-                    match parsePinDescriptionAt bufFreeze /pinBuf u64:0
-                        case some u128Step/ps set /pos wrapAdd /pos field /ps nextPos.
+                    match parsePinDescriptionAt bufFrozen /pinBuf u64:0
+                        case some u128Step/ps become /pos wrapSum /pos field /ps nextPos.
                         case none nop.
                         case err l/dc/_e nop.
                     ::.
@@ -427,109 +427,109 @@ v/l/dc/lowerSemanticTokensToUnicode l/dc/tokens
                 nop.
         ::
         nop.
-    let buf/dc/out bufNew dc wrapSub /n /pos.
+    hold buf/dc/out bufNew dc wrapDiff /n /pos.
     while lt /pos /n do
-        set /pos skipAllComments /tokens /pos.
+        become /pos skipAllComments /tokens /pos.
         if ge /pos /n
             break
             nop.
-        const dc/tok dcAtOr /tokens /pos dc:0.
-        const u32/sid dcShortId /tok.
+        be dc/tok dcAtOr /tokens /pos dc:0.
+        be u32/sid dcShortId /tok.
         : Unescape `Dc 255` / `Dc 2239` before lowering target character.
         if or eq /sid u32:255 eq /sid u32:2239
             do
-                const u64/p1 wrapAdd /pos u64:1.
+                be u64/p1 wrapSum /pos u64:1.
                 if ge /p1 /n
                     do
-                        bufPush /out dc:ufffd.
-                        set /pos /n.
+                        bufGain /out dc:ufffd.
+                        become /pos /n.
                         continue.
                     ::
                     nop.
-                const dc/nx dcAtOr /tokens /p1 dc:0.
-                let dc/escapedCh /nx.
-                let u64/afterEsc wrapAdd /p1 u64:1.
+                be dc/nx dcAtOr /tokens /p1 dc:0.
+                hold dc/escapedCh /nx.
+                hold u64/afterEsc wrapSum /p1 u64:1.
                 if and eq /sid u32:2239 eq dcShortId /nx u32:255
                     do
-                        const u64/p2 wrapAdd /pos u64:2.
+                        be u64/p2 wrapSum /pos u64:2.
                         if lt /p2 /n
                             do
-                                set /escapedCh dcAtOr /tokens /p2 dc:0.
-                                set /afterEsc wrapAdd /p2 u64:1.
+                                become /escapedCh dcAtOr /tokens /p2 dc:0.
+                                become /afterEsc wrapSum /p2 u64:1.
                             ::
                             nop.
                     ::
                     nop.
-                const ttLookupRes/lr resolveDcForTeletype /st /escapedCh u64:0.
-                set /st field /lr st.
-                bufExtend /out field /lr chars.
-                set /pos /afterEsc.
+                be ttLookupRes/lr resolveDcForTeletype /st /escapedCh u64:0.
+                become /st field /lr st.
+                bufGainAll /out field /lr chars.
+                become /pos /afterEsc.
                 continue.
             ::
             nop.
         : Format `Dc 552..Dc 553` error records into readable `[error: ...]` lines.
         if eq /sid u32:552
             do
-                bufExtend /out u8sToUnicodeDcs b"[error: ".
-                let u64/ei wrapAdd /pos u64:1.
+                bufGainAll /out u8sToUnicodeDcs b"[error: ".
+                hold u64/ei wrapSum /pos u64:1.
                 while lt /ei /n do
-                    const dc/ech dcAtOr /tokens /ei dc:0.
-                    const u32/esid dcShortId /ech.
+                    be dc/ech dcAtOr /tokens /ei dc:0.
+                    be u32/esid dcShortId /ech.
                     if eq /esid u32:553
                         do
-                            set /ei wrapAdd /ei u64:1.
+                            become /ei wrapSum /ei u64:1.
                             break.
                         ::
                         nop.
-                    let dc/actual /ech.
+                    hold dc/actual /ech.
                     if eq /esid u32:255
                         do
-                            const u64/eni wrapAdd /ei u64:1.
+                            be u64/eni wrapSum /ei u64:1.
                             if lt /eni /n
                                 do
-                                    set /actual dcAtOr /tokens /eni dc:0.
-                                    set /ei wrapAdd /eni u64:1.
+                                    become /actual dcAtOr /tokens /eni dc:0.
+                                    become /ei wrapSum /eni u64:1.
                                 ::
-                                set /ei /n.
+                                become /ei /n.
                         ::
-                        set /ei wrapAdd /ei u64:1.
-                    const ttLookupRes/elr resolveDcForTeletype /st /actual u64:0.
-                    set /st field /elr st.
-                    bufExtend /out field /elr chars.
+                        become /ei wrapSum /ei u64:1.
+                    be ttLookupRes/elr resolveDcForTeletype /st /actual u64:0.
+                    become /st field /elr st.
+                    bufGainAll /out field /elr chars.
                 ::.
-                bufExtend /out u8sToUnicodeDcs b"]/n".
-                set /pos /ei.
+                bufGainAll /out u8sToUnicodeDcs b"]/n".
+                become /pos /ei.
                 continue.
             ::
             nop.
-        const ttLookupRes/lr resolveDcForTeletype /st /tok u64:0.
-        set /st field /lr st.
+        be ttLookupRes/lr resolveDcForTeletype /st /tok u64:0.
+        become /st field /lr st.
         if eq field /lr kind u8:3
             do
                 : `Dc 304` (`Begin set text color`): skip optional `.Colors` argument if present.
-                let u64/nextP wrapAdd /pos u64:1.
+                hold u64/nextP wrapSum /pos u64:1.
                 if lt /nextP /n
                     do
-                        const dc/candCol dcAtOr /tokens /nextP dc:0.
+                        be dc/candCol dcAtOr /tokens /nextP dc:0.
                         if gt u128FromDc /candCol /maxUnicodeU128
                             do
-                                const capBoolRes/isCol dcInScriptNamed field /st cli /candCol b".Colors".
-                                set /st with /st cli field /isCol cli.
+                                be capBoolRes/isCol dcInScriptNamed field /st cli /candCol b".Colors".
+                                become /st with /st cli field /isCol cli.
                                 if and field /isCol ok field /isCol val
-                                    set /nextP wrapAdd /nextP u64:1
+                                    become /nextP wrapSum /nextP u64:1
                                     nop.
                             ::
                             nop.
                     ::
                     nop.
-                set /pos /nextP.
+                become /pos /nextP.
                 continue.
             ::
             nop.
-        bufExtend /out field /lr chars.
-        set /pos wrapAdd /pos u64:1.
+        bufGainAll /out field /lr chars.
+        become /pos wrapSum /pos u64:1.
     ::.
-    bufFreeze /out.
+    bufFrozen /out.
 
 : Encodes a sequence of Unicode scalar `dc` code points into UTF-8 bytes,
 : replacing unpaired surrogates (`0xD800..=0xDFFF`) and non-Unicode Dcs with `U+FFFD`.
@@ -544,48 +544,48 @@ pub v/l/u8/encodeUnicodeDcsToUtf8 l/dc/chars
     test
         in l/dc: dc:ud800 dc:256 ::
         out l/u8: u8:239 u8:191 u8:189 u8:239 u8:191 u8:189 ::.
-    let buf/u8/out bufNew u8 wrapMul len /chars u64:4.
+    hold buf/u8/out bufNew u8 wrapProd len /chars u64:4.
     foreach dc/ch /chars do
-        const u128/gid u128FromDc /ch.
+        be u128/gid u128FromDc /ch.
         if not isUnicodeScalarU128 /gid
             do
-                bufPush /out u8:239.
-                bufPush /out u8:191.
-                bufPush /out u8:189.
+                bufGain /out u8:239.
+                bufGain /out u8:191.
+                bufGain /out u8:189.
             ::
             do
-                const u32/cp unwrapOr conv /gid u32 u32:65533.
+                be u32/cp valOr conv /gid u32 u32:65533.
                 if le /cp u32:127
-                    bufPush /out unwrapOr conv /cp u8 u8:0
+                    bufGain /out valOr conv /cp u8 u8:0
                     if le /cp u32:2047
                         do
-                            const u32/b0 bitOr u32:192 unwrapOr shr /cp u32:6 u32:0.
-                            const u32/b1 bitOr u32:128 bitAnd /cp u32:63.
-                            bufPush /out unwrapOr conv /b0 u8 u8:0.
-                            bufPush /out unwrapOr conv /b1 u8 u8:0.
+                            be u32/b0 bitOr u32:192 valOr shr /cp u32:6 u32:0.
+                            be u32/b1 bitOr u32:128 bitAnd /cp u32:63.
+                            bufGain /out valOr conv /b0 u8 u8:0.
+                            bufGain /out valOr conv /b1 u8 u8:0.
                         ::
                         if le /cp u32:65535
                             do
-                                const u32/b0 bitOr u32:224 unwrapOr shr /cp u32:12 u32:0.
-                                const u32/b1 bitOr u32:128 bitAnd unwrapOr shr /cp u32:6 u32:0 u32:63.
-                                const u32/b2 bitOr u32:128 bitAnd /cp u32:63.
-                                bufPush /out unwrapOr conv /b0 u8 u8:0.
-                                bufPush /out unwrapOr conv /b1 u8 u8:0.
-                                bufPush /out unwrapOr conv /b2 u8 u8:0.
+                                be u32/b0 bitOr u32:224 valOr shr /cp u32:12 u32:0.
+                                be u32/b1 bitOr u32:128 bitAnd valOr shr /cp u32:6 u32:0 u32:63.
+                                be u32/b2 bitOr u32:128 bitAnd /cp u32:63.
+                                bufGain /out valOr conv /b0 u8 u8:0.
+                                bufGain /out valOr conv /b1 u8 u8:0.
+                                bufGain /out valOr conv /b2 u8 u8:0.
                             ::
                             do
-                                const u32/b0 bitOr u32:240 unwrapOr shr /cp u32:18 u32:0.
-                                const u32/b1 bitOr u32:128 bitAnd unwrapOr shr /cp u32:12 u32:0 u32:63.
-                                const u32/b2 bitOr u32:128 bitAnd unwrapOr shr /cp u32:6 u32:0 u32:63.
-                                const u32/b3 bitOr u32:128 bitAnd /cp u32:63.
-                                bufPush /out unwrapOr conv /b0 u8 u8:0.
-                                bufPush /out unwrapOr conv /b1 u8 u8:0.
-                                bufPush /out unwrapOr conv /b2 u8 u8:0.
-                                bufPush /out unwrapOr conv /b3 u8 u8:0.
+                                be u32/b0 bitOr u32:240 valOr shr /cp u32:18 u32:0.
+                                be u32/b1 bitOr u32:128 bitAnd valOr shr /cp u32:12 u32:0 u32:63.
+                                be u32/b2 bitOr u32:128 bitAnd valOr shr /cp u32:6 u32:0 u32:63.
+                                be u32/b3 bitOr u32:128 bitAnd /cp u32:63.
+                                bufGain /out valOr conv /b0 u8 u8:0.
+                                bufGain /out valOr conv /b1 u8 u8:0.
+                                bufGain /out valOr conv /b2 u8 u8:0.
+                                bufGain /out valOr conv /b3 u8 u8:0.
                             ::.
             ::.
     ::.
-    bufFreeze /out.
+    bufFrozen /out.
 
 : Renders a DcTF-encoded semantic `dcs` document snapshot directly to UTF-8 bytes
 : for `RenderTarget::Teletype`.

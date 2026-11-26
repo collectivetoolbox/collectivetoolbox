@@ -17,9 +17,9 @@
 : with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 : StageL 3 core fixture (see src/formats/stagel/docs/sl3.md for full specification).
-: Exercises comments, "." / ";" terminators, "}" -> "::", let/set/const, literals, lexical capture, and mutual tail calls.
+: Exercises comments, "." / ";" terminators, "}" -> "::", hold/become/be, literals, lexical capture, and mutual tail calls.
 
-use std/bytes: explode implode ::.
+use std/bytes: pieces joined ::.
 use std/math: modStageLInternal truncRem ::.
 
 v/b/isEmpty l/u32/items
@@ -51,38 +51,38 @@ v/l/u32/appendU32 l/u32/a l/u32/b
     test concatenates two lists
         in l/u32: u32:0 u32:1 :: l/u32: u32:2 u32:3 ::
         out l/u32: u32:0 u32:1 u32:2 u32:3 ::
-    concat l/u32/a l/u32/b.
+    chain l/u32/a l/u32/b.
 
 v/l/u8/roundTripBytes l/u8/sep l/u8/input
     test splits and rejoins case preserving byte slices
         in b"//" b"Abc//def/x5c/n"
         out b"Abc//def/x5c/n"
-    const l/l/u8/parts explode l/u8/sep l/u8/input.
-    implode l/u8/sep l/l/u8/parts.
+    be l/l/u8/parts pieces l/u8/sep l/u8/input.
+    joined l/u8/sep l/l/u8/parts.
 
-: Uninitialized let must be definitely assigned via set before any read; const is immutable.
+: Uninitialized hold must be definitely assigned via become before any read; be is immutable.
 v/u32/definiteInit b/pickFirst u32/a u32/b
     test initializes in both branches before reading
         in false u32:3 u32:8
         out u32:18
-    const u32/bonus u32:10.
-    let u32/chosen.
+    be u32/bonus u32:10.
+    hold u32/chosen.
     if /pickFirst
-        set /chosen /a
-        set /chosen /b.
-    add /chosen /bonus.
+        become /chosen /a
+        become /chosen /b.
+    sum /chosen /bonus.
 
-: Nested verb captures definition-site mutable let binding even when called from a sibling verb.
+: Nested verb captures definition-site mutable hold binding even when called from a sibling verb.
 v/u32/lexicalCapture u32/initial
     test reads shared binding after mutation
         in u32:7
         out u32:9
-    let u32/captured u32/initial.
-    const v/u32/readCaptured :: u32/captured.
-    const v/u32/callFromSibling
-        const u32/callerLocal u32:99.
+    hold u32/captured u32/initial.
+    be v/u32/readCaptured :: u32/captured.
+    be v/u32/callFromSibling
+        be u32/callerLocal u32:99.
         readCaptured.
-    set u32/captured u32:9.
+    become u32/captured u32:9.
     callFromSibling.
 
 : Both directions of this mutual recursion are tail calls, including through if branches.
@@ -93,14 +93,14 @@ v/b/tailFirst b/stop
     if b/stop true tailSecond true.
 v/b/tailSecond b/stop :: if b/stop false tailFirst true.
 
-: let, set, and foreach return unit of type void; the final expression returns the copied list.
+: hold, become, and foreach return unit of type void; the final expression returns the copied list.
 v/l/u32/copyList l/u32/items
     test copies list snapshot
         in l/u32: u32:2 u32:3 ::
         out l/u32: u32:2 u32:3 ::
-    let l/u32/copied l/u32: ::.
+    hold l/u32/copied l/u32: ::.
     foreach u32/elem l/u32/items do
-        set l/u32/copied concat l/u32/copied l/u32: u32/elem ::.
+        become l/u32/copied chain l/u32/copied l/u32: u32/elem ::.
     ::.
     l/u32/copied.
 

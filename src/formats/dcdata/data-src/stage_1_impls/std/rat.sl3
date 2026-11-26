@@ -20,7 +20,7 @@
 ns std/rat.
 use std/u128: u128Val errOverflow errDivisionByZero u128Zero ::.
 use std/i128: i128Val i128Zero ::.
-use std/bigint: bigInt intZero intOne isZero as intIsZero from as intFrom tryToU8 as intToU8 tryToI32 as intToI32 tryToU32 as intToU32 tryToI64 as intToI64 tryToU64 as intToU64 tryToI128 as intToI128 tryToU128 as intToU128 cmp as intCmp neg as intNeg add as intAdd mul as intMul tryDiv as intDiv gcd as intGcd ::.
+use std/bigint: bigInt intZero intOne isZero as intIsZero from as intFrom tryToU8 as intToU8 tryToI32 as intToI32 tryToU32 as intToU32 tryToI64 as intToI64 tryToU64 as intToU64 tryToI128 as intToI128 tryToU128 as intToU128 cmp as intCmp neg as intNeg sum as intAdd prod as intMul tryDiv as intDiv gcd as intGcd ::.
 
 : Canonical reduced rational `num / den`:
 : slot 0 = signed `bigInt` numerator (`num`),
@@ -42,12 +42,12 @@ v/ratVal/ratReducePosDen bigInt/num bigInt/den
     if intIsZero /num
         return /ratZero
         nop.
-    const bigInt/g intGcd /num /den.
+    be bigInt/g intGcd /num /den.
     if eq /g /intOne
         structNew ratVal: /num /den ::
         do
-            const tup: b bigInt u8 ::/rn intDiv /num /g.
-            const tup: b bigInt u8 ::/rd intDiv /den /g.
+            be tup: b bigInt u8 ::/rn intDiv /num /g.
+            be tup: b bigInt u8 ::/rd intDiv /den /g.
             structNew ratVal: field /rn u32:1 field /rd u32:1 ::.
         ::.
 
@@ -136,7 +136,7 @@ pub v/tup: b bigInt u8 ::/tryToInt ratVal/r
 : Checked narrowing `ratVal -> result/u128`.
 : @dc l8589982162
 pub v/tup: b u128Val u8 ::/tryToU128 ratVal/r
-    const tup: b bigInt u8 ::/iv tryToInt /r.
+    be tup: b bigInt u8 ::/iv tryToInt /r.
     if not field /iv u32:0
         tupNew: false /u128Zero /errOverflow ::
         intToU128 field /iv u32:1.
@@ -144,7 +144,7 @@ pub v/tup: b u128Val u8 ::/tryToU128 ratVal/r
 : Checked narrowing `ratVal -> result/i128`.
 : @dc l8589982163
 pub v/tup: b i128Val u8 ::/tryToI128 ratVal/r
-    const tup: b bigInt u8 ::/iv tryToInt /r.
+    be tup: b bigInt u8 ::/iv tryToInt /r.
     if not field /iv u32:0
         tupNew: false /i128Zero /errOverflow ::
         intToI128 field /iv u32:1.
@@ -152,7 +152,7 @@ pub v/tup: b i128Val u8 ::/tryToI128 ratVal/r
 : Checked narrowing `ratVal -> result/u64`.
 : @dc l8589982164
 pub v/tup: b u64 u8 ::/tryToU64 ratVal/r
-    const tup: b bigInt u8 ::/iv tryToInt /r.
+    be tup: b bigInt u8 ::/iv tryToInt /r.
     if not field /iv u32:0
         tupNew: false u64:0 /errOverflow ::
         intToU64 field /iv u32:1.
@@ -160,7 +160,7 @@ pub v/tup: b u64 u8 ::/tryToU64 ratVal/r
 : Checked narrowing `ratVal -> result/i64`.
 : @dc l8589982165
 pub v/tup: b i64 u8 ::/tryToI64 ratVal/r
-    const tup: b bigInt u8 ::/iv tryToInt /r.
+    be tup: b bigInt u8 ::/iv tryToInt /r.
     if not field /iv u32:0
         tupNew: false i64:0 /errOverflow ::
         intToI64 field /iv u32:1.
@@ -168,7 +168,7 @@ pub v/tup: b i64 u8 ::/tryToI64 ratVal/r
 : Checked narrowing `ratVal -> result/u32`.
 : @dc l8589982166
 pub v/tup: b u32 u8 ::/tryToU32 ratVal/r
-    const tup: b bigInt u8 ::/iv tryToInt /r.
+    be tup: b bigInt u8 ::/iv tryToInt /r.
     if not field /iv u32:0
         tupNew: false u32:0 /errOverflow ::
         intToU32 field /iv u32:1.
@@ -176,7 +176,7 @@ pub v/tup: b u32 u8 ::/tryToU32 ratVal/r
 : Checked narrowing `ratVal -> result/i32`.
 : @dc l8589982167
 pub v/tup: b i32 u8 ::/tryToI32 ratVal/r
-    const tup: b bigInt u8 ::/iv tryToInt /r.
+    be tup: b bigInt u8 ::/iv tryToInt /r.
     if not field /iv u32:0
         tupNew: false i32:0 /errOverflow ::
         intToI32 field /iv u32:1.
@@ -184,7 +184,7 @@ pub v/tup: b i32 u8 ::/tryToI32 ratVal/r
 : Checked narrowing `ratVal -> result/u8`.
 : @dc l8589982168
 pub v/tup: b u8 u8 ::/tryToU8 ratVal/r
-    const tup: b bigInt u8 ::/iv tryToInt /r.
+    be tup: b bigInt u8 ::/iv tryToInt /r.
     if not field /iv u32:0
         tupNew: false u8:0 /errOverflow ::
         intToU8 field /iv u32:1.
@@ -201,24 +201,24 @@ pub v/ratVal/neg ratVal/a
 
 : Infallible addition `a + b` on `ratVal`.
 : @dc l8589982170
-pub v/ratVal/add ratVal/a ratVal/b
+pub v/ratVal/sum ratVal/a ratVal/b
     test
         in structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:6 :: :: :: structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:3 :: :: ::
         out structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:2 :: :: ::.
-    const bigInt/an field /a u32:0.
-    const bigInt/ad field /a u32:1.
-    const bigInt/bn field /b u32:0.
-    const bigInt/bd field /b u32:1.
+    be bigInt/an field /a u32:0.
+    be bigInt/ad field /a u32:1.
+    be bigInt/bn field /b u32:0.
+    be bigInt/bd field /b u32:1.
     ratReducePosDen intAdd intMul /an /bd intMul /bn /ad intMul /ad /bd.
 
 : Infallible subtraction `a - b` on `ratVal`.
 : @dc l8589982171
-pub v/ratVal/sub ratVal/a ratVal/b
-    add /a neg /b.
+pub v/ratVal/diff ratVal/a ratVal/b
+    sum /a neg /b.
 
 : Infallible multiplication `a * b` on `ratVal`.
 : @dc l8589982172
-pub v/ratVal/mul ratVal/a ratVal/b
+pub v/ratVal/prod ratVal/a ratVal/b
     test
         in structNew ratVal: structNew bigInt: true l/u32: u32:2 :: :: structNew bigInt: false l/u32: u32:3 :: :: :: structNew ratVal: structNew bigInt: false l/u32: u32:9 :: :: structNew bigInt: false l/u32: u32:4 :: :: ::
         out structNew ratVal: structNew bigInt: true l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:2 :: :: ::.
@@ -304,26 +304,26 @@ pub v/b/canDiv ratVal/a ratVal/b
 
 : Checked StageL `makeRat` constructor (`(num, den) -> ratVal`), faulting when `den == 0`.
 : @dc l8589984964
-pub v/ratVal/makeRat bigInt/num bigInt/den
+pub v/ratVal/ratio bigInt/num bigInt/den
     test
         in structNew bigInt: false l/u32: u32:6 :: :: structNew bigInt: true l/u32: u32:4 :: ::
         out structNew ratVal: structNew bigInt: true l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:2 :: :: ::.
         in structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: :: ::
         out fault.
-    const tup: b ratVal u8 ::/r tryMakeRat /num /den.
+    be tup: b ratVal u8 ::/r tryMakeRat /num /den.
     if not field /r u32:0
         fault
         field /r u32:1.
 
 : Checked StageL `div` on `ratVal`, faulting on division by zero.
 : @dc l8589984965
-pub v/ratVal/div ratVal/a ratVal/b
+pub v/ratVal/quot ratVal/a ratVal/b
     test
         in structNew ratVal: structNew bigInt: false l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:4 :: :: :: structNew ratVal: structNew bigInt: false l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:2 :: :: ::
         out structNew ratVal: structNew bigInt: false l/u32: u32:1 :: :: structNew bigInt: false l/u32: u32:2 :: :: ::.
         in structNew ratVal: structNew bigInt: false l/u32: u32:3 :: :: structNew bigInt: false l/u32: u32:4 :: :: :: structNew ratVal: structNew bigInt: false l/u32: :: :: structNew bigInt: false l/u32: u32:1 :: :: ::
         out fault.
-    const tup: b ratVal u8 ::/r tryDiv /a /b.
+    be tup: b ratVal u8 ::/r tryDiv /a /b.
     if not field /r u32:0
         fault
         field /r u32:1.

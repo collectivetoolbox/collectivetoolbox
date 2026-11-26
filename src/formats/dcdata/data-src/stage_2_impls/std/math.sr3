@@ -233,7 +233,7 @@ pub v/rat/signum rat/x
         out conv int:0 rat.
         in conv int:3 rat
         out conv int:1 rat.
-    const rat/zero conv int:0 rat.
+    be rat/zero conv int:0 rat.
     if lt /x /zero
         conv int:-1 rat
         if gt /x /zero conv int:1 rat /zero.
@@ -304,13 +304,13 @@ pub v/u32/gcd u32/a u32/b
         out u32:0.
         in u32:0 u32:15
         out u32:15.
-    let u32/curA /a.
-    let u32/curB /b.
+    hold u32/curA /a.
+    hold u32/curB /b.
     while ne /curB u32:0 do
         : `/curB` is non-zero by the loop condition, so `mod` cannot divide by zero.
-        const u32/r unwrapOr mod /curA /curB u32:0.
-        set /curA /curB.
-        set /curB /r.
+        be u32/r valOr mod /curA /curB u32:0.
+        become /curA /curB.
+        become /curB /r.
     ::.
     /curA.
 
@@ -322,13 +322,13 @@ pub v/u64/gcd u64/a u64/b
         out u64:21.
         in u64:0 u64:0
         out u64:0.
-    let u64/curA /a.
-    let u64/curB /b.
+    hold u64/curA /a.
+    hold u64/curB /b.
     while ne /curB u64:0 do
         : `/curB` is non-zero by the loop condition, so `mod` cannot divide by zero.
-        const u64/r unwrapOr mod /curA /curB u64:0.
-        set /curA /curB.
-        set /curB /r.
+        be u64/r valOr mod /curA /curB u64:0.
+        become /curA /curB.
+        become /curB /r.
     ::.
     /curA.
 
@@ -340,13 +340,13 @@ pub v/u128/gcd u128/a u128/b
         out u128:30000000000000000000.
         in u128:0 u128:0
         out u128:0.
-    let u128/curA /a.
-    let u128/curB /b.
+    hold u128/curA /a.
+    hold u128/curB /b.
     while ne /curB u128:0 do
         : `/curB` is non-zero by the loop condition, so `mod` cannot divide by zero.
-        const u128/r unwrapOr mod /curA /curB u128:0.
-        set /curA /curB.
-        set /curB /r.
+        be u128/r valOr mod /curA /curB u128:0.
+        become /curA /curB.
+        become /curB /r.
     ::.
     /curA.
 
@@ -358,13 +358,13 @@ pub v/int/gcd int/a int/b
         out int:6.
         in int:0 int:0
         out int:0.
-    let int/curA abs /a.
-    let int/curB abs /b.
+    hold int/curA abs /a.
+    hold int/curB abs /b.
     while ne /curB int:0 do
         : `/curB` is non-zero by the loop condition, so `mod` cannot divide by zero.
-        const int/r unwrapOr mod /curA /curB int:0.
-        set /curA /curB.
-        set /curB /r.
+        be int/r valOr mod /curA /curB int:0.
+        become /curA /curB.
+        become /curB /r.
     ::.
     /curA.
 
@@ -380,7 +380,7 @@ pub v/result/u32/lcm u32/a u32/b
         out result/u32:err error:overflow.
     if or eq /a u32:0 eq /b u32:0
         result/u32:ok u32:0
-        mul div? /a gcd /a /b /b.
+        prod quot? /a gcd /a /b /b.
 
 : Checked least common multiple of two `u64` values (`error:overflow` on overflow).
 : @dc l8589987707
@@ -394,7 +394,7 @@ pub v/result/u64/lcm u64/a u64/b
         out result/u64:err error:overflow.
     if or eq /a u64:0 eq /b u64:0
         result/u64:ok u64:0
-        mul div? /a gcd /a /b /b.
+        prod quot? /a gcd /a /b /b.
 
 : Checked least common multiple of two `u128` values (`error:overflow` on overflow).
 : @dc l8589987708
@@ -408,7 +408,7 @@ pub v/result/u128/lcm u128/a u128/b
         out result/u128:err error:overflow.
     if or eq /a u128:0 eq /b u128:0
         result/u128:ok u128:0
-        mul div? /a gcd /a /b /b.
+        prod quot? /a gcd /a /b /b.
 
 : Non-negative least common multiple of two arbitrary-precision `int` values.
 : @dc l8589987709
@@ -421,10 +421,10 @@ pub v/int/lcm int/a int/b
     if or eq /a int:0 eq /b int:0
         int:0
         do
-            const int/absA abs /a.
-            const int/absB abs /b.
-            const int/g gcd /absA /absB.
+            be int/absA abs /a.
+            be int/absB abs /b.
+            be int/g gcd /absA /absB.
             : Both `/a` and `/b` are non-zero here, so `gcd` is strictly positive.
-            const int/q unwrapOr div /absA /g int:0.
-            mul /q /absB.
+            be int/q valOr quot /absA /g int:0.
+            prod /q /absB.
         ::.
