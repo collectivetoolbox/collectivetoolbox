@@ -121,6 +121,32 @@ fn should_copy(src: &Path, dst: &Path) -> bool {
     }
 }
 
+fn copy_file_replacing(src: &Path, dst: &Path) -> Result<()> {
+    match fs::copy(src, dst) {
+        Ok(_) => Ok(()),
+        Err(err)
+            if (err.kind() == std::io::ErrorKind::PermissionDenied
+                || err.raw_os_error() == Some(1))
+                && dst.is_file() =>
+        {
+            fs::remove_file(dst).with_context(|| {
+                format!("Failed to replace existing file {}", dst.display())
+            })?;
+            fs::copy(src, dst).with_context(|| {
+                format!(
+                    "Failed to copy {} to {} after removing existing destination",
+                    src.display(),
+                    dst.display()
+                )
+            })?;
+            Ok(())
+        }
+        Err(err) => Err(err).with_context(|| {
+            format!("Failed to copy {} to {}", src.display(), dst.display())
+        }),
+    }
+}
+
 /// Recursively copies a directory from `src` to `dst`.
 fn copy_dir_recursive(
     src: &Path,
@@ -144,6 +170,9 @@ fn copy_dir_recursive(
             let entry = entry?;
             let src_path = entry.path();
             let file_name = entry.file_name();
+            if file_name == ".lock" {
+                continue;
+            }
             let dst_path = dst.join(&file_name);
             if fs::metadata(&src_path).map(|m| m.is_dir()).unwrap_or(false) {
                 if src_path.ends_with("data/graph")
@@ -176,7 +205,7 @@ fn copy_dir_recursive(
                     continue;
                 }
                 if should_copy(&src_path, &dst_path) {
-                    fs::copy(&src_path, &dst_path)?;
+                    copy_file_replacing(&src_path, &dst_path)?;
                 }
             }
         }
@@ -185,7 +214,7 @@ fn copy_dir_recursive(
         symlink_in_dir(&canonical_src, workspace_root_canon)?;
         fs::create_dir_all(dst.parent().unwrap_or_else(|| Path::new(".")))?;
         if should_copy(&canonical_src, dst) {
-            fs::copy(&canonical_src, dst)?;
+            copy_file_replacing(&canonical_src, dst)?;
         }
     }
     Ok(())
@@ -315,8 +344,22 @@ fn write_text_file(path: &Path, contents: &str) -> Result<()> {
             return Ok(());
         }
     }
-    fs::write(path, contents)
-        .with_context(|| format!("Failed to write {}", path.display()))
+    match fs::write(path, contents) {
+        Ok(()) => Ok(()),
+        Err(err)
+            if (err.kind() == std::io::ErrorKind::PermissionDenied
+                || err.raw_os_error() == Some(1))
+                && path.is_file() =>
+        {
+            fs::remove_file(path).with_context(|| {
+                format!("Failed to replace existing file {}", path.display())
+            })?;
+            fs::write(path, contents)
+                .with_context(|| format!("Failed to write {}", path.display()))
+        }
+        Err(err) => Err(err)
+            .with_context(|| format!("Failed to write {}", path.display())),
+    }
 }
 
 fn normalize_relative_path(path: &Path) -> Result<String> {
@@ -802,13 +845,51 @@ fn copy_license_files(project_root: &Path, docs_dir: &Path) -> Result<()> {
             || name.starts_with("CHANGELOG")
         {
             let dest = docs_dir.join(name);
-            fs::copy(&path, &dest).with_context(|| {
-                format!(
-                    "Failed to copy {} to {}",
-                    path.display(),
-                    dest.display()
-                )
-            })?;
+            copy_file_replacing(&path, &dest)?;
+        }
+    }
+    Ok(())
+}
+
+fn prune_stale_staged_docs(
+    src_docs_dir: &Path,
+    dst_docs_dir: &Path,
+    is_top_level: bool,
+) -> Result<()> {
+    if !dst_docs_dir.is_dir() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(dst_docs_dir)
+        .with_context(|| format!("Failed to read {}", dst_docs_dir.display()))?
+    {
+        let entry = entry?;
+        let dst_path = entry.path();
+        let file_name = entry.file_name();
+        // Reason for fallback: non-UTF-8 entry names cannot match preserved ASCII top-level doc filenames
+        let name_str = file_name.to_str().unwrap_or("");
+        if is_top_level
+            && (name_str == "lib"
+                || name_str.starts_with("LICENSE")
+                || name_str.starts_with("TRADEMARKS")
+                || name_str.starts_with("CHANGELOG"))
+        {
+            continue;
+        }
+        if is_top_level && name_str == "reference-implementations" {
+            if dst_path.is_dir() {
+                fs::remove_dir_all(&dst_path)?;
+            }
+            continue;
+        }
+        let src_path = src_docs_dir.join(&file_name);
+        if dst_path.is_dir() {
+            if src_path.is_dir() {
+                prune_stale_staged_docs(&src_path, &dst_path, false)?;
+            } else {
+                fs::remove_dir_all(&dst_path)?;
+            }
+        } else if !src_path.is_file() {
+            fs::remove_file(&dst_path)?;
         }
     }
     Ok(())
@@ -866,6 +947,12 @@ fn prepare_runtime_assets(
             &mut visited,
         );
     }
+    prune_stale_staged_docs(
+        &project_root.join("docs"),
+        &runtime_assets.join("docs"),
+        true,
+    )
+    .context("Failed to prune stale staged docs")?;
     copy_dir_recursive(
         &project_root.join("docs"),
         &runtime_assets.join("docs"),
@@ -1486,19 +1573,32 @@ mod tests {
             b"do not stage",
         )?;
 
-        // Seed a stale destination copy to verify cleanup on incremental runs.
+        // Seed stale destination copies to verify cleanup on incremental runs.
         fs::create_dir_all(dst_docs.join("reference-implementations"))?;
         fs::write(
             dst_docs.join("reference-implementations/stale.txt"),
             b"stale",
         )?;
+        fs::create_dir_all(dst_docs.join("chats"))?;
+        fs::write(dst_docs.join("chats/old.md"), b"moved to notes")?;
+        fs::write(dst_docs.join("mvp-roadmap.md"), b"moved to notes")?;
+        fs::create_dir_all(dst_docs.join("lib/ctoolbox"))?;
+        fs::write(dst_docs.join("lib/ctoolbox/index.html"), b"<html/>")?;
+        fs::write(dst_docs.join("CHANGELOG.md"), b"# Changelog\n")?;
+        fs::write(src_docs.join(".lock"), b"")?;
 
         let canon_root = fs::canonicalize(&temp_dir)?;
         let mut visited = HashSet::new();
+        prune_stale_staged_docs(&src_docs, &dst_docs, true)?;
         copy_dir_recursive(&src_docs, &dst_docs, &canon_root, &mut visited)?;
 
         assert!(dst_docs.join("guides/intro.md").is_file());
         assert!(!dst_docs.join("reference-implementations").exists());
+        assert!(!dst_docs.join("chats").exists());
+        assert!(!dst_docs.join("mvp-roadmap.md").exists());
+        assert!(!dst_docs.join(".lock").exists());
+        assert!(dst_docs.join("lib/ctoolbox/index.html").is_file());
+        assert!(dst_docs.join("CHANGELOG.md").is_file());
 
         fs::remove_dir_all(&temp_dir)?;
         Ok(())

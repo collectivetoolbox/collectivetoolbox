@@ -1288,6 +1288,7 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
                         | "scripts"
                         | "issues"
                         | "memories"
+                        | "notes"
                         | "supply-chain"
                         | "old"
                         | "tests"

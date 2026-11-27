@@ -90,6 +90,7 @@ fn should_skip_dir(dir: &Path, path: &Path, rel_str: &str) -> bool {
 
     // Specific known external or generated paths:
     if rel_str == "docs/reference-implementations"
+        || rel_str == "notes/reference-implementations"
         || rel_str == "packaging/guix/generated"
         || rel_str == "assets/web/vendor"
         || rel_str == "assets/data/detection/magic/upstream"

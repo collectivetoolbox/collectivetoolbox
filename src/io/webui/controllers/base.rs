@@ -432,9 +432,10 @@ async fn serve_manifest_file(
                         }
                     }
                     Err(err) => {
-                        let _ = futures::executor::block_on(tx.send(Err(
-                            std::io::Error::other(err.to_string()),
-                        )));
+                        let _ =
+                            futures::executor::block_on(tx.send(Err(
+                                std::io::Error::other(err.to_string()),
+                            )));
                         break;
                     }
                 }
@@ -887,6 +888,14 @@ pub async fn get_doc_page(
         return redirect_permanent(req.is_js_request, "/docs/lib");
     }
 
+    if path == "cli/commands.md" {
+        return respond_markdown_unsafe(
+            &state,
+            req,
+            "/docs/cli/commands.generated.md",
+        );
+    }
+
     if path.ends_with(".md") && !path.starts_with("lib/") {
         // For markdown docs, we can render them on the fly.
         // Content embedded as assets should be safe
@@ -1104,6 +1113,10 @@ mod tests {
         .await;
         assert_eq!(status, 308);
         assert_eq!(location, "/docs/lib");
+
+        let (status, body) = test_get_no_login("/docs/cli/commands.md").await;
+        assert_eq!(status, 200);
+        assert!(body.contains("Collective Toolbox CLI Reference"));
     }
 
     #[crate::ctb_test("tokio")]
