@@ -1709,10 +1709,10 @@ Commands:
   metadata          Fetch live item metadata as pretty JSON
   filesxml          Fetch the live `_files.xml` document
   metaxml           Fetch the live `_meta.xml` document
-  download          Download an item or file from archive.org
+  download          Download an item or file from archive.org (resuming partial `.part` files)
   downloadAsStream  Download a single file and write it to stdout
-  downloadHere      Download a single file into the current directory
-  checkeddl         Download an item or file, then verify the downloaded content
+  downloadHere      Download a single file into the current directory (resuming partial `.part` files)
+  checkeddl         Download an item or file (resuming partial `.part` files), then verify checksums
 
 Options:
       --recover-graph  Recover valid graph nodes and warn instead of failing on corrupted or inconsistent graph data
@@ -1722,7 +1722,7 @@ Options:
 ### `ctoolbox ia checkeddl`
 
 ```text
-Download an item or file, then verify the downloaded content
+Download an item or file (resuming partial `.part` files), then verify checksums
 
 Usage: ctoolbox ia checkeddl [OPTIONS] <TARGET>
 
@@ -1757,7 +1757,7 @@ Options:
 ### `ctoolbox ia download`
 
 ```text
-Download an item or file from archive.org
+Download an item or file from archive.org (resuming partial `.part` files)
 
 Usage: ctoolbox ia download [OPTIONS] <TARGET>
 
@@ -1791,7 +1791,7 @@ Options:
 ### `ctoolbox ia downloadHere`
 
 ```text
-Download a single file into the current directory
+Download a single file into the current directory (resuming partial `.part` files)
 
 Usage: ctoolbox ia downloadHere [OPTIONS] <TARGET>
 
