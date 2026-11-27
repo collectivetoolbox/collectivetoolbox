@@ -169,9 +169,6 @@ fn save_dev_sign_cache(output_dir: &Path, cache: &DevSignChunkCache) {
 }
 
 fn artifact_cache_key(path: &Path) -> Result<(String, u64)> {
-    let meta = fs::metadata(path).with_context(|| {
-        format!("Failed to stat artifact: {}", path.display())
-    })?;
     let params_tag = format!(
         "cdc:{MIN_CHUNK_SIZE}:{AVG_CHUNK_SIZE}:{MAX_CHUNK_SIZE}:L{}",
         CHUNK_NORMALIZATION.bits()
@@ -179,6 +176,9 @@ fn artifact_cache_key(path: &Path) -> Result<(String, u64)> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
+        let meta = fs::metadata(path).with_context(|| {
+            format!("Failed to stat artifact: {}", path.display())
+        })?;
         Ok((
             format!(
                 "{params_tag}:unix:{}:{}:{}:{}:{}",
@@ -191,8 +191,42 @@ fn artifact_cache_key(path: &Path) -> Result<(String, u64)> {
             meta.len(),
         ))
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
     {
+        use std::os::windows::fs::MetadataExt;
+        let file = fs::File::open(path).with_context(|| {
+            format!("Failed to open artifact: {}", path.display())
+        })?;
+        let meta = file.metadata().with_context(|| {
+            format!("Failed to stat artifact: {}", path.display())
+        })?;
+        let size = meta.file_size();
+        let write_time = meta.last_write_time();
+        if let Ok(host_id) = ctb_utilities::files::query_open_host_file_id(&file)
+        {
+            return Ok((
+                format!(
+                    "{params_tag}:win:{}:{}:{size}:{write_time}",
+                    host_id.device_id, host_id.file_id
+                ),
+                size,
+            ));
+        }
+        // Reason for fallback: filesystems without non-zero file IDs fall back to canonical path so distinct files never collide
+        let canon = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        Ok((
+            format!(
+                "{params_tag}:path:{}:{size}:{write_time}",
+                canon.display()
+            ),
+            size,
+        ))
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let meta = fs::metadata(path).with_context(|| {
+            format!("Failed to stat artifact: {}", path.display())
+        })?;
         // Reason for fallback: non-canonicalizable artifact path uses its raw PathBuf for cache key construction
         let canon = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let mtime_ns = meta
@@ -878,13 +912,17 @@ mod tests {
 
         let shared_linux = input_linux.join("ctoolbox.rsrc");
         let shared_freebsd = input_freebsd.join("ctoolbox.rsrc");
+        let unlinked_copy = input_freebsd.join("unlinked.rsrc");
         fs::write(&shared_linux, vec![0x5Au8; 700_000]).unwrap();
         fs::hard_link(&shared_linux, &shared_freebsd).unwrap();
+        fs::write(&unlinked_copy, vec![0x5Au8; 700_000]).unwrap();
 
         let (key_linux, size_linux) = artifact_cache_key(&shared_linux).unwrap();
         let (key_freebsd, size_freebsd) =
             artifact_cache_key(&shared_freebsd).unwrap();
+        let (key_unlinked, _) = artifact_cache_key(&unlinked_copy).unwrap();
         assert_eq!(key_linux, key_freebsd);
+        assert_ne!(key_linux, key_unlinked);
         assert_eq!(size_linux, size_freebsd);
 
         let (checksum, chunks) =

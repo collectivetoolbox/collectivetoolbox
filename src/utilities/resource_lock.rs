@@ -64,8 +64,6 @@ use crate::{error, warn, warn_fmt};
 use anyhow::{Context, Result, bail};
 use fs2::FileExt; // Cross-platform advisory file locking
 use std::collections::HashMap;
-#[cfg(unix)]
-use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::thread::ThreadId;
@@ -475,59 +473,12 @@ pub fn check_filesystem_lock_support() -> Result<()> {
     Ok(())
 }
 
-pub fn get_inode_or_file_index(path: &Path) -> Result<u64> {
-    #[cfg(unix)]
-    {
-        let path_meta = fs::metadata(path)?;
-        Ok(path_meta.ino())
-    }
-    #[cfg(windows)]
-    {
-        let file = fs::File::open(path)?;
-        get_inode_or_file_index_from_descriptor(&file)
-    }
-}
-
-#[expect(
-    unsafe_code,
-    reason = "Unsafe Windows FFI to query file index by handle"
-)]
-pub fn get_inode_or_file_index_from_descriptor(file: &File) -> Result<u64> {
-    #[cfg(unix)]
-    {
-        let file_meta = file.metadata()?;
-        Ok(file_meta.ino())
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::io::AsRawHandle;
-        use windows_sys::Win32::Foundation::HANDLE;
-        use windows_sys::Win32::Storage::FileSystem::{
-            BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle,
-        };
-
-        let handle: HANDLE = file.as_raw_handle();
-        let mut info: BY_HANDLE_FILE_INFORMATION =
-            unsafe { std::mem::zeroed() };
-        let ok = unsafe { GetFileInformationByHandle(handle, &mut info) };
-        if ok == 0 {
-            bail!("GetFileInformationByHandle failed");
-        }
-        let high = u64::from(info.nFileIndexHigh);
-        let low = u64::from(info.nFileIndexLow);
-        let shifted = high
-            .checked_shl(32)
-            .ok_or_else(|| anyhow::anyhow!("shift overflow"))?;
-        Ok(shifted | low)
-    }
-}
-
 pub fn path_and_descriptor_match(path: &Path, file: &File) -> Result<bool> {
-    let file_ino = get_inode_or_file_index_from_descriptor(file)?;
-    let path_ino = get_inode_or_file_index(path)?;
+    let file_id = crate::files::query_open_host_file_id(file)?;
+    let path_id = crate::files::query_path_host_file_id(path)?;
 
-    // Check if inodes match and are non-zero (defensive on platforms where zero could be returned)
-    Ok(file_ino != 0 && path_ino != 0 && file_ino == path_ino)
+    // Check if IDs match and are non-zero (defensive on platforms where zero could be returned)
+    Ok(file_id.file_id != 0 && path_id.file_id != 0 && file_id == path_id)
 }
 
 #[cfg(test)]

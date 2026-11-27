@@ -424,85 +424,9 @@ pub fn query_file_identity(path: &Path) -> Result<InodeKey> {
 }
 
 /// Queries the unique file identity ([`InodeKey`]) of an open [`std::fs::File`] handle.
-#[cfg_attr(
-    windows,
-    expect(
-        unsafe_code,
-        reason = "Native identity query writes into initialized information for a live File handle"
-    )
-)]
 pub fn query_open_file_identity(file: &std::fs::File) -> Result<InodeKey> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        let meta = file
-            .metadata()
-            .context("Failed to read metadata for open file handle")?;
-        Ok(InodeKey {
-            device_id: meta.dev(),
-            inode: Natural::from(meta.ino()),
-        })
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::io::AsRawHandle;
-        use windows_sys::Win32::Storage::FileSystem::{
-            BY_HANDLE_FILE_INFORMATION, FILE_ID_INFO, FileIdInfo,
-            GetFileInformationByHandle, GetFileInformationByHandleEx,
-        };
-
-        let raw_handle = file.as_raw_handle();
-
-        // 1. Try FileIdInfo (Windows 8 / Server 2012+ / ReFS / modern NTFS) for 128-bit File ID
-        let mut id_info = std::mem::MaybeUninit::<FILE_ID_INFO>::uninit();
-        let size = u32::try_from(std::mem::size_of::<FILE_ID_INFO>())?;
-        // SAFETY: raw_handle is borrowed from a live File, and id_info points to a writable buffer of size bytes matching FILE_ID_INFO.
-        if unsafe {
-            GetFileInformationByHandleEx(
-                raw_handle,
-                FileIdInfo,
-                id_info.as_mut_ptr().cast(),
-                size,
-            )
-        } != 0
-        {
-            // SAFETY: GetFileInformationByHandleEx succeeded, initializing id_info with FILE_ID_INFO.
-            let id_info = unsafe { id_info.assume_init() };
-            let file_id_128 = u128::from_le_bytes(id_info.FileId.Identifier);
-            if file_id_128 != 0 {
-                return Ok(InodeKey::from_file_id_128(
-                    id_info.VolumeSerialNumber,
-                    file_id_128,
-                ));
-            }
-        }
-
-        // 2. Fall back to standard 64-bit file index via GetFileInformationByHandle
-        let mut information = BY_HANDLE_FILE_INFORMATION::default();
-        // SAFETY: raw_handle is borrowed from a live File, and information is a valid, writable BY_HANDLE_FILE_INFORMATION struct.
-        if unsafe {
-            GetFileInformationByHandle(raw_handle, &raw mut information)
-        } == 0
-        {
-            return Err(std::io::Error::last_os_error())
-                .context("Native open-handle file identity is unsupported or unavailable");
-        }
-        anyhow::ensure!(
-            information.nFileIndexHigh != 0 || information.nFileIndexLow != 0,
-            "Native open-handle file identity is unsupported: filesystem returned no file index"
-        );
-        let volume = u64::from(information.dwVolumeSerialNumber);
-        let file_index = (u128::from(information.nFileIndexHigh) << 32)
-            | u128::from(information.nFileIndexLow);
-        Ok(InodeKey::from_file_id_128(volume, file_index))
-    }
-    #[cfg(not(any(unix, windows)))]
-    {
-        let _ = file;
-        anyhow::bail!(
-            "query_open_file_identity is not supported on this platform"
-        );
-    }
+    let host_id = ctb_utilities::files::query_open_host_file_id(file)?;
+    Ok(InodeKey::from_file_id_128(host_id.device_id, host_id.file_id))
 }
 
 /// Queries the unique file identity ([`InodeKey`]) of an open [`std::fs::File`] handle when it

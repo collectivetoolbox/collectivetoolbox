@@ -433,6 +433,146 @@ pub fn try_set_sparse(file: &std::fs::File) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Unique host filesystem object identifier across volumes/mounts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct HostFileId {
+    /// Device ID (`st_dev`) on Unix or volume serial number on Windows.
+    pub device_id: u64,
+    /// Inode (`st_ino`) on Unix or 64-bit/128-bit file index on Windows.
+    pub file_id: u128,
+}
+
+/// Queries the unique [`HostFileId`] of an open [`std::fs::File`] handle.
+///
+/// On Unix, reads `(st_dev, st_ino)` from handle metadata. On Windows, queries
+/// 128-bit `FILE_ID_INFO` (ReFS and modern NTFS) via
+/// `GetFileInformationByHandleEx`, falling back to the 64-bit file index from
+/// `GetFileInformationByHandle` on Windows 7 or filesystems without `FileIdInfo`.
+#[cfg_attr(
+    windows,
+    expect(
+        unsafe_code,
+        reason = "Win32 GetFileInformationByHandleEx and GetFileInformationByHandle populate stack file-identity structs for a live File handle"
+    )
+)]
+pub fn query_open_host_file_id(file: &std::fs::File) -> Result<HostFileId> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let meta = file
+            .metadata()
+            .context("Failed to read metadata for open file handle")?;
+        Ok(HostFileId {
+            device_id: meta.dev(),
+            file_id: u128::from(meta.ino()),
+        })
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::{
+            BY_HANDLE_FILE_INFORMATION, FILE_ID_INFO, FileIdInfo,
+            GetFileInformationByHandle, GetFileInformationByHandleEx,
+        };
+
+        let raw_handle = file.as_raw_handle();
+
+        // 1. Try FileIdInfo (Windows 8+ / ReFS / modern NTFS) for 128-bit File ID.
+        let mut id_info = std::mem::MaybeUninit::<FILE_ID_INFO>::uninit();
+        let size = u32::try_from(std::mem::size_of::<FILE_ID_INFO>())?;
+        // SAFETY: `raw_handle` is borrowed from a live `File`, and `id_info`
+        // points to a writable buffer of `size` bytes matching `FILE_ID_INFO`.
+        if unsafe {
+            GetFileInformationByHandleEx(
+                raw_handle,
+                FileIdInfo,
+                id_info.as_mut_ptr().cast(),
+                size,
+            )
+        } != 0
+        {
+            // SAFETY: `GetFileInformationByHandleEx` returned non-zero, so
+            // `id_info` was initialized with `FILE_ID_INFO`.
+            let id_info = unsafe { id_info.assume_init() };
+            let file_id_128 = u128::from_le_bytes(id_info.FileId.Identifier);
+            if file_id_128 != 0 {
+                return Ok(HostFileId {
+                    device_id: id_info.VolumeSerialNumber,
+                    file_id: file_id_128,
+                });
+            }
+        }
+
+        // 2. Fall back to standard 64-bit file index via GetFileInformationByHandle.
+        let mut information: BY_HANDLE_FILE_INFORMATION =
+            // SAFETY: `BY_HANDLE_FILE_INFORMATION` is a plain-old-data Win32 C
+            // struct whose all-zero bit pattern is valid.
+            unsafe { std::mem::zeroed() };
+        // SAFETY: `raw_handle` is borrowed from a live `File`, and `information`
+        // is a valid, writable `BY_HANDLE_FILE_INFORMATION` struct.
+        if unsafe {
+            GetFileInformationByHandle(raw_handle, &raw mut information)
+        } == 0
+        {
+            return Err(std::io::Error::last_os_error()).context(
+                "Native open-handle file identity is unsupported or unavailable",
+            );
+        }
+        anyhow::ensure!(
+            information.nFileIndexHigh != 0 || information.nFileIndexLow != 0,
+            "Native open-handle file identity is unsupported: filesystem returned no file index"
+        );
+        let volume = u64::from(information.dwVolumeSerialNumber);
+        let file_index = u128::from(information.nFileIndexHigh)
+            .wrapping_shl(32)
+            | u128::from(information.nFileIndexLow);
+        Ok(HostFileId {
+            device_id: volume,
+            file_id: file_index,
+        })
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = file;
+        anyhow::bail!(
+            "query_open_host_file_id is not supported on this platform"
+        );
+    }
+}
+
+/// Queries the unique [`HostFileId`] of `path` (following symlinks).
+///
+/// On Unix, queries `std::fs::metadata` without opening a file descriptor so
+/// process-associated POSIX locks on `path` are never disturbed. On Windows,
+/// opens `path` with shared access and queries [`query_open_host_file_id`].
+pub fn query_path_host_file_id(path: &Path) -> Result<HostFileId> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let meta = std::fs::metadata(path).with_context(|| {
+            format!("Failed to stat file {}", path.display())
+        })?;
+        Ok(HostFileId {
+            device_id: meta.dev(),
+            file_id: u128::from(meta.ino()),
+        })
+    }
+    #[cfg(windows)]
+    {
+        let file = std::fs::File::open(path).with_context(|| {
+            format!("Failed to open file {}", path.display())
+        })?;
+        query_open_host_file_id(&file)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = path;
+        anyhow::bail!(
+            "query_path_host_file_id is not supported on this platform"
+        );
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -693,5 +833,32 @@ mod tests {
         assert_eq!(fs::read(&target).unwrap(), b"old");
         assert!(!backup.exists());
         assert_no_staging_temps(temp_dir.path());
+    }
+
+    #[crate::ctb_test]
+    fn test_query_host_file_id_hardlinks_and_distinct_files() {
+        let temp_dir = TempDir::new();
+        let original = temp_dir.path().join("original.bin");
+        let hardlinked = temp_dir.path().join("hardlinked.bin");
+        let separate = temp_dir.path().join("separate.bin");
+
+        fs::write(&original, b"payload").unwrap();
+        fs::hard_link(&original, &hardlinked).unwrap();
+        fs::write(&separate, b"payload").unwrap();
+
+        let open_orig = fs::File::open(&original).unwrap();
+        let open_link = fs::File::open(&hardlinked).unwrap();
+        let open_sep = fs::File::open(&separate).unwrap();
+
+        let id_orig = query_open_host_file_id(&open_orig).unwrap();
+        let id_link = query_open_host_file_id(&open_link).unwrap();
+        let id_sep = query_open_host_file_id(&open_sep).unwrap();
+
+        assert_ne!(id_orig.file_id, 0);
+        assert_eq!(id_orig, id_link);
+        assert_ne!(id_orig, id_sep);
+        assert_eq!(query_path_host_file_id(&original).unwrap(), id_orig);
+        assert_eq!(query_path_host_file_id(&hardlinked).unwrap(), id_orig);
+        assert_eq!(query_path_host_file_id(&separate).unwrap(), id_sep);
     }
 }
