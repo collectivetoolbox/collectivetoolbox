@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+workspace_root="$(pwd)"
+cd - >/dev/null || exit 1
+
+# Repairs restrictive permissions inside Cargo build-script output directories
+# (notably zstd-sys and aws-lc-sys, whose build.rs scripts call std::fs::copy on
+# 0644 source headers, stripping default ACL write bits when built as root in a
+# dev container and causing PermissionDenied when later rebuilt on the host).
+fix_tree() {
+    local dir="$1"
+    [[ -d "$dir" ]] || return 0
+
+    local uid
+    uid="$(id -u)"
+
+    # Ensure directories owned by the current user are world-writable/searchable
+    # so both host and dev-container UIDs can create and replace files inside them.
+    find "$dir" -type d -user "$uid" ! -perm -0777 -exec chmod a+rwx {} + 2>/dev/null || true
+
+    # Upgrade regular files owned by the current user (e.g. headers copied with
+    # 0644 by std::fs::copy) to a+rw in bulk.
+    find "$dir" -type f -user "$uid" ! -perm -0666 -exec chmod a+rw {} + 2>/dev/null || true
+
+    # If any regular file owned by another UID (e.g. root from the dev container
+    # when building as a non-root user on the host) is not writable by us,
+    # atomically replace it inside its writable parent directory while preserving
+    # contents, executable bit, and modification timestamp.
+    while IFS= read -r -d '' f; do
+        if [[ ! -w "$f" && -r "$f" ]]; then
+            local parent_dir tmp
+            parent_dir="$(dirname "$f")"
+            if [[ -w "$parent_dir" ]]; then
+                tmp="${f}.ctb-perm.$$"
+                if [[ -e "$tmp" || -L "$tmp" ]]; then
+                    unlink "$tmp"
+                fi
+                cat "$f" > "$tmp"
+                if [[ -x "$f" ]]; then
+                    chmod a+rwx "$tmp"
+                else
+                    chmod a+rw "$tmp"
+                fi
+                touch -r "$f" "$tmp"
+                mv "$tmp" "$f" </dev/null
+            fi
+        fi
+    done < <(find "$dir" -type f ! -perm -0666 -print0 2>/dev/null || true)
+}
+
+if [[ $# -gt 0 ]]; then
+    for target_dir in "$@"; do
+        fix_tree "$target_dir"
+    done
+else
+    shopt -s nullglob
+    for build_dir in "$workspace_root"/target/*/build "$workspace_root"/target/*/*/build; do
+        fix_tree "$build_dir"
+    done
+fi

@@ -38,14 +38,19 @@ CC_i586_unknown_linux_musl = { value = "scripts/i586-musl-gcc", relative = true 
 CC_x86_64_unknown_linux_musl = { value = "scripts/x86_64-musl-gcc", relative = true }
 CC_x86_64_win7_windows_gnu = { value = "x86_64-w64-mingw32-gcc" }
 CXX_x86_64_win7_windows_gnu = { value = "x86_64-w64-mingw32-g++" }
-AR_x86_64_win7_windows_gnu = { value = "x86_64-w64-mingw32-gcc-ar" }
+AR_x86_64_unknown_linux_gnu = { value = "scripts/cargo-ar", relative = true }
+AR_i686_unknown_linux_gnu = { value = "scripts/cargo-ar", relative = true }
+AR_i586_unknown_linux_gnu = { value = "scripts/cargo-ar", relative = true }
+AR_x86_64_unknown_linux_musl = { value = "scripts/cargo-ar", relative = true }
+AR_i586_unknown_linux_musl = { value = "scripts/cargo-ar", relative = true }
+AR_x86_64_win7_windows_gnu = { value = "scripts/cargo-ar", relative = true }
 WINDRES = { value = "x86_64-w64-mingw32-windres" }
 RC_x86_64_win7_windows_gnu = { value = "x86_64-w64-mingw32-windres" }
 # CC_x86_64_pc_windows_gnu = { value = "x86_64-w64-mingw32-gcc" }
 
 CC_x86_64_unknown_freebsd = { value = "scripts/x86_64-freebsd-clang", relative = true }
 CXX_x86_64_unknown_freebsd = { value = "scripts/x86_64-freebsd-clang++", relative = true }
-AR_x86_64_unknown_freebsd = { value = "ar" }
+AR_x86_64_unknown_freebsd = { value = "scripts/cargo-ar", relative = true }
 
 PKG_CONFIG_SYSROOT_DIR_i586_unknown_linux_musl = { value = "/usr/include/i386-linux-musl" }
 PKG_CONFIG_SYSROOT_DIR_x86_64_unknown_linux_musl = { value = "/usr/include/x86_64-linux-musl" }

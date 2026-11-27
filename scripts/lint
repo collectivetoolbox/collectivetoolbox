@@ -63,6 +63,18 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
+cleanup_lint_permissions() {
+    local rc=$?
+    if [[ -x ./scripts/fix-target-permissions ]]; then
+        ./scripts/fix-target-permissions || true
+    fi
+    exit "$rc"
+}
+trap cleanup_lint_permissions EXIT
+if [[ -x ./scripts/fix-target-permissions ]]; then
+    ./scripts/fix-target-permissions
+fi
+
 echo "=== Running Rust linters ==="
 # This includes checks for:
 # - unwrap_or domain fallbacks

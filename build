@@ -352,6 +352,20 @@ if [[ "$clean_generated" == "true" ]]; then
     ./scripts/clean-generated
 fi
 
+fix_target_permissions_if_available() {
+    if [[ -x ./scripts/fix-target-permissions ]]; then
+        ./scripts/fix-target-permissions
+    fi
+}
+
+cleanup_build_permissions() {
+    local rc=$?
+    fix_target_permissions_if_available || true
+    exit "$rc"
+}
+trap cleanup_build_permissions EXIT
+fix_target_permissions_if_available
+
 cp .cargo/config.default.toml .cargo/config.toml
 
 if [[ "$offline" == "--offline" ]]; then

@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+workspace_root="$(pwd)"
+cd - >/dev/null || exit 1
+
+# Repair any non-writable files left in $OUT_DIR (such as root-owned 0644 headers
+# from zstd-sys/build.rs) immediately before cc::Build archives static libraries
+# and copies headers into $OUT_DIR/include.
+if [[ -n "${OUT_DIR:-}" && -d "$OUT_DIR" ]]; then
+    "$workspace_root/scripts/fix-target-permissions" "$OUT_DIR"
+fi
+
+case "${TARGET:-}" in
+    *-windows-gnu)
+        ar_bin="x86_64-w64-mingw32-gcc-ar"
+        ;;
+    *)
+        ar_bin="ar"
+        ;;
+esac
+
+rc=0
+"$ar_bin" "$@" || rc=$?
+
+if [[ "$rc" -eq 0 && -n "${OUT_DIR:-}" && -d "$OUT_DIR" ]]; then
+    "$workspace_root/scripts/fix-target-permissions" "$OUT_DIR"
+fi
+
+exit "$rc"

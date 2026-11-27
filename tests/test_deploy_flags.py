@@ -1065,6 +1065,52 @@ sys.exit(0)
                 ["clean", "--target", "x86_64-unknown-linux-musl"], clean_calls2
             )
 
+    def test_fix_target_permissions_and_cargo_ar_repair_readonly_headers(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_dir = pathlib.Path(tmpdir) / "zstd-out"
+            include_dir = out_dir / "include"
+            include_dir.mkdir(parents=True)
+            out_dir.chmod(0o755)
+            include_dir.chmod(0o755)
+
+            header = include_dir / "zstd.h"
+            header.write_bytes(b"/* zstd header */\n")
+            os.utime(header, (1700000000, 1700000000))
+            header.chmod(0o444)
+
+            mock_bin = pathlib.Path(tmpdir) / "bin"
+            mock_bin.mkdir()
+            mock_ar = mock_bin / "ar"
+            mock_ar.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                'printf "archiver-output" > "$2"\n'
+                'chmod 0644 "$2"\n',
+                encoding="utf-8",
+            )
+            mock_ar.chmod(0o755)
+
+            env = os.environ.copy()
+            env["OUT_DIR"] = str(out_dir)
+            env["TARGET"] = "x86_64-unknown-linux-gnu"
+            env["PATH"] = f"{mock_bin}:{env.get('PATH', '')}"
+
+            archive_path = out_dir / "libzstd.a"
+            res = subprocess.run(
+                [str(REPO_ROOT / "scripts" / "cargo-ar"), "crs", str(archive_path)],
+                cwd=tmpdir,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res.returncode, 0, res.stderr)
+            self.assertEqual(header.read_bytes(), b"/* zstd header */\n")
+            self.assertEqual(int(header.stat().st_mtime), 1700000000)
+            self.assertEqual(header.stat().st_mode & 0o666, 0o666)
+            self.assertEqual(archive_path.stat().st_mode & 0o666, 0o666)
+            self.assertEqual(include_dir.stat().st_mode & 0o777, 0o777)
+
 
 if __name__ == "__main__":
     unittest.main()
